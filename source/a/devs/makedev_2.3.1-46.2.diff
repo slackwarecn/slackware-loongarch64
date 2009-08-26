@@ -1,0 +1,2952 @@
+--- makedev-2.3.1.orig/MAKEDEV.man
++++ makedev-2.3.1/MAKEDEV.man
+@@ -124,8 +124,7 @@
+ .BI ttyC x
+ and the corresponding dial-out device is
+ .BI cub x 
+-By default devices for 7 lines are created, but this can be changed to
+-15 by removing the comment.
++Devices for 32 lines are created.
+ .TP
+ .B Pseudo Terminals
+ .TP
+@@ -387,4 +386,4 @@
+ Linux Allocated Devices, maintained by H.\ Peter Anvin,
+ <Peter.Anvin@linux.org>.
+ .SH AUTHOR
+-Nick Holloway, <Nick.Hollowa
+\ No newline at end of file
++Nick Holloway, <Nick.Hollowa
+--- makedev-2.3.1.orig/MAKEDEV
++++ makedev-2.3.1/MAKEDEV
+@@ -10,25 +10,38 @@
+ # system, and you may change the permissions to suit your preference.  These
+ # lines _must_ be of the format "user group perm".
+ 
+- public="  root sys    666"
+- system="  root sys    660"
+-   kmem="  root kmem   660"
+-    tty="  root tty    666"
+-   cons="  root tty    622"	# 622 for console?
+-    vcs="  root sys    600"
+-dialout="  root uucp   660"
+-  mouse="  root sys    666"
+-printer="  root daemon 660"
+- floppy="  root floppy 660"
+-   disk="  root disk   660"
+-   scsi="  root sys    600"
+-  cdrom="  root disk   660"
+-   tape="  root disk   660"
+-  audio="  root sys    666"
+-  ibcs2="  root sys    666"
+-scanner="  root sys    666"
++ public="  root root   0666"
++private="  root root   0600"
++ system="  root root   0660"
++   kmem="  root kmem   0640"
++    tty="  root tty    0666"
++   cons="  root tty    0622"
++    vcs="  root root   0600"
++dialout="  root dialout 0660"
++  mouse="  root root   0660"
++printer="  root lp     0660"
++ floppy="  root floppy 0660"
++   disk="  root disk   0660"
++   scsi="  root root   0600"
++  cdrom="  root cdrom  0660"
++   tape="  root tape   0660"
++  audio="  root audio  0660"
++  video="  root video  0660"
++  ibcs2="  root root   0666"
++scanner="  root root   0666"
++   coda="  root root   0600"
++  ipsec="  root root   0200"
++readable="  root root   0444"
+ 
+-MAXVT=8
++MAXVT=63
++
++# defaults for $major_*
++major_ide0=3
++major_ide1=22
++major_sd=8
++major_lp=6
++
++# Remark: OSS/Linux becomes major_OSSLinux
+ 
+ #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+ 
+@@ -94,41 +107,30 @@
+ 
+ #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+ 
+-# For bash and ksh, we can use faster builtin routines to do manipulation,
+-# otherwise (ash) fall back to slower method using `expr'.
+-# The extra level of indirection using `eval' is necessary a) for ksh, and
+-# b) to get past ash.
++# Debian allows us to assume /bin/sh is a POSIX compliant shell, so go for it!
+ 
+-if [ "$RANDOM" != "$RANDOM" ]
+-then
+-	math () {
+-		eval echo "\$(($*))"
+-	}
+-	index () {	# index string c
+-		eval "I=\${1%$2*}"
+-		eval echo "\${#I}"
+-	}
+-	suffix () {
+-	    eval echo "\${1#$2}"
+-	}
+-	strip () {
+-		eval echo "\${1% $2 *} \${1#* $2 }"
+-	}
+-else
+-	math () {
+-		expr "$@"
+-	}
+-	index () {	# index string c
+-		expr $1 : ".*$2" - 1
+-	}
+-	suffix () {
+-		expr "$1" : "$2\(.*\)"
+-	}
+-	strip () {
+-		echo "[$1][$2]" >&2
+-		echo "`expr \"$1\" : \"\(.*\) $2 \"` `expr \"$1\" : \".* $2 \(.*\)\"`"
+-	}
+-fi
++math () {
++	eval echo "\$(($*))"
++}
++index () {	# index string c
++	eval "I=\${1%$2*}"
++	eval echo "\${#I}"
++}
++suffix () {
++	eval echo "\${1#$2}"
++}
++strip () {
++	eval echo "\${1% $2 *} \${1#* $2 }"
++}
++first () {
++	eval echo "\${1:0:1}"
++}
++second () {
++	eval echo "\${1:1:1}"
++}
++substr () {
++	echo $1 | cut -c $2
++}
+ 
+ #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+ 
+@@ -140,6 +142,7 @@
+ 	exec 3<$procfs/devices
+ 	while read major device <&3
+ 	do
++		device=`echo $device|tr -d /`
+ 		case "$major" in
+ 			Character|Block|'')
+ 				;;
+@@ -166,7 +169,7 @@
+ 	while [ $# -ne 0 ]
+ 	do
+ 		case "$1" in
+-			mem|tty|ttyp|cua|cub)	;;
++			mem|tty|ttyp|cua|cub|cui)	;;
+ 			hd)	(for d in a b c d e f g h ; do
+ 					echo -n hd$d " "
+ 				 done) ; echo
+@@ -175,13 +178,16 @@
+ 			ide1)	echo hdc hdd ;;
+ 			ide2)	echo hde hdf ;;
+ 			ide3)	echo hdg hdh ;;
+-			sd)	echo sda sdb ;;
+-			sr)	echo scd0 ;;
++			sd)	echo sda sdb sdc sdd ;;
++			sg)	echo sg ;;
++			sr)	echo scd ;;
+ 			st)	echo st0 ;;
+ 			xd)	echo xda xdb ;;
++			ad)	echo ada adb ;;
+ 			fd)	echo fd0 fd1 ;;
+ 			lp)	echo lp ;;
+ 			mt)	echo ftape ;;
++			qft)	echo ftape ;;
+ 			loop)	echo loop ;;
+ 			md)	echo md ;;
+ 			ibcs2)	echo ibcs2 ;;
+@@ -191,13 +197,31 @@
+ 			ac4096)		echo ac4096 ;;
+ 			hw)	echo helloworld ;;
+ 			sbpcd | sbpcd[123])	echo $1 ;;
+-			Joystick)	echo js ;;
++			joystick)	echo js ;;
+ 			apm_bios)	echo apm ;;
+ 			dcf)		echo dcf ;;
+ 			aztcd)		echo aztcd ;;
++			cm206cd)	echo cm206cd ;;
++			gscd)		echo gscd ;;
+ 			pcmcia)	;; # taken care of by its own driver
+ 			ttyC)	echo cyclades ;;
++			isdn)	echo isdnmodem isdnbri dcbri ;;
+ 			vcs)	;;
++			pty)	echo pty ;;
++			misc)	echo misc ;;
++			3dfx)	echo 3dfx ;;
++			agpgart)	echo agpgart ;;
++			ipmi|ipmikcs)	echo ipmi ;;
++			fb)	echo fb ;;
++			nb)	echo nb0 nb1 ;;
++			netlink)	echo netlink ;;
++			hamradio)	echo hamradio ;;
++			snd)	;;
++			ptm)	;;
++			pts)	;;
++			ttyS)	echo ttyS0 ttyS1 ttyS2 ttyS3 ;;
++			ttyI)	echo ttyI0 ttyI1 ttyI2 ttyI3 ;;
++			ircomm|irlpt)	irda ;;
+ 			*)	echo "$0: don't know what \"$1\" is" >&2 ;;
+ 		esac
+ 		shift
+@@ -206,20 +230,148 @@
+ 
+ for arg
+ do
++#	case `cvt $arg` in
+ 	case $arg in
+ 	generic)
++		# pick the right generic-<arch> using dpkg's knowledge
++		case `dpkg --print-installation-architecture` in
++			alpha)
++				$0 $opts generic-alpha
++				;;
++			arm)
++				$0 $opts generic-arm
++				;;
++			i386)
++				$0 $opts generic-i386
++				;;
++			m68k)
++				$0 $opts generic-m68k
++				;;
++			powerpc)
++				$0 $opts generic-powerpc
++				;;
++			sparc)
++				$0 $opts generic-sparc
++				;;
++			*)
++				echo "$0: no support for generic-$arg" >&2
++				exit 1
++				;;
++		esac
++		;;
++	generic-alpha)
+ 		$0 $opts std
+ 		$0 $opts fd
+ 		$0 $opts fd0 fd1
+-		$0 $opts hda hdb
++		$0 $opts hda hdb hdc hdd
++		$0 $opts xda xdb
++		$0 $opts sda sdb sdc sdd
++		$0 $opts scd0 scd1
++		$0 $opts st0 st1
++		$0 $opts sg
++		$0 $opts pty
++		$0 $opts console
++		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
++		$0 $opts busmice
++		$0 $opts lp
++		$0 $opts par
++		$0 $opts audio
++		$0 $opts fb
++		;;
++	generic-arm)
++		$0 $opts std
++		$0 $opts fd
++		$0 $opts fd0 fd1
++		$0 $opts hda hdb hdc hdd
++		$0 $opts xda xdb
++		$0 $opts sda sdb sdc sdd
++		$0 $opts scd0 scd1
++		$0 $opts st0 st1
++		$0 $opts sg
++		$0 $opts pty
++		$0 $opts console
++		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
++		$0 $opts busmice
++		$0 $opts lp
++		$0 $opts par
++		$0 $opts audio
++		$0 $opts fb
++		;;
++	generic-i386)
++		$0 $opts std
++		$0 $opts fd
++		$0 $opts fd0 fd1
++		$0 $opts hda hdb hdc hdd
+ 		$0 $opts xda xdb
+-		$0 $opts sda sdb
++		$0 $opts sda sdb sdc sdd
++		$0 $opts scd0 scd1
++		$0 $opts st0 st1
++		$0 $opts sg
+ 		$0 $opts pty
+ 		$0 $opts console
+ 		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
+ 		$0 $opts busmice
+ 		$0 $opts lp
+ 		$0 $opts par
++		$0 $opts audio
++		$0 $opts fb
++		;;
++	generic-m68k)
++		$0 $opts std
++		$0 $opts fd
++		$0 $opts fd0-bare fd1-bare
++		$0 $opts hda hdb
++		$0 $opts sda sdb sdc sdd
++		$0 $opts sg
++		$0 $opts ada adb
++		$0 $opts pty
++		$0 $opts console
++		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3 ttyS5
++		$0 $opts m68k-mice
++		$0 $opts lp
++		$0 $opts par
++		$0 $opts nvram
++		$0 $opts audio
++		$0 $opts fb
++		;;
++	generic-powerpc)
++		$0 $opts std
++		$0 $opts fd
++		$0 $opts fd0-bare fd1-bare
++		$0 $opts hda hdb hdc hdd
++		$0 $opts sda sdb sdc sdd
++		$0 $opts scd0 scd1
++		$0 $opts st0 st1
++		$0 $opts sg
++		$0 $opts pty
++		$0 $opts console
++		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
++		$0 $opts busmice
++		$0 $opts lp
++		$0 $opts par
++		$0 $opts nvram
++		$0 $opts audio
++		$0 $opts adb
++		$0 $opts fb
++		$0 $opts rtc
++		;;
++	generic-sparc)
++		$0 $opts std
++		$0 $opts fd0-bare fd1-bare
++		$0 $opts hda hdb
++		$0 $opts sda sdb sdc sdd
++		$0 $opts scd0 scd1
++		$0 $opts st0 st1
++		$0 $opts sg
++		$0 $opts pty
++		$0 $opts console
++		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
++		$0 $opts fb
++		$0 $opts rtc
++		makedev kbd  c 11 0 $cons
++		makedev sunmouse  c 10 6 $mouse
++		symlink sunmouse mouse
++		makedev openprom  c 10 139 $private
+ 		;;
+ 	local)
+ 		$0.local $opts
+@@ -232,22 +384,71 @@
+ 		makedev zero c 1 5 $public
+ 		symlink core $procfs/kcore
+ 		makedev full c 1 7 $public
+-		$0 ram
++		makedev random c 1 8 $readable
++		makedev urandom c 1 9 $readable
+ 		makedev tty  c 5 0 $tty
++		$0 $opts ram
++		$0 $opts loop
++		;;
++	hamradio)
++		$0 $opts scc
++		$0 $opts bc
++		;;
++	scc)
++		for unit in 0 1 2 3 4 5 6 7 
++		do
++			makedev scc$unit c 34 $unit $system
++		done
++		;;
++	bc)	
++		for unit in 0 1 2 3
++		do
++			makedev bc$unit c 51 $unit $system
++		done
++		;;
++	random)
++		makedev random c 1 8 $readable
++		;;
++	urandom)
++		makedev urandom c 1 9 $readable
+ 		;;
+ 	ram)
+-		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
++		for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ; do
+ 			makedev ram$i  b 1 $i $disk
+ 		done
+-		ln -sf ram1 ram
++		symlink ram ram1
+ 		;;
+-	console)
+-		major=`Major vcs`	# not fatal
+-		# console
++	ram[0-9]|ram1[0-6])
++		unit=`suffix $arg ram`
++		makedev ram$unit b 1 $unit $disk
++		;;
++	initrd)
++		makedev initrd b 1 250 $disk
++		;;
++	consoleonly)
+ 		makedev tty0 c 4 0 $cons
+-		symlink console tty0
++		#	new kernels need a device, old ones a symlink... sigh
++		kern_rev1=`uname -r | awk -F'.' '{print $1}'`
++		kern_rev2=`uname -r | awk -F'.' '{print $2}'`
++		if [ $kern_rev1 -gt 2 ]
++		then
++			makedev console c 5 1 $cons
++		else
++			if [ $kern_rev1 -eq 2 -a $kern_rev2 -ge 1 ]
++			then
++				makedev console c 5 1 $cons
++			else
++				symlink console tty0
++			fi
++		fi
++		;;
++	console)
++		$0 $opts consoleonly
++		major=`Major vcs 7`       # not fatal
+ 		[ "$major" ] && makedev vcs0 c $major 0 $vcs
+-		[ "$major" ] && makedev vcsa c $major 128 $vcs
++		symlink vcs vcs0
++		[ "$major" ] && makedev vcsa0 c $major 128 $vcs
++		symlink vcsa vcsa0
+ 		# individual vts
+ 		line=1
+ 		while [ $line -le $MAXVT -a $line -le 63 ]
+@@ -258,6 +459,32 @@
+ 			line=`math $line + 1`
+ 		done
+ 		;;
++	adb)
++		# pick the right arch device using dpkg's knowledge
++		case `dpkg --print-installation-architecture` in
++			powerpc)
++				# ADB bus devices (char)
++				makedev adb c 56 0 $mouse
++				makedev adbmouse c 10 10 $mouse
++				;;
++			m68k)
++				# ACSI disk 2, whole device (block)
++				makedev adb b 28 16 $disk
++				for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++				do
++					minor=$(( 16 + $part ))
++					makedev adb$part b 28 $minor $disk
++				done
++				;;
++			*)
++				echo "no support for adb on $arg" >&2
++				exit 1
++				;;
++		esac
++		;;
++	nvram)
++		makedev nvram c 10 144 $kmem
++		;;
+ 	tty[1-9]|tty[1-5][0-9]|tty[6][0-3])
+ 		line=`suffix $arg tty`
+ 		makedev tty$line c 4 $line $tty
+@@ -265,8 +492,7 @@
+ 	ttyS[0-9]|ttyS[1-5][0-9]|ttyS[6][0-3])
+ 		line=`suffix $arg ttyS`
+ 		minor=`math 64 + $line`
+-		makedev ttyS$line c 4 $minor $tty
+-		makedev cua$line c 5 $minor $dialout
++		makedev ttyS$line c 4 $minor $dialout
+ 		;;
+ 	pty[a-ep-z])
+ 		bank=`suffix $arg pty`
+@@ -285,42 +511,350 @@
+ 		do
+ 			ptysufs="$ptysufs pty$i"
+ 		done
+-		$0 $opts $ptysufs
++		$0 $opts $ptysufs ptmx
+ 		;;
+-	cyclades)
+-		major1=`Major ttyC` || continue
+-		major2=`Major cub` || continue
++	ptmx)
++		# master pty multiplexer for 2.1 kernels
++		makedev ptmx c 5 2 $tty
++		;;
++	cyclades|ttyC)
++		major1=`Major ttyC 19` || continue
++		#major2=`Major cub 20` || continue
+ 		for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 \
+-                         16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
++                         16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 
++		do
++			makedev ttyC$i c $major1 $i $dialout
++			#makedev cub$i c $major2 $i $dialout
++		done
++		;;
++	stallion|ttyE)
++		major1=`Major ttyE 24` || continue
++		#major2=`Major cue 25` || continue
++		majorc=28
++		minor=0
++		until [ $minor -gt 256 ]
++		do
++			makedev ttyE$minor c $major1 $minor $dialout
++			#makedev cue$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		for i in 0 1 2 3
++		do
++			makedev staliomem$i c $majorc $i $private
++		done
++		;;
++	chase|ttyH)
++		major1=`Major ttyH 17` || continue
++		#major2=`Major cuh 18` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyH$minor c $major1 $minor $dialout
++			#makedev cuh$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	rocketport|ttyR)
++		major1=`Major ttyR 46` || continue
++		#major2=`Major cur 47` || continue
++		minor=0
++		until [ $minor -gt 64 ] # tell me if 64 is wrong
++		do
++			makedev ttyR$minor c $major1 $minor $dialout
++			#makedev cur$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	ttyV)
++		major1=`Major ttyV 105` || continue
++		#major2=`Major cuv 106` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyV$minor c $major1 $minor $dialout
++			#makedev cuv$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	digi|ttyD)
++		major1=`Major ttyD 22` || continue
++		#major2=`Major cud 23` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyD$minor c $major1 $minor $dialout
++			#makedev cud$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	specialix|ttyX)
++		major1=`Major ttyX 32` || continue
++		#major2=`Major cux 33` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyX$minor c $major1 $minor $dialout
++			#makedev cux$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	specialixIO8|ttyW)
++		major1=`Major ttyW 75` || continue
++		#major2=`Major cuw 76` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyW$minor c $major1 $minor $dialout
++			#makedev cuw$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	PAM|ttyM)
++		major1=`Major ttyM 79` || continue
++		#major2=`Major cum 80` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyM$minor c $major1 $minor $dialout
++			#makedev cum$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	riscom|ttyL)
++		major=`Major ttyL 48` || continue
++		minor=0
++		until [ $minor -gt 16 ] # tell me if 16 is wrong
++		do
++			makedev ttyL$minor c $major $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	computone|ttyF)
++		major=`Major ttyF 71` || continue
++		#major2=`Major cuf 72` || continue
++		minor=0
++		until [ $minor -gt 255 ]
++		do
++			makedev ttyF$minor c $major $minor $dialout
++			#makedev cuf$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		major=73
++		for i in 0 4 8 12
++		do
++			makedev ip2ipl$i  c $major $i $private
++			makedev ip2stat$i c $major `math $i + 1` $private
++		done
++		;;
++	ESP|ttyP)
++		major=`Major ttyP 57` || continue
++		#major2=`Major cup 58` || continue
++		minor=0
++		until [ $minor -gt 4 ] # tell me if 4 is wrong
++		do
++			makedev ttyP$minor c $major $minor $dialout
++			#makedev cup$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	COMX|comx)
++		major=`Major comx 88` || continue
++		minor=0
++		until [ $minor -gt 4 ] # tell me if 4 is wrong
++		do
++			makedev comx$minor c $major $minor $private
++			minor=`math $minor + 1`
++		done
++		;;
++	isdnmodem|ttyI)
++		major1=`Major ttyI 43` || continue
++		#major2=`Major cui 44` || continue
++		minor=0
++		until [ $minor -gt 63 ]
++		do
++			makedev ttyI$minor c $major1 $minor $dialout
++			#makedev cui$minor c $major2 $minor $dialout
++			minor=`math $minor + 1`
++		done
++		;;
++	isdnbri)
++		major=45
++		minor=0
++		until [ $minor -gt 63 ]
++		do
++			makedev isdn$minor c $major $minor $private
++			makedev isdnctrl$minor c $major `math $minor + 64` $private
++			makedev ippp$minor c $major `math $minor + 128` $private
++			minor=`math $minor + 1`
++		done
++		makedev isdninfo c $major 255 $private
++		;;
++	dcbri)
++		major=52
++		for i in 0 1 2 3
++		do
++			makedev dcbri$i c $major $i $private
++		done
++		;;
++	capi)
++		major=68
++		makedev capi20 c $major 0 $private
++		for i in 0 1 2 3 4 5 6 7 8 9
++		do
++			makedev capi20.0$i c $major `math $i + 1` $private
++		done
++		for i in 10 11 12 13 14 15 16 17 18 19
++		do
++			makedev capi20.$i c $major `math $i + 1` $private
++		done
++		;;
++	fb)
++		for i in 0 1 2 3 4 5 6 7
++		do
++			makedev fb$i c 29 `math 32 \* $i` $cons
++			makedev fb${i}current c 29 `math 32 \* $i` $cons
++			makedev fb${i}autodetect c 29 `math 32 \* $i + 1` $cons
++		done
++		;;
++	fb[0-7])
++		dev=`suffix $arg fb`
++		base=`math 32 \* $dev`
++		makedev fb$dev c 29 $base $cons
++		makedev fb${dev}current c 29 $base $cons
++		makedev fb${dev}autodetect c 29 `math $base + 1` $cons
++		for i in 0 1 2 3 4 5 6 7
+ 		do
+-			makedev ttyC$i c $major1 $i $tty
+-			makedev cub$i c $major2 $i $dialout
++			makedev fb${dev}user$i c 29 `math $base + 24 + $i` $cons
++		done
++		;;
++	netlink)
++		makedev route     c 36 0 $coda
++		makedev skip      c 36 1 $coda
++		makedev fwmonitor c 36 3 $coda
++		for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++		do
++			makedev tap$i c 36 `math $i + 16` $coda
+ 		done
+ 		;;
+ 	lp)
+-		major=`Major lp` || continue
++		major=`Major lp 6` || continue
+ 		makedev ${arg}0 c $major 0 $printer
+ 		makedev ${arg}1 c $major 1 $printer
+ 		makedev ${arg}2 c $major 2 $printer
+ 		;;
+ 	par)
+-		major=`Major lp` || continue
++		major=`Major lp 6` || continue
++		makedev ${arg}0 c $major 0 $printer
++		makedev ${arg}1 c $major 1 $printer
++		makedev ${arg}2 c $major 2 $printer
++		;;
++	parport)
++		major=`Major parport 99` || continue
+ 		makedev ${arg}0 c $major 0 $printer
+ 		makedev ${arg}1 c $major 1 $printer
+ 		makedev ${arg}2 c $major 2 $printer
+ 		;;
++	slm)
++		major=`Major slm 28` || continue
++		for i in 0 1 2 3
++		do
++			makedev slm c $major $i $printer
++		done
++		;;
+ 	busmice)
+ 		major=`Major mouse 10` || continue
+-		makedev logimouse c $major 0 $mouse
+-		makedev psmouse   c $major 1 $mouse
+-		makedev msmouse   c $major 2 $mouse
+-		makedev atimouse  c $major 3 $mouse
+-		makedev jmouse    c $major 4 $mouse
++		makedev logibm	  c $major 0 $mouse
++		makedev psaux     c $major 1 $mouse
++		makedev inportbm  c $major 2 $mouse
++		makedev atibm     c $major 3 $mouse
++		makedev jbm       c $major 4 $mouse
++		makedev usbmouse  c $major 32 $mouse
++		;;
++	m68k-mice)
++		major=`Major mouse 10` || continue
++		makedev amigamouse c $major 4 $mouse
++		makedev atarimouse c $major 5 $mouse
++		makedev amigamouse1 c $major 7 $mouse
++		makedev adbmouse  c $major 10 $mouse
++		;;
++	3dfx)
++		major=`Major $arg 107` || continue
++		makedev $arg	c $major 0 $video
++		;;
++	agpgart)
++		major=`Major $arg 10` || continue
++		makedev $arg	c $major 175 $video
++		;;
++	ipmi|ipmikcs)
++		major=`Major ipmikcs 10` || continue
++		makedev ipmikcs	c $major 173 $private
++		;;
++	irda)
++		for i in 0 1
++		do
++			makedev ircomm$i c 161 $i $mouse
++			makedev irlpt$i  c 161 `math $i + 16` $mouse
++		done
++		;;
++	misc)
++		major=`Major mouse 10` || continue
++		makedev logibm	  c $major 0 $mouse
++		makedev psaux     c $major 1 $mouse
++		makedev inportbm  c $major 2 $mouse
++		makedev atibm     c $major 3 $mouse
++		makedev jbm       c $major 4 $mouse
++		makedev amigamouse c $major 4 $mouse
++		makedev atarimouse c $major 5 $mouse
++		makedev sunmouse  c $major 6 $mouse
++		makedev amigamouse1 c $major 7 $mouse
++		makedev smouse    c $major 8 $mouse
++		makedev pc110pad  c $major 9 $mouse
++		makedev adbmouse  c $major 10 $mouse
++		makedev beep      c $major 128 $mouse
++		makedev modreq    c $major 129 $mouse
++		makedev watchdog  c $major 130 $mouse
++		makedev temperature c $major 131 $mouse
++		makedev hwtrap    c $major 132 $mouse
++		makedev exttrp    c $major 133 $mouse
++		makedev apm_bios  c $major 134 $mouse
++		makedev rtc       c $major 135 $mouse
++		makedev openprom  c $major 139 $mouse
++		makedev relay8    c $major 140 $mouse
++		makedev relay16   c $major 141 $mouse
++		makedev msr       c $major 142 $mouse
++		makedev pciconf   c $major 143 $mouse
++		makedev nvram     c $major 144 $mouse
++		makedev hfmodem   c $major 145 $mouse
++		makedev led       c $major 151 $mouse
++		makedev mergemem  c $major 153 $mouse
++		makedev pmu       c $major 154 $mouse
++		;;
++	smapi|thinkpad)
++		major=`Major mouse 10` || continue
++		makedev smapi     c $major 170 $mouse
++		symlink smapi thinkpad
++		;;
++        rtc)
++		major=`Major mouse 10` || continue
++		makedev rtc       c $major 135 $mouse
+ 		;;
+ 	js)
+-		major=`Major Joystick` || continue
+-		makedev js0 c $major 0 $mouse
+-		makedev js1 c $major 1 $mouse
++		major=`Major Joystick 15` || continue
++		for unit in 0 1 2 3
++		do
++			makedev js$unit c $major $unit $readable
++			makedev djs$unit c $major `math $unit + 128` $readable
++		done
++		;;
++	fd[0-7]-bare)
++		sarg="${arg%-bare}" 
++		major=`Major fd 2` || continue
++		base=`suffix $sarg fd`
++		if [ $base -ge 4 ]
++		then
++			base=`math $base + 124`
++		fi
++		makedev ${sarg} b $major $base $floppy
+ 		;;
+ 	fd[0-7])
+ 		major=`Major fd 2` || continue
+@@ -332,39 +866,47 @@
+ 		makedev ${arg} b $major $base $floppy
+ 		makedev ${arg}d360  b $major `math $base +  4` $floppy
+ 		makedev ${arg}h1200 b $major `math $base +  8` $floppy
+-		makedev ${arg}D360  b $major `math $base + 12` $floppy
+-		makedev ${arg}D720  b $major `math $base + 16` $floppy
++		makedev ${arg}u360  b $major `math $base + 12` $floppy
++		makedev ${arg}u720  b $major `math $base + 16` $floppy
+ 		makedev ${arg}h360  b $major `math $base + 20` $floppy
+ 		makedev ${arg}h720  b $major `math $base + 24` $floppy
+-		makedev ${arg}H1440 b $major `math $base + 28` $floppy
+-		makedev ${arg}E2880 b $major `math $base + 32` $floppy
++		makedev ${arg}u1440 b $major `math $base + 28` $floppy
++		makedev ${arg}u2880 b $major `math $base + 32` $floppy
+ 		makedev ${arg}CompaQ b $major `math $base + 36` $floppy
+ 
+-		symlink ${arg}H360 ${arg}D360
+-		symlink ${arg}H720 ${arg}D720
+-
+ 		makedev ${arg}h1440 b $major `math $base + 40` $floppy
+-		makedev ${arg}H1680 b $major `math $base + 44` $floppy
++		makedev ${arg}u1680 b $major `math $base + 44` $floppy
+ 		makedev ${arg}h410  b $major `math $base + 48` $floppy
+-		makedev ${arg}H820  b $major `math $base + 52` $floppy
++		makedev ${arg}u820  b $major `math $base + 52` $floppy
+ 		makedev ${arg}h1476 b $major `math $base + 56` $floppy
+-		makedev ${arg}H1722 b $major `math $base + 60` $floppy
++		makedev ${arg}u1722 b $major `math $base + 60` $floppy
+ 		makedev ${arg}h420  b $major `math $base + 64` $floppy
+-		makedev ${arg}H830  b $major `math $base + 68` $floppy
++		makedev ${arg}u830  b $major `math $base + 68` $floppy
+ 		makedev ${arg}h1494 b $major `math $base + 72` $floppy
+-		makedev ${arg}H1743 b $major `math $base + 76` $floppy
++		makedev ${arg}u1743 b $major `math $base + 76` $floppy
+ 		makedev ${arg}h880  b $major `math $base + 80` $floppy
+-		makedev ${arg}D1040 b $major `math $base + 84` $floppy
+-		makedev ${arg}D1120 b $major `math $base + 88` $floppy
++		makedev ${arg}u1040 b $major `math $base + 84` $floppy
++		makedev ${arg}u1120 b $major `math $base + 88` $floppy
+ 		makedev ${arg}h1600 b $major `math $base + 92` $floppy
+-		makedev ${arg}H1760 b $major `math $base + 96` $floppy
+-		makedev ${arg}H1920 b $major `math $base + 100` $floppy
+-		makedev ${arg}E3200 b $major `math $base + 104` $floppy
+-		makedev ${arg}E3520 b $major `math $base + 108` $floppy
+-		makedev ${arg}E3840 b $major `math $base + 112` $floppy
+-		makedev ${arg}H1840 b $major `math $base + 116` $floppy
+-		makedev ${arg}D800  b $major `math $base + 120` $floppy
+-		makedev ${arg}H1600 b $major `math $base + 124` $floppy
++		makedev ${arg}u1760 b $major `math $base + 96` $floppy
++		makedev ${arg}u1920 b $major `math $base + 100` $floppy
++		makedev ${arg}u3200 b $major `math $base + 104` $floppy
++		makedev ${arg}u3520 b $major `math $base + 108` $floppy
++		makedev ${arg}u3840 b $major `math $base + 112` $floppy
++		makedev ${arg}u1840 b $major `math $base + 116` $floppy
++		makedev ${arg}u800  b $major `math $base + 120` $floppy
++		makedev ${arg}u1600 b $major `math $base + 124` $floppy
++		;;
++	ed[a-b])
++		major=`Major ed 36` || continue
++		unit=`suffix $arg ed`
++		base=`index ab $unit`
++		base=`math $base \* 64`
++		makedev ed$unit b $major $base $disk
++		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
++		do
++			makedev ed$unit$part b $major `math $base + $part` $disk
++		done
+ 		;;
+ 	hd[a-b])
+ 		major=`Major ide0` || major=`Major hd 3` || continue
+@@ -372,7 +914,7 @@
+ 		base=`index ab $unit`
+ 		base=`math $base \* 64`
+ 		makedev hd$unit b $major $base $disk
+-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+ 		do
+ 			makedev hd$unit$part b $major `math $base + $part` $disk
+ 		done
+@@ -383,9 +925,9 @@
+ 		base=`index cd $unit`
+ 		base=`math $base \* 64`
+ 		makedev hd$unit b $major $base $disk
+-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+ 		do
+-			makedev hd$unit$part b $major `expr $base + $part` $disk
++			makedev hd$unit$part b $major $(( $base + $part )) $disk
+ 		done
+ 		;;
+ 	hd[e-f])
+@@ -394,9 +936,9 @@
+ 		base=`index ef $unit`
+ 		base=`math $base \* 64`
+ 		makedev hd$unit b $major $base $disk
+-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+ 		do
+-			makedev hd$unit$part b $major `expr $base + $part` $disk
++			makedev hd$unit$part b $major $(( $base + $part )) $disk
+ 		done
+ 		;;
+ 	hd[g-h])
+@@ -405,18 +947,47 @@
+ 		base=`index gh $unit`
+ 		base=`math $base \* 64`
+ 		makedev hd$unit b $major $base $disk
+-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
++		do
++			makedev hd$unit$part b $major $(( $base + $part )) $disk
++		done
++		;;
++	hd[i-j])
++		major=`Major ide4 56` || continue
++		unit=`suffix $arg hd`
++		base=`index ij $unit`
++		base=`math $base \* 64`
++		makedev hd$unit b $major $base $disk
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+ 		do
+-			makedev hd$unit$part b $major `expr $base + $part` $disk
++			makedev hd$unit$part b $major $(( $base + $part )) $disk
+ 		done
+ 		;;
+-	ht)
++	hd[k-l])
++		major=`Major ide4 57` || continue
++		unit=`suffix $arg hd`
++		base=`index kl $unit`
++		base=`math $base \* 64`
++		makedev hd$unit b $major $base $disk
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
++		do
++			makedev hd$unit$part b $major $(( $base + $part )) $disk
++		done
++		;;
++	ht0)
+ 		major=`Major ht0 37` || continue
+ 		# Only one IDE tape drive is currently supported; ht0.
+ 		makedev ht0 c $major 0 $tape
+-		makedev ht0 c $major 0 $tape
+ 		makedev nht0 c $major 128 $tape
+ 		;;
++	pt)
++		major=`Major pt 96` || continue
++		for i in 0 1 2 3
++		do
++			makedev pt$i c $major $i $tape
++			makedev npt$i c $major `math $i + 128` $tape
++		done
++		;;
+ 	xd[a-d])
+ 		major=`Major xd 13` || continue
+ 		unit=`suffix $arg xd`
+@@ -425,31 +996,139 @@
+ 		makedev xd$unit b $major $base $disk
+ 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
+ 		do
+-			makedev xd$unit$part b $major `expr $base + $part` $disk
++			makedev xd$unit$part b $major $(( $base + $part )) $disk
+ 		done
+ 		;;
+-	sd[a-h])
++	sd[a-z])
+ 		major=`Major sd 8` || continue
+ 		unit=`suffix $arg sd`
+-		base=`index abcdefgh $unit`
+-		base=`math $base \* 16`
++		base=`index abcdefghijklmnopqrstuvwxyz $unit`
++		base=$(( $base * 16 ))
++		if [ $base -lt 256 ]; then
++			major=8
++		else
++			major=65
++			base=$(( $base - 256 ))
++		fi
++		makedev sd$unit b $major $base $disk
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++		do
++			minor=$(( $base + $part ))
++			makedev sd$unit$part b $major $minor $disk
++		done
++		;;
++	sd[a-d][a-z])
++		unit=`suffix $arg sd`
++		unitmaj=`first $unit`
++		unitmin=`second $unit`
++		basemaj=`index Xabcd $unitmaj`
++		basemin=`index abcdefghijklmnopqrstuvwxyz $unitmin`
++		basemaj=`math $basemaj \* 416`
++		basemin=`math $basemin \* 16`
++		base=`math $basemaj + $basemin`
++		basemaj=`math $base / 256`
++		base=`math $base % 256`
++		major=`math basemaj \+ 64`
++		if [ $major -gt 71 ]; then
++			echo "$0: don't know how to make device \"$arg\"" >&2
++			exit 0
++		fi
+ 		makedev sd$unit b $major $base $disk
+-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+ 		do
+-			minor=`expr $base + $part`
++			minor=$(( $base + $part ))
+ 			makedev sd$unit$part b $major $minor $disk
+ 		done
++                ;;
++	ad[a-p])
++		major=`Major ad 28` || continue
++		unit=`suffix $arg ad`
++		base=`index abcdefghijklmnop $unit`
++		base=`math $base \* 16`
++		makedev ad$unit b $major $base $disk
++		for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++		do
++			minor=$(( $base + $part ))
++			makedev ad$unit$part b $major $minor $disk
++		done
++		;;
++	dac960)
++		for ctr in 0 1 2 3 4 5 6 7
++		do
++			$0 $opts dac960.$ctr
++		done
++		;;
++	dac960.[0-7])
++		[ -d rd ] || {
++			mkdir rd
++			chown root.root rd
++			chmod 755 rd
++		}
++		unit=`suffix $arg dac960.`
++		    major=`math 48 + $unit`
++		    minor=0
++		    for ld in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 \
++			    17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
++		    do
++			makedev rd/c${unit}d${ld} b $major $minor $disk
++			minor=`math $minor + 1`
++			for part in 1 2 3 4 5 6 7
++			do
++			    makedev rd/c${unit}d${ld}p$part b $major $minor $disk
++			    minor=`math $minor + 1`
++			done
++		    done
++		;;
++	ida)
++		for ctr in 0 1 2 # 3 4 5 6 7
++		do
++			$0 $opts ida.$ctr
++		done
++		;;
++	ida.[0-7])
++		[ -d ida ] || {
++			mkdir ida
++			chown root.root ida
++			chmod 755 ida
++		}
++		unit=`suffix $arg ida.`
++		major=`math 72 + $unit`
++		minor=0
++		for ld in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++		do
++		    makedev ida/c${unit}d${ld} b $major $minor $disk
++		    minor=`math $minor + 1`
++		    for part in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
++		    do
++			makedev ida/c${unit}d${ld}p$part b $major $minor $disk
++			minor=`math $minor + 1`
++		    done
++		done
++		;;
++	rom)
++		major=`Major rom 31`
++		for i in 0 1 2 3 4 5 6 7
++		do
++			makedev rom$i    b $major $i $disk
++			makedev rrom$i   b $major `math $i +8` $disk
++			makedev flash$i  b $major `math $i +16` $disk
++			makedev rflash$i b $major `math $i +24` $disk
++		done
++		;;
++	nb[0-7])
++		major=`Major nbd 43` || continue
++		minor=`suffix $arg nb`
++		makedev nb$minor b $major $minor $disk
+ 		;;
+ 	loop)
+-		major=`Major loop` || continue
+ 		for part in 0 1 2 3 4 5 6 7
+ 		do
+-			makedev loop$part b $major $part $disk
++			makedev loop$part b 7 $part $disk
+ 		done
+ 		;;
+ 	md)
+-		major=`Major md` || continue
+-		for part in 0 1 2 3
++		major=`Major md 9` || continue
++		for part in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+ 		do
+ 			makedev md$part b $major $part $disk
+ 		done
+@@ -457,42 +1136,129 @@
+ 	st[0-7])
+ 		major=`Major st 9`
+ 		unit=`suffix $arg st`
+-		makedev st$unit c $major $unit $tape
+-		makedev nst$unit c $major `math 128 + $unit` $tape
++		makedev st${unit}   c $major $unit $tape
++		makedev nst${unit}  c $major `math 128 + $unit` $tape
++
++		makedev st${unit}l  c $major `math 32 + $unit` $tape
++		makedev nst${unit}l c $major `math 160 + $unit` $tape
++
++		makedev st${unit}m  c $major `math 64 + $unit` $tape
++		makedev nst${unit}m c $major `math 192 + $unit` $tape
++
++		makedev st${unit}a  c $major `math 96 + $unit` $tape
++		makedev nst${unit}a c $major `math 224 + $unit` $tape
+ 		;;
+ 	qic)
+ 		major=`Major tpqic02 12`
++		makedev ntpqic11   c $major   2 $tape
++		makedev tpqic11    c $major   3 $tape
++		makedev ntpqic24   c $major   4 $tape
++		makedev tpqic24    c $major   5 $tape
++		makedev ntpqic120  c $major   6 $tape
++		makedev tpqic120   c $major   7 $tape
++		makedev ntpqic150  c $major   8 $tape
++		makedev tpqic150   c $major   9 $tape
+ 		makedev rmt8       c $major   6 $tape
+ 		makedev rmt16      c $major   8 $tape
+ 		makedev tape-d     c $major 136 $tape
+ 		makedev tape-reset c $major 255 $tape
++		$0 $opts qft
+ 		;;
+ 	ftape)
+-		major=`Major mt 27` || continue
++		major=`Major qft 27` || continue
+ 		for unit in 0 1 2 3
+ 		do
+-			makedev rft$unit c $major $unit $tape
+-			makedev nrft$unit c $major `math $unit + 4` $tape
++			makedev qft$unit     c $major $unit $tape
++			makedev nqft$unit    c $major `math $unit + 4` $tape
++			makedev zqft$unit    c $major `math $unit + 16` $tape
++			makedev nzqft$unit   c $major `math $unit + 20` $tape
++			makedev rawqft$unit  c $major `math $unit + 32` $tape
++			makedev nrawqft$unit c $major `math $unit + 36` $tape
++		done
++		symlink ftape qft0
++		symlink nftape nqft0
++		;;
++	sr|scd|scd-all)
++		major=`Major sr 11` || continue
++		for unit in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
++		do
++			makedev scd$unit b $major $unit $cdrom
++			symlink sr$unit scd$unit
+ 		done
+-		symlink ftape rft0
+-		symlink nftape nrft0
+ 		;;
+-	scd[0-7])
++	cfs0)
++		makedev cfs0 c 67 0 $coda
++		;;
++	scd[0-9]|scd[0-1][0-9])
+ 		major=`Major sr 11` || continue
+ 		unit=`suffix $arg scd`
+ 		makedev scd$unit b $major $unit $cdrom
++		ln -f scd$unit sr$unit
++		;;
++	ttyI[0-9]|ttyI[1-5][0-9]|ttyI[6][0-3])
++		major=43
++		unit=`suffix $arg ttyI`
++		makedev ttyI$unit c $major $unit $dialout
++		;;
++	ippp[0-9]|ippp[1-5][0-9]|ippp[6][0-3])
++		major=45
++		unit=`suffix $arg ippp`
++		minor=`math $unit + 128`
++		makedev ippp$unit c $major $minor $dialout
++		;;
++	isdn[0-9]|isdn[1-5][0-9]|isdn[6][0-3])
++		major=45
++		unit=`suffix $arg isdn`
++		minor=`math $unit + 0`
++		makedev isdn$unit c $major $minor $dialout
++		;;
++	isdnctrl[0-9]|isdnctrl[1-5][0-9]|isdnctrl[6][0-3])
++		major=45
++		unit=`suffix $arg isdnctrl`
++		minor=`math $unit + 64`
++		makedev isdnctrl$unit c $major $minor $dialout
++		;;
++	isdninfo)
++		makedev isdninfo c 45 255 $dialout
++		;;
++	isdn-tty)
++		major=43
++		for unit in 0 1 2 3 4 5 6 7
++		do
++			makedev ttyI$unit c $major $unit $dialout
++		done
++		;;
++	isdn-ippp)
++		major=45
++		for unit in 0 1 2 3 4 5 6 7
++		do
++			makedev ippp$unit c $major `math $unit + 128` $dialout
++		done
++		;;
++	isdn-io)
++		for unit in 0 1 2 3 4 5 6 7
++		do
++			makedev isdn$unit c 45 $unit $dialout
++			makedev isdnctrl$unit c 45 `math $unit + 64` $dialout
++			makedev ippp$unit c 45 `math $unit + 128` $dialout
++		done
++		makedev isdninfo c 45 255 $dialout
+ 		;;
+ 	sonycd)
+-		major=`Major cdu31a` || continue
++		major=`Major sonycd 15` || continue
+ 		makedev $arg b $major 0 $cdrom
+ 		;;
+ 	mcd)
+ 		major=`Major mcd 23` || continue
+ 		makedev $arg b $major 0 $cdrom
+ 		;;
+-	mcdx)
+-		major=`Major mcdx 20` || continue
+-		makedev $arg b $major 0 $cdrom
++	mcdx|mcdx[0-4])
++		major=`Major $arg 20` || continue
++		for unit in 0 1 2 3 4
++		do
++			makedev mcdx$unit b $major $unit $cdrom
++		done
++		test -r mcdx || symlink mcdx mcdx0
+ 		;;
+ 	cdu535)
+ 		makedev $arg b 24 0 $cdrom
+@@ -501,28 +1267,51 @@
+ 		makedev $arg b 24 0 $cdrom
+ 		;;
+ 	sbpcd|sbpcd[123])
+-		major=`Major $arg` || continue
++		major=`Major $arg 25` || continue
+ 		base=`suffix ${arg}0 sbpcd`
+-		# base=`expr ${arg}0 : "sbpcd\(.\)"`
+ 		for minor in 0 1 2 3
+ 		do
+ 			# XXX
+-			unit=`expr substr 0123456789abcdef \( $base \* 4 + $minor + 1 \) 1`
++			unit=$(substr 0123456789abcdef $(( $base * 4 + $minor + 1 )) )
+ 			makedev sbpcd$unit b $major $minor $cdrom
+ 		done
+ 		[ $arg = sbpcd ] && symlink $arg ${arg}0
+ 		;;
+ 	aztcd)
+-		major=`Major $arg` || continue
++		major=`Major $arg 29` || continue
++		makedev ${arg}0 b $major 0 $cdrom
++		;;
++	cm206cd)
++		major=`Major $arg 30` || continue
++		makedev ${arg}0 b $major 0 $cdrom
++		;;
++	gscd)
++		major=`Major $arg 16` || continue
+ 		makedev ${arg}0 b $major 0 $cdrom
+ 		;;
+ 	bpcd)
+ 		makedev $arg b 41 0 $cdrom
+ 		;;
++	optcd)
++		makedev $arg b 17 0 $cdrom
++		;;
++	sjcd)
++		makedev $arg b 18 0 $cdrom
++		;;
++	cfs|coda)
++		makedev cfs0 c 67 0 $private
++		;;
++	xfs|arla)
++		makedev xfs0 c 103 0 $private
++		;;
+ 	logiscan)
+ 		major=`Major logiscan` || continue
+ 		makedev $arg c $major 0 $scanner
+ 		;;
++	toshiba)
++		major=`Major $arg 10` || continue
++		makedev $arg c $major 181 root root 0666
++		;;
+ 	m105scan)
+ 		major=`Major m105` || continue
+ 		makedev $arg c $major 0 $scanner
+@@ -534,34 +1323,119 @@
+ 	audio)
+ 		major=`Major sound 14`
+ 		makedev mixer      c $major  0 $audio
++		makedev mixer1     c $major 16 $audio
++		makedev mixer2     c $major 32 $audio
++		makedev mixer3     c $major 48 $audio
+ 		makedev sequencer  c $major  1 $audio
+ 		makedev midi00     c $major  2 $audio
+-		makedev dsp        c $major  3 $audio
+-		makedev audio      c $major  4 $audio
+-		makedev sndstat    c $major  6 $audio
+-#		makedev sequencer2 c $major  8 $audio
+-		makedev mixer1     c $major 16 $audio
+-#		makedev patmgr0    c $major 17 $audio
+ 		makedev midi01     c $major 18 $audio
+-		makedev dsp1       c $major 19 $audio
+-		makedev audio1     c $major 20 $audio
+-#		makedev patmgr1    c $major 33 $audio
+ 		makedev midi02     c $major 34 $audio
+ 		makedev midi03     c $major 50 $audio
++		makedev dsp        c $major  3 $audio
++		makedev dsp1       c $major 19 $audio
++		makedev dsp2       c $major 35 $audio
++		makedev dsp3       c $major 51 $audio
++		makedev audio      c $major  4 $audio
++		makedev audio1     c $major 20 $audio
++		makedev audio2     c $major 36 $audio
++		makedev audio3     c $major 52 $audio
++		makedev sndstat    c $major  6 $audio
++		makedev audioctl   c $major  7 $audio
++		major=31
++		makedev mpu401data c $major 0  $audio
++		makedev mpu401stat c $major 1  $audio
++		major=35
++		for i in 0 1 2 3
++		do
++			makedev midi$i  c $major $i $audio
++			makedev rmidi$i c $major `math $i + 64` $audio
++			makedev smpte$i c $major `math $i + 128` $audio
++		done
+ 		;;
+ 	pcaudio)
+-		major=`Major pcsp` || continue
++		major=`Major pcsp 13` || continue
+ 		makedev pcmixer c $major 0 $audio
+ 		makedev pcsp    c $major 3 $audio
+ 		makedev pcaudio c $major 4 $audio
+ 		;;
+-	sg)
++	video|video4linux|v4l|radio)
++		# video4linux api includes radio, teletext, etc.
++		major=`Major video 81` || continue
++		minor=0
++		until [ $minor -gt 63 ]
++		do
++			makedev video$minor c $major $minor $video
++			makedev radio$minor c $major `math $minor + 64` $video
++			minor=`math $minor + 1`
++		done
++		symlink radio radio0
++		minor=0
++		until [ $minor -gt 31 ]
++		do
++			makedev vtx$minor c $major `math $minor + 192` $video
++			makedev vbi$minor c $major `math $minor + 224` $video
++			minor=`math $minor + 1`
++		done
++		symlink video video0
++		symlink vbi vbi0
++		major=82
++		minor=0
++		until [ $minor -gt 1 ]
++		do
++			makedev winradio$minor c $major $minor $video
++			minor=`math $minor + 1`
++		done
++		major=83
++		makedev vtx     c $major 0 $video
++		makedev vttuner c $major 16 $video
++		;;
++	i2c)
++		major=`Major i2c 89` || continue
++		minor=0
++		until [ $minor -gt 1 ] # tell me if 1 is wrong...
++		do
++			makedev i2c-$minor c $major $minor $private
++			minor=`math $minor + 1`
++		done
++		;;
++	tlk)
++		major=102
++		minor=0
++		until [ $minor -gt 3 ] # tell me if 3 is wrong...
++		do
++			makedev tlk$minor c $major $minor $video
++			minor=`math $minor + 1`
++		done
++		;;
++	srnd)
++		makedev srnd0 c 110 0 $video
++		makedev srnd1 c 110 1 $video
++		;;
++	fgrab)
++		makedev mmetfgrab c 40 0 $video
++		makedev wvisfgrab c 26 0 $video
++		for i in 0 1 # more?
++		do
++			makedev iscc$i    c 93 $i $video
++			makedev isccctl$i c 93 `math $i + 128` $video
++		done
++		for i in 0 1 # more?
++		do
++			makedev dcxx$i c 94 $i $video
++		done
++		;;
++	sg|sg-all)
+ 		major=`Major sg 21`
+-		for unit in a b c d e f g h
++		for unit in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+ 		do
+-			minor=`index abcdefgh $unit`
+-			# minor=`expr abcdefgh : ".*$unit" - 1`
+-			makedev $arg$unit c $major $minor $scsi
++			makedev sg$unit c $major $unit $scsi
++		done
++		;;
++	pg)
++		major=`Major pg 97`
++		for unit in 0 1 2 3
++		do
++			makedev pg$unit c $major $unit $scsi
+ 		done
+ 		;;
+ 	fd)
+@@ -572,15 +1446,34 @@
+ 		symlink stderr fd/2
+ 		;;
+ 	ibcs2)
+-		major=`Major ibcs2` || continue
++		major=`Major ibcs2 30` || continue
+ 		makedev socksys c $major 0 $ibcs2
+ 		symlink nfsd socksys
+ 		makedev spx     c $major 1 $ibcs2
+ 		symlink X0R null
+ 		;;
++	netlink)
++		major=36
++		makedev route c $major 0 $private
++		makedev skip  c $major 1 $private
++		;;
++	enskip)
++		major=64
++		makedev enskip c $major 0 $private
++		;;
++	ipfilt*)
++		major=95
++		makedev ipl     c $major 0 $private
++		makedev ipnat   c $major 1 $private
++		makedev ipstate c $major 2 $private
++		makedev ipauth  c $major 3 $private
++		;;
++	qng)
++		makedev qng c 77 0 $private
++		;;
+ 	apm)
+-		major=`Major apm_bios` || continue
+-		makedev $arg c $major 0 $system
++		major=`Major mouse 10` || continue
++		makedev apm_bios  c $major 134 $mouse
+ 		;;
+ 	dcf)
+ 		major=`Major dcf` || continue
+@@ -590,6 +1483,11 @@
+ 		major=`Major hw` || continue
+ 		makedev helloworld c $major 0 $public
+ 		;;
++	ipsec)
++		# For the Free S/WAN (http://www.xs4all.nl/~freeswan/)
++		# implementation of IPSEC
++		makedev ipsec c 36 10 $ipsec
++		;;
+ 	update)
+ 		if [ ! "$devices" ]
+ 		then
+@@ -619,7 +1517,6 @@
+ 					create="$create "`cvt $device`
+ 				fi
+ 				devs=`strip " $devs " $device`
+-				# devs=`expr "$devs" : "\(.*\) $device"``expr "$devs" : ".* $device\(.*\)"`
+ 			done
+ 			exec 3<&-
+ 		fi
+@@ -637,6 +1534,7 @@
+ 		;;
+ 	*)
+ 		echo "$0: don't know how to make device \"$arg\"" >&2
++		exit 1
+ 		;;
+ 	esac
+ done
+--- makedev-2.3.1.orig/Makefile
++++ makedev-2.3.1/Makefile
+@@ -1,14 +1,15 @@
+ # $Id: Makefile,v 2.2 1995/05/21 17:45:18 alfie Exp $
+ 
++BINDIR  = $(ROOT)/sbin
+ DEVDIR  = $(ROOT)/dev
+-MANDIR  = $(ROOT)/usr/man
++MANDIR  = $(ROOT)/usr/share/man
+ MANEXT  = 8
+ 
+ default:
+ 	@echo Nothing to make.
+ 	
+ install:
+-	install -m 755 MAKEDEV $(DEVDIR)
++	install -m 755 MAKEDEV $(BINDIR)
+ 	install -m 644 MAKEDEV.man $(MANDIR)/man$(MANEXT)/MAKEDEV.$(MANEXT)
+ 
+ clean:
+--- makedev-2.3.1.orig/debian/old/README.debian
++++ makedev-2.3.1/debian/old/README.debian
+@@ -0,0 +1,95 @@
++makedev for DEBIAN
++==================
++
++The /etc/makedev.cfg and /etc/devinfo files are rewritten to fit the
++Debian /dev layout.
++
++Security : all mouse devices are changed to mode 600. Only serial
++devices are mode 660 root:dialout. It's possible to crash x11 and
++console with writing random bytes to a mouse device.
++
++Serial console :
++/dev/console should be a symlink to your real console device.
++If it does not exist, or is not a symlink, it will be replaced with a
++symlink console -> tty0.
++
++This version of makedev will check /dev for tty*/pty* devices, and if
++there are some with the old major number, it will create a
++/etc/rc.boot/makedev script. This will script will change the
++master/slave devices the next time you boot.
++
++serial devices should be owned by user "uucp" and group "dialout".
++former they were owned by root. new devices are created with uucp as
++owner, but you will have to change old devices to user uucp on your own.
++It's new policy to have all serial devices owned by uucp, but the last
++word in this discussion isn't said...
++
++some device names have changed. please read
++/usr/doc/makedev/devices.{txt|html}
++
++the permissions should be secure enough, but if you find any bugs, or
++unfounded hard permissions, please let me know (i don't know much about
++the right permissions for devices, i yust used the value, everybody else
++was using, and made read & write only available for root, whenever i
++found nothing better.
++
++/dev/console is now a symlink to /dev/tty0. for more infomation, please
++look at a new 2.1 linux kernel : Documentation/devices.txt. That is the
++"Linux Allocated Device" paper, the official list of linux devices.
++If your boot console is a serial device, you will have to change that
++symlink.
++
++MAKEDEV-C will not work with any kernel with mcdx support, if
++/proc/devices contains "Mitsumi CD-ROM". if so, patch
++/usr/src/linux/driver/cdrom/mcdx.c :
++1149c1149
++<     if (unregister_blkdev(MAJOR_NR, "mcdx") != 0) {
++---
++>     if (unregister_blkdev(MAJOR_NR, DEVICE_NAME) != 0) {
++1270c1270
++< 		if (register_blkdev(MAJOR_NR, "mcdx", &mcdx_fops) != 0) {
++---
++> 		if (register_blkdev(MAJOR_NR, DEVICE_NAME, &mcdx_fops) != 0) {
++
++
++about call out devices (/dev/cu*) :
++
++      /dev/ttySxx devices are fully POSIX-compliant TTY devices.  If you
++      are only going to be using one set of tty devices, you should be
++      using /dev/ttySxx.
++
++      /dev/cuaXX devices are different from /dev/ttySXX in two ways ---
++      first of all, they will allow you to open the device even if
++      CLOCAL is not set and the O_NONBLOCK flag was not given to the
++      open device.  This allows programs that don't use the
++      POSIX-mondated interface for opening /dev/ttySxx devices to be
++      able to use /dev/cuaXX to make outgoing phone calls on their modem
++      (cu stands for "callout", and is taken from SunOS).
++
++      The second way in which /dev/cuaXX differs from /dev/ttySXX is
++      that if they are used, they will trigger a simplistic kernel-based
++      locking scheme: If /dev/ttySXX is opened by one or more processes,
++      then an attempt to open /dev/cuaXX will return EAGAIN.  If
++      /dev/cuaXX is opened by one or more processes, then an attempt to
++      open /dev/ttySXX will result the open blocking until /dev/cuaXX is
++      closed, and the carrier detect line goes high. the open blocking
++      until /dev/cuaXX is closed, and the carrier detect line goes high.
++
++      While this will allow for simple lockouts between a user using a
++      modem for callout and a getty listening on the line for logins, it
++      doesn't work if you need to arbitrate between multiple programs
++      wanting to do dialout --- for example, users wanting to do dialout
++      and UUCP.
++
++      I originally implemented the cuaXX/ttySXX lockout mechanism back
++      before FSSTND established a standard convention for the use of tty
++      lock files.  Now that it's there, people should use the tty lock
++      files and not try using /dev/cuaXX.  The only reason why
++      /dev/cuaXX hasn't disappeared yet is for backwards compatibility
++      reasons.			  -- Theodore Ts'o <tytso@mit.edu>
++
++
++debian has no /dev/cu* devices. But you can create them, if you need
++them. Read devices.txt for details.
++
++Andreas Jellinghaus <aj@debian.org>, Sun, 13 Apr 1997 21:05:58 +0200
+--- makedev-2.3.1.orig/debian/old/devices.sgml
++++ makedev-2.3.1/debian/old/devices.sgml
+@@ -0,0 +1,294 @@
++<!doctype linuxdoc system>
++
++<article>
++
++<title>devices created by makedev
++<author> Andreas Jellinghaus <tt>aj@debian.org</tt>
++<date> version 0.3, based on Linux allocated device 2.1.62
++<abstract>
++	some devices are created by default, some are left out on boot
++	floppies, other devices are only created on demand and some
++	devices are obsolete or have new names. 
++</abstract>
++
++<sect> batches <p>
++
++call out devices are not generated by default. however if you need them,
++you can generate them (see below).
++
++<descrip>
++<tag/generic/all standard batches for normal Linux\/i386 systems.
++	(standard misc devices, ttyS[0-3], mouse, printer, tapes
++	(scsi, qic, qic117), audio, scsi generic, standard disk, cdroms
++	and ttys) 
++<tag/generic-m68k/all generic devices for m68k (additional
++	framebuffer, some mouse devices and m68k scsi disk devices are
++	included,
++	but busmouse devices and qic and qic117 are left out).
++<tag/boot-floppy/a subset of generic. (no audio, less ttys)
++<tag/std-hd/standard hard disks (hd[a-h,xd[ab],sd[a-h],ram disk,md,loop)
++<tag/std-cdrom/standard cdroms (scsi, old non-scsi non-atapi cdroms)
++<tag/compatiblity/collection of old devices. It is usefull to remove them, but
++make sure, that you have generated the new ones, and that you know, what
++you are doing !  serial-cu, printer-old, mouse-old, sr-old,
++qic-old, misc-old, sg-old
++<tag/update/special tag : reads \/proc\/devices and generates new devices
++	found there.
++</descrip>
++
++<sect> Limits (standard devices) <p>
++
++There are some limits in this version of devinfo : it will only create a
++special number of devices (e.g. ramdisks, hda partitions). If one of
++these limits is unrealistic, please tell me. Most limits have no good
++reason, I just didn't want to create hundreds of devices, so I only
++created a few. If a limit is too low for you : a) please tell me and b)
++modify /etc/devinfo (should be easy). <p>
++
++<descrip>
++<tag/ramdisks/8 devices ram[0-7]
++<tag/ide harddisks/20 partitions each (devices hd[a-h])
++<tag/xt harddisks/20 partitions each (devices xd[ab]
++<tag/loopback/8 devices loop[0-7] 
++<tag/metadisk/4 devices md[0-3]
++<tag/scsi cdrom/scd: 8 devices scd[0-7] 
++<tag/scsi cdrom/scd-all : 16 devices scd[0-15] 
++<tag/scsi generic/sg : 8 devices sg[0-7]
++<tag/scsi generic/sg-all : 16 devices sg[0-15]
++<tag/scsi tapes/8 devices st[0-7] 
++<tag/mscdex/4 cdrom devices dos_cd[0-3] 
++<tag/joysticks/2 devices each js[0-1] djs[0-1]
++<tag/other cdroms/only one device created : sonycd, gscd, optcd, sjcd,
++hitcd, mcd, cdu535, aztcd, cm206cd, bpcd (if there are several cdroms
++possible : please tell me !)          
++<tag/serial/default bootdisks and base system will only have ttyS[0-3],
++but you can create all possible devices ttyS[0-63] with "MAKEDEV serial"
++or several additional devices with "MAKEDEV ttyS4 ttyS5 ...".
++</descrip>
++
++<sect> additional devices <p>
++
++you can create these devices with "MAKEDEV name" and delete them with
++"MAKEDEV -d name". you can either use the name listed here (this will
++create all possible devices), or individual devices (use the device
++name) e.g. "serial" will create all 64 serial devices ttyS[0-63] but
++"ttyS0" will only create this one. 
++
++<sect1> serial devices <p>
++
++<descrip>
++<tag/isdn-tty/isdn terminal devices. 8 devices : ttyI[0-7]
++<tag/isdn-tty-all/isdn terminal devices. 64 devices : ttyI[0-63]
++
++<tag/isdn-ppp/isdn sync ppp network devices. 8 devices : ippp[0-7]
++<tag/isdn-ppp-all/isdn sync ppp network devices. 64 devices : ippp[0-63]
++
++<tag/isdn-io/isdn raw and control devices. 18 devices : 
++	isdn[0-7] isdnctrl[0-7] isdnctrl isdninfo
++<tag/isdn-io-all/isdn raw and control devices. 130 devices : 
++	isdn[0-63] isdnctrl[0-63] isdnctrl isdninfo
++
++<tag/serial-cu/serial callout devices. they are only for compatibility,
++most people don't need them. 64 devices : cua[0-63]
++
++<tag/isdn-cu/isdn call out devices. they are only for compatibility,
++most people don't need them. 64 devices : cui[0-7]
++<tag/isdn-cu-all/isdn call out devices. they are only for compatibility,
++most people don't need them. 64 devices : cui[0-63]
++
++<tag/chase{-cu}/devices for chase serial card (append -cu to create
++call out devices). 32 devices ttyH[0-31] (cuh[0-31])
++
++<tag/cyclades{-cu}/devices for cyclades serial card (append -cu to create
++call out devices). 32 devices ttyC[0-31] (cub[0-31])
++
++<tag/digiboard{-cu}/devices for digiboard serial card (append -cu to create
++call out devices). 32 devices ttyD[0-31] (cud[0-31])
++
++<tag/stallion{-cu}/devices for stallion serial card (append -cu to create
++callout devices). 32 devices ttyE[0-31] (cue[0-31])
++
++<tag/stallion-mem/devices to access stallion serial card. 4 devices
++stallionmem[0-3]
++
++<tag/specialix{-cu}/devices for specialix serial card (append -cu to create
++call out devices). 32 devices ttyX[0-31] (cux[0-31])
++
++<tag/rockport{-cu}/devices for rockport serial card (append -cu to create
++call out devices). 32 devices ttyR[0-31] (cur[0-31])
++
++<tag/riscom{-cu}/devices for riscom serial card (append -cu to create
++call out devices). 32 devices ttyL[0-31] (cul[0-31])
++
++<tag/hayes{-cu}/devices for hayes serial card (append -cu to create
++call out devices). 32 devices ttyP[0-31] (cup[0-31])
++
++<tag/baycom/devices for baycom radio modem. 32 devices bc[0-31]
++
++<tag/computone{-cu}/devices for computone intelliport II serial card
++(append -cu to create call out devices). 32 devices ttyF[0-31]
++(cuf[0-31])
++
++<tag/computone-ctrl/devices to access computone intelliport II serial
++card. 8 devices ip2ipl[0-3] and ip2stat[0-3]
++
++<tag/dcbri/spellcaster datacomm\/bri isdn card. 4 devices dcbri[0-3]
++<tag/specialix{-cu}/devices for specialix IO8+ serial card. 32 devices
++ttyW[0-31] (cuw[0-32])
++<tag/pam{-cu}/devices for PAM Software's mulitmodem boards. 32 devices
++ttyM[0-31] (cum[0-31])
++</descrip>
++
++<sect1> misc devices <p>
++
++<descrip>
++<tag/pty[p-za-e]/master pty devices. 16 devices pty?[0-9a-f] each
++<tag/tty[p-za-e]/slave tty devices. 16 devices pty?[0-9a-f] each
++<tag/floppy-all/generic only includes the fd0 and fd1 devices. this way
++you can generate devices for the 3rd ... 8th floppies. i recommend to
++install fdutils and use MAKEFLOPPIES to create the floppy devices you
++need. 30 devices each fd[0-7]*
++
++<tag/framebuffer/universal frame buffer (68k,sparc).
++	22 devices fb0* fb1*
++<tag/other-arch/amigamouse, atarimouse, sunmouse, openprom, kbd
++<tag/double/"double" compressed disk. 16 devices [c]double[0-7]
++<tag/ez[a-d]/syquest ex135 parallel port removable drive. 
++	20 partitions each
++<tag/ed[ab]/mca esdi hard disk. 20 partitions ed?* each
++
++<tag/sbpcd[234]/2nd,3rd,4th sound blaster cdrom controller. 4 devices sbpcdXX each
++<tag/mscdex/MSCDEX CD-ROM callback support. 4 devices dos_cd[0-3]
++<tag/cm205cd/cm205 cdrom devices (not supported in 2.x).
++	2 device cm205cd lmscd
++<tag/ad[a-p]/acsi disc\/cdrom (68k\/atari). 16 devices ad?* each
++<tag/gs4500/genius 4500 handheld scanner. 1 device gs4500
++<tag/slm/atari sm asci laser printer (68k\/atari). 4 devices slm[0-3]
++<tag/ht/ide tape. 2 devices ht0 nht0
++<tag/z2ram/zorro II ramdisk. 1 device z2ram
++<tag/cfs/coda network file-system.
++	1 device cfs0
++<tag/dtlk/DoubleTalk PC speech synthesizer, from RC Systems. 1 device dtlk
++
++<tag/ibcs2/ibcs2 devices as described in "Linux Allocated Devices".
++you need to create the directory /dev/inet before running makedev.
++ibcs2-unoff has lots more devices (i don't know if all are needed, or
++not. in doubt use ibcs2-unoff). 9 devices (socksys spx nfsd X0R inet/*).
++
++<tag/ibcs2-unoff/ibcs2 devices as described in the ibcs2 package. you
++need to create the directories "X" and "inet" before creating these
++devices. 74 devices (arp egp ggp icmp ip ipip pup rawip rip tcp udp nfsd
++X0R socksys spx pty[10-47] inet/* X/*)
++
++<tag/nvram/some special m68k hardware ? 1 device nvram
++
++<tag/system-sgi/devices for linux/sgi. 5 devices graphics opengl gfx
++input/mouse input/keyboard
++
++<tag/nb/network block devices. 8 devices nb*
++<tag/ftl/flash translatio layer (FTL) filesystems. max. 16 drives a-p
++with each 15 partitions (like scsi disks sd*).
++<tag/qng/Quantum Noice Generator. 1 device qng
++<tag/at200/Photometrics AT200 CCD camera. 1 device at200
++<tag/bttv/Brooktree Bt848 frame grabbers. 12 devices bttv[0-3]
++bttvc[0-3] bttv-vbi[0-3]
++<tag/winradio/WiNRADiO communications receiver card. 4 devices
++winradio[0-3]
++<tag/videotext/Teletext/videotext interfaces 2 devices vtx vttuner
++<tag/ihcp/ikon 1011[57] Versatec Greensheet Interface. 2devices ihcp[0-1]
++<tag/shimq/Linux/SGI shared memory input queue. 5 devices shmiq
++qcntl[0-3]
++<tag/sch/SCSI media changer. 8 devices sch[0-7]
++<tag/controla/Sony control-a1 stereo control bus. 
++</descrip>
++
++<sect1> sound <p>
++<descrip>
++<tag/mpu401/mpu401 MIDI data & status ports. 
++	2 devices mpu401{data,stat}
++<tag/tclmidi/tclmidi midi driver. 
++	12 devices midi[0-3] rmidi[0-3] smpte[0-3]
++</descrip>
++
++<sect1> misc <p>
++<descrip>
++<tag/wvisfgrab/quanta winvision frame grabber. 
++	1 device wvisfrab
++<tag/mmetfgrab/matrox meteor frame grabber.
++	1 device mmetfgrab
++<tag/ml16p[abc]/ml-16p experimental i\/o board.
++	20 device ml16p?* each
++<tag/scc/Z8530 HDLC driver. 8 devices scc[0-7]
++<tag/rom/rom\/flash memory card. 
++	32 devices rom[0-7] rrom[0-7] flash[0-7] rflash[0-7]
++<tag/netlink/netlink support. 2 devices route skip
++<tag/mlanai/myricom pci myrinet board. 8 devices mlanai[0-7]
++<tag/yamm/yet another micro monitor. 1 device yamm
++<tag/bdm/bdm interface for remote debugging MC683xx mc. 
++	6 devices pd_bdm[0-2] icd_bdm[0-2]
++<tag/holter/electrocardiognosis holter serial port.
++	3 devices holter[0-2]
++<tag/dsp56k/dsp56001 digital signal processor.
++	1 device dsp56k
++<tag/adbus/apple desktop bus. this was disabled, because it clashes with
++ab[b], the second acsi device (m68k/atari acsi disk).
++	1 device adb
++<tag/firewall/sf firewall package.
++	1 device firewall
++<tag/plink/sundance plink transputer boards.
++	12 devices [r]plink[0-3][d]
++<tag/enskip/enskip kernel encryption package
++<tag/yppcpci/yarc powerpc pci coprocessor card
++<tag/capi20/CAPI 2.0 interface.
++	21 devices capi20 capi20.[01-19]
++<tag/ma16/ma16 numeric accelerator card
++<tag/aps/spellcaster protocol service interface.
++	7 devices aps*
++<tag/sci/dolphin interconnect solutions' pci-sci bridge.
++	4 devices SCI\/[0-3]
++</descrip>
++
++<sect> compatibility <p>
++
++not all devices have a standard device name shared by all linux
++distributions, and many names have changed in the past. here is a list,
++so you can find new names, create the old devices (if you want), or
++remove them (to get rid of duplicates).
++
++<descrip>
++<tag/call out devices/cu* devices are not created by default. but you
++can create or remove them : serial-cu chase-cu cyclades-cu digiboard-cu
++stallion-cu specialix-cu isdn-cu     rockport-cu riscom-cu  hayes-cu
++computone-cu  
++<tag/printer-old/parallel port devices, standard name is lp[0-3], not par[0-3]
++<tag/mouse-old/(bus-)mouse devices : logimouse(logibm) psmouse(psaux)
++msmouse(inportbm) atimouse(atibm) jmouse(jbm)
++<tag/sr-old/scsi cdrom devices (now called scd)
++<tag/qic-old/qic streamer devices : nqt qt nqt11 qt11 nqt24 qt24 nqt120
++qt120 nqt150 qt150 qt-reset
++<tag/misc-old/for standardized names, some devices got renamed. old :
++midi, sbpcd, aztcd0, vcs0, lmscd, ramdisk
++new : midi00, sbpcd0, aztcd, vcs, ram0, cm205cd, ram0
++<tag/sg-old/scsi generic devices now use numbers (sg[0-7]), not letters
++sg[a-h])
++<tag/isdn-old/an old version created ipp* devices. this was a typo, they
++are called ippp*
++</descrip>
++
++i left some links : even if they are for compatibility, removing them
++might break existing software.
++
++<descrip>
++<tag/isdnctrl/link to "isdnctrl0"
++<tag/mfd0/m68k amiga hd floppy device
++</descrip>
++
++<sect> note about console and tty0 <p>
++
++New standard is : /dev/tty0 is a device (char,4,0).
++console should be a symlink : to tty0, or whatever your console is.
++If it is not a symlink, makedev will replace it with a symlink to tty0.
++Someday there will be a kernel managed device /dev/console to handle
++this (it will be char 5 1).
++
++</article> 
+--- makedev-2.3.1.orig/debian/changelog
++++ makedev-2.3.1/debian/changelog
+@@ -0,0 +1,747 @@
++makedev (2.3.1-46.2) stable unstable; urgency=low
++
++  * non-maintainer update
++  * argh, target stable and unstable
++
++ -- Adam Di Carlo <aph@debian.org>  Sun, 15 Oct 2000 14:01:16 -0400
++
++makedev (2.3.1-46.1) unstable; urgency=low
++
++  * non-maintainer update
++  * 'symlink mcdx mcdx0' was reversed (one line patch)
++
++ -- Adam Di Carlo <aph@debian.org>  Sun, 15 Oct 2000 04:36:30 -0400
++
++makedev (2.3.1-46) stable unstable; urgency=medium
++
++  * fix silly symlink loop between ram and ram1, closes: #69475, #69351
++  * fix similar symlink reversal between scd and sr devices, and make 'sr'
++    a valid target, not just when using 'update', closes: #69500
++  * change agpart to agpgart as per devices.txt, closes: #69319
++  * add sg* devices to generic targets that include SCSI, closes: #69231
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 29 Aug 2000 01:13:30 -0600
++
++makedev (2.3.1-45) stable unstable; urgency=low
++
++  * incorporates work done by Martin Schulze <joey@finlandia.infodrom.north.de>
++    with my profound thanks.
++  * Added gscd and cm206cd device files, closes: #69057
++  * Corrected mcdx drivers, support all five drives, closes: #69058
++  * Corrected symlink creation (i.e. use symlink() instead of ln -s)
++  * Added /dev/toshiba (Toshiba laptop SMM support), closes: #54729, #59242
++  * Added sdc and sdd to generic-m68k since they were missing, closes: #61027
++  * Made joystick devices readable by everybody (closes: Bug#61499)
++  * Added '$opts' whenever $0 aka MAKEDEV gets called, thus `-n' is passed
++    to the child properly, closes: #63159
++  * Added hyphen `-' between i2c and the number as described by devices.txt, 
++    closes: #63523
++  * Fixed wrong creation of hdi hdj hdk and hdl, closes: #64881
++  * Added hdc and hdd to generic-powerpc since they were missing, 
++    closes: #65852
++  * Added support for ttyI and cui (ignored) to 'update' target by
++    modifying cvt(), closes: #66838
++  * Corrected a whole bunch of math errors where a `$' was missing, trying
++    to add 1 to 'minor', closes: #68915
++  * Fixed /proc/devices-parser to ignore slashes, closes: #31854
++  * Removed out-dated Replaces, closes: #61256
++  * Added audioctl, closes: #60755
++  * Added agpart, closes: #61084
++  * Adjusted 3dfx to have file mode $video instead of $audio
++  * Added ipmikcs (Intelligent Platform Management) with mode 0600 (mode
++    may be unpracticable), closes: #67431
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 15 Aug 2000 21:52:23 -0600
++
++makedev (2.3.1-44) frozen unstable; urgency=low
++
++  * patch from tausq for a case I missed when converting expr to $(( )),
++    fixes problem creating sbpcd devices.  Target frozen since this was
++    marked release-critical.  Closes: #63585
++
++ -- Bdale Garbee <bdale@gag.com>  Sat,  6 May 2000 20:24:40 -0600
++
++makedev (2.3.1-43) frozen unstable; urgency=low
++
++  * add invocation of '/sbin/MAKEDEV std' to postinst to ensure key devices
++    have proper owner/group/perms on upgrades, closes: #61367
++  * replace /dev/MAKEDEV references with /sbin/MAKEDEV references in the
++    postinst
++  * target frozen since broken perms on /dev/tty keeps xterm from working
++    which is very confusing and frustrating on upgrades.
++
++ -- Bdale Garbee <bdale@gag.com>  Wed,  3 May 2000 14:27:04 -0600
++
++makedev (2.3.1-42) frozen unstable; urgency=low
++
++  * eliminate the use of expr, since it is in /usr, which may not be mounted
++    during system recovery when makedev is often needed.  Target frozen since
++    this was tagged release critical, closes: #62925
++
++ -- Bdale Garbee <bdale@gag.com>  Mon, 24 Apr 2000 22:27:18 -0600
++
++makedev (2.3.1-41) frozen unstable; urgency=low
++
++  * Arrange for all scd* devices to have hardlinked sr* counterparts as per
++    devices.txt.  Target frozen since this is release critical, closes: #61862
++
++ -- Bdale Garbee <bdale@gag.com>  Fri,  7 Apr 2000 20:01:39 -0600
++
++makedev (2.3.1-40) frozen unstable; urgency=low
++
++  * fix flakey code for discovering proper major numbers for several device
++    types.  This broke the raidtools postinst in some cases, which I think
++    makes this worth adding to frozen, even though there's no bug in the BTS
++    about it (problem reported and fixed during an IRC session).  There are
++    still a few potential major number problems in MAKEDEV, but they're all
++    for obscure devices that are not in devices.txt, and which I'll therefore 
++    probably remove entirely when rewriting makedev for woody.
++  * fix type, smtpe should be smpte, closes: #59061
++
++ -- Bdale Garbee <bdale@gag.com>  Sun, 19 Mar 2000 20:28:30 -0700
++
++makedev (2.3.1-39) frozen unstable; urgency=low
++
++  * add missing major number clause to thinkpad/smapi device, closes: #57381
++    target frozen since this is clearly release-critical
++
++ -- Bdale Garbee <bdale@gag.com>  Wed,  9 Feb 2000 12:07:07 -0700
++
++makedev (2.3.1-38) frozen unstable; urgency=low
++
++  * target frozen since 56724 was tagged release-critical
++  * rework ftape stuff to match 2.2 kernel device definitions, closes: #56724
++  * add code to create /dev/smapi and symlink it as /dev/thinkpad.  This can
++    be called as either smapi or thinkpad.  Closes: #54714
++  * add /dev/radio symlink to radio0, closes: #55649
++  * update the netlink target to create fwmonitor and the tap* devices,
++    closes: #54772
++  * add IRDA device support, closes: #47296
++
++ -- Bdale Garbee <bdale@gag.com>  Thu,  3 Feb 2000 23:51:58 -0700
++
++makedev (2.3.1-37) unstable; urgency=low
++
++  * add openprom entry for Sparc systems, closes: #54296
++
++ -- Bdale Garbee <bdale@gag.com>  Fri,  7 Jan 2000 20:03:00 -0700
++
++makedev (2.3.1-36) unstable; urgency=low
++
++  * fix cyclades target to make 32 instead of 33 devices, and update man page
++    to match what the code does, closes: #51892
++  * add st0/st1/scd0/scd1 to generic-i386 and generic-alpha to improve the
++    consistency across platforms, closes: #52871
++  * create an initial generic-arm target, anticipating the need as debian-arm
++    struggles to get ready to release with potato.
++  * update handling of network block devices (nb) so that specifying a single
++    device works as expected.  calling for 'nb' will give nb0 and nb1.  
++    Closes: #53781
++  * support digital joysticks (djs) in joystick/js target, closes: #53314
++  * update to current policy rev, add Build-Depends.
++
++ -- Bdale Garbee <bdale@gag.com>  Fri,  7 Jan 2000 02:14:24 -0700
++
++makedev (2.3.1-35) unstable; urgency=low
++
++  * change group of video4linux devices to new group video appearing in
++    base-passwd 3.0.4, closes: 51429
++
++ -- Bdale Garbee <bdale@gag.com>  Sun, 28 Nov 1999 20:00:12 -0700
++
++makedev (2.3.1-34) unstable; urgency=low
++
++  * re-craft 'ida' target the same way we did dac960 to allow the boot-floopies
++    folks to create just one or two cards worth.  Closes: #51341
++
++ -- Bdale Garbee <bdale@gag.com>  Fri, 26 Nov 1999 17:54:56 -0700
++
++makedev (2.3.1-33) unstable; urgency=low
++
++  * add usbmouse support to busmice target, closes: #50326
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 16 Nov 1999 03:20:03 -0700
++
++makedev (2.3.1-32) unstable; urgency=low
++
++  * add 'audio' to the targets for generic-i386, closes: #49935
++  * craft an initial generic-alpha target to make the boot-floppies stuff
++    work right.  For now, just clone the i386 target since I have no idea
++    what is really needed...  closes: #49934
++  * add support for creating ramN devices one at a time, closes: #49853
++  * add target 'consoleonly' that creates the minimum number of devices to
++    support /dev/console, and recraft the 'console' target to use it and then
++    add all the vcs* devices, et al.  Closes: #49852
++  * re-craft 'dac960' target to be a loop around targets dac960.[0-7] so that
++    boot-floppies creators can create just one or two cards worth of devices
++    instead of having to do them all.  Closes: #49864
++
++ -- Bdale Garbee <bdale@gag.com>  Mon, 15 Nov 1999 22:38:43 -0700
++
++makedev (2.3.1-31) unstable; urgency=low
++
++  * fixes for major numbers on some oddball CDROM types, needed for boot disks
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 10 Nov 1999 23:58:56 -0700
++
++makedev (2.3.1-30) unstable; urgency=low
++  
++  * fill in a few more audio devices, closes: #49107
++
++ -- Bdale Garbee <bdale@gag.com>  Wed,  3 Nov 1999 20:28:54 -0700
++
++makedev (2.3.1-29) unstable; urgency=low
++
++  * the /dev/vcs* handling is correct, closes: #42035
++  * fix case construct for ht0, closes: #42519
++  * fix major number determination for several devices, closes: #43560
++  * add js2, js3 to joystick device creation, but leave owner/group/mode
++    the same as for mice until/unless some more compelling argument is
++    presented, closes: #43790
++  * improve consistency of vcs device creation, making vcs0 and vcsa0, with
++    symlinks for vcs and vcsa, closes: #45698
++  * add support for /dev/3dfx, closes: #48734
++  * /dev/sr* is obsolete, use /dev/scd*, closes: #32723
++  * RH 2.5 was merged as of 2.3.1-24, closes: #45153
++  * FHS compliance
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 30 Oct 1999 16:53:32 -0600
++
++makedev (2.3.1-28) unstable; urgency=medium
++
++  * /o\ oops... -27 was broken badly.  Close 42355, 42359, 42361. 
++
++ -- Bdale Garbee <bdale@gag.com>  Tue,  3 Aug 1999 02:38:06 -0600
++
++makedev (2.3.1-27) unstable; urgency=medium
++
++  * fix loop's major number, closes 38559.
++  * fix group of scd* to be cdrom, not disk.  Closes 41227, 41812.
++  * add vbi symlink, closes 39406
++
++ -- Bdale Garbee <bdale@gag.com>  Mon,  2 Aug 1999 00:59:19 -0600
++
++makedev (2.3.1-26) unstable; urgency=medium
++
++  * fix another syntax error introduced in -25...  /o\
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 29 May 1999 03:12:32 -0600
++
++makedev (2.3.1-25) unstable; urgency=medium
++
++  * fix *ugly* typos introduced in -24, closes 38489, 38465.
++  * update MAKEDEV to install the mouse -> sunmouse link in generic-sparc,
++    in addition to making it in the postinst if needed.  Closes 38432.
++  * have MAKEDEV exit with error 1 if we hit a "don't know how to make device"
++    situation.  I'm a bit concerned about this since it *might* break a
++    package postinst somewhere.  However, it is clearly the right thing to do
++    on a purely conceptual level.  Closes 29974.
++  * add support for Free S/WAN (IPSEC) device, closes 38372.
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 26 May 1999 14:00:29 -0600
++
++makedev (2.3.1-24) unstable; urgency=low
++
++  * fold in patch from Espy to provide all the functionality of the RedHat
++    makedev 2.5.  Leave our version number as 2.3.1-XX for now, since we're
++    not actually cleanly derived from the 2.5 RedHat bits. Closes 37795, 28616.
++  * make 'scd' act like 'scd-all', closes 37071
++  * patch for postinst typo, closes 37612
++  * move MAKEDEV to /sbin, create an init.d fragment to put a symlink in the
++    /dev directory at boot time.  This should allow devfs to do its thing,
++    closing 37795, 33025.
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 26 May 1999 14:00:29 -0600
++
++makedev (2.3.1-23) stable unstable; urgency=low
++
++  * fix problems with st* and adb pointed out by Hartmut
++
++ -- Bdale Garbee <bdale@gag.com>  Thu, 15 Apr 1999 08:39:39 -0600
++
++makedev (2.3.1-22) unstable; urgency=low
++
++  * add 'hamradio' as a target, which is a macro for the new scc[0-7] and
++    bc[0-3] targets, closes 34773.  
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 14 Apr 1999 11:55:46 -0600
++
++makedev (2.3.1-21) stable unstable; urgency=low
++
++  * make /dev/mouse a symlink to /dev/sunmouse on sparc, closes 35616
++  * have postinst create audio devices, closes 35646
++  * also create [alm] suffix versions for st* devices, closes 33041
++  * add support for hd[ijkl]... noticed while investigating bug 33798
++  * use the same owner/group/perms for nvram that we use for kmem, closes 34111
++  * add loop to the std device set, closes 34899
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 14 Apr 1999 11:13:47 -0600
++
++makedev (2.3.1-20) stable unstable; urgency=medium
++
++  * release-critical fixes from Hartmut for powerpc, closes 34004
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 10 Mar 1999 07:51:08 -0700
++
++makedev (2.3.1-19) frozen unstable; urgency=medium
++
++  * fix identification of 'sg' in update, closes the part of 33752 (grave)
++    that I can duplicate on i386 in -18
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 23 Feb 1999 07:44:30 -0700
++
++makedev (2.3.1-18) frozen unstable; urgency=medium
++
++  * as requested by Wichert, have the postinst force /dev/kmem owner, group,
++    and permissions since this is a security issue, closes 33703.
++  * another patch needed for m68k slink boot floppies from Michael Schmitz
++
++ -- Bdale Garbee <bdale@gag.com>  Mon, 22 Feb 1999 22:56:47 -0700
++
++makedev (2.3.1-17) frozen unstable; urgency=low
++
++  * Wichert points out that /dev/kmem doesn't need to be group writeable.
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 20 Feb 1999 16:12:29 -0700
++
++makedev (2.3.1-16) frozen unstable; urgency=medium
++
++  * apply patch for m68k that is release-critical for slink
++
++ -- Bdale Garbee <bdale@gag.com>  Fri, 19 Feb 1999 20:07:05 -0700
++
++makedev (2.3.1-15) frozen unstable; urgency=medium
++
++  * fix major number for sunmouse as per Eric Delaunay, closes 33425
++  * tighten default permission on mouse and joystick devices, closes 32378
++  * change audio devices to root.audio 660, closes 32849
++  * apply patch from Eric Delaunay to fix problem with scsi devices and 2.2
++    kernels, closes 32999
++  * target 'frozen' since the sunmouse fix at the very least should be in 
++    slink...
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 17 Feb 1999 16:53:41 -0700
++
++makedev (2.3.1-14) frozen unstable; urgency=low
++
++  * additions from Eric Delaunay needed for sparc frozen, closes 32458
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 27 Jan 1999 13:54:31 -0700
++
++makedev (2.3.1-13) frozen unstable; urgency=low
++
++  * make random/urandom available separately, not just in std, closes 32145
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 19 Jan 1999 21:27:14 -0700
++
++makedev (2.3.1-12) frozen unstable; urgency=low
++
++  * add random/urandom to the std target, closes 31562 and 29193
++  * update manpage to indicate the manpage is out of date, I need to make a
++    chunk of time at some point to give it a thorough review/update.
++  * don't make /dev/cua*, fix group on /dev/ttyS*, closes 30867
++  * change postinst to use syntax that isn't bash-specific, closes 18807 
++    and 30849
++
++ -- Bdale Garbee <bdale@gag.com>  Sat,  9 Jan 1999 00:39:25 -0700
++
++makedev (2.3.1-11) frozen unstable; urgency=low
++
++  * allow 16 sd's instead of 8, as the kernel does.  closes 30555.
++  * create hdc and hdd in generic-i386, and create 20 partitions per hd 
++    instead of 4, closes 30522.
++  * go back (forward?) to using 'u' instead of '[DHE]' in fd entries, 
++    closes 30438.
++  * add 'fb' to both the generic-i386 and generic-powerpc clauses, closes
++    29228
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 12 Dec 1998 08:10:22 -0700
++
++makedev (2.3.1-10) frozen unstable; urgency=low
++
++  * instead of having the postinst explicitly link /dev/console, have it
++    call MAKEDEV if console doesn't exist.  Update MAKEDEV to know how to
++    link it for 2.0 kernels and prior, and create the explicit device for
++    2.1 and later running kernels.  Building this based on running kernel
++    revision doesn't feel clean, but I see no better way.
++
++ -- Bdale Garbee <bdale@gag.com>  Sun,  8 Nov 1998 18:49:30 -0700
++
++makedev (2.3.1-9) frozen unstable; urgency=low
++
++  * fix postinst to cd to /dev so that devices don't end up in /, now that
++    we don't do the cd in MAKEDEV itself
++  * move 'generic' to 'generic-i386', and have 'generic' use dpkg to determine
++    which generic-<arch> to use... this paves the way for fixing support for
++    other architectures.
++  * Several changes per drow on IRC:
++      change MAXVT from 8 to 63
++      change sd[ab] to create 15 instead of 8 subdevices
++      fix char->block on one scd instance
++      diffs to add support for powerpc machines
++
++ -- Bdale Garbee <bdale@gag.com>  Sun,  8 Nov 1998 18:49:30 -0700
++
++makedev (2.3.1-8) frozen unstable; urgency=low
++
++  * add support for ram0 to the ram* list (0 was omitted), part of 28933.
++  * device 'rtc' was part of 'misc', give it a top-level entry too to reduce
++    possible confusion.  Part of 28933.
++  * add an entry for 'initrd', closes 28933 (slink release-critical).
++
++ -- Bdale Garbee <bdale@gag.com>  Sun,  8 Nov 1998 10:18:37 -0700
++
++makedev (2.3.1-7) frozen unstable; urgency=low
++
++  * now that MAKEDEV is a script, this can be an 'all' package instead of
++    an 'any'.  Thanks to Hartmut Koptein for pointing this out.
++
++ -- Bdale Garbee <bdale@gag.com>  Fri,  6 Nov 1998 11:42:58 -0700
++
++makedev (2.3.1-6) frozen unstable; urgency=low
++
++  * add ttyS entry so update works with recent 2.1 kernels
++
++ -- Bdale Garbee <bdale@gag.com>  Mon,  2 Nov 1998 21:47:34 -0700
++
++makedev (2.3.1-5) frozen unstable; urgency=low
++
++  * fix typo affecting fb devices, closes 28742
++  * fix syntax used for wildcarded devices, part of closing 28769
++  * fix error in minor numbers for isdn-ippp, part of closing 28769
++
++ -- Bdale Garbee <bdale@gag.com>  Sun,  1 Nov 1998 23:09:45 -0700
++
++makedev (2.3.1-4) frozen unstable; urgency=low
++
++  * add support for additional scd and sg devices, closes 28029.
++  * change device names for busmice back to what we used in makedev-1.*, which
++    is also what the kernel documentation uses.  Closes 28143.
++  * add support for various devices in contemporary kernels, closes 27720.
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 28 Oct 1998 23:41:58 -0700
++
++makedev (2.3.1-3) unstable; urgency=low
++
++  * use 'dialout' instead of 'serial' to select owner/group/perms for ISDN
++    devices, closes 27536
++  * use 'dialout' as group for serial devices instead of 'uucp' to be 
++    compatible with prior Debian makedev packages. 
++
++ -- Bdale Garbee <bdale@gag.com>  Wed,  7 Oct 1998 22:50:36 -0600
++
++makedev (2.3.1-2) unstable; urgency=low
++
++  * fix scd-all and sg-all entry points.  The latter is just an alias for 'sg',
++    but the former was genuinely missing.  Switch sg devices to numeric suffix
++    to comply with kernel's devices.txt.  Closes 27490.
++  * close 26586, since I'm pretty sure it's a weirdy not caused by the package.
++  * add ISDN devices, closes 26971.
++  * add cfs0 for CODA, closes 23815.
++
++ -- Bdale Garbee <bdale@gag.com>  Tue,  6 Oct 1998 00:33:59 -0600
++
++makedev (2.3.1-1) unstable; urgency=low
++
++  * New upstream version.  This is a *significant* change!
++    This is a move (back?) from the short-lived makedev that depended on a     
++    non-free parser to the one that is just a shell script.  We will now be    
++    more like other Linux distributions, no longer depending on a non-free     
++    hunk of code to build the makedev package, and some porting and other      
++    issues will get better.                                                    
++  * With the major change in upstream code, several bugs are not relevant 
++    any more.  Therefore, close 12949, 18037, 18807, 20665, 22648, 22868, 
++    23771, 23898, 24477, 24572, 25660, 25840, 26058.
++  * add support for /dev/ptmx, built as part of pty*, closes 23612.
++  * add support for /dev/ed[ab], closes 23887.
++
++ -- Bdale Garbee <bdale@gag.com>  Sun,  6 Sep 1998 21:21:32 -0600
++
++makedev (1.6-32) frozen unstable; urgency=medium
++
++  * serial devices now owned by root.dialout, closes 22297 (important)
++  * tape devices now owned by root.tape, closes 11910 
++  * be explicit about which 'ls' we're calling, closes 22225
++
++ -- Bdale Garbee <bdale@gag.com>  Fri, 22 May 1998 23:52:58 -0600
++
++makedev (1.6-31) unstable; urgency=low
++
++  * add powerpc support, closes 21949
++  * lose the menu entry
++
++ -- Bdale Garbee <bdale@gag.com>  Sat,  2 May 1998 01:29:06 -0600
++
++makedev (1.6-30) unstable; urgency=low
++
++  * change from debmake to debhelper
++  * fix errors and warnings reported by lintian
++  * deliver devices.sgml instead of trying to build the .txt and .html files,
++    closes bug 16953
++
++ -- Bdale Garbee <bdale@gag.com>  Mon,  9 Feb 1998 22:31:43 -0700
++
++makedev (1.6-29) unstable; urgency=low
++
++  * add arpd device, on request of Elie Rosenblum <erosenbl@nyx.net>.
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 14 Jan 1998 09:42:14 -0700
++
++makedev (1.6-28) unstable; urgency=low
++
++  * new maintainer
++
++ -- Bdale Garbee <bdale@gag.com>  Fri,  5 Dec 1997 23:22:57 -0700
++
++makedev (1.6-27) unstable; urgency=low
++
++  * changed /dev/console handling. 
++  * updated devinfo to kernel 2.1.62 device list.
++  * changed all device with group "sys" to group "root".
++
++ -- Andreas Jellinghaus <aj@debian.org>  Sat,  8 Nov 1997 11:56:18 +0100
++
++makedev (1.6-26) unstable; urgency=low
++
++  * fixed bug #13787 : amigamouse1 was not corrected by postinst.
++  * fixed ad devices.
++  * added nvram device, added ad* to std-hd-m68k, added ttyS4 and ttyS6
++    to m68k boot-floppies and m68k generic
++
++ -- Andreas Jellinghaus <aj@debian.org>  Thu, 16 Oct 1997 20:09:14 +0200
++
++makedev (1.6-25) unstable; urgency=low
++
++  * bug #9077 is obsolete (kernel bug, fixed in kernel).
++  * libc6 release : closes bugs #12791 and #13122.
++  * fixed bug #12158 : added sr* and sg* devices.
++  * fixed bug #12385 : wrong standard number.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Fri, 19 Sep 1997 16:12:32 +0200
++
++makedev (1.6-24) unstable; urgency=low
++
++  * removed support for old floppy devices.
++  * only create generic floppy devices.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed, 10 Sep 1997 10:31:53 +0200
++
++makedev (1.6-23) unstable; urgency=low
++
++  * renamed isdn batches : isdn-xx is 8 devices, isdn-xx-all are 64
++    devices (isdn-io, isdn-tty, isdn-ippp, isdn-cu).
++  * increased numer to 5500 devices. (makedev is getting too large).
++
++ -- Andreas Jellinghaus <aj@debian.org>  Mon,  8 Sep 1997 21:40:11 +0200
++
++makedev (1.6-22) unstable; urgency=low
++
++  * bugfix with cvstree (i forgot to commit befor tagging :-()
++
++ -- Andreas Jellinghaus <aj@debian.org>  Mon,  8 Sep 1997 21:30:08 +0200
++
++makedev (1.6-21) unstable; urgency=low
++
++  * bugfix : out of memory. aarrgg : makedev has fixed size tables.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Mon,  8 Sep 1997 21:28:24 +0200
++
++makedev (1.6-20) unstable; urgency=low
++
++  * corrected problem with my own cvs tree
++
++ -- Andreas Jellinghaus <aj@debian.org>  Sun,  7 Sep 1997 16:54:10 +0200
++
++makedev (1.6-19) unstable; urgency=low
++
++  * changed /dev/full to mode 0622 (0666 was a security hole, as
++  			discussed on linux-kernel).
++
++ -- Andreas Jellinghaus <aj@debian.org>  Sun,  7 Sep 1997 16:22:27 +0200
++
++makedev (1.6-18) unstable; urgency=low
++
++  * added isdn-*-small devices (only 8 devices, not 64). 
++
++ -- Andreas Jellinghaus <aj@debian.org>  Fri, 22 Aug 1997 12:57:20 +0200
++
++makedev (1.6-17) unstable; urgency=low
++
++  * close bug 6541 (missing audio device) : not reproduceable 
++  * generate random and urandom, if missing (bug #12134)
++  * enabled makedev to create more sg* and sr* devices (bug #12158)
++  * changed doubletalkt to dtlk as requested
++  * sd[a-h]16 removed (bug, sda16 = sdb, scsi only supports 15
++    partitions) 
++
++ -- Andreas Jellinghaus <aj@debian.org>  Sun, 17 Aug 1997 19:19:33 +0200
++
++makedev (1.6-16) stable unstable; urgency=low
++
++  * security bug fixed : all mouse devices are now mode 600.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed, 30 Jul 1997 10:31:04 +0200
++
++makedev (1.6-15) unstable; urgency=low
++
++  * ibcs2 removed from generic set. revised ibcs2-unoff.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Tue, 29 Jul 1997 13:13:43 +0200
++
++makedev (1.6-14) unstable; urgency=low
++
++  * bug in postinst : type "MAKDEV" and "/dev/tty0" instead of "tty0" (#11441)
++  * stable version (libc5 compiled) for isdnutils
++
++ -- Andreas Jellinghaus <aj@debian.org>  Fri, 25 Jul 1997 10:12:14 +0200
++
++makedev (1.6-13) unstable; urgency=low
++
++  * fixed menu entry (thanks to Abdallah Chatila <acha@poboxes.com>)
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed,  9 Jul 1997 21:33:55 +0200
++
++makedev (1.6-12) unstable; urgency=low
++
++  * bug fix (changed doubletalk to class audio).
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed,  9 Jul 1997 09:45:38 +0200
++
++makedev (1.6-11) unstable; urgency=low
++
++  * Fixed isdn devices (ippp were missing).
++  * No longer create isdn device as default (that is done by isdnutils).
++  * Added doubletalk device. Added more ibcs2 stuff.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Tue,  8 Jul 1997 19:04:45 +0200
++
++makedev (1.6-10) unstable stable; urgency=low
++
++  * fixed console device, added documentation.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed, 25 Jun 1997 13:20:46 +0200
++
++makedev (1.6-9) unstable stable; urgency=low
++
++  * Added comment about cua devices.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Tue, 24 Jun 1997 09:21:20 +0200
++
++makedev (1.6-8) unstable stable; urgency=low
++
++  * changed /dev/console to be a symlink to /dev/tty0.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Sun, 22 Jun 1997 21:42:35 +0200
++
++makedev (1.6-7) unstable stable; urgency=low
++
++  * fixed bug with possible /dev/console symlink.
++  * fixed bug with not always creating /dev/tty0. (xfree 3.3 need this)
++
++ -- Andreas Jellinghaus <aj@debian.org>  Thu, 19 Jun 1997 22:38:46 +0200
++
++makedev (1.6-6) unstable; urgency=low
++
++  * fixed documentation (thanks to David Welton <davidw@efn.org>)
++  * patch for m68k from frank neumann included
++
++ -- Andreas Jellinghaus <aj@debian.org>  Mon,  9 Jun 1997 15:45:00 +0200
++
++makedev (1.6-5) unstable; urgency=low
++
++  * libc6 release
++  * added postinst script to change tty/pty devices to new major
++    numbers (the next time you boot).
++  * changed all serial devices from root.dialout to uucp.dialout
++  * added generic-ARCH batches
++  * changed (u)random permissions from 444 to 644
++  * corrected mcd/mcdx handling.
++  * small bugfix in manpages.
++
++ -- Andreas Jellinghaus <aj@debian.org>  Thu, 24 Apr 1997 19:12:58 +0200
++
++makedev (1.6-4) unstable frozen; urgency=low
++
++  * fixed manpage, added generic-m68k, added mfd0, changed framebuffer
++        create both : fb[01] and fb[01]current, changed framebuffer
++        class to mode 664. disabled adb (apple desktob bus).
++        this fixes bug #9053
++  * fixed mitsumi cdrom detection. 
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed, 23 Apr 1997 16:23:50 +0200
++
++makedev (1.6-3) unstable frozen; urgency=low
++
++  * bug fixed : st?l devices (nor st?1). 
++  * only create fd0 and fd1 with generic
++  * seperated old device names to "-old" groups
++  * not generating cm205cd by default
++  * "boot-floppy" added with less devices
++  * documentation in sgml and txt format
++
++ -- Andreas Jellinghaus <aj@debian.org>  Wed, 16 Apr 1997 12:58:56 +0200
++
++makedev (1.6-2) unstable frozen; urgency=high
++
++  * new maintainer Andreas Jellinghaus <aj@debian.org> 
++  * rewrote devinfo (according to linux allocated devices, 2.0.30,2.1.31
++  * this fixes bug #8396 (isdn devices)
++  * this fixes bug #8399 (don't generate cu* devices)
++  * this fixes bug #7144 (device for goldstar cdrom - gscd)
++  * this fixes bug #8173 (new names for floppy devices fd*)
++  * this fixes bug #8068 (hd[efgh] devises added : now ide[0123])
++    (this includes: renamed all floppy device (bug #8173),
++  * this fixes bug #3493 (isdn devices)
++  * this fixes bug #5542 (ttyS* group dialout, cu* not generated)
++  * this fixes bug #6926 (loop back devices corrected)
++  * this fixes bug #6983 (loop back devices creatable)
++  * this fixes bug #7038 (mcd device creatable (only one))
++  * this fixes bug #7754 (sr* devices are created for compatibility)
++  * this fixes parts of bug #7783 (only new tty/pty are created)
++  * bug #7755 obsolete (old cat file ? current man page is ok)
++  * bug #8009 obsolete (disks 1997-04-04 are ok)
++  * remove from generic : cua[0-3] lmscd ram sbpcd[9-15] vcs0
++    added to generic: X0R aztcd beep bpcd cm205cd cm206cd exttrp gscd
++      hd[efgh]* hitcd hwtrap initrd ippp* jbm loop* mcd md* modreq nsfd
++      nst*[1am] optcd ram[0-7] ramdisk relay16 relay8 rtc sd[abcdefgh][9-16]
++      sequence2 sg[0-7] sjcd socksys spx sr[0-7] st*[1am] tpqic* tty[13-63]
++      ttyI[0-63] urandom vcs vcs[13-63] vcsa vcsa[13-63] watchdog
++         (ca. + 600 devices, size + 11 k in a ext2fs)
++
++ -- Andreas Jellinghaus <aj@debian.org>  Sun, 13 Apr 1997 21:06:14 +0200
++
++makedev (1.6-1) unstable; urgency=low
++
++  * New upstream version.
++
++ -- Bruce Perens <bruce@pixar.com>  Wed, 19 Mar 1997 20:40:17 -0800
++
++makedev (1.5-4) unstable; urgency=low
++
++  * Add devices. Increase the maximum size of a batch from 32 to 1024.
++
++ -- Bruce Perens <bruce@pixar.com>  Tue, 17 Dec 1996 20:34:06 -0800
++
++makedev (1.5-3) unstable; urgency=low
++
++  * Make hd[a-d][8-20] and sd[a-h][8-20]. Remove bad empty "omit" from
++    makedev.cfg
++
++ -- Bruce Perens <bruce@pixar.com>  Sun, 8 Dec 1996 09:42:18 -0800
++
++makedev (1.5-2) unstable; urgency=low
++
++  * Change class of ttySn devices to dialout.
++  * Add ISDN.
++
++ -- Bruce Perens <bruce@pixar.com>  Fri, 6 Dec 1996 21:17:12 -0800
++
++makedev (1.5-1) unstable; urgency=low
++
++  * Initial Release.
++
++ -- Bruce Perens <bruce@pixar.com>  Wed, 30 Oct 1996 20:36:44 -0800
++
++Local variables:
++mode: debian-changelog
++End:
+--- makedev-2.3.1.orig/debian/conffiles
++++ makedev-2.3.1/debian/conffiles
+@@ -0,0 +1 @@
++/etc/init.d/makedev
+--- makedev-2.3.1.orig/debian/control
++++ makedev-2.3.1/debian/control
+@@ -0,0 +1,13 @@
++Source: makedev
++Section: base
++Priority: required
++Maintainer: Bdale Garbee <bdale@gag.com>
++Build-Depends: debhelper
++Standards-Version: 3.1.1.1
++
++Package: makedev
++Architecture: all
++Depends: base-passwd (>= 3.0.4)
++Description: Creates special device files in /dev.
++ The MAKEDEV executable is used to populate the /dev directory with device
++ files.
+--- makedev-2.3.1.orig/debian/copyright
++++ makedev-2.3.1/debian/copyright
+@@ -0,0 +1,45 @@
++This package is maintained for Debian by Bdale Garbee, <bdale@gag.com>.
++
++It was downloaded from ftp.redhat.com, as a source .rpm from the 5.1 release
++tree.
++
++Copyright:
++
++No explicit copyright is asserted.  Nick Holloway is the earliest author 
++recorded in the sourcecode.  I queried him for an explicit statement 
++regarding the license status of this work, and this is his reply:
++  
++ Date: Tue, 21 Jul 1998 19:57:10 +0100
++ From: Nick Holloway <Nick.Holloway@alfie.demon.co.uk>
++ Message-Id: <199807211857.TAA19068@alfie.demon.co.uk>
++ To: Bdale Garbee <bdale@gag.com>
++ Subject: Re: makedev license?
++ 
++ > I maintain the makedev package for Debian GNU/Linux.  I am about to move 
++ > from the ill-fated makedev-1.6 to the makedev-2.3.1 derived from your work 
++ > by the folks at Redhat.  I don't see any evidence of a copyright assertion 
++ > or explicit license statement in the source.  Your name appears to be the 
++ > earliest attached to the current sourcecode.  Am I correct in assuming the 
++ > GPL?  We try to be meticulous about having our base system be compliant 
++ > with our Debian Free Software Guidelines, so I'd like an explicit statement.
++ 
++ It was never explictly released as GPL, as that would have required
++ including the file COPYING which would have been much larger than the
++ actual MAKEDEV script (I was also too lazy to find out what incantations
++ needed to be made).  However, it is intended to be used as anyone sees
++ fit, and the statement under "Copying Policy" is "Freely Redistributable"
++ (see MAKEDEV.lsm from any of the releases I made).
++ 
++ The more recent modifications were done by Michael K. Johnson at
++ Redhat.  I think the understanding was that he would be taking over the
++ maintenance of MAKEDEV (our discussion took place last September).
++ 
++ The only previous history was (according to an old posting to
++ comp.os.linux) that I started with Jim Winstead's script.
++ 
++ So, as far as I am concerned, it is consistentwith the Debian FSG.
++ 
++ -- 
++  `O O'  | Home: Nick.Holloway@alfie.demon.co.uk  http://www.alfie.demon.co.uk/
++ // ^ \\ | Work: Nick.Holloway@parallax.co.uk
++ 
+--- makedev-2.3.1.orig/debian/dirs
++++ makedev-2.3.1/debian/dirs
+@@ -0,0 +1,2 @@
++sbin
++usr/share/man/man8
+--- makedev-2.3.1.orig/debian/init.d
++++ makedev-2.3.1/debian/init.d
+@@ -0,0 +1,21 @@
++#! /bin/sh
++
++PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
++
++set -e
++
++case "$1" in
++  start)
++	ln -fs /sbin/MAKEDEV /dev/MAKEDEV
++	;;
++  stop|reload|restart|force-reload)
++	;;
++  *)
++	N=/etc/init.d/makedev
++	# echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
++	echo "Usage: $N {start|stop|restart|force-reload}" >&2
++	exit 1
++	;;
++esac
++
++exit 0
+--- makedev-2.3.1.orig/debian/postinst
++++ makedev-2.3.1/debian/postinst
+@@ -0,0 +1,62 @@
++#!/bin/sh
++
++set +e
++
++#DEBHELPER#
++
++cd /dev
++
++/sbin/MAKEDEV std
++
++test -e /dev/console || /sbin/MAKEDEV console
++test -e /dev/tty0 || /sbin/MAKEDEV tty0
++test -e /dev/random || /sbin/MAKEDEV random
++test -e /dev/urandom || /sbin/MAKEDEV urandom
++test -e /dev/full && chmod 0622 /dev/full
++test -e /dev/audio || /sbin/MAKEDEV audio
++
++[ ! -f /dev/mouse -a -f /dev/sunmouse ] && ln -s sunmouse mouse
++
++for A in sda16 sdb16 sdc16 sdd16 sde16 sdf16 sdg16 sdh16 \
++	 ada16 adb16 adc16 add16 ade16 adf16 adg16 adh16
++do
++	test -e /dev/$A && rm /dev/$A
++done
++
++for A in logibm psaux inportbm atibm jbm smouse logimouse psmouse \
++msmouse atimouse jmouse amigamouse atarimouse sunmouse amigamouse1
++do
++	test -e /dev/$A && chmod 600 /dev/$A
++done
++
++# fix security hole caused by group-write permissions on kmem
++test -e /dev/kmem && chown root.kmem /dev/kmem && chmod 0640 /dev/kmem
++
++LIST=""
++
++for TYPE in tty pty ; do
++	for LETTER in p q r s t u v w x y z a b c d e ; do
++		if [ -e /dev/$TYPE$LETTER"0" ]; then
++			MAJOR="`/bin/ls -l /dev/$TYPE$LETTER"0"|cut -c33-36`"
++			if [ "$MAJOR" = 4 ] ; then
++				LIST="$LIST $TYPE$LETTER"
++			fi
++		fi
++	done
++done
++
++if [ -n "$LIST" ]; then
++	cat > /etc/rc.boot/makedev << EOF
++#!/bin/sh
++
++echo "Creating new console devices"
++/sbin/MAKEDEV $LIST
++
++rm /etc/rc.boot/makedev ; exit 0
++EOF
++
++chmod 755 /etc/rc.boot/makedev
++
++fi
++
++exit 0
+--- makedev-2.3.1.orig/debian/preinst
++++ makedev-2.3.1/debian/preinst
+@@ -0,0 +1,5 @@
++#!/bin/sh
++
++rm -f /usr/man/man8/MAKEDEV.8 /usr/man/man8/MAKEDEV-C.8 \
++	/usr/man/man8/MAKEDEV-C.8.gz
++exit 0
+--- makedev-2.3.1.orig/debian/rules
++++ makedev-2.3.1/debian/rules
+@@ -0,0 +1,56 @@
++#!/usr/bin/make -f
++# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
++
++# Uncomment this to turn on verbose mode.
++#export DH_VERBOSE=1
++
++build: build-stamp
++build-stamp:
++	dh_testdir
++	touch build-stamp
++
++clean:
++	dh_testdir
++	dh_testroot
++	rm -f build-stamp
++	-$(MAKE) clean
++	-rm -f debian/devices.txt debian/devices*html
++	dh_clean
++
++# Build architecture-independent files here.
++binary-indep: build
++
++# Build architecture-dependent files here.
++binary-arch: build
++#	dh_testversion
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++
++	ROOT=debian/tmp $(MAKE) install 
++
++	dh_installdocs 
++	dh_installexamples
++	dh_installmenu
++	dh_installinit
++	dh_installcron
++	dh_installmanpages
++	dh_undocumented
++	dh_installchangelogs
++	dh_strip
++	dh_compress
++	dh_fixperms
++	dh_suidregister
++	dh_installdeb
++	dh_shlibdeps
++	dh_gencontrol
++#	dh_makeshlibs
++	dh_md5sums
++	dh_builddeb
++
++source diff:                                                                  
++	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary

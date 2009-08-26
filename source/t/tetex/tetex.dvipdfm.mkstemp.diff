@@ -1,0 +1,20 @@
+--- tetex-src-2.0.2/texk/dvipdfm/psimage.c.dvipdfm-security	2001-06-28 20:55:26.000000000 +0100
++++ tetex-src-2.0.2/texk/dvipdfm/psimage.c	2003-03-12 18:12:56.000000000 +0000
+@@ -113,10 +113,15 @@
+ {
+ #ifdef HAVE_SYSTEM
+   pdf_obj *result = NULL;
+-  char *tmp, *cmd;
++  char tmp[] = "/tmp/dvipdfm.XXXXXX", *cmd;
++  int tfd;
+   FILE *pdf_file = NULL;
+   /* Get a full qualified tmp name */
+-  tmp = tmpnam (NULL);
++  tfd = mkstemp (tmp);
++  if (tfd == -1) {
++    fprintf (stderr, "\nCouldn't create temporary file for output\n");
++    return NULL;
++  } else close (tfd);
+   if ((cmd = build_command_line (file_name, tmp))) {
+     if (!system (cmd) && (pdf_file = MFOPEN (tmp, FOPEN_RBIN_MODE))) {
+       result = pdf_include_page (pdf_file, p, res_name);

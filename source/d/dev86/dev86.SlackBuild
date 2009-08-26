@@ -1,0 +1,98 @@
+#!/bin/sh
+
+# Copyright 2007-2008 Heinz Wiesinger <hmwiesinger@gmx.at>
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PRGNAM=dev86
+SRCNAM=Dev86src
+VERSION=0.16.17
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+set -e
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP
+rm -rf $PRGNAM-$VERSION
+tar xvzf $CWD/$SRCNAM-$VERSION.tar.gz
+cd $PRGNAM-$VERSION
+if [ "$ARCH" = "x86_64" ]; then
+  zcat $CWD/dev86-x86_64.patch.gz \
+    | patch -p1 --verbose --backup --suffix=.orig -E
+  # On x86_64 elks will not build:
+  zcat $CWD/dev86-x86_64.noelks.patch.gz \
+    | patch -p1 --verbose --backup --suffix=.orig -E
+fi
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+#Does not compile with changed CFLAGS
+#CC="gcc" make CFLAGS="-Wall -Wstrict-prototypes $SLKCFLAGS -g" DIST=$PKG
+CC="gcc" \
+make DIST=$PKG MANDIR=/usr/man LIBDIR=/usr/lib${LIBDIRSUFFIX}/bcc \
+  INCLDIR=/usr/lib${LIBDIRSUFFIX}/bcc LOCALPREFIX=/usr \
+  install install-man 
+
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $( find . -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+)
+
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+cp -a Changes Contributors COPYING README $PKG/usr/doc/$PRGNAM-$VERSION
+for i in bootblocks copt dis88 elksemu unproto ; do
+  cp -a $i/README $PKG/usr/doc/$PRGNAM-$VERSION/README.$i ;
+done
+cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+find $PKG/usr/doc -type f -exec chmod 0644 {} \;
+
+if [ "$ARCH" = "x86_64" ]; then # Remove traces of elks
+  rm -f $PKG/usr/doc/$PRGNAM-$VERSION/README.elksemu
+  find $PKG/usr/man -name "elks*.*" -exec rm -f {} \;
+fi
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD.txz

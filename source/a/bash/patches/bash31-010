@@ -1,0 +1,54 @@
+			     BASH PATCH REPORT
+			     =================
+
+Bash-Release: 3.1
+Patch-ID: bash31-010
+
+Bug-Reported-by: vw@vonwolff.de
+Bug-Reference-ID: <20060123135234.1AC2F1D596@wst07.vonwolff.de>
+Bug-Reference-URL: http://lists.gnu.org/archive/html/bug-bash/2006-01/msg00090.html
+
+Bug-Description:
+
+There is a difference in behavior between bash-3.0 and bash-3.1 involving
+parsing of single- and double-quoted strings occurring in old-style
+command substitution.  The difference has to do with how backslashes are
+processed.  This patch restores a measure of backwards compatibility while
+the question of POSIX conformance and ultimately correct behavior is discussed.
+
+Patch:
+
+*** ../bash-3.1/parse.y	Fri Nov 11 23:14:18 2005
+--- parse.y	Wed Jan 25 14:55:18 2006
+***************
+*** 2899,2903 ****
+        else if MBTEST(qc == '`' && (ch == '"' || ch == '\'') && in_comment == 0)
+  	{
+! 	  nestret = parse_matched_pair (0, ch, ch, &nestlen, rflags);
+  	  goto add_nestret;
+  	}
+--- 2901,2909 ----
+        else if MBTEST(qc == '`' && (ch == '"' || ch == '\'') && in_comment == 0)
+  	{
+! 	  /* Add P_ALLOWESC so backslash quotes the next character and
+! 	     shell_getc does the right thing with \<newline>.  We do this for
+! 	     a measure  of backwards compatibility -- it's not strictly the
+! 	     right POSIX thing. */
+! 	  nestret = parse_matched_pair (0, ch, ch, &nestlen, rflags|P_ALLOWESC);
+  	  goto add_nestret;
+  	}
+*** ../bash-3.1/patchlevel.h	Wed Jul 20 13:58:20 2005
+--- patchlevel.h	Wed Dec  7 13:48:42 2005
+***************
+*** 26,30 ****
+     looks for to find the patch level (for the sccs version string). */
+  
+! #define PATCHLEVEL 9
+  
+  #endif /* _PATCHLEVEL_H_ */
+--- 26,30 ----
+     looks for to find the patch level (for the sccs version string). */
+  
+! #define PATCHLEVEL 10
+  
+  #endif /* _PATCHLEVEL_H_ */

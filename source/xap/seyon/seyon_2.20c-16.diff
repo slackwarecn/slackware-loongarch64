@@ -1,0 +1,5031 @@
+--- seyon-2.20c.orig/Seyon.ad
++++ seyon-2.20c/Seyon.ad
+@@ -7,6 +7,8 @@
+ ! * statement of rights and permissions for this program.
+ ! * 
+ 
++#include "/etc/X11/seyon/Seyon-modem"
++
+ *.title: Seyon Command Center
+ *.iconName: Seyon
+ 
+@@ -259,31 +261,6 @@
+ *statusBox.rng.label: RNG
+ 
+ !
+-! Quick Keys
+-!
+-
+-*quickKeyBox.Command.font: 6x10
+-
+-*quickKey1.visible: on
+-*quickKey2.visible: on
+-*quickKey3.visible: on
+-*quickKey4.visible: on
+-*quickKey5.visible: on
+-
+-!*quickKey1.action: DialEntries(1);
+-!*quickKey2.action: DialEntries(3);
+-!*quickKey3.action: FileTransfer(2, ou*);
+-!*quickKey4.action: DivertFile(/tmp/lo);
+-!*quickKey5.action: Hangup(); Beep(); 
+-!RunScript(test1); Echo(ll);
+-
+-*quickKey1.label: Athena
+-*quickKey2.label: Ch1
+-*quickKey3.label: UpMail
+-*quickKey4.label: DivMsg
+-*quickKey5.label: Local
+-
+-!
+ ! Fun messages. Send me more please.
+ !
+ 
+@@ -302,6 +279,7 @@
+ 	"Have something funny? send it!" \
+ 	"I've fallen and I can't get up!"
+ 
+++*showFunMessages: off
+ *notImplemented*title: Seyon Feature
+ *notImplemented.dialog.label: \
+ This feature is not yet implemented\n\
+--- seyon-2.20c.orig/SeDecl.h
++++ seyon-2.20c/SeDecl.h
+@@ -66,7 +66,6 @@
+ extern FILE    *open_file(),
+                *open_file_va();
+ extern void     send_break(),
+-                usleep(),
+                 show(),
+                 showf(),
+                 SeyonMessage(),
+--- seyon-2.20c.orig/1-CHANGES
++++ seyon-2.20c/1-CHANGES
+@@ -12,7 +12,6 @@
+ Rolled in some obvious bug fixes from the Debian version of 2.14c:
+     * Fixed typo in Seyon.ad: s/replcae/replace
+     * Added #include <linux/serial.h> to SePort.c for Linux
+-    * Minor changes to ExecShellCommand; used to crash, should no more.
+     * Now under GPL (see 1-COPYING for details), new maintainer.
+ 
+ Versions up to 2.20b:
+--- seyon-2.20c.orig/SeTerm.c
++++ seyon-2.20c/SeTerm.c
+@@ -10,7 +10,7 @@
+  * This file contains routines for Seyon's terminal. The main routine is
+  * terminal(), which reads characters from the terminal and sends them to the
+  * port. That routine also forks a child process that reads characters from
+- * the port and writes them to the temrinal. Once the parent receives SIGTERM
++ * the port and writes them to the terminal. Once the parent receives SIGTERM
+  * (which should be sent by the grand parent), it kills the child and exits.
+  */
+ 
+--- seyon-2.20c.orig/MultiList.c
++++ seyon-2.20c/MultiList.c
+@@ -1031,8 +1031,8 @@
+ XfwfMultiListWidget mlw;
+ int row,column;
+ {
+-	GC bg_gc,fg_gc;
+-	XfwfMultiListItem *item;
++	GC bg_gc,fg_gc = 0;
++	XfwfMultiListItem *item = NULL;
+ 	int ul_x,ul_y,str_x,str_y,w,h,item_index,has_item,text_h;
+ 
+ 	if (!XtIsRealized((Widget)mlw)) return;
+--- seyon-2.20c.orig/SeInit.c
++++ seyon-2.20c/SeInit.c
+@@ -34,30 +34,30 @@
+ #endif
+ 
+ extern void     TopAbout(),
+-                TopHelp(),
+-                TopSet(),
+-                TopTransfer(),
+-                TopMisc(),
+-                SetNewlineTrMode(),
+-                FunMessage();
++    TopHelp(),
++    TopSet(),
++    TopTransfer(),
++    TopMisc(),
++    SetNewlineTrMode(),
++    FunMessage();
+ 
+ extern void     upload_acc_ok(),
+-                setVal_action_ok(),
+-                manual_dial_action_ok(),
+-                divert_action_ok();
++    setVal_action_ok(),
++    manual_dial_action_ok(),
++    divert_action_ok();
+ 
+ extern Boolean  CvtStringToStringArray();
+ 
+ void            HangupConfirm(),
+-                ExecHangup(),
+-                ExitConfirm(),
+-                ExitAction(),
+-                test();
++    ExecHangup(),
++    ExitConfirm(),
++    ExitAction(),
++    test();
+ 
+ Boolean         inhibit_child = False;
+ Widget          w_exit,
+-                w_kill,
+-                statusMessage;
++    w_kill,
++    statusMessage;
+ Widget          dialWidget, genericWidget;
+ pid_t           w_child_pid = 0;
+ Pixmap          progIcon;
+@@ -66,194 +66,202 @@
+ 
+ void
+ InitVariables(topLevel)
+-     Widget          topLevel;
++    Widget          topLevel;
+ {
+-  char            buffer[REG_BUF];
++    char            buffer[REG_BUF];
+ 
+-  sprintf(captureFile, "%s/%s", expand_fname(qres.defaultDirectory, buffer),
+-	  qres.captureFile);
++    expand_fname(qres.defaultDirectory, buffer, REG_BUF);
+ 
+-  SetNewlineTrMode(qres.newlineTranslation);
++    if(REG_BUF > (1 + strlen(buffer) + strlen(qres.captureFile)))
++        sprintf(captureFile, "%s/%s", buffer, qres.captureFile);
++    else
++    {
++        printf("Buffer overflow in InitVariables: %s/%s\nExit\n",buffer, qres.captureFile);
++        exit(1);
++    }
++    
++    SetNewlineTrMode(qres.newlineTranslation);
+ }
+ 
+ void
+ SetIcon(topLevelWidget)
+-     Widget          topLevelWidget;
++    Widget          topLevelWidget;
+ {
+-  progIcon = 
+-	XCreateBitmapFromData(XtDisplay(topLevelWidget),
+-						  DefaultRootWindow(XtDisplay(topLevelWidget)),
+-						  progIcon_bits, progIcon_width,
+-						  progIcon_height);
+-  XtVaSetValues(topLevelWidget, XtNiconPixmap, progIcon, NULL);
++    progIcon = 
++        XCreateBitmapFromData(XtDisplay(topLevelWidget),
++			DefaultRootWindow(XtDisplay(topLevelWidget)),
++			progIcon_bits, progIcon_width,
++			progIcon_height);
++    XtVaSetValues(topLevelWidget, XtNiconPixmap, progIcon, NULL);
+ }
+ 
+ void
+ CreateCommandCenter()
+ {
+-  void            GetQuickKeyResources(),
+-                  GetValueByPopupOKAction(),
+-                  DispatchActionsCallback();
+-  void            TopShell();
+-  void            KillChildProc();
+-
+-  Widget          mainBox,
+-                  menuBox,
+-                  statusBox,
+-                  messageBox,
+-                  quickKeyBox;
+-  static Widget   status[NUM_MDM_STAT];
+-  static Atom     wm_delete_window;
+-  Dimension       menuBoxWidth;
+-
+-  struct _quickKeyRes quickKeyRes;
+-  Widget          quickKeyW;
+-  char            qKBuf[REG_BUF];
+-  int             i, n = 0;
+-
+-  static XtActionsRec actionTable[] = {
+-    {"UploadOk", upload_acc_ok},
+-    {"SetValOk", setVal_action_ok},
+-    {"ManualDialOk", manual_dial_action_ok},
+-    {"DivertOk", divert_action_ok},
+-    {"Exit", ExitAction},
+-    {"GetValueByPopupOK", GetValueByPopupOKAction},
+-  };
+-
+-  XtAppAddActions(XtWidgetToApplicationContext(topLevel), actionTable, 
+-				  XtNumber(actionTable));
+-
+-  mainBox = SeAddPaned("mainBox", topLevel);
+-  statusBox = AddBox("statusBox", mainBox);
+-  messageBox = SeAddForm("messageBox", mainBox);
+-  quickKeyBox = AddBox("quickKeyBox", mainBox);
+-  menuBox = AddBox("menuBox", mainBox);
+-
+-  status[0] = SeAddToggle("dcd", statusBox, NULL);
+-  status[1] = SeAddToggle("dtr", statusBox, NULL);
+-  status[2] = SeAddToggle("dsr", statusBox, NULL);
+-  status[3] = SeAddToggle("rts", statusBox, NULL);
+-  status[4] = SeAddToggle("cts", statusBox, NULL);
+-  status[5] = SeAddToggle("rng", statusBox, NULL);
+-
+-  statusMessage = SeAddLabel("message", messageBox);
+-
+-  AddButton("about", menuBox, TopAbout, NULL);
+-  AddButton("help", menuBox, TopHelp, NULL);
+-  AddButton("set", menuBox, TopSet, NULL);
+-  genericWidget = dialWidget = AddButton("dial", menuBox, TopDial, NULL);
+-  AddButton("transfer", menuBox, TopTransfer, NULL);
+-  AddButton("shellCommand", menuBox, TopShell, NULL);
+-  AddButton("misc", menuBox, TopMisc, NULL);
+-  AddButton("hangup", menuBox, HangupConfirm, NULL);
+-  w_exit = AddButton("exit", menuBox, ExitConfirm, NULL);
+-  w_kill = AddButton("kill", menuBox, KillChildProc, NULL);
+-
+-  for (i = 0; i < MAX_SEQUICKKEYS; i++) {
+-	sprintf(qKBuf, "quickKey%d", i+1);
+-	GetQuickKeyResources(qKBuf, &quickKeyRes);
+-	if (quickKeyRes.visible) {
+-      n++;
++    void            GetQuickKeyResources(),
++        GetValueByPopupOKAction(),
++        DispatchActionsCallback();
++    void            TopShell();
++    void            KillChildProc();
++
++    Widget          mainBox,
++        menuBox,
++        statusBox,
++        messageBox,
++        quickKeyBox;
++    static Widget   status[NUM_MDM_STAT];
++    static Atom     wm_delete_window;
++    Dimension       menuBoxWidth;
++
++    struct _quickKeyRes quickKeyRes;
++    Widget          quickKeyW;
++    char            qKBuf[LRG_BUF];
++    int             i, n = 0;
++
++    static XtActionsRec actionTable[] = {
++        {"UploadOk", upload_acc_ok},
++        {"SetValOk", setVal_action_ok},
++        {"ManualDialOk", manual_dial_action_ok},
++        {"DivertOk", divert_action_ok},
++        {"Exit", ExitAction},
++        {"GetValueByPopupOK", GetValueByPopupOKAction},
++    };
++
++    XtAppAddActions(XtWidgetToApplicationContext(topLevel), actionTable, 
++		XtNumber(actionTable));
++
++    mainBox = SeAddPaned("mainBox", topLevel);
++    statusBox = AddBox("statusBox", mainBox);
++    messageBox = SeAddForm("messageBox", mainBox);
++    quickKeyBox = AddBox("quickKeyBox", mainBox);
++    menuBox = AddBox("menuBox", mainBox);
++
++    status[0] = SeAddToggle("dcd", statusBox, NULL);
++    status[1] = SeAddToggle("dtr", statusBox, NULL);
++    status[2] = SeAddToggle("dsr", statusBox, NULL);
++    status[3] = SeAddToggle("rts", statusBox, NULL);
++    status[4] = SeAddToggle("cts", statusBox, NULL);
++    status[5] = SeAddToggle("rng", statusBox, NULL);
++
++    statusMessage = SeAddLabel("message", messageBox);
++
++    AddButton("about", menuBox, TopAbout, NULL);
++    AddButton("help", menuBox, TopHelp, NULL);
++    AddButton("set", menuBox, TopSet, NULL);
++    genericWidget = dialWidget = AddButton("dial", menuBox, TopDial, NULL);
++    AddButton("transfer", menuBox, TopTransfer, NULL);
++    AddButton("shellCommand", menuBox, TopShell, NULL);
++    AddButton("misc", menuBox, TopMisc, NULL);
++    AddButton("hangup", menuBox, HangupConfirm, NULL);
++    w_exit = AddButton("exit", menuBox, ExitConfirm, NULL);
++    w_kill = AddButton("kill", menuBox, KillChildProc, NULL);
++
++    for (i = 0; i < MAX_SEQUICKKEYS; i++) {
++        sprintf(qKBuf, "quickKey%d", i+1); /* qKBuf is large enough here... */
++        GetQuickKeyResources(qKBuf, &quickKeyRes);
++        if (quickKeyRes.visible) {
++	  n++;
+ 	  quickKeyW = 
+-		AddButton(qKBuf, quickKeyBox, DispatchActionsCallback, NULL);
+-	}
+-  }
+-  if (n == 0) XtDestroyWidget(quickKeyBox);
+-
+-  XtOverrideTranslations(topLevel,
+-		            XtParseTranslationTable("<Message>WM_PROTOCOLS: Exit()"));
+-
+-  /* Call UpdateStatusBox() before realizing the top-level widget so that
+-	 the status widget array in that function would be properly initialized
+-	 before the user is able to call hangup(), since the latter passes NULL
+-	 to UpdateStatusBox() */
+-  UpdateStatusBox((XtPointer)status);
+-
+-  XtSetMappedWhenManaged(topLevel, False);
+-  XtRealizeWidget(topLevel);
+-  XtVaGetValues(menuBox, XtNwidth, &menuBoxWidth, NULL);
+-  XtVaSetValues(statusBox, XtNwidth, menuBoxWidth, NULL);
+-  if (n) XtVaSetValues(quickKeyBox, XtNwidth, menuBoxWidth, NULL);
+-
+-  /*
+-   * (ideally one should not assume any fixed numbers, but this will do 
+-   * for now).
+-   *
+-   * width of message box = label width
+-   *                      + 2*border width (2*1)
+-   *                      + defaultDistance (right) (1)
+-   *                      + horizDistance (left) (4)
+-   *
+-   * desired width of label = width of menu box
+-   *                        - hSpace of menu box (2*4) (to align with buttons)
+-   *                        - border with of label (2*1)
+-   *                        = width of menu box - 10
+-   *
+-   * => width of message box = width of menu box - 10 + 7
+-   * => width of message box < width of menu box
+-   * => menu box width is the controlling factor in deciding the widnow
+-   *    width, as desired.
+-   */
+-  XtVaSetValues(statusMessage, XtNresizable, True, NULL);
+-  XtVaSetValues(statusMessage, XtNwidth, menuBoxWidth - 10, NULL);
+-  XtVaSetValues(statusMessage, XtNresizable, False, NULL);
+-
+-  wm_delete_window = XInternAtom(XtDisplay(topLevel), 
+-								 "WM_DELETE_WINDOW", False);
+-  XSetWMProtocols(XtDisplay(topLevel), XtWindow(topLevel), 
+-				  &wm_delete_window, 1);
++	      AddButton(qKBuf, quickKeyBox, DispatchActionsCallback, NULL);
++        }
++    }
++    if (n == 0) XtDestroyWidget(quickKeyBox);
++
++    XtOverrideTranslations(topLevel,
++		       XtParseTranslationTable("<Message>WM_PROTOCOLS: Exit()"));
++
++    /* Call UpdateStatusBox() before realizing the top-level widget so that
++       the status widget array in that function would be properly initialized
++       before the user is able to call hangup(), since the latter passes NULL
++       to UpdateStatusBox() */
++    UpdateStatusBox((XtPointer)status);
++
++    XtSetMappedWhenManaged(topLevel, False);
++    XtRealizeWidget(topLevel);
++    XtVaGetValues(menuBox, XtNwidth, &menuBoxWidth, NULL);
++    XtVaSetValues(statusBox, XtNwidth, menuBoxWidth, NULL);
++    if (n) XtVaSetValues(quickKeyBox, XtNwidth, menuBoxWidth, NULL);
++
++    /*
++     * (ideally one should not assume any fixed numbers, but this will do 
++     * for now).
++     *
++     * width of message box = label width
++     *                      + 2*border width (2*1)
++     *                      + defaultDistance (right) (1)
++     *                      + horizDistance (left) (4)
++     *
++     * desired width of label = width of menu box
++     *                        - hSpace of menu box (2*4) (to align with buttons)
++     *                        - border with of label (2*1)
++     *                        = width of menu box - 10
++     *
++     * => width of message box = width of menu box - 10 + 7
++     * => width of message box < width of menu box
++     * => menu box width is the controlling factor in deciding the widnow
++     *    width, as desired.
++     */
++    XtVaSetValues(statusMessage, XtNresizable, True, NULL);
++    XtVaSetValues(statusMessage, XtNwidth, menuBoxWidth - 10, NULL);
++    XtVaSetValues(statusMessage, XtNresizable, False, NULL);
++
++    wm_delete_window = XInternAtom(XtDisplay(topLevel), 
++			     "WM_DELETE_WINDOW", False);
++    XSetWMProtocols(XtDisplay(topLevel), XtWindow(topLevel), 
++		&wm_delete_window, 1);
+ }
+ 
+ void
+ TopAbout(parent)
+-     Widget          parent;
++    Widget          parent;
+ {
+-  Widget          popup,
+-                  mBox,
+-                  uBox,
+-                  lBox,
+-                  pic,
+-                  msg,
+-                  caption;
+-  Pixmap          pix;
+-  Dimension       width1,
+-                  width2;
+-  char            msgStr[LRG_BUF];
++    Widget          popup,
++        mBox,
++        uBox,
++        lBox,
++        pic,
++        msg,
++        caption;
++    Pixmap          pix;
++    Dimension       width1,
++        width2;
++    char            msgStr[LRG_BUF];
+ #include "authPic.h"
+ 
+-  popup = SeAddPopup("about", parent);
+-  mBox = SeAddPaned("mBox", popup);
+-  uBox = SeAddBox("uBox", mBox);
+-  lBox = SeAddBox("lBox", mBox);
+-
+-  msg = SeAddLabel("msg", uBox);
+-  pic = SeAddLabel("pic", uBox);
+-  caption = SeAddLabel("caption", uBox);
++    popup = SeAddPopup("about", parent);
++    mBox = SeAddPaned("mBox", popup);
++    uBox = SeAddBox("uBox", mBox);
++    lBox = SeAddBox("lBox", mBox);
++
++    msg = SeAddLabel("msg", uBox);
++    pic = SeAddLabel("pic", uBox);
++    caption = SeAddLabel("caption", uBox);
+ 
+-  sprintf(msgStr, "%s %s rev. %s\n%s\n%s\n%s", "Seyon version", VERSION,
++    /* msgStr is big enough here */
++    sprintf(msgStr, "%s %s rev. %s\n%s\n%s\n%s", "Seyon version", VERSION,
+ 	  REVISION, "Copyright 1992-1993", "(c) Muhammad M. Saggaf",
+ 	  "All rights reserved");
+-  XtVaSetValues(msg, XtNlabel, msgStr, NULL);
++    XtVaSetValues(msg, XtNlabel, msgStr, NULL);
+ 
+-  pix = XCreateBitmapFromData(XtDisplay(pic),
+-			      DefaultRootWindow(XtDisplay(pic)),
+-			      authPic_bits, authPic_width,
+-			      authPic_height);
+-  XtVaSetValues(pic, XtNbitmap, pix, NULL);
+-
+-  width1 = SeWidgetWidth(msg);
+-  width2 = SeWidgetWidth(pic);
+-  width1 = width1 > width2 ? width1 : width2;
+-  width2 = SeWidgetWidth(caption);
+-  width1 = width1 > width2 ? width1 : width2;
+-
+-  XtVaSetValues(msg, XtNwidth, width1, NULL);
+-  XtVaSetValues(pic, XtNwidth, width1, NULL);
+-  XtVaSetValues(caption, XtNwidth, width1, NULL);
++    pix = XCreateBitmapFromData(XtDisplay(pic),
++			  DefaultRootWindow(XtDisplay(pic)),
++			  authPic_bits, authPic_width,
++			  authPic_height);
++    XtVaSetValues(pic, XtNbitmap, pix, NULL);
++
++    width1 = SeWidgetWidth(msg);
++    width2 = SeWidgetWidth(pic);
++    width1 = width1 > width2 ? width1 : width2;
++    width2 = SeWidgetWidth(caption);
++    width1 = width1 > width2 ? width1 : width2;
++
++    XtVaSetValues(msg, XtNwidth, width1, NULL);
++    XtVaSetValues(pic, XtNwidth, width1, NULL);
++    XtVaSetValues(caption, XtNwidth, width1, NULL);
+ 
+-  SeAddButton("dismiss", lBox, DestroyShell);
++    SeAddButton("dismiss", lBox, DestroyShell);
+ 
+-  XtPopupSpringLoaded(popup);
++    XtPopupSpringLoaded(popup);
+ }
+ 
+ /*
+@@ -262,151 +270,151 @@
+ 
+ void
+ TopHelp(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  Widget          DoDisplayFile();
+-  Widget          displayPopup;
++    Widget          DoDisplayFile();
++    Widget          displayPopup;
+ 
+-  XtVaSetValues(widget, XtNsensitive, False, NULL);
+-  displayPopup = DoDisplayFile(widget, qres.helpFile);
+-  XtAddCallback(displayPopup, XtNdestroyCallback, SetSensitiveOn, widget);
++    XtVaSetValues(widget, XtNsensitive, False, NULL);
++    displayPopup = DoDisplayFile(widget, qres.helpFile);
++    XtAddCallback(displayPopup, XtNdestroyCallback, SetSensitiveOn, widget);
+ 
+-  PositionShell(displayPopup, widget, SHELLPOS_HWFH);
+-  XtPopup(displayPopup, XtGrabNone);
++    PositionShell(displayPopup, widget, SHELLPOS_HWFH);
++    XtPopup(displayPopup, XtGrabNone);
+ }
+ 
+ void
+ ExecHangup()
+ {
+-  MdmHangup();
+-  SeyonMessage("Line Disconnected");
++    MdmHangup();
++    SeyonMessage("Line Disconnected");
+ }
+ 
+ void
+ DoHangup(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  DestroyShell(widget);
+-  ExecHangup();
++    DestroyShell(widget);
++    ExecHangup();
+ }
+ 
+ void
+ HangupConfirm(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  Widget          popup,
+-                  dialog;
++    Widget          popup,
++        dialog;
+ 
+-  ErrorIfBusy()
++    ErrorIfBusy()
+ 
+-  if (qres.hangupConfirm) {
+-	popup = AddSimplePopup("hangup", widget);
+-	dialog = SeAddDialog("dialog", popup);
++        if (qres.hangupConfirm) {
++	  popup = AddSimplePopup("hangup", widget);
++	  dialog = SeAddDialog("dialog", popup);
+ 	
+-	XawDialogAddButton(dialog, "yes", DoHangup, (XtPointer) dialog);
+-	XawDialogAddButton(dialog, "cancel", DestroyShell, NULL);
++	  XawDialogAddButton(dialog, "yes", DoHangup, (XtPointer) dialog);
++	  XawDialogAddButton(dialog, "cancel", DestroyShell, NULL);
+ 	
+-	PopupCentered(popup, widget);
+-  }
+-  else
+-	ExecHangup();
++	  PopupCentered(popup, widget);
++        }
++        else
++	  ExecHangup();
+ }
+ 
+ void
+ ExitNoHangup(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  DestroyShell(widget);
+-  s_exit(widget);
++    DestroyShell(widget);
++    s_exit(widget);
+ }
+ 
+ void
+ ExitHangup(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  ExecHangup();
+-  ExitNoHangup(widget);
++    ExecHangup();
++    ExitNoHangup(widget);
+ }
+ 
+ void
+ ExitConfirm(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  Widget          popup,
+-                  dialog;
++    Widget          popup,
++        dialog;
+ 
+-  if (qres.exitConfirm && !qres.ignoreModemDCD && Online()) {
+-	popup = AddSimplePopup("exit", widget);
+-	dialog = SeAddDialog("dialog", popup);
++    if (qres.exitConfirm && !qres.ignoreModemDCD && Online()) {
++        popup = AddSimplePopup("exit", widget);
++        dialog = SeAddDialog("dialog", popup);
+ 	
+-	XawDialogAddButton(dialog, "yes", ExitHangup, NULL);
+-	XawDialogAddButton(dialog, "no", ExitNoHangup, NULL);
+-	XawDialogAddButton(dialog, "cancel", DestroyShell, NULL);
++        XawDialogAddButton(dialog, "yes", ExitHangup, NULL);
++        XawDialogAddButton(dialog, "no", ExitNoHangup, NULL);
++        XawDialogAddButton(dialog, "cancel", DestroyShell, NULL);
+ 	
+-	PopupCentered(popup, widget);
+-  }
+-  else
+-	s_exit();
++        PopupCentered(popup, widget);
++    }
++    else
++        s_exit();
+ }
+ 
+ void
+ ExitAction(widget)
+-     Widget          widget;
++    Widget          widget;
+ {
+-  Boolean         wExitButtonStatus;
++    Boolean         wExitButtonStatus;
+ 
+-  /* Prevent the user from exiting the program by f.delete if exiting
+-	 is not permitted */
+-  XtVaGetValues(w_exit, XtNsensitive, &wExitButtonStatus, NULL);
+-  ReturnIfTrue(!wExitButtonStatus);
+-  s_exit();
++    /* Prevent the user from exiting the program by f.delete if exiting
++       is not permitted */
++    XtVaGetValues(w_exit, XtNsensitive, &wExitButtonStatus, NULL);
++    ReturnIfTrue(!wExitButtonStatus);
++    s_exit();
+ }
+ 
+ void
+ w_exit_up(w_exit_status)
+-     Boolean         w_exit_status;
++    Boolean         w_exit_status;
+ {
+-  XtVaSetValues(w_exit, XtNsensitive, w_exit_status, NULL);
++    XtVaSetValues(w_exit, XtNsensitive, w_exit_status, NULL);
+ }
+ 
+ void
+ SetKillButtonSens(killWidgetStatus)
+-     Boolean         killWidgetStatus;
++    Boolean         killWidgetStatus;
+ {
+-  XtVaSetValues(w_kill, XtNsensitive, killWidgetStatus, NULL);
+-  w_exit_up(!killWidgetStatus);
++    XtVaSetValues(w_kill, XtNsensitive, killWidgetStatus, NULL);
++    w_exit_up(!killWidgetStatus);
+ }
+ 
+ void
+ w_kill_up(w_kill_status)
+-     Boolean         w_kill_status;
++    Boolean         w_kill_status;
+ {
+-  SetKillButtonSens(w_kill_status);
++    SetKillButtonSens(w_kill_status);
+ }
+ 
+ void
+ KillChildProc()
+ {
+-  if (w_child_pid == 0) return;
+-  if (kill(w_child_pid, SIGTERM) == 0) w_child_pid = 0;
++    if (w_child_pid == 0) return;
++    if (kill(w_child_pid, SIGTERM) == 0) w_child_pid = 0;
+ }
+ 
+ void
+ GetQuickKeyResources(quickKeyName, quickKeyRes)
+-	 String               quickKeyName;
+-	 struct _quickKeyRes *quickKeyRes;
++    String               quickKeyName;
++    struct _quickKeyRes *quickKeyRes;
+ {
+ #define offset(field) XtOffsetOf(struct _quickKeyRes, field)
+-  static XtResource resources[] = {
+-    {"visible", "Visible", XtRBoolean, sizeof(Boolean),
+-	   offset(visible), XtRImmediate, (XtPointer)False},
+-    {"action", "Action", XtRString, sizeof(String),
+-	   offset(action), XtRString, (XtPointer)""},
+-  };
++    static XtResource resources[] = {
++        {"visible", "Visible", XtRBoolean, sizeof(Boolean),
++         offset(visible), XtRImmediate, (XtPointer)False},
++        {"action", "Action", XtRString, sizeof(String),
++         offset(action), XtRString, (XtPointer)""},
++    };
+ #undef offset
+   
+-  XtGetSubresources(topLevel, (XtPointer)quickKeyRes, quickKeyName, "Command",
+-					resources, XtNumber(resources), NULL, 0);
++    XtGetSubresources(topLevel, (XtPointer)quickKeyRes, quickKeyName, "Command",
++		  resources, XtNumber(resources), NULL, 0);
+ }
+ 
+ void
+@@ -414,140 +422,140 @@
+ {
+ #define offset(field) XtOffsetOf(struct QueryResources, field)
+ 
+-  static XtResource resources[] = {
+-    {"modems", "Modems", XtRString, sizeof(String),
+-	   offset(modems), XtRString, (XtPointer)""},
+-    {"script", "Script", XtRString, sizeof(String),
+-	   offset(script), XtRString, (XtPointer) NULL},
++    static XtResource resources[] = {
++        {"modems", "Modems", XtRString, sizeof(String),
++         offset(modems), XtRString, (XtPointer)""},
++        {"script", "Script", XtRString, sizeof(String),
++         offset(script), XtRString, (XtPointer) NULL},
+ 	
+-    {"defaultBPS", "DefaultBPS", XtRString, sizeof(String),
+-	   offset(defaultBPS), XtRString, (XtPointer) "9600"},
+-    {"defaultBits", "DefaultBits", XtRInt, sizeof(int),
+-	   offset(defaultBits), XtRImmediate, (XtPointer) 8},
+-    {"defaultParity", "DefaultParity", XtRInt, sizeof(int),
+-	   offset(defaultParity), XtRImmediate, (XtPointer) 0},
+-    {"defaultStopBits", "DefaultStopBits", XtRInt, sizeof(int),
+-	   offset(defaultStopBits), XtRImmediate, (XtPointer) 1},
+-    {"stripHighBit", "StripHighBit", XtRBoolean, sizeof(Boolean),
+-	   offset(stripHighBit), XtRImmediate, (XtPointer) False},
+-    {"backspaceTranslation", "BackspaceTranslation", XtRBoolean,
+-	   sizeof(Boolean), offset(backspaceTranslation), XtRImmediate,
+-	   (XtPointer) False},
+-    {"metaKeyTranslation", "MetaKeyTranslation", XtRBoolean,
+-	   sizeof(Boolean), offset(metaKeyTranslation), XtRImmediate,
+-	   (XtPointer) True},
+-    {"xonxoffFlowControl", "XonxoffFlowControl", XtRBoolean,
+-	   sizeof(Boolean), offset(xonxoffFlowControl), XtRImmediate,
+-	   (XtPointer) False},
+-    {"rtsctsFlowControl", "RtsctsFlowControl", XtRBoolean,
+-	   sizeof(Boolean), offset(rtsctsFlowControl), XtRImmediate,
+-	   (XtPointer) False},
+-    {"newlineTranslation", "NewlineTranslation", XtRString,
+-	   sizeof(String), offset(newlineTranslation), XtRImmediate,
+-	   (XtPointer) "cr"},
+-
+-    {"dialPrefix", "DialPrefix", XtRString, sizeof(String),
+-	   offset(dialPrefix), XtRString, (XtPointer) "ATDT"},
+-    {"dialSuffix", "DialSuffix", XtRString, sizeof(String),
+-	   offset(dialSuffix), XtRString, (XtPointer) "^M"},
+-    {"dialCancelString", "DialCancelString", XtRString, sizeof(String),
+-	   offset(dialCancelString), XtRString, (XtPointer) "^M"},
+-
+-    {"dialTimeOut", "DialTimeOut", XtRInt, sizeof(int),
+-	   offset(dialTimeOut), XtRImmediate, (XtPointer) 45},
+-    {"dialDelay", "DialDelay", XtRInt, sizeof(int),
+-	   offset(dialDelay), XtRImmediate, (XtPointer) 10},
+-    {"dialRepeat", "DialRepeat", XtRInt, sizeof(int),
+-	   offset(dialRepeat), XtRImmediate, (XtPointer) 5},
+-
+-    {"connectString", "ConnectString", XtRString, sizeof(String),
+-	   offset(connectString), XtRString, (XtPointer) "CONNECT"},
+-    {"noConnectString1", "NoConnectString1", XtRString, sizeof(String),
+-	   offset(noConnectString[0]), XtRString, (XtPointer) "NO CARRIER"},
+-    {"noConnectString2", "NoConnectString2", XtRString, sizeof(String),
+-	   offset(noConnectString[1]), XtRString, (XtPointer) "NO DIALTONE"},
+-    {"noConnectString3", "NoConnectString3", XtRString, sizeof(String),
+-	   offset(noConnectString[2]), XtRString, (XtPointer) "BUSY"},
+-    {"noConnectString4", "NoConnectString4", XtRString, sizeof(String),
+-	   offset(noConnectString[3]), XtRString, (XtPointer) "VOICE"},
+-
+-    {"hangupBeforeDial", "HangupBeforeDial", XtRBoolean, sizeof(Boolean),
+-	   offset(hangupBeforeDial), XtRImmediate, (XtPointer)True},
+-    {"dialAutoStart", "DialAutoStart", XtRBoolean, sizeof(Boolean),
+-	   offset(dialAutoStart), XtRImmediate, (XtPointer)False},
+-    {"dialDirFormat", "DialDirFormat", XtRString, sizeof(String),
+-	   offset(dialDirFormat), XtRString,
+-	   (XtPointer)"%-15s %-15s %6s %1c%1c%1c %1c%1c %s"},
+-    {"defaultPhoneEntries", "DefaultPhoneEntries", XtRString, sizeof(String),
+-	   offset(defaultPhoneEntries), XtRString, (XtPointer)NULL},
+-
+-    {"startupAction", "StartupAction", XtRString, sizeof(String),
+-	   offset(startupAction), XtRString, 
+-	   (XtPointer)"RunScript(startup);"},
+-    {"postConnectAction", "PostConnectAction", XtRString, sizeof(String),
+-	   offset(postConnectAction), XtRString, (XtPointer)"Beep();"},
+-
+-    {"autoZmodem", "AutoZmodem", XtRBoolean, sizeof(Boolean), 
+-	   offset(autoZmodem), XtRImmediate, (XtPointer)True},
+-    {"autoZmodemAction", "AutoZmodemAction", XtRString, sizeof(String),
+-	   offset(autoZmodemAction), XtRString, 
+-	   (XtPointer)"ShellCommand($rz);"},
+-
+-    {"modemVMin", "ModemVMin", XtRInt, sizeof(int),
+-	   offset(modemVMin), XtRImmediate, (XtPointer) 1},
+-    {"ignoreModemDCD", "IgnoreModemDCD", XtRBoolean, sizeof(Boolean),
+-	   offset(ignoreModemDCD), XtRImmediate, (XtPointer) False},
+-    {"hangupViaDTR", "HangupViaDTR", XtRBoolean, sizeof(Boolean),
+-	   offset(hangupViaDTR), XtRImmediate, (XtPointer)False},
+-    {"modemAttentionString", "ModemAttentionString", XtRString, sizeof(String),
+-	   offset(modemAttentionString), XtRString, (XtPointer)"+++"},
+-    {"modemHangupString", "ModemHangupString", XtRString, sizeof(String),
+-	   offset(modemHangupString), XtRString, (XtPointer)"ATH^M"},
+-    {"hangupConfirm", "HangupConfirm", XtRBoolean, sizeof(Boolean),
+-	   offset(hangupConfirm), XtRImmediate, (XtPointer) True},
+-    {"exitConfirm", "ExitConfirm", XtRBoolean, sizeof(Boolean),
+-	   offset(exitConfirm), XtRImmediate, (XtPointer) True},
+-    {"neverBeep", "NeverBeep", XtRBoolean, sizeof(Boolean),
+-	   offset(neverBeep), XtRImmediate, (XtPointer)False},
+-
+-    {"defaultDirectory", "DefaultDirectory", XtRString, sizeof(String),
+-	   offset(defaultDirectory), XtRString, (XtPointer) "~/.seyon"},
+-    {"scriptDirectory", "scriptDirectory", XtRString, sizeof(String),
+-	   offset(scriptDirectory), XtRString, (XtPointer) NULL},
+-    {"startupFile", "StartupFile", XtRString, sizeof(String),
+-	   offset(startupFile), XtRString, (XtPointer) "startup"},
+-    {"phoneFile", "PhoneFile", XtRString, sizeof(String),
+-	   offset(phoneFile), XtRString, (XtPointer) "phonelist"},
+-    {"protocolsFile", "ProtocolsFile", XtRString, sizeof(String),
+-	   offset(protocolsFile), XtRString, (XtPointer) "protocols"},
+-    {"captureFile", "CaptureFile", XtRString, sizeof(String),
+-	   offset(captureFile), XtRString, (XtPointer) "capture"},
+-    {"helpFile", "HelpFile", XtRString, sizeof(String),
+-	   offset(helpFile), XtRString, (XtPointer) HELPFILE},
+-
+-    {"modemStatusInterval", "ModemStatusInterval", XtRInt, sizeof(int),
+-	   offset(modemStatusInterval), XtRImmediate, (XtPointer) 5},
+-
+-    {"idleGuard", "IdleGuard", XtRBoolean, sizeof(Boolean),
+-	   offset(idleGuard), XtRImmediate, (XtPointer) False},
+-    {"idleGuardInterval", "IdleGuardInterval", XtRInt, sizeof(int),
+-	   offset(idleGuardInterval), XtRImmediate, (XtPointer) 300},
+-    {"idleGuardString", "IdleGuardString", XtRString, sizeof(String),
+-	   offset(idleGuardString), XtRImmediate, (XtPointer) " ^H"},
+-
+-    {"showFunMessages", "ShowFunMessages", XtRBoolean, sizeof(Boolean),
+-	   offset(showFunMessages), XtRImmediate, (XtPointer) True},
+-    {"funMessagesInterval", "FunMessagesInterval", XtRInt, sizeof(int),
+-	   offset(funMessagesInterval), XtRImmediate, (XtPointer) 15},
+-    {"funMessages", "FunMessages", XtRStringArray, sizeof(String*),
+-	   offset(funMessages), XtRStringArray, (XtPointer) NULL},
+-  };
++        {"defaultBPS", "DefaultBPS", XtRString, sizeof(String),
++         offset(defaultBPS), XtRString, (XtPointer) "9600"},
++        {"defaultBits", "DefaultBits", XtRInt, sizeof(int),
++         offset(defaultBits), XtRImmediate, (XtPointer) 8},
++        {"defaultParity", "DefaultParity", XtRInt, sizeof(int),
++         offset(defaultParity), XtRImmediate, (XtPointer) 0},
++        {"defaultStopBits", "DefaultStopBits", XtRInt, sizeof(int),
++         offset(defaultStopBits), XtRImmediate, (XtPointer) 1},
++        {"stripHighBit", "StripHighBit", XtRBoolean, sizeof(Boolean),
++         offset(stripHighBit), XtRImmediate, (XtPointer) False},
++        {"backspaceTranslation", "BackspaceTranslation", XtRBoolean,
++         sizeof(Boolean), offset(backspaceTranslation), XtRImmediate,
++         (XtPointer) False},
++        {"metaKeyTranslation", "MetaKeyTranslation", XtRBoolean,
++         sizeof(Boolean), offset(metaKeyTranslation), XtRImmediate,
++         (XtPointer) True},
++        {"xonxoffFlowControl", "XonxoffFlowControl", XtRBoolean,
++         sizeof(Boolean), offset(xonxoffFlowControl), XtRImmediate,
++         (XtPointer) False},
++        {"rtsctsFlowControl", "RtsctsFlowControl", XtRBoolean,
++         sizeof(Boolean), offset(rtsctsFlowControl), XtRImmediate,
++         (XtPointer) False},
++        {"newlineTranslation", "NewlineTranslation", XtRString,
++         sizeof(String), offset(newlineTranslation), XtRImmediate,
++         (XtPointer) "cr"},
++
++        {"dialPrefix", "DialPrefix", XtRString, sizeof(String),
++         offset(dialPrefix), XtRString, (XtPointer) "ATDT"},
++        {"dialSuffix", "DialSuffix", XtRString, sizeof(String),
++         offset(dialSuffix), XtRString, (XtPointer) "^M"},
++        {"dialCancelString", "DialCancelString", XtRString, sizeof(String),
++         offset(dialCancelString), XtRString, (XtPointer) "^M"},
++
++        {"dialTimeOut", "DialTimeOut", XtRInt, sizeof(int),
++         offset(dialTimeOut), XtRImmediate, (XtPointer) 45},
++        {"dialDelay", "DialDelay", XtRInt, sizeof(int),
++         offset(dialDelay), XtRImmediate, (XtPointer) 10},
++        {"dialRepeat", "DialRepeat", XtRInt, sizeof(int),
++         offset(dialRepeat), XtRImmediate, (XtPointer) 5},
++
++        {"connectString", "ConnectString", XtRString, sizeof(String),
++         offset(connectString), XtRString, (XtPointer) "CONNECT"},
++        {"noConnectString1", "NoConnectString1", XtRString, sizeof(String),
++         offset(noConnectString[0]), XtRString, (XtPointer) "NO CARRIER"},
++        {"noConnectString2", "NoConnectString2", XtRString, sizeof(String),
++         offset(noConnectString[1]), XtRString, (XtPointer) "NO DIALTONE"},
++        {"noConnectString3", "NoConnectString3", XtRString, sizeof(String),
++         offset(noConnectString[2]), XtRString, (XtPointer) "BUSY"},
++        {"noConnectString4", "NoConnectString4", XtRString, sizeof(String),
++         offset(noConnectString[3]), XtRString, (XtPointer) "VOICE"},
++
++        {"hangupBeforeDial", "HangupBeforeDial", XtRBoolean, sizeof(Boolean),
++         offset(hangupBeforeDial), XtRImmediate, (XtPointer)True},
++        {"dialAutoStart", "DialAutoStart", XtRBoolean, sizeof(Boolean),
++         offset(dialAutoStart), XtRImmediate, (XtPointer)False},
++        {"dialDirFormat", "DialDirFormat", XtRString, sizeof(String),
++         offset(dialDirFormat), XtRString,
++         (XtPointer)"%-15s %-15s %6s %1c%1c%1c %1c%1c %s"},
++        {"defaultPhoneEntries", "DefaultPhoneEntries", XtRString, sizeof(String),
++         offset(defaultPhoneEntries), XtRString, (XtPointer)NULL},
++
++        {"startupAction", "StartupAction", XtRString, sizeof(String),
++         offset(startupAction), XtRString, 
++         (XtPointer)"RunScript(startup);"},
++        {"postConnectAction", "PostConnectAction", XtRString, sizeof(String),
++         offset(postConnectAction), XtRString, (XtPointer)"Beep();"},
++
++        {"autoZmodem", "AutoZmodem", XtRBoolean, sizeof(Boolean), 
++         offset(autoZmodem), XtRImmediate, (XtPointer)True},
++        {"autoZmodemAction", "AutoZmodemAction", XtRString, sizeof(String),
++         offset(autoZmodemAction), XtRString, 
++         (XtPointer)"ShellCommand($rz);"},
++
++        {"modemVMin", "ModemVMin", XtRInt, sizeof(int),
++         offset(modemVMin), XtRImmediate, (XtPointer) 1},
++        {"ignoreModemDCD", "IgnoreModemDCD", XtRBoolean, sizeof(Boolean),
++         offset(ignoreModemDCD), XtRImmediate, (XtPointer) False},
++        {"hangupViaDTR", "HangupViaDTR", XtRBoolean, sizeof(Boolean),
++         offset(hangupViaDTR), XtRImmediate, (XtPointer)False},
++        {"modemAttentionString", "ModemAttentionString", XtRString, sizeof(String),
++         offset(modemAttentionString), XtRString, (XtPointer)"+++"},
++        {"modemHangupString", "ModemHangupString", XtRString, sizeof(String),
++         offset(modemHangupString), XtRString, (XtPointer)"ATH^M"},
++        {"hangupConfirm", "HangupConfirm", XtRBoolean, sizeof(Boolean),
++         offset(hangupConfirm), XtRImmediate, (XtPointer) True},
++        {"exitConfirm", "ExitConfirm", XtRBoolean, sizeof(Boolean),
++         offset(exitConfirm), XtRImmediate, (XtPointer) True},
++        {"neverBeep", "NeverBeep", XtRBoolean, sizeof(Boolean),
++         offset(neverBeep), XtRImmediate, (XtPointer)False},
++
++        {"defaultDirectory", "DefaultDirectory", XtRString, sizeof(String),
++         offset(defaultDirectory), XtRString, (XtPointer) "~/.seyon"},
++        {"scriptDirectory", "scriptDirectory", XtRString, sizeof(String),
++         offset(scriptDirectory), XtRString, (XtPointer) NULL},
++        {"startupFile", "StartupFile", XtRString, sizeof(String),
++         offset(startupFile), XtRString, (XtPointer) "startup"},
++        {"phoneFile", "PhoneFile", XtRString, sizeof(String),
++         offset(phoneFile), XtRString, (XtPointer) "phonelist"},
++        {"protocolsFile", "ProtocolsFile", XtRString, sizeof(String),
++         offset(protocolsFile), XtRString, (XtPointer) "protocols"},
++        {"captureFile", "CaptureFile", XtRString, sizeof(String),
++         offset(captureFile), XtRString, (XtPointer) "capture"},
++        {"helpFile", "HelpFile", XtRString, sizeof(String),
++         offset(helpFile), XtRString, (XtPointer) HELPFILE},
++
++        {"modemStatusInterval", "ModemStatusInterval", XtRInt, sizeof(int),
++         offset(modemStatusInterval), XtRImmediate, (XtPointer) 5},
++
++        {"idleGuard", "IdleGuard", XtRBoolean, sizeof(Boolean),
++         offset(idleGuard), XtRImmediate, (XtPointer) False},
++        {"idleGuardInterval", "IdleGuardInterval", XtRInt, sizeof(int),
++         offset(idleGuardInterval), XtRImmediate, (XtPointer) 300},
++        {"idleGuardString", "IdleGuardString", XtRString, sizeof(String),
++         offset(idleGuardString), XtRImmediate, (XtPointer) " ^H"},
++
++        {"showFunMessages", "ShowFunMessages", XtRBoolean, sizeof(Boolean),
++         offset(showFunMessages), XtRImmediate, (XtPointer) True},
++        {"funMessagesInterval", "FunMessagesInterval", XtRInt, sizeof(int),
++         offset(funMessagesInterval), XtRImmediate, (XtPointer) 15},
++        {"funMessages", "FunMessages", XtRStringArray, sizeof(String*),
++         offset(funMessages), XtRStringArray, (XtPointer) NULL},
++    };
+ 
+ #undef offset
+ 
+-  XtSetTypeConverter(XtRString, XtRStringArray, CvtStringToStringArray,
+-					 NULL, 0, XtCacheNone, NULL);
++    XtSetTypeConverter(XtRString, XtRStringArray, CvtStringToStringArray,
++		   NULL, 0, XtCacheNone, NULL);
+ 
+-  XtGetApplicationResources(topLevel, (XtPointer)&qres, resources,
+-							XtNumber(resources), NULL, 0);
++    XtGetApplicationResources(topLevel, (XtPointer)&qres, resources,
++			XtNumber(resources), NULL, 0);
+ }
+--- seyon-2.20c.orig/SeDial.c
++++ seyon-2.20c/SeDial.c
+@@ -89,7 +89,7 @@
+ 	{XMapRaised(XtDisplay(widget), XtWindow(popup)); return;}
+ 	 
+   if (disItems[0] == NULL) {
+-    strcpy(phoneFile, qres.phoneFile);
++    strncpy(phoneFile, qres.phoneFile, REG_BUF);
+     if (ReadParsePhoneFile(phoneFile, disItems) < 0) return;
+ 
+ 	form = XtParent(widget);
+@@ -328,7 +328,7 @@
+   Widget          dialog = XtParent(widget);
+   char            phoneNumber[SM_BUF];
+ 
+-  strcpy(phoneNumber, XawDialogGetValueString(dialog));
++  strncpy(phoneNumber, XawDialogGetValueString(dialog), SM_BUF);
+   DestroyShell(dialog);
+   ExecManualDial(XtParent(GetShell(widget)), phoneNumber);
+ }
+@@ -341,7 +341,7 @@
+   inhibit_child = True;
+   manualDial = True;
+ 
+-  strcpy(phone_number, phoneNumber);
++  strncpy(phone_number, phoneNumber, SM_BUF);
+ 
+   dialTry = 1;
+   PreProcessPrep();
+@@ -442,15 +442,15 @@
+   if ((ptr = (char*)strstr(raw, keyword)) != NULL) {
+     ptr += strlen(keyword);
+     if (strncmp(ptr, "CURRENT", 3)) {
+-      strcpy(buf, ptr);
++      strncpy(buf, ptr, REG_BUF);
+       GetWord(buf, wrd);
+-      strcpy(var, wrd);
++      strncpy(var, wrd, sizeof(*var));
+     }
+     else
+-      strcpy(var, "CURRENT");
++      strncpy(var, "CURRENT", sizeof(*var));
+   }
+   else
+-    strcpy(var, def);
++    strncpy(var, def, sizeof(*var));
+ }
+ 
+ void
+@@ -463,8 +463,8 @@
+   char            svar[TIN_BUF],
+                   sdef[TIN_BUF];
+ 
+-  sprintf(svar, "%d", *var);
+-  sprintf(sdef, "%d", def);
++  sprintf(svar, "%d", *var); /* safe */
++  sprintf(sdef, "%d", def);  /* safe */
+ 
+   GetStrField(raw, keyword, svar, sdef);
+ 
+@@ -496,7 +496,7 @@
+   else {
+     signal(SIGALRM, SIG_DFL);
+     alarm(0);
+-	strcpy(dialMsg, "TIMEOUT");
++	strncpy(dialMsg, "TIMEOUT", SM_BUF);
+     longjmp(dial_env, 1);
+   }
+ }
+@@ -514,6 +514,8 @@
+                  *bufPtr,
+                   dialString[REG_BUF];
+   int             i,
++/*                  length, */
++                  length_remaining,
+                   k;
+ 
+   if (setjmp(dial_env) != 0) {
+@@ -534,8 +536,8 @@
+   if (!manualDial) {
+ 
+     itemName = ddItems[k]->name;
+-    sprintf(dialString, "\r%s %s%s", ddItems[k]->prefix, ddItems[k]->number,
+-	    ddItems[k]->suffix);
++    strncpy(dialString, FmtString("\r%s %s%s", ddItems[k]->prefix, 
++	      ddItems[k]->number, ddItems[k]->suffix), REG_BUF);
+ 
+     if (mbaud(ddItems[k]->baud) < 0)
+       se_warningf("invalid BPS value in dialing directory: %s",
+@@ -552,14 +554,23 @@
+   }
+   else {
+     itemName = phone_number;
+-    sprintf(dialString, "\r%s %s%s", qres.dialPrefix, phone_number,
+-	    qres.dialSuffix);
++    strncpy(dialString, FmtString("\r%s %s%s", qres.dialPrefix, phone_number,
++	    qres.dialSuffix), REG_BUF);
+   }
+ 
++  length_remaining = SM_BUF;
+   if (dialTry == 1)
+-    sprintf(dialMsg, "Dialing %s", itemName);
++  {
++    strncpy(dialMsg, "Dialing ", length_remaining);
++    length_remaining -= strlen("Dialing ");
++    strncat(dialMsg, itemName, length_remaining);
++  }
+   else
+-    sprintf(dialMsg, "Redialing:%d %s", dialTry, itemName);
++    strncpy(dialMsg, "Redialing ", length_remaining);
++    length_remaining -= strlen("Redialing ");
++    sprintf(dialMsg, "%1.1d ", dialTry);
++    length_remaining -= 2;
++    strncat(dialMsg, itemName, length_remaining);
+ 
+   ProcRequest(SET_MESSAGE, "Setting Up...", "");
+ 
+@@ -589,7 +600,7 @@
+     for (i = 0; i < 3; i++)
+       if (*(bufPtr = StripSpace(qres.noConnectString[i])) && 
+ 		  strncmp(modemResponse, bufPtr, strlen(bufPtr)) == 0) {
+-		strcpy(dialMsg, modemResponse);
++		strncpy(dialMsg, modemResponse, SM_BUF);
+ 		longjmp(dial_env, 1);
+ 	  }
+   }	/* while(1)... */
+@@ -601,15 +612,20 @@
+      String          disItems[];
+ {
+   FILE           *fp;
++  FILE           *devnull;
+   String          rawItems[MAX_ENT + 1];
+   char           *buf,
+                  *sHold,
+                   disItemsBuf[REG_BUF];
++  char            filename[LRG_BUF];
+   int             i,
+                   n,
++                  length,
+                   iHold;
+ 
+-  if ((fp = open_file(fname, qres.defaultDirectory)) == NULL)
++  strncpy(filename, fname, REG_BUF);
++
++  if ((fp = open_file(filename, REG_BUF, qres.defaultDirectory)) == NULL)
+     return -1;
+ 
+   ReadCommentedFile(fp, rawItems);
+@@ -623,11 +639,9 @@
+ 
+     /* Find the number */
+     GetWord(buf, ddItems[i]->number);
+-/*    strcpy(ddItems[i]->number, GetFirstWord(buf));*/
+ 
+     /* Find the name */
+     GetWord((buf = lptr), ddItems[i]->name);
+-/*    strcpy(ddItems[i]->name, GetNextWord());*/
+ 
+     /* Find other stuff */
+     GetStrField(buf, "BPS=", ddItems[i]->baud, qres.defaultBPS);
+@@ -643,8 +657,20 @@
+   FreeList(rawItems);
+   FreeList(disItems);
+ 
++  /* Ick... This is horrible - using a user-provided format string
++     means we have no easy way of limiting string length. HACK HACK
++     HACK Use fprintf to output to /dev/null and count the number of
++     bytes... It would be nice if we could rely on having snprintf() */
++
++  devnull = fopen("/dev/null", "r+");
++  if(NULL == devnull)
++  {
++      printf("Open /dev/null failed!?!\n");
++      return 1;
++  }
++
+   for (n = 0; n < i; n++) {
+-    sprintf(disItemsBuf, qres.dialDirFormat,
++    length = fprintf(devnull, qres.dialDirFormat,
+ 	    ddItems[n]->name,
+ 	    ddItems[n]->number,
+ 	    strncmp((sHold = ddItems[n]->baud), "CUR", 3) ? sHold : "????",
+@@ -658,10 +684,33 @@
+ 	    strcmp(sHold, qres.dialSuffix) ? 'S' : 'D' : '?',
+ 	    ddItems[n]->script);
+ 
+-    disItemsBuf[SM_BUF - 1] = '\0';
+-    disItems[n] = XtNewString(disItemsBuf);
++    if(REG_BUF >= length)
++    {
++        sprintf(disItemsBuf, qres.dialDirFormat,
++	      ddItems[n]->name,
++	      ddItems[n]->number,
++	      strncmp((sHold = ddItems[n]->baud), "CUR", 3) ? sHold : "????",
++	      (iHold = ddItems[n]->bits) == 100 ? '?' : itoa(iHold),
++	      (iHold = ddItems[n]->parity) ? (iHold == 1 ? 'O' :
++				        (iHold == 2 ? 'E' : '?')) : 'N',
++	      (iHold = ddItems[n]->stopBits) == 100 ? '?' : itoa(iHold),
++	      strncmp((sHold = ddItems[n]->prefix), "CUR", 3) ?
++	      strcmp(sHold, qres.dialPrefix) ? 'P' : 'D' : '?',
++	      strncmp((sHold = ddItems[n]->suffix), "CUR", 3) ?
++	      strcmp(sHold, qres.dialSuffix) ? 'S' : 'D' : '?',
++	      ddItems[n]->script);
++        disItemsBuf[SM_BUF - 1] = '\0';
++        disItems[n] = XtNewString(disItemsBuf);
++    }
++    else
++    {
++        printf("ReadParsePhoneFile: attempted overrun: %s\n",ddItems[n]->name);
++        fclose(devnull);
++        return 1;
++    }
+   }
+   disItems[n] = NULL;
++  fclose(devnull);
+ 
+   return 0;
+ }
+--- seyon-2.20c.orig/SePort.c
++++ seyon-2.20c/SePort.c
+@@ -51,7 +51,7 @@
+ #ifdef linux
+ #include <linux/serial.h>
+ #include <sys/ioctl.h>
+-#include <linux/fs.h>
++/* #include <linux/fs.h> */
+ #include <linux/tty.h>
+ #endif
+ #endif
+@@ -127,20 +127,30 @@
+ 
+ void
+ MdmPutString(s)
+-     char           *s;
++    char           *s;
+ {
+-  char            c;
+-
+-  usleep(MDELAY);
+-  for (; (c = *s); s++) {
+-    if (*s == '^' && *(s + 1))
+-      if (*(++s) == '^') c = *s;
+-      else c = *s & 0x1f;
++    char            c;
+ 
+-    if (c == '~') sleep(1);
+-    else send_tbyte(c);
+     usleep(MDELAY);
+-  }
++    for (; (c = *s); s++) 
++    {
++        if (*s == '^' && *(s + 1))
++        {
++	  if (*(++s) == '^') 
++	  {
++	      c = *s;
++	  }
++	  else 
++	  {
++	      c = *s & 0x1f;
++	  }
++        }
++        if (c == '~') 
++	  sleep(1);
++        else 
++	  send_tbyte(c);
++        usleep(MDELAY);
++    }
+ }
+ 
+ void
+@@ -150,10 +160,7 @@
+                     *b,
+                     *c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  MdmPutString(buf);
++    MdmPutString(FmtString(fmt,a,b,c));
+ }
+ 
+ void
+@@ -224,7 +231,7 @@
+ 	 int             newModem;
+ {
+   static Boolean  useModemControl = True;
+-  int             retStat;
++  int             retStat = 0;
+ 
+   if (newModem) useModemControl = True;
+ 
+@@ -350,11 +357,11 @@
+ 
+ char           *
+ mport(s)			/* get/set port string */
+-     char           *s;
++    char           *s;
+ {
+-  if (s != NULL)
+-    strcpy(modem_port, s);
+-  return (modem_port);
++    if (s != NULL)
++        strncpy(modem_port, s, sizeof(modem_port));
++    return (modem_port);
+ }
+ 
+ int
+@@ -650,6 +657,17 @@
+       ser_io.flags |= ASYNC_SPD_VHI;
+       break;
+ #endif
++#else
++#ifdef B57600
++    case 57600:
++      baudrate = B57600;
++      break;
++#endif
++#ifdef B115200
++    case 115200:
++      baudrate = B115200;
++      break;
++#endif
+ #endif
+     default:
+       return (-1);
+@@ -702,6 +720,14 @@
+ #endif
+ #endif
+       return 38400;
++#ifdef B57600
++  case B57600:
++    return 57600;
++#endif
++#ifdef B115200
++  case B115200:
++    return 115200;
++#endif
+   }
+ 
+   SeError("Consistency error in baud rate");
+@@ -822,7 +848,7 @@
+ 					   modemName, "", ""));
+ 	break;
+   default:
+-	SeError(FmtString("Unknown Error While Openeong Modem ``%s''", 
++	SeError(FmtString("Unknown Error While Opening Modem ``%s''", 
+ 					  modemName, "", ""));
+ 	break;
+   }
+@@ -946,16 +972,13 @@
+ }
+ 
+ void
+-sendf_slowly(format, a, b, c)
+-     char           *format,
++sendf_slowly(fmt, a, b, c)
++     char           *fmt,
+                     *a,
+                     *b,
+                     *c;
+ {
+-  char            buffer[SM_BUF];
+-
+-  sprintf(buffer, format, a, b, c);
+-  send_slowly(buffer);
++  send_slowly(FmtString(fmt,a,b,c));
+ }
+ 
+ void
+@@ -989,7 +1012,7 @@
+ LockModem(modem)
+ 	 String modem;
+ {
+-  strcpy(modem_port, modem);
++  strncpy(modem_port, modem, REG_BUF);
+   return lock_tty();
+ }
+ 
+@@ -1004,50 +1027,82 @@
+ int
+ lock_tty()
+ {
+-  int             lfd;
+-  pid_t           pid,
+-                  lckpid;
+-  char           *modemname;
++    int             lfd;
++    pid_t           pid,
++        lckpid;
++    char           *modemname;
+ #if LF_USE_ASCII_PID
+-  char            pidstr[20],
+-                  lckpidstr[20];
+-  int             nb;
++    char            pidstr[20],
++        lckpidstr[20];
++    int             nb;
+ #endif
+ #if LF_USE_DEV_NUMBERS
+-  struct stat  mbuf;
++    struct stat  mbuf;
+ #endif
+ 
+-  /* Get our PID, and initialize the filename strings */
+-  pid = getpid();
++    /* Get our PID, and initialize the filename strings */
++    pid = getpid();
+ 
+ #if !LF_USE_DEV_NUMBERS
+-  modemname = strrchr(modem_port, '/');
+-  sprintf(lckf, "%s/%s%s", LF_PATH, LF_PREFIX, 
+-		  (modemname ? (modemname + 1) : modem_port));
++    modemname = strrchr(modem_port, '/');
++    if(modemname)
++    {
++        if( SM_BUF > (1 + strlen(LF_PATH) + strlen(LF_PREFIX) + strlen(modemname)))
++	  sprintf(lckf, "%s/%s%s", LF_PATH, LF_PREFIX, (modemname + 1));
++        else
++        {
++	  SePErrorF("Buffer too small for lock filename in lock_tty(): %s", modemname, "", "");
++	  return -1;
++        }
++    }
++    else
++    {
++        if( SM_BUF > (1 + strlen(LF_PATH) + strlen(LF_PREFIX) + strlen(modem_port)))
++	  sprintf(lckf, "%s/%s%s", LF_PATH, LF_PREFIX, (modem_port));
++        else
++        {
++	  SePErrorF("Buffer too small for lock filename in lock_tty(): %s", modem_port, "", "");
++	  return -1;
++        }
++    }
++
+ #else
+-  if(stat(modem_port, &mbuf) < 0) {
+-	SePErrorF("could not stat modem port %s", modem_port, "", "");
+-	return -1;
+-  }
+-  sprintf(lckf,"%s/%s%03u.%03u.%03u", LF_PATH, LF_PREFIX, major(mbuf.st_dev),
+-		  major(mbuf.st_rdev), minor(mbuf.st_rdev));
++    if(stat(modem_port, &mbuf) < 0) {
++        SePErrorF("could not stat modem port %s", modem_port, "", "");
++        return -1;
++    }
++    if( SM_BUF > (10 + strlen(LF_PATH) + strlen(LF_PREFIX)))
++        sprintf(lckf,"%s/%s%03u.%03u.%03u", LF_PATH, LF_PREFIX, major(mbuf.st_dev),
++	      major(mbuf.st_rdev), minor(mbuf.st_rdev));
++    else
++    {
++        SePErrorF("Buffer too small for lock filename in lock_tty():", "", "", "");
++        return -1;
++    }
+ #endif /* LF_USE_DEV_NUMBERS */
+ 
+-  sprintf(ltmp, "%s/%s%d", LF_PATH, "LTMP.", pid);
+-  /* Create the LTMP.<pid> file and scribble our PID in it */
+-  unlink(ltmp);
+-  if ((lfd = creat(ltmp, 0644)) == -1) {
+-    SePErrorF("Could not create temporary lock file %s", ltmp, "", "");
+-    return -1;
+-  }
++    if( SM_BUF > (11 + strlen(LF_PATH)))
++        sprintf(ltmp, "%s/%s%d", LF_PATH, "LTMP.", pid);
++    else
++    {
++        SePErrorF("Buffer too small for ltmp filename in lock_tty():", "", "", "");
++        return -1;
++    }
++    /* Create the LTMP.<pid> file and scribble our PID in it */
++    unlink(ltmp);
++    if ((lfd = creat(ltmp, 0644)) == -1) {
++        SePErrorF("Could not create temporary lock file %s", ltmp, "", "");
++        return -1;
++    }
+ 
+ #if LF_USE_ASCII_PID
+-  sprintf(pidstr, "%10d\n", pid);
+-  write(lfd, pidstr, 11);
++    /* pidstr is easily large enough */
++    sprintf(pidstr, "%10d\n", pid);
++    write(lfd, pidstr, 11);
+ #else
+-  write(lfd, (char*)&pid, sizeof(pid));
++    write(lfd, (char*)&pid, sizeof(pid));
+ #endif
+-  close(lfd);
++    close(lfd);
+ 
+   /*
+    * Attempt to link directly - if it works, we're done.
+--- seyon-2.20c.orig/protocols
++++ seyon-2.20c/protocols
+@@ -6,7 +6,7 @@
+ # you have to use the resources 
+ # zmodemAutoDownload and
+ # zmodemAutoDownloadCommand for that.
+-# see the manula page for more details.
++# see the manual page for more details.
+ 
+ # the format is simple.
+ 
+@@ -24,9 +24,9 @@
+ 
+ # you can put comments on a single line
+ # or at the end of a line
+-
+-regular_zmodem_dl    "$ cd /usr/dl; rz -vv" n # like in here
+-
++#
++#regular_zmodem_dl    "$ cd /usr/dl; rz -vv" n # like in here
++#
+ # blank lines are OK too, for readability.
+ 
+ # the title has to be either a single word, like the above
+@@ -34,21 +34,29 @@
+ 
+ # you put anything instead of y as long as it starts
+ # with y: y, Y, yes, yep ..etc.
+-
+-"regular zmodem ul"  "$ cd /usr/src; sz -vv" y
+-
++#
++#"regular zmodem ul"  "$ cd /usr/src; sz -vv" y
++#
+ # anything that doesn't start with a y is a no
+ # e.g. n, N, NO, Not, nope, nien, nono ..etc.
+ # even hello, but the use of words that doesn't start
+ # with n is highly discouraged
+-
+-graphic_zmodem_dl    "cd /usr/dl; grz        No
+-xrz3D                "$cd /usr/dl; xrz"      NO
+-
++#
++#graphic_zmodem_dl    "cd /usr/dl; grz        No
++#xrz3D                "$cd /usr/dl; xrz"      NO
++#
+ # here is my own protocols file
+ # notice how I make it clear to myself
+ # whether I'm uploading or downloading
+-
+-"SEND - Zmodem" "$cd /usr/src; sz -vv" y
+-"RECEIVE - Reg. Zmodem" "$cd /usr/dl; rz -vv"  n
+-"RECEIVE - Xrz3D" "$cd /usr/dl; xrz" n
++#
++#"SEND - Zmodem" "$cd /usr/src; sz -vv" y
++#"RECEIVE - Reg. Zmodem" "$cd /usr/dl; rz -vv"  n
++#"RECEIVE - Xrz3D" "$cd /usr/dl; xrz" n
++
++"Zmodem - RECEIVE"      "$lrz" n
++"Ymodem - RECEIVE"      "$lrb" n
++"Xmodem - RECEIVE"      "$lrx" y
++
++"Zmodem - SEND"         "$lsz" y
++"Ymodem - SEND"         "$lsb" y
++"Xmodem - SEND"         "$lsx" y
+--- seyon-2.20c.orig/SeErr.c
++++ seyon-2.20c/SeErr.c
+@@ -107,28 +107,26 @@
+ 
+ #ifdef notdef
+ void
+-SePopupWarningF(parent, fmt, a, b, c, d)
++SePopupWarningF(parent, fmt, a, b, c)
+      Widget          parent;
+      String          fmt,
+                      a,
+                      b,
+-                     c,
+-                     d;
++                     c;
+ {
+   SePopupNoticeF(parent, 0, "Seyon Warning", DestroyParentPopup,
+-		 fmt, a, b, c, d);
++		 fmt, a, b, c);
+ }
+ 
+ void
+-SePopupInitWarningF(parent, fmt, a, b, c, d)
++SePopupInitWarningF(parent, fmt, a, b, c)
+      Widget          parent;
+      String          fmt,
+                      a,
+                      b,
+-                     c,
+-                     d;
++                     c;
+ {
+   SePopupNoticeF(parent, 0, "Seyon Initialization Warning",
+-		 DestroyParentPopup, fmt, a, b, c, d);
++		 DestroyParentPopup, fmt, a, b, c);
+ }
+ #endif
+--- seyon-2.20c.orig/SeSubs.c
++++ seyon-2.20c/SeSubs.c
+@@ -45,9 +45,9 @@
+ 
+ void
+ toggle_flag(flag)
+-     Boolean        *flag;
++    Boolean        *flag;
+ {
+-  *flag = !*flag;
++    *flag = !*flag;
+ }
+ 
+ /*
+@@ -56,10 +56,10 @@
+ 
+ void
+ show(msg)
+-     char           *msg;
++    char           *msg;
+ {
+-  fprintf(tfp, "%s\r\n", msg);
+-  fflush(tfp);
++    fprintf(tfp, "%s\r\n", msg);
++    fflush(tfp);
+ }
+ 
+ /*
+@@ -68,105 +68,96 @@
+ 
+ void
+ showf(fmt, a, b, c)
+-     char           *fmt,
+-                    *a,
+-                    *b,
+-                    *c;
++    char           *fmt,
++    *a,
++    *b,
++    *c;
+ {
+-  fprintf(tfp, fmt, a, b, c);
+-  fprintf(tfp, "\r\n");
++    fprintf(tfp, fmt, a, b, c);
++    fprintf(tfp, "\r\n");
+ }
+ 
+ void
+ SeError(msg)
+-     char           *msg;
++    char           *msg;
+ {
+-  char            buf[REG_BUF];
++    char            buf[REG_BUF];
+ 
+-  sprintf(buf, "\r>> Error: %s.", msg);
+-  show(buf);
++    strncpy(buf, "\r>> Error: ",REG_BUF);
++    strncat(buf, msg, REG_BUF-12);
++    buf[REG_BUF - 1] = 0; /* Null-terminate to be sure */
++    show(buf);
+ }
+ 
+ void
+ SeErrorF(fmt, a, b, c)
+-     char           *fmt,
+-                    *a,
+-                    *b,
+-                    *c;
++    char           *fmt,
++    *a,
++    *b,
++    *c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  SeError(buf);
++    SeError(FmtString(fmt, a, b, c));
+ }
+ 
+ void
+ se_warning(msg)
+-     char           *msg;
++    char           *msg;
+ {
+-  char            buf[REG_BUF];
++    char            buf[REG_BUF];
+ 
+-  sprintf(buf, "\r>> Warning: %s.", msg);
+-  show(buf);
++    strncpy(buf, "\r>> Warning: ",REG_BUF);
++    strncat(buf, msg, REG_BUF-14);
++    buf[REG_BUF - 1] = 0; /* Null-terminate to be sure */
++    show(buf);
+ }
+ 
+ void
+ se_warningf(fmt, a, b, c)
+-     char           *fmt,
+-                    *a,
+-                    *b,
+-                    *c;
++    char           *fmt,
++    *a,
++    *b,
++    *c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  se_warning(buf);
++    se_warning(FmtString(fmt, a, b, c));
+ }
+ 
+ void
+ SeNotice(msg)
+-     char           *msg;
++    char           *msg;
+ {
+-  char            buf[REG_BUF];
++    char            buf[REG_BUF];
+ 
+-  sprintf(buf, "\r>> Notice: %s.", msg);
+-  show(buf);
++    strncpy(buf, "\r>> Notice: ",REG_BUF);
++    strncat(buf, msg, REG_BUF-13);
++    buf[REG_BUF - 1] = 0; /* Null-terminate to be sure */
++    show(buf);
+ }
+ 
+ void
+ SeNoticeF(fmt, a, b, c)
+-     char           *fmt,
+-                    *a,
+-                    *b,
+-                    *c;
++    char           *fmt,
++    *a,
++    *b,
++    *c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  SeNotice(buf);
++    SeNotice(FmtString(fmt, a, b, c));
+ }
+ 
+ void
+ SePError(msg)
+-     char           *msg;
++    char           *msg;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, "%s: %s", msg, strerror(errno));
+-  SeError(buf);
++    SeError(FmtString("%s: %s",msg,strerror(errno)));
+ }
+ 
+ void
+ SePErrorF(fmt, a, b, c)
+-     char           *fmt,
+-                    *a,
+-                    *b,
+-                    *c;
++    char           *fmt,
++    *a,
++    *b,
++    *c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  SePError(buf);
++    SePError(FmtString(fmt,a,b,c));
+ }
+ 
+ /* ------------------------------------------------------------
+@@ -180,12 +171,12 @@
+ int
+ SeFork()
+ {
+-  pid_t           pid;
++    pid_t           pid;
+ 
+-  if ((pid = fork()) < 0)
+-    SePError("Faild to fork process");
++    if ((pid = fork()) < 0)
++        SePError("Faild to fork process");
+ 
+-  return pid;
++    return pid;
+ }
+ 
+ /*
+@@ -194,119 +185,119 @@
+ 
+ void
+ ShellCommandHandler(sig, fio_p)
+-     int             sig;
+-     XtPointer       fio_p;
++    int             sig;
++    XtPointer       fio_p;
+ {
+-  void            PostExecPrep();
++    void            PostExecPrep();
+                 
+-  if (wait((int*)0) < 0) SePError("ShellCommand wait failed");
+-  XoAppIgnoreSignal(app_con, SIGCHLD);
++    if (wait((int*)0) < 0) SePError("ShellCommand wait failed");
++    XoAppIgnoreSignal(app_con, SIGCHLD);
+ 
+-  set_tty_mode();
+-  set_modem_fio(*(int *)fio_p);
++    set_tty_mode();
++    set_modem_fio(*(int *)fio_p);
+ 
+-  SeyonMessage("Shell Command Completed");
+-  PostExecPrep();
+-  inhibit_child = False;
++    SeyonMessage("Shell Command Completed");
++    PostExecPrep();
++    inhibit_child = False;
+ }
+ 
+ void
+ ShellCommand(command)
+-     char           *command;
++    char           *command;
+ {
+-  ExecShellCommand(command, 1);
++    ExecShellCommand(command, 1);
+ }
+ 
+ void
+ ExecShellCommand(command, top)
+-     char           *command;
+-	 int             top;
++    char           *command;
++    int             top;
+ {
+-  static char    *shell = NULL;
+-  char            cmd[REG_BUF],
+-                 *scmd;
+-  static int      fio=0;
+-  pid_t           forkRes;
+-
+-  if (command == NULL) return;
+-
+-  if (shell == NULL) {
+-    shell = (char*)getenv("SHELL");
+-    if (!shell) shell = "/bin/sh";
+-  }
+-
+-  if (top) PreExecPrep();
+-
+-  io_set_attr(tfd, &oldmode);
+-  fio = get_modem_fio();
+-
+-  if (top)
+-	XoAppAddSignal(app_con, SIGCHLD, ShellCommandHandler, (XtPointer)&fio);
+-  else signal(SIGCHLD, SIG_IGN);
+-
+-  forkRes = SeFork();
+-  if (forkRes == 0) {
+-    scmd = str_stripspc_copy(cmd, command);
+-
+-    show("");
+-
+-    if (*scmd == '$') {
+-      SeNotice("Redirecting stdin/stdout");
+-      mattach();				/* Attach modem to stdin/stdout */
+-      scmd++;
++    static char    *shell = NULL;
++    char            cmd[REG_BUF],
++        *scmd;
++    static int      fio=0;
++    pid_t           forkRes;
++
++    if (command == NULL) return;
++
++    if (shell == NULL) {
++        shell = (char*)getenv("SHELL");
++        if (!shell) shell = "/bin/sh";
+     }
+ 
+-    if (setuid(getuid()) < 0)
+-      SePError("Failed to set effective uid");
++    if (top) PreExecPrep();
+ 
+-    if (*scmd == CNULL) {
+-      SeNotice(FmtString1("Executing the shell `%s'", shell));
+-      execl(shell, shell, (char*)NULL);
+-      SeError(FmtString1("Execution of the shell `%s' failed", shell));
+-      exit(1);
+-    }
++    io_set_attr(tfd, &oldmode);
++    fio = get_modem_fio();
++
++    if (top)
++        XoAppAddSignal(app_con, SIGCHLD, ShellCommandHandler, (XtPointer)&fio);
++    else signal(SIGCHLD, SIG_IGN);
++
++    forkRes = SeFork();
++    if (forkRes == 0) {
++        scmd = str_stripspc_copy(cmd, command);
++
++        show("");
++
++        if (*scmd == '$') {
++	  SeNotice("Redirecting stdin/stdout");
++	  mattach();				/* Attach modem to stdin/stdout */
++	  scmd++;
++        }
++
++        if (setuid(getuid()) < 0)
++	  SePError("Failed to set effective uid");
++
++        if (*scmd == CNULL) {
++	  SeNotice(FmtString1("Executing the shell `%s'", shell));
++	  execl(shell, shell, (char*)NULL);
++	  SeError(FmtString1("Execution of the shell `%s' failed", shell));
++	  exit(1);
++        }
+ 	
+-    SeNotice(FmtString1("Executing the command `%s'", scmd));
+-    execl(shell, shell, "-c", scmd, (char*)NULL);
+-    SePError(FmtString1("Execution of the command `%s' failed", scmd));
+-    exit(1);
+-  }
+-  else if (forkRes > 0) {
+-	if (top) inhibit_child = True;
+-	else {
++        SeNotice(FmtString1("Executing the command `%s'", scmd));
++        execl(shell, shell, "-c", scmd, (char*)NULL);
++        SePError(FmtString1("Execution of the command `%s' failed", scmd));
++        exit(1);
++    }
++    else if (forkRes > 0) {
++        if (top) inhibit_child = True;
++        else {
+ 	  wait((int*)0);			/* Wait for the child process to terminate */
+ 	  set_tty_mode();
+ 	  set_modem_fio(fio);
+-	}
+-  }  /* if (forkRes == 0)... */
++        }
++    }  /* if (forkRes == 0)... */
+ }
+ 
+ void
+ PreProcessPrep()
+ {
+-  SuspContTerminal(TERM_SUSPEND);
+-  SetKillButtonSens(True);
++    SuspContTerminal(TERM_SUSPEND);
++    SetKillButtonSens(True);
+ }
+ 
+ void
+ PostProcessPrep()
+ {
+-  SuspContTerminal(TERM_CONTINUE);
+-  SetKillButtonSens(False);
++    SuspContTerminal(TERM_CONTINUE);
++    SetKillButtonSens(False);
+ }
+ 
+ void
+ PreExecPrep()
+ {
+-  SuspContTerminal(0);
+-  w_exit_up(False);
++    SuspContTerminal(0);
++    w_exit_up(False);
+ }
+ 
+ void
+ PostExecPrep()
+ {
+-  SuspContTerminal(1);
+-  w_exit_up(True);
++    SuspContTerminal(1);
++    w_exit_up(True);
+ }
+ 
+ /*
+@@ -318,33 +309,34 @@
+  */
+ 
+ char           *
+-expand_fname(fname, buffer)
+-     char           *fname,
+-                    *buffer;
+-{
+-  char           *home,
+-                 *buf,
+-                  name[REG_BUF];
+-  int             i;
+-
+-  str_stripspc_copy(name, fname);
+-  buf = buffer;
+-
+-  for (i = 0; name[i]; i++) {
+-    if (name[i] == '~') {
+-      if ((home = (char *) getenv("HOME")) == NULL)
+-	return NULL;
+-      strcpy(buf, home);
+-      buf += strlen(home);
++expand_fname(fname, buffer, size)
++    char           *fname,
++    *buffer;
++    int             size;
++{
++    char           *home,
++        *buf,
++        name[REG_BUF];
++    int             i;
++
++    str_stripspc_copy(name, fname);
++    buf = buffer;
++
++    for (i = 0; (name[i] && (buffer+REG_BUF > buf)); i++) {
++        if (name[i] == '~') {
++	  if ((home = (char *) getenv("HOME")) == NULL)
++	      return NULL;
++	  strncpy(buf, home, size);
++	  buf += strlen(home);
++        }
++        else {
++	  *buf = name[i];
++	  buf++;
++        }
+     }
+-    else {
+-      *buf = name[i];
+-      buf++;
+-    }
+-  }
+-  *buf = '\0';
++    *buf = '\0';
+ 
+-  return buffer;
++    return buffer;
+ }
+ 
+ /*
+@@ -353,11 +345,12 @@
+  */
+ 
+ FILE*
+-open_file(fname, directory)
+-     char           *fname,
+-                    *directory;
++open_file(fname, size, directory)
++    char           *fname;
++    int             size;
++    char           *directory;
+ {
+-  return open_file_va(fname, directory, NULL);
++    return open_file_va(fname, size, directory, NULL);
+ }
+ 
+ /*
+@@ -365,120 +358,79 @@
+  */
+ 
+ FILE*
+-open_file_va(fname, dir1, dir2)
+-     char           *fname,
+-                    *dir1,
+-                    *dir2;
+-{
+-  FILE           *fp;
+-  char            name[REG_BUF],
+-                  fullname[REG_BUF],
+-                  buffer[REG_BUF];
+-
+-  str_stripspc_copy(name, fname);
+-
+-  if (dir1) {
+-    sprintf(fullname, "%s/%s", expand_fname(dir1, buffer), name);
+-
+-    if ((fp = fopen(fullname, "r")) != NULL) {
+-      strcpy(fname, fullname);
+-      return fp;
+-    }
+-
+-    if (dir2) {
+-      sprintf(fullname, "%s/%s", expand_fname(dir2, buffer), name);
++open_file_va(fname, size, dir1, dir2)
++    char           *fname;
++    int             size;
++    char           *dir1,
++                   *dir2;
++{
++    FILE           *fp;
++    char           *fullname,
++        name[REG_BUF],
++        buffer[REG_BUF];
++
++    str_stripspc_copy(name, fname);
++
++    if (dir1) {
++        fullname = FmtString("%s/%s", expand_fname(dir1, buffer, REG_BUF), name, "");
++        if ((fp = fopen(fullname, "r")) != NULL) {
++	  strncpy(fname, fullname, size);
++	  return fp;
++        }
+ 
+-      if ((fp = fopen(fullname, "r")) != NULL) {
+-		strcpy(fname, fullname);
+-		return fp;
+-      }
++        if (dir2) {
++	  fullname = FmtString("%s/%s", expand_fname(dir2, buffer, REG_BUF), name, "");
++	  if ((fp = fopen(fullname, "r")) != NULL) {
++	      strncpy(fname, fullname, size);
++	      return fp;
++	  }
++        }
++    }	/* if (dir1)... */
++
++    if ((fp = fopen(name, "r")) != NULL) {
++        strncpy(fname, name, REG_BUF);
++        return fp;
+     }
+-  }	/* if (dir1)... */
+-
+-  if ((fp = fopen(name, "r")) != NULL) {
+-    strcpy(fname, name);
+-    return fp;
+-  }
+ 
+-  SeErrorF("/OFV/ Could not open the file `%s'", name, "", "");
+-  if (dir1) {
+-    SeNoticeF("Tried the default directory `%s'", dir1, "", "");
+-    if (dir2)
+-      SeNoticeF("Tried the default directory `%s'", dir2, "", "");
+-  }
+-  SeNotice("Tried the current directory");
++    SeErrorF("/OFV/ Could not open the file `%s'", name, "", "");
++    if (dir1) {
++        SeNoticeF("Tried the default directory `%s'", dir1, "", "");
++        if (dir2)
++	  SeNoticeF("Tried the default directory `%s'", dir2, "", "");
++    }
++    SeNotice("Tried the current directory");
+ 
+-  return NULL;
++    return NULL;
+ }
+ 
+ /*
+- * another implementation of the above using varargs, currently not used
+- */
+-
+-/*FILE *open_file_va(args)
+-	 va_list args;
+-	 va_decl
+-{
+-  FILE *fp;
+-  char *name, *dir, fullname[REG_BUF];
+-  char buffer[REG_BUF];
+-
+-  va_start(args);
+-  name = va_arg(args, char *);
+-
+-  if (fp = fopen(name, "r"))
+-	return fp;
+-
+-  while(dir = va_arg(args, char *))
+-	{
+-	  sprintf(fullname, "%s/%s", expand_fname(SSpc(dir), buffer), name);
+-
+-	  if (fp = fopen(fullname, "r"))
+-		return fp;
+-	}
+-
+-  va_end(args);
+-
+-  if (dir = (char *) getenv("HOME")) {
+-	sprintf(fullname, "%s/%s", dir, name);
+-	
+-	if (fp = fopen(fullname, "r"))
+-	  return fp;
+-  }
+-
+-  showf("<< Seyon: file '%s' not in current, default, or home directory >>",
+-		name, "", "");
+-  return NULL;
+-}*/
+-
+-/*
+  * read a file into a buffer
+  */
+ 
+ void
+ read_file(fp, line)
+-     FILE           *fp;
+-     char           *line[];
++    FILE           *fp;
++    char           *line[];
+ {
+-  char            buffer[REG_BUF + 1];
+-  int             i;
++    char            buffer[REG_BUF + 1];
++    int             i;
+ 
+-  for (i = 0; i < MAX_ENT && fgets(buffer, REG_BUF, fp) != NULL; i++)
+-    line[i] = strcpy((char *)malloc(sizeof(buffer)), SSpc(buffer));
+-  line[i] = NULL;
++    for (i = 0; i < MAX_ENT && fgets(buffer, REG_BUF, fp) != NULL; i++)
++        line[i] = strcpy((char *)malloc(sizeof(buffer)), SSpc(buffer));
++    line[i] = NULL;
+ }
+ 
+ /*
+- * similar to the above, but closes the file after readsing it
++ * similar to the above, but closes the file after reading it
+  */
+ 
+ void
+ read_close_file(fp, line)
+-     FILE           *fp;
+-     char           *line[];
++    FILE           *fp;
++    char           *line[];
+ {
+-  read_file(fp, line);
+-  fclose(fp);
++    read_file(fp, line);
++    fclose(fp);
+ }
+ 
+ /*
+@@ -487,12 +439,12 @@
+ 
+ void
+ write_pipe_data(pd, data, size)
+-     int            *pd;
+-     char           *data;
+-     int             size;
++    int            *pd;
++    char           *data;
++    int             size;
+ {
+-  if (write(pd[1], data, size) < 0)
+-    show("<< Could not write to pipe >>");
++    if (write(pd[1], data, size) < 0)
++        show("<< Could not write to pipe >>");
+ }
+ 
+ /*
+@@ -501,11 +453,11 @@
+ 
+ void
+ read_pipe_data(pd, data, size)
+-     int            *pd;
+-     char           *data;
+-     int             size;
++    int            *pd;
++    char           *data;
++    int             size;
+ {
+-  read(pd[0], data, size);
++    read(pd[0], data, size);
+ }
+ 
+ /*
+@@ -515,30 +467,30 @@
+ void
+ IdleGuard()
+ {
+-  struct stat     statBuf;
+-  time_t          idleTime;
+-  static time_t   totalIdleTime;
+-  int             timeToNextCall;
+-
+-  if (qres.idleGuard && !inhibit_child) {
+-    if (fstat(tfd, &statBuf) < 0) {
+-      SePError("/IG/ Could not stat the tty");
+-      return;
+-    }
++    struct stat     statBuf;
++    time_t          idleTime;
++    static time_t   totalIdleTime;
++    int             timeToNextCall;
++
++    if (qres.idleGuard && !inhibit_child) {
++        if (fstat(tfd, &statBuf) < 0) {
++	  SePError("/IG/ Could not stat the tty");
++	  return;
++        }
++
++        if ((idleTime = time((time_t *) 0) - statBuf.st_mtime) >=
++	  qres.idleGuardInterval * 0.99) {
++	  MdmPutString(qres.idleGuardString);
++	  timeToNextCall = qres.idleGuardInterval;
++	  totalIdleTime += idleTime;
++	  SeyonMessagef("Idle for %d minutes", (totalIdleTime + 30) / 60);
++        }
++        else {
++	  timeToNextCall = qres.idleGuardInterval - (int)idleTime;
++	  totalIdleTime = 0;
++        }
+ 
+-    if ((idleTime = time((time_t *) 0) - statBuf.st_mtime) >=
+-	qres.idleGuardInterval * 0.99) {
+-      MdmPutString(qres.idleGuardString);
+-      timeToNextCall = qres.idleGuardInterval;
+-      totalIdleTime += idleTime;
+-      SeyonMessagef("Idle for %d minutes", (totalIdleTime + 30) / 60);
+-    }
+-    else {
+-      timeToNextCall = qres.idleGuardInterval - (int)idleTime;
+-      totalIdleTime = 0;
+-    }
+-
+-    XtAppAddTimeOut(app_con, timeToNextCall * 1000,
++        XtAppAddTimeOut(app_con, timeToNextCall * 1000,
+ 		    (XtTimerCallbackProc) IdleGuard, (XtPointer) app_con);
+-  }
++    }
+ }
+--- seyon-2.20c.orig/Seyon.c
++++ seyon-2.20c/Seyon.c
+@@ -72,314 +72,365 @@
+ pid_t           mainPid;
+ 
+ int
+-main(argc, argv)
+-     int             argc;
+-     char           *argv[];
++main(int argc, char *argv[])
+ {
+-  int             OpenModem();
+-  void            DispatchActions(),
+-                  GetParameters(),
+-                  ShowOpenModemErrMsg();
+-
+-  char           *arg[REG_BUF], termEmu[REG_BUF];
+-  int             sepIndex, i, n, retStatus;
++    int             OpenModem();
++    void            DispatchActions(),
++                    GetParameters(),
++                    ShowOpenModemErrMsg();
++
++    char           *arg[REG_BUF], 
++                    termEmu[REG_BUF];
++    int             sepIndex,
++                    i, 
++                    n, 
++                    length,
++                    retStatus;
+ #ifdef HAVE_FAS
+-  char            large_string[1024];
++    char            large_string[LRG_BUF];
+ #endif
+ 
+-  XtAppContext    appContext;
+-  char            modemList[LRG_BUF], 
+-                 *curModem, 
+-                 *startupAction = modemList;
++    int             length_remaining;
++    XtAppContext    appContext;
++    char            modemList[LRG_BUF], 
++                   *curModem, 
++                   *startupAction = modemList;
+ 
+-  static char    *fallbackResources[] = {
++    static char    *fallbackResources[] = {
+ #include "Seyon.ad.h"
+-    NULL,
+-  };
++        NULL,
++    };
+ 
+-  static XrmOptionDescRec optionList[] =  {
+-    {"-modems", "modems", XrmoptionSepArg, NULL},
+-    {"-script", "script", XrmoptionSepArg, NULL},
+-    {"-entries", "defaultPhoneEntries", XrmoptionSepArg, NULL},
+-    {"-dial", "dialAutoStart", XrmoptionNoArg, "True"},
+-    {"-nodial", "dialAutoStart", XrmoptionNoArg, "False"},
+-    {"-emulator", "emulator", XrmoptionSepArg, ""},
+-    {"-noemulator", "noemulator", XrmoptionNoArg, ""},
+-    {"-nodefargs", "nodefargs", XrmoptionNoArg, ""},
+-  };
++    static XrmOptionDescRec optionList[] =  {
++        {"-modems", "modems", XrmoptionSepArg, NULL},
++        {"-script", "script", XrmoptionSepArg, NULL},
++        {"-entries", "defaultPhoneEntries", XrmoptionSepArg, NULL},
++        {"-dial", "dialAutoStart", XrmoptionNoArg, "True"},
++        {"-nodial", "dialAutoStart", XrmoptionNoArg, "False"},
++        {"-emulator", "emulator", XrmoptionSepArg, ""},
++        {"-noemulator", "noemulator", XrmoptionNoArg, ""},
++        {"-nodefargs", "nodefargs", XrmoptionNoArg, ""},
++    };
+   
+-  for (i = 1; i < argc && strcmp(argv[i], "--"); i++);
+-  sepIndex = i;
++    for (i = 1; i < argc && strcmp(argv[i], "--"); i++);
++    sepIndex = i;
+ 
+-  /* Find if the -noemulator switch is given */
+-  for (i = 1; i < sepIndex && 
++    /* Find if the -noemulator switch is given */
++    for (i = 1; i < sepIndex && 
+ 	   strncmp(argv[i], "-noemulator", max(4, strlen(argv[i]))); i++);
+ 
+-  /* If no, launch Seyon via the emulator */
+-  if (i >= sepIndex) {
++    /* If no, launch Seyon via the emulator */
++    if (i >= sepIndex) {
+ 
+-	for (i = 1; i < sepIndex &&
+-		 strncmp(argv[i], "-emulator", max(3, strlen(argv[i]))); i++);
+-	if (i < sepIndex - 1)
+-	  strcpy(termEmu, argv[i+1]);
+-	else
+-	  strcpy(termEmu, SEYON_EMU_NAME);
+-
+-	/* Find if the -nodefargs switch is given */
+-	for (i = 1; i < sepIndex && 
+-		 strncmp(argv[i], "-nodefargs", max(5, strlen(argv[i]))); i++);
++        for (i = 1; i < sepIndex &&
++	       strncmp(argv[i], "-emulator", max(3, strlen(argv[i]))); i++);
++        if (i < sepIndex - 1)
++	  strncpy(termEmu, argv[i+1], REG_BUF);
++        else
++	  strncpy(termEmu, SEYON_EMU_NAME, REG_BUF);
++
++        /* Find if the -nodefargs switch is given */
++        for (i = 1; i < sepIndex && 
++	       strncmp(argv[i], "-nodefargs", max(5, strlen(argv[i]))); i++);
+ 
+-	n = 1;
++        n = 1;
+ 
+-	/* If no, use the default emulator arguments */
+-	if (i >= sepIndex) {
++        /* If no, use the default emulator arguments */
++        if (i >= sepIndex) {
+ 	  arg[n] = "-name"; n++;
+ 	  arg[n] = "Seyon"; n++;
+ 	  arg[n] = "-T"; n++;
+ 	  arg[n] = "Seyon Terminal Emulator"; n++;
+ 	  arg[n] = "-n"; n++;
+ 	  arg[n] = "Terminal"; n++;
+-	}
++        }
+ 
+-	/* Pass all switches aftetr '--' to the emulator */
+-	for (i = sepIndex + 1; i < argc; i++, n++)
++        /* Pass all switches aftetr '--' to the emulator */
++        for (i = sepIndex + 1; i < argc; i++, n++)
+ 	  arg[n] = argv[i];
+ 	
+-	arg[n] = "-e"; n++;
++        arg[n] = "-e"; n++;
+ 
+ #ifndef HAVE_FAS
+-	arg[n] = argv[0]; n++;
+-	arg[n] = "-noemulator"; n++;
++        arg[n] = argv[0]; n++;
++        arg[n] = "-noemulator"; n++;
+ 
+-	/* Pass all switches before '--' to Seyon */
+-	for (i = 1; i < sepIndex; i++, n++)
++        /* Pass all switches before '--' to Seyon */
++        for (i = 1; i < sepIndex; i++, n++)
+ 	  arg[n] = argv[i];
+ #else
+-	arg[n] = "/bin/sh";	n++;
+-	arg[n] = "-c"; n++;
+-	arg[n] = large_string;
+-	strcpy(arg[n], argv[0]);
+-	strcat(arg[n], " -noemulator");
+-	for (i = 1; i < sepIndex; i++) {
+-	  strcat(arg[n]," ");
+-	  strcat(arg[n],argv[i]);
+-	}
+-	n++;
++        arg[n] = "/bin/sh";	n++;
++        arg[n] = "-c"; n++;
++        arg[n] = large_string;
++        length_remaining = LRG_BUF;
++        strncpy(arg[n], argv[0], LRG_BUF);
++        length_remaining -= strlen(argv[0]);
++        length = strlen(" -noemulator");
++        if(length_remaining > length)
++        {
++	  strncat(arg[n], " -noemulator", length_remaining);
++	  length_remaining -= length;
++        }
++        else
++        {
++	  printf("String overflow in parsing options\n");
++	  exit (1);
++        }        
++        for (i = 1; i < sepIndex; i++) {
++	  length = strlen(argv[i]) + 1;
++	  if(length_remaining > length)
++	  {
++	      strncat(arg[n]," ", 1);
++	      strncat(arg[n],argv[i], length_remaining);
++	  }
++	  else
++	  {
++	      printf("String overflow in parsing options\n");
++	      exit (1);
++	  }
++        }
++        n++;
+ #endif
+ 
+-	arg[n] = NULL; n++;
++        arg[n] = NULL; n++;
+ 
+-	arg[0] = termEmu;
+-	execvp(arg[0], arg);
++        arg[0] = termEmu;
++        execvp(arg[0], arg);
+ 
+-	fprintf(stderr, "%s `%s.\n%s\n", ">> Warning: Could not execute", 
+-			termEmu, ">> Notice: Falling to `xterm'.");
++        fprintf(stderr, "%s `%s.\n%s\n", ">> Warning: Could not execute", 
++	      termEmu, ">> Notice: Falling to `xterm'.");
+ 
+-	arg[0] = "xterm";
+-	execvp(arg[0], arg);
++        arg[0] = "xterm";
++        execvp(arg[0], arg);
+ 	
+-	fprintf(stderr, "%s\n%s\n", ">> Error: Could not execute `xterm'.",
+-			">> Notice: Giving up.");
+-	exit(1);
+-  }  /* if (i >= sepIndex)... */
+-
+-  /* ---------------------------------------------------------------------- */
+-  /* ---------------------------------------------------------------------- */
+-
+-  /* The real program begins here */
+-
+-  topLevel = XtAppInitialize(&appContext, "Seyon", optionList,
+-							 XtNumber(optionList), &argc, argv,
+-							 fallbackResources, NULL, 0);
+-  app_con = appContext;
+-  GetResources(topLevel);
+-
+-  mainPid = getpid();
+-  setup_signal_handlers();
+-  SetIcon(topLevel);
+-
+-  printf("\r\n%s %s\r\n", "Seyon Copyright (c) 1992-1993 Muhammad M. Saggaf.",
+-		 "All rights reserved.");
+-  printf("\rVersion %s rev. %s %s-%s %s@%s %s %s.\r\n\n", VERSION, REVISION, 
+-		 COMPILE_HOSTTYPE, COMPILE_OSNAME, COMPILE_BY, COMPILE_HOST,
+-		 COMPILE_DATE, COMPILE_TIME);
+-
+-  if ((tfp = fopen("/dev/tty", "r+")) == NULL) {
+-    PopupInitError("errTtyAccess", exit);
+-    goto MainLoop;
+-  }
++        fprintf(stderr, "%s\n%s\n", ">> Error: Could not execute `xterm'.",
++	      ">> Notice: Giving up.");
++        exit(1);
++    }  /* if (i >= sepIndex)... */
++
++    /* ------------------------------------------------------------------ */
++    /* ------------------------------------------------------------------ */
++
++    /* The real program begins here */
++
++    topLevel = XtAppInitialize(&appContext, "Seyon", optionList,
++			 XtNumber(optionList), &argc, argv,
++			 fallbackResources, NULL, 0);
++    app_con = appContext;
++    GetResources(topLevel);
++
++    mainPid = getpid();
++    setup_signal_handlers();
++    SetIcon(topLevel);
++
++    printf("\r\n%s %s\r\n", "Seyon Copyright (c) 1992-1993 Muhammad M. Saggaf.",
++	 "All rights reserved.");
++    printf("\rVersion %s rev. %s %s-%s %s@%s %s %s.\r\n\n", VERSION, REVISION, 
++	 COMPILE_HOSTTYPE, COMPILE_OSNAME, COMPILE_BY, COMPILE_HOST,
++	 COMPILE_DATE, COMPILE_TIME);
++
++    if ((tfp = fopen("/dev/tty", "r+")) == NULL) {
++        PopupInitError("errTtyAccess", exit);
++        goto MainLoop;
++    }
+ 
+-  tfd = fileno(tfp);
++    tfd = fileno(tfp);
+ 
+-  io_get_attr(tfd, &oldmode);  /* get current console tty mode	*/
+-  newmode = oldmode;	       /* copy (structure) to newmode  */
++    io_get_attr(tfd, &oldmode);  /* get current console tty mode	*/
++    newmode = oldmode;	       /* copy (structure) to newmode  */
+ 
+ #if HAVE_TERMIOS || HAVE_TERMIO
+-  newmode.c_oflag &= ~OPOST;
+-  newmode.c_iflag |= (IGNBRK | IGNPAR);
+-  newmode.c_iflag &= ~(IXON | IXOFF | ISTRIP | BRKINT);
+-  newmode.c_lflag &= ~(ICANON | ISIG | ECHO);
+-  newmode.c_cflag |= CREAD;
+-  newmode.c_cc[VMIN] = 1;
+-  newmode.c_cc[VTIME] = 1;
++    newmode.c_oflag &= ~OPOST;
++    newmode.c_iflag |= (IGNBRK | IGNPAR);
++    newmode.c_iflag &= ~(IXON | IXOFF | ISTRIP | BRKINT);
++    newmode.c_lflag &= ~(ICANON | ISIG | ECHO);
++    newmode.c_cflag |= CREAD;
++    newmode.c_cc[VMIN] = 1;
++    newmode.c_cc[VTIME] = 1;
+ #else
+ #if HAVE_SGTTYB
+-  newmode.sg_flags = CBREAK;
++    newmode.sg_flags = CBREAK;
+ #endif
+ #endif
+ 
+-  set_tty_mode();
++    set_tty_mode();
+ 
+-  InitVariables(topLevel);
++    InitVariables(topLevel);
+ 
+-  if (argc > 1 && strcmp(argv[1], "--")) {
+-	SeErrorF("Unknown or incomplete command-line switch: `%s'", argv[1], 
+-			 "", "");
+-    PopupInitError("errSwitches", do_exit);
+-    goto MainLoop;
+-  }
++    if (argc > 1 && strcmp(argv[1], "--")) {
++        SeErrorF("Unknown or incomplete command-line switch: `%s'", argv[1], 
++	       "", "");
++        PopupInitError("errSwitches", do_exit);
++        goto MainLoop;
++    }
+ 
+-  /* ---------------------------------------------------------------------- */
++    /* ------------------------------------------------------------------- */
+ 
+-  /* Open modem port and configure it */
++    /* Open modem port and configure it */
+ 
+-  strcpy(modemList, qres.modems);
+-  curModem = GetFirstWord(modemList);
++    strncpy(modemList, qres.modems, LRG_BUF);
++    curModem = GetFirstWord(modemList);
+ 
+-  show("Locating Modems...");
++    show("Locating Modems...");
+ 
+-  do {
+-	if ((retStatus = OpenModem(curModem)) >= 0) break;
++    do {
++        if ((retStatus = OpenModem(curModem)) >= 0) break;
+ 
+-	ShowOpenModemErrMsg(curModem, retStatus);
+-	if (retStatus != ERR_MDM_NOMODEM)
++        ShowOpenModemErrMsg(curModem, retStatus);
++        if (retStatus != ERR_MDM_NOMODEM)
+ 	  show(FmtString("Modem `%s' is Unavailable.\n", curModem, "", ""));
+-	curModem = GetNextWord();
+-  } while (curModem[0] != '\0');
+-
+-  if (retStatus < 0) {
+-	SeError("No Modems Available");
+-	PopupInitError("errModemInit", do_exit); 
+-	goto MainLoop;
+-  }
+-
+-  show(FmtString("Modem `%s' is Available.\n", curModem, "", ""));
+-
+-  /* ---------------------------------------------------------------------- */
+-
+-  CreateCommandCenter();
+-
+-  /* ---------------------------------------------------------------------- */
++        curModem = GetNextWord();
++    } while (curModem[0] != '\0');
+ 
+-  pipe(child_pipe);
+-  pipe(scriptToMainPipe);
+-  pipe(mainToTermPipe);
+-  XtAppAddInput(appContext, child_pipe[0], (XtPointer)XtInputReadMask, 
+-				ExecProcRequest, NULL);
+-  XtAppAddInput(appContext, scriptToMainPipe[0], (XtPointer)XtInputReadMask, 
+-				GetParameters, NULL);
++    if (retStatus < 0) {
++        SeError("No Modems Available");
++        PopupInitError("errModemInit", do_exit); 
++        goto MainLoop;
++    }
++
++    show(FmtString("Modem `%s' is Available.\n", curModem, "", ""));
++
++    /* ------------------------------------------------------------------- */
++
++    CreateCommandCenter();
++
++    /* ------------------------------------------------------------------- */
++
++    pipe(child_pipe);
++    pipe(scriptToMainPipe);
++    pipe(mainToTermPipe);
++    XtAppAddInput(appContext, child_pipe[0], (XtPointer)XtInputReadMask, 
++	        ExecProcRequest, NULL);
++    XtAppAddInput(appContext, scriptToMainPipe[0], (XtPointer)XtInputReadMask, 
++	        GetParameters, NULL);
++
++    IdleGuard();
++    if (qres.showFunMessages) 
++        XtAppAddTimeOut(appContext, qres.funMessagesInterval*1000, 
++		    FunMessage, NULL);
++
++    /* ------------------------------------------------------------------- */
++
++    length_remaining = LRG_BUF;
++    strncpy(startupAction, qres.startupAction, LRG_BUF);
++    length_remaining -= strlen(startupAction);
++    if (qres.script) 
++    {
++        length = strlen(" RunScript();") + strlen(qres.script);
++        if (length_remaining > length)
++        {
++	  sprintf(startupAction + strlen(startupAction), 
++		" RunScript(%s);", qres.script);
++	  length_remaining -= length;
++        }
++        else
++        {
++	  printf("String overflow in parsing options\n");
++	  exit (1);
++        }
++    }
++    if (qres.dialAutoStart) 
++    {
++        length = strlen(" DialEntries(Default);");
++        if(length_remaining > length)
++        {
++	  strncat(startupAction, " DialEntries(Default);", length);
++	  length -= length;
++        }
++        else
++        {
++	  printf("String overflow in parsing options\n");
++	  exit (1);
++        }
++    }  
++
++    /* ------------------------------------------------------------------- */
+ 
+-  IdleGuard();
+-  if (qres.showFunMessages) XtAppAddTimeOut(appContext, 
+-						    qres.funMessagesInterval*1000, FunMessage, NULL);
++    linkflag = 2;
++    ProcRequest(DISPATCH_ACTION, "", startupAction);
+ 
+-  /* ---------------------------------------------------------------------- */
++    /* ------------------------------------------------------------------- */
+ 
+-  strcpy(startupAction, qres.startupAction);
+-  if (qres.script) sprintf(startupAction + strlen(startupAction), 
+-						   " RunScript(%s);", qres.script);
+-  if (qres.dialAutoStart) strcat(startupAction, " DialEntries(Default);");
+-
+-  /* ---------------------------------------------------------------------- */
+-
+-  linkflag = 2;
+-  ProcRequest(DISPATCH_ACTION, "", startupAction);
+-
+-  /* ---------------------------------------------------------------------- */
+-
+-  XtSetMappedWhenManaged(topLevel, True);
+-  XtMapWidget(topLevel);		/* I don't know why I need this, but I do */
++    XtSetMappedWhenManaged(topLevel, True);
++    XtMapWidget(topLevel);		/* I don't know why I need this, but I do */
+ 
+ MainLoop:
+-  XtAppMainLoop(app_con);
+-  return 0;
++    XtAppMainLoop(app_con);
++    return 0;
+ }
+ 
+ void
+-setup_signal_handlers()
++setup_signal_handlers(void)
+ {
+-  signal(SIGINT, SIG_IGN);
+-  signal(SIGQUIT, SIG_IGN);
++    signal(SIGINT, SIG_IGN);
++    signal(SIGQUIT, SIG_IGN);
+ 
+ #ifdef SIGBUS
+-  signal(SIGBUS, die);
++    signal(SIGBUS, die);
+ #endif
+-  signal(SIGFPE, die);
+-  signal(SIGILL, die);
+-  signal(SIGIOT, die);
+-  signal(SIGSEGV, die);
+-  signal(SIGTERM, die);
+-  signal(SIGTRAP, die);
++    signal(SIGFPE, die);
++    signal(SIGILL, die);
++    signal(SIGIOT, die);
++    signal(SIGSEGV, die);
++    signal(SIGTERM, die);
++    signal(SIGTRAP, die);
+ }
+ 
+ void
+-die(sig)
+-     int             sig;
++die(int sig)
+ {
+-  void 	          KillChildProc();
+-  signal(sig, SIG_IGN);
++    void 	          KillChildProc();
++    signal(sig, SIG_IGN);
+ 
+-  SeErrorF("Killed by signal %d", sig, "", "");
+-  SeNoticeF("Debugging info: pid=%d.", getpid(), "", "");
++    SeErrorF("Killed by signal %d", sig, "", "");
++    SeNoticeF("Debugging info: pid=%d.", getpid(), "", "");
+ 
+-  if (getpid() == mainPid) {
+-    KillTerminal();
+-	KillChildProc();
++    if (getpid() == mainPid) {
++        KillTerminal();
++        KillChildProc();
+ 	
+-	SeNotice("Press any key to exit");
+-	getchar();
+-	cleanup_exit(1);
+-  }
+-  else {
+-    write_child_info(child_pipe, KILL_TERM, "Terminal Proc Exited");
+-	exit(1);
+-  }
++        SeNotice("Press any key to exit");
++        getchar();
++        cleanup_exit(1);
++    }
++    else {
++        write_child_info(child_pipe, KILL_TERM, "Terminal Proc Exited");
++        exit(1);
++    }
+ }
+ 
+ void
+-do_exit(rc)
+-     int             rc;
++do_exit(int rc)
+ {
+-  void 	          KillChildProc();
++    void 	          KillChildProc();
+ 
+-  XtUnmapWidget(topLevel);
+-  KillTerminal();
+-  KillChildProc();
++    XtUnmapWidget(topLevel);
++    KillTerminal();
++    KillChildProc();
+ 
+-  unlock_tty();
++    unlock_tty();
+ 
+-  fflush(tfp);
+-  restore_orig_mode();
+-  fclose(tfp);
++    fflush(tfp);
++    restore_orig_mode();
++    fclose(tfp);
+ 
+-  CloseModem();
++    CloseModem();
+ 
+-  XtDestroyApplicationContext(XtWidgetToApplicationContext(topLevel));
++    XtDestroyApplicationContext(XtWidgetToApplicationContext(topLevel));
+ /*  XCloseDisplay(XtDisplay(topLevel));*/
+-  exit(rc);
++    exit(rc);
+ }
+ 
+ void
+-cleanup_exit(status)
+-     int             status;
++cleanup_exit(int status)
+ {
+-  SeNotice("cleaning up..");
+-  do_exit(status);
++    SeNotice("cleaning up..");
++    do_exit(status);
+ }
+ 
+ void
+ s_exit()
+ {
+-  show("I'm rated PG-34!!");
+-  do_exit(0);
++    show("I'm rated PG-34!!");
++    do_exit(0);
+ }
+--- seyon-2.20c.orig/SeTrans.c
++++ seyon-2.20c/SeTrans.c
+@@ -51,7 +51,7 @@
+   ErrorIfBusy();
+ 
+   if (disItems[0] == NULL) {
+-    strcpy(protocolsFile, qres.protocolsFile);
++    strncpy(protocolsFile, qres.protocolsFile, REG_BUF);
+     if (ReadParseProtFile(protocolsFile, disItems) < 0)
+       return;
+   }
+@@ -81,39 +81,47 @@
+ 
+ void
+ DoTransfer(widget, clientData, callData)
+-     Widget          widget;
+-     XtPointer       clientData,
+-                     callData;
+-{
+-  XfwfMultiListReturnStruct *item;
+-  Widget          popup;
+-  String*         actionData = (String*)clientData;
+-  char            fullCommand[LRG_BUF];
+-
+-  if (clientData)
+-	{if ((transCurItemIndex = atoi(actionData[0]) - 1) < 0 ||  
+-		 transCurItemIndex > MAX_ENT - 1)
+-	   SimpleError("Invalid Entry Number");}
+-  else {
+-	if ((item = XfwfMultiListGetHighlighted(mlw))->num_selected == 0)
++    Widget          widget;
++    XtPointer       clientData,
++    callData;
++{
++    XfwfMultiListReturnStruct *item;
++    Widget          popup;
++    String*         actionData = (String*)clientData;
++    char            fullCommand[LRG_BUF];
++    int             length_remaining;
++
++    if (clientData)
++    {if ((transCurItemIndex = atoi(actionData[0]) - 1) < 0 ||  
++         transCurItemIndex > MAX_ENT - 1)
++        SimpleError("Invalid Entry Number");}
++    else {
++        if ((item = XfwfMultiListGetHighlighted(mlw))->num_selected == 0)
+ 	  SimpleError("No Item Selected");
+-	transCurItemIndex =  item->selected_items[0];
+-  }
++        transCurItemIndex =  item->selected_items[0];
++    }
+   
+-  strcpy(fullCommand, protItems[transCurItemIndex]->command);
++    strncpy(fullCommand, protItems[transCurItemIndex]->command, LRG_BUF);
+ 
+-  if (protItems[transCurItemIndex]->reqName)
+-	if (actionData == NULL ||  actionData[1] == NULL) {
++    if (protItems[transCurItemIndex]->reqName)
++    {
++        if (actionData == NULL ||  actionData[1] == NULL) 
++        {
+ 	  popup = GetShell(PopupDialogGetValue("upload", widget, exec_upload, 
+-										   NULL, lastUploadFile));
++				         NULL, lastUploadFile));
+ 	  PopupCentered(popup, (clientData) ? XtParent(GetShell(widget)) : widget);
+ 	  return;
+-	}
+-	else
+-	  strcat(strcat(fullCommand, " "), actionData[1]);
+-  
+-  DestroyShell(widget);
+-  ShellCommand(fullCommand);
++        }
++        else
++        {	  
++	  length_remaining = LRG_BUF - strlen(fullCommand);
++	  strncat(fullCommand, " ", length_remaining);
++	  length_remaining -= 1;
++	  strncat(fullCommand, actionData[1], length_remaining);
++        }
++    }
++    DestroyShell(widget);
++    ShellCommand(fullCommand);
+ }
+ 
+ void
+@@ -133,11 +141,11 @@
+      Widget          widget;
+ {
+   Widget          dialog = XtParent(widget);
+-  static char     cmd[REG_BUF];
++  static char    *cmd;
+ 
+-  strcpy(lastUploadFile, XawDialogGetValueString(dialog));
+-  sprintf(cmd, "%s %s", protItems[transCurItemIndex]->command,
+-	  lastUploadFile);
++  strncpy(lastUploadFile, XawDialogGetValueString(dialog), REG_BUF);
++  cmd = FmtString("%s %s", protItems[transCurItemIndex]->command,
++	  lastUploadFile, "");
+ 
+   DestroyShell(XtParent(GetShell(widget)));
+   ShellCommand(cmd);
+--- seyon-2.20c.orig/Seyon-co.ad
++++ seyon-2.20c/Seyon-co.ad
+@@ -13,26 +13,30 @@
+ *foreground: black
+ *borderColor: white
+ 
++*background: blue
++*foreground: black
++*borderColor: lightBlue
++
+ *Command.background: lightBlue
+-*Scrollbar.background: darkSeaGreen
+-*Toggle.background: darkOliveGreen
+-*Toggle.foreground: darkTurquoise
+-*List.background: grey
+-*XfwfMultiList.background: grey
+-*Text*background: grey
+-*Text*Scrollbar.background: darkSeaGreen
++*Scrollbar.background: cyan
++*Toggle.background: cyan
++*Toggle.foreground: black
++*List.background: tan
++*XfwfMultiList.background: tan
++*Text*background: tan
++*Text*Scrollbar.background: cyan
+ 
+ *ok.background: green
+-*cancel.background: tomato
++*cancel.background: red
+ *dismiss.background: orange
+-*hangup.background: orange
+-*exit.background: tomato
+-*kill.background: tomato
++*hangup.background: red
++*exit.background: red
++*kill.background: red
+ 
+-*about*msg.background: grey
+-*about*pic.background: grey
++*about*msg.background: tan
++*about*pic.background: tan
+ 
+-*messageBox.message.background: grey
++*messageBox.message.background: tan
+ 
+-*quickKeyBox.Command.background: darkOliveGreen
+-*quickKeyBox.Command.foreground: darkTurquoise
++*quickKeyBox.Command.background: orange
++*quickKeyBox.Command.foreground: black
+--- seyon-2.20c.orig/config.h
++++ seyon-2.20c/config.h
+@@ -302,7 +302,7 @@
+  * HDB uucp does) rather than in binary form as other uucp prgrams do
+  */
+ #ifndef LF_USE_ASCII_PID
+-#define LF_USE_ASCII_PID    NO
++#define LF_USE_ASCII_PID    YES
+ #endif
+ 
+ /* 
+@@ -319,7 +319,7 @@
+  */
+ 
+ #ifndef LF_PATH
+-#define LF_PATH             "/usr/spool/uucp"
++#define LF_PATH             "/var/lock"
+ #endif
+ 
+ /* 
+--- seyon-2.20c.orig/Imakefile
++++ seyon-2.20c/Imakefile
+@@ -48,14 +48,16 @@
+ InstallNonExecFile(seyon.help,$(LIBDIR))
+ 
+ install::
++/*
+ 	@if [ ! -d $(HOME)/.seyon ]; then mkdir $(HOME)/.seyon; fi; \
+ 	echo "=== Copying example files (no overwrite) to $(HOME)/.seyon ..."; \
+ 	for i in phonelist protocols startup script.*; do \
+ 		if [ ! -f $(HOME)/.seyon/$$i ]; then cp $$i $(HOME)/.seyon; fi;\
+ 	done;
++*/
+ 
+ clean::
+-	rm -f version.h y.tab.* SeParse.c
++	rm -f version.h y.tab.* SeParse.c Seyon.ad.h
+ 
+ Seyon.c: Seyon.ad.h version.h
+ 
+@@ -66,7 +68,7 @@
+ 	rm -f version.h
+ 
+ version.h:
+-	./makever.sh
++	sh ./makever.sh
+ 
+ SeScan.o: y.tab.h
+ 
+--- seyon-2.20c.orig/makever.sh
++++ seyon-2.20c/makever.sh
+@@ -48,9 +48,9 @@
+ echo "#define VERSION \"$VERSION\"" >> version.h
+ echo "#define REVISION \"$REVISION\"" >> version.h
+ 
+-echo "#ifdef IS_MAIN" >> version.h
+-echo "static char version[] = \"\$Revision: $VERSION.$REVISION \$\";"\
+-     >> version.h
+-echo "#endif" >> version.h
++#echo "#ifdef IS_MAIN" >> version.h
++#echo "static char version[] = \"\$Revision: $VERSION.$REVISION \$\";"\
++#     >> version.h
++#echo "#endif" >> version.h
+ 
+ echo "Machine type is $machine, OS name is $system"
+--- seyon-2.20c.orig/SeScan.c
++++ seyon-2.20c/SeScan.c
+@@ -95,8 +95,8 @@
+   SC_OUTSIDE,
+ };
+ 
+-static ScanState = SC_OUTSIDE;
+-static ScanDelim = 0;	/* Current string delimiter */
++static int ScanState = SC_OUTSIDE;
++static int ScanDelim = 0;	/* Current string delimiter */
+ 
+ void NEW_STATE(st)
+ 	 int st;
+@@ -290,8 +290,8 @@
+ #ifdef TEST
+ main()
+ {
+-  scSetInputBuf("Just to see if we'\\'re \\n\\033 able to distinguish' words and strings
+-\"Also 'quotes' inside strings\" and 'strs \"inside quotes\"'
++  scSetInputBuf("Just to see if we'\\'re \\n\\033 able to distinguish' words and strings\n\
++\"Also 'quotes' inside strings\" and 'strs \"inside quotes\"'\n\
+ Not to forget ^S and ^q control ^ chars");
+ 
+   while (lGetWord() != 0);
+--- seyon-2.20c.orig/SeSubsX.c
++++ seyon-2.20c/SeSubsX.c
+@@ -70,7 +70,8 @@
+ 
+   if (onlineTime != oldOnlineTime) {
+ 	oldOnlineTime = onlineTime;
+-	sprintf(buf, "%02d:%02d", onlineTime / 60, onlineTime % 60);
++	/* Buffer is easily big enough */
++	sprintf(buf, "%02ld:%02ld", onlineTime / 60, onlineTime % 60);
+ 	SeSetLabel(statusWidget[0], buf);
+   }
+ 
+@@ -91,6 +92,7 @@
+     msg = qres.funMessages[msg_index++];
+     if (msg == NULL) {
+       msg_index = 0;
++      /* Buffer is easily big enough */
+       sprintf(vermsg, "Welcome to Seyon version %s.%s", VERSION, REVISION);
+       msg = vermsg;
+     }
+@@ -171,7 +173,8 @@
+ 
+   procRequest.action = action;
+ 
+-  if (msg) strcpy(procRequest.msg, msg);
++  if (msg) 
++      strncpy(procRequest.msg, msg, 80);
+   else *procRequest.msg = '\0';
+ 
+   write_pipe_data(pd, &procRequest, sizeof(procRequest));
+@@ -186,8 +189,8 @@
+   struct _procRequest procRequest;
+ 
+   procRequest.action = action;
+-  strcpy(procRequest.msg, msg);
+-  strcpy(procRequest.arg, arg);
++  strncpy(procRequest.msg, msg, 80);
++  strncpy(procRequest.arg, arg, 90);
+ 
+   write_pipe_data(child_pipe, &procRequest, sizeof(procRequest));
+ }
+@@ -201,10 +204,7 @@
+                     *b,
+                     *c;
+ {
+-  char            buffer[SM_BUF];
+-
+-  sprintf(buffer, fmt, a, b, c);
+-  write_child_info(pd, action, buffer);
++  write_child_info(pd, action, FmtString(fmt,a,b,c));
+ }
+ 
+ void
+@@ -222,10 +222,7 @@
+                      b,
+                      c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  SeyonMessage(buf);
++  SeyonMessage(FmtString(fmt,a,b,c));
+ }
+ 
+ Boolean
+--- seyon-2.20c.orig/SeActions.c
++++ seyon-2.20c/SeActions.c
+@@ -28,6 +28,7 @@
+ /* SeDecl.h includes stdio.h */
+ #include "SeDecl.h"
+ #include "version.h"
++#include "config.h"
+ 
+ #define CheckNumParam(num) {if (*numParam != num) \
+   SimpleError("Wrong Number of Parameters");}
+@@ -234,7 +235,7 @@
+ 	 Cardinal*       numParam;
+ {
+   int             IconifyShell();
+-  Widget          dirWidget;
++/*  Widget          dirWidget; */
+   static String   termWindowId = NULL;
+   int             i;
+ 
+@@ -312,10 +313,18 @@
+ 	 Cardinal*       numParam;
+ {
+   void            s_set();
++  int             length;
++  int             length_remaining;
+ 
+   ErrorIfBusy();
+   CheckNumParam(2);
+-  sprintf((lptr = line), "%s %s", param[0], param[1]);
++
++  length_remaining = WBSIZE;
++  length = 1 + strlen(param[0]) + strlen(param[1]);
++  if(length_remaining > length)
++      sprintf((lptr = line), "%s %s", param[0], param[1]);
++  else
++      printf("SetAction: string buffer would have overrun: %s %s\n",param[0], param[1]);
+   eof_flag = 0;
+   s_set();
+ }
+@@ -372,7 +381,7 @@
+                       prevActionAsync = False,
+                       startup = True;
+   static Widget       actionWidget;
+-  static String       actionStack;
++  static String       actionStack = "";
+ 
+   void                (*actionProc)();
+   static char         actionName[SM_BUF],
+@@ -387,6 +396,9 @@
+ 	Boolean       async;
+   };
+ 
++  /* A string containing a script of actions to perform at startup. */
++  String              startScript;
++
+   static struct _actionTable actionTable[] = {
+     {"Beep", BeepAction, False},
+     {"CloseWindow", CloseWindowAction, False},
+@@ -413,12 +425,12 @@
+   switch (intData) {
+ 
+   case ACTION_NEW_ACTION:
+-	strcpy(actionName, stringData);
++	strncpy(actionName, stringData, sizeof(actionName));
+ 	numArgs = 0;
+ 	return;
+ 
+   case ACTION_NEW_ARG:
+-	strcpy((argsArray[numArgs] = args[numArgs]), stringData);
++	strncpy((argsArray[numArgs] = args[numArgs]), stringData, SM_BUF);
+ 	numArgs++;
+ 	return;
+ 
+@@ -461,10 +473,12 @@
+ 	XtFree(actionStack);
+ 
+ 	if (startup) {
+-	  startup = False;
+-	  ParseThis(FmtString("Message(\"Welcome to Seyon version %s.%s\"); %s",
+-						  VERSION, REVISION, "RestartTerminal();"), 
+-				DispatchActions);
++        startup = False;
++        startScript
++            = XtNewString( FmtString("Message(\"Welcome to Seyon version %s.%s\"); %s",
++                                     VERSION, REVISION, "RestartTerminal();"));
++        ParseThis(startScript, DispatchActions);
++        XtFree(startScript);
+ 	}
+ 	  
+ 	return;
+--- seyon-2.20c.orig/SeScript.c
++++ seyon-2.20c/SeScript.c
+@@ -100,8 +100,8 @@
+   if (qres.scriptDirectory) scriptDir = qres.scriptDirectory;
+   else scriptDir = qres.defaultDirectory;
+   
+-  strcpy(buf, scriptFileName);
+-  if ((scriptFP = open_file(buf, scriptDir)) == NULL)
++  strncpy(buf, scriptFileName, REG_BUF);
++  if ((scriptFP = open_file(buf, REG_BUF, scriptDir)) == NULL)
+     return False;
+   
+   exec_close_script(scriptFP);
+@@ -110,31 +110,33 @@
+ 
+ void
+ exec_close_script(script_fp)
+-     FILE           *script_fp;
++    FILE           *script_fp;
+ {
+-  if_flag = 0;
+-  echo_flag = False;
+-  captflag = False;
+-  tty_flag = True;
+-  eof_flag = 0;
++    if_flag = 0;
++    echo_flag = False;
++    captflag = False;
++    tty_flag = True;
++    eof_flag = 0;
+ 
+-  if (linkflag == 2)
+-    linkflag = 0;
++    if (linkflag == 2)
++        linkflag = 0;
+ 
+-  while (!eof_flag)
+-    get_line(script_fp);
++    while (!eof_flag)
++        get_line(script_fp);
+ 
+-  fclose(script_fp);
+-  if (captflag)
+-    fclose(cf);
++    fclose(script_fp);
++    if (captflag)
++        fclose(cf);
+ 
+-  eof_flag = 0;
+-  lptr = strcpy(line, "");
+-  k_when();
++    eof_flag = 0;
++    /* No buffer length problem here! */
++    /* But why do this??? */
++    lptr = strcpy(line, "");
++    k_when();
+ 
+-  linkflag = 0;
++    linkflag = 0;
+ 
+-  return;
++    return;
+ }
+ 
+ static char     wf[MAX_LINE];
+@@ -202,7 +204,7 @@
+ 
+ 
+   GETTEST_ARG("waitfor");
+-  strcpy(wf, word);
++  strncpy(wf, word, MAX_LINE);
+ 
+   GET_ARG();
+ 
+@@ -331,7 +333,7 @@
+     return;
+   }
+ 
+-  strcpy(label, word);
++  strncpy(label, word, WBSIZE);
+ 
+   rewind(script_fp);
+   while (!found) {
+@@ -360,7 +362,7 @@
+   if_flag = 0;		       /* reset IF flag */
+ }
+ 
+-static          if_negate = 0;
++static  int        if_negate = 0;
+ 
+ static int
+ if_test(cond)
+--- seyon-2.20c.orig/SeWin.c
++++ seyon-2.20c/SeWin.c
+@@ -377,7 +377,7 @@
+ {
+   Widget          dialog = XtParent(valueWidget);
+ 
+-  strcpy(getValueDefValue, XawDialogGetValueString(dialog));
++  strncpy(getValueDefValue, XawDialogGetValueString(dialog), REG_BUF);
+   DestroyShell(dialog);
+ 
+   (*getValueExecProc)(XtParent(GetShell(valueWidget)), getValueDefValue);
+@@ -745,10 +745,7 @@
+                      b,
+                      c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  SePopupMsg(parent, buf);
++  SePopupMsg(parent, FmtString(fmt,a,b,c));
+ }
+ 
+ Widget
+@@ -773,20 +770,16 @@
+ }
+ 
+ void
+-SePopupNoticeF(parent, title, call_back, fmt, a, b, c, d)
++SePopupNoticeF(parent, title, call_back, fmt, a, b, c)
+      Widget          parent;
+      String          title;
+      void            (*call_back) ();
+      String          fmt,
+                      a,
+                      b,
+-                     c,
+-                     d;
++                     c;
+ {
+-  char            buf[REG_BUF];
+-
+-  sprintf(buf, fmt, a, b, c);
+-  SePopupNotice(parent, title, call_back, buf);
++  SePopupNotice(parent, title, call_back, FmtString(fmt,a,b,c));
+ }
+ 
+ /*
+@@ -918,10 +911,7 @@
+                      b,
+                      c;
+ {
+-  char            buffer[REG_BUF];
+-
+-  sprintf(buffer, fmt, a, b, c);
+-  SetStatusMessage(buffer);
++  SetStatusMessage(FmtString(fmt,a,b,c));
+ }
+ 
+ /*---------------------------------------------------------------------------+
+--- seyon-2.20c.orig/SeString.c
++++ seyon-2.20c/SeString.c
+@@ -22,12 +22,13 @@
+ 
+ char
+ itoa(num)
+-     int             num;
++    int             num;
+ {
+-  char            buf[TIN_BUF];
++    char            buf[TIN_BUF];
+ 
+-  sprintf(buf, "%d", num);
+-  return buf[0];
++    /* Buffer is safely big enough */
++    sprintf(buf, "%d", num);
++    return buf[0];
+ }
+ 
+ /*
+@@ -100,8 +101,15 @@
+   char            buffer[REG_BUF],
+                  *bufptr;
+ 
+-  strcpy(buffer, source);
++  strncpy(buffer, source, REG_BUF);
++
++  /* Null-terminate, as expected by str_strip_lead_end_space(). */
++  buffer[REG_BUF] = '\0';
++
+   bufptr = str_strip_lead_end_space(buffer);
++
++  /* Must fit, as we can only have removed things from the original
++     string */
+   return strcpy(dest, bufptr);
+ }
+ 
+@@ -128,14 +136,43 @@
+   return strBuf;
+ }
+ 
++/* Note that the the (char *) data structure returned by FmtString()
++   is invalidated on subsequent calls, and that the function is not
++   re-entrant.  Take care that the pointer returned is not held for
++   use across calls. */
+ char*
+ FmtString(fmt, a, b, c)
+-	 char *fmt, *a, *b, *c;
++    char *fmt, *a, *b, *c;
+ {
+-  static char strBuf[LRG_BUF];
++    static char     strBuf[LRG_BUF];
++    static FILE    *devnull=NULL;
++    int             length = 0;
++
++    /* Clear the buffer as it highlights errors elsewhere, such as
++       simultaneous use of the static string or re-entry into this
++       function. */
++    memset(strBuf, 0, LRG_BUF);
++
++    /* Ick... This is horrible - using a user-provided format string
++       means we have no easy way of limiting string length. HACK HACK
++       HACK Use fprintf to output to /dev/null and count the number of
++       bytes... It would be nice if we could rely on having snprintf() */
++
++    if(NULL == devnull)
++    {
++        devnull = fopen("/dev/null", "r+");
++        if(NULL == devnull)
++        {
++	  printf("Open /dev/null failed!?!\n");
++	  return strBuf;
++        }
++        length = fprintf(devnull, fmt, a, b, c);
++    }
++    
++    if(LRG_BUF >= length)
++        sprintf(strBuf, fmt, a, b, c);
+ 
+-  sprintf(strBuf, fmt, a, b, c);
+-  return strBuf;
++    return strBuf;
+ }
+  
+ /*
+@@ -189,6 +226,7 @@
+   if (*line == '\0')
+     return NULL;
+   else if (*line == '\"')
++
+     for (wrd = ++line; *line != '\"' && *line; line++);
+   else
+     for (wrd = line; !isspace(*line) && *line; line++);
+@@ -246,38 +284,38 @@
+  * this routine is not currently used, and I'm not if it works
+  */
+ 
+-char           *
+-get_word(str, word)
+-     char           *str,
+-                    *word;
+-{
+-  char           *wrd,
+-                  c;
+-
+-  while (isspace(*str) && *str)
+-    str++;
+-
+-  if (!(*str))
+-    word[0] = '\0';
+-
+-  else if (*str == '\"') {
+-    for (wrd = ++str; *str != '\"' && *str; str++);
+-    *str = '\0';
+-    strcpy(word, wrd);
+-    *str = '\"';
+-    str++;
+-  }
++/* char           * */
++/* get_word(str, word) */
++/*      char           *str, */
++/*                     *word; */
++/* { */
++/*   char           *wrd, */
++/*                   c; */
++
++/*   while (isspace(*str) && *str) */
++/*     str++; */
++
++/*   if (!(*str)) */
++/*     word[0] = '\0'; */
++
++/*   else if (*str == '\"') { */
++/*     for (wrd = ++str; *str != '\"' && *str; str++); */
++/*     *str = '\0'; */
++/*     strcpy(word, wrd); */
++/*     *str = '\"'; */
++/*     str++; */
++/*   } */
++
++/*   else { */
++/*     for (wrd = str; !isspace(*str) && *str; str++); */
++/*     c = *str; */
++/*     *str = '\0'; */
++/*     strcpy(word, wrd); */
++/*     *str = c; */
++/*   } */
+ 
+-  else {
+-    for (wrd = str; !isspace(*str) && *str; str++);
+-    c = *str;
+-    *str = '\0';
+-    strcpy(word, wrd);
+-    *str = c;
+-  }
+-
+-  return str;
+-}
++/*   return str; */
++/* } */
+ 
+ #if !HAVE_STRERROR
+ 
+--- seyon-2.20c.orig/SeParse.y
++++ seyon-2.20c/SeParse.y
+@@ -1,8 +1,11 @@
+ %{
+ #include <stdio.h>
+ #include <ctype.h>
++#include <stdlib.h>
+ #include "SeParse.h"
+ 
++int yylex(void);
++
+ void (*callbackProc)();
+ %}
+ 
+@@ -81,19 +84,19 @@
+ {
+   char long_line[1000];
+ 
+-  char input_str[] = "This(is, a, real, funky); script();
+-            Scripts(); Can(be); Multi(Line, \"Can't they?\");
+-            Commas(are, no, longer, optional, inside, arglists);
+-	    Scripts(); Can(); contain(\"tabs \\t and backspaces \\b\");
+-	    As(\"Well\\ as Quoted Strings\", and, '\"Quoted Strings inside
+-	    quoted strings\"');
+-	esc(can, appear, outside, strings, ^z, \\012\\015\\n);
+-	    But(parenthesis, should, match);
+-  We(\"have a funny way of specifying \\012 chars and even)\"); 
+-	backslashes( \" \\\\ \");
+-  new(\"in this version are ^m and ^A ctr-escapes, as in ^S^Q\");
+- The(next, line, will, give, a, syntax, error, because, it, has, two, adj, functions,
+-	without, a, separating, semicolon);
++  char input_str[] = "This(is, a, real, funky); script();\n\
++            Scripts(); Can(be); Multi(Line, \"Can't they?\");\n\
++            Commas(are, no, longer, optional, inside, arglists);\n\
++           Scripts(); Can(); contain(\"tabs \\t and backspaces \\b\");\n\
++           As(\"Well\\ as Quoted Strings\", and, '\"Quoted Strings inside\n\
++           quoted strings\"');\n\
++       esc(can, appear, outside, strings, ^z, \\012\\015\\n)\n\
++           But(parenthesis, should, match);\n\
++  We(\"have a funny way of specifying \\012 chars and even)\"); \n\
++       backslashes( \" \\\\ \");\n\
++  new(\"in this version are ^m and ^A ctr-escapes, as in ^S^Q\");\n\
++ The(next, line, will, give, a, syntax, error, because, it, has, two, adj, functions,\n\
++       without, a, separating, semicolon);\n\
+  End() script()";
+ 
+   printf("------ String to parse: \n%s\n\n---- Parsing begins:\n", input_str);
+--- seyon-2.20c.orig/SeSet.c
++++ seyon-2.20c/SeSet.c
+@@ -18,6 +18,9 @@
+ 
+ #include "seyon.h"
+ #include "SeDecl.h"
++#if HAVE_TERMIOS
++#include <termios.h>
++#endif
+ 
+ extern int      param_pipe[2];
+ 
+@@ -84,6 +87,13 @@
+   {"baud", {"300", "1200", "2400", "4800", "9600", "19200", "38400",
+ #if USE_NONSTD_BAUD
+     "57600", "115200",
++#else
++#ifdef B57600
++    "57600",
++#endif
++#ifdef B115200
++    "115200",
++#endif
+ #endif
+     NULL}, 1, MenuSetGetBaud},
+   {"bits", {"5", "6", "7", "8", NULL}, 1, MenuSetGetCSize},
+@@ -191,7 +201,7 @@
+   struct _setValue *vptr;
+ 
+   vptr = set_value;
+-  strcpy(vptr->value, modem_port);
++  strncpy(vptr->value, modem_port, SM_BUF);
+   vptr++;
+ 
+   curValObjPtr = (vptr = (struct _setValue *)client_data);
+--- seyon-2.20c.orig/startup
++++ seyon-2.20c/startup
+@@ -4,30 +4,30 @@
+ # see the manual page for a complete listing of the keywords
+ # that can be used with 'set'.
+ 
+-# set baud 9600
++set baud 57600
+ 
+ # can be 5, 6, 7, or 8
+-# set bits 8
++set bits 8
+ 
+ # can be 0 (= no parity), 1 (= odd parity), or 2 (= even parity)
+ # set parity 0
+ 
+ # can be 1 or 2
+-# set stopBits 1
++set stopBits 1
+ 
+ # can be nl, cr, or cr/lf
+ # set newlineTranslation cr
+ 
+-# set del on
+-# set meta_tr on
+-# set xoff off 
+-# set rtscts on
+-# set autozm on
++set del on
++set meta_tr on
++set xoff off 
++set rtscts on
++set autozm on
+ # set idleGuard on
+ 
+ # put the modem initialization string here if you like one.
+ # most modern modems do not need it since they store their setup in 
+ # non-volatile memory.
+ 
+-# echo "Initializing modem..."
+-# transmit "ATZ^M"
++echo "Initializing modem..."
++transmit "ATM0^M"
+--- seyon-2.20c.orig/debian/po/POTFILES.in
++++ seyon-2.20c/debian/po/POTFILES.in
+@@ -0,0 +1 @@
++[type: gettext/rfc822deb] templates
+--- seyon-2.20c.orig/debian/po/fr.po
++++ seyon-2.20c/debian/po/fr.po
+@@ -0,0 +1,49 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: seyon 2.20c-12\n"
++"POT-Creation-Date: 2003-10-13 02:02+0100\n"
++"PO-Revision-Date: 2003-10-16 23:41+0100\n"
++"Last-Translator: Christian Perrier <bubulle@debian.org>\n"
++"Language-Team: French <debian-l10n-french@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=iso-8859-15\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Description
++#: ../templates:4
++msgid "Modem device"
++msgstr "Périphérique du modem"
++
++#. Description
++#: ../templates:4
++msgid ""
++"Please choose the device file corresponding to the port the modem is "
++"connected to. This may be /dev/ttyS1 or any other device file."
++msgstr ""
++"Veuillez choisir le fichier de périphérique correspondant au port où est "
++"connecté le modem. Cela peut être /dev/ttyS1 ou tout autre fichier de "
++"périphérique."
++
++#. Description
++#: ../templates:4
++msgid ""
++"/dev/modem is usually a symbolic link to the appropriate device file. This "
++"configuration program will not setup this link. If you choose \"/dev/modem"
++"\", the link should already exist."
++msgstr ""
++"/dev/modem est généralement un lien symbolique vers le fichier de "
++"périphérique correct. Ce programme de configuration n'établira pas ce lien. "
++"Si vous indiquez « /dev/modem », il faudrait que le lien existe au préalable."
+--- seyon-2.20c.orig/debian/po/nl.po
++++ seyon-2.20c/debian/po/nl.po
+@@ -0,0 +1,50 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++#, fuzzy
++msgid ""
++msgstr ""
++"Project-Id-Version: seyon2.20c-12 \n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2003-07-21 16:50+0200\n"
++"PO-Revision-Date: 2003-09-07 17:46+0100\n"
++"Last-Translator: Tim Vandermeersch <qber66@skolelinux.no>\n"
++"Language-Team: dutch <debian-l10n-dutch@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=iso-8859-1\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Description
++#: ../templates:4
++msgid "Modem device"
++msgstr "Modem apparaat"
++
++#. Description
++#: ../templates:4
++msgid ""
++"Please choose the device file corresponding to the port the modem is "
++"connected to. This may be /dev/ttyS1 or any other device file."
++msgstr ""
++"Gelieve het overeenkomstige apparaat bestand te kiezen van de poort waar de "
++"modem met verbonden is. Dit kan /dev/ttyS1 of een ander apparaat bestand zijn."
++
++#. Description
++#: ../templates:4
++msgid ""
++"/dev/modem is usually a symbolic link to the appropriate device file. This "
++"configuration program will not setup this link. If you choose \"/dev/modem"
++"\", the link should already exist."
++msgstr ""
++"/dev/modem is meestal een symbolische link naar het correcte apparaat bestand."
++"Dit configuratie programma zal deze link niet creëren. Als u \"/dev/modem\""
++"kiest, dient deze link al te bestaan."
+--- seyon-2.20c.orig/debian/po/templates.pot
++++ seyon-2.20c/debian/po/templates.pot
+@@ -0,0 +1,45 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++#, fuzzy
++msgid ""
++msgstr ""
++"Project-Id-Version: PACKAGE VERSION\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2003-10-13 02:02+0100\n"
++"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
++"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
++"Language-Team: LANGUAGE <LL@li.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=CHARSET\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Description
++#: ../templates:4
++msgid "Modem device"
++msgstr ""
++
++#. Description
++#: ../templates:4
++msgid ""
++"Please choose the device file corresponding to the port the modem is "
++"connected to. This may be /dev/ttyS1 or any other device file."
++msgstr ""
++
++#. Description
++#: ../templates:4
++msgid ""
++"/dev/modem is usually a symbolic link to the appropriate device file. This "
++"configuration program will not setup this link. If you choose \"/dev/modem"
++"\", the link should already exist."
++msgstr ""
+--- seyon-2.20c.orig/debian/po/cs.po
++++ seyon-2.20c/debian/po/cs.po
+@@ -0,0 +1,49 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: seyon\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2003-10-13 02:02+0100\n"
++"PO-Revision-Date: 2004-12-31 11:57+0100\n"
++"Last-Translator: Miroslav Kure <kurem@debian.cz>\n"
++"Language-Team: Czech <provoz@debian.cz>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=ISO-8859-2\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Description
++#: ../templates:4
++msgid "Modem device"
++msgstr "Zaøízení modemu"
++
++#. Description
++#: ../templates:4
++msgid ""
++"Please choose the device file corresponding to the port the modem is "
++"connected to. This may be /dev/ttyS1 or any other device file."
++msgstr ""
++"Vyberte soubor zaøízení, který odpovídá portu, ke kterému je modem pøipojen. "
++"Mù¾e to být /dev/ttyS1, nebo nìjaký jiný soubor zaøízení."
++
++#. Description
++#: ../templates:4
++msgid ""
++"/dev/modem is usually a symbolic link to the appropriate device file. This "
++"configuration program will not setup this link. If you choose \"/dev/modem"
++"\", the link should already exist."
++msgstr ""
++"/dev/modem èasto bývá symbolickým odkazem na pøíslu¹ný soubor zaøízení. "
++"Tento konfiguraèní program zmínìný odkaz nevytváøí. Zadáte-li tedy \"/dev/"
++"modem\", mìl by odkaz ji¾ existovat."
+--- seyon-2.20c.orig/debian/conffiles
++++ seyon-2.20c/debian/conffiles
+@@ -0,0 +1,2 @@
++/etc/X11/app-defaults/Seyon
++/etc/X11/app-defaults/Seyon-color
+--- seyon-2.20c.orig/debian/config.include
++++ seyon-2.20c/debian/config.include
+@@ -0,0 +1,84 @@
++# Edit this file to configure debian/rules to build a package.
++# No modification of debian/rules should be neccessary. (Famous last words!)
++#
++# File by Joey Hess <joeyh@master.debian.org>
++
++# What is the name of the primary package in this sourcepackage?
++package=seyon
++
++# Parameters to pass to rules file. This can include doc files, or 
++# command-line switches.
++docs=1-{BUGREPORT,FAQ,HISTORY,README,SURVEY,TODO}
++examples=phonelist protocols startup
++binfiles=$(package)
++copyright=debian/copyright
++
++# What file must exist in the current directory if the package is
++# properly unpacked here?
++test_file=$(package).h
++
++# Does this package build from an Imakefile?
++# If so, uncomment the line below.
++use_imakefile=y
++
++# Does this package build from a Configure script?
++# If so, uncomment the line below and enter the command to run to run the 
++# Configure script (ie: "./Configure")
++#use_configure=./Configure
++
++# What commands to run to build the package?
++define build_command
++	$(MAKE)
++endef
++
++# What commands to run to clean up after a build?
++define clean_command
++	-$(MAKE) -i clean
++endef
++
++# List here any files that must be removed during "debian/rules clean"
++# that clean_command doesn't take care of.
++clean_files=
++
++# List here any temporary directories that are used to build multiple-
++# binary packages. These are automatically created and removed. 
++tmp_dirs=
++
++# List here any files that should be preserved during a build, and restored
++# to their original state during a clean. For example, if the package comes
++# with both an Imakefile and a Makefile, and xmkmf is run, list the original
++# Makefile here so it will be backed up before it is overwritten my xmkmf.
++preserve_files=Makefile
++
++# What command to run to install the package into debian/tmp?
++# You might want to edit the package's Makefile and add $(PREFIX) 
++# to all the paths it installs files to. or, you can just write 
++# your own install commands here instead.
++#
++# Note that debian/* and the files in /usr/share/doc will be installed 
++# properly for you, you don't need to do that here.
++#
++define install_command
++	$(MAKE) DESTDIR=debian/tmp install
++	install -d debian/tmp/etc/X11/seyon
++	ln -sf /etc/X11/seyon/seyon-emu debian/tmp/usr/X11R6/bin/seyon-emu
++	install -d debian/tmp/usr/X11R6/man/man1
++	install -m 644 seyon.man debian/tmp/usr/X11R6/man/man1/seyon.1x
++	install -m 644 debian/seyon-emu.man debian/tmp/usr/X11R6/man/man1/seyon-emu.1x
++	# Install 1-CHANGES as upstream changelog.
++	install -d debian/tmp/usr/share/doc/$(package)
++	cp 1-CHANGES debian/tmp/usr/share/doc/$(package)/changelog
++	strip --remove-section=.comment --remove-section=.note debian/tmp/usr/X11R6/bin/seyon
++	install -d debian/tmp/usr/lib/menu
++	install -m 644 debian/menu debian/tmp/usr/lib/menu/seyon
++endef
++
++# After being installed in debian/tmp, everything is chowned to root.root,
++# and chmod g-ws is run on everything. Enter below any chmod commands you
++# need to run to set files to the proper permissions. This is where you
++# can make programs be suid, etc.
++# (Note that these commands will be run as root.)
++define ch_commands
++	chmod 644 debian/tmp/etc/X11/app-defaults/*
++	chmod 644 debian/tmp/usr/X11R6/lib/X11/seyon.help
++endef
+--- seyon-2.20c.orig/debian/copyright
++++ seyon-2.20c/debian/copyright
+@@ -0,0 +1,46 @@
++This is a Debian prepackaged version of seyon.
++
++This package was originally put together by Joey Hess
++<joeyh@master.debian.org>, using sources from:
++
++ftp://sunsite.unc.edu/pub/Linux/apps/serialcomm/dialout/Seyon-2.14c-tar.gz
++
++The following copyright applied to the old package:
++
++======================================================================
++
++  Seyon is Copyright (c) 1992 of Muhammad M. Saggaf. Seyon is not
++  public domain. Permission is granted to use and distribute Seyon
++  freely for any use and to sell it at any price without reference to
++  the copyright owner provided that in all above cases Seyon is intact
++  and is not made part of any program either in whole or in part and
++  that this copyright notice is included with Seyon. Permission is
++  also granted to modify the source as long as the modified source is
++  not distributed.
++
++======================================================================
++
++As of May 1999, Muhammad M. Saggaf has given permission for seyon to
++be released and maintained under GPL (see
++/usr/share/common-licenses/GPL):
++
++Dear Steve:
++
++I received your letter today (yes, I know it took a long time, it took a
++trip half-way around the world and then back to my current address in the
++U.S.). I share your view about license for Seyon, I think it is too
++restrictive, especially that I'm not actively maintaining it. The purpose
++behind that restriction was to prevent incompatible versions, really, but I
++don't think it was the correct way of doing that. You have my permission to
++modify the license (e.g. the GPL is just fine) and distribute the package
++with the new license.
++
++My very best wishes,
++
++-- M. Saggaf
++   msaggaf@erl.mit.edu
++
++For now I am the new upstream maintainer as well as the Debian
++maintainer for the seyon package. Upstream sources without the Debian
++patches will be made available shortly from sunsite.unc.edu (now
++better known as metalab.unc.edu), as above.
+--- seyon-2.20c.orig/debian/examples
++++ seyon-2.20c/debian/examples
+@@ -0,0 +1,7 @@
++script.QWK
++script.unix
++script.CIS
++script.PCBoard
++startup
++protocols
++phonelist
+--- seyon-2.20c.orig/debian/postinst
++++ seyon-2.20c/debian/postinst
+@@ -0,0 +1,27 @@
++#!/bin/sh -e
++
++case "$1" in 
++	abort-upgrade|abort-remove|abort-deconfigure)
++	exit 0;; # Don't prompt for configuration if something went wrong...
++esac
++
++if test -x /usr/bin/update-menus; then update-menus; fi
++
++EMU=/etc/X11/seyon/seyon-emu
++COLORDEFAULTS=/etc/X11/seyon/Seyon
++MODEMDEFAULTS=/etc/X11/seyon/Seyon-modem
++
++. /usr/share/debconf/confmodule
++db_version 2.0
++
++if [ ! -f $COLORDEFAULTS -o ! -f $MODEMDEFAULTS  ]; then
++    
++    # No longer need to worry about colour/mono app-defaults any more; the
++    # system will get it right...
++
++	ln -sf /usr/bin/x-terminal-emulator $EMU
++
++fi
++exit 0
++
++#DEBHELPER#
+--- seyon-2.20c.orig/debian/postrm
++++ seyon-2.20c/debian/postrm
+@@ -0,0 +1,21 @@
++#!/bin/sh -e
++
++if test -x /usr/bin/update-menus; then update-menus; fi
++
++XTERM=/etc/X11/seyon/seyon-emu
++COLORDEFAULTS=/etc/X11/seyon/Seyon
++MODEMDEFAULTS=/etc/X11/seyon/Seyon-modem
++
++if [ "$1" = "purge" ]
++then
++	rm -f $XTERM $COLORDEFAULTS $MODEMDEFAULTS
++	rmdir /etc/X11/seyon /etc/X11 2>/dev/null || true
++
++    . /usr/share/debconf/confmodule
++
++    db_purge
++
++
++fi
++
++#DEBHELPER#
+--- seyon-2.20c.orig/debian/postrm.debhelper
++++ seyon-2.20c/debian/postrm.debhelper
+@@ -0,0 +1,78 @@
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
++# Automatically added by dh_installdebconf
++if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
++	. /usr/share/debconf/confmodule
++	db_purge
++fi
++# End automatically added section
+--- seyon-2.20c.orig/debian/preinst
++++ seyon-2.20c/debian/preinst
+@@ -0,0 +1,15 @@
++#! /bin/sh
++# see: dh_installdeb(1)
++
++set -e
++
++# Source debconf library
++. /usr/share/debconf/confmodule
++
++# dh_installdeb will replace this with shell code automatically
++# generated by other debhelper scripts.
++
++#DEBHELPER#
++
++
++
+--- seyon-2.20c.orig/debian/rules
++++ seyon-2.20c/debian/rules
+@@ -0,0 +1,143 @@
++#!/usr/bin/make -f
++##############################################################################
++# Generic debian/rules file. Based on:
++#
++#> Sample debian.rules file - for GNU Hello (1.3).
++#> Copyright 1994,1995 by Ian Jackson.
++#> I hereby give you perpetual unlimited permission to copy,
++#> modify and relicense this file, provided that you do not remove
++#> my name from the file itself.  (I assert my moral right of
++#> paternity under the Copyright, Designs and Patents Act 1988.)
++#
++# Heavily modified by Joey Hess <jeh22@cornell.edu>
++#
++##############################################################################
++#
++# NOTE: You shouldn't have to edit this file. Edit debian/config.include instead.
++# If you must edit this file to get your package to build properly, then
++# I have failed. Let me know; mail jeh22@cornell.edu.
++#
++# (Currently not handled: multiple binary packages from 1 source package,
++# and binary-indep rule.)
++#
++# NOTE: This file is designed so it doesn't need to be run as root. For
++# actions that require that the user be root, the root password will be
++# prompted for, if you're not already root.
++#
++##############################################################################
++
++# Include config file.
++include debian/config.include
++
++# Generate a makefile (via configure scriopt or xmkmf).
++makefile-stamp:
++  ifeq ($(strip $(use_imakefile)),y)
++	xmkmf -a
++  endif 
++	$(use_configure)
++	touch makefile-stamp
++
++# Preserve some files that may get deleted/overwritten/modified otherwise.
++preserve-stamp:
++  ifneq ($(strip $(preserve_files)),)
++	$(foreach file,$(preserve_files),-cp $(file) $(file).preserved)
++  endif
++	touch preserve-stamp
++
++build: preserve-stamp makefile-stamp
++	$(checkdir)
++	$(build_command)
++	touch build
++
++clean: preserve-stamp makefile-stamp
++	$(checkdir)
++  # Do actual cleaning up here.
++	-rm -f build
++	$(clean_command)
++	-rm -rf *~ debian/*~ debian/files* $(clean_files)
++	$(clean_tmp)
++  # Remove Makefile that xmkmf creates.
++  ifeq ($(strip $(use_imakefile)),y)
++	-rm -f Makefile
++  endif
++  # If we preserved some files, we need to restore them now.
++  ifneq ($(strip $(preserve_files)),)
++	$(foreach file,$(preserve_files),-mv -f $(file).preserved $(file))
++  endif
++	-rm -f preserve-stamp makefile-stamp
++
++# Build architecture-independent files here.
++# (not yet set up to be used)
++binary-indep: build
++	$(checkdir)
++
++# Build architecture-dependent files here.
++binary-arch: build
++	$(checkdir)
++	$(clean_tmp)
++	install -d debian/tmp debian/tmp/DEBIAN debian/tmp/usr/share/doc/$(package)
++	$(install_command)
++  # Compress manpages
++	-gzip -9v -r debian/tmp/usr/man/ debian/tmp/usr/X11R6/man/
++  # Install documentation files, compressed.
++  ifneq ($(strip $(docs)),)
++	cp $(docs) debian/tmp/usr/share/doc/$(package)
++	gzip -9v debian/tmp/usr/share/doc/$(package)/*
++  endif
++  # Install copyright file, don't compress.
++  ifneq ($(strip $(copyright)),)
++	cp $(copyright) debian/tmp/usr/share/doc/$(package)/copyright
++  endif
++  # Install examples, compressed.
++  ifneq ($(strip $(examples)),)
++	install -d debian/tmp/usr/share/doc/$(package)/examples
++	cp $(examples) debian/tmp/usr/share/doc/$(package)/examples
++	gzip -9v debian/tmp/usr/share/doc/$(package)/examples/*
++  endif
++  # Install other debian files if they exist.
++	-install -m 644 debian/changelog debian/tmp/usr/share/doc/$(package)/changelog.Debian
++	-gzip -9v debian/tmp/usr/share/doc/$(package)/changelog.Debian
++	-install -m 644 debian/conffiles debian/tmp/DEBIAN/conffiles
++	-install -m 755 debian/preinst debian/tmp/DEBIAN/preinst
++	-install -m 755 debian/postinst debian/tmp/DEBIAN/postinst
++	-install -m 755 debian/prerm debian/tmp/DEBIAN/prerm
++	-install -m 755 debian/postrm debian/tmp/DEBIAN/postrm
++  # Generate control file.
++	dpkg-shlibdeps $(binfiles)
++	dpkg-gencontrol -isp
++  # Set permissions.
++	@[ "`whoami`" != root ] && \
++		echo -e "\n ** Enter root password to set file permissions."; \
++	debian/rules setperms
++  # C. Perrier. Well, debhelper helps a lot for all this..:-)
++  # Install debconf templates (with debhelper)
++	dh_installdebconf
++  # Actually build the .deb file.
++	dpkg --build debian/tmp ..
++
++# This must be run suid root, it sets the file permissions in debian/tmp
++setperms:
++	chown -R root.root debian/tmp
++	chmod -R g-ws debian/tmp
++	-$(ch_commands)
++
++define checkdir
++	@test -f $(test_file) -a -f debian/rules || (echo -e "\n\
++	** \"$(test_file)\" or \"debian/rules\" does not exist.\n\
++	** Either \"$(package)\" is not unpacked in this directory, or\n\
++	** an incorrect test_file is specified in debian/config.\n" && false)
++endef
++
++# This rm's the debian/tmp directory.
++define clean_tmp
++	-rm -rf debian/tmp >/dev/null 2>&1
++	@if [ -d debian/tmp ]; then \
++		if  [ "`whoami`" != root ]; then \
++			echo -e "\n ** Enter root password to remove debian/tmp."; \
++		fi; \
++		rm -rf debian/tmp; \
++	fi
++endef
++
++binary: binary-indep binary-arch
++.PHONY: clean setperms binary
+--- seyon-2.20c.orig/debian/rules.old
++++ seyon-2.20c/debian/rules.old
+@@ -0,0 +1,136 @@
++#!/usr/bin/make -f
++##############################################################################
++# Generic debian/rules file. Based on:
++#
++#> Sample debian.rules file - for GNU Hello (1.3).
++#> Copyright 1994,1995 by Ian Jackson.
++#> I hereby give you perpetual unlimited permission to copy,
++#> modify and relicense this file, provided that you do not remove
++#> my name from the file itself.  (I assert my moral right of
++#> paternity under the Copyright, Designs and Patents Act 1988.)
++#
++# Heavily modified by Joey Hess <joeyh@master.debian.org>
++#
++##############################################################################
++#
++# NOTE: You shouldn't have to edit this file. Edit debian/config instead.
++# If you must edit this file to get your package to build properly, then
++# I have failed. Let me know; mail me.
++#
++# (Currently not handled: multiple binary packages from 1 source package,
++# and binary-indep rule.)
++#
++# NOTE: This file is designed so it doesn't need to be run as root. For
++# actions that require that the user be root, the root password will be
++# prompted for, if you're not already root.
++#
++##############################################################################
++#
++# Changelog:
++# * Fakeroot and sudo fixes.
++# * Run dpkg-gencontrol after debstd, and delete substvars during clean.
++# * Clean up junk files in subdirs.
++# * Modifications for multiple binary package support.
++# * Call debstd after fixing file perms.
++# * Don't pass package name to debstd + fixes for multi binary packages. 
++# * Use build-stamp instead of build.
++# * New email address.
++# * Added changelog.
++#
++##############################################################################
++
++# Include config file.
++include debian/config
++
++# Generate a makefile (via configure scriopt or xmkmf).
++makefile-stamp:
++  ifeq ($(strip $(use_imakefile)),y)
++	xmkmf -a
++  endif 
++	$(use_configure)
++	touch makefile-stamp
++
++# Preserve some files that may get deleted/overwritten/modified otherwise.
++preserve-stamp:
++  ifneq ($(strip $(preserve_files)),)
++	$(foreach file,$(preserve_files),cp $(file) $(file).preserved ;)
++  endif
++	touch preserve-stamp
++
++build-stamp: preserve-stamp makefile-stamp
++	$(checkdir)
++	$(build_command)
++	touch build-stamp
++
++build: build-stamp
++
++clean: preserve-stamp makefile-stamp
++	$(checkdir)
++  # Do actual cleaning up here.
++	-rm -f build-stamp
++	$(clean_command)
++	-find . -name '\#*\#' -o -name '*~' -o -name 'DEADJOE' -exec rm -f {} \;
++	-rm -f debian/files* debian/substvars debian/*.substvars $(clean_files)
++	$(clean_tmp)
++  # Remove Makefile that xmkmf creates.
++  ifeq ($(strip $(use_imakefile)),y)
++	-rm -f Makefile
++  endif
++  # If we preserved some files, we need to restore them now.
++  ifneq ($(strip $(preserve_files)),)
++	$(foreach file,$(preserve_files),mv -f $(file).preserved $(file); )
++  endif
++	-rm -f preserve-stamp makefile-stamp
++
++# Build architecture-independent files here.
++# (not yet set up to be used)
++binary-indep: build
++	$(checkdir)
++
++# Build architecture-dependent files here.
++binary-arch: build
++	$(checkdir)
++	$(clean_tmp)
++	$(install_command)
++  # Set permissions and check package for problems, then build package.
++	@if [ "`whoami`" != root ]; then \
++		echo -e "\n ** Enter root password to set file permissions."; \
++		sudo debian/rules setperms; \
++	else \
++		debian/rules setperms; \
++	fi
++
++# This must be run suid root, it sets the file permissions in debian/tmp
++setperms:
++	chown -R root.root debian/tmp
++	chmod -R g-ws debian/tmp
++  # Debstd handles lots of nasty details. This requires that the debmake
++  # package is installed.
++	-debstd $(debstd) $(docs)
++	dpkg-gencontrol -p$(package)
++	$(ch_commands)
++	dpkg --build debian/tmp ..
++
++define checkdir
++	@test -e $(test_file) -a -f debian/rules || (echo -e "\n\
++	** \"$(test_file)\" or \"debian/rules\" does not exist.\n\
++	** Either the package is not unpacked in this directory, or\n\
++	** an incorrect test_file is specified in debian/config.\n" && false)
++endef
++
++# This rm's the debian/tmp directory, and any other directories specified in 
++# tmpdirs
++define clean_tmp
++	-rm -rf debian/tmp >/dev/null 2>&1
++	@if [ -d debian/tmp -o -n "$(tmp_dirs)" ]; then \
++		if  [ "`whoami`" != root ]; then \
++			echo -e "\n ** Enter root password to remove temporary directories $(tmp_dirs)"; \
++			sudo rm -rf debian/tmp $(tmp_dirs); \
++		else \
++			rm -rf debian/tmp $(tmp_dirs); \
++		fi; \
++	fi
++endef
++
++binary: binary-indep binary-arch
++.PHONY: clean setperms binary
+--- seyon-2.20c.orig/debian/seyon-emu.man
++++ seyon-2.20c/debian/seyon-emu.man
+@@ -0,0 +1,23 @@
++.TH SEYON 1 \" -*- nroff -*-
++
++.SH NAME
++Seyon \- X11 Telecommunications Package.
++
++.SH SYNOPSIS
++.B seyon-emu
++
++.SH DESCRIPTION
++
++.P 
++
++\fISeyon-emu\fP is the name of the terminal-emulator program called by
++\fIseyon\fP. This will normally simply be a symbolic link to another
++program (such as \fIxterm\fP or \fIrxvt\fP). Therefore read the manual
++page of the appropriate program for its options.
++
++.SH SEE ALSO
++rxvt(1), xterm(1), seyon(1)
++
++This manual page added by Steve McIntyre <stevem@chiark.greenend.org.uk>,
++Debian maintainer of seyon, 14th March 1998. 
++
+--- seyon-2.20c.orig/debian/substvars
++++ seyon-2.20c/debian/substvars
+@@ -0,0 +1,2 @@
++shlibs:Depends=libc6 (>= 2.3.2.ds1-4), libice6 | xlibs (>> 4.1.0), libsm6 | xlibs (>> 4.1.0), libx11-6 | xlibs (>> 4.1.0), libxaw7 (>> 4.1.0), libxext6 | xlibs (>> 4.1.0), libxmu6 | xlibs (>> 4.1.0), libxpm4 | xlibs (>> 4.1.0), libxt6 | xlibs (>> 4.1.0)
++misc:Depends=debconf (>= 0.5) | debconf-2.0, debconf (>= 0.5)
+--- seyon-2.20c.orig/debian/templates
++++ seyon-2.20c/debian/templates
+@@ -0,0 +1,10 @@
++Template: seyon/device
++Type: string
++Default: /dev/modem
++_Description: Modem device
++ Please choose the device file corresponding to the port the modem is
++ connected to. This may be /dev/ttyS1 or any other device file.
++ .
++ /dev/modem is usually a symbolic link to the appropriate device file.
++ This configuration program will not setup this link. If you choose
++ "/dev/modem", the link should already exist.
+--- seyon-2.20c.orig/debian/config
++++ seyon-2.20c/debian/config
+@@ -0,0 +1,92 @@
++#!/bin/sh -e
++
++# Some ideas stolen from the cvs package
++
++# Config script for seyon using debconf
++. /usr/share/debconf/confmodule
++db_version 2.0 || [ $? -lt 30 ]
++
++db_title "Seyon communication software"
++
++# Defaults
++MODEMDEFAULTS=/etc/X11/seyon/Seyon-modem
++DEFAULTPORT=/dev/modem
++PORT=$DEFAULTPORT
++
++read_rcfile() {
++    # Default values
++    if [ -f $MODEMDEFAULTS ]; then
++       PORT=`cat $MODEMDEFAULTS | grep -m1 "^seyon\*modems:" | cut -f2 -d: 2>/dev/null`
++    fi
++    if [ -z $PORT ] ; then
++       PORT=$DEFAULTPORT
++    fi
++}
++
++write_rcfile() {
++    TEMPFILE=`tempfile`
++    if [ -f $MODEMDEFAULTS ]; then
++       ESCAPEDPORT=`echo $PORT | sed 's/\//\\\\\//g'`
++       sed "s/^seyon\*modems:.*$/seyon\*modems: ${ESCAPEDPORT}/" $MODEMDEFAULTS > $TEMPFILE
++       chmod --reference=$MODEMDEFAULTS $TEMPFILE
++       chown --reference=$MODEMDEFAULTS $TEMPFILE
++    else
++       echo "seyon*modems: $PORT" > $TEMPFILE
++       chmod 640 $TEMPFILE
++       chown root.dialout $TEMPFILE
++    fi
++    if [ ! -d /etc/X11/seyon ] ; then
++        mkdir -p /etc/X11/seyon
++    fi
++    mv $TEMPFILE $MODEMDEFAULTS
++}
++
++set_debconf() {
++    if [ "$PORT" ]; then
++        db_set seyon/device "$PORT" || true
++    fi
++}
++
++get_debconf() {
++    db_get seyon/device
++    PORT=$RET
++    # If not present, use default
++    if [ "$PORT" = "" ]
++    then
++       PORT=$DEFAULTPORT
++    fi
++}
++
++
++input_settings() {
++    db_input low seyon/device || true
++    db_go
++    db_get seyon/device
++    PORT=$RET
++    # If not present, use default
++    if [ "$PORT" = "" ]
++    then
++       PORT=$DEFAULTPORT
++    fi
++}
++
++
++## Main program
++# We first read the settings file
++# in order to get admin-modified settings
++read_rcfile
++# Debconf-stored values are updated accordingly
++set_debconf
++# They are re-read from Debconf
++get_debconf
++# In case the package has never been configured, the settings
++# are asked through debconf
++input_settings
++# They are re-re-read from debconf
++# for updating variables 
++get_debconf
++# The settings file is written
++write_rcfile
++# Then we do some other stuff, which could sometimes lead to
++# debconf showing screens
++# This is why they are here and not in the postinst script
+--- seyon-2.20c.orig/debian/control
++++ seyon-2.20c/debian/control
+@@ -0,0 +1,18 @@
++Source: seyon
++Section: comm
++Priority: extra
++Maintainer: Steve McIntyre <93sam@debian.org>
++Standards-Version: 3.6.1.1
++Build-Depends: xlibs-dev, xutils, libxaw7-dev | libxaw-dev, bison, debhelper (>= 4.1.16)
++
++Package: seyon
++Architecture: any
++Depends: ${shlibs:Depends}, xterm | x-terminal-emulator, debconf (>= 1.2.9)
++Suggests: lrzsz, ckermit
++Description: Full-featured native X11 communications program
++ Seyon is a complete full-featured modem communications package
++ for the X Window System. Some of its features are:
++  - dialing directory
++  - terminal emulation (DEC VT02, Tektronix 4014 and ANSI)
++  - script language
++  - Zmodem
+--- seyon-2.20c.orig/debian/menu
++++ seyon-2.20c/debian/menu
+@@ -0,0 +1,3 @@
++?package(seyon):needs="X11" section="Apps/Net" hints="Terminal" \
++	title="Seyon" longtitle="Seyon communications program" \
++	command="seyon"
+--- seyon-2.20c.orig/debian/prerm
++++ seyon-2.20c/debian/prerm
+@@ -0,0 +1,10 @@
++#!/bin/sh
++
++
++PACKAGE=seyon
++
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/$PACKAGE ]; then
++    rm -f /usr/doc/$PACKAGE
++fi
++
++#DEBHELPER#
+--- seyon-2.20c.orig/debian/changelog
++++ seyon-2.20c/debian/changelog
+@@ -0,0 +1,267 @@
++seyon (2.20c-16) unstable; urgency=low
++
++  * Added Czech debconf template. Thanks to Miroslav Kure for the
++    patch. Closes: #288019.
++	
++ -- Steve McIntyre <93sam@debian.org>  Mon, 03 Jan 2005 21:49:33 +0000
++
++seyon (2.20c-15) unstable; urgency=low
++
++  * Fix handling of /etc/X11/seyon/Seyon-modem on new
++    installations. Closes: #275167. Thanks to Rob Epping for the patch.
++  * Updated Standards-version and fixed some lintian warnings.
++	
++ -- Steve McIntyre <93sam@debian.org>  Mon, 25 Oct 2004 22:58:45 +0100
++
++seyon (2.20c-14) unstable; urgency=low
++
++  * Updated French debconf template. Thanks to Christian
++    Perrier. Closes: #216159.
++  * Added Dutch debconf template. Thanks to Tim Vandermeersch. Closes:
++    #209081.
++
++ -- Steve McIntyre <93sam@debian.org>  Sun, 02 Nov 2003 16:10:08 +0000
++
++seyon (2.20c-13) unstable; urgency=low
++
++  * Fixed typo in debian/templates. Closes: #209080
++  * Update to use new serial speed interface for Linux. Closes: #206321.
++    Thanks to Elrik Fuller for the patch.
++
++ -- Steve McIntyre <93sam@debian.org>  Mon, 13 Oct 2003 02:00:51 +0100
++
++seyon (2.20c-12) unstable; urgency=low
++
++  * Patch by Christian Perrier <bubulle@debian.org> :
++    - rename debian/config to debian/config.include (avoid confusion
++      with the config file needed by debconf)
++    - Now uses debconf :
++        - Depends on debconf (>= 1.2.9 for gettext)
++        - new config script (should properly handle admin-modified settings
++          -->debconf is not a registry)
++        - rewrote postint
++        - new templates file (gettext-based)
++      This should make the installation uninteractive. Closes: #147269
++      This should also remember the serial port on upgrade; Closes: #92414
++    - Any value may be entered for the modem device. Closes: #87564
++  * Make sure that the new Seyon-modem config file has the same
++    permissions as the old one.
++
++ -- Steve McIntyre <93sam@debian.org>  Mon, 21 Jul 2003 20:31:27 +0100
++
++seyon (2.20c-11) unstable; urgency=high
++
++  * Real fix for the string-handling bug in FmtString(). Many thanks
++    to Barry Kitson for a _huge_ amount of work on this one.
++  * Several other less major string cleanups, again thanks to Barry.
++
++ -- Steve McIntyre <93sam@debian.org>  Wed, 16 Jul 2003 01:39:22 +0100
++
++seyon (2.20c-10) unstable; urgency=low
++
++  * Fix for a nasty string-handling bug. Thanks to Barry Kitson for
++    the inspiration. Closes: #90613, #132484.
++  * Make sure we delete the generated Seyon.ad.h file on a "make clean".
++
++ -- Steve McIntyre <93sam@debian.org>  Mon, 14 Jul 2003 02:49:49 +0100
++
++seyon (2.20c-9) unstable; urgency=low
++
++  * Fix multi-line strings so will build again with gcc 3.3. Closes: #196280
++    Thanks to Joshua Kwan for the patch.
++  * Finally get around to replacing the NMU version. Closes: #133890
++    Thanks Junichi...
++  * Fixed some lintian warnings
++
++ -- Steve McIntyre <93sam@debian.org>  Sat, 07 Jun 2003 19:08:02 +0100
++
++seyon (2.20c-8.1) unstable; urgency=low
++
++  * NMU
++  * Do not write to $(HOME) when building. (closes: #133890)
++  * Fix build-deps to depend on libxaw7-dev | libxaw-dev instead of 
++  libxaw-dev only.
++
++ -- Junichi Uekawa <dancer@debian.org>  Fri, 17 May 2002 21:12:50 +0900
++
++seyon (2.20c-8) unstable; urgency=medium
++
++  * Added Build-Depends on bison. Closes: #123699.
++  * Turned app-defaults files into conffiles after lintian warning.
++
++ -- Steve McIntyre <93sam@debian.org>  Wed, 19 Dec 2001 17:24:13 +0000
++
++seyon (2.20c-7) unstable; urgency=low
++
++  * Added Build-Depends on libxaw-dev. Closes: #89742.
++
++ -- Steve McIntyre <93sam@debian.org>  Thu, 15 Mar 2001 15:55:19 +0000
++
++seyon (2.20c-6) unstable; urgency=low
++
++  * Properly added menu entry. Sorry! Closes: #80160.
++
++ -- Steve McIntyre <93sam@debian.org>  Wed, 14 Mar 2001 00:03:32 +0000
++
++seyon (2.20c-5) unstable; urgency=low
++
++  * Added xutils to Build-Depends. Closes: #89134.
++  * Changed dependency on x-terminal-emulator to xterm | x-terminal-emulator to fix lintian warning.
++  * Added menu hint. Closes: #80160.
++  * I still think there's no better place in the menu structure than Apps/Net. Closes: #15080.
++
++ -- Steve McIntyre <93sam@debian.org>  Sat, 10 Mar 2001 11:12:39 +0000
++
++seyon (2.20c-4) unstable; urgency=low
++
++  * New maintainer address.
++  * Renamed Build-Depends-Indep to Build-Depends.
++
++ -- Steve McIntyre <93sam@debian.org>  Wed, 07 Mar 2001 22:53:31 +0000
++
++seyon (2.20c-3) unstable; urgency=medium
++
++  * Removed a broken usleep() declaration from SeDecl.h. Closes: #87532
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sun, 25 Feb 2001 11:31:56 +0000
++
++seyon (2.20c-2) unstable; urgency=medium
++
++  * Move app-defaults file to /etc/X11/app-defaults. Closes: #86289
++  * Now explicitly depends on x-terminal-emulator instead of imlicitly on xterm. Closes: #75343
++  * Fixed includes from SePort.c, so it now builds again. Closes: 84487
++  * Updated Standards-Version, added Build-Depends.
++  * Fixed lots of lintian warnings.
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sat, 24 Feb 2001 11:01:56 +0000
++
++seyon (2.20c-1) unstable; urgency=low
++
++  * Call makever.sh with sh, so it doesn't need to be executable. Fixes Bug#38037
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sun, 23 May 1999 20:19:56 +0100
++
++seyon (2.20c-0) unstable; urgency=low
++
++  * Hurrah! Seyon is now free! Check the copyright file for more info. 
++    Fixes Bug#20914.
++  * New upstream version, new upstream maintainer (me!)
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sun, 09 May 1999 21:18:01 +0100
++
++seyon (2.14c-12) frozen unstable; urgency=low
++
++  * Removed obsolete dependency on xbase. Would be important bug if we weren'y non-free...
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sat, 06 Feb 1999 13:32:15 +0000
++
++seyon (2.14c-11) frozen unstable; urgency=low
++
++  * Replaced Suggests: for now non-existent kermit package with ckermit.
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Thu, 14 Jan 1999 23:54:15 +0000
++
++seyon (2.14c-10) frozen unstable; urgency=low
++
++  * Integrated non-maintainer diff (9.1)
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Wed, 30 Dec 1998 01:48:53 +0000
++
++seyon (2.14c-9.1) frozen unstable; urgency=low
++
++  * non-maintainer (binary-only) upload for Alpha
++  * ignore error from $(ch_commands) as chmodding the Seyon symlink fails if
++    seyon isn't installed yet (and hence no /etc/X11/seyon/Seyon file).
++
++ -- Paul Slootman <paul@debian.org>  Tue, 29 Dec 1998 20:11:10 +0100
++
++seyon (2.14c-9) frozen unstable; urgency=low
++
++  * Fixed typo in mono app-default file; s/replcae/replace; thanks to Remo Badii <Remo.Badii@psi.ch> for pointing this one out.
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sun, 24 Oct 1998 20:15:08 +0100
++
++seyon (2.14c-8) unstable; urgency=low
++
++  * Fixed script-handling code so it no longer seg-faults after running a "shell" command. Fixes Bug#27015.
++  * Include examples for phonelist, protocols and startup. Fixes Bug#23268.
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sat, 17 Oct 1998 22:03:16 +0100
++
++seyon (2.14c-7) frozen unstable; urgency=low
++
++  * Added missing sunsite reference to copyright file. Fixes bug #19870
++  * Added error-checking to postinst - don't ask questions if something went wrong. Fizes bug #12608.
++  * Restores X beep after use; fixes bug #17231.
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Thu, 26 Mar 1998 22:54:54 -0000
++
++seyon (2.14c-6) unstable; urgency=low
++
++  * New maintainer
++  * Added simple man page for seyon-emu.
++  * Other packaging fixes to close bug #19402.
++  * Uses correct devices (fixes bug #15061)
++  * Postinst fixed (fixes bug #16226)
++
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sat, 14 Mar 1998 20:31:43 -0000
++
++seyon (2.14c-5.3) unstable; urgency=low
++
++  * Fixed postint to not fail if enter is pressed in response to the first
++    question with no 'y' or 'n'.
++  * Postinst and postrm do not use bashisms, changes them to use /bin/sh.
++
++ -- Joey Hess <joeyh@master.debian.org>  Sun, 16 Nov 1997 00:42:06 -0500
++
++seyon (2.14c-5.2) unstable; urgency=low
++
++  * Libc6 release.
++
++ -- Joey Hess <joeyh@master.debian.org>  Sun, 16 Nov 1997 00:42:06 -0500
++
++seyon (2.14c-5.1) unstable; urgency=low
++
++  * Changed maintainer to Debian QA Group; seyon is orphaned.
++  * Updated to use new source format (#9561).
++  * Use pristine sources.
++  * Register with menu system.
++  * Depend on xbase for xterm.
++  * Use ttyS instead of cua (#4922).
++  * If upgrading, and we used cua before, update the conffiles to use ttyS
++    instead.
++  * Include phonelist in the examples directory (#6475).
++
++ -- Joey Hess <joeyh@master.debian.org>  Mon,  1 Sep 1997 13:13:24 -0400
++
++Wed Jul 24 23:18:23 1996  Sven Rudolph  <sr1@inf.tu-dresden.de>
++
++	* debian.control: added exetended description (Bug#3689)
++
++	* debian.rules: corrected multiarchitecture support
++
++	* debian.control: added Section: and Priority:
++
++Thu Apr  4 19:38:36 1996  Sven Rudolph  <sr1@inf.tu-dresden.de>
++
++	* releasing 2.14c-3
++
++	* rebuilt for ELF
++
++	* debian.postinst: fixed creytion of seyon-emu symlink
++	
++	* debian.control: removed Package_Revision field
++			   added Architecture field
++
++Thu Sep 21 23:23:52 1995  Sven Rudolph  <sr1@inf.tu-dresden.de>
++
++	* moved config data to /etc/X11/seyon
++
++	* debian.postinst: postinst doesn't modify
++	                   /etc/X11/xinit/Xresources and
++			   /etc/X11/xdm/Xresources now
++
++	* debian.control: fixed entries for DEPENDS and OPTIONAL
++	                  (Bug#1409, Bug#1177)
++	
++	* debian.control: corrected location of manpage (Bug#490)
+--- seyon-2.20c.orig/typescript
++++ seyon-2.20c/typescript
+@@ -0,0 +1,37 @@
++Script started on Thu Feb 24 23:08:45 2000
++hammer:~/debian/seyon/seyon-2.20c$ make clean && make
++rm -f seyon
++rm -f version.h y.tab.* SeParse.c
++rm -f *.CKP *.ln *.BAK *.bak *.o core errs ,* *~ *.a .emacs_* tags TAGS make.log MakeOut  "#"*
++rm -f version.h
++sh ./makever.sh
++Machine type is i686, OS name is Linux
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o Seyon.o Seyon.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeActions.o SeActions.c
++bison -y -d SeParse.y
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeScan.o SeScan.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeDial.o SeDial.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeErr.o SeErr.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeGeneric.o SeGeneric.c
++rm -f SeInit.o
++gcc -c -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO   -DHELPFILE=\"/usr/X11R6/lib/X11/seyon.help\" SeInit.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeIo.o SeIo.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeMisc.o SeMisc.c
++mv -f y.tab.c SeParse.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeParse.o SeParse.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SePort.o SePort.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeScript.o SeScript.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeSet.o SeSet.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeSig.o SeSig.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeString.o SeString.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeSubs.o SeSubs.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeSubsX.o SeSubsX.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeSupp.o SeSupp.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeTerm.o SeTerm.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeTrans.o SeTrans.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o SeWin.o SeWin.c
++gcc -O2 -g -Wall     -I/usr/X11R6/include   -Dlinux -D__i386__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE=500L -D_BSD_SOURCE -D_SVID_SOURCE   -DFUNCPROTO=15 -DNARROWPROTO     -c -o MultiList.o MultiList.c
++rm -f seyon
++gcc -o seyon -O2 -g -Wall      -L/usr/X11R6/lib Seyon.o SeActions.o SeScan.o SeDial.o SeErr.o SeGeneric.o 		SeInit.o SeIo.o SeMisc.o SeParse.o SePort.o SeScript.o 		SeSet.o SeSig.o SeString.o SeSubs.o SeSubsX.o SeSupp.o 		SeTerm.o SeTrans.o SeWin.o MultiList.o -lXaw -lXmu -lXt -lSM -lICE -lXext -lX11      
++hammer:~/debian/seyon/seyon-2.20c$ 
++Script done on Thu Feb 24 23:09:17 2000

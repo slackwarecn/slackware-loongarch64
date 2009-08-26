@@ -1,0 +1,66 @@
+Author: Danny Kukawka <danny.kukawka@web.de>
+Date:   Sat Jul 18 11:18:53 2009 +0200
+
+    hide more MBR, bootstrap and other partitions from desktop
+    
+    Hide more MBR, bootstrap and other partitions from desktop.
+    Info taken from DeviceKit-disk/udev.
+
+Author: Frederic Crozat <fcrozat@mandriva.com>
+Date:   Fri Jul 24 15:11:41 2009 +0200
+
+    hide Windows recovery partitions on pre-installed Futjisu laptops
+    
+    Hide Windows recovery partitions on pre-installed Futjisu laptops.
+
+diff -Nur hal-0.5.11.orig/fdi/policy/10osvendor/20-storage-methods.fdi hal-0.5.11/fdi/policy/10osvendor/20-storage-methods.fdi
+--- hal-0.5.11.orig/fdi/policy/10osvendor/20-storage-methods.fdi	2008-05-07 18:21:16.000000000 -0500
++++ hal-0.5.11/fdi/policy/10osvendor/20-storage-methods.fdi	2009-07-30 16:16:49.822172103 -0500
+@@ -130,6 +130,10 @@
+ 	<match key="volume.label" string="DellRestore">
+ 	  <merge key="volume.ignore" type="bool">true</merge>
+ 	</match>
++        <!-- Fujitsu ships laptops with a recovery partitions -->
++	<match key="volume.label" string="WinRE">
++	  <merge key="volume.ignore" type="bool">true</merge>
++	</match>
+       </match>
+ 
+       <!-- ASUS ships some desktop with a recovery partition -->
+@@ -146,6 +150,11 @@
+ 	  <merge key="volume.ignore" type="bool">true</merge>
+ 	</match>
+       </match>
++      <match key="volume.partition.scheme" string="apm">
++	<match key="volume.partition.type" string_outof="Apple_Bootstrap">
++          <merge key="volume.ignore" type="bool">true</merge>
++        </match>
++      </match>
+ 
+       <!-- EFI firmware partitions -->
+       <match key="volume.fstype" string="vfat">
+@@ -154,6 +163,24 @@
+ 	</match>
+       </match>
+ 
++      <!-- ignore the following MBR partition types (EFI, hidden, etc.) 
++	   see http://www.win.tue.nl/~aeb/partitions/partition_types-1.html 
++      -->
++      <match key="volume.partition.scheme" string="mbr">
++	<match key="volume.partition.type" string_outof="0x00;0x11;0x14;0x16;0x17;0x1b;0x1c;0x1e;0x27;0x3d;0x84;0x8d;0x90;0x91;0x92;0x93;0x97;0x98;0x9a;0x9b;0xbb;0xc2;0xc3;0xdd;0xef">
++	  <merge key="volume.ignore" type="bool">true</merge>
++        </match>
++      </match>
++
++      <!-- special GUID-identified partition types
++           see http://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_type_GUIDs
++      -->
++      <match key="volume.partition.scheme" string="gpt">
++	<match key="volume.partition.type" string_outof="C12A7328-F81F-11D2-BA4B-00A0C93EC93B;21686148-6449-6E6F-744E-656564454649">
++	  <merge key="volume.ignore" type="bool">true</merge>
++        </match>
++      </match>
++
+       <append key="info.interfaces" type="strlist">org.freedesktop.Hal.Device.Volume</append>
+ 
+       <append key="org.freedesktop.Hal.Device.Volume.method_names" type="strlist">Mount</append>

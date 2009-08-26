@@ -1,0 +1,201 @@
+#!/bin/sh
+
+# Copyright 2003  Slackware Linux, Inc., Concord, CA, USA
+# Copyright 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=4.6.1
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-5}
+
+# A few tarballs have different versions; handle them here
+XDT_VERS=4.6.0		# xfce4-dev-tools version
+EXO_VERS=0.3.101	# exo version
+THUNAR_VERS=1.0.1	# thunar version
+GXE_VERS=2.6.0		# gtk-xfce-engine version
+TERM_VERS=0.4.0		# terminal version
+MPAD_VERS=0.2.16	# mousepad version
+XFWMTHEME_VERS=4.6.0	# xfwm4-themes version
+
+NUMJOBS=${NUMJOBS:--j6}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp/xfce-build-dir}
+PKG=$TMP/package-xfce
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP || exit 1
+
+COMPRESSION=xz
+COMPRESSUTIL=xz
+
+# The Rodent theme isn't xdg-compliant, so they're not shipping it
+# xfce4-icon-theme-$VERSION.tar.$COMPRESSION
+# We'll set Tango as the system default instead...
+
+for file in \
+ xfce4-dev-tools-$XDT_VERS.tar.$COMPRESSION \
+ libxfce4util-$VERSION.tar.$COMPRESSION \
+ xfconf-$VERSION.tar.$COMPRESSION \
+ libxfcegui4-$VERSION.tar.$COMPRESSION \
+ libxfce4menu-$VERSION.tar.$COMPRESSION \
+ exo-$EXO_VERS.tar.$COMPRESSION \
+ xfce4-panel-$VERSION.tar.$COMPRESSION \
+ Thunar-$THUNAR_VERS.tar.$COMPRESSION \
+ xfce4-settings-$VERSION.tar.$COMPRESSION \
+ xfce4-session-$VERSION.tar.$COMPRESSION \
+ xfdesktop-$VERSION.tar.$COMPRESSION \
+ xfwm4-$VERSION.tar.$COMPRESSION \
+ xfce-utils-$VERSION.tar.$COMPRESSION \
+ xfce4-mixer-$VERSION.tar.$COMPRESSION \
+ xfprint-$VERSION.tar.$COMPRESSION \
+ xfce4-appfinder-$VERSION.tar.$COMPRESSION \
+ gtk-xfce-engine-$GXE_VERS.tar.$COMPRESSION \
+ Terminal-$TERM_VERS.tar.$COMPRESSION \
+ xfwm4-themes-$XFWMTHEME_VERS.tar.$COMPRESSION \
+ mousepad-$MPAD_VERS.tar.$COMPRESSION \
+ orage-$VERSION.tar.$COMPRESSION ;
+do
+  $COMPRESSUTIL -dc $CWD/src/$file | tar xvf - || exit 1
+  cd $(basename $file .tar.$COMPRESSION) || exit 1
+    chown -R root:root .
+    find . \
+     \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+     -exec chmod 755 {} \; -o \
+     \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+     -exec chmod 644 {} \;
+  
+    # Here's where we patch or set up any other package-specific stuff:
+      # Patch to only show xfcalendar in XFce (otherwise it shows up in
+      # KDE's Lost & Found and does not work):
+      if [ "$file" = "orage-$VERSION.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/xfcalendar.desktop.in.diff.gz | patch -p1 || exit 1
+      fi
+      # Fix http://bugzilla.xfce.org/show_bug.cgi?id=5461
+      # and enable python bindings in libexo
+      if [ "$file" = "exo-$EXO_VERS.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/exo_fix_quoting.diff.gz | patch -p0 || exit 1
+        PACKAGE_SPECIFIC_OPTIONS="--enable-python"
+      fi
+      # Make Terminal respect --docdir
+      if [ "$file" = "Terminal-$TERM_VERS.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/terminal-0.4.0-fixup_docdir.diff.gz | patch -p1 || exit 1
+      fi
+      # Make Thunar respect --docdir
+      if [ "$file" = "Thunar-$THUNAR_VERS.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/thunar-1.0.1-fixup_docdir.diff.gz | patch -p1 || exit 1
+      fi
+      # Fix the missing education icon in the desktop menu
+      if [ "$file" = "xfdesktop-$VERSION.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/xfdesktop-fix_education_icon.diff.gz | patch -p1 || exit 1
+      fi
+    # End patches/package-specific stuff
+
+    CFLAGS="$SLKCFLAGS" \
+    CXXFLAGS="$SLKCFLAGS" \
+    ./configure \
+      --prefix=/usr \
+      --libdir=/usr/lib${LIBDIRSUFFIX} \
+      --sysconfdir=/etc/xfce \
+      --mandir=/usr/man \
+      --docdir=/usr/doc/xfce-$VERSION/$(basename $file .tar.$COMPRESSION) \
+      --htmldir=/usr/doc/xfce-$VERSION/$(basename $file .tar.$COMPRESSION)/html \
+      --disable-static \
+      --build=$ARCH-slackware-linux \
+      $PACKAGE_SPECIFIC_OPTIONS
+  
+    # Unset this now -- we're done with it
+    unset PACKAGE_SPECIFIC_OPTIONS
+  
+    make $NUMJOBS || make || exit 1
+    make install || exit 1
+    make install DESTDIR=$PKG
+  
+    mkdir -p $PKG/usr/doc/xfce-$VERSION/$(basename $file .tar.$COMPRESSION)
+    # This will cause errors, but won't miss any docs:
+    cp -a \
+      AUTHORS BUGS COMPOSITOR COPYING* FAQ HACKING INSTALL \
+      NEWS NOTES README* THANKS TODO example.gtkrc-2.0 \
+     $PKG/usr/doc/xfce-$VERSION/$(basename $file .tar.$COMPRESSION) \
+     2> /dev/null || true
+
+  cd - ;
+done
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# The Rodent icon theme isn't xdg compliant, so it spews errors quite often
+# and just flat breaks some things here and there, so the Xfce team elected
+# not to ship it with 4.6.0.   In the meantime, we'll default to Tango.
+sed -i s/Rodent/Tango/ \
+  $PKG/etc/xfce/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+
+# We're going to borrow the "applications-education" icons (six of them)
+# from kde's oxygen icon theme (it's LGPL)
+tar xf $CWD/icons.tar.xz -C $PKG/usr/share
+
+# We don't want any of those icon caches
+find $PKG/usr/share/icons -type f -name "index-theme.cache" -exec rm -f {} \;
+
+# Compress and if needed symlink the man pages:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
+mkdir -p $PKG/etc/profile.d
+cp -a $CWD/profile.d/* $PKG/etc/profile.d
+chown root:root $PKG/etc/profile.d/*
+chmod 755 $PKG/etc/profile.d/*
+
+mkdir -p $PKG/etc/X11/xinit
+( cd $PKG/etc/X11/xinit
+  ln -sf ../../xfce/xdg/xfce4/xinitrc xinitrc.xfce
+  chmod 755 ../../xfce/xdg/xfce4/xinitrc
+)
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/xfce-$VERSION-$ARCH-$BUILD.txz
+

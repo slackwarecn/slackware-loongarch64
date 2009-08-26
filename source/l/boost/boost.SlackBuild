@@ -1,0 +1,143 @@
+#!/bin/sh
+
+# Copyright 2007, 2008 Eric Hameleers, Eindhoven, NL
+# Copyright 2007-2008 Heinz Wiesinger
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# bjam-build system mostly taken from SlackBuild by Eric Hameleers
+# Script modified by Robby Workman - no copyright claims or added terms
+
+VERSION=1_38_0
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-boost
+
+ICU=${ICU:-no}
+PKG_VERSION=$(echo $VERSION | tr _ .)	# Leave this alone
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf boost_$VERSION
+tar xvf $CWD/boost_$VERSION.tar.bz2 || exit 1
+cd boost_$VERSION || exit 1
+
+zcat $CWD/boost.ifdef_placement.diff.gz | patch -p1 --verbose || exit 1
+
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+# Apply Hotfixes from:
+# http://svn.boost.org/trac/boost/wiki/ReleasePractices/HotFixes
+#
+# (none currently for this $VERSION)
+
+# This is the python we build against:
+PYTHON_VERSION=$(python -c 'import sys; print sys.version[:3]')
+PYTHON_FLAGS="-sPYTHON_ROOT=/usr -sPYTHON_VERSION=$PYTHON_VERSION"
+
+# First build bjam, the boost build system:
+cd tools/jam/src
+  CFLAGS="$SLKCFLAGS -fno-strict-aliasing" CC=gcc ./build.sh cc
+cd -
+
+BJAM=$(find tools/jam/src/ -name bjam -a -type f)
+
+# Create build subdirectory
+mkdir obj
+
+# Change the build options from 'minimal' to what we want, since adding
+# "-sBUILD=<optimization>speed <inlining>full <threading>single/multi
+# <link>shared <runtime-link>shared" to $BJAM command no longer seems to work.
+FLAGS="<threading>multi <threading>single <optimization>speed <inlining>full"
+sed -i "s/    <threading>multi/    $FLAGS/" Jamroot
+# Disable static libraries ( the only software that *requires* the static libs,
+# is Microsoft's CW compiler (CW or Comega is an experimental language which
+# extends C# )
+sed -i "s/<link>shared <link>static/<link>shared/" Jamroot
+
+# Next, we build boost using bjam
+$BJAM \
+  release \
+  "-sNO_COMPRESSION=0" \
+  "-sZLIB_INCLUDE=/usr/include" \
+  "-sZLIB_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
+  "-sBZIP2_INCLUDE=/usr/include" \
+  "-sBZIP2_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
+  "-sEXPAT_INCLUDE=/usr/include" \
+  "-sEXPAT_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
+  --toolset=gcc \
+  --layout=system \
+  --builddir=obj \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --build-type=minimal \
+  $PYTHON_FLAGS \
+  stage
+
+# And then install boost..
+mkdir -p $PKG/usr/{lib$LIBDIRSUFFIX,include}
+
+$BJAM \
+  release \
+  "-sEXPAT_INCLUDE=/usr/include" \
+  "-sEXPAT_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
+  --toolset=gcc \
+  --layout=system \
+  --builddir=obj \
+  --prefix=$PKG/usr \
+  --libdir=$PKG/usr/lib${LIBDIRSUFFIX} \
+  --build-type=minimal \
+  $PYTHON_FLAGS \
+  install
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/usr/doc/boost-$PKG_VERSION
+# Do not copy 44MB of developer 'doc/html' into our package...
+cp -a LICENSE_1_0.txt $PKG/usr/doc/boost-$PKG_VERSION
+find $PKG/usr/doc -type f -exec chmod 0644 {} \;
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n /tmp/boost-$PKG_VERSION-$ARCH-$BUILD.txz
+

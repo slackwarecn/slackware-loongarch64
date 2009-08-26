@@ -1,0 +1,92 @@
+Index: scripts/xfconf-migration-4.6.pl.in
+===================================================================
+--- a/scripts/xfconf-migration-4.6.pl.in	(revision 29645)
++++ b/scripts/xfconf-migration-4.6.pl.in	(working copy)
+@@ -256,6 +256,77 @@
+     return $mcs.'.xml';
+ }
+ 
++sub icon_theme_exists
++{
++    my ($dirref,$themename) = @_;
++    my @dirs = @{$dirref};
++
++    foreach my $d (@dirs) {
++        return 1 if(-f "$d/$themename/index.theme");
++    }
++
++    return 0;
++}
++
++sub migrate_icon_theme
++{
++    my ($ref,$chan) = @_;
++    my %opts = %{$ref};
++    my $opt = 'Net/IconThemeName';
++
++    return if(!defined($opts{$opt}));
++    my $val = $opts{$opt}->{'value'};
++
++    if(lc($val) eq 'rodent') {
++        # we don't ship rodent anymore, so try to find something suitable
++        my @icondirs;
++        if(defined($ENV{'XDG_DATA_HOME'})) {
++            @icondirs = ( $ENV{'XDG_DATA_HOME'} . '/icons' );
++        } else {
++            @icondirs = ( $ENV{'HOME'} . '/.local/share/icons' );
++        }
++
++        if(defined($ENV{'XDG_DATA_DIRS'})) {
++            push(@icondirs, split(/:/, $ENV{'XDG_DATA_DIRS'}));
++        } else {
++            push(@icondirs, ( '/usr/share/icons', '/usr/local/share/icons' ));
++        }
++
++        $val = undef;
++        foreach my $itheme (('Tango', 'gnome', 'crystalsvg')) {
++            if(icon_theme_exists(\@icondirs, $itheme)) {
++                $val = $itheme;
++                last;
++            }
++        }
++
++        if(!defined($val)) {
++            # pick the first one that is not 'hicolor'
++            foreach my $d (@icondirs) {
++                opendir(DIR, $d) and do {
++                    my @subdirs = grep { $_ ne 'hicolor' && -d "$d/$_" } readdir(DIR);
++                    foreach my $sd (@subdirs) {
++                        if(-f "$d/$sd/index.theme") {
++                            $val = $sd;
++                            last;
++                        }
++                    }
++                    closedir(DIR);
++                };
++                last if(defined($val));
++            }
++
++            if(!defined($val)) {
++                # ok, their system is kinda b0rked; not much we can do
++                warn("Couldn't find a suitable icon theme to migrate to");
++                return;
++            }
++        }
++    }
++
++    xfconf_set($chan, 'string', '/Net/IconThemeName', $val);
++}
++
+ sub migrate_xsettings
+ {
+     my $mcs = 'gtk';
+@@ -283,8 +354,7 @@
+                      '/Net/CursorBlinkTime', 'int');
+     save_xfconf_prop($ref, $chan, 'Net/DndDragThreshold',
+                      '/Net/DndDragThreshold', 'int');
+-    save_xfconf_prop($ref, $chan, 'Net/IconThemeName',
+-                     '/Net/IconThemeName', 'string');
++    migrate_icon_theme($ref, $chan);
+     save_xfconf_prop($ref, $chan, 'Net/ThemeName',
+                      '/Net/ThemeName', 'string');
+ 

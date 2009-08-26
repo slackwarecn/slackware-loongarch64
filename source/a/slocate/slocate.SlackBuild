@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=3.1
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-slocate
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# Explode the package framework:
+cd $PKG
+explodepkg $CWD/_slocate.tar.gz
+
+cd $TMP
+rm -rf slocate-$VERSION
+tar xzvf $CWD/slocate-$VERSION.tar.gz
+cd slocate-$VERSION
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 2750 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+cd src
+make CFLAGS="$SLKCFLAGS"
+cd ..
+strip --strip-unneeded src/slocate
+mkdir -p $PKG/usr/bin
+cat src/slocate > $PKG/usr/bin/slocate
+mkdir -p $PKG/usr/man/man1
+cat doc/slocate.1 | gzip -9c > $PKG/usr/man/man1/slocate.1.gz
+cat doc/updatedb.1 | gzip -9c > $PKG/usr/man/man1/updatedb.1.gz
+mkdir -p $PKG/usr/doc/slocate-$VERSION
+cp -a \
+  Changelog LICENSE README WISHLIST \
+  $PKG/usr/doc/slocate-$VERSION
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/slocate-$VERSION-$ARCH-$BUILD.txz
+

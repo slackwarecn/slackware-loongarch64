@@ -1,0 +1,64 @@
+--- ./talkd/talkd.c.orig	Fri Nov 27 05:40:46 1998
++++ ./talkd/talkd.c	Wed Sep 15 21:30:24 1999
+@@ -67,6 +67,9 @@
+ #define TIMEOUT 30
+ #define MAXIDLE 120
+ 
++#if !defined(MAXHOSTNAMELEN)
++#define	MAXHOSTNAMELEN	64
++#endif
+ char ourhostname[MAXHOSTNAMELEN];
+ 
+ static time_t lastmsgtime;
+--- ./talkd/print.c.orig	Fri Nov 27 01:58:47 1998
++++ ./talkd/print.c	Wed Sep 15 21:30:24 1999
+@@ -51,6 +51,7 @@
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <paths.h>
++#include <errno.h>
+ #include "prot_talkd.h"
+ #include "proto.h"
+ 
+@@ -145,7 +146,7 @@
+ 	tt[sizeof(tt)-1]=0;
+ 	
+ 	snprintf(buf, sizeof(buf), 
+-		 "%s: %s: id %lu, l_user %s, r_user %s, r_tty %s\n",
++		 "%s: %s: id %u, l_user %s, r_user %s, r_tty %s\n",
+ 		 cp, tp, mp->id_num, lu, ru, tt);
+ 	write(logfd, buf, strlen(buf));
+ }
+@@ -185,7 +186,7 @@
+ 	size_t i;
+ 	char tmp[4], buf[128];
+ 	if (!badpackets) return;
+-	snprintf(buf, sizeof(buf), "From: %s [%lu]", 
++	snprintf(buf, sizeof(buf), "From: %s [%u]", 
+ 		 inet_ntoa(from->sin_addr), from->sin_addr.s_addr);
+ 	write(packfd, buf, strlen(buf));
+ 	for (i=0; i<len; i++) {
+--- ./MCONFIG.orig	Wed Dec  9 10:52:09 1998
++++ ./MCONFIG	Wed Sep 15 21:30:46 1999
+@@ -30,10 +30,10 @@
+ CC=gcc
+ 
+ # Compiler warnings
+-WARNINGS= -Wall -W -Wpointer-arith -Wbad-function-cast -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wnested-externs -Winline -Wcast-align
++WARNINGS= -Wall -W -Wpointer-arith -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wnested-externs -Winline -Wcast-align
+ 
+ # Compiler flags to use
+-CFLAGS= -pipe -O2 $(WARNINGS)
++CFLAGS= -pipe $(RPM_OPT_FLAGS) $(WARNINGS)
+ 
+ # Link-time flags to use
+ LDFLAGS= -s
+@@ -49,7 +49,7 @@
+ 
+ 
+ # Work around GNU libc lossage
+-USE_GLIBC=0
++USE_GLIBC=1
+ 
+ 
+ 

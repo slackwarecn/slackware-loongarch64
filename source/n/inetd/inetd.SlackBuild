@@ -1,0 +1,68 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=1.79s
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-8}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-inetd
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# Explode the package framework:
+cd $PKG
+explodepkg $CWD/_inetd.tar.gz
+
+echo "+====================+"
+echo "| inetd-OpenBSD-1.79 |"
+echo "+====================+"
+cd $TMP
+rm -rf inetd
+tar xvf $CWD/inetd-OpenBSD-1.79.tar.gz || exit 1
+cd inetd
+zcat $CWD/inetd-OpenBSD-1.79.diff.gz | patch -p1 --backup --suffix=.orig --verbose -E
+zcat $CWD/inetd.loopingdos.diff.gz | patch -p1 --backup --suffix=.orig --verbose -E
+
+# GCC 4 fix (thanks Fred Emmott)
+sed -i 's#(type)\([a-z]\)=(type)\([a-z]\)#\1=(type)\2#g' inetd.c
+
+make || exit 1
+
+strip inetd
+cat inetd > $PKG/usr/sbin/inetd
+cat inetd.8 | gzip -9c > $PKG/usr/man/man8/inetd.8.gz
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/inetd-$VERSION-$ARCH-$BUILD.txz
+
+# Clean up the extra stuff:
+if [ "$1" = "--cleanup" ]; then
+ rm -rf $TMP/inetd
+ rm -rf $PKG
+fi

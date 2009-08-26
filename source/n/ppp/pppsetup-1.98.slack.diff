@@ -1,0 +1,1709 @@
+--- ./pppsetup.orig	Sun Feb 22 12:33:32 1998
++++ ./pppsetup	Sun Jun 18 14:01:10 2000
+@@ -19,6 +19,34 @@
+ #                             Demand dialing setup with ppp-2.3.0 or later.        
+ ###############################################################################
+ 
++###############################################################################
++#          4/4/98 PJV         Fixed massive /tmp-related security problems
++#                             Switched to a default init string that's more
++#                             likely to work
++#                             Increased TIMEOUTs
++#                             fixed bad flags given to chat -- caused dialout
++#                             to fail
++###############################################################################
++
++###############################################################################
++#          2/6/1999 PJV       Changed all occurances of /dev/cua* to /dev/ttyS*
++###############################################################################
++
++###############################################################################
++#          5/3/1999 PJV       Commented 'debug' in /etc/ppp/options
++#                             Add commented 'noauth' in /etc/ppp/options so
++#                             people who want to use ppp but already have a
++#                             default route have an easier time figuring out
++#                             what to do. :)
++###############################################################################
++
++###############################################################################
++#          6/18/2000 PJV      Added code to check for "ppp-stop" and "ppp-on"
++#                             symlinks, and make them if they don't exist.
++###############################################################################
++
++TMP=/var/log/setup/tmp
++
+ if [ ! "$UID" = "0" ]; then
+ echo
+ echo "NOTICE: * $LOGNAME * You need to be 'root' to run this script."
+@@ -43,81 +71,84 @@
+ exit 1
+ fi
+ 
+-if [ ! -d /tmp ]; then
+-mkdir /tmp
+-chmod 1777 /tmp
+-fi
+-
+ if [ -s /usr/lib/setup/hdsetup ]; then
+-SYS="on SLACKWARE ..."
++SYS="on SLACKWARE."
+ fi
+ 
+ VERSION="1.98"
+ 
+ stty erase ^? 2>/dev/null 
+ 
+-echo "PPPSETUP $VERSION $SYS" > /tmp/txtTEMP01
+-echo >> /tmp/txtTEMP01
+-echo "Written by Robert S. Liesenfeld <xunil@bitstream.net> <IRC:Xunil>" >> /tmp/txtTEMP01
+-echo "Changes for 1.98 by Kent Robotti <robotti@erols.com>" >> /tmp/txtTEMP01
+-echo >> /tmp/txtTEMP01
+-echo "You should get these 'DOCS' if you don't already have them." >> /tmp/txtTEMP01
+-echo >> /tmp/txtTEMP01
+-echo 'ftp://sunsite.unc.edu/pub/Linux/docs/HOWTO "PPP-HOWTO"' >> /tmp/txtTEMP01
+-echo 'ftp://sunsite.unc.edu/pub/Linux/docs/faqs/PPP-FAQ "PPP-FAQ"' >> /tmp/txtTEMP01
+-echo >> /tmp/txtTEMP01
+-echo "Press [Enter] to continue with pppsetup..." >> /tmp/txtTEMP01
++if [ ! -r /usr/sbin/ppp-stop ]; then
++  ( cd /usr/sbin ; ln -sf ppp-off ppp-stop )
++fi
++if [ ! -r /usr/sbin/ppp-on ]; then
++  ( cd /usr/sbin ; ln -sf ppp-go ppp-on )
++fi
+ 
+-dialog --backtitle "PPPSETUP $VERSION ..." --textbox "/tmp/txtTEMP01" 15 70 
++echo "PPPSETUP $VERSION $SYS" > $TMP/txtTEMP01
++echo >> $TMP/txtTEMP01
++echo "Written by Robert S. Liesenfeld <xunil@bitstream.net> <IRC:Xunil>" >> $TMP/txtTEMP01
++echo "Changes for 1.98 by Kent Robotti <robotti@erols.com>" >> $TMP/txtTEMP01
++echo "Patched for Slackware by Patrick Volkerding <volkerdi@slackware.com>" >> $TMP/txtTEMP01
++echo >> $TMP/txtTEMP01
++echo "You should get these docs if you don't already have them:" >> $TMP/txtTEMP01
++echo >> $TMP/txtTEMP01
++echo "ftp://metalab.unc.edu/pub/Linux/docs/howto/PPP-HOWTO" >> $TMP/txtTEMP01
++echo "ftp://metalab.unc.edu/pub/Linux/docs/faqs/PPP-FAQ" >> $TMP/txtTEMP01
++echo >> $TMP/txtTEMP01
++echo "Press [Enter] to continue with pppsetup..." >> $TMP/txtTEMP01
++
++dialog --backtitle "PPPSETUP $VERSION/Slackware" --textbox "$TMP/txtTEMP01" 16 73 
+ 
+ while [ -z "$PHONENUM" ]
+ do
+-echo "To begin setting up your PPP connection, i need to know a few things." > /tmp/txtTEMP$$
+-echo "For starters, what is the phone number of your (I)nternet (S)ervice" >> /tmp/txtTEMP$$ 
+-echo "(P)rovider?" >> /tmp/txtTEMP$$ 
+-echo  >> /tmp/txtTEMP$$ 
+-echo "Example: atdt6661776   <-For (t)one dialing.)" >> /tmp/txtTEMP$$ 
+-echo "Example: atdp6661776   <-For (p)ulse dialing.)" >> /tmp/txtTEMP$$ 
+-echo  >> /tmp/txtTEMP$$ 
+-echo "Include the: atd?  It's usally just: atdtphonenumber" >> /tmp/txtTEMP$$ 
+-echo  >> /tmp/txtTEMP$$ 
+-echo "(Note: in the USA, use atdt*70,6661776 [comma required!] to turn" >> /tmp/txtTEMP$$ 
+-echo " off call waiting.)" >> /tmp/txtTEMP$$ 
+-echo  >> /tmp/txtTEMP$$ 
++echo "To begin setting up your PPP connection, i need to know a few things." > $TMP/txtTEMP$$
++echo "For starters, what is the phone number of your (I)nternet (S)ervice" >> $TMP/txtTEMP$$ 
++echo "(P)rovider?" >> $TMP/txtTEMP$$ 
++echo  >> $TMP/txtTEMP$$ 
++echo "Example: atdt6661776   <-For (t)one dialing.)" >> $TMP/txtTEMP$$ 
++echo "Example: atdp6661776   <-For (p)ulse dialing.)" >> $TMP/txtTEMP$$ 
++echo  >> $TMP/txtTEMP$$ 
++echo "Include the: atd?  It's usally just: atdtphonenumber" >> $TMP/txtTEMP$$ 
++echo  >> $TMP/txtTEMP$$ 
++echo "(Note: in the USA, use atdt*70,6661776 [comma required!] to turn" >> $TMP/txtTEMP$$ 
++echo " off call waiting.)" >> $TMP/txtTEMP$$ 
++echo  >> $TMP/txtTEMP$$ 
+ 	
+-dialog --title "PHONE NUMBER ..." --inputbox "`cat /tmp/txtTEMP$$`" 18 75 2> /tmp/rspTEMP$$   
++dialog --title "PHONE NUMBER ..." --inputbox "`cat $TMP/txtTEMP$$`" 18 75 2> $TMP/rspTEMP$$   
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit
+ fi 
+ 
+-PHONENUM="`cat /tmp/rspTEMP$$`"
++PHONENUM="`cat $TMP/rspTEMP$$`"
+  
+ if [ -z "$PHONENUM" ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ echo "No phone number."
+ exit
+ fi
+ done
+ 
+-echo "Where is your modem /dev/cua?" > /tmp/txtTEMP$$ 
+-dialog --backtitle "MODEM DEVICE ..." --menu "`cat /tmp/txtTEMP$$`" 11 50 4 \
+-cua0 "= (COM1: under DOS)" \
+-cua1 "= (COM2: under DOS)" \
+-cua2 "= (COM3: under DOS)" \
+-cua3 "= (COM4: under DOS)" \
+-2> /tmp/rspTEMP$$
++echo "Where is your modem /dev/ttyS?" > $TMP/txtTEMP$$ 
++dialog --backtitle "MODEM DEVICE ..." --menu "`cat $TMP/txtTEMP$$`" 11 50 4 \
++ttyS0 "= (COM1: under DOS)" \
++ttyS1 "= (COM2: under DOS)" \
++ttyS2 "= (COM3: under DOS)" \
++ttyS3 "= (COM4: under DOS)" \
++2> $TMP/rspTEMP$$
+ 
+-MODEM="`cat /tmp/rspTEMP$$`"
++MODEM="`cat $TMP/rspTEMP$$`"
+ 
+ if [ -z $MODEM ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ exit 
+ elif [ ! -c "/dev/$MODEM" ]; then
+@@ -127,139 +158,139 @@
+ ln -sf /dev/$MODEM /dev/modem 2>/dev/null
+ fi
+ 
+-echo "What baud rate is your modem?" > /tmp/txtTEMP$$
+-dialog --backtitle "MODEM BAUD RATE ..." --menu "`cat /tmp/txtTEMP$$`" 14 72 7 \
++echo "What baud rate is your modem?" > $TMP/txtTEMP$$
++dialog --backtitle "MODEM BAUD RATE ..." --menu "`cat $TMP/txtTEMP$$`" 14 72 7 \
+ 460800 "460KBps  - ISDN modem..." \
+ 230400 "230KBps  - 56Kbps modem... or ISDN modem..." \
+ 115200 "115KBps  - 28.8, 33.6, or 56Kbps modem..." \
+ 57600  "57.6KBps - 28.8, 33.6, or 56Kbps modem..." \
+ 38400  "38.4KBps - Hangin ten on the net! 28.8 or 33.6..." \
+ 19200  "19.2KBps - Better known as 14.4..." \
+-9600   "9600bps  - No comment..." 2> /tmp/rspTEMP$$
++9600   "9600bps  - No comment..." 2> $TMP/rspTEMP$$
+ 
+-BAUDRATE="`cat /tmp/rspTEMP$$`"
++BAUDRATE="`cat $TMP/rspTEMP$$`"
+ 
+ if [ -z $BAUDRATE ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ exit 
+ fi
+ 
+-echo "Does your service provider use CALLBACK?" > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "CALLBACK is when you call your service provider and give them" >> /tmp/txtTEMP$$
+-echo "your phone number so they can call you back, then when they" >> /tmp/txtTEMP$$
+-echo "call you back you give them your login name and password." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Most service providers don't use CALLBACK, so the answer is" >> /tmp/txtTEMP$$
+-echo "probably No, unless you know otherwise." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-
+-dialog --backtitle "CALLBACK YES or NO? ..." --yesno "`cat /tmp/txtTEMP$$`" 13 70 
+-
+-if [ $? = 0 ]; then
+-echo "Put your phone number in the box below, so your service provider" > /tmp/txtTEMP$$
+-echo "can call you back." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Example: 7771818" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
++echo "Does your service provider use CALLBACK?" > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "CALLBACK is when you call your service provider and give them" >> $TMP/txtTEMP$$
++echo "your phone number so they can call you back, then when they" >> $TMP/txtTEMP$$
++echo "call you back you give them your login name and password." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Most service providers don't use CALLBACK, so the answer is" >> $TMP/txtTEMP$$
++echo "probably No, unless you know otherwise." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++
++dialog --backtitle "CALLBACK YES or NO? ..." --menu "`cat $TMP/txtTEMP$$`" 16 70 2 "NO" "Most Internet providers do not use callback" "YES" "Use callback support (I know what I'm doing)" 2> $TMP/replyTEMP$$
++
++if [ "`cat $TMP/replyTEMP$$`" = "YES" ]; then
++echo "Put your phone number in the box below, so your service provider" > $TMP/txtTEMP$$
++echo "can call you back." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Example: 7771818" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "CALLBACK Your Phone Number? ..." --inputbox "`cat /tmp/txtTEMP$$`" 11 72 2> /tmp/cb1TEMP$$
++dialog --backtitle "CALLBACK Your Phone Number? ..." --inputbox "`cat $TMP/txtTEMP$$`" 11 72 2> $TMP/cb1TEMP$$
+ 
+ if [ $? = 1 ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ exit 
+-elif [ ! -s /tmp/cb1TEMP$$ ]; then
++elif [ ! -s $TMP/cb1TEMP$$ ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ echo "No Phone Number for Callback."
+ exit
+ fi 
+ fi
+ 
+-if [ -s /tmp/cb1TEMP$$ ]; then
+-CBPN="`cat /tmp/cb1TEMP$$`"
+-echo "I have your phone number: $CBPN" > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Do you have to give a Username or Login for the initial connection" >> /tmp/txtTEMP$$
+-echo "to $PHONENUM before you're called back." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Example: jerry" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "If NO, just press [Enter] on a empty box and skip this." >> /tmp/txtTEMP$$
++if [ -s $TMP/cb1TEMP$$ ]; then
++CBPN="`cat $TMP/cb1TEMP$$`"
++echo "I have your phone number: $CBPN" > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Do you have to give a Username or Login for the initial connection" >> $TMP/txtTEMP$$
++echo "to $PHONENUM before you're called back." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Example: jerry" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "If NO, just press [Enter] on a empty box and skip this." >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "CALLBACK INITIAL LOGIN? ..." --inputbox "`cat /tmp/txtTEMP$$`" 15 74 2> /tmp/cb1.1TEMP$$
++dialog --backtitle "CALLBACK INITIAL LOGIN? ..." --inputbox "`cat $TMP/txtTEMP$$`" 15 74 2> $TMP/cb1.1TEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ else
+-CBMODLOGIN="`cat /tmp/cb1.1TEMP$$`"
++CBMODLOGIN="`cat $TMP/cb1.1TEMP$$`"
+ fi 
+ fi
+ 
+-if [ -s /tmp/cb1TEMP$$ ]; then
+-echo "I have your phone number: $CBPN" > /tmp/txtTEMP$$
+-if [ -s /tmp/cb1.1TEMP$$ ]; then
+-echo "I see you have to give a Username or Login: $CBMODLOGIN" >> /tmp/txtTEMP$$
+-echo "for the initial connection to: $PHONENUM" >> /tmp/txtTEMP$$
+-fi
+-echo >> /tmp/txtTEMP$$
+-echo "Do you have to give a Password for the initial connection" >> /tmp/txtTEMP$$
+-echo "to $PHONENUM before you're called back." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Example: Zoy85mWc" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "If NO, just press [Enter] on a empty box and skip this." >> /tmp/txtTEMP$$
++if [ -s $TMP/cb1TEMP$$ ]; then
++echo "I have your phone number: $CBPN" > $TMP/txtTEMP$$
++if [ -s $TMP/cb1.1TEMP$$ ]; then
++echo "I see you have to give a Username or Login: $CBMODLOGIN" >> $TMP/txtTEMP$$
++echo "for the initial connection to: $PHONENUM" >> $TMP/txtTEMP$$
++fi
++echo >> $TMP/txtTEMP$$
++echo "Do you have to give a Password for the initial connection" >> $TMP/txtTEMP$$
++echo "to $PHONENUM before you're called back." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Example: Zoy85mWc" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "If NO, just press [Enter] on a empty box and skip this." >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "CALLBACK INITIAL PASSWORD? ..." --inputbox "`cat /tmp/txtTEMP$$`" 17 68 2> /tmp/cb2TEMP$$
++dialog --backtitle "CALLBACK INITIAL PASSWORD? ..." --inputbox "`cat $TMP/txtTEMP$$`" 17 68 2> $TMP/cb2TEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ else
+-CBMODPASS="`cat /tmp/cb2TEMP$$`"
++CBMODPASS="`cat $TMP/cb2TEMP$$`"
+ fi
+ fi
+ 
+ if [ ! -z "$CBPN" ]; then
+-echo "Are they using PAP or CHAP for AUTHENTICATION? If so answer YES." > /tmp/txtTEMP$$
+-echo "Do they present you with a Username: or Login: and Password: prompt" >> /tmp/txtTEMP$$
+-echo "when they call you back, if so they're probably not using PAP or" >> /tmp/txtTEMP$$
+-echo "CHAP, so you can answer NO here." >> /tmp/txtTEMP$$
+-echo "If you're not sure, you'll have to ask you're service provider." >> /tmp/txtTEMP$$
++echo "Are they using PAP or CHAP for AUTHENTICATION? If so answer YES." > $TMP/txtTEMP$$
++echo "Do they present you with a Username: or Login: and Password: prompt" >> $TMP/txtTEMP$$
++echo "when they call you back, if so they're probably not using PAP or" >> $TMP/txtTEMP$$
++echo "CHAP, so you can answer NO here." >> $TMP/txtTEMP$$
++echo "If you're not sure, you'll have to ask you're service provider." >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "CALLBACK PAP-CHAP YES or NO? ..." --yesno "`cat /tmp/txtTEMP$$`" 9 72 
++dialog --backtitle "CALLBACK PAP-CHAP YES or NO? ..." --yesno "`cat $TMP/txtTEMP$$`" 9 72 
+ 
+ if [ $? = 1 ]; then
+-echo "What is your Username or Login to your service provider?" > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "This is the information you'll give them when they call" >> /tmp/txtTEMP$$
+-echo "you back at: $CBPN" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Example: jerry" >> /tmp/txtTEMP$$
++echo "What is your Username or Login to your service provider?" > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "This is the information you'll give them when they call" >> $TMP/txtTEMP$$
++echo "you back at: $CBPN" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Example: jerry" >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "CALLBACK LOGIN? ..." --inputbox "`cat /tmp/txtTEMP$$`" 13 72 2> /tmp/cb3TEMP$$
++dialog --backtitle "CALLBACK LOGIN? ..." --inputbox "`cat $TMP/txtTEMP$$`" 13 72 2> $TMP/cb3TEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi
+ 
+-CBLOGIN="`cat /tmp/cb3TEMP$$`"
++CBLOGIN="`cat $TMP/cb3TEMP$$`"
+ 
+ if [ -z "$CBLOGIN" ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ echo "No Login for Callback."
+@@ -269,24 +300,24 @@
+ fi
+ 
+ if [ ! -z "$CBLOGIN" ]; then
+-echo "What is the Password for: $CBLOGIN" > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Example: Ziy79Kie" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
++echo "What is the Password for: $CBLOGIN" > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Example: Ziy79Kie" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "CALLBACK PASSWORD? ..." --inputbox "`cat /tmp/txtTEMP$$`" 10 64 2> /tmp/cb4TEMP$$
++dialog --backtitle "CALLBACK PASSWORD? ..." --inputbox "`cat $TMP/txtTEMP$$`" 10 64 2> $TMP/cb4TEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 1 
+ fi
+ 
+-CBPASS="`cat /tmp/cb4TEMP$$`"
++CBPASS="`cat $TMP/cb4TEMP$$`"
+ 
+ if [ -z "$CBPASS" ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ echo "No Password for Callback."
+@@ -296,13 +327,13 @@
+ 
+ callback1() {
+  cat << EOF
+-TIMEOUT	     10
++TIMEOUT	     60
+ ABORT	     BUSY    			
+ ABORT	     ERROR    			
+ ABORT	     VOICE    			
+ ABORT	     "NO CARRIER"   		
+ ABORT	     "NO DIALTONE"   		
+-""	     "AT\&FW1S0=1H0"  		
++""	     "AT\&FS0=1H0"  		
+ OK	     "ATDT$PHONENUM"			
+ TIMEOUT	     60
+ CONNECT	     ""				
+@@ -322,13 +353,13 @@
+ 
+ callback2() {
+  cat << EOF
+-TIMEOUT 10
++TIMEOUT 60
+ ABORT	BUSY    			
+ ABORT	ERROR    			
+ ABORT	VOICE    			
+ ABORT	"NO CARRIER"   		
+ ABORT	"NO DIALTONE"   		
+-""	"AT\&FW1S0=1H0"  		
++""	"AT\&FS0=1H0"  		
+ OK	"ATDT$PHONENUM"			
+ TIMEOUT	60
+ CONNECT	""				
+@@ -344,13 +375,13 @@
+ 
+ callback3() {
+  cat << EOF
+-TIMEOUT	     10
++TIMEOUT	     60
+ ABORT	     BUSY    			
+ ABORT	     ERROR    			
+ ABORT	     VOICE    			
+ ABORT	     "NO CARRIER"   		
+ ABORT	     "NO DIALTONE"   		
+-""	     "AT\&FW1S0=1H0"  		
++""	     "AT\&FS0=1H0"  		
+ OK	     "ATDT$PHONENUM"			
+ TIMEOUT	     60
+ CONNECT	     ""				
+@@ -368,13 +399,13 @@
+ 
+ callback4() {
+  cat << EOF
+-TIMEOUT	     10
++TIMEOUT	     60
+ ABORT	     BUSY    			
+ ABORT	     ERROR    			
+ ABORT	     VOICE    			
+ ABORT	     "NO CARRIER"   		
+ ABORT	     "NO DIALTONE"   		
+-""	     "AT\&FW1S0=1H0"  		
++""	     "AT\&FS0=1H0"  		
+ OK	     "ATDT$PHONENUM"			
+ TIMEOUT	     60
+ CONNECT	     ""				
+@@ -393,13 +424,13 @@
+ 
+ callback5() {
+  cat << EOF
+-TIMEOUT	     10
++TIMEOUT	     60
+ ABORT	     BUSY    			
+ ABORT	     ERROR    			
+ ABORT	     VOICE    			
+ ABORT	     "NO CARRIER"   		
+ ABORT	     "NO DIALTONE"   		
+-""	     "AT\&FW1S0=1H0"  		
++""	     "AT\&FS0=1H0"  		
+ OK	     "ATDT$PHONENUM"			
+ TIMEOUT	     60
+ CONNECT	     ""				
+@@ -417,13 +448,13 @@
+ 
+ callback6() {
+  cat << EOF
+-TIMEOUT	     10
++TIMEOUT	     60
+ ABORT	     BUSY    			
+ ABORT	     ERROR    			
+ ABORT	     VOICE    			
+ ABORT	     "NO CARRIER"   		
+ ABORT	     "NO DIALTONE"   		
+-""	     "AT\&FW1S0=1H0"  		
++""	     "AT\&FS0=1H0"  		
+ OK	     "ATDT$PHONENUM"			
+ TIMEOUT	     60
+ CONNECT	     ""				
+@@ -440,13 +471,13 @@
+ 
+ callback7() {
+  cat << EOF
+-TIMEOUT	     10
++TIMEOUT	     60
+ ABORT	     BUSY    			
+ ABORT	     ERROR    			
+ ABORT	     VOICE    			
+ ABORT	     "NO CARRIER"   		
+ ABORT	     "NO DIALTONE"   		
+-""	     "AT\&FW1S0=1H0"  		
++""	     "AT\&FS0=1H0"  		
+ OK	     "ATDT$PHONENUM"			
+ TIMEOUT	     60
+ CONNECT	     ""				
+@@ -465,20 +496,20 @@
+ mkdir -p /etc/ppp
+ fi
+ 
+-if [ -s /tmp/cb1TEMP$$ ]; then
+-if [ -s /tmp/cb1.1TEMP$$ ] && [ -s /tmp/cb2TEMP$$ ] && [ -s /tmp/cb3TEMP$$ ] && [ -s /tmp/cb4TEMP$$ ]; then
++if [ -s $TMP/cb1TEMP$$ ]; then
++if [ -s $TMP/cb1.1TEMP$$ ] && [ -s $TMP/cb2TEMP$$ ] && [ -s $TMP/cb3TEMP$$ ] && [ -s $TMP/cb4TEMP$$ ]; then
+ callback1 > /etc/ppp/callback
+-elif [ ! -s /tmp/cb1.1TEMP$$ ] && [ ! -s /tmp/cb2TEMP$$ ] && [ ! -s /tmp/cb3TEMP$$ ] && [ ! -s /tmp/cb4TEMP$$ ]; then
++elif [ ! -s $TMP/cb1.1TEMP$$ ] && [ ! -s $TMP/cb2TEMP$$ ] && [ ! -s $TMP/cb3TEMP$$ ] && [ ! -s $TMP/cb4TEMP$$ ]; then
+ callback2 > /etc/ppp/callback
+-elif [ ! -s /tmp/cb1.1TEMP$$ ] && [ ! -s /tmp/cb2TEMP$$ ] && [ -s /tmp/cb3TEMP$$ ] && [ -s /tmp/cb4TEMP$$ ]; then
++elif [ ! -s $TMP/cb1.1TEMP$$ ] && [ ! -s $TMP/cb2TEMP$$ ] && [ -s $TMP/cb3TEMP$$ ] && [ -s $TMP/cb4TEMP$$ ]; then
+ callback3 > /etc/ppp/callback
+-elif [ ! -s /tmp/cb1.1TEMP$$ ] && [ -s /tmp/cb2TEMP$$ ] && [ -s /tmp/cb3TEMP$$ ] && [ -s /tmp/cb4TEMP$$ ]; then
++elif [ ! -s $TMP/cb1.1TEMP$$ ] && [ -s $TMP/cb2TEMP$$ ] && [ -s $TMP/cb3TEMP$$ ] && [ -s $TMP/cb4TEMP$$ ]; then
+ callback4 > /etc/ppp/callback
+-elif [ -s /tmp/cb1.1TEMP$$ ] && [ -s /tmp/cb2TEMP$$ ] && [ ! -s /tmp/cb3TEMP$$ ] && [ ! -s /tmp/cb4TEMP$$ ]; then
++elif [ -s $TMP/cb1.1TEMP$$ ] && [ -s $TMP/cb2TEMP$$ ] && [ ! -s $TMP/cb3TEMP$$ ] && [ ! -s $TMP/cb4TEMP$$ ]; then
+ callback5 > /etc/ppp/callback
+-elif [ -s /tmp/cb1.1TEMP$$ ] && [ ! -s /tmp/cb3TEMP$$ ] && [ ! -s /tmp/cb4TEMP$$ ]; then
++elif [ -s $TMP/cb1.1TEMP$$ ] && [ ! -s $TMP/cb3TEMP$$ ] && [ ! -s $TMP/cb4TEMP$$ ]; then
+ callback6 > /etc/ppp/callback
+-elif [ -s /tmp/cb2TEMP$$ ] && [ ! -s /tmp/cb3TEMP$$ ] && [ ! -s /tmp/cb4TEMP$$ ]; then
++elif [ -s $TMP/cb2TEMP$$ ] && [ ! -s $TMP/cb3TEMP$$ ] && [ ! -s $TMP/cb4TEMP$$ ]; then
+ callback7 > /etc/ppp/callback
+ fi
+ fi
+@@ -488,93 +519,93 @@
+ chmod 600 /etc/ppp/callback 2>/dev/null
+ fi
+ 
+-if [ ! -s /tmp/cb1TEMP$$ ]; then	
+-echo 'The default modem init string will be: "AT\&FW1H0" OK' > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "If you want to change it, put your init string in the box below." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "If you use \ in the init string, put it twice." >> /tmp/txtTEMP$$
+-echo 'Example: "AT\&F\\K3\\N3W1H0" OK' >> /tmp/txtTEMP$$
+-echo "M = No sound. W1 or S95=46 = Show CARRIER speed: 28800 etc." >> /tmp/txtTEMP$$
+-echo 'Put "" around each init string with "&" in it.' >> /tmp/txtTEMP$$
+-echo 'Put OK after each init string. Example: ATZ OK "AT\&F1MW1H0" OK' >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Just press [Enter] on a empty box to accept the default above." >> /tmp/txtTEMP$$
++if [ ! -s $TMP/cb1TEMP$$ ]; then	
++echo 'The default modem init string will be: "AT&FH0" OK' > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "If you want to change it, put your init string in the box below." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "If you use \ in the init string, put it twice." >> $TMP/txtTEMP$$
++echo 'Example: "AT\&F\\K3\\N3H0" OK' >> $TMP/txtTEMP$$
++echo "M = No sound.  S95=46 = Show CARRIER speed: 28800 etc." >> $TMP/txtTEMP$$
++echo 'Put "" around each init string with "&" in it.' >> $TMP/txtTEMP$$
++echo 'Put OK after each init string. Example: ATZ OK "AT\&F1MH0" OK' >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Just press [Enter] on a empty box to accept the default above." >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "MODEM INIT STRING ..." --inputbox "`cat /tmp/txtTEMP$$`" 18 74 2> /tmp/rspTEMP$$
++dialog --backtitle "MODEM INIT STRING ..." --inputbox "`cat $TMP/txtTEMP$$`" 18 74 2> $TMP/rspTEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi 
+ 
+-if [ -s /tmp/rspTEMP$$ ]; then
+-INIT="`cat /tmp/rspTEMP$$`"
++if [ -s $TMP/rspTEMP$$ ]; then
++INIT="`cat $TMP/rspTEMP$$`"
+ else
+ INIT="below"
+ fi
+ fi
+ 
+-echo "What is your (I)nternet (S)ervice (P)rovider's domain name?" > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "This is usually something like..." >> /tmp/txtTEMP$$
+-echo "Examples: something.edu something.net something.com something.org" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
++echo "What is your (I)nternet (S)ervice (P)rovider's domain name?" > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "This is usually something like..." >> $TMP/txtTEMP$$
++echo "Examples: something.edu something.net something.com something.org" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "DOMAIN NAME ..." --inputbox "`cat /tmp/txtTEMP$$`" 11 74 2> /tmp/rspTEMP$$
++dialog --backtitle "DOMAIN NAME ..." --inputbox "`cat $TMP/txtTEMP$$`" 11 74 2> $TMP/rspTEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi 
+ 
+-DOMAINNAME="`cat /tmp/rspTEMP$$`"
++DOMAINNAME="`cat $TMP/rspTEMP$$`"
+ 
+-echo "What is the IP address of your Internet provider's nameserver?" > /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "It's important that these IP numbers be correct." >> /tmp/txtTEMP$$
+-echo "The IP numbers should not be: 0.0.0.0" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Note: Your service provider's technical support can provide you" >> /tmp/txtTEMP$$
+-echo "with this information.   Example: 207.132.116.5" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
++echo "What is the IP address of your Internet provider's nameserver?" > $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "It's important that these IP numbers be correct." >> $TMP/txtTEMP$$
++echo "The IP numbers should not be: 0.0.0.0" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Note: Your service provider's technical support can provide you" >> $TMP/txtTEMP$$
++echo "with this information.   Example: 207.132.116.5" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "DNS IP ADDRESS ..." --inputbox "`cat /tmp/txtTEMP$$`" 14 74 2> /tmp/rspTEMP$$
++dialog --backtitle "DNS IP ADDRESS ..." --inputbox "`cat $TMP/txtTEMP$$`" 14 74 2> $TMP/rspTEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi 
+ 
+-DNSIP="`cat /tmp/rspTEMP$$`"
++DNSIP="`cat $TMP/rspTEMP$$`"
+ 
+-if [ ! -s /tmp/cb3TEMP$$ ]; then   
+-echo "Does your service provider use PAP or CHAP?" > /tmp/txtTEMP$$
+-echo "If you're presented with a Username: or Login: and Password:" >> /tmp/txtTEMP$$
+-echo "prompt when you connect to your service provider, they're" >> /tmp/txtTEMP$$
+-echo "'probably' not using PAP or CHAP, so you can answer SCRIPT." >> /tmp/txtTEMP$$
+-echo "I said 'probably', the only way to know for sure is to ask you're" >> /tmp/txtTEMP$$
+-echo "service provider, this could save you a lot of wasted time." >> /tmp/txtTEMP$$
++if [ ! -s $TMP/cb3TEMP$$ ]; then   
++echo "Does your service provider use PAP or CHAP?" > $TMP/txtTEMP$$
++echo "If you're presented with a Username: or Login: and Password:" >> $TMP/txtTEMP$$
++echo "prompt when you connect to your service provider, they're" >> $TMP/txtTEMP$$
++echo "'probably' not using PAP or CHAP, so you can answer SCRIPT." >> $TMP/txtTEMP$$
++echo "I said 'probably', the only way to know for sure is to ask you're" >> $TMP/txtTEMP$$
++echo "service provider, this could save you a lot of wasted time." >> $TMP/txtTEMP$$
+ 
+-dialog --backtitle "PAP, CHAP, or SCRIPT? ..." --menu "`cat /tmp/txtTEMP$$`" 16 72 4 \
++dialog --backtitle "PAP, CHAP, or SCRIPT? ..." --menu "`cat $TMP/txtTEMP$$`" 16 72 4 \
+ PAP  "AUTHENTICATION" \
+ CHAP "AUTHENTICATION" \
+ MS-CHAP-80 "is microsoft's version of CHAP." \
+-SCRIPT     "Create Chat Script For Login." 2> /tmp/papTEMP
++SCRIPT     "Create Chat Script For Login." 2> $TMP/papTEMP
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ else
+-PAP="`cat /tmp/papTEMP`"
++PAP="`cat $TMP/papTEMP`"
+ fi
+ fi
+ 
+@@ -595,46 +626,46 @@
+ 
+ if [ "$PAP" = "MS-CHAP-80" ]; then   
+ if [ ! -z "$DOMAINNAME" ]; then
+-echo > /tmp/txtTEMP$$
+-echo "You gave $DOMAINNAME for domain name, this will be the" >> /tmp/txtTEMP$$
+-echo "NT server you connect to when you dial: $PHONENUM" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
++echo > $TMP/txtTEMP$$
++echo "You gave $DOMAINNAME for domain name, this will be the" >> $TMP/txtTEMP$$
++echo "NT server you connect to when you dial: $PHONENUM" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
+ else
+-echo > /tmp/txtTEMP$$
++echo > $TMP/txtTEMP$$
+ fi
+-RAS >> /tmp/txtTEMP$$
++RAS >> $TMP/txtTEMP$$
+ 
+-dialog --title "MS-CHAP NT server, Stand-alone or ? ..." --menu "`cat /tmp/txtTEMP$$`" 22 72 2 \
++dialog --title "MS-CHAP NT server, Stand-alone or ? ..." --menu "`cat $TMP/txtTEMP$$`" 22 72 2 \
+ MS-CHAP-SERVER-1 "Stand-alone..." \
+-MS-CHAP-SERVER-2 "Queries domain controller..." 2> /tmp/mschapTEMP
++MS-CHAP-SERVER-2 "Queries domain controller..." 2> $TMP/mschapTEMP
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi 
+ 
+-MSCHAP="`cat /tmp/mschapTEMP`"
++MSCHAP="`cat $TMP/mschapTEMP`"
+ 
+ if [ "$MSCHAP" = "MS-CHAP-SERVER-2" ]; then   
+-echo "Put the name of the domain you have your account on." > /tmp/txtTEMP0
+-echo "Example: fooboo" >> /tmp/txtTEMP0
+-echo >> /tmp/txtTEMP0
++echo "Put the name of the domain you have your account on." > $TMP/txtTEMP0
++echo "Example: fooboo" >> $TMP/txtTEMP0
++echo >> $TMP/txtTEMP0
+ 
+-dialog --backtitle "MS-CHAP QUERY DOMAIN? ..." --inputbox "`cat /tmp/txtTEMP0`" 9 64 2> /tmp/rspTEMP0
++dialog --backtitle "MS-CHAP QUERY DOMAIN? ..." --inputbox "`cat $TMP/txtTEMP0`" 9 64 2> $TMP/rspTEMP0
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi 
+ 
+-MSDOMAIN="`cat /tmp/rspTEMP0`"
++MSDOMAIN="`cat $TMP/rspTEMP0`"
+ 
+-if [ ! -s /tmp/rspTEMP0 ]; then   
+-rm -f /tmp/*TEMP*
++if [ ! -s $TMP/rspTEMP0 ]; then   
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ echo "No ms-chap query domain name given."
+@@ -643,32 +674,32 @@
+ fi
+ fi
+ 
+-if [ ! "$PAP" = "SCRIPT" ] && [ ! -s /tmp/cb3TEMP$$ ]; then   
+-echo "Put your Login = Username in the box below." > /tmp/txtTEMP1
+-echo >> /tmp/txtTEMP1
+-echo "Sometimes they want your username or number followed" >> /tmp/txtTEMP1
+-echo "by their @domain name like this below." >> /tmp/txtTEMP1
+-echo "Example: jerry@foo.boo.com" >> /tmp/txtTEMP1
+-echo "Example: 1234567@foo.boo.com" >> /tmp/txtTEMP1
+-echo >> /tmp/txtTEMP1
+-echo "Sometimes the username is two words." >> /tmp/txtTEMP1
+-echo "Example: jerry donut" >> /tmp/txtTEMP1
+-echo >> /tmp/txtTEMP1
+-echo "Usally it's just your username like this below." >> /tmp/txtTEMP1
+-echo "Example: jerry" >> /tmp/txtTEMP1
+-echo >> /tmp/txtTEMP1
++if [ ! "$PAP" = "SCRIPT" ] && [ ! -s $TMP/cb3TEMP$$ ]; then   
++echo "Put your Login = Username in the box below." > $TMP/txtTEMP1
++echo >> $TMP/txtTEMP1
++echo "Sometimes they want your username or number followed" >> $TMP/txtTEMP1
++echo "by their @domain name like this below." >> $TMP/txtTEMP1
++echo "Example: jerry@foo.boo.com" >> $TMP/txtTEMP1
++echo "Example: 1234567@foo.boo.com" >> $TMP/txtTEMP1
++echo >> $TMP/txtTEMP1
++echo "Sometimes the username is two words." >> $TMP/txtTEMP1
++echo "Example: jerry donut" >> $TMP/txtTEMP1
++echo >> $TMP/txtTEMP1
++echo "Usally it's just your username like this below." >> $TMP/txtTEMP1
++echo "Example: jerry" >> $TMP/txtTEMP1
++echo >> $TMP/txtTEMP1
+ 
+-dialog --backtitle "PAP or CHAP LOGIN? ..." --inputbox "`cat /tmp/txtTEMP1`" 19 64 2> /tmp/rspTEMP1
++dialog --backtitle "PAP or CHAP LOGIN? ..." --inputbox "`cat $TMP/txtTEMP1`" 19 64 2> $TMP/rspTEMP1
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi
+ 
+-if [ ! -s /tmp/rspTEMP1 ]; then   
+-rm -f /tmp/*TEMP*
++if [ ! -s $TMP/rspTEMP1 ]; then   
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ echo "No username for pap, chap, or ms-chap given."
+@@ -676,119 +707,119 @@
+ fi 
+ fi
+ 
+-if [ -s /tmp/rspTEMP1 ]; then 
+-AUTH1="`cat /tmp/rspTEMP1`"
+-echo "$AUTH1" > /tmp/txtTEMP2
+-echo "What's the password for the username above?" >> /tmp/txtTEMP2
+-echo "Example: Xpi9u87T" >> /tmp/txtTEMP2
+-dialog --backtitle "PAP or CHAP PASSWORD? ..." --inputbox "`cat /tmp/txtTEMP2`" 10 64 2> /tmp/rspTEMP2
++if [ -s $TMP/rspTEMP1 ]; then 
++AUTH1="`cat $TMP/rspTEMP1`"
++echo "$AUTH1" > $TMP/txtTEMP2
++echo "What's the password for the username above?" >> $TMP/txtTEMP2
++echo "Example: Xpi9u87T" >> $TMP/txtTEMP2
++dialog --backtitle "PAP or CHAP PASSWORD? ..." --inputbox "`cat $TMP/txtTEMP2`" 10 64 2> $TMP/rspTEMP2
+ 
+-AUTH2="`cat /tmp/rspTEMP2`"
++AUTH2="`cat $TMP/rspTEMP2`"
+ END=""
+ 
+-elif [ ! -s /tmp/cb1TEMP$$ ] && [ "$PAP" = "SCRIPT" ]; then  
++elif [ ! -s $TMP/cb1TEMP$$ ] && [ "$PAP" = "SCRIPT" ]; then  
+ END='""'
+-echo "If you reached this part of the script, it should be because you" > /tmp/txtTEMP$$
+-echo "skipped the PAP or CHAP? and CALLBACK? parts of this script." >> /tmp/txtTEMP$$
+-echo "In other words, your service provider is not using PAP, CHAP, or" >> /tmp/txtTEMP$$
+-echo "CALLBACK." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Now comes the tough part. :) I need to know what your" >> /tmp/txtTEMP$$
+-echo "service provider prints to your screen when you dial in," >> /tmp/txtTEMP$$
+-echo "and what you respond with." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Usally when you connect to your service provider you see a" >> /tmp/txtTEMP$$
+-echo "Username: or Login: prompt, and you respond with your name." >> /tmp/txtTEMP$$
+-echo "Then there's a Password: prompt and you respond with your" >> /tmp/txtTEMP$$
+-echo "password." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "If you're not sure if it's Login: or login:, just put ogin:" >> /tmp/txtTEMP$$
+-echo "you don't have to spell the whole thing out, the end part of" >> /tmp/txtTEMP$$
+-echo "what to wait for should be enough." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo 'If they put this for example "foobar fooboo ID:", you could just' >> /tmp/txtTEMP$$
+-echo 'put ID: or you could spell the whole thing out & put "" around it.' >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo "ID:" >> /tmp/txtTEMP$$
+-echo "What text should I send?" >> /tmp/txtTEMP$$
+-echo "jerry" >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo '"foobar fooboo ID:"' >> /tmp/txtTEMP$$
+-echo "What text should I send?" >> /tmp/txtTEMP$$
+-echo "jerry" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Sometimes you may want to wait for nothing, but send something." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo '""' >> /tmp/txtTEMP$$
+-echo "What text should I send?" >> /tmp/txtTEMP$$
+-echo "something" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo '"" = wait for nothing.' >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "If you don't want your password printed out put \q in front of it." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo "Password:" >> /tmp/txtTEMP$$
+-echo "What text should I send?" >> /tmp/txtTEMP$$
+-echo "\qsecret" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "ogin: = Login:   name: = Username:   word: = Password:" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "This below would end up looking like this in the /etc/ppp/pppscript" >> /tmp/txtTEMP$$
+-echo "file created by pppsetup when you're done." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "ogin: jerry" >> /tmp/txtTEMP$$
+-echo "word: secret" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "For example..." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo "ogin:" >> /tmp/txtTEMP$$
+-echo "And what text should I send?" >> /tmp/txtTEMP$$
+-echo "jerry" >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo "word:" >> /tmp/txtTEMP$$
+-echo "And what text should I send?" >> /tmp/txtTEMP$$
+-echo "secret" >> /tmp/txtTEMP$$
+-echo "What text should I wait for?" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "( End by pressing Enter on an empty = blank wait for? box. )" >> /tmp/txtTEMP$$
++echo "If you reached this part of the script, it should be because you" > $TMP/txtTEMP$$
++echo "skipped the PAP or CHAP? and CALLBACK? parts of this script." >> $TMP/txtTEMP$$
++echo "In other words, your service provider is not using PAP, CHAP, or" >> $TMP/txtTEMP$$
++echo "CALLBACK." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Now comes the tough part. :) I need to know what your" >> $TMP/txtTEMP$$
++echo "service provider prints to your screen when you dial in," >> $TMP/txtTEMP$$
++echo "and what you respond with." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Usally when you connect to your service provider you see a" >> $TMP/txtTEMP$$
++echo "Username: or Login: prompt, and you respond with your name." >> $TMP/txtTEMP$$
++echo "Then there's a Password: prompt and you respond with your" >> $TMP/txtTEMP$$
++echo "password." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "If you're not sure if it's Login: or login:, just put ogin:" >> $TMP/txtTEMP$$
++echo "you don't have to spell the whole thing out, the end part of" >> $TMP/txtTEMP$$
++echo "what to wait for should be enough." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo 'If they put this for example "foobar fooboo ID:", you could just' >> $TMP/txtTEMP$$
++echo 'put ID: or you could spell the whole thing out & put "" around it.' >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo "ID:" >> $TMP/txtTEMP$$
++echo "What text should I send?" >> $TMP/txtTEMP$$
++echo "jerry" >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo '"foobar fooboo ID:"' >> $TMP/txtTEMP$$
++echo "What text should I send?" >> $TMP/txtTEMP$$
++echo "jerry" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Sometimes you may want to wait for nothing, but send something." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo '""' >> $TMP/txtTEMP$$
++echo "What text should I send?" >> $TMP/txtTEMP$$
++echo "something" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo '"" = wait for nothing.' >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "If you don't want your password printed out put \q in front of it." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo "Password:" >> $TMP/txtTEMP$$
++echo "What text should I send?" >> $TMP/txtTEMP$$
++echo "\qsecret" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "ogin: = Login:   name: = Username:   word: = Password:" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "This below would end up looking like this in the /etc/ppp/pppscript" >> $TMP/txtTEMP$$
++echo "file created by pppsetup when you're done." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "ogin: jerry" >> $TMP/txtTEMP$$
++echo "word: secret" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "For example..." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo "ogin:" >> $TMP/txtTEMP$$
++echo "And what text should I send?" >> $TMP/txtTEMP$$
++echo "jerry" >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo "word:" >> $TMP/txtTEMP$$
++echo "And what text should I send?" >> $TMP/txtTEMP$$
++echo "secret" >> $TMP/txtTEMP$$
++echo "What text should I wait for?" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "( End by pressing Enter on an empty = blank wait for? box. )" >> $TMP/txtTEMP$$
+ 
+-dialog --title "CHAT SCRIPT" --textbox "/tmp/txtTEMP$$" 22 72
++dialog --title "CHAT SCRIPT" --textbox "$TMP/txtTEMP$$" 22 72
+ 
+ MESSAGE=' '
+ YOUSAY=' '
+ while [ ! "$MESSAGE" = "" -a ! "$YOUSAY" = "" ]
+ do
+ 
+-echo "     End by pressing Enter on a empty = blank box." > /tmp/txtTEMP$$
+-echo "            What text should I wait for?" >> /tmp/txtTEMP$$
+-dialog --backtitle "EXPECT ..." --inputbox "`cat /tmp/txtTEMP$$`" 9 60 2> /tmp/rspTEMP$$	
++echo "     End by pressing Enter on a empty = blank box." > $TMP/txtTEMP$$
++echo "            What text should I wait for?" >> $TMP/txtTEMP$$
++dialog --backtitle "EXPECT ..." --inputbox "`cat $TMP/txtTEMP$$`" 9 60 2> $TMP/rspTEMP$$	
+ 
+-MESSAGE="`cat /tmp/rspTEMP$$`"
++MESSAGE="`cat $TMP/rspTEMP$$`"
+ 
+ if [ -z "$MESSAGE" ]; then
+ continue
+ fi
+ 
+-dialog --backtitle "SEND ..." --inputbox "And what text should I send?" 8 60 2> /tmp/rspTEMP$$
++dialog --backtitle "SEND ..." --inputbox "And what text should I send?" 8 60 2> $TMP/rspTEMP$$
+ 
+ if [ $? = 1 ]; then
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ clear 2>/dev/null || echo
+ echo "PPP configuration cancelled."
+ exit 
+ fi
+ 
+-YOUSAY="`cat /tmp/rspTEMP$$`"
++YOUSAY="`cat $TMP/rspTEMP$$`"
+ 
+-echo "$MESSAGE $YOUSAY" >> /tmp/sayTEMP1
++echo "$MESSAGE $YOUSAY" >> $TMP/sayTEMP1
+ 	
+ if [ -z "$YOUSAY" ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ echo "Nothing to send."
+ exit 
+@@ -798,22 +829,22 @@
+ done
+ fi
+ 
+-if [ ! -s /tmp/cb3TEMP$$ ]; then
+-if [ -s /tmp/cb1TEMP$$ ] && [ ! -s /tmp/cb3TEMP$$ ] && [ "$PAP" = "SCRIPT" ]; then
++if [ ! -s $TMP/cb3TEMP$$ ]; then
++if [ -s $TMP/cb1TEMP$$ ] && [ ! -s $TMP/cb3TEMP$$ ] && [ "$PAP" = "SCRIPT" ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ echo "You chose callback with PAP or CHAP, but answered SCRIPT to PAP or CHAP?."
+ exit 
+-elif [ ! -s /tmp/rspTEMP2 ] && [ -s /tmp/rspTEMP1 ]; then
++elif [ ! -s $TMP/rspTEMP2 ] && [ -s $TMP/rspTEMP1 ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ echo "No password for: $AUTH1"
+ exit 	
+-elif [ ! -s /tmp/sayTEMP1 ] && [ ! -s /tmp/rspTEMP2 ]; then
++elif [ ! -s $TMP/sayTEMP1 ] && [ ! -s $TMP/rspTEMP2 ]; then
+ clear 2>/dev/null || echo
+-rm -f /tmp/*TEMP*
++rm -f $TMP/*TEMP*
+ echo "PPP configuration cancelled."
+ echo "Nothing to wait for."
+ exit 
+@@ -868,9 +899,9 @@
+ PATH1="pppd"
+ fi
+ 
+-if [ "$PATH1" != "pppd" ]; then
+-chmod 4755 $PATH1 2>/dev/null
+-fi
++#if [ "$PATH1" != "pppd" ]; then
++#chmod 4755 $PATH1 2>/dev/null
++#fi
+ 
+ if [ -x /usr/sbin/chat ]; then
+ PATH2="/usr/sbin/chat"
+@@ -886,14 +917,14 @@
+ PATH2="chat"
+ fi
+ 
+-if [ ! -s /tmp/cb1TEMP$$ ]; then
+-echo "TIMEOUT 10" > /etc/ppp/pppscript
++if [ ! -s $TMP/cb1TEMP$$ ]; then
++echo "TIMEOUT 60" > /etc/ppp/pppscript
+ echo "ABORT ERROR" >> /etc/ppp/pppscript 
+ echo "ABORT BUSY" >> /etc/ppp/pppscript 
+ echo 'ABORT "NO CARRIER"' >> /etc/ppp/pppscript
+ echo 'ABORT "NO DIALTONE"' >> /etc/ppp/pppscript
+ if [ "$INIT" = "below" ]; then
+-echo '"" "AT\&FW1H0"' >> /etc/ppp/pppscript
++echo '"" "AT&FH0"' >> /etc/ppp/pppscript
+ echo 'OK "'$PHONENUM'"' >> /etc/ppp/pppscript
+ else
+ echo '"" '$INIT'' >> /etc/ppp/pppscript
+@@ -905,8 +936,8 @@
+ chmod 600 /etc/ppp/pppscript 2>/dev/null
+ fi
+ 
+-if [ -s /tmp/sayTEMP1 ]; then
+-cat /tmp/sayTEMP1 >> /etc/ppp/pppscript
++if [ -s $TMP/sayTEMP1 ]; then
++cat $TMP/sayTEMP1 >> /etc/ppp/pppscript
+ echo >> /etc/ppp/pppscript 
+ else
+ echo >> /etc/ppp/pppscript 
+@@ -948,9 +979,9 @@
+ echo "# The CARRIER speed at which you connected will be reported, if it's in" >> /etc/ppp/ip-up
+ echo '# the /var/log/messages file.  You also need the programs "tail" "cut"' >> /etc/ppp/ip-up
+ echo '# "tr" "grep" and "syslogd" running for this to work.' >> /etc/ppp/ip-up
+-echo "# You may have to add W1 or S95=46 to your modem init string" >> /etc/ppp/ip-up
++echo "# You may have to add S95=46 to your modem init string" >> /etc/ppp/ip-up
+ echo "# to get your modem to report the DCE = CARRIER speed." >> /etc/ppp/ip-up
+-echo "# Examples: AT&FW1 or AT&FS95=46" >> /etc/ppp/ip-up
++echo "# Example: AT&FS95=46" >> /etc/ppp/ip-up
+ 
+ echo >> /etc/ppp/ip-up
+ echo "if [ -s /var/log/messages ] && ( ps xc 2>/dev/null | grep -q syslogd 2>/dev/null ); then" >> /etc/ppp/ip-up
+@@ -986,7 +1017,8 @@
+ echo >> /etc/ppp/ip-up
+ echo "# End..." >> /etc/ppp/ip-up
+ 
+-chmod 4755 /etc/ppp/ip-up 2>/dev/null
++#chmod 4755 /etc/ppp/ip-up 2>/dev/null
++chmod 755 /etc/ppp/ip-up 2>/dev/null
+ 
+ if [ -s /etc/ppp/ip-down ]; then
+ mv /etc/ppp/ip-down /etc/ppp/ip-down.OLD
+@@ -1022,7 +1054,7 @@
+ # You'll see the modem reponse OK and date in the /etc/ppp/modem.cua?, 
+ # modem.ttyS?, or modem.modem file.
+ # You need the 'modem-stats' program for this below to work.
+-# ftp://sunsite.unc.edu/pub/apps/serialcomm/modem 
++# ftp://metalab.unc.edu/pub/apps/serialcomm/modem 
+ # modem-stats-1.0.1.src.elf.tar.gz
+ # Remove the ##### from the lines below.
+ 
+@@ -1030,7 +1062,8 @@
+ }
+ 
+ ipdown > /etc/ppp/ip-down
+-chmod 4755 /etc/ppp/ip-down 2>/dev/null
++#chmod 4755 /etc/ppp/ip-down 2>/dev/null
++chmod 755 /etc/ppp/ip-down 2>/dev/null
+ 
+ echo "#sleep 2   # Make sure the modem is really down." >> /etc/ppp/ip-down
+ echo '#DEV=`echo $2 | sed -e "s./dev/.."`' >> /etc/ppp/ip-down
+@@ -1080,38 +1113,38 @@
+ cat <<EOF
+ grepauth() {
+ 
+-tail -n 30 /var/log/debug 2>/dev/null | grep -i -s "rcvd" > /tmp/grep.tmp
++tail -n 30 /var/log/debug 2>/dev/null | grep -i -s "rcvd" > $TMP/grep.tmp
+ 
+-if ( grep -i -q "auth pap" /tmp/grep.tmp ); then
++if ( grep -i -q "auth pap" $TMP/grep.tmp ); then
+ echo
+ echo "They seem to be requesting PAP = <auth pap> for authentication."
+ echo "I don't know if you're setup for 'PAP' or not."
+ echo "Did you answer 'PAP' when you ran pppsetup?"
+ echo
+-elif ( grep -E -i -q "auth chap msoft|auth chap 80" /tmp/grep.tmp ); then
++elif ( grep -E -i -q "auth chap msoft|auth chap 80" $TMP/grep.tmp ); then
+ echo
+ echo "They seem to be requesting MS-CHAP-80 = <auth chap 80> for authentication."
+ echo "I don't know if you're setup for 'MS-CHAP' or not."
+ echo "Did you answer 'MS-CHAP' when you ran pppsetup?"
+ echo
+-elif ( grep -i -q "auth chap" /tmp/grep.tmp ); then
++elif ( grep -i -q "auth chap" $TMP/grep.tmp ); then
+ echo "They seem to be requesting CHAP = <auth chap> for authentication."
+ echo "I don't know if you're setup for 'CHAP' or not."
+ echo "Did you answer 'CHAP' when you ran pppsetup?"
+ echo
+ else
+-rm -f /tmp/grep.tmp
++rm -f $TMP/grep.tmp
+ exit 0
+ fi
+ 
+-if ( grep -i -q "callback" /tmp/grep.tmp ); then
++if ( grep -i -q "callback" $TMP/grep.tmp ); then
+ echo "They seem to be requesting CALLBACK."
+ echo "I don't know if you're setup for 'callback' or not."
+ echo "Did you answer 'CALLBACK' when you ran pppsetup?"
+ echo
+ fi
+ 
+-rm -f /tmp/grep.tmp
++rm -f $TMP/grep.tmp
+ }
+ EOF
+ }
+@@ -1124,14 +1157,14 @@
+ echo "killall -INT pppd 2>/dev/null" >> /usr/sbin/ppp-go
+ echo "rm -f /var/lock/LCK* /var/run/ppp*.pid" >> /usr/sbin/ppp-go
+ 
+-if [ -s /tmp/cb1TEMP$$ ]; then
+-echo '('$PATH1' -detach connect "'$PATH2' -v -s -f /etc/ppp/callback" &) || exit 1' >> /usr/sbin/ppp-go
++if [ -s $TMP/cb1TEMP$$ ]; then
++echo '('$PATH1' -detach connect "'$PATH2' -v -f /etc/ppp/callback" &) || exit 1' >> /usr/sbin/ppp-go
+ else
+-echo '('$PATH1' -detach connect "'$PATH2' -v -s -f /etc/ppp/pppscript" &) || exit 1' >> /usr/sbin/ppp-go
++echo '('$PATH1' -detach connect "'$PATH2' -v -f /etc/ppp/pppscript" &) || exit 1' >> /usr/sbin/ppp-go
+ fi
+ 
+-echo "read" >> /usr/sbin/ppp-go
+-echo "ifconnect" >> /usr/sbin/ppp-go
++echo "#read" >> /usr/sbin/ppp-go
++echo "#ifconnect" >> /usr/sbin/ppp-go
+ echo "exit 0" >> /usr/sbin/ppp-go
+ echo "fi" >> /usr/sbin/ppp-go
+ 
+@@ -1140,10 +1173,10 @@
+ echo "killall -INT pppd 2>/dev/null" >> /usr/sbin/ppp-go
+ echo "rm -f /var/lock/LCK* /var/run/ppp*.pid" >> /usr/sbin/ppp-go
+ 
+-if [ -s /tmp/cb1TEMP$$ ]; then
+-echo '('$PATH1' connect "'$PATH2' -v -f /etc/ppp/callback") || exit 1' >> /usr/sbin/ppp-go
++if [ -s $TMP/cb1TEMP$$ ]; then
++echo '('$PATH1' connect "'$PATH2' -v -f /etc/ppp/callback" 1> /dev/null 2> /dev/null ) || exit 1' >> /usr/sbin/ppp-go
+ else
+-echo '('$PATH1' connect "'$PATH2' -v -f /etc/ppp/pppscript") || exit 1' >> /usr/sbin/ppp-go
++echo '('$PATH1' connect "'$PATH2' -v -f /etc/ppp/pppscript" 1> /dev/null 2> /dev/null ) || exit 1' >> /usr/sbin/ppp-go
+ fi
+ 
+ echo "exit 0" >> /usr/sbin/ppp-go
+@@ -1194,26 +1227,37 @@
+ echo 'echo "USAGE: ppp-go -h <Help>"' >> /usr/sbin/ppp-go
+ echo "exit 1" >> /usr/sbin/ppp-go
+ 
+-chmod 4755 /usr/sbin/ppp-go 2>/dev/null 
++#chmod 4755 /usr/sbin/ppp-go 2>/dev/null 
++chmod 755 /usr/sbin/ppp-go 2>/dev/null 
+ 	
+-echo "lock" > /etc/ppp/options
+-echo "defaultroute" >> /etc/ppp/options
+-echo "noipdefault" >> /etc/ppp/options
+-echo "modem" >> /etc/ppp/options
+-echo "/dev/$MODEM" >> /etc/ppp/options
+-echo "$BAUDRATE" >> /etc/ppp/options
+-echo "crtscts" >> /etc/ppp/options
+-echo "debug" >> /etc/ppp/options
+-echo "passive" >> /etc/ppp/options
+-echo "asyncmap 0" >> /etc/ppp/options
++cat << EOF > /etc/ppp/options
++# General configuration options for PPPD:
++lock
++defaultroute
++noipdefault
++modem
++/dev/$MODEM
++$BAUDRATE
++crtscts
++# Uncomment the line below for more verbose error reporting:
++#debug
++# If you have a default route already, pppd may require the other side
++# to authenticate itself, which most ISPs will not do.  To work around this,
++# uncomment the line below.  Note that this may have negative side effects
++# on system security if you allow PPP dialins.  See the docs in /usr/doc/ppp*
++# for more information.
++#noauth
++passive
++asyncmap 0
++EOF
+ 
+ if [ ! -z "$CBPN" ]; then
+ echo 'callback "'$CBPN'"' >> /etc/ppp/options
+ fi
+   
+-if  [ "$MSCHAP" = "MS-CHAP-SERVER-2" ] && [ -s /tmp/rspTEMP2 ]; then
++if  [ "$MSCHAP" = "MS-CHAP-SERVER-2" ] && [ -s $TMP/rspTEMP2 ]; then
+ echo 'name "'$MSDOMAIN\\\\$AUTH1'"' >> /etc/ppp/options
+-elif [ -s /tmp/rspTEMP2 ]; then
++elif [ -s $TMP/rspTEMP2 ]; then
+ echo 'name "'$AUTH1'"' >> /etc/ppp/options
+ fi
+ 
+@@ -1277,7 +1321,7 @@
+ echo "0.0.0.0:10.10.10.10" >> /etc/ppp/options.demand
+ echo "demand" >> /etc/ppp/options.demand
+ 
+-if [ -s /tmp/cb1TEMP$$ ]; then
++if [ -s $TMP/cb1TEMP$$ ]; then
+ echo 'connect "'$PATH2' -v -f /etc/ppp/callback"' >> /etc/ppp/options.demand
+ else
+ echo 'connect "'$PATH2' -v -f /etc/ppp/pppscript"' >> /etc/ppp/options.demand
+@@ -1352,18 +1396,18 @@
+ 0.0.0.0     foobar.localnet foobar
+ 
+ ~# dip -tv
+-dip> port /dev/cua1
+-can't open - problems with locking cua1
++dip> port /dev/ttyS1
++can't open - problems with locking ttyS1
+ 
+ If you get the above message after "port /dev/modem", it means you have a
+-lock file in /var/lock/LCK..cua1, remove the lock file and kill dip.
++lock file in /var/lock/LCK..ttyS1, remove the lock file and kill dip.
+ 
+ ~# rm /var/lock/LCK*
+  # killall -9 dip
+ 
+ ~# dip -tv
+ 
+-dip> port /dev/cua1    <-Where's the modem? cua0 = com1 cua1 = com2 etc.)
++dip> port /dev/ttyS1    <-Where's the modem? ttyS0 = com1 ttyS1 = com2 etc.)
+ dip> speed 115200      <-Modem speed: 19200 38400 57600
+ dip> term
+ 
+@@ -1379,7 +1423,7 @@
+ dip> default              <-Use default route.)
+ dip> mode ppp             <-Start PPP at your end.)
+ 
+-~# ping sunsite.unc.edu   <-To see if you're connected.)
++~# ping metalab.unc.edu   <-To see if you're connected.)
+ 
+ ~# dip -k                 <-To kill dip and the PPP connection.)
+ 
+@@ -1393,7 +1437,7 @@
+ lock
+ defaultroute
+ noipdefault
+-/dev/cua1         <- cua0 = com1 cua1 = com2 cua2 = com3 cua3 = com4           
++/dev/ttyS1         <- ttyS0 = com1 ttyS1 = com2 ttyS2 = com3 ttyS3 = com4           
+ 57600
+ modem
+ crtscts
+@@ -1419,221 +1463,221 @@
+ }
+ 
+ echo "=========================================================================" > /etc/ppp/pppsetup.txt
+-cat /tmp/txtTEMP01 >> /etc/ppp/pppsetup.txt
++cat $TMP/txtTEMP01 >> /etc/ppp/pppsetup.txt
+ 
+-echo "=========================================================================" > /tmp/txtTEMP$$
+-echo "These are your PPP configuration files and instructions..." >> /tmp/txtTEMP$$
+-echo "=========================================================================" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-
+-if [ ! -s /tmp/cb1TEMP$$ ] && [ ! -s /tmp/sayTEMP1 ]; then
+-echo "# This is your /etc/ppp/pppscript." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-cat /etc/ppp/pppscript >> /tmp/txtTEMP$$
+-elif [ ! -s /tmp/cb1TEMP$$ ] && [ -s /tmp/sayTEMP1 ]; then
+-echo "# This is your /etc/ppp/pppscript." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Look at /etc/ppp/pppscript." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-fi
+-
+-if [ -s /tmp/cb1TEMP$$ ]; then
+-echo "# This is your /etc/ppp/callback script." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Look at /etc/ppp/callback." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-fi
+-
+-echo "# This is your /etc/ppp/options file." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-cat /etc/ppp/options >> /tmp/txtTEMP$$
++echo "=========================================================================" > $TMP/txtTEMP$$
++echo "These are your PPP configuration files and instructions..." >> $TMP/txtTEMP$$
++echo "=========================================================================" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++
++if [ ! -s $TMP/cb1TEMP$$ ] && [ ! -s $TMP/sayTEMP1 ]; then
++echo "# This is your /etc/ppp/pppscript." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++cat /etc/ppp/pppscript >> $TMP/txtTEMP$$
++elif [ ! -s $TMP/cb1TEMP$$ ] && [ -s $TMP/sayTEMP1 ]; then
++echo "# This is your /etc/ppp/pppscript." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Look at /etc/ppp/pppscript." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++fi
++
++if [ -s $TMP/cb1TEMP$$ ]; then
++echo "# This is your /etc/ppp/callback script." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Look at /etc/ppp/callback." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++fi
++
++echo "# This is your /etc/ppp/options file." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++cat /etc/ppp/options >> $TMP/txtTEMP$$
+ 
+ if [ "$MODERROR" = "YES" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "WARNING: I could not find the modem device: '/dev/$MODEM'" >> /tmp/txtTEMP$$
+-echo "cua0 = com1 cua1 = com2 cua2 = com3  cua3 = com4" >> /tmp/txtTEMP$$
+-echo "# MAKEDEV $MODEM   # /dev/MAKEDEV $MODEM" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "WARNING: I could not find the modem device: '/dev/$MODEM'" >> $TMP/txtTEMP$$
++echo "ttyS0 = com1 ttyS1 = com2 ttyS2 = com3  ttyS3 = com4" >> $TMP/txtTEMP$$
++echo "# MAKEDEV $MODEM   # /dev/MAKEDEV $MODEM" >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$DOMAINNAME" = "unknown.com" ] && [ "$PAP" = "MS-CHAP-80" ]; then        
+-echo >> /tmp/txtTEMP$$
+-echo "The remotename option is required for microsoft's ms-chap-80." >> /tmp/txtTEMP$$
+-echo "You didn't give a DOMAIN NAME so i put unknown.com, you should" >> /tmp/txtTEMP$$
+-echo "change that to your service providers domain name." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "The remotename option is required for microsoft's ms-chap-80." >> $TMP/txtTEMP$$
++echo "You didn't give a DOMAIN NAME so i put unknown.com, you should" >> $TMP/txtTEMP$$
++echo "change that to your service providers domain name." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ ! "$MODERROR" = "YES" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "I created the symbolic link: /dev/modem -> /dev/$MODEM" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "I created the symbolic link: /dev/modem -> /dev/$MODEM" >> $TMP/txtTEMP$$
+ fi
+ 
+-echo >> /tmp/txtTEMP$$
+-echo "# This is your /etc/ppp/options.demand dialing file." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-cat /etc/ppp/options.demand >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "If you have a ethernet connection you should change the local:remote" >> /tmp/txtTEMP$$
+-echo "IP addresses in the options.demand file, to your actual local and" >> /tmp/txtTEMP$$
+-echo "remote address.  Example: 215.346.117.89:312.217.187.96" >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "# This in your /etc/resolv.conf file." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-cat /etc/resolv.conf >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "# This is your /etc/ppp/options.demand dialing file." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++cat /etc/ppp/options.demand >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "If you have a ethernet connection you should change the local:remote" >> $TMP/txtTEMP$$
++echo "IP addresses in the options.demand file, to your actual local and" >> $TMP/txtTEMP$$
++echo "remote address.  Example: 215.346.117.89:312.217.187.96" >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "# This in your /etc/resolv.conf file." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++cat /etc/resolv.conf >> $TMP/txtTEMP$$
+ 
+-echo >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
+ if [ -z $DNSIP ]; then
+-echo "207.132.116.5   <-IMPORTANT: This should be the IP address of" >> /tmp/txtTEMP$$
+-echo "                             your service providers nameserver." >> /tmp/txtTEMP$$
++echo "207.132.116.5   <-IMPORTANT: This should be the IP address of" >> $TMP/txtTEMP$$
++echo "                             your service providers nameserver." >> $TMP/txtTEMP$$
+ else
+-echo "$DNSIP   <-IMPORTANT: This should be the IP address of" >> /tmp/txtTEMP$$
+-echo "                    your service providers nameserver." >> /tmp/txtTEMP$$
++echo "$DNSIP   <-IMPORTANT: This should be the IP address of" >> $TMP/txtTEMP$$
++echo "                    your service providers nameserver." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ -z $DNSIP ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "WARNING: You didn't give a IP address for your internet service" >> /tmp/txtTEMP$$
+-echo "providers nameserver, i put '207.132.116.5' but this may not work." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "WARNING: You didn't give a IP address for your internet service" >> $TMP/txtTEMP$$
++echo "providers nameserver, i put '207.132.116.5' but this may not work." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$PAP" = "CHAP" ] || [ "$PAP" = "MS-CHAP-80" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "# This is your /etc/ppp/chap-secrets file." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Look at /etc/ppp/chap-secrets." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "# This is your /etc/ppp/chap-secrets file." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Look at /etc/ppp/chap-secrets." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$DOMAINNAME" = "unknown.com" ] && [ "$PAP" = "MS-CHAP-80" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "You didn't give a DOMAIN NAME that's why i put unknown.com in" >> /tmp/txtTEMP$$
+-echo "the /etc/ppp/chap-secrets file." >> /tmp/txtTEMP$$
+-echo "You should change that to your service providers domain name." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "You didn't give a DOMAIN NAME that's why i put unknown.com in" >> $TMP/txtTEMP$$
++echo "the /etc/ppp/chap-secrets file." >> $TMP/txtTEMP$$
++echo "You should change that to your service providers domain name." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$PAP" = "PAP" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "# This is your /etc/ppp/pap-secrets file." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "Look at /etc/ppp/pap-secrets." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "# This is your /etc/ppp/pap-secrets file." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Look at /etc/ppp/pap-secrets." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$PATH1" = "pppd" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "ATENTION: I couldn't find <pppd> on your system." >> /tmp/txtTEMP$$
+-echo "You need <pppd> on your system to make the PPP connection." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "ATENTION: I couldn't find <pppd> on your system." >> $TMP/txtTEMP$$
++echo "You need <pppd> on your system to make the PPP connection." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$PATH2" = "chat" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "ATENTION: I couldn't find <chat> on your system." >> /tmp/txtTEMP$$
+-echo "You need <chat> on your system to make the PPP connection." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "ATENTION: I couldn't find <chat> on your system." >> $TMP/txtTEMP$$
++echo "You need <chat> on your system to make the PPP connection." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ ! "$MSG1" = "YES" ] && [ ! "$MSG2" = "YES" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "ATENTION: I couldn't find 'PPP' in the kernel or as a module." >> /tmp/txtTEMP$$
+-echo "You'll need 'PPP' in the kernel or as a module to make a PPP connection." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "ATENTION: I couldn't find 'PPP' in the kernel or as a module." >> $TMP/txtTEMP$$
++echo "You'll need 'PPP' in the kernel or as a module to make a PPP connection." >> $TMP/txtTEMP$$
+ fi
+ 
+ if [ "$PPPRC" = "YES" ]; then
+-echo >> /tmp/txtTEMP$$
+-echo "ATENTION: I found a $HOME/.ppprc file and moved it to" >> /tmp/txtTEMP$$
+-echo ".ppprc.off, it might interfere with the PPP connection." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "ATENTION: I found a $HOME/.ppprc file and moved it to" >> $TMP/txtTEMP$$
++echo ".ppprc.off, it might interfere with the PPP connection." >> $TMP/txtTEMP$$
+ fi
+ 
+-echo >> /tmp/txtTEMP$$
+-echo "Does everything look correct? if not, run 'pppsetup' again..." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "=========================================================================" >> /tmp/txtTEMP$$
+-echo "To connect to your service provider." >> /tmp/txtTEMP$$
+-echo "=========================================================================" >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "~# ppp-go      <-Make PPP connection.)" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Does everything look correct? if not, run 'pppsetup' again..." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "=========================================================================" >> $TMP/txtTEMP$$
++echo "To connect to your service provider." >> $TMP/txtTEMP$$
++echo "=========================================================================" >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "~# ppp-go      <-Make PPP connection.)" >> $TMP/txtTEMP$$
+  
+-echo >> /tmp/txtTEMP$$
+-echo "You'll hear and see the modem dialing then once connected," >> /tmp/txtTEMP$$
+-echo "logging you in Username: or Login: and Password: etc." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "You won't see a Username or Login: and Password: prompt" >> /tmp/txtTEMP$$
+-echo "if they're using PAP or CHAP to authenticate you." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "If they use PAP or CHAP you'll just see CONNECT -- got it." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "If the connection was successful you'll see the Local IP and" >> /tmp/txtTEMP$$
+-echo "Remote IP address printed to the screen, you can press [Enter]." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "If you run ppp-go in X windows you probably won't see a Local" >> /tmp/txtTEMP$$
+-echo "and Remote IP address printed to the screen, you'll just see" >> /tmp/txtTEMP$$
+-echo "the connection process come to a end, wait a few seconds and" >> /tmp/txtTEMP$$
+-echo "press [Enter] at that point." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "If you don't connect for whatever reason e.g. Failed No" >> /tmp/txtTEMP$$ 
+-echo "Dialtone, Busy, No Carrier, Whatever, Exit, just press" >> /tmp/txtTEMP$$ 
+-echo "[Enter] at that point." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "if you have syslogd running, you can see the output messages" >> /tmp/txtTEMP$$ 
+-echo "from pppd and chat in the /var/log/messages and or debug file." >> /tmp/txtTEMP$$ 
+-
+-echo >> /tmp/txtTEMP$$
+-echo "Sample /var/log/messages file." >> /tmp/txtTEMP$$    
+-echo >> /tmp/txtTEMP$$
+-echo "`hostname 2>/dev/null` pppd[562]: Serial connection established." >> /tmp/txtTEMP$$    
+-echo "`hostname 2>/dev/null` pppd[562]: Using interface ppp0" >> /tmp/txtTEMP$$              
+-echo "`hostname 2>/dev/null` pppd[562]: Connect: ppp0 <--> /dev/modem" >> /tmp/txtTEMP$$     
+-echo "`hostname 2>/dev/null` pppd[562]: local IP address 215.87.78.18" >> /tmp/txtTEMP$$      
+-echo "`hostname 2>/dev/null` pppd[562]: remote IP address 205.94.97.35" >> /tmp/txtTEMP$$     
+-
+-echo >> /tmp/txtTEMP$$
+-echo "You don't have a successful PPP connection until you" >> /tmp/txtTEMP$$ 
+-echo "receive a local & remote IP address like above." >> /tmp/txtTEMP$$
+-
+-echo >> /tmp/txtTEMP$$
+-echo "If you have the X window system, you could connect in a Xterm." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "`hostname 2>/dev/null` # startx" >> /tmp/txtTEMP$$
+-echo "`hostname 2>/dev/null` # ppp-go" >> /tmp/txtTEMP$$
+-echo "`hostname 2>/dev/null` # netscape mosaic etc." >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "You'll hear and see the modem dialing then once connected," >> $TMP/txtTEMP$$
++echo "logging you in Username: or Login: and Password: etc." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "You won't see a Username or Login: and Password: prompt" >> $TMP/txtTEMP$$
++echo "if they're using PAP or CHAP to authenticate you." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "If they use PAP or CHAP you'll just see CONNECT -- got it." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "If the connection was successful you'll see the Local IP and" >> $TMP/txtTEMP$$
++echo "Remote IP address printed to the screen, you can press [Enter]." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "If you run ppp-go in X windows you probably won't see a Local" >> $TMP/txtTEMP$$
++echo "and Remote IP address printed to the screen, you'll just see" >> $TMP/txtTEMP$$
++echo "the connection process come to a end, wait a few seconds and" >> $TMP/txtTEMP$$
++echo "press [Enter] at that point." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "If you don't connect for whatever reason e.g. Failed No" >> $TMP/txtTEMP$$ 
++echo "Dialtone, Busy, No Carrier, Whatever, Exit, just press" >> $TMP/txtTEMP$$ 
++echo "[Enter] at that point." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "if you have syslogd running, you can see the output messages" >> $TMP/txtTEMP$$ 
++echo "from pppd and chat in the /var/log/messages and or debug file." >> $TMP/txtTEMP$$ 
++
++echo >> $TMP/txtTEMP$$
++echo "Sample /var/log/messages file." >> $TMP/txtTEMP$$    
++echo >> $TMP/txtTEMP$$
++echo "`hostname 2>/dev/null` pppd[562]: Serial connection established." >> $TMP/txtTEMP$$    
++echo "`hostname 2>/dev/null` pppd[562]: Using interface ppp0" >> $TMP/txtTEMP$$              
++echo "`hostname 2>/dev/null` pppd[562]: Connect: ppp0 <--> /dev/modem" >> $TMP/txtTEMP$$     
++echo "`hostname 2>/dev/null` pppd[562]: local IP address 215.87.78.18" >> $TMP/txtTEMP$$      
++echo "`hostname 2>/dev/null` pppd[562]: remote IP address 205.94.97.35" >> $TMP/txtTEMP$$     
++
++echo >> $TMP/txtTEMP$$
++echo "You don't have a successful PPP connection until you" >> $TMP/txtTEMP$$ 
++echo "receive a local & remote IP address like above." >> $TMP/txtTEMP$$
++
++echo >> $TMP/txtTEMP$$
++echo "If you have the X window system, you could connect in a Xterm." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "`hostname 2>/dev/null` # startx" >> $TMP/txtTEMP$$
++echo "`hostname 2>/dev/null` # ppp-go" >> $TMP/txtTEMP$$
++echo "`hostname 2>/dev/null` # netscape mosaic etc." >> $TMP/txtTEMP$$
+  
+-echo >> /tmp/txtTEMP$$
+-echo "~# ppp-off     <-To end the ppp connection.)" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "~# ppp-off     <-To end the ppp connection.)" >> $TMP/txtTEMP$$
+ 
+-echo >> /tmp/txtTEMP$$
+-echo "~# ppp-go -h   <-For help.)" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "~# ppp-go -h   <-For help.)" >> $TMP/txtTEMP$$
+ 
+-echo >> /tmp/txtTEMP$$
+-echo 'There is no support in linux for "WinModems", if you have a' >> /tmp/txtTEMP$$
+-echo "WinModem you will not be able to use it in linux." >> /tmp/txtTEMP$$ 
+-echo >> /tmp/txtTEMP$$
+-echo "There is support for plug n play modems, if you have a pnp" >> /tmp/txtTEMP$$
+-echo 'modem you may need "isapnptools" to get it recognized.' >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo 'There is no support in linux for "WinModems", if you have a' >> $TMP/txtTEMP$$
++echo "WinModem you will not be able to use it in linux." >> $TMP/txtTEMP$$ 
++echo >> $TMP/txtTEMP$$
++echo "There is support for plug n play modems, if you have a pnp" >> $TMP/txtTEMP$$
++echo 'modem you may need "isapnptools" to get it recognized.' >> $TMP/txtTEMP$$
+ 
+-echo >> /tmp/txtTEMP$$
+-echo "=========================================================================" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "=========================================================================" >> $TMP/txtTEMP$$
+ if [ -s /usr/doc/pppsetup/pppsetup-$VERSION.README ]; then
+-echo "#### Look at the /usr/doc/pppsetup/pppsetup-$VERSION.README. ####" >> /tmp/txtTEMP$$
++echo "#### Look at the /usr/doc/pppsetup/pppsetup-$VERSION.README. ####" >> $TMP/txtTEMP$$
+ fi
+-echo "#### A copy of this text can be found in: /etc/ppp/pppsetup.txt ####" >> /tmp/txtTEMP$$
+-echo "=========================================================================" >> /tmp/txtTEMP$$
++echo "#### A copy of this text can be found in: /etc/ppp/pppsetup.txt ####" >> $TMP/txtTEMP$$
++echo "=========================================================================" >> $TMP/txtTEMP$$
+ 
+-echo >> /tmp/txtTEMP$$
+-echo "Done... You can exit now..." >> /tmp/txtTEMP$$
+-echo >> /tmp/txtTEMP$$
+-echo "End..." >> /tmp/txtTEMP$$
+-echo "=========================================================================" >> /tmp/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "Done... You can exit now..." >> $TMP/txtTEMP$$
++echo >> $TMP/txtTEMP$$
++echo "End..." >> $TMP/txtTEMP$$
++echo "=========================================================================" >> $TMP/txtTEMP$$
+ 
+-dialog --title "DONE" --clear --textbox "/tmp/txtTEMP$$" 22 78	
++dialog --title "DONE" --clear --textbox "$TMP/txtTEMP$$" 22 78	
+ 	  	  
+ clear 2>/dev/null || echo
+ 
+-cat /tmp/txtTEMP$$ >> /etc/ppp/pppsetup.txt
++cat $TMP/txtTEMP$$ >> /etc/ppp/pppsetup.txt
+ chmod 600 /etc/ppp/pppsetup.txt 2>/dev/null 
+ 
+ if [ ! -s /etc/syslog.conf ]; then
+@@ -1644,7 +1688,7 @@
+ 
+ demand >> /etc/ppp/pppsetup.txt
+ other >> /etc/ppp/pppsetup.txt
+-rm -f /tmp/*TEMP* 2>/dev/null
++rm -f $TMP/*TEMP* 2>/dev/null
+ 
+ killall -9 syslogd 2>/dev/null 
+ syslogd & 2>/dev/null 
+@@ -1659,7 +1703,7 @@
+ else
+ demand >> /etc/ppp/pppsetup.txt
+ other >> /etc/ppp/pppsetup.txt
+-rm -f /tmp/*TEMP* 2>/dev/null
++rm -f $TMP/*TEMP* 2>/dev/null
+ echo
+ echo "#### A copy of this text can be found in: /etc/ppp/pppsetup.txt ####" 
+ if [ -s /usr/doc/pppsetup/pppsetup-$VERSION.README ]; then

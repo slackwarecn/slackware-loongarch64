@@ -1,0 +1,158 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+PKGNAM=a2ps
+PKGNAM2=psutils
+VERSION=${VERSION:-4.14}
+A2PS=${A2PS:-4.14}
+PSUTILS=${PSUTILS:-1.17}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-4}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-${PKGNAM}
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+# First, build and install psutils:
+cd $TMP
+tar xvf $CWD/$PKGNAM2-${PSUTILS}.tar.gz || exit 1
+cd $PKGNAM2
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+zcat $CWD/psutils.diff.gz | patch -p1 --verbose -E --backup --suffix=.orig || exit 1
+zcat $CWD/psutils.destdir.diff.gz | patch -p1 --verbose -E --backup --suffix=.orig || exit 1
+
+# Build and install:
+make -f Makefile.unix || exit 1
+make -f Makefile.unix install DESTDIR=$PKG || exit 1
+
+# Add a documentation directory for psutils:
+mkdir -p $PKG/usr/doc/$PKGNAM2-$PSUTILS
+cp -a \
+  LICENSE README \
+  $PKG/usr/doc/$PKGNAM2-$PSUTILS
+
+# Build, install and delete temporary psutils package for a2ps
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM2-${PSUTILS}-$ARCH-$BUILD.txz || exit 1
+echo "Installing temporary $PKGNAM2 package (this will be removed when the SlackBuild finishes)"
+/sbin/installpkg $TMP/$PKGNAM2-${PSUTILS}-$ARCH-$BUILD.txz || exit 1
+rm $TMP/$PKGNAM2-${PSUTILS}-$ARCH-$BUILD.txz || exit 1
+
+# Then, build a2ps:
+cd $TMP
+tar xvf $CWD/$PKGNAM-$VERSION.tar.bz2 || exit 1
+cd $PKGNAM-$A2PS
+
+zcat $CWD/a2ps.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/a2ps.a2ps_cfg.in.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Configure needs lispdir in case emacs is not installed at this moment:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+lispdir="/usr/share/emacs/site-lisp" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --infodir=/usr/info \
+  --mandir=/usr/man \
+  --sysconfdir=/etc \
+  --with-medium=letter \
+  $ARCH-slackware-linux
+
+# Build and install:
+make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Remove temporary psutils package:
+echo "Removing temporary psutils package"
+/sbin/removepkg $PKGNAM2-${PSUTILS}-$ARCH-$BUILD || exit 1
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/a2ps-$VERSION
+cp -a ABOUT-NLS ANNOUNCE AUTHORS COPYING ChangeLog \
+  FAQ INSTALL NEWS README THANKS TODO \
+  $PKG/usr/doc/a2ps-$VERSION
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+

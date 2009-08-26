@@ -1,0 +1,192 @@
+#!/bin/sh
+
+# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+PKGNAM=pidgin
+VERSION=${VERSION:-2.5.9}
+PIDGINENC=${PIDGINENC:-3.0}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-${PKGNAM}
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "arm" ]; then
+  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "armel" ]; then
+  SLKCFLAGS="-O2 -march=armv4t"
+  LIBDIRSUFFIX=""
+fi
+
+cd $TMP
+rm -rf ${PKGNAM}-${VERSION}
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+cd ${PKGNAM}-$VERSION || exit 1
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Allow certificates signed with rsa-md5:
+zcat $CWD/purple-allow-sign-rsa-md5.patch.gz | patch -p0 --verbose || exit 1
+
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --mandir=/usr/man \
+  --enable-dot=no \
+  --disable-schemas-install \
+  --enable-dbus \
+  --enable-gnutls=yes \
+  --enable-nss=no \
+  --enable-gtkspell \
+  --enable-cyrus-sasl \
+  --with-perl-lib=vendor \
+  --disable-meanwhile \
+  --disable-avahi \
+  --disable-nm \
+  --program-prefix= \
+  --program-suffix= \
+  --build=$ARCH-slackware-linux
+
+# Build and install:
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Fix misplaced items:
+eval $(perl '-V:archlib')
+eval $(perl '-V:privlib')
+VENDORPERL="$(echo $archlib | sed -e "s/perl5/perl5\/vendor_perl/")"
+
+find $PKG -type f -name perllocal.pod -exec mv {} $PKG/$VENDORPERL/Pidgin.pod \;
+mkdir -p $PKG/usr/man/man3
+find $PKG/usr/share/man -type f -name *.3 -exec mv {} $PKG/usr/man/man3 \;
+rm -rf $PKG/usr/share/man
+rm -r $PKG$privlib
+
+# This removes our DESTDIR from the packlist filenames, to keep perl's
+# internal inventories consistent and correct.
+find $PKG -name .packlist | while read plist ; do
+  sed -e "s%/share/man%/man%g" \
+      -e "s%$PKG%%g" \
+      -e "s%\.1$%\.1\.gz%g" \
+      -e "s%\.2$%\.2\.gz%g" \
+      -e "s%\.3$%\.3\.gz%g" \
+      -e "s%\.3pm$%\.3pm\.gz%g" \
+      -e "s%\.4$%\.4\.gz%g" \
+      -e "s%\.5$%\.5\.gz%g" \
+      -e "s%\.6$%\.6\.gz%g" \
+      -e "s%\.7$%\.7\.gz%g" \
+      -e "s%\.8$%\.8\.gz%g" \
+      ${plist} > ${plist}.new
+      mv -f ${plist}.new ${plist}
+done
+
+### add gaim-encryption
+( cd $TMP
+  rm -rf pidgin-encryption-$PIDGINENC
+  tar xvf $CWD/pidgin-encryption-$PIDGINENC.tar.gz || exit 1
+  cd pidgin-encryption-$PIDGINENC
+  PIDGIN_CFLAGS="-I${PKG}/usr/include/pidgin" \
+  PIDGIN_LIBS="-L${PKG}/usr/lib${LIBDIRSUFFIX}" \
+  PURPLE_CFLAGS="-I${PKG}/usr/include/libpurple" \
+  PURPLE_LIBS="-L${PKG}/usr/lib${LIBDIRSUFFIX}" \
+  ./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --disable-static \
+  --with-nss-includes=/usr/include/seamonkey/nss \
+  --with-nspr-includes=/usr/include/seamonkey/nspr \
+  --with-nss-libs=/usr/lib${LIBDIRSUFFIX}/seamonkey/ \
+  --with-nspr-libs=/usr/lib${LIBDIRSUFFIX}/seamonkey/ \
+  --program-prefix="" \
+  --program-suffix="" \
+  --build=$ARCH-slackware-linux
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+) || exit 1
+### end add gaim-encryption
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.*
+      )
+    done
+  )
+fi
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  AUTHORS COPYING COPYRIGHT HACKING INSTALL NEWS PLUGIN_HOWTO README* doc \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+( cd $PKG/usr/doc/${PKGNAM}-$VERSION/doc
+  rm -f Makefile* *.dox *.1 *.in
+)
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
+

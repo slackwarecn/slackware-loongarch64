@@ -1,0 +1,100 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=${VERSION:-3.2.2}
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-apmd
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf apmd-$VERSION
+tar xvf $CWD/apmd-$VERSION.tar.bz2 || exit 1
+cd apmd-$VERSION
+
+if [ "$ARCH" = "x86_64" ]; then
+  sed -i -e "s#/lib#/lib64#" Makefile
+fi
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+CFLAGS="$SLKCFLAGS" make $NUMJOBS || exit 1
+CFLAGS="$SLKCFLAGS" make install DESTDIR=$PKG
+
+( cd xbattery
+  cp ../.libs/libapm.a ..
+  xmkmf
+  make -j3 
+)
+
+mkdir -p $PKG/usr/bin
+cat xapm > $PKG/usr/bin/xapm
+cat xbattery/xbattery > $PKG/usr/bin/xbattery
+chmod 755 $PKG/usr/bin/{xapm,xbattery}
+
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+mkdir -p $PKG/usr/man/man1
+cat xbattery/xbattery.man | gzip -9c > $PKG/usr/man/man1/xbattery.1.gz
+for page in apm.1 apmsleep.1 on_ac_power.1 xapm.1 ; do
+  cat $page | gzip -9c > $PKG/usr/man/man1/${page}.gz
+done
+mkdir -p $PKG/usr/man/man8
+cat apmd.8 | gzip -9c > $PKG/usr/man/man8/apmd.8.gz
+mkdir -p $PKG/usr/man/fr/man1
+cat apmsleep.fr.1 | gzip -9c > $PKG/usr/man/fr/man1/apmsleep.1.gz
+
+mkdir -p $PKG/usr/doc/apmd-$VERSION
+cp -a \
+  AUTHORS COPYING LSM README apmlib.COPYING apmsleep.README \
+  $PKG/usr/doc/apmd-$VERSION
+cp -a xbattery/README $PKG/usr/doc/apmd-$VERSION/README.xbattery
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -c n -l y $TMP/apmd-$VERSION-$ARCH-$BUILD.txz
+

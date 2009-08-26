@@ -1,0 +1,19 @@
+#!/bin/bash
+# register every passkey found in $PASSKEYS_DIR
+
+PASSKEYS_DIR="/etc/bluetooth/passkeys/"
+PASSKEY_AGENT="/usr/lib/bluetooth/add-passkey"
+
+cd $PASSKEYS_DIR
+
+for f in $(ls -1 ${PASSKEYS_DIR}); do
+    if [ ! -r "$f" ]; then continue; fi
+
+    # default passkey
+    if [ "$f" == "default" ]; then
+        cat "$f" | $PASSKEY_AGENT --default > /dev/null 2>&1 &
+    # specific passkey
+    elif echo "$f" | egrep -q '([0-9a-fA-F]{1,2}:){5}[0-9a-fA-F]{1,2}'; then
+        cat "$f" | $PASSKEY_AGENT "$f" > /dev/null 2>&1 &
+    fi
+done

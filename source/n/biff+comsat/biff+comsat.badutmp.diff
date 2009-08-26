@@ -1,0 +1,43 @@
+--- ./comsat/comsat.c.orig	2004-06-21 13:50:09.000000000 -0700
++++ ./comsat/comsat.c	2004-06-21 13:50:52.000000000 -0700
+@@ -69,6 +69,8 @@
+ static int debug = 0;
+ #define	dsyslog	if (debug) syslog
+ 
++
++
+ #define MAXIDLE	120
+ 
+ static char hostname[MAXHOSTNAMELEN];
+@@ -331,6 +333,7 @@
+ 	char line[sizeof(utp->ut_line) + 1];   /* tty name */
+ 	const char *cr;                        /* line delimiter */
+ 	sigset_t sigset;                       /* scratch signal mask */
++	struct passwd *pwbuf;		       /* passwd information buffer */
+ 
+ #ifdef USER_PROCESS
+ 	if (utp->ut_type != USER_PROCESS) {
+@@ -371,6 +374,23 @@
+ 		dsyslog(LOG_DEBUG, "%s: wrong mode on %s", name, tty);
+ 		return;
+ 	}
++	/*
++	 * Ensure the tty is owned by the uid of 'name' to prevent old
++	 * unremoved utmp records referring to user 'x' leading to
++	 * biffage of user 'x''s email to user 'y' where user 'y' is
++	 * logged onto the same terminal that user 'x' previously
++	 * used. T.Crane, 8th June 2004.
++	 */
++		if ((pwbuf=getpwnam(name))==NULL) {
++	  syslog(LOG_ERR, "get pwname(%s) failed", name);
++	  exit(1);
++	 }
++	if (pwbuf->pw_uid != stb.st_uid) {
++ 	 dsyslog(LOG_DEBUG, "Warning: tty uid %d != uid %d for %s on %s\n", 
++		stb.st_uid, pwbuf->pw_uid, name, tty);
++	 return;
++	 }
++
+ 	dsyslog(LOG_DEBUG, "notify %s on %s\n", name, tty);
+ 
+ 	/*

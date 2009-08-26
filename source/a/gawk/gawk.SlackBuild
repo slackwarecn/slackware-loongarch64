@@ -1,0 +1,99 @@
+#!/bin/sh
+
+# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=3.1.6
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-gawk
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+elif [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf gawk-$VERSION
+tar xjvf $CWD/gawk-$VERSION.tar.bz2
+cd gawk-$VERSION
+
+chown -R root:root .
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  $ARCH-slackware-linux
+
+make -j3 || exit 1
+make install DESTDIR=$PKG || exit 1
+
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+( cd $PKG/usr/bin
+  ln -sf gawk-$VERSION gawk
+  ln -sf pgawk-$VERSION pgawk
+)
+mkdir -p $PKG/bin
+mv $PKG/usr/bin/gawk* $PKG/bin
+mv $PKG/usr/bin/awk $PKG/bin
+( cd $PKG/usr/bin
+  ln -sf ../../bin/awk .
+  ln -sf ../../bin/gawk .
+  ln -sf ../../bin/gawk-$VERSION .
+)
+( cd $PKG/usr/info
+  rm dir
+  gzip -9 *
+)
+( cd $PKG/usr/man/man1
+  rm -f pgawk.1
+  gzip -9 *
+  ln -sf gawk.1.gz awk.1.gz
+  ln -sf gawk.1.gz pgawk.1.gz
+)
+mkdir -p $PKG/usr/doc/gawk-$VERSION
+cp -a \
+  ABOUT-NLS AUTHORS COPYING FUTURES INSTALL LIMITATIONS NEWS POSIX.STD \
+  PROBLEMS README README_d \
+  $PKG/usr/doc/gawk-$VERSION
+find $PKG/usr/doc/gawk-$VERSION -type d -exec chmod 755 {} \;
+find $PKG/usr/doc/gawk-$VERSION -type f -exec chmod 644 {} \;
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/gawk-$VERSION-$ARCH-$BUILD.txz
+

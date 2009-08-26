@@ -1,0 +1,117 @@
+--- main.c
++++ main.c	2006-07-31 17:56:25.000000000 +0200
+@@ -62,6 +62,7 @@
+ #ifdef I18N
+ #include <X11/keysym.h>
+ #include <locale.h>
++#include <langinfo.h>
+ #endif  /* I18N */
+ 
+ /* EXPORTS */
+@@ -709,11 +710,6 @@ main(argc, argv)
+ 	}
+     }
+ 
+-#ifdef I18N
+-    setlocale(LC_ALL, "");
+-    XtSetLanguageProc(NULL, NULL, NULL);
+-#endif  /* I18N */
+-
+     /*
+      * save the command line arguments
+      */
+@@ -807,6 +803,10 @@ main(argc, argv)
+     }
+ 
+ #ifdef I18N
++    if (NULL == strcasestr(nl_langinfo(CODESET),"ANSI") &&
++	 NULL == strcasestr(nl_langinfo(CODESET),"ISO-8859-1"))
++	appres.international = True;
++
+     /************************************************************/
+     /* if the international option has been set, set the locale */
+     /************************************************************/
+@@ -1523,6 +1523,11 @@ setup_visual(argc_p, argv, args)
+ 	 */
+ 	tool = XtAppInitialize (&tool_app, "Fig", options, XtNumber (options), argc_p, argv,
+ 			       (String *) NULL, args, 0);
++#ifdef I18N
++	setlocale(LC_ALL, "");
++	setlocale(LC_NUMERIC, "C");
++	XtSetLanguageProc(tool_app, NULL, NULL);
++#endif  /* I18N */
+ 	/* save important info */
+ 	tool_d = XtDisplay(tool);
+ 	tool_s = XtScreen(tool);
+--- u_print.c
++++ u_print.c	2006-11-16 12:45:46.000000000 +0000
+@@ -15,6 +15,7 @@
+  *
+  */
+ 
++#include <locale.h>
+ #include "fig.h"
+ #include "resources.h"
+ #include "mode.h"
+@@ -75,6 +76,7 @@ char *shell_protect_string(string)
+     return(buf);
+ }
+ 
++void
+ print_to_printer(printer, backgrnd, mag, print_all_layers, grid, params)
+     char	    printer[];
+     char	   *backgrnd;
+@@ -111,6 +113,8 @@ print_to_printer(printer, backgrnd, mag,
+ 	name = shell_protect_string(cur_filename);
+ 
+ #ifdef I18N
++    /* set the numeric locale to C so we set decimal points for numbers */
++    setlocale(LC_NUMERIC, "C");
+     sprintf(tmpcmd, "%s %s -L ps -z %s -m %f %s -n %s",
+ 	    fig2dev_cmd, appres.international ? appres.fig2dev_localize_option : "",
+ #else
+@@ -119,6 +123,10 @@ print_to_printer(printer, backgrnd, mag,
+ #endif /* I18N */
+ 	    paper_sizes[appres.papersize].sname, mag/100.0,
+ 	    appres.landscape ? "-l xxx" : "-p xxx", name);
++#ifdef I18N
++    /* reset to original locale */
++    setlocale(LC_NUMERIC, "");
++#endif /* I18N */
+ 
+     if (appres.correct_font_size)
+ 	strcat(tmpcmd," -F ");
+@@ -223,9 +231,13 @@ print_to_file(file, lang, mag, xoff, yof
+ 
+     /* start with the command, language and internationalization, if applicable */
+ #ifdef I18N
++    /* set the numeric locale to C so we set decimal points for numbers */
++    setlocale(LC_NUMERIC, "C");
+     sprintf(prcmd, "%s %s -L %s -m %f ", 
+ 		fig2dev_cmd, appres.international ? appres.fig2dev_localize_option : "",
+ 		real_lang, mag/100.0);
++    /* reset to original locale */
++    setlocale(LC_NUMERIC, "");
+ #else
+     sprintf(prcmd, "%s -L %s -m %f ", fig2dev_cmd, real_lang, mag/100.0);
+ #endif  /* I18N */
+@@ -324,6 +336,8 @@ print_to_file(file, lang, mag, xoff, yof
+ 	strcat(tmp_name,"_t");
+ 	/* make it automatically input the postscript/pdf part (-p option) */
+ #ifdef I18N
++	/* set the numeric locale to C so we set decimal points for numbers */
++	setlocale(LC_NUMERIC, "C");
+ 	sprintf(prcmd, "%s %s -L %s -E %d -p %s -m %f ",
+ 		fig2dev_cmd, appres.international ? appres.fig2dev_localize_option : "",
+ #else
+@@ -332,6 +346,10 @@ print_to_file(file, lang, mag, xoff, yof
+ #endif  /* I18N */
+ 		!strcmp(lang,"pstex")? "pstex_t": "pdftex_t",
+ 		appres.encoding, outfile, mag/100.0);
++#ifdef I18N
++	/* reset to original locale */
++	setlocale(LC_NUMERIC, "");
++#endif  /* I18N */
+ 	/* add the -D +list if user doesn't want all layers printed */
+ 	if (!print_all_layers)
+ 	    strcat(prcmd, layers);

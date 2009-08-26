@@ -1,0 +1,2745 @@
+Installation Instructions:
+
+This patch will update XV 3.10 to 3.10a.
+
+Copy this file into the top-level XV source directory, and apply it using:
+   patch -p0 <xv-3.10a.patch
+
+Then do a 'make clean', followed by a 'make' (or 'make install').
+
+Note:  if you don't have a copy of the 'patch' utility, you can get one
+       via anonymous ftp on ftp.cis.upenn.edu, in pub/xv.  Of course,
+       once you're there, it may be easier to just pick up the latest copy
+       of the XV distribution, rather than try to patch your existing copy,
+       but hey, that's up to you...
+
+
+
+diff -c -r ../xv-3.10/CHANGELOG ./CHANGELOG
+*** ../xv-3.10/CHANGELOG	Thu Dec 22 14:18:39 1994
+--- ./CHANGELOG	Mon Jan 23 18:21:55 1995
+***************
+*** 1,12 ****
+  Revision History
+  ----------------
+  
+! Make_xv.com in vms directory wouldn't build xvxpm.c or xvfits.c (and thus, XV!)
+! 				(Rick Dyson  (dyson@sunfish.Physics.UIowa.Edu))
+  
+  
+! XV 3.10 Public Release  12/21/94
+! -------------------------
+  Bug Fix:  Greyscale downsampling bug in JPEG code fixed.
+  				(Tom Lane  (tgl@sss.pgh.pa.us))
+  
+--- 1,84 ----
+  Revision History
+  ----------------
+  
+! XV 3.10a bug-fix release  12/29/94
+! ----------------------------------
+! Bug Fix:  Problems loading JPEG files in 8-bit mode on some systems.
+! 				(Rick Richardson (rick@digibd.com))
+! 				(Chad R. Larson  (chad@anasazi.com))
+  
++ Bug Fix:  Added '-pkludge' command line option and 'popupKludge' boolean 
++ 	resource.  If true, selects the 'old-style' pop-up window positioning
++ 	code.  The various popup windows should appear with the Ok button
++ 	(or whatever) centered around the cursor.  If the windows routinely
++ 	pop up slightly off-center from the cursor, try turning this on.
+  
+! Bug Fix:  '3' and 'Q' characters in the Text Annotation character set were
+! 	boogered up...		(Sidik Isani (si@acpub.duke.edu))
+! 
+! Bug Fix:  '-iconic' option wasn't working.
+! 				(David Pesetsky  (iedsp@agt.gmeds.com))
+! 
+! Bug Fix:  Didn't properly read greyscale RLE files.
+! 				(Robert Cunningham  (rkc@xn.ll.mit.edu))
+! 
+! Bug Fix:  'AutoCrop' on 24-bit images could produce 0x0 images.  A problem!
+! 				(Leon Shaner  (leon@mtu.edu))
+! 
+! Bug Fix:  GIF reader would blow up if there were multiple comments.
+! 				(Markus Gyger  (mgyger@itr.ch))
+! 
+! Bug Fix:  Behavior under virtual window managers may be improved.
+! 				(steveg@pa.dec.com)
+! 
+! Enhancement:  Text in 'temperature gauge' (during slow operations) is now
+! 	XOR'd on, so it isn't obscured by the filled area of the gauge.
+! 				(Jerry Whelan  (jerryw@bnl.gov))
+! 
+! Enhancement:  man page for vdcomp written
+! 				(James Ralston Crawford  (qralston+@pitt.edu))
+! 
+! Enhancement:  PCX code can now read 24-bit PCX files.
+! 				(Dave Cohrs  (cohrs@legato.com))
+! 
+! Portability:  Patch for Linux	(David Hankins  (dhankins@oz.net))
+! 
+! Portability:  Patches for ISC 4.0 Interactive/SunSoft Unix
+! 				(Jack Bailey  (jjb@jagware.bcc.com))
+! 
+! Portability:  Compiler noise (from Sun's Professional C compiler) cleaned up.
+! 				(John Fritz  (jfritz@bpo-ess.ceco.com))
+! 
+! Portability:  Many nits picked by Pyramid compiler
+! 				(Chad R. Larson  (chad@anasazi.com))
+! 
+! Portability:  Some malloc's in xvfits.c needed casting.
+! 				(Bill Silvert  (sysop@biome.bio.ns.ca))
+! 
+! Portability:  Further VMS problems solved.
+! 				(Rick Dyson (dyson@sunfish.physics.uiowa.edu))
+! 
+! Portability:  select() on HP-UX 9.x expects (int *) instead of (fd_set *)
+! 				(Richard Allen  (ra@os.is))
+! 
+! Portability:  Removed 'const' from second parameter in decl. for decode_run()
+! 	in tif_fax3.c.		(Glenn Spargo  (gspargo@ctron.com))
+! 
+! Portability:  Added 'fcntl.h' to xv.h, as some systems may not have O_RDONLY
+! 	declared elsewhere.	(Mitchell Blank  (blankm@cae.wisc.edu))
+! 
+! Portability:  Font selection strings in xv.c didn't have enough '*'s in them.
+! 	Would fail on some X servers.
+! 				(Rick Richardson  (rick@digibd.com))
+! 
+! Second XV 3.10 Public Release  12/22/94
+! ----------------------------------------
+! Bug Fix:  Make_xv.com in vms directory wouldn't build xvxpm.c or xvfits.c 
+! 	(and thus, XV!)		(Rick Dyson  (dyson@sunfish.Physics.UIowa.Edu))
+! 
+! 
+! Initial XV 3.10 Public Release  12/21/94
+! ----------------------------------------
+  Bug Fix:  Greyscale downsampling bug in JPEG code fixed.
+  				(Tom Lane  (tgl@sss.pgh.pa.us))
+  
+diff -c -r ../xv-3.10/Imakefile ./Imakefile
+*** ../xv-3.10/Imakefile	Thu Dec 22 14:12:21 1994
+--- ./Imakefile	Fri Jan 13 15:24:01 1995
+***************
+*** 264,269 ****
+--- 264,270 ----
+  InstallManPageLong(docs/bggen,$(MANDIR),bggen)
+  InstallManPageLong(docs/xcmap,$(MANDIR),xcmap)
+  InstallManPageLong(docs/xvp2p,$(MANDIR),xvpictoppm)
++ InstallManPageLong(docs/vdcomp,$(MANDIR),vdcomp)
+  
+  tar:
+  	tar cf xv.tar Makefile* Imakefile *.c *.h bits docs \
+
+diff -c -r ../xv-3.10/Makefile ./Makefile
+*** ../xv-3.10/Makefile	Thu Jan 19 13:40:09 1995
+--- ./Makefile	Mon Jan 23 15:20:54 1995
+***************
+*** 92,99 ****
+--- 92,110 ----
+  #MCHN= -Dhpux -D_HPUX_SOURCE
+  # To use old HP compilers (HPUX 7.0 or so), you may need
+  #MCHN= -Dhpux -D_HPUX_SOURCE +Ns4000
++ #
++ # also, if you're using HP's compiler, add '-Aa' to whichever of those
++ # two lines you're using, to turn on ANSI C mode.  Or so I'm told.
++ #
++ # note:  You may need to add '-I/usr/include/X11R5' (or R6, or whatever)
++ # to whichever of those lines you used, as HP tends to store their X11
++ # include files in a non-standard place...
+  
+  
++ ### for LINUX, uncomment the following line
++ #MCHN = -DLINUX
++ 
++ 
+  # For SCO 1.1 (UNIX 3.2v2) machines, uncomment the following:
+  #MCHN = -Dsco -DPOSIX
+  #
+***************
+*** 111,120 ****
+  #
+  #MCHN = -q extensions=pcc_c -D__UMAXV__ -L/usr2/usr/lib/X11 -DSVR4
+  
+! # For Interactive Unix System machines 
+! # you'll want to modify add the following options to the end of the 
+! # LIBS definition (below) (or so I'm told)
+! #     -lnsl_s -linet -lgen
+  
+  
+  #----------'Roll Your Own' Options----------
+--- 122,129 ----
+  #
+  #MCHN = -q extensions=pcc_c -D__UMAXV__ -L/usr2/usr/lib/X11 -DSVR4
+  
+! # For Interactive/SunSoft Unix ISC 4.0  (whatever *that* is!)
+! #MCHN = -DSVR4 -DBSDTYPES
+  
+  
+  #----------'Roll Your Own' Options----------
+***************
+*** 233,238 ****
+--- 242,248 ----
+  	cp docs/bggen.man  $(MANDIR)/bggen.$(MANSUF)
+  	cp docs/xcmap.man  $(MANDIR)/xcmap.$(MANSUF)
+  	cp docs/xvp2p.man  $(MANDIR)/xvpictoppm.$(MANSUF)
++ 	cp docs/vdcomp.man $(MANDIR)/vdcomp.$(MANSUF)
+  	cp docs/xvdocs.ps* $(LIBDIR)
+  
+  tar:
+
+diff -c -r ../xv-3.10/Makefile.std ./Makefile.std
+*** ../xv-3.10/Makefile.std	Thu Dec 22 14:12:21 1994
+--- ./Makefile.std	Mon Jan 23 20:06:26 1995
+***************
+*** 92,99 ****
+--- 92,110 ----
+  #MCHN= -Dhpux -D_HPUX_SOURCE
+  # To use old HP compilers (HPUX 7.0 or so), you may need
+  #MCHN= -Dhpux -D_HPUX_SOURCE +Ns4000
++ #
++ # also, if you're using HP's compiler, add '-Aa' to whichever of those
++ # two lines you're using, to turn on ANSI C mode.  Or so I'm told.
++ #
++ # note:  You may need to add '-I/usr/include/X11R5' (or R6, or whatever)
++ # to whichever of those lines you used, as HP tends to store their X11
++ # include files in a non-standard place...
+  
+  
++ ### for LINUX, uncomment the following line
++ #MCHN = -DLINUX
++ 
++ 
+  # For SCO 1.1 (UNIX 3.2v2) machines, uncomment the following:
+  #MCHN = -Dsco -DPOSIX
+  #
+***************
+*** 111,120 ****
+  #
+  #MCHN = -q extensions=pcc_c -D__UMAXV__ -L/usr2/usr/lib/X11 -DSVR4
+  
+! # For Interactive Unix System machines 
+! # you'll want to modify add the following options to the end of the 
+! # LIBS definition (below) (or so I'm told)
+! #     -lnsl_s -linet -lgen
+  
+  
+  #----------'Roll Your Own' Options----------
+--- 122,129 ----
+  #
+  #MCHN = -q extensions=pcc_c -D__UMAXV__ -L/usr2/usr/lib/X11 -DSVR4
+  
+! # For Interactive/SunSoft Unix ISC 4.0  (whatever *that* is!)
+! #MCHN = -DSVR4 -DBSDTYPES
+  
+  
+  #----------'Roll Your Own' Options----------
+***************
+*** 233,238 ****
+--- 242,248 ----
+  	cp docs/bggen.man  $(MANDIR)/bggen.$(MANSUF)
+  	cp docs/xcmap.man  $(MANDIR)/xcmap.$(MANSUF)
+  	cp docs/xvp2p.man  $(MANDIR)/xvpictoppm.$(MANSUF)
++ 	cp docs/vdcomp.man $(MANDIR)/vdcomp.$(MANSUF)
+  	cp docs/xvdocs.ps* $(LIBDIR)
+  
+  tar:
+
+diff -c -r ../xv-3.10/xcmap.c ./xcmap.c
+*** ../xv-3.10/xcmap.c	Thu Dec 22 14:12:20 1994
+--- ./xcmap.c	Tue Jan 03 16:14:52 1995
+***************
+*** 102,108 ****
+        continue;
+      }
+      
+!     strind = index(argv[i], ':');		/* old-style display */
+      if(strind != NULL) {
+        display = argv[i];
+        continue;
+--- 102,108 ----
+        continue;
+      }
+      
+!     strind = (char *) index(argv[i], ':');	/* old-style display */
+      if(strind != NULL) {
+        display = argv[i];
+        continue;
+
+diff -c -r ../xv-3.10/xv.c ./xv.c
+*** ../xv-3.10/xv.c	Thu Dec 22 14:12:15 1994
+--- ./xv.c	Thu Jan 19 13:08:43 1995
+***************
+*** 25,33 ****
+  
+  
+  /* program needs one of the following fonts.  Trys them in ascending order */
+! #define FONT1 "-*-lucida-medium-r-*-*-12-*"
+! #define FONT2 "-*-helvetica-medium-r-*-*-12-*"
+! #define FONT3 "-*-helvetica-medium-r-*-*-11-*"
+  #define FONT4 "6x13"
+  #define FONT5 "fixed"
+  
+--- 25,33 ----
+  
+  
+  /* program needs one of the following fonts.  Trys them in ascending order */
+! #define FONT1 "-*-lucida-medium-r-*-*-12-*-*-*-*-*-*-*"
+! #define FONT2 "-*-helvetica-medium-r-*-*-12-*-*-*-*-*-*-*"
+! #define FONT3 "-*-helvetica-medium-r-*-*-11-*-*-*-*-*-*-*"
+  #define FONT4 "6x13"
+  #define FONT5 "fixed"
+  
+***************
+*** 218,224 ****
+    fgstr = "#000000";  bgstr = "#B2C0DC";
+    histr = "#C6D5E2";  lostr = "#8B99B5";
+  
+!   cmd = rindex(argv[0],'/');
+    if (!cmd) cmd = argv[0]; else cmd++;
+  
+    tmpstr = (char *) getenv("TMPDIR");
+--- 218,224 ----
+    fgstr = "#000000";  bgstr = "#B2C0DC";
+    histr = "#C6D5E2";  lostr = "#8B99B5";
+  
+!   cmd = (char *) rindex(argv[0],'/');
+    if (!cmd) cmd = argv[0]; else cmd++;
+  
+    tmpstr = (char *) getenv("TMPDIR");
+***************
+*** 261,267 ****
+    xorMasks[6] = 0xc4c4c4c5;
+    xorMasks[7] = 0xffffffff;
+  
+!   kludge_offx = kludge_offy = 0;
+  
+    conv24 = CONV24_SLOW;  /* use 'slow' algorithm by default */
+  
+--- 261,267 ----
+    xorMasks[6] = 0xc4c4c4c5;
+    xorMasks[7] = 0xffffffff;
+  
+!   kludge_offx = kludge_offy = winCtrPosKludge = 0;
+  
+    conv24 = CONV24_SLOW;  /* use 'slow' algorithm by default */
+  
+***************
+*** 1107,1112 ****
+--- 1107,1113 ----
+    if (rd_flag("nostat"))         nostat      = def_int;
+    if (rd_flag("ownCmap"))        owncmap     = def_int;
+    if (rd_flag("perfect"))        perfect     = def_int;
++   if (rd_flag("popupKludge"))    winCtrPosKludge = def_int;
+    if (rd_str ("print"))          strncpy(printCmd, def_str, 
+  					 (size_t) PRINTCMDLEN);
+    if (rd_flag("pscompress"))     pscomp      = def_int;
+***************
+*** 1361,1366 ****
+--- 1362,1368 ----
+      else if (!argcmp(argv[i],"-nostat",    4,1,&nostat));     /* nostat */
+      else if (!argcmp(argv[i],"-owncmap",   2,1,&owncmap));    /* own cmap */
+      else if (!argcmp(argv[i],"-perfect",   3,1,&perfect));    /* -perfect */
++     else if (!argcmp(argv[i],"-pkludge",   3,1,&winCtrPosKludge));
+      else if (!argcmp(argv[i],"-poll",      3,1,&polling));    /* chk mod? */
+  
+      else if (!argcmp(argv[i],"-preset",3,0,&pm))      /* preset */
+***************
+*** 1615,1620 ****
+--- 1617,1623 ----
+    printoption("[-/+nostat]");
+    printoption("[-/+owncmap]");
+    printoption("[-/+perfect]");
++   printoption("[-/+pkludge]");
+    printoption("[-/+poll]");
+    printoption("[-preset #]");
+    printoption("[-quick24]");
+***************
+*** 1683,1689 ****
+  
+    int i;
+  
+!   if (strlen(a1) < minlen || strlen(a2) < minlen) return 1;
+    if (strlen(a1) > strlen(a2)) return 1;
+  
+    if (strncmp(a1+1, a2+1, strlen(a1)-1)) return 1;
+--- 1686,1693 ----
+  
+    int i;
+  
+!   if ((strlen(a1) < (size_t) minlen) || (strlen(a2) < (size_t) minlen))
+!     return 1;
+    if (strlen(a1) > strlen(a2)) return 1;
+  
+    if (strncmp(a1+1, a2+1, strlen(a1)-1)) return 1;
+***************
+*** 1860,1866 ****
+  
+  
+    /* chop off trailing ".Z", ".z", or ".gz" from displayed basefname, if any */
+!   if (strlen(basefname)>2 && strcmp(basefname+strlen(basefname)-2,".Z")==0)
+      basefname[strlen(basefname)-2]='\0';
+    else {
+  #ifdef GUNZIP
+--- 1864,1871 ----
+  
+  
+    /* chop off trailing ".Z", ".z", or ".gz" from displayed basefname, if any */
+!   if (strlen(basefname) > (size_t) 2     && 
+!       strcmp(basefname+strlen(basefname)-2,".Z")==0)
+      basefname[strlen(basefname)-2]='\0';
+    else {
+  #ifdef GUNZIP
+***************
+*** 2698,2705 ****
+       to what it was.  necessary because uncompress doesn't handle files
+       that don't end with '.Z' */
+  
+!   if (strlen(name)>=2 && strcmp(name + strlen(name)-2,".Z")!=0 &&
+!                          strcmp(name + strlen(name)-2,".z")!=0) {
+      strcpy(namez, name);
+      strcat(namez,".Z");
+  
+--- 2703,2711 ----
+       to what it was.  necessary because uncompress doesn't handle files
+       that don't end with '.Z' */
+  
+!   if (strlen(name) >= (size_t) 2            && 
+!       strcmp(name + strlen(name)-2,".Z")!=0 &&
+!       strcmp(name + strlen(name)-2,".z")!=0) {
+      strcpy(namez, name);
+      strcat(namez,".Z");
+  
+***************
+*** 2890,2896 ****
+    char fullcmd[512], tmpname[64], str[512];
+    int i;
+  
+!   if (!cmd || strlen(cmd)<2) return 1;
+  
+    sprintf(tmpname,"%s/xvXXXXXX", tmpdir);
+    mktemp(tmpname);
+--- 2896,2902 ----
+    char fullcmd[512], tmpname[64], str[512];
+    int i;
+  
+!   if (!cmd || (strlen(cmd) < (size_t) 2)) return 1;
+  
+    sprintf(tmpname,"%s/xvXXXXXX", tmpdir);
+    mktemp(tmpname);
+***************
+*** 3270,3276 ****
+  
+    xwmh.icon_pixmap = iconPix;  
+    xwmh.icon_mask   = iconmask;  
+!   xwmh.flags |= ( IconPixmapHint | IconMaskHint) ;
+  
+  
+    if (startIconic && firstTime) {
+--- 3276,3282 ----
+  
+    xwmh.icon_pixmap = iconPix;  
+    xwmh.icon_mask   = iconmask;  
+!   xwmh.flags |= (IconPixmapHint | IconMaskHint);
+  
+  
+    if (startIconic && firstTime) {
+***************
+*** 3787,3793 ****
+--- 3793,3802 ----
+  		     | EnterWindowMask | LeaveWindowMask );
+  
+  	StoreDeleteWindowProp(mainW);
++ 	XFlush(theDisp);
+  	XMapWindow(theDisp,mainW);
++ 	XFlush(theDisp);
++ 	if (startIconic) sleep(2);   /* give it time to get the window up...*/
+        }
+      }
+  
+diff -c -r ../xv-3.10/xv.h ./xv.h
+*** ../xv-3.10/xv.h	Thu Dec 22 14:12:15 1994
+--- ./xv.h	Mon Jan 23 15:22:23 1995
+***************
+*** 8,15 ****
+  #include "config.h"
+  
+  
+! #define REVDATE   "Version 3.10  Rev: 12/16/94"
+! #define VERSTR    "3.10"
+  
+  /*
+   * uncomment the following, and modify for your site, but only if you've
+--- 8,15 ----
+  #include "config.h"
+  
+  
+! #define REVDATE   "Version 3.10a  Rev: 12/29/94"
+! #define VERSTR    "3.10a"
+  
+  /*
+   * uncomment the following, and modify for your site, but only if you've
+***************
+*** 62,67 ****
+--- 62,74 ----
+  #endif
+  
+  
++ #ifdef LINUX
++ #  ifndef _LINUX_LIMITS_H
++ #    include <linux/limits.h>
++ #  endif
++ #endif
++ 
++ 
+  #include <X11/Xos.h>     /* need type declarations immediately */
+  
+  /*********************************************************/
+***************
+*** 198,203 ****
+--- 205,217 ----
+  #    include <limits.h>
+  #  endif
+  
++ /*** for select() call ***/
++ #  ifdef __hpux
++ #    define XV_FDTYPE (int *)
++ #  else
++ #    define XV_FDTYPE (fd_set *)
++ #  endif
++ 
+  #endif  /* NEEDSTIME */
+  
+  
+***************
+*** 214,219 ****
+--- 228,237 ----
+  #      include <dirent.h>
+  #    endif
+  
++ #    if defined(SVR4) || defined(SYSV)
++ #      include <fcntl.h>
++ #    endif
++ 
+  #    include <sys/param.h>
+  #    include <sys/stat.h>
+  
+***************
+*** 961,966 ****
+--- 979,985 ----
+  WHERE int           ch_offx,ch_offy; /* ChngAttr ofst for reparented windows */
+  WHERE int           kludge_offx,     /* WM kludges for SetWindowPos routine */ 
+                      kludge_offy;
++ WHERE int           winCtrPosKludge; /* kludge for popup positioning... */
+  
+  WHERE int            ignoreConfigs;  /* an evil kludge... */
+  
+diff -c -r ../xv-3.10/xv24to8.c ./xv24to8.c
+*** ../xv-3.10/xv24to8.c	Thu Dec 22 14:12:15 1994
+--- ./xv24to8.c	Fri Jan 13 14:49:21 1995
+***************
+*** 374,382 ****
+  
+  #define PPM_DEPTH(newp,p,oldmaxval,newmaxval) \
+      PPM_ASSIGN( (newp), \
+! 	        (int) PPM_GETR(p) * (newmaxval) / ((int)oldmaxval), \
+! 	        (int) PPM_GETG(p) * (newmaxval) / ((int)oldmaxval), \
+! 	        (int) PPM_GETB(p) * (newmaxval) / ((int)oldmaxval) )
+  
+  
+  /* Luminance macro. */
+--- 374,382 ----
+  
+  #define PPM_DEPTH(newp,p,oldmaxval,newmaxval) \
+      PPM_ASSIGN( (newp), \
+! 	        ((int) PPM_GETR(p)) * ((int)newmaxval) / ((int)oldmaxval), \
+! 	        ((int) PPM_GETG(p)) * ((int)newmaxval) / ((int)oldmaxval), \
+! 	        ((int) PPM_GETB(p)) * ((int)newmaxval) / ((int)oldmaxval) )
+  
+  
+  /* Luminance macro. */
+
+diff -c -r ../xv-3.10/xvbrowse.c ./xvbrowse.c
+*** ../xv-3.10/xvbrowse.c	Thu Dec 22 14:12:20 1994
+--- ./xvbrowse.c	Thu Jan 19 12:49:17 1995
+***************
+*** 20,26 ****
+  #define NEEDSDIR
+  #include "xv.h"
+  
+! #ifdef VMS
+  typedef unsigned int mode_t;  /* file mode bits */
+  #endif
+  
+--- 20,26 ----
+  #define NEEDSDIR
+  #include "xv.h"
+  
+! #if defined(VMS) || defined(isc)
+  typedef unsigned int mode_t;  /* file mode bits */
+  #endif
+  
+***************
+*** 2579,2585 ****
+    int rv;
+  
+    /* temporarily excise trailing '/' char from br->path */
+!   if (strlen(br->path)>2 && br->path[strlen(br->path)-1] == '/')
+      br->path[strlen(br->path)-1] = '\0';
+  
+    rv = chdir(br->path);
+--- 2579,2585 ----
+    int rv;
+  
+    /* temporarily excise trailing '/' char from br->path */
+!   if ((strlen(br->path) > (size_t) 2) && br->path[strlen(br->path)-1] == '/')
+      br->path[strlen(br->path)-1] = '\0';
+  
+    rv = chdir(br->path);
+***************
+*** 3544,3550 ****
+    case RFT_PBM:      if (xv_strstr(pinfo.fullInfo, "raw")) strcat(str,"Raw ");
+                       else strcat(str,"Ascii ");
+      
+!                      for (i=0; i<3 && strlen(pinfo.fullInfo)>3; i++) {
+  		       str1[0] = pinfo.fullInfo[i];  str1[1] = '\0';
+  		       strcat(str, str1);
+  		     }
+--- 3544,3550 ----
+    case RFT_PBM:      if (xv_strstr(pinfo.fullInfo, "raw")) strcat(str,"Raw ");
+                       else strcat(str,"Ascii ");
+      
+!                      for (i=0; i<3 && (strlen(pinfo.fullInfo)>(size_t)3); i++){
+  		       str1[0] = pinfo.fullInfo[i];  str1[1] = '\0';
+  		       strcat(str, str1);
+  		     }
+***************
+*** 4521,4527 ****
+  
+    /* try to delete a thumbnail file, as well.  ignore errors */
+    strcpy(buf1, name);          /* tmp1 = leading path of name */
+!   tmp = rindex(buf1, '/');
+    if (!tmp) strcpy(buf1,".");
+    else *tmp = '\0';
+    
+--- 4521,4527 ----
+  
+    /* try to delete a thumbnail file, as well.  ignore errors */
+    strcpy(buf1, name);          /* tmp1 = leading path of name */
+!   tmp = (char *) rindex(buf1, '/');
+    if (!tmp) strcpy(buf1,".");
+    else *tmp = '\0';
+    
+diff -c -r ../xv-3.10/xvbutt.c ./xvbutt.c
+*** ../xv-3.10/xvbutt.c	Thu Dec 22 14:12:16 1994
+--- ./xvbutt.c	Tue Jan 03 16:19:51 1995
+***************
+*** 961,967 ****
+  
+      /* truncate at TAB, if any */
+      strcpy(stbuf, str);
+!     if ((str = index(stbuf, '\t')) != NULL) *str = '\0';
+      str = stbuf;
+  
+      x1 = CENTERX(mfinfo, x + w/2, str);
+--- 961,967 ----
+  
+      /* truncate at TAB, if any */
+      strcpy(stbuf, str);
+!     if ((str = (char *) index(stbuf, '\t')) != NULL) *str = '\0';
+      str = stbuf;
+  
+      x1 = CENTERX(mfinfo, x + w/2, str);
+***************
+*** 1073,1079 ****
+        char *sp, str[256];
+  
+        strcpy(str, mb->list[i]);
+!       sp = index(str, '\t');
+        j = StringWidth(sp+1);
+        if (j>mtabwide) mtabwide = j;
+  
+--- 1073,1079 ----
+        char *sp, str[256];
+  
+        strcpy(str, mb->list[i]);
+!       sp = (char *) index(str, '\t');
+        j = StringWidth(sp+1);
+        if (j>mtabwide) mtabwide = j;
+  
+***************
+*** 1139,1145 ****
+    for (i=0; i<mb->nlist; i++) {
+      char txtstr[256], *tabstr;
+      strcpy(txtstr, mb->list[i]);
+!     if ((tabstr = index(txtstr, '\t'))) {
+        *tabstr = '\0';  tabstr++;
+      }
+  
+--- 1139,1145 ----
+    for (i=0; i<mb->nlist; i++) {
+      char txtstr[256], *tabstr;
+      strcpy(txtstr, mb->list[i]);
+!     if ((tabstr = (char *) index(txtstr, '\t'))) {
+        *tabstr = '\0';  tabstr++;
+      }
+  
+diff -c -r ../xv-3.10/xvcolor.c ./xvcolor.c
+*** ../xv-3.10/xvcolor.c	Thu Dec 22 14:12:17 1994
+--- ./xvcolor.c	Fri Jan 06 14:29:23 1995
+***************
+*** 616,622 ****
+  	    *foo = "No r/w cells available.  Using r/o color.";
+  
+  	tmp = GetISTR(ISTR_WARNING);
+! 	if (strlen(tmp)>0) sprintf(tstr, "%s  %s", tmp, foo);
+  	else sprintf(tstr, "%s", foo);
+  	SetISTR(ISTR_WARNING,tstr);
+  
+--- 616,622 ----
+  	    *foo = "No r/w cells available.  Using r/o color.";
+  
+  	tmp = GetISTR(ISTR_WARNING);
+! 	if (strlen(tmp) > (size_t) 0) sprintf(tstr, "%s  %s", tmp, foo);
+  	else sprintf(tstr, "%s", foo);
+  	SetISTR(ISTR_WARNING,tstr);
+  
+***************
+*** 790,799 ****
+  }
+  
+  
+! void xvFreeColors(dp, cm,pixels, npixels, planes)
+       Display *dp;
+       Colormap cm;
+!      unsigned long pixels[];
+       int npixels;
+       unsigned long planes;
+  {
+--- 790,799 ----
+  }
+  
+  
+! void xvFreeColors(dp, cm, pixels, npixels, planes)
+       Display *dp;
+       Colormap cm;
+!      unsigned long *pixels;
+       int npixels;
+       unsigned long planes;
+  {
+
+diff -c -r ../xv-3.10/xvcut.c ./xvcut.c
+*** ../xv-3.10/xvcut.c	Thu Dec 22 14:12:21 1994
+--- ./xvcut.c	Fri Jan 13 14:55:48 1995
+***************
+*** 760,766 ****
+        len |= ((int) data[2])<<16;
+        len |= ((int) data[3])<<24;
+  
+!       XFree(data);
+  
+        /* read the rest of the data (len bytes) */
+        i = XGetWindowProperty(theDisp, rootW, clipAtom, 1L, 
+--- 760,766 ----
+        len |= ((int) data[2])<<16;
+        len |= ((int) data[3])<<24;
+  
+!       XFree((void *) data);
+  
+        /* read the rest of the data (len bytes) */
+        i = XGetWindowProperty(theDisp, rootW, clipAtom, 1L, 
+***************
+*** 774,780 ****
+  
+  	data1 = (byte *) malloc((size_t) len);
+  	if (!data1) {
+! 	  XFree(data);
+  	  ErrPopUp("Insufficient memory to retrieve clipboard!", "\nShucks!");
+  	  return (byte *) NULL;
+  	}
+--- 774,780 ----
+  
+  	data1 = (byte *) malloc((size_t) len);
+  	if (!data1) {
+! 	  XFree((void *) data);
+  	  ErrPopUp("Insufficient memory to retrieve clipboard!", "\nShucks!");
+  	  return (byte *) NULL;
+  	}
+***************
+*** 785,791 ****
+  	data1[3] = (len>>24) & 0xff;
+  	xvbcopy((char *) data, (char *) data1+4, (size_t) len-4);
+  
+! 	XFree(data);
+  	return data1;
+        }
+      }
+--- 785,791 ----
+  	data1[3] = (len>>24) & 0xff;
+  	xvbcopy((char *) data, (char *) data1+4, (size_t) len-4);
+  
+! 	XFree((void *) data);
+  	return data1;
+        }
+      }
+
+diff -c -r ../xv-3.10/xvdial.c ./xvdial.c
+*** ../xv-3.10/xvdial.c	Thu Dec 22 14:12:17 1994
+--- ./xvdial.c	Tue Jan 03 16:20:31 1995
+***************
+*** 358,364 ****
+  
+    if (dp->units) strcat(foo,dp->units);
+    foo1[0] = '\0';
+!   if (strlen(foo)<i) {
+      for (i = i - strlen(foo); i>0; i--) strcat(foo1," ");
+    }
+    strcat(foo1, foo);
+--- 358,364 ----
+  
+    if (dp->units) strcat(foo,dp->units);
+    foo1[0] = '\0';
+!   if (strlen(foo) < (size_t) i) {
+      for (i = i - strlen(foo); i>0; i--) strcat(foo1," ");
+    }
+    strcat(foo1, foo);
+
+diff -c -r ../xv-3.10/xvdir.c ./xvdir.c
+*** ../xv-3.10/xvdir.c	Thu Dec 22 14:12:16 1994
+--- ./xvdir.c	Tue Jan 03 16:21:39 1995
+***************
+*** 650,656 ****
+    changedDir = strcmp(path, oldpath);
+    strcpy(oldpath, path);
+  
+!   if (strlen(path)>1 && path[strlen(path)-1] != '/')
+      strcat(path,"/");   /* tack on a trailing '/' to make path consistent */
+  
+    /* path will be something like: "/u3/bradley/src/weiner/whatever/" */
+--- 650,656 ----
+    changedDir = strcmp(path, oldpath);
+    strcpy(oldpath, path);
+  
+!   if ((strlen(path) > (size_t) 1) && path[strlen(path)-1] != '/')
+      strcat(path,"/");   /* tack on a trailing '/' to make path consistent */
+  
+    /* path will be something like: "/u3/bradley/src/weiner/whatever/" */
+***************
+*** 851,857 ****
+      xvbcopy(&filename[curPos], &filename[curPos-1], (size_t) (len-curPos+1));
+      curPos--;
+  
+!     if (strlen(filename)>0) scrollToFileName();
+    }
+  
+    else if (c=='\025') {                 /* ^U: clear entire line */
+--- 851,857 ----
+      xvbcopy(&filename[curPos], &filename[curPos-1], (size_t) (len-curPos+1));
+      curPos--;
+  
+!     if (strlen(filename) > (size_t) 0) scrollToFileName();
+    }
+  
+    else if (c=='\025') {                 /* ^U: clear entire line */
+***************
+*** 1023,1029 ****
+      XDrawLine(theDisp, dnamW, theGC, 2,0,2,LINEHIGH+5);
+    }
+  
+!   if (enPos<strlen(filename)) {  /* draw a "there's more over here" doowah */
+      XDrawLine(theDisp, dnamW, theGC, DNAMWIDE+5,0,DNAMWIDE+5,LINEHIGH+5);
+      XDrawLine(theDisp, dnamW, theGC, DNAMWIDE+4,0,DNAMWIDE+4,LINEHIGH+5);
+      XDrawLine(theDisp, dnamW, theGC, DNAMWIDE+3,0,DNAMWIDE+3,LINEHIGH+5);
+--- 1023,1030 ----
+      XDrawLine(theDisp, dnamW, theGC, 2,0,2,LINEHIGH+5);
+    }
+  
+!   if ((size_t) enPos < strlen(filename)) { 
+!     /* draw a "there's more over here" doowah */
+      XDrawLine(theDisp, dnamW, theGC, DNAMWIDE+5,0,DNAMWIDE+5,LINEHIGH+5);
+      XDrawLine(theDisp, dnamW, theGC, DNAMWIDE+4,0,DNAMWIDE+4,LINEHIGH+5);
+      XDrawLine(theDisp, dnamW, theGC, DNAMWIDE+3,0,DNAMWIDE+3,LINEHIGH+5);
+***************
+*** 1538,1544 ****
+    if (*fname != '~') return 0; /* doesn't start with a tilde, don't expand */
+  
+    /* look for the first '/' after the tilde */
+!   sp = index(fname,'/');
+    if (sp == 0) {               /* no '/' after the tilde */
+      sp = fname+strlen(fname);  /* sp = end of string */
+    }
+--- 1539,1545 ----
+    if (*fname != '~') return 0; /* doesn't start with a tilde, don't expand */
+  
+    /* look for the first '/' after the tilde */
+!   sp = (char *) index(fname,'/');
+    if (sp == 0) {               /* no '/' after the tilde */
+      sp = fname+strlen(fname);  /* sp = end of string */
+    }
+
+diff -c -r ../xv-3.10/xvevent.c ./xvevent.c
+*** ../xv-3.10/xvevent.c	Thu Dec 22 14:12:17 1994
+--- ./xvevent.c	Mon Jan 23 18:20:24 1995
+***************
+*** 1407,1413 ****
+  	  okay = 0;
+  	  do {
+  	    i = GetStrPopUp(txt, labels, 2, buf, 64, "0123456789", 1);
+! 	    if (!i && strlen(buf)>0) {   /* hit 'Ok', had a string entered */
+  	      /* check for page in range */
+  	      j = atoi(buf);
+  	      if (j>=1 && j<=numPages) {
+--- 1407,1414 ----
+  	  okay = 0;
+  	  do {
+  	    i = GetStrPopUp(txt, labels, 2, buf, 64, "0123456789", 1);
+! 	    if (!i && strlen(buf) > (size_t) 0) {
+! 	      /* hit 'Ok', had a string entered */
+  	      /* check for page in range */
+  	      j = atoi(buf);
+  	      if (j>=1 && j<=numPages) {
+***************
+*** 2030,2035 ****
+--- 2031,2037 ----
+    xwc.height = xwa->height;
+  
+  
++ #ifdef BAD_IDEA
+    /* if there is a virtual window manager running, then we should translate
+       the coordinates that are in terms of 'real' screen into coordinates
+       that are in terms of the 'virtual' root window 
+***************
+*** 2043,2049 ****
+  		       xwc.x,xwc.y,x1,y1);
+      xwc.x = x1;  xwc.y = y1;
+    }
+!   
+  
+  
+    if (DEBUG) {
+--- 2045,2051 ----
+  		       xwc.x,xwc.y,x1,y1);
+      xwc.x = x1;  xwc.y = y1;
+    }
+! #endif  
+  
+  
+    if (DEBUG) {
+
+diff -c -r ../xv-3.10/xvfits.c ./xvfits.c
+*** ../xv-3.10/xvfits.c	Thu Dec 22 14:12:21 1994
+--- ./xvfits.c	Wed Dec 28 02:43:29 1994
+***************
+*** 69,75 ****
+    char  basename[64];
+  
+    if (fits_block == NULL) {
+!     fits_block = malloc((size_t) BLOCKSIZE);
+      if (!fits_block) FatalError("Insufficient memory for FITS block buffer");
+    }
+    
+--- 69,75 ----
+    char  basename[64];
+  
+    if (fits_block == NULL) {
+!     fits_block = (char *) malloc((size_t) BLOCKSIZE);
+      if (!fits_block) FatalError("Insufficient memory for FITS block buffer");
+    }
+    
+***************
+*** 170,176 ****
+    byte  rgb[256];
+    
+    if (!fits_block) {
+!     fits_block = malloc((size_t) BLOCKSIZE);
+      if (!fits_block) FatalError("Insufficient memory for FITS block buffer");
+    }
+    
+--- 170,176 ----
+    byte  rgb[256];
+    
+    if (!fits_block) {
+!     fits_block = (char *) malloc((size_t) BLOCKSIZE);
+      if (!fits_block) FatalError("Insufficient memory for FITS block buffer");
+    }
+    
+***************
+*** 498,504 ****
+        j++;                          /* make j length of comment */
+        if (j > 0) {                  /* skip blank comment cards */
+  	if (fs->comment == NULL) {
+! 	  fs->comment = malloc((size_t) commsize);
+  	  if (fs->comment == NULL)
+  	    FatalError("Insufficient memory for comment buffer");
+  	}
+--- 498,504 ----
+        j++;                          /* make j length of comment */
+        if (j > 0) {                  /* skip blank comment cards */
+  	if (fs->comment == NULL) {
+! 	  fs->comment = (char *) malloc((size_t) commsize);
+  	  if (fs->comment == NULL)
+  	    FatalError("Insufficient memory for comment buffer");
+  	}
+
+diff -c -r ../xv-3.10/xvgam.c ./xvgam.c
+*** ../xv-3.10/xvgam.c	Thu Dec 22 14:12:15 1994
+--- ./xvgam.c	Fri Jan 13 14:51:14 1995
+***************
+*** 1838,1844 ****
+        gMap[i] = gcmap[i];
+        bMap[i] = bcmap[i];
+        if (!ncols) 
+! 	cols[i] = (rMap[i] + gMap[i] + bMap[i] >= 128*3) ? white : black;
+      }
+    }
+  }
+--- 1838,1845 ----
+        gMap[i] = gcmap[i];
+        bMap[i] = bcmap[i];
+        if (!ncols) 
+! 	cols[i] = (((int)rMap[i]) + ((int)gMap[i]) + ((int)bMap[i]) >= 128*3)
+! 	  ? white : black;
+      }
+    }
+  }
+***************
+*** 1903,1909 ****
+    bMap[col] = bGraf.func[bv];
+  
+    if (!ncols) 
+!     cols[col] = (rMap[col] + gMap[col] + bMap[col] >= 128*3) ? white : black;
+  
+    if (DEBUG>1) fprintf(stderr," -> %d,%d,%d\n",rMap[col],gMap[col],bMap[col]);
+  }
+--- 1904,1912 ----
+    bMap[col] = bGraf.func[bv];
+  
+    if (!ncols) 
+!     cols[col] = 
+!       (((int)rMap[col]) + ((int)gMap[col]) + ((int)bMap[col]) >= 128*3) 
+! 	? white : black;
+  
+    if (DEBUG>1) fprintf(stderr," -> %d,%d,%d\n",rMap[col],gMap[col],bMap[col]);
+  }
+
+diff -c -r ../xv-3.10/xvgif.c ./xvgif.c
+*** ../xv-3.10/xvgif.c	Thu Dec 22 14:12:15 1994
+--- ./xvgif.c	Tue Jan 10 14:54:41 1995
+***************
+*** 254,260 ****
+  
+  
+  	if (cmtlen>0) {   /* build into one un-blocked comment */
+! 	  cmt = (byte *) malloc((size_t) cmtlen);
+  	  if (!cmt) gifWarning("couldn't malloc space for comments\n");
+  	  else {
+  	    sp = cmt;
+--- 254,260 ----
+  
+  
+  	if (cmtlen>0) {   /* build into one un-blocked comment */
+! 	  cmt = (byte *) malloc((size_t) (cmtlen + 1));
+  	  if (!cmt) gifWarning("couldn't malloc space for comments\n");
+  	  else {
+  	    sp = cmt;
+***************
+*** 262,270 ****
+  	      sbsize = (*ptr1++);
+  	      for (j=0; j<sbsize; j++, sp++, ptr1++) *sp = *ptr1;
+  	    } while (sbsize);
+  
+  	    if (pinfo->comment) {    /* have to strcat onto old comments */
+! 	      cmt1 = (byte *) malloc(strlen(pinfo->comment) + cmtlen);
+  	      if (!cmt1) {
+  		gifWarning("couldn't malloc space for comments\n");
+  		free(cmt);
+--- 262,271 ----
+  	      sbsize = (*ptr1++);
+  	      for (j=0; j<sbsize; j++, sp++, ptr1++) *sp = *ptr1;
+  	    } while (sbsize);
++ 	    *sp = '\0';
+  
+  	    if (pinfo->comment) {    /* have to strcat onto old comments */
+! 	      cmt1 = (byte *) malloc(strlen(pinfo->comment) + cmtlen + 2);
+  	      if (!cmt1) {
+  		gifWarning("couldn't malloc space for comments\n");
+  		free(cmt);
+***************
+*** 271,276 ****
+--- 272,278 ----
+  	      }
+  	      else {
+  		strcpy((char *) cmt1, (char *) pinfo->comment);
++ 		strcat((char *) cmt1, (char *) "\n");
+  		strcat((char *) cmt1, (char *) cmt);
+  		free(pinfo->comment);
+  		free(cmt);
+
+diff -c -r ../xv-3.10/xvgifwr.c ./xvgifwr.c
+*** ../xv-3.10/xvgifwr.c	Thu Dec 22 14:12:16 1994
+--- ./xvgifwr.c	Tue Jan 03 16:22:21 1995
+***************
+*** 141,147 ****
+      fprintf(stderr,"WrGIF: pic=%lx, w,h=%dx%d, numcols=%d, Bits%d,Cmap=%d\n",
+  	    (u_long) pic8, w,h,numcols,BitsPerPixel,ColorMapSize);
+  
+!   if (comment && strlen(comment)>0)
+      fwrite("GIF89a", (size_t) 1, (size_t) 6, fp);    /* the GIF magic number */
+    else
+      fwrite("GIF87a", (size_t) 1, (size_t) 6, fp);    /* the GIF magic number */
+--- 141,147 ----
+      fprintf(stderr,"WrGIF: pic=%lx, w,h=%dx%d, numcols=%d, Bits%d,Cmap=%d\n",
+  	    (u_long) pic8, w,h,numcols,BitsPerPixel,ColorMapSize);
+  
+!   if (comment && strlen(comment) > (size_t) 0)
+      fwrite("GIF89a", (size_t) 1, (size_t) 6, fp);    /* the GIF magic number */
+    else
+      fwrite("GIF87a", (size_t) 1, (size_t) 6, fp);    /* the GIF magic number */
+***************
+*** 175,181 ****
+      }
+    }
+  
+!   if (comment && strlen(comment)>0) {   /* write comment blocks */
+      char *sp;
+      int   i, blen;
+  
+--- 175,181 ----
+      }
+    }
+  
+!   if (comment && strlen(comment) > (size_t) 0) {   /* write comment blocks */
+      char *sp;
+      int   i, blen;
+  
+diff -c -r ../xv-3.10/xviff.c ./xviff.c
+*** ../xv-3.10/xviff.c	Thu Dec 22 14:12:20 1994
+--- ./xviff.c	Fri Jan 13 14:54:54 1995
+***************
+*** 463,469 ****
+      
+      if (codeByte < 0x80) {
+        codeByte++;
+!       if ((slen > codeByte) && (dlen >= codeByte)) {
+          slen -= codeByte + 1;
+          dlen -= codeByte;
+          while (codeByte > 0) {
+--- 463,469 ----
+      
+      if (codeByte < 0x80) {
+        codeByte++;
+!       if ((slen > (long) codeByte) && (dlen >= (long) codeByte)) {
+          slen -= codeByte + 1;
+          dlen -= codeByte;
+          while (codeByte > 0) {
+***************
+*** 476,482 ****
+  
+      else if (codeByte > 0x80) {
+        codeByte = 0x81 - (codeByte & 0x7f);
+!       if ((slen > 0) && (dlen >= codeByte)) {
+  	dataByte = *sptr++;
+  	slen -= 2;
+  	dlen -= codeByte;
+--- 476,482 ----
+  
+      else if (codeByte > 0x80) {
+        codeByte = 0x81 - (codeByte & 0x7f);
+!       if ((slen > (long) 0) && (dlen >= (long) codeByte)) {
+  	dataByte = *sptr++;
+  	slen -= 2;
+  	dlen -= codeByte;
+
+diff -c -r ../xv-3.10/xvimage.c ./xvimage.c
+*** ../xv-3.10/xvimage.c	Thu Dec 22 14:12:17 1994
+--- ./xvimage.c	Fri Jan 13 19:11:36 1995
+***************
+*** 675,680 ****
+--- 675,682 ----
+  # define inabsrange(a,n) ( (a) < n && (a) > -n )
+    
+  
++   if (cHIGH<3 || cWIDE<3) return 0;
++ 
+    ctop = cbot = cleft = cright = 0;
+  
+    if (picType != PIC24) FatalError("doAutoCrop24 called when pic!=PIC24");
+***************
+*** 780,787 ****
+  
+    /* do the actual cropping */
+    if (cleft || ctop || cbot || cright) {
+      DoCrop(cXOFF+cleft, cYOFF+ctop, 
+! 	    cWIDE-(cleft+cright), cHIGH-(ctop+cbot));
+      return 1;
+    }
+  
+--- 782,792 ----
+  
+    /* do the actual cropping */
+    if (cleft || ctop || cbot || cright) {
++     if (cWIDE - (cleft + cright) < 1 ||
++ 	cHIGH - (ctop  + cbot  ) < 1) return 0;    /* sanity check */
++     
+      DoCrop(cXOFF+cleft, cYOFF+ctop, 
+! 	   cWIDE-(cleft+cright), cHIGH-(ctop+cbot));
+      return 1;
+    }
+  
+***************
+*** 859,865 ****
+    eWIDE = (int) (cWIDE * expw);  
+    eHIGH = (int) (cHIGH * exph);
+  
+!   if (eWIDE > maxWIDE || h > maxHIGH) {  /* make 'normal' size */
+      if (cWIDE>maxWIDE || cHIGH>maxHIGH) {
+        double r,wr,hr;
+        wr = ((double) cWIDE) / maxWIDE;
+--- 864,870 ----
+    eWIDE = (int) (cWIDE * expw);  
+    eHIGH = (int) (cHIGH * exph);
+  
+!   if (eWIDE>maxWIDE || eHIGH>maxHIGH) {  /* make 'normal' size */
+      if (cWIDE>maxWIDE || cHIGH>maxHIGH) {
+        double r,wr,hr;
+        wr = ((double) cWIDE) / maxWIDE;
+***************
+*** 873,878 ****
+--- 878,886 ----
+    }
+  
+  
++   if (eWIDE<1) eWIDE = 1;
++   if (eHIGH<1) eHIGH = 1;
++ 
+    SetCursors(-1);
+  }
+  
+***************
+*** 2823,2831 ****
+  	  }
+  	  
+  	  if (omode == PAD_ORGB) {
+! 	    rval = (r * fg) / 100 + (p24[0] * bg) / 100;
+! 	    gval = (g * fg) / 100 + (p24[1] * bg) / 100;
+! 	    bval = (b * fg) / 100 + (p24[2] * bg) / 100;
+  	  }
+  	  else {       /* one of the HSV modes */
+  	    double fh,fs,fv,fw, bh,bs,bv,bw, h,s,v;
+--- 2831,2839 ----
+  	  }
+  	  
+  	  if (omode == PAD_ORGB) {
+! 	    rval = (r * fg) / 100 + ((int) p24[0] * bg) / 100;
+! 	    gval = (g * fg) / 100 + ((int) p24[1] * bg) / 100;
+! 	    bval = (b * fg) / 100 + ((int) p24[2] * bg) / 100;
+  	  }
+  	  else {       /* one of the HSV modes */
+  	    double fh,fs,fv,fw, bh,bs,bv,bw, h,s,v;
+
+diff -c -r ../xv-3.10/xvjpeg.c ./xvjpeg.c
+*** ../xv-3.10/xvjpeg.c	Thu Dec 22 14:12:16 1994
+--- ./xvjpeg.c	Thu Jan 05 03:17:13 1995
+***************
+*** 612,620 ****
+    }
+  
+    
+-   jpeg_finish_decompress(&cinfo);
+  
+- 
+    /* return 'PICINFO' structure to XV */
+  
+    pinfo->pic = pic;
+--- 612,618 ----
+***************
+*** 646,655 ****
+    
+    pinfo->comment = comment;
+  
+    jpeg_destroy_decompress(&cinfo);
+    fclose(fp);
+  
+!   comment = NULL;
+    return 1;
+  }
+    
+--- 644,654 ----
+    
+    pinfo->comment = comment;
+  
++   jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(fp);
+  
+!   comment = (char *) NULL;
+    return 1;
+  }
+    
+***************
+*** 806,812 ****
+         If none, add 2.   If one, add 1.  If two or more, add none. */
+  
+      sp = comment + strlen(comment);
+!     for (i=0; i<3 && i<strlen(comment); i++) {
+        sp--;
+        if (*sp != '\n') break;
+      }
+--- 805,811 ----
+         If none, add 2.   If one, add 1.  If two or more, add none. */
+  
+      sp = comment + strlen(comment);
+!     for (i=0; i<3 && ((size_t) i < strlen(comment)); i++) {
+        sp--;
+        if (*sp != '\n') break;
+      }
+
+diff -c -r ../xv-3.10/xvmisc.c ./xvmisc.c
+*** ../xv-3.10/xvmisc.c	Thu Dec 22 14:12:15 1994
+--- ./xvmisc.c	Fri Jan 13 18:41:34 1995
+***************
+*** 729,735 ****
+       'simple' name ('weenie.gif').  Note that it does not make a copy of
+       the name, so don't be modifying it... */
+  
+!   basname = rindex(fname, '/');
+    if (!basname) basname = fname;
+    else basname++;
+  
+--- 729,735 ----
+       'simple' name ('weenie.gif').  Note that it does not make a copy of
+       the name, so don't be modifying it... */
+  
+!   basname = (char *) rindex(fname, '/');
+    if (!basname) basname = fname;
+    else basname++;
+  
+***************
+*** 770,802 ****
+      XSetForeground(theDisp, theGC, fg);
+      XFillRectangle(theDisp,win,theGC, x+3, y+3, (u_int) barwide, (u_int) h-5);
+  
+!     if (barwide < maxwide) {
+!       if (numchars) {
+  	XSetForeground(theDisp, theGC, bg);
+  	XFillRectangle(theDisp, win, theGC, x+3+barwide, y+3, 
+  		       (u_int) (maxwide-barwide), (u_int) (h-5));
+- 
+- 	XSetForeground(theDisp, theGC, fg);
+- 	XDrawString(theDisp, win, theGC, CENTERX(mfinfo, (x+w/2), str), 
+- 		    CENTERY(mfinfo, (y+h/2)), str, numchars);
+        }
+-       else {
+- 	XDrawLine(theDisp,win,theGC,x+3+barwide, y+h/2 + 0, x+w-3, y+h/2 + 0);
+-       
+- 	XSetForeground(theDisp, theGC, lo);
+- 	XDrawLine(theDisp,win,theGC,x+3+barwide, y+h/2 + 1, x+w-3, y+h/2 + 1);
+  	
+! 	XSetForeground(theDisp, theGC, hi);
+! 	XDrawLine(theDisp,win,theGC,x+3+barwide, y+h/2 + 2, x+w-3, y+h/2 + 2);
+! 	
+! 	XSetForeground(theDisp, theGC, bg);
+! 	XFillRectangle(theDisp, win, theGC, x+3+barwide, y+3, 
+! 		       (u_int) (maxwide-barwide), (u_int) (h/2 - 3));
+! 	
+! 	XFillRectangle(theDisp, win, theGC, x+3+barwide, y+h/2 + 3, 
+! 		       (u_int) (maxwide-barwide),(u_int)((h-3) - (h/2+3)) + 1);
+!       }
+      }
+    }
+  
+    else {
+--- 770,808 ----
+      XSetForeground(theDisp, theGC, fg);
+      XFillRectangle(theDisp,win,theGC, x+3, y+3, (u_int) barwide, (u_int) h-5);
+  
+!     if (numchars) {      /* do string */
+!       if (barwide < maxwide) {
+  	XSetForeground(theDisp, theGC, bg);
+  	XFillRectangle(theDisp, win, theGC, x+3+barwide, y+3, 
+  		       (u_int) (maxwide-barwide), (u_int) (h-5));
+        }
+  	
+!       XSetFunction(theDisp, theGC, GXinvert);
+!       XSetPlaneMask(theDisp, theGC, fg ^ bg);
+! 
+!       XDrawString(theDisp, win, theGC, CENTERX(mfinfo, (x+w/2), str), 
+! 		  CENTERY(mfinfo, (y+h/2)), str, numchars);
+! 
+!       XSetFunction(theDisp, theGC, GXcopy);
+!       XSetPlaneMask(theDisp, theGC, AllPlanes);
+      }
++ 
++     else if (barwide < maxwide) {
++       XDrawLine(theDisp,win,theGC,x+3+barwide, y+h/2 + 0, x+w-3, y+h/2 + 0);
++       
++       XSetForeground(theDisp, theGC, lo);
++       XDrawLine(theDisp,win,theGC,x+3+barwide, y+h/2 + 1, x+w-3, y+h/2 + 1);
++       
++       XSetForeground(theDisp, theGC, hi);
++       XDrawLine(theDisp,win,theGC,x+3+barwide, y+h/2 + 2, x+w-3, y+h/2 + 2);
++       
++       XSetForeground(theDisp, theGC, bg);
++       XFillRectangle(theDisp, win, theGC, x+3+barwide, y+3, 
++ 		     (u_int) (maxwide-barwide), (u_int) (h/2 - 3));
++       
++       XFillRectangle(theDisp, win, theGC, x+3+barwide, y+h/2 + 3, 
++ 		     (u_int) (maxwide-barwide),(u_int)((h-3) - (h/2+3)) + 1);
++     }
+    }
+  
+    else {
+***************
+*** 806,832 ****
+      XSetForeground(theDisp, theGC, fg);
+      XFillRectangle(theDisp,win,theGC, x+1, y+1, (u_int) barwide, (u_int) h-1);
+  
+!     if (barwide < maxwide) {
+!       if (numchars) {
+  	XSetForeground(theDisp, theGC, bg);
+  	XFillRectangle(theDisp, win, theGC, x+1+barwide, y+1, 
+  		       (u_int) (maxwide-barwide), (u_int) (h-1));
+- 
+- 	XSetForeground(theDisp, theGC, fg);
+- 	XDrawString(theDisp, win, theGC, CENTERX(mfinfo, (x+w/2), str), 
+- 		    CENTERY(mfinfo, (y+h/2)), str, numchars);
+        }
+!       else {
+! 	XDrawLine(theDisp, win, theGC, x+1+barwide, y+h/2, x+w-1, y+h/2);
+! 	
+! 	XSetForeground(theDisp, theGC, bg);
+! 	XFillRectangle(theDisp, win, theGC, x+1+barwide, y+1, 
+! 		       (u_int) (maxwide-barwide), (u_int) (h/2 - 1));
+! 	
+! 	XFillRectangle(theDisp, win, theGC, x+1+barwide, y+h/2 + 1, 
+! 		       (u_int)(maxwide-barwide),(u_int)(((h-1) - (h/2+1))+1));
+!       }
+      }
+    }
+  
+    XFlush(theDisp);
+--- 812,844 ----
+      XSetForeground(theDisp, theGC, fg);
+      XFillRectangle(theDisp,win,theGC, x+1, y+1, (u_int) barwide, (u_int) h-1);
+  
+!     if (numchars) {
+!       if (barwide < maxwide) {
+  	XSetForeground(theDisp, theGC, bg);
+  	XFillRectangle(theDisp, win, theGC, x+1+barwide, y+1, 
+  		       (u_int) (maxwide-barwide), (u_int) (h-1));
+        }
+!       
+!       XSetFunction(theDisp, theGC, GXinvert);
+!       XSetPlaneMask(theDisp, theGC, fg ^ bg);
+! 
+!       XDrawString(theDisp, win, theGC, CENTERX(mfinfo, (x+w/2), str), 
+! 		  CENTERY(mfinfo, (y+h/2)), str, numchars);
+! 
+!       XSetFunction(theDisp, theGC, GXcopy);
+!       XSetPlaneMask(theDisp, theGC, AllPlanes);
+      }
++     
++     else if (barwide < maxwide) {
++       XDrawLine(theDisp, win, theGC, x+1+barwide, y+h/2, x+w-1, y+h/2);
++       
++       XSetForeground(theDisp, theGC, bg);
++       XFillRectangle(theDisp, win, theGC, x+1+barwide, y+1, 
++ 		     (u_int) (maxwide-barwide), (u_int) (h/2 - 1));
++       
++       XFillRectangle(theDisp, win, theGC, x+1+barwide, y+h/2 + 1, 
++ 		     (u_int)(maxwide-barwide),(u_int)(((h-1) - (h/2+1))+1));
++     }
+    }
+  
+    XFlush(theDisp);
+***************
+*** 1117,1124 ****
+  
+      time.tv_sec = usec / 1000000L;
+      time.tv_usec = usec % 1000000L;
+!     select(0, (fd_set *) NULL, (fd_set *) NULL, (fd_set *) NULL, &time);
+    }
+  #endif /* VMS */
+  }
+  
+--- 1129,1137 ----
+  
+      time.tv_sec = usec / 1000000L;
+      time.tv_usec = usec % 1000000L;
+!     select(0, XV_FDTYPE NULL, XV_FDTYPE NULL, XV_FDTYPE NULL, &time);
+    }
+  #endif /* VMS */
+  }
++ 
+  
+diff -c -r ../xv-3.10/xvpbm.c ./xvpbm.c
+*** ../xv-3.10/xvpbm.c	Thu Dec 22 14:12:16 1994
+--- ./xvpbm.c	Tue Jan 03 16:23:44 1995
+***************
+*** 353,359 ****
+        *sp++ = '\n';
+        *sp   = '\0';
+  
+!       if (strlen(cmt) > 0) {    /* add to pinfo->comment */
+  	if (!pinfo->comment) {
+  	  pinfo->comment = (char *) malloc(strlen(cmt)+1);
+  	  if (!pinfo->comment) FatalError("malloc failure in xvpbm.c getint");
+--- 353,359 ----
+        *sp++ = '\n';
+        *sp   = '\0';
+  
+!       if (strlen(cmt) > (size_t) 0) {    /* add to pinfo->comment */
+  	if (!pinfo->comment) {
+  	  pinfo->comment = (char *) malloc(strlen(cmt)+1);
+  	  if (!pinfo->comment) FatalError("malloc failure in xvpbm.c getint");
+***************
+*** 438,444 ****
+        *sp++ = '\n';
+        *sp = '\0';
+  
+!       if (strlen(cmt) > 0) {    /* add to pinfo->comment */
+  	if (!pinfo->comment) {
+  	  pinfo->comment = (char *) malloc(strlen(cmt)+1);
+  	  if (!pinfo->comment) FatalError("malloc failure in xvpbm.c getint");
+--- 438,444 ----
+        *sp++ = '\n';
+        *sp = '\0';
+  
+!       if (strlen(cmt) > (size_t) 0) {    /* add to pinfo->comment */
+  	if (!pinfo->comment) {
+  	  pinfo->comment = (char *) malloc(strlen(cmt)+1);
+  	  if (!pinfo->comment) FatalError("malloc failure in xvpbm.c getint");
+
+diff -c -r ../xv-3.10/xvpcx.c ./xvpcx.c
+*** ../xv-3.10/xvpcx.c	Thu Dec 22 14:12:20 1994
+--- ./xvpcx.c	Tue Jan 10 18:06:37 1995
+***************
+*** 36,44 ****
+  #define PCX_MAPSTART 0x0c	/* Start of appended colormap	*/
+  
+  
+! static int  pcxLoadImage  PARM((char *, FILE *, byte *, byte *, int, int));
+! static void pcxLoadRaster PARM((FILE *, byte *, int, byte *, int, int));
+! static int  pcxError      PARM((char *, char *));
+  
+  
+  
+--- 36,45 ----
+  #define PCX_MAPSTART 0x0c	/* Start of appended colormap	*/
+  
+  
+! static int  pcxLoadImage8  PARM((char *, FILE *, PICINFO *, byte *));
+! static int  pcxLoadImage24 PARM((char *, FILE *, PICINFO *, byte *));
+! static void pcxLoadRaster  PARM((FILE *, byte *, int, byte *, int, int));
+! static int  pcxError       PARM((char *, char *));
+  
+  
+  
+***************
+*** 52,58 ****
+    long   filesize;
+    char  *bname, *errstr;
+    byte   hdr[128], *image;
+!   int    i, colors, gray;
+  
+    pinfo->type = PIC8;
+    pinfo->pic     = (byte *) NULL;
+--- 53,59 ----
+    long   filesize;
+    char  *bname, *errstr;
+    byte   hdr[128], *image;
+!   int    i, colors, gray, fullcolor;
+  
+    pinfo->type = PIC8;
+    pinfo->pic     = (byte *) NULL;
+***************
+*** 92,97 ****
+--- 93,99 ----
+    pinfo->w++;  pinfo->h++;
+  
+    colors = 1 << (hdr[PCX_BPP] * hdr[PCX_PLANES]);
++   fullcolor = (hdr[PCX_BPP] == 8 && hdr[PCX_PLANES] == 3);
+  
+    if (DEBUG) {
+      fprintf(stderr,"PCX: %dx%d image, version=%d, encoding=%d\n", 
+***************
+*** 102,108 ****
+  	    colors);
+    }
+  
+!   if (colors>256) {
+      fclose(fp);
+      return pcxError(bname,"No more than 256 colors allowed in PCX file.");
+    }
+--- 104,110 ----
+  	    colors);
+    }
+  
+!   if (colors>256 && !fullcolor) {
+      fclose(fp);
+      return pcxError(bname,"No more than 256 colors allowed in PCX file.");
+    }
+***************
+*** 112,134 ****
+      return pcxError(bname,"Unsupported PCX encoding format.");
+    }
+  
+!   /* note:  overallocation to make life easier... */
+!   image = (byte *) malloc((size_t) (pinfo->h + 1) * pinfo->w + 16);
+!   if (!image) FatalError("Can't alloc 'image' in LoadPCX()");
+! 
+!   xvbzero((char *) image, (size_t) ((pinfo->h+1) * pinfo->w + 16));
+! 
+!   if (!pcxLoadImage(bname, fp, image, hdr, pinfo->w, pinfo->h)) {
+!     free(image);
+!     fclose(fp);
+!     return 0;
+    }
+  
+  
+    if (ferror(fp) | feof(fp))    /* just a warning */
+      pcxError(bname, "PCX file appears to be truncated.");
+  
+!   if (colors>16) {       /* handle trailing colormap */
+      while (1) {
+        i=getc(fp);
+        if (i==PCX_MAPSTART || i==EOF) break;
+--- 114,138 ----
+      return pcxError(bname,"Unsupported PCX encoding format.");
+    }
+  
+!   /* load the image, the image function fills in pinfo->pic */
+!   if (!fullcolor) {
+!     if (!pcxLoadImage8(bname, fp, pinfo, hdr)) {
+!       fclose(fp);
+!       return 0;
+!     }
+    }
++   else {
++     if (!pcxLoadImage24(bname, fp, pinfo, hdr)) {
++       fclose(fp);
++       return 0;
++     }
++   }
+  
+  
+    if (ferror(fp) | feof(fp))    /* just a warning */
+      pcxError(bname, "PCX file appears to be truncated.");
+  
+!   if (colors>16 && !fullcolor) {       /* handle trailing colormap */
+      while (1) {
+        i=getc(fp);
+        if (i==PCX_MAPSTART || i==EOF) break;
+***************
+*** 171,185 ****
+    /* finally, convert into XV internal format */
+  
+  
+!   pinfo->pic     = image;
+!   pinfo->type    = PIC8;
+    pinfo->frmType = -1;    /* no default format to save in */
+  
+    /* check for grayscaleitude */
+!   for (i=0; i<colors; i++) {
+!     if ((pinfo->r[i] != pinfo->g[i]) || (pinfo->r[i] != pinfo->b[i])) break;
+    }
+-   gray = (i==colors) ? 1 : 0;
+  
+  
+    if (colors > 2 || (colors==2 && !gray)) {  /* grayscale or PseudoColor */
+--- 175,191 ----
+    /* finally, convert into XV internal format */
+  
+  
+!   pinfo->type    = fullcolor ? PIC24 : PIC8;
+    pinfo->frmType = -1;    /* no default format to save in */
+  
+    /* check for grayscaleitude */
+!   gray = 0;
+!   if (!fullcolor) {
+!     for (i=0; i<colors; i++) {
+!       if ((pinfo->r[i] != pinfo->g[i]) || (pinfo->r[i] != pinfo->b[i])) break;
+!     }
+!     gray = (i==colors) ? 1 : 0;
+    }
+  
+  
+    if (colors > 2 || (colors==2 && !gray)) {  /* grayscale or PseudoColor */
+***************
+*** 205,227 ****
+  
+  
+  /*****************************/
+! static int pcxLoadImage(fname, fp, image, hdr, w, h)
+!      char *fname;
+!      FILE *fp;
+!      byte *image, *hdr;
+!      int   w, h;
+  {
+    switch (hdr[PCX_BPP]) {
+!   case 1:   pcxLoadRaster(fp, image, 1, hdr, w, h);   break;
+!   case 8:   pcxLoadRaster(fp, image, 8, hdr, w, h);   break;
+    default:
+      pcxError(fname, "Unsupported # of bits per plane.");
+      return (0);
+    }
+  
+    return 1;
+  }
+  
+  
+  
+  
+--- 211,317 ----
+  
+  
+  /*****************************/
+! static int pcxLoadImage8(fname, fp, pinfo, hdr)
+!      char    *fname;
+!      FILE    *fp;
+!      PICINFO *pinfo;
+!      byte    *hdr;
+  {
++   /* load an image with at most 8 bits per pixel */
++   
++   byte *image;
++   
++   /* note:  overallocation to make life easier... */
++   image = (byte *) malloc((size_t) (pinfo->h + 1) * pinfo->w + 16);
++   if (!image) FatalError("Can't alloc 'image' in pcxLoadImage8()");
++   
++   xvbzero((char *) image, (size_t) ((pinfo->h+1) * pinfo->w + 16));
++   
+    switch (hdr[PCX_BPP]) {
+!   case 1:   pcxLoadRaster(fp, image, 1, hdr, pinfo->w, pinfo->h);   break;
+!   case 8:   pcxLoadRaster(fp, image, 8, hdr, pinfo->w, pinfo->h);   break;
+    default:
+      pcxError(fname, "Unsupported # of bits per plane.");
++     free(image);
+      return (0);
+    }
+  
++   pinfo->pic = image;
+    return 1;
+  }
+  
++ 
++ /*****************************/
++ static int pcxLoadImage24(fname, fp, pinfo, hdr)
++      char *fname;
++      FILE *fp;
++      PICINFO *pinfo;
++      byte *hdr;
++ {
++   byte *pix, *pic24, scale[256];
++   int   c, i, j, w, h, maxv, cnt, planes, bperlin, nbytes;
++   
++   w = pinfo->w;  h = pinfo->h;
++   
++   planes = (int) hdr[PCX_PLANES];
++   bperlin = hdr[PCX_BPRL] + ((int) hdr[PCX_BPRH]<<8);
++   
++   /* allocate 24-bit image */
++   pic24 = (byte *) malloc((size_t) w*h*planes);
++   if (!pic24) FatalError("couldn't malloc 'pic24'");
++   
++   xvbzero((char *) pic24, (size_t) w*h*planes);
++   
++   maxv = 0;
++   pix = pinfo->pic = pic24;
++   i = 0;      /* planes, in this while loop */
++   j = 0;      /* bytes per line, in this while loop */
++   nbytes = bperlin*h*planes;
++  
++   while (nbytes > 0 && (c = getc(fp)) != EOF) {
++     if ((c & 0xC0) == 0xC0) {   /* have a rep. count */
++       cnt = c & 0x3F;
++       c = getc(fp);
++       if (c == EOF) { getc(fp); break; }
++     }
++     else cnt = 1;
++     
++     if (c > maxv)  maxv = c;
++     
++     while (cnt-- > 0) {
++       if (j < w) {
++ 	*pix = c;
++ 	pix += planes;
++       }
++       j++;
++       nbytes--;
++       if (j == bperlin) {
++ 	j = 0;
++ 	if (++i < planes) {
++ 	  pix -= (w*planes)-1;  /* next plane on this line */
++ 	}
++ 	else {
++ 	  pix -= (planes-1);    /* start of next line, first plane */
++ 	  i = 0;
++ 	}
++       }
++     }
++   }
++   
++   
++   /* scale all RGB to range 0-255, if they aren't */
++ 
++   if (maxv<255) { 
++     for (i=0; i<=maxv; i++) scale[i] = (i * 255) / maxv;
++     
++     for (i=0, pix=pic24; i<h; i++) {
++       if ((i&0x3f)==0) WaitCursor();
++       for (j=0; j<w*planes; j++, pix++) *pix = scale[*pix];
++     }
++   }
++   
++   return 1;
++ }
+  
+  
+  
+diff -c -r ../xv-3.10/xvpds.c ./xvpds.c
+*** ../xv-3.10/xvpds.c	Thu Dec 22 14:12:17 1994
+--- ./xvpds.c	Tue Jan 03 16:25:52 1995
+***************
+*** 513,519 ****
+        } else if ((sscanf(scanbuff," EXPOSURE_DURATION = %s", exposure) == 1)
+  	      || (sscanf(scanbuff," INSTRUMENT_EXPOSURE_DURATION = %s",
+  			 exposure) == 1)) {
+! 	tmptmp = index(scanbuff,'=');
+  	tmptmp++;
+  	while((*tmptmp) == ' ')
+  	    tmptmp++;
+--- 513,519 ----
+        } else if ((sscanf(scanbuff," EXPOSURE_DURATION = %s", exposure) == 1)
+  	      || (sscanf(scanbuff," INSTRUMENT_EXPOSURE_DURATION = %s",
+  			 exposure) == 1)) {
+! 	tmptmp = (char *) index(scanbuff,'=');
+  	tmptmp++;
+  	while((*tmptmp) == ' ')
+  	    tmptmp++;
+***************
+*** 521,527 ****
+  	lastwasinote=FALSE; continue;
+  
+        } else if (sscanf(scanbuff, "NOTE = %s", inote) == 1) {
+! 	tmptmp = index(scanbuff,'='); tmptmp++;
+  	while (((*tmptmp) == ' ') || ((*tmptmp)  == '"')) tmptmp++;
+  	strcpy(inote,tmptmp);
+  	strcat(inote," ");
+--- 521,527 ----
+  	lastwasinote=FALSE; continue;
+  
+        } else if (sscanf(scanbuff, "NOTE = %s", inote) == 1) {
+! 	tmptmp = (char *) index(scanbuff,'='); tmptmp++;
+  	while (((*tmptmp) == ' ') || ((*tmptmp)  == '"')) tmptmp++;
+  	strcpy(inote,tmptmp);
+  	strcat(inote," ");
+***************
+*** 884,892 ****
+  
+    /* check whether histogram file exists */
+  #ifdef VMS
+!   c = rindex(strcpy(name, (c = rindex(fname, ':')) ? c+1 : fname), ']');
+  #else
+!   c = rindex(strcpy(name, fname), '/');
+  #endif /* VMS */
+    (void)strcpy(c ? c+1 : name, "hist.tab");
+  
+--- 884,894 ----
+  
+    /* check whether histogram file exists */
+  #ifdef VMS
+!   c = (char *) rindex(strcpy(name, 
+! 			     (c = (char *) rindex(fname, ':')) ? c+1 : fname),
+! 		      ']');
+  #else
+!   c = (char *) rindex(strcpy(name, fname), '/');
+  #endif /* VMS */
+    (void)strcpy(c ? c+1 : name, "hist.tab");
+  
+***************
+*** 979,987 ****
+    int     i, n, r, g, b;
+    
+  #ifdef VMS
+!   c = rindex(strcpy(name, (c = rindex(fname, ':')) ? c+1 : fname), ']');
+  #else
+!   c = rindex(strcpy(name, fname), '/');
+  #endif /* VMS */
+    (void)strcpy(c ? c+1 : name, "palette.tab");
+    
+--- 981,991 ----
+    int     i, n, r, g, b;
+    
+  #ifdef VMS
+!   c = (char *) rindex(strcpy(name, 
+! 			     (c = (char *) rindex(fname, ':')) ? c+1 : fname),
+! 		      ']');
+  #else
+!   c = (char *) rindex(strcpy(name, fname), '/');
+  #endif /* VMS */
+    (void)strcpy(c ? c+1 : name, "palette.tab");
+    
+diff -c -r ../xv-3.10/xvpictoppm.c ./xvpictoppm.c
+*** ../xv-3.10/xvpictoppm.c	Thu Dec 22 14:12:24 1994
+--- ./xvpictoppm.c	Fri Jan 13 14:57:14 1995
+***************
+*** 124,132 ****
+  
+    /* convert icon from 332 to 24-bit image */
+    for (i=0, ip=icon8, pp=pic24;  i<w*h;  i++, ip++, pp+=3) {
+!     pp[0] = (((*ip >> 5) & 0x07) * 255) / 7;
+!     pp[1] = (((*ip >> 2) & 0x07) * 255) / 7;
+!     pp[2] = (((*ip >> 0) & 0x03) * 255) / 3;
+    }
+  
+    free(icon8);
+--- 124,132 ----
+  
+    /* convert icon from 332 to 24-bit image */
+    for (i=0, ip=icon8, pp=pic24;  i<w*h;  i++, ip++, pp+=3) {
+!     pp[0] = ( ((int) ((*ip >> 5) & 0x07)) * 255) / 7;
+!     pp[1] = ( ((int) ((*ip >> 2) & 0x07)) * 255) / 7;
+!     pp[2] = ( ((int) ((*ip >> 0) & 0x03)) * 255) / 3;
+    }
+  
+    free(icon8);
+
+diff -c -r ../xv-3.10/xvpopup.c ./xvpopup.c
+*** ../xv-3.10/xvpopup.c	Thu Dec 22 14:12:16 1994
+--- ./xvpopup.c	Thu Jan 19 13:09:31 1995
+***************
+*** 150,161 ****
+      if (wy + h > dispHIGH) wy = dispHIGH - h;
+    }
+  
+!   /* wx -= (p_offx + ch_offx);
+!      wy -= (p_offy + ch_offy); */
+  
+-   wx -= (ch_offx);
+-   wy -= (ch_offy);
+- 
+    if (!XGetNormalHints(theDisp, win, &hints)) hints.flags = 0;
+    hints.width  = hints.min_width  = hints.max_width  = w;
+    hints.height = hints.min_height = hints.max_height = h;
+--- 150,165 ----
+      if (wy + h > dispHIGH) wy = dispHIGH - h;
+    }
+  
+!   
+!   if (winCtrPosKludge) {
+!     wx -= (p_offx + ch_offx);
+!     wy -= (p_offy + ch_offy);
+!   } 
+!   else {
+!     wx -= (ch_offx);
+!     wy -= (ch_offy);
+!   }
+  
+    if (!XGetNormalHints(theDisp, win, &hints)) hints.flags = 0;
+    hints.width  = hints.min_width  = hints.max_width  = w;
+    hints.height = hints.min_height = hints.max_height = h;
+***************
+*** 249,255 ****
+  
+    if (poptyp == ISGRAB) {
+      BTSetActive(&bts[0], (int) strlen(gsBuf));
+!     BTSetActive(&bts[1], (strlen(gsBuf)>0 && atoi(gsBuf)>0));
+    }
+    else if (poptyp == ISPAD) {
+      BTSetActive(&bts[0], (int) strlen(gsBuf));
+--- 253,259 ----
+  
+    if (poptyp == ISGRAB) {
+      BTSetActive(&bts[0], (int) strlen(gsBuf));
+!     BTSetActive(&bts[1], (strlen(gsBuf)>(size_t)0 && atoi(gsBuf)>(size_t)0));
+    }
+    else if (poptyp == ISPAD) {
+      BTSetActive(&bts[0], (int) strlen(gsBuf));
+***************
+*** 350,356 ****
+    gsx = 10 + icon_width + 20;
+    gsy = 10+(PUHIGH-30-BUTTH-gsh)/2;
+  
+!   if (strlen(txt) > 60)
+      gsy = PUHIGH - 10 - BUTTH - 10 - gsh - 20;
+  
+    gsw = PUWIDE - gsx - 10;
+--- 354,360 ----
+    gsx = 10 + icon_width + 20;
+    gsy = 10+(PUHIGH-30-BUTTH-gsh)/2;
+  
+!   if (strlen(txt) > (size_t) 60)
+      gsy = PUHIGH - 10 - BUTTH - 10 - gsh - 20;
+  
+    gsw = PUWIDE - gsx - 10;
+***************
+*** 558,564 ****
+  	strncpy(nams[*lenp], vals[*lenp], (size_t) 31);
+        }
+        
+!       if (strlen(nams[*lenp]) > 20) {   /* fix long names */
+  	char *sp = nams[*lenp] + 18;
+  	*sp++ = '.';  *sp++ = '.';  *sp++ = '.';  *sp++ = '\0';
+        }
+--- 562,568 ----
+  	strncpy(nams[*lenp], vals[*lenp], (size_t) 31);
+        }
+        
+!       if (strlen(nams[*lenp]) > (size_t) 20) {   /* fix long names */
+  	char *sp = nams[*lenp] + 18;
+  	*sp++ = '.';  *sp++ = '.';  *sp++ = '.';  *sp++ = '\0';
+        }
+***************
+*** 1154,1166 ****
+      /* if we have a string of any sort, turn on the default '\n' button
+         (if there is one) */
+      for (i=0; i<nbts && accel[i]!='\n'; i++);
+!     if (i<nbts) BTSetActive(&bts[i], strlen(gsBuf)>0);
+    }
+    else if (popUp == ISGRAB) {
+      /* need a string of length 1 to enable Grab (bts[0]), and a string
+         with an atoi() of at least '1' to enable AutoGrab (bts[1]) */
+!     BTSetActive(&bts[0], strlen(gsBuf)>0);
+!     BTSetActive(&bts[1], (strlen(gsBuf)>0 && atoi(gsBuf)>0));
+    }
+  
+    return(0);
+--- 1158,1170 ----
+      /* if we have a string of any sort, turn on the default '\n' button
+         (if there is one) */
+      for (i=0; i<nbts && accel[i]!='\n'; i++);
+!     if (i<nbts) BTSetActive(&bts[i], (strlen(gsBuf) > (size_t) 0));
+    }
+    else if (popUp == ISGRAB) {
+      /* need a string of length 1 to enable Grab (bts[0]), and a string
+         with an atoi() of at least '1' to enable AutoGrab (bts[1]) */
+!     BTSetActive(&bts[0], (strlen(gsBuf) > (size_t) 0));
+!     BTSetActive(&bts[1], (strlen(gsBuf)>(size_t)0 && atoi(gsBuf)>(size_t)0));
+    }
+  
+    return(0);
+***************
+*** 1219,1225 ****
+      XDrawLine(theDisp, popW, theGC, gsx+3, gsy+1, gsx+3, gsy + gsh-1);
+    }
+  
+!   if (gsEnPos<strlen(gsBuf)) {  /* draw a "there's more over here" doowah */
+      XDrawLine(theDisp, popW, theGC, gsx+gsw-3, gsy+1, gsx+gsw-3, gsy+gsh-1);
+      XDrawLine(theDisp, popW, theGC, gsx+gsw-2, gsy+1, gsx+gsw-2, gsy+gsh-1);
+      XDrawLine(theDisp, popW, theGC, gsx+gsw-1, gsy+1, gsx+gsw-1, gsy+gsh-1);
+--- 1223,1230 ----
+      XDrawLine(theDisp, popW, theGC, gsx+3, gsy+1, gsx+3, gsy + gsh-1);
+    }
+  
+!   if ((size_t) gsEnPos < strlen(gsBuf)) {
+!     /* draw a "there's more over here" doowah */
+      XDrawLine(theDisp, popW, theGC, gsx+gsw-3, gsy+1, gsx+gsw-3, gsy+gsh-1);
+      XDrawLine(theDisp, popW, theGC, gsx+gsw-2, gsy+1, gsx+gsw-2, gsy+gsh-1);
+      XDrawLine(theDisp, popW, theGC, gsx+gsw-1, gsy+1, gsx+gsw-1, gsy+gsh-1);
+
+diff -c -r ../xv-3.10/xvrle.c ./xvrle.c
+*** ../xv-3.10/xvrle.c	Thu Dec 22 14:12:22 1994
+--- ./xvrle.c	Thu Jan 19 12:27:47 1995
+***************
+*** 257,263 ****
+  
+    if (ncolors == 1) {     /* grayscale or PseudoColor */
+      pinfo->type = PIC8;
+!     if (ncmap == 1) {
+        pinfo->colType = F_GREYSCALE;
+        sprintf(pinfo->fullInfo, "Greyscale RLE.  (%ld bytes)", filesize);
+        for (i=0; i<256; i++) 
+--- 257,263 ----
+  
+    if (ncolors == 1) {     /* grayscale or PseudoColor */
+      pinfo->type = PIC8;
+!     if (ncmap == 0 || ncmap == 1) {   /* grey, or grey with gamma curve */
+        pinfo->colType = F_GREYSCALE;
+        sprintf(pinfo->fullInfo, "Greyscale RLE.  (%ld bytes)", filesize);
+        for (i=0; i<256; i++) 
+
+diff -c -r ../xv-3.10/xvtext.c ./xvtext.c
+*** ../xv-3.10/xvtext.c	Thu Dec 22 14:12:20 1994
+--- ./xvtext.c	Fri Jan 13 18:46:28 1995
+***************
+*** 1220,1226 ****
+    LC("the xv distribution.  Do *not* send mail unless absolutely necessary");
+    LC("(ie, you don't have ftp capability).");
+    LC("");
+!   LC("Note:  The documentation ('xvdocs.ps') may be installed in '/usr/local'.");
+    LC("");
+    LC("If you're viewing this information via the 'About XV' command, and");
+    LC("you'd like to print it out, a copy of this info can be found in the ");
+--- 1220,1226 ----
+    LC("the xv distribution.  Do *not* send mail unless absolutely necessary");
+    LC("(ie, you don't have ftp capability).");
+    LC("");
+!   LC("Note:  The docs (xvdocs.ps) may be installed in '/usr/local/lib'.");
+    LC("");
+    LC("If you're viewing this information via the 'About XV' command, and");
+    LC("you'd like to print it out, a copy of this info can be found in the ");
+
+diff -c -r ../xv-3.10/xvtiff.c ./xvtiff.c
+*** ../xv-3.10/xvtiff.c	Thu Dec 22 14:12:20 1994
+--- ./xvtiff.c	Fri Jan 13 14:53:34 1995
+***************
+*** 120,126 ****
+    desc = (char *) NULL;
+  
+    TIFFGetField(tif, TIFFTAG_IMAGEDESCRIPTION, &desc);
+!   if (desc && strlen(desc)>0) {
+      /* kludge:  tiff library seems to return bizarre comments */
+      if (strlen(desc)==4 && strcmp(desc, "\367\377\353\370")==0) {} 
+      else {
+--- 120,126 ----
+    desc = (char *) NULL;
+  
+    TIFFGetField(tif, TIFFTAG_IMAGEDESCRIPTION, &desc);
+!   if (desc && strlen(desc) > (size_t) 0) {
+      /* kludge:  tiff library seems to return bizarre comments */
+      if (strlen(desc)==4 && strcmp(desc, "\367\377\353\370")==0) {} 
+      else {
+***************
+*** 1381,1388 ****
+    }
+  }
+  
+! /* #define Code2V(c, RB, RW, CR)  ((((c)-(int)RB)*(float)CR)/(float)(RW-RB)) */
+! #define Code2V(c, RB, RW, CR)     ((((c)-RB)*(float)CR)/(float)(RW-RB))
+  
+  #define	CLAMP(f,min,max) \
+      (int)((f)+.5 < (min) ? (min) : (f)+.5 > (max) ? (max) : (f)+.5)
+--- 1381,1387 ----
+    }
+  }
+  
+! #define Code2V(c, RB, RW, CR)  ((((c)-(int)RB)*(float)CR)/(float)(RW-RB))
+  
+  #define	CLAMP(f,min,max) \
+      (int)((f)+.5 < (min) ? (min) : (f)+.5 > (max) ? (max) : (f)+.5)
+
+diff -c -r ../xv-3.10/xvtiffwr.c ./xvtiffwr.c
+*** ../xv-3.10/xvtiffwr.c	Thu Dec 22 14:12:20 1994
+--- ./xvtiffwr.c	Tue Jan 03 16:28:13 1995
+***************
+*** 70,76 ****
+    TIFFSetField(tif, TIFFTAG_IMAGELENGTH, h);
+    TIFFSetField(tif, TIFFTAG_COMPRESSION, comp);
+  
+!   if (comment && strlen(comment)>0) {
+      TIFFSetField(tif, TIFFTAG_IMAGEDESCRIPTION, comment);
+    }
+  
+--- 70,76 ----
+    TIFFSetField(tif, TIFFTAG_IMAGELENGTH, h);
+    TIFFSetField(tif, TIFFTAG_COMPRESSION, comp);
+  
+!   if (comment && strlen(comment) > (size_t) 0) {
+      TIFFSetField(tif, TIFFTAG_IMAGEDESCRIPTION, comment);
+    }
+  
+diff -c -r ../xv-3.10/bits/font5x9.h ./bits/font5x9.h
+*** ../xv-3.10/bits/font5x9.h	Thu Dec 22 14:12:58 1994
+--- ./bits/font5x9.h	Tue Jan 03 15:18:06 1995
+***************
+*** 21,27 ****
+    {0x0e, 0x11, 0x19, 0x15, 0x13, 0x11, 0x0e, 0x00, 0x00},   /* 0 */
+    {0x04, 0x06, 0x05, 0x04, 0x04, 0x04, 0x1f, 0x00, 0x00},   /* 1 */
+    {0x0e, 0x11, 0x10, 0x0c, 0x02, 0x01, 0x1f, 0x00, 0x00},   /* 2 */
+!   {0x0e, 0x11, 0x10, 0x0c, 0x02, 0x01, 0x1f, 0x00, 0x00},   /* 3 */
+    {0x09, 0x09, 0x09, 0x1f, 0x08, 0x08, 0x08, 0x00, 0x00},   /* 4 */
+    {0x1f, 0x01, 0x01, 0x0f, 0x10, 0x10, 0x0f, 0x00, 0x00},   /* 5 */
+    {0x0e, 0x01, 0x01, 0x0f, 0x11, 0x11, 0x0e, 0x00, 0x00},   /* 6 */
+--- 21,27 ----
+    {0x0e, 0x11, 0x19, 0x15, 0x13, 0x11, 0x0e, 0x00, 0x00},   /* 0 */
+    {0x04, 0x06, 0x05, 0x04, 0x04, 0x04, 0x1f, 0x00, 0x00},   /* 1 */
+    {0x0e, 0x11, 0x10, 0x0c, 0x02, 0x01, 0x1f, 0x00, 0x00},   /* 2 */
+!   {0x0f, 0x10, 0x10, 0x0e, 0x10, 0x10, 0x0f, 0x00, 0x00},   /* 3 */
+    {0x09, 0x09, 0x09, 0x1f, 0x08, 0x08, 0x08, 0x00, 0x00},   /* 4 */
+    {0x1f, 0x01, 0x01, 0x0f, 0x10, 0x10, 0x0f, 0x00, 0x00},   /* 5 */
+    {0x0e, 0x01, 0x01, 0x0f, 0x11, 0x11, 0x0e, 0x00, 0x00},   /* 6 */
+***************
+*** 51,57 ****
+    {0x11, 0x13, 0x13, 0x15, 0x19, 0x19, 0x11, 0x00, 0x00},   /* N */
+    {0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e, 0x00, 0x00},   /* O */
+    {0x0f, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x01, 0x00, 0x00},   /* P */
+!   {0x0f, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x01, 0x00, 0x00},   /* Q */
+    {0x0f, 0x11, 0x11, 0x0f, 0x05, 0x09, 0x11, 0x00, 0x00},   /* R */
+    {0x0e, 0x11, 0x01, 0x0e, 0x10, 0x11, 0x0e, 0x00, 0x00},   /* S */
+    {0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x00},   /* T */
+--- 51,57 ----
+    {0x11, 0x13, 0x13, 0x15, 0x19, 0x19, 0x11, 0x00, 0x00},   /* N */
+    {0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e, 0x00, 0x00},   /* O */
+    {0x0f, 0x11, 0x11, 0x0f, 0x01, 0x01, 0x01, 0x00, 0x00},   /* P */
+!   {0x0e, 0x11, 0x11, 0x11, 0x11, 0x15, 0x0e, 0x18, 0x00},   /* Q */
+    {0x0f, 0x11, 0x11, 0x0f, 0x05, 0x09, 0x11, 0x00, 0x00},   /* R */
+    {0x0e, 0x11, 0x01, 0x0e, 0x10, 0x11, 0x0e, 0x00, 0x00},   /* S */
+    {0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x00},   /* T */
+
+diff -c -r ../xv-3.10/bits/xv_rev ./bits/xv_rev
+*** ../xv-3.10/bits/xv_rev	Thu Dec 22 14:12:54 1994
+--- ./bits/xv_rev	Fri Jan 13 17:37:10 1995
+***************
+*** 11,29 ****
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+!    0x00, 0x00, 0xa0, 0x03, 0x00, 0x04, 0x10, 0x00, 0x00, 0x20, 0x3c, 0x10,
+!    0xe1, 0x41, 0x3c, 0x10, 0x01, 0x00, 0x20, 0x60, 0x04, 0x00, 0x04, 0x10,
+!    0x00, 0x00, 0x30, 0x42, 0x90, 0x11, 0x42, 0x42, 0x18, 0x01, 0x00, 0xa0,
+!    0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x41, 0x48, 0x09, 0x20,
+     0x41, 0x14, 0x01, 0xc7, 0x7b, 0xe0, 0x80, 0x09, 0xc5, 0x13, 0x27, 0x13,
+!    0x20, 0x20, 0x08, 0x89, 0x23, 0x71, 0x14, 0x81, 0x28, 0x23, 0x60, 0x60,
+!    0x8a, 0x24, 0x93, 0xe8, 0x12, 0x20, 0x10, 0x04, 0x65, 0x14, 0x4e, 0x12,
+!    0x01, 0xae, 0x24, 0xa0, 0xe0, 0x51, 0xa4, 0x54, 0x28, 0x02, 0x20, 0x0c,
+!    0x04, 0x15, 0x14, 0x40, 0x79, 0x81, 0x49, 0x24, 0x21, 0x11, 0x50, 0x44,
+!    0x54, 0x28, 0x02, 0x20, 0x02, 0x04, 0x09, 0x92, 0xa0, 0x16, 0x5d, 0x0c,
+!    0xa2, 0x20, 0x16, 0x23, 0x04, 0x52, 0x24, 0x12, 0x20, 0x41, 0x02, 0x09,
+!    0x89, 0x11, 0x10, 0x83, 0xeb, 0x61, 0x20, 0xe8, 0x20, 0xe4, 0x91, 0x23,
+!    0x12, 0x20, 0x7f, 0x02, 0xf1, 0x08, 0x0e, 0x10, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+--- 11,29 ----
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+!    0x00, 0x00, 0xa0, 0x03, 0x00, 0x04, 0x10, 0x00, 0x00, 0x84, 0x07, 0xf1,
+!    0xe0, 0x41, 0x3c, 0x10, 0x01, 0x00, 0x20, 0x60, 0x04, 0x00, 0x04, 0x10,
+!    0x00, 0x00, 0x46, 0x08, 0x09, 0x11, 0x42, 0x42, 0x18, 0x01, 0x00, 0xa0,
+!    0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x25, 0x88, 0x04, 0x09, 0x22,
+     0x41, 0x14, 0x01, 0xc7, 0x7b, 0xe0, 0x80, 0x09, 0xc5, 0x13, 0x27, 0x13,
+!    0x04, 0x84, 0x80, 0x88, 0x23, 0x71, 0x14, 0x81, 0x28, 0x23, 0x60, 0x60,
+!    0x8a, 0x24, 0x93, 0xe8, 0x12, 0x04, 0x42, 0x40, 0x70, 0x12, 0x4e, 0x12,
+!    0x01, 0xae, 0x24, 0xa0, 0xe0, 0x51, 0xa4, 0x54, 0x28, 0x02, 0x84, 0x41,
+!    0x30, 0x00, 0x12, 0x40, 0x79, 0x81, 0x49, 0x24, 0x21, 0x11, 0x50, 0x44,
+!    0x54, 0x28, 0x02, 0x44, 0x40, 0x08, 0x04, 0x91, 0xa0, 0x16, 0x5d, 0x0c,
+!    0xa2, 0x20, 0x16, 0x23, 0x04, 0x52, 0x24, 0x12, 0x24, 0x28, 0x04, 0x8d,
+!    0x88, 0x11, 0x10, 0x83, 0xeb, 0x61, 0x20, 0xe8, 0x20, 0xe4, 0x91, 0x23,
+!    0x12, 0xe4, 0x2f, 0xfc, 0x71, 0x08, 0x0e, 0x10, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+diff -c -r ../xv-3.10/bits/xv_ver ./bits/xv_ver
+*** ../xv-3.10/bits/xv_ver	Thu Dec 22 14:12:58 1994
+--- ./bits/xv_ver	Fri Jan 13 17:34:48 1995
+***************
+*** 6,20 ****
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+!    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x82, 0x00,
+!    0x00, 0x08, 0x00, 0x80, 0x1f, 0x04, 0x07, 0x00, 0x82, 0x00, 0x00, 0x08,
+!    0x00, 0x80, 0x08, 0x86, 0x08, 0x00, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00,
+!    0x04, 0x45, 0x10, 0x00, 0x24, 0x98, 0xe4, 0x89, 0x23, 0x03, 0x1c, 0x24,
+!    0x10, 0x00, 0x24, 0xa6, 0x97, 0x49, 0xe4, 0x02, 0x23, 0x24, 0x10, 0x00,
+!    0x14, 0x9e, 0x50, 0x2a, 0x24, 0x02, 0x20, 0x24, 0x10, 0x00, 0x18, 0x81,
+!    0x20, 0x2a, 0x24, 0x42, 0x20, 0x24, 0x08, 0x00, 0x08, 0xb1, 0x00, 0x29,
+!    0x22, 0x42, 0x98, 0x24, 0x06, 0x00, 0x08, 0x8e, 0xf0, 0xc8, 0x21, 0x82,
+!    0x87, 0xc4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+--- 6,20 ----
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+!    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x00,
+!    0x00, 0x02, 0x00, 0xe0, 0x07, 0xc1, 0x01, 0x00, 0x41, 0x00, 0x00, 0x02,
+!    0x00, 0x20, 0x82, 0x21, 0x02, 0x00, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00,
+!    0x41, 0x11, 0x04, 0x00, 0x12, 0x26, 0x79, 0xe2, 0xc8, 0x00, 0x07, 0x09,
+!    0xc4, 0x01, 0x92, 0xe9, 0x65, 0x12, 0xb9, 0xc0, 0x08, 0x09, 0x24, 0x02,
+!    0x8a, 0x27, 0x94, 0x0a, 0x89, 0x00, 0x08, 0x09, 0x84, 0x03, 0x4c, 0x20,
+!    0x88, 0x0a, 0x89, 0x10, 0x08, 0x09, 0x62, 0x02, 0x44, 0x2c, 0x40, 0x8a,
+!    0x88, 0x10, 0x26, 0x89, 0x11, 0x03, 0x84, 0x23, 0x3c, 0x72, 0x88, 0xe0,
+!    0x21, 0x71, 0xe0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+diff -c -r ../xv-3.10/tiff/tif_fax3.c ./tiff/tif_fax3.c
+*** ../xv-3.10/tiff/tif_fax3.c	Thu Dec 22 14:12:41 1994
+--- ./tiff/tif_fax3.c	Fri Dec 23 17:39:28 1994
+***************
+*** 370,376 ****
+   * Decode a code and return the associated run length.
+   */
+  static int32
+! decode_run(TIFF* tif, const u_short fsm[][256])
+  {
+  	Fax3DecodeState *sp = (Fax3DecodeState *)tif->tif_data;
+  	int state = sp->b.bit;
+--- 370,376 ----
+   * Decode a code and return the associated run length.
+   */
+  static int32
+! decode_run(TIFF* tif, /*const*/ u_short fsm[][256])
+  {
+  	Fax3DecodeState *sp = (Fax3DecodeState *)tif->tif_data;
+  	int state = sp->b.bit;
+
+diff -c -r ../xv-3.10/tiff/tiffcomp.h ./tiff/tiffcomp.h
+*** ../xv-3.10/tiff/tiffcomp.h	Thu Dec 22 14:12:42 1994
+--- ./tiff/tiffcomp.h	Thu Jan 19 12:47:56 1995
+***************
+*** 67,72 ****
+--- 67,76 ----
+  #endif
+  #endif
+  
++ #ifdef isc
++ #define BSDTYPES
++ #endif
++ 
+  /*
+   * Workarounds for BSD lseek definitions.
+   */
+
+diff -c -r ../xv-3.10/vms/Makefile.mms ./vms/Makefile.mms
+*** ../xv-3.10/vms/Makefile.mms	Thu Dec 22 14:12:37 1994
+--- ./vms/Makefile.mms	Sun Dec 25 03:21:22 1994
+***************
+*** 11,30 ****
+  #			15-APR-1993 for v3.00 (DEC C changes)
+  #			25-MAY-1993 merged ALPHA.MMS and MAKEFILE.MMS
+  #                       27-APR-1994 for v3.01
+! #			 6-DEC-1994 for v3.10
+  #
+  # 	Modeled after the original Unix Makefile for xv
+  #	Most of the Unix comments have been left intact to help debug any
+  #	problems.
+  
+- #********
+- #
+- # REQUIRED USER EDIT POINT!!!!!!!!!!!
+- #       You must put in the correct place where the root of this XV
+- #       directory is located
+- #
+- #********
+- XVDIR = [XV-3_10]
+  
+  # BE SURE TO SET THIS TO YOUR SITE'S DESTINATION DIRECTORY...!!!
+  BINDIR = Sys$Disk:[]
+--- 11,22 ----
+  #			15-APR-1993 for v3.00 (DEC C changes)
+  #			25-MAY-1993 merged ALPHA.MMS and MAKEFILE.MMS
+  #                       27-APR-1994 for v3.01
+! #			23-DEC-1994 for v3.10
+  #
+  # 	Modeled after the original Unix Makefile for xv
+  #	Most of the Unix comments have been left intact to help debug any
+  #	problems.
+  
+  
+  # BE SURE TO SET THIS TO YOUR SITE'S DESTINATION DIRECTORY...!!!
+  BINDIR = Sys$Disk:[]
+***************
+*** 57,64 ****
+  #  VMS MMS USERS!!!
+  #
+  # 	if you don't use the JPEG package as supplied with XV, you
+! # 	will need fill in the complete directory specifications for
+! #	BOTH JPEGDIR and XVDIR!!
+  #
+  JPEG = ,HAVE_JPEG
+  JPEGDIR = [.JPEG]
+--- 49,55 ----
+  #  VMS MMS USERS!!!
+  #
+  # 	if you don't use the JPEG package as supplied with XV, you
+! # 	will need fill in the complete directory specifications for JPEGDIR.
+  #
+  JPEG = ,HAVE_JPEG
+  JPEGDIR = [.JPEG]
+***************
+*** 72,79 ****
+  # Also, comment out the LIBTIFF dependancy at the end of this Makefile
+  #
+  # 	if you don't use the TIFF package as supplied with XV, you
+! # 	will need to fill in the complete directory specifications for
+! #	BOTH TIFFDIR and XVDIR!!
+  #
+  TIFF = ,HAVE_TIFF
+  TIFFDIR = [.TIFF]
+--- 63,69 ----
+  # Also, comment out the LIBTIFF dependancy at the end of this Makefile
+  #
+  # 	if you don't use the TIFF package as supplied with XV, you
+! # 	will need to fill in the complete directory specifications for TIFFDIR.
+  #
+  TIFF = ,HAVE_TIFF
+  TIFFDIR = [.TIFF]
+***************
+*** 135,145 ****
+  	@- Define /NoLog Sys DECC$Library_Include
+  .else
+  .ifdef DECC
+! ×	@- Define /NoLog Sys DECC$Library_Include
+  .else
+  	@- Define /NoLog Sys Sys$Library
+  .endif
+  	@- Define /NoLog X11 DECW$Include
+  .endif
+  
+  all : 		$(BITS) $(OPTS) lib xv bggen decompress xcmap xvpictoppm help
+--- 125,136 ----
+  	@- Define /NoLog Sys DECC$Library_Include
+  .else
+  .ifdef DECC
+! 	@- Define /NoLog Sys DECC$Library_Include
+  .else
+  	@- Define /NoLog Sys Sys$Library
+  .endif
+  	@- Define /NoLog X11 DECW$Include
++ 	@- XVDIR = F$Environment ("Default")
+  .endif
+  
+  all : 		$(BITS) $(OPTS) lib xv bggen decompress xcmap xvpictoppm help
+***************
+*** 181,204 ****
+  $(JPEGLIB) :
+  	Set Default $(JPEGDIR)
+  .ifdef ALPHA
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.$(MMS) /Macro = "ALPHA = 1" LIBJPEG.OLB
+  .else
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.$(MMS) LIBJPEG.OLB
+  .endif
+! 	Set Default $(XVDIR)
+  
+  $(TIFFLIB) :
+  	Set Default $(TIFFDIR)
+  .ifdef ALPHA
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.$(MMS) /Macro = "ALPHA = 1" LIBTIFF.OLB
+  .else
+  .ifdef DECC
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.$(MMS) /Macro = "ALPHA = 1" LIBTIFF.OLB
+  .else
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.$(MMS) LIBTIFF.OLB
+  .endif
+  .endif
+! 	Set Default $(XVDIR)
+  
+  $(XVLIB) :	$(OBJS)
+          If "''F$Search ("$(XVLIB)")'" .eqs. "" Then Library /Create $(XVLIB)
+--- 172,195 ----
+  $(JPEGLIB) :
+  	Set Default $(JPEGDIR)
+  .ifdef ALPHA
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.MMS /Macro = "ALPHA = 1" LIBJPEG.OLB
+  .else
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.MMS LIBJPEG.OLB
+  .endif
+! 	Set Default 'XVDIR'
+  
+  $(TIFFLIB) :
+  	Set Default $(TIFFDIR)
+  .ifdef ALPHA
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.MMS /Macro = "ALPHA = 1" LIBTIFF.OLB
+  .else
+  .ifdef DECC
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.MMS /Macro = "ALPHA = 1" LIBTIFF.OLB
+  .else
+! 	$(MMS) $(MMSDEFAULTS) /Description = MAKEFILE.MMS LIBTIFF.OLB
+  .endif
+  .endif
+! 	Set Default 'XVDIR'
+  
+  $(XVLIB) :	$(OBJS)
+          If "''F$Search ("$(XVLIB)")'" .eqs. "" Then Library /Create $(XVLIB)
+***************
+*** 273,280 ****
+  	- Delete /NoConfirm /NoLog *.obj;*,*.exe;*,*.log;*,*.olb;*,*.hlb;*
+  	- Purge /NoConfirm /NoLog
+  	Set Default [.JPEG]
+! 	$(MMS) /Description = MAKEFILE.$(MMS) clean
+  	- Delete /NoConfirm /NoLog *.olb;*
+  	Set Default [-.TIFF]
+! 	$(MMS) /Description = MAKEFILE.$(MMS) clean
+  	Set Default [-]
+--- 264,271 ----
+  	- Delete /NoConfirm /NoLog *.obj;*,*.exe;*,*.log;*,*.olb;*,*.hlb;*
+  	- Purge /NoConfirm /NoLog
+  	Set Default [.JPEG]
+! 	$(MMS) /Description = MAKEFILE.MMS clean
+  	- Delete /NoConfirm /NoLog *.olb;*
+  	Set Default [-.TIFF]
+! 	$(MMS) /Description = MAKEFILE.MMS clean
+  	Set Default [-]
+
+diff -c -r ../xv-3.10/vms/README.vms ./vms/README.vms
+*** ../xv-3.10/vms/README.vms	Thu Dec 22 14:12:37 1994
+--- ./vms/README.vms	Sun Dec 25 03:21:22 1994
+***************
+*** 1,9 ****
+!                                                               6-Dec-1994
+  
+!         First, read the release notes for the Unix version of XV as well
+!     as these.  You can ignore the Unix specific comments,  but there are
+!     references to the config.h file for local configurations and general
+!     use of the program that are relevant to VMS users as well.
+  
+          Release notes  for  building XV (v3.10) on a VMS platform.  This
+      includes the newer  ALPHA/VMS machines.  As in the previous release,
+--- 1,10 ----
+!                                                              23-DEC-1994
+  
+!         First, read the various INSTALL and README  files  for  the Unix
+!     version of XV as well as these.   You  can  ignore the Unix specific
+!     comments,  but there are references to the config.h file  for  local
+!     configurations  and general use of the program that are relevant  to
+!     VMS users as well.
+  
+          Release notes  for  building XV (v3.10) on a VMS platform.  This
+      includes the newer  ALPHA/VMS machines.  As in the previous release,
+***************
+*** 24,42 ****
+  
+      SETUP.COM
+          A simple  command  procedure  to  setup  the  final  compiled XV
+!         package of programs.   It can be executed by itself or used with
+!         many  of  the  commonly  available  SETUP  packages  (i.e.,  the
+!         FERMILAB version).  If it  is  kept in the same directory as the
+!         binaries, it will be able to  get  the  necessary  symbols setup
+!         anywhere the directory structure is located WITHOUT  the need to
+!         edit the command procedure.  Move them all  around  together and
+!         you will be OK.
+  
+      MAKEFILE.MMS (in the top level directory)
+!         This is a MMS description file for the VMS  MMS  utility.    YOU
+!         SHOULD EDIT THE FILE FIRST TO MAKE SURE THE CUSTOMIZING FEATURES
+!         ARE APPROPRIATE FOR YOUR SYSTEM.  For users without MMS you will
+!         need to use MAKE_XV.COM instead.
+  
+  Installation Instructions:
+  
+--- 25,48 ----
+  
+      SETUP.COM
+          A simple  command  procedure  to  setup  the  final  compiled XV
+!         package of programs.    It helps the aux programs of XV be found
+!         by DCL foreign symbols.    If  you don't want to use the names I
+!         have chosen for them, you  should  be able to alter the CONFIG.H
+!         file to point to the names  you  want  to use instead.  This has
+!         not been tested by me, so let  me  know  if  you  try  this.  It
+!         should work!  :) It can be executed  by itself or used with many
+!         of  the  commonly  available  SETUP packages (i.e., the FERMILAB
+!         version).  If it is kept in the same directory  as the binaries,
+!         it will be able to get the necessary symbols setup anywhere  the
+!         directory structure  is  located  WITHOUT  the  need to edit the
+!         command procedure.   Move  them all around together and you will
+!         be OK.
+  
+      MAKEFILE.MMS (in the top level directory)
+!         This is a description file for  the  VMS  MMS  (or  the  PD MMK)
+!         utility.    YOU SHOULD  BROWSE  THE  FILE FIRST TO MAKE SURE THE
+!         CUSTOMIZING FEATURES ARE APPROPRIATE FOR YOUR SYSTEM.  For users
+!         without MMS (MMK) you will need to use MAKE_XV.COM instead.
+  
+  Installation Instructions:
+  
+***************
+*** 100,114 ****
+          to  resolve  first!!!  Note specifically the references to  JPEG
+          and TIFF.  This is also true for the MAKEFILE.MMS  in  the  JPEG
+          sub-directory  and  the    MAKEFILE.MMS    file    in  the  TIFF
+!         sub-directory.   Also  check the top-level directory name at the
+!         top of the MMS  file.    You have to put in your local choice of
+!         name.  (I was lazy in not trying to autodetect it, sorry.)
+! 
+          
+!             EXCEPT  for  the destination of the binaries,  root  of  the
+!         directory  tree, and X11 Window interface, I *think*  it  should
+!         work  for  everyone  without  any  modifications.   (famous last
+!         words...)
+  
+              When you  are  satisfied that everything is correct for your
+          site, just type
+--- 106,116 ----
+          to  resolve  first!!!  Note specifically the references to  JPEG
+          and TIFF.  This is also true for the MAKEFILE.MMS  in  the  JPEG
+          sub-directory  and  the    MAKEFILE.MMS    file    in  the  TIFF
+!         sub-directory.
+          
+!             EXCEPT for the  destination  of the binaries, and X11 Window
+!         interface, I *think* it  should  work  for  everyone without any
+!         modifications.  (famous last words...)
+  
+              When you  are  satisfied that everything is correct for your
+          site, just type
+
+diff -c -r ../xv-3.10/vms/tiff.patches ./vms/tiff.patches
+*** ../xv-3.10/vms/tiff.patches	Thu Dec 22 14:12:38 1994
+--- ./vms/tiff.patches	Thu Jan 19 12:47:14 1995
+***************
+*** 5,10 ****
+--- 5,11 ----
+  In tiff/Makefile.hpux, you need to add -D_HPUX_SOURCE to CFLAGS.
+  Otherwise libtiff won't build under gcc or strict-ANSI cc.
+  
++ In tiff/tiffcomp.h, add '#ifdef isc ...  #define BSDTYPES ...   #endif'
+  
+  Index: tiff/Makefile.mms
+  *** /dev/null	Wed Dec 14 08:22:27 1994
+
+
+*** /dev/null	Mon Jan 23 20:08:17 1995
+--- BUGS	Thu Jan 19 13:10:07 1995
+***************
+*** 0 ****
+--- 1,21 ----
++ DOCS:
++   File docs/xvdoc.ps has an error in the banner for page 2. The page title is 
++   "Section 2: The Image Window" when it should be "Section 1: Overview".
++ 
++   Add mention of '-pkludge' and 'popupKludge' 
++ 
++   Hall of Fame:  Lester Ingber should be 'ingber@alumni.caltech.edu'
++ 
++ 
++ From: James Ralston Crawford (qralston+@pitt.edu)
++   When deleting files in 'xv controls' window, it should also delete 
++   thumbnail file, if any
++ 
++ 
++ From: Mitchell Blank Jr <blankm@cae.wisc.edu>
++   (try an use schnauzer in /usr/feh/foo, where feh is rwx--x--x.  Need to
++    set a var each time chdir is successfully called (make xv_chdir).  
++    Then in xv_getwd, if getcwd() fails, try stat()'ing the var.  
++    If it exists, assume we're there, and return the var.  Otherwise, fall back
++    to other directories...
++ 
+
+*** /dev/null	Mon Jan 23 20:08:17 1995
+--- docs/vdcomp.man	Fri Jan 13 15:18:47 1995
+***************
+*** 0 ****
+--- 1,82 ----
++ .\"
++ .\" $Id: vdcomp.man,v 1.2 1995/01/12 23:35:28 qralston Exp $
++ .\"
++ .\" $Log: vdcomp.man,v $
++ .\" Revision 1.2  1995/01/12  23:35:28  qralston
++ .\" Created from the information in the comments in vdcomp.c.
++ .\" James Ralston Crawford <qralston+@pitt.edu>
++ .\"
++ .TH vdcomp 1
++ .SH Name
++ \fIvdcomp\fP - decompress a compressed PDS image
++ .SH Synopsis
++ \fIvdcomp\fP [ infile ] [ outfile ] [ format-code ]
++ .SH Description
++ The \fIvdcomp\fP program reads a variable length compressed PDS image
++ and outputs a fixed length uncompressed image file in PDS format with
++ labels, image histogram, engineering table, line header table and an
++ image with PDS, FITS, VICAR or no labels.
++ .PP
++ If used on a non-byte-swapped machine the image histogram is
++ un-swapped.
++ .SH Options
++ \fIVdcomp\fP will prompt for any options that are not supplied on the
++ command-line.
++ .PP
++ \fIinfile\fP
++ .br
++ .RS
++ The name of compressed image file.
++ .RE
++ .PP
++ \fIoutfile\fP
++ .br
++ .RS
++ The name of uncompressed image file.
++ .RE
++ .PP
++ \fIformat-code\fP
++ .br
++ .RS
++ Select from the following list:
++ .br
++ .RS
++ \fI1\fP - SFDU/PDS format [default]
++ .br
++ \fI2\fP - FITS format
++ .br
++ \fI3\fP - VICAR format
++ .br
++ \fI4\fP - unlabelled binary array
++ .RE
++ .RE
++ .SH Limitations
++ This program has been tested on a VAX 780 (VMS 4.6), SUN Workstation
++ (UNIX 4.2, release 3.4), an IBM PC (MICROSOFT 5.1 compiler) and
++ Macintosh IIx using Lightspeed C version 3.0.  When converting to
++ other systems, check for portability conflicts.
++ .SH Credits
++ This program uses Kris Becker's subroutine DECOMP.C (which is included
++ in this program in a shortened version).
++ .SH History
++ bradley@cis.upenn.edu 06-23-94 ansi-fied program
++ .PP
++ datri@convex.com, 11-15-91 added recognition of - as stdout for output
++ filename; disabled various messages; directed messages to stderr;
++ added exit status
++ .PP
++ DEC89 Modified program to handle both Voyager and Viking images.
++ .PP
++ OCT89 Converted Voyager decompression program to handle Viking
++ compressed images.  Changed obuf to 'unsigned' to simplify computation
++ of checksum.
++ .PP
++ AUG89 Added code to get command line arguments for filenames and
++ output format; routines to free memory used by the Huffman tree);
++ fixed the SFDU label output length; and modified the I/O routines so
++ that the open for Host type 2 uses binary I/O.
++ .PP
++ JUN89 Fixed READVAR, to get length on 16-bit unswapped hosts.
++ .PP
++ JUL88 C driver to decompress standard Voyager Compressed images by
++ Mike Martin 1989/12/02.
+
+*** /dev/null	Mon Jan 23 20:23:48 1995
+--- docs/xv.ann	Tue Jan 03 13:58:15 1995
+***************
+*** 0 ****
+--- 1,38 ----
++ They said it couldn't be done.  They said it never *would* be done.  
++ They smiled knowingly to themselves as each predicted release date 
++ inevitably passed by, unmarked by the emergence of a new version...
++ 
++ Well, who asked them!  And who do they think they are, anyhow!?!
++ 
++ Announcing the Exciting New Release of XV, Version 3.10!
++ 
++ Finally, all the stuff you've been waiting for:  image cut & paste, pixel
++ editing, text annotation (of a sort), nifty new algorithms, new image formats 
++ (Targa, XPM, FITS, XWD, IFF), improved schnauzing capabilities, a spiffy
++ new 'pad' command, and whatnot.  Plenty of whatnot.
++ 
++ Of course, we're particularly proud of our Exclusive 3-D Fish Technology.
++ 
++ At the moment, you can get this decidedly 'fine' piece of software via 
++ anonymous ftp on the following sites:
++ 
++    Hostname			Directory
++    --------			---------
++    ftp.cis.upenn.edu:		pub/xv
++    ftp.upenn.edu:		data/bradley
++    ftp.duke.edu:		pub/archive/xv
++    gatekeeper.dec.com:		pub/graphics/xv
++ 
++ The file is called 'xv-3.10.tar.gz' (or 'xv-3.10.tar.Z' if you don't have 
++ the 'gunzip' program).
++ 
++ BTW, if any of you fine folks can get these files put up on one of the major
++ ftp sites (wustl, gatekeeper, etc.) please do so, and let me know!
++ 
++ Enjoy!
++ 
++ John Bradley
++ 
++ -------------------------
++ Note:  These tar files (xv-3.10.tar.Z and xv-3.10.tar.gz) have been replaced
++   as of 12/22/94, as the initial ones wouldn't build correctly on VMS.

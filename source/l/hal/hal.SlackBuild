@@ -1,0 +1,153 @@
+#!/bin/sh
+
+# Copyright 2007  Ole Andre Rodlie <olear@slackforge.net>
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PRGNAM=hal
+VERSION=0.5.11
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-6}
+
+NUMJOBS=${NUMJOBS:--j7}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PRGNAM
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP || exit 1
+rm -rf $PRGNAM-$VERSION
+tar xvf $CWD/$PRGNAM-$VERSION.tar.?z* || exit 1
+cd $PRGNAM-$VERSION || exit 1
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+# Restore Xorg's Zap'ing behavior by default and make it
+# clearer to the user how to edit and/or get back old behavior
+zcat $CWD/patches/10-keymap.fdi-restore_zap.diff.gz | patch -p1 || exit 1
+# Hide some invalid partition types
+zcat $CWD/patches/hide_more_invalid_partitions.diff.gz | patch -p1 || exit 1
+# Allow uid/gid options with ntfs-3g filesystems
+zcat $CWD/patches/allow_uid_gid_ntfs.diff.gz | patch -p1 || exit 1
+# Check UDI's properly so that we don't cause dbus errors
+zcat $CWD/patches/check_udi_properly.diff.gz | patch -p1 || exit 1
+# Prevent crash on newer kernels during resume operations
+zcat $CWD/patches/fix_led_crash.diff.gz | patch -p1 || exit 1
+# Fix a crash when assembling md devices
+zcat $CWD/patches/fix_md_crash.diff.gz | patch -p1 || exit 1
+# Fix another segfault in mdraid handling
+zcat $CWD/patches/fix_segfault_in_mdraid.diff.gz | patch -p1 || exit 1
+# Strip trailing "/" characters from UDI strings to prevent dbus errors
+zcat $CWD/patches/fixup_udi_strings.diff.gz | patch -p1 || exit 1
+# Ignore duplicate events (e.g. run udevadm trigger on a running system)
+zcat $CWD/patches/ignore_dupe_add_events.diff.gz | patch -p1 || exit 1
+# Use direct hal connection to set the X keymap
+zcat $CWD/patches/set_X_keymap_properly.diff.gz | patch -p1 || exit 1
+# Instead of dying, regenerate the fdi cache if it's zero-byte
+zcat $CWD/patches/regen_fdi_cache_if_zero_size.diff.gz | patch -p1 || exit 1
+# We need to use "udevadm info" now instead of "udevinfo"
+zcat $CWD/patches/use_udevadm_not_udevinfo.patch.gz | patch -p1 || exit 1
+
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --mandir=/usr/man \
+  --disable-static \
+  --enable-docbook-docs \
+  --docdir=/usr/doc/$PRGNAM-$VERSION \
+  --with-pid-file=/var/run/hald/pid \
+  --enable-parted \
+  --disable-policy-kit \
+  --disable-console-kit \
+  --disable-acl-management \
+  --enable-umount-helper \
+  --enable-sonypic \
+  --build=$ARCH-slackware-linux \
+  || exit 1
+# These were merged into the 2.6.22 kernels
+# --enable-acpi-ibm --enable-acpi-toshiba 
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
+
+# Let's put the udev rules in the right place
+mkdir -p $PKG/lib
+mv $PKG/etc/udev $PKG/lib
+
+# Install init script for hal
+mkdir -p $PKG/etc/rc.d
+zcat $CWD/rc.hald.gz > $PKG/etc/rc.d/rc.hald.new
+# Make HAL run by default:
+chmod 0755 $PKG/etc/rc.d/rc.hald.new
+
+# Make the HAL access controls suitable for us
+# Big thanks to Richard Hughes for feedback on this :-)
+# First, move the one installed by the system to the docs directory
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+mv $PKG/etc/dbus-1/system.d/hal.conf \
+  $PKG/usr/doc/$PRGNAM-$VERSION/hal.conf.orig
+# Don't clobber an existing config file in case custom changes have been made
+zcat $CWD/hal.conf.gz > $PKG/etc/dbus-1/system.d/hal.conf.new
+
+# Install docs (directory was created above)
+cp -a \
+  AUTHORS COPYING* HACKING INSTALL NEWS README* \
+  $PKG/usr/doc/$PRGNAM-$VERSION
+( cd $PKG/usr/doc/$PRGNAM-$VERSION
+  ln -s ../../share/gtk-doc/html/libhal libhal
+  ln -s ../../share/gtk-doc/html/libhal-storage libhal-storage
+)
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+

@@ -1,0 +1,48 @@
+#!/bin/sh
+# This script is used within the Slackware installer to present
+# a package series selection menu.  If not present, a default list
+# built into the installer is used.
+
+# Protected tmp directory:
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+
+rm -f $TMP/SeTSERIES
+dialog --title "PACKAGE SERIES SELECTION" --item-help --checklist \
+"Now it's time to select which general categories of software to install \
+on your system.  Use the spacebar to select or unselect the software you \
+wish to install.  You can use the up and down arrows to see all the \
+possible choices.  Recommended choices have been preselected.  Press the \
+ENTER key when you are finished." \
+20 75 9 \
+"A" "Base Linux system" on "The A (base) series contains the kernel and main system utilities." \
+"AP" "Various Applications that do not need X" on "The AP series is a collection of useful applications." \
+"D" "Program Development (C, C++, Lisp, Perl, etc.)" on "The D series contains compilers, debuggers, and other programming tools." \
+"E" "GNU Emacs" on "The E series contains the GNU Emacs advanced real-time display editor." \
+"F" "FAQ lists, HOWTO documentation" on "The F series contains essential documentation for Linux system administrators." \
+"K" "Linux kernel source" on "The K series contains the source code for the Linux kernel." \
+"KDE" "Qt and the K Desktop Environment for X" on "The KDE series contains the K Desktop Environment and related libraries." \
+"KDEI" "International language support for KDE" off "The KDEI series provides support for languages other than US English in KDE." \
+"L" "System Libraries (needed by KDE, GNOME, X, and more)" on "The L series contains important libraries needed by the rest of the system." \
+"N" "Networking (TCP/IP, UUCP, Mail, News)" on "The N series contains network related clients and servers." \
+"T" "TeX typesetting software" on "TeX is a typesetting system often used for mathematics and technical papers." \
+"TCL" "Tcl/Tk script languages" on "The TCL series contains the Tcl/Tk/TclX languages and programs that use them." \
+"X" "X Window System" on "This series contains X, the window system (or GUI) used by Linux." \
+"XAP" "X Applications" on "The XAP series is a collection of applications for X." \
+"Y" "Games" on "The Y series contains a collection of classic text-based games." \
+2> $TMP/SeTSERIES
+if [ ! $? = 0 ]; then
+  rm -f $TMP/SeTSERIES
+  exit
+fi
+# Save this "just in case":
+#"GNOME" "The GNOME desktop for X" on "The GNOME series contains the GNOME desktop environment and related libraries." 
+#
+# Rewrite the list into a single # delimited line:
+INSTSETS="`cat $TMP/SeTSERIES | tr -d " "`"
+INSTSETS="`echo $INSTSETS | tr "\042" "#" `"
+INSTSETS="`echo $INSTSETS | tr "," "#" `"
+# Store the selection list:
+echo "$INSTSETS" > $TMP/SeTSERIES

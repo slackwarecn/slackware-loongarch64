@@ -1,0 +1,2747 @@
+--- bootp-2.4.3.orig/Announce
++++ bootp-2.4.3/Announce
+@@ -6,6 +6,8 @@
+ 
+ New features in version 2.4 include:
+ 
++	Added static DHCP allocation capabilities.
++		Use: :dl=leasetime for DHCP leasetime handouts
+ 	Added a simple BOOTP gateway program: bootpgw
+ 	Allow host name anywhere IP address is expected.
+ 	Automatically lookup the IP address when the name of a
+@@ -49,12 +51,19 @@
+ 	SunOS 4.X (Solaris 1.X)
+ 	SunOS 5.X (Solaris 2.X)
+ 	System V/386 Rel. 4.0
++	Linux 1.1.81
+ 
+ Systems on which others say this code works:
+ 	CDC EP/IX (1.4.3, 2.1.1)
+ 	DEC Ultrix (4.2, 4.3)
+-	Linux 1.1.81
+ 	OSF/1 (DEC Alpha CPU)
++	HP 9000
++
++How to get the latest version:
++	ftp firewall.mc.com (anonymous)
++	cd /pub
++	binary
++	get bootp-2.4.2.tar.Z
+ 
+ Please direct questions, comments, and bug reports to:
+ 	<bootp@andrew.cmu.edu>
+--- bootp-2.4.3.orig/Changes
++++ bootp-2.4.3/Changes
+@@ -14,12 +14,33 @@
+ 	bad IP address caused "network unreachable" errors.
+ 	[Thanks to andrew@ntplx.net (Andrew Lindh) for the fix!]
+ 
++--> bootpd-2.4.3
++
++11/19/95  joey@infodrom.north.de (Martin Schulze)
++	Fixed a problem that DHCP lease time is send in every request
++	independend of the existence of a dl tag.
++	Corrected some NEED()-calls with wrong arguments (only some text)
++	Added support for -v (version) in bootpd and bootpgw.
++
++08/07/95  middelin@polyware.iaf.nl (Pauline Middelink)
++	Fixed problem while reporting duplicate hardware address in
++	readfile.c (kerry@maine.maine.edu)
++	Changed some code to allow the giaddr to pass through. Needed
++	when the client request is forwarded to us through a gateway.
++	(Broadcasting to the gateway will not reach the client)
++	
++01/26/95  Phil.Packer@bbc.co.uk (Phil.Packer)
++	Added dl tag for DHCP lease and rejigged Pauline's codes
++	at the end of bootpd.c to allow the setting of explicit leases.
++	Added "sco" Makefile target.
++	
+ --> bootp-2.4.2
+ 
+ 01/14/95  middelin@polyware.iaf.nl (Pauline Middelink)
+ 	Corrected support for the Linux networking code.
+ 	Fixed lots of warnings (gcc -Wall)
+ 	Added "linux" Makefile target.
++	Written code for DHCP static IP allocation.
+ 
+ 01/02/95  Jukka Ukkonen <ukkonen@csc.fi>
+ 	Allow bootptab syntax: ha="0:0:c0:80:e8:a7"
+--- bootp-2.4.3.orig/Makefile
++++ bootp-2.4.3/Makefile
+@@ -9,10 +9,10 @@
+ # OPTion DEFinitions:
+ # Remove the -DVEND_CMU if you don't wish to support the "CMU vendor format"
+ # in addition to the RFC1048 format.  Leaving out DEBUG saves little.
+-OPTDEFS= -DSYSLOG -DVEND_CMU -DDEBUG
++OPTDEFS= -DSYSLOG -DVEND_CMU -DDHCP -DDEBUG -g -O2 -Wall
+ 
+ # Uncomment and edit this to choose the facility code used for syslog.
+-# LOG_FACILITY= "-DLOG_BOOTP=LOG_LOCAL2"
++LOG_FACILITY= "-DLOG_BOOTP=LOG_DAEMON"
+ 
+ # SYStem DEFinitions:
+ # Either uncomment some of the following, or do:
+@@ -27,31 +27,35 @@
+ # FILE DEFinitions:
+ # The next few lines may be uncommented and changed to alter the default
+ # filenames bootpd uses for its configuration and dump files.
+-#CONFFILE= -DCONFIG_FILE=\"/usr/etc/bootptab\"
+-#DUMPFILE= -DDUMPTAB_FILE=\"/usr/etc/bootpd.dump\"
+-#FILEDEFS= $(CONFFILE) $(DUMPFILE)
++CONFFILE= -DCONFIG_FILE=\"/etc/bootptab\"
++DUMPFILE= -DDUMPTAB_FILE=\"/var/run/bootpd.dump\"
++FILEDEFS= $(CONFFILE) $(DUMPFILE)
++
++GLIBC=$(shell grep -s -c __GLIBC__ /usr/include/features.h)
+ 
+ # MORE DEFinitions (whatever you might want to add)
+ # One might define NDEBUG (to remove "assert()" checks).
+-MOREDEFS=
+-
+-INSTALL=/usr/bin/install
+-DESTDIR=
+-BINDIR=/usr/etc
+-MANDIR=/usr/local/man
++ifeq ($(GLIBC),0)
++MOREDEFS=-include /usr/include/linux/netdevice.h
++endif
++
++INSTALL=install
++DESTDIR=${BASEDIR}
++BINDIR=/usr/sbin
++MANDIR=/usr/share/man
+ 
+ CFLAGS= $(OPTDEFS) $(SYSDEFS) $(FILEDEFS) $(MOREDEFS)
+ PROGS= bootpd bootpef bootpgw bootptest
+ TESTS= trylook trygetif trygetea
+ 
+-all: $(PROGS) $(TESTS)
++all: $(PROGS) # $(TESTS)
+ 
+ system: install
+ 
+ install: $(PROGS)
+ 	-for f in $(PROGS) ;\
+ 	do \
+-		$(INSTALL) -c -s $$f $(DESTDIR)$(BINDIR) ;\
++		$(INSTALL) -c -o root -g root -m 0755 $$f $(DESTDIR)$(BINDIR) ;\
+ 	done
+ 
+ MAN5= bootptab.5
+@@ -59,12 +63,13 @@
+ install.man: $(MAN5) $(MAN8)
+ 	-for f in $(MAN5) ;\
+ 	do \
+-		$(INSTALL) -c -m 644 $$f $(DESTDIR)$(MANDIR)/man5 ;\
++		$(INSTALL) -c -o root -g root -m 0644 $$f $(DESTDIR)$(MANDIR)/man5 ;\
+ 	done
+ 	-for f in $(MAN8) ;\
+ 	do \
+-		$(INSTALL) -c -m 644 $$f $(DESTDIR)$(MANDIR)/man8 ;\
++		$(INSTALL) -c -o root -g root -m 0644 $$f $(DESTDIR)$(MANDIR)/man8 ;\
+ 	done
++	(cd $(DESTDIR)$(MANDIR)/man8 && ln -s bootpd.8 bootpgw.8)
+ 
+ clean:
+ 	-rm -f core *.o
+@@ -99,10 +104,6 @@
+ irix:
+ 	$(MAKE) SYSDEFS= SYSLIBS=
+ 
+-# Linux 1.1.80+ on [34]86
+-linux:
+-	$(MAKE) SYSDEFS="-O6 -Wall -fomit-frame-pointer"
+-
+ # SunOS 4.X
+ sunos4:
+ 	$(MAKE) SYSDEFS="-DSUNOS -DETC_ETHERS" \
+--- bootp-2.4.3.orig/README
++++ bootp-2.4.3/README
+@@ -60,7 +60,7 @@
+     Edit your /etc/rc.local or /etc/inetd.conf file to start up bootpd upon
+     reboot.  The following is a sample /etc/inetd.conf entry:
+ 	# BOOTP server
+-	bootps dgram udp wait root /usr/etc/bootpd bootpd -i
++	bootps dgram udp wait root /usr/sbin/bootpd bootpd -i
+ 
+ Care and feeding:
+     If you change the interface cards on your host or add new hosts you will
+--- bootp-2.4.3.orig/ToDo
++++ bootp-2.4.3/ToDo
+@@ -49,13 +49,3 @@
+ #endif
+ 
+ ----------------------------------------------------------------------
+-DHCP Support:
+-
+-There is a set of patches from Jeanette Pauline Middelink
+-<middelin@calvin.polyware.iaf.nl> to add DHCP support.
+-
+-Those patches will be integrated into the BOOTP release stream
+-very soon, but if you can't wait, you can get them from:
+-nimbus.anu.edu.au:/pub/tridge/samba/contributed/DHCP.patch
+-
+-----------------------------------------------------------------------
+--- bootp-2.4.3.orig/bootp.h
++++ bootp-2.4.3/bootp.h
+@@ -31,25 +31,25 @@
+  *
+  */
+ 
+-#include "bptypes.h"	/* for int32, u_int32 */
++#include <sys/types.h>
+ 
+ #define BP_CHADDR_LEN	 16
+ #define BP_SNAME_LEN	 64
+ #define BP_FILE_LEN	128
+ #define BP_VEND_LEN	 64
+-#define BP_MINPKTSZ	300	/* to check sizeof(struct bootp) */
++#define BP_MINPKTSZ	sizeof(struct bootp)
+ 
+ struct bootp {
+     unsigned char    bp_op;			/* packet opcode type */
+     unsigned char    bp_htype;			/* hardware addr type */
+     unsigned char    bp_hlen;			/* hardware addr length */
+     unsigned char    bp_hops;			/* gateway hops */
+-    unsigned int32   bp_xid;			/* transaction ID */
++    u_int32_t        bp_xid;			/* transaction ID */
+     unsigned short   bp_secs;			/* seconds since boot began */
+     unsigned short   bp_flags;			/* RFC1532 broadcast, etc. */
+     struct in_addr   bp_ciaddr;			/* client IP address */
+     struct in_addr   bp_yiaddr;			/* 'your' IP address */
+-    struct in_addr   bp_siaddr;			/* server IP address */
++    struct in_addr   bp_siaddr;			/* (tftp) server IP address */
+     struct in_addr   bp_giaddr;			/* gateway IP address */
+     unsigned char    bp_chaddr[BP_CHADDR_LEN];	/* client hardware address */
+     char	     bp_sname[BP_SNAME_LEN];	/* server host name */
+@@ -121,9 +121,17 @@
+ #define TAG_NIS_DOMAIN		((unsigned char)  40)
+ #define TAG_NIS_SERVER		((unsigned char)  41)
+ #define TAG_NTP_SERVER		((unsigned char)  42)
++#ifdef DHCP
+ /* DHCP maximum message size. */
++#define TAG_DHCP_IPLEASE	((unsigned char)  51)
++#define TAG_DHCP_MSG	   	((unsigned char)  53)
++#define TAG_DHCP_SERVERID	((unsigned char)  54)
++#endif
+ #define TAG_MAX_MSGSZ		((unsigned char)  57)
+-
++#ifdef DHCP
++#define TAG_DHCP_IPRENEW	((unsigned char)  58)	/* PeP hic facet */
++#define TAG_DHCP_IPREBIND	((unsigned char)  59)
++#endif
+ /* XXX - Add new tags here */
+ 
+ 
+@@ -133,13 +141,13 @@
+ 
+ struct cmu_vend {
+ 	char		v_magic[4];	/* magic number */
+-	unsigned int32	v_flags;	/* flags/opcodes, etc. */
++	u_int32_t	v_flags;	/* flags/opcodes, etc. */
+ 	struct in_addr 	v_smask;	/* Subnet mask */
+ 	struct in_addr 	v_dgate;	/* Default gateway */
+ 	struct in_addr	v_dns1, v_dns2; /* Domain name servers */
+ 	struct in_addr	v_ins1, v_ins2; /* IEN-116 name servers */
+ 	struct in_addr	v_ts1, v_ts2;	/* Time servers */
+-	int32		v_unused[6];	/* currently unused */
++	int32_t		v_unused[6];	/* currently unused */
+ };
+ 
+ 
+--- bootp-2.4.3.orig/bootpd.8
++++ bootp-2.4.3/bootpd.8
+@@ -2,20 +2,23 @@
+ .\"
+ .\"	$Header: $
+ .\"
+-.TH BOOTPD 8 "November 06, 1993" "Carnegie Mellon University"
++.\" Mon Nov 12 19:23:27 1995  Martin Schulze  <joey@finlandia.infodrom.north.de>
++.\"	minor changes, dumpfile is in /tmp, made it linux man(7) conform
++.TH BOOTPD 8 "12 November 1995" "Version 2.4.3" "Carnegie Mellon University"
+ .SH NAME
+ bootpd, bootpgw \- Internet Boot Protocol server/gateway
+ .SH SYNOPSIS
+ .B bootpd
++.RB [ " \-v " ]
+ [
+ .B \-i
+ .B \-s
+ .B \-t
+-timeout
++.I timeout
+ .B \-d
+-level
++.I level
+ .B \-c
+-chdir\-path
++.I chdir\-path
+ ]
+ [
+ .I bootptab
+@@ -24,72 +27,74 @@
+ ] ]
+ .br
+ .B bootpgw
++.RB [ " \-v " ]
+ [
+ .B \-i
+ .B \-s
+ .B \-t
+-timeout
++.I timeout
+ .B \-d
+-level
+-] server
++.IR level " ] " server
+ .SH DESCRIPTION
+-.I Bootpd
++.B Bootpd
+ implements an Internet Bootstrap Protocol (BOOTP) server as defined in
+-RFC951, RFC1532, and RFC1533.
+-.I Bootpgw
++RFC951, RFC1532, and RFC1533. This server also provides some extension
++to support the static part of Dynamic Host Configuration Protocol (DHCP)
++as specified in RFC1533. DHCP is used by Windows NT and 95.
++.B Bootpgw
+ implements a simple BOOTP gateway which can be used to forward
+ requests and responses between clients on one subnet and a
+ BOOTP server (i.e.
+-.IR bootpd )
++.BR bootpd )
+ on another subnet. While either
+-.I bootpd
++.B bootpd
+ or
+-.I bootpgw
++.B bootpgw
+ will forward BOOTREPLY packets, only
+-.I bootpgw
++.B bootpgw
+ will forward BOOTREQUEST packets.
+ .PP
+ One host on each network segment is normally configured to run either
+-.I bootpd
++.B bootpd
+ or
+-.I bootpgw
++.B bootpgw
+ from
+-.I inetd
++.B inetd
+ by including one of the following lines in the file
+ .IR /etc/inetd.conf :
+ .IP
+-bootps dgram udp wait root /etc/bootpd bootpd bootptab
++bootps dgram udp wait root /usr/sbin/bootpd bootpd bootptab
+ .br
+-bootps dgram udp wait root /etc/bootpgw bootpgw server
++bootps dgram udp wait root /usr/sbin/bootpgw bootpgw server
+ .PP
+ This mode of operation is referred to as "inetd mode" and causes
+-.I bootpd
++.B bootpd
+ (or
+-.IR bootpgw )
++.BR bootpgw )
+ to be started only when a boot request arrives.  If it does not
+ receive another packet within fifteen minutes of the last one
+ it received, it will exit to conserve system resources.  The
+ .B \-t
+-option controls this timeout (see OPTIONS).
++option controls this timeout (see OPTIONS below).
+ .PP
+ It is also possible to run
+-.I bootpd
++.B bootpd
+ (or
+-.IR bootpgw )
++.BR bootpgw )
+ in "standalone mode" (without
+-.IR inetd )
++.BR inetd )
+ by simply invoking it from a shell like any other regular command.
+ Standalone mode is particularly useful when
+-.I bootpd
++.B bootpd
+ is used with a large configuration database, where the start up
+ delay might otherwise prevent timely response to client requests.
+ (Automatic start up in standalone mode can be done by invoking
+-.I bootpd
++.B bootpd
+ from within
+ .IR /etc/rc.local ,
+ for example.)
+ Standalone mode is less useful for
+-.I bootgw
++.B bootgw
+ which
+ has very little start up delay because
+ it does not read a configuration file.
+@@ -108,9 +113,9 @@
+ Specifies the
+ .I timeout
+ value (in minutes) that a
+-.I bootpd
++.B bootpd
+ or
+-.I bootpgw
++.B bootpgw
+ process will wait for a BOOTP packet before exiting.
+ If no packets are recieved for
+ .I timeout
+@@ -124,69 +129,76 @@
+ variable that controls the amount of debugging messages generated.
+ For example, -d4 or -d 4 will set the debugging level to 4.
+ For compatibility with older versions of
+-.IR bootpd ,
++.BR bootpd ,
+ omitting the numeric parameter (i.e. just -d) will
+ simply increment the debug level by one.
+ .TP
+ .BI \-c \ chdir\-path
+ Sets the current directory used by
+-.I bootpd
++.B bootpd
+ while checking the existence and size of client boot files.  This is
+ useful when client boot files are specified as relative pathnames, and
+-.I bootpd
++.B bootpd
+ needs to use the same current directory as the TFTP server
+-(typically /tftpboot).  This option is not recoginzed by
+-.IR bootpgw .
++(typically
++.IR /tftpboot ).
++This option is not recoginzed by
++.BR bootpgw .
+ .TP
+ .B \-i
+ Force inetd mode.  This option is obsolete, but remains for
+ compatibility with older versions of
+-.IR bootpd .
++.BR bootpd .
+ .TP
+ .B \-s
+ Force standalone mode.  This option is obsolete, but remains for
+ compatibility with older versions of
+-.IR bootpd .
++.BR bootpd .
++.TP
++.B \-v
++Print version and exit.
+ .TP
+ .I bootptab
+ Specifies the name of the configuration file from which
+ .I bootpd
+ loads its database of known clients and client options
+-.RI ( bootpd
+-only).
++.RB ( bootpd
++only). Default is
++.IR /etc/bootptab .
+ .TP
+ .I dumpfile
+ Specifies the name of the file that
+-.I bootpd
++.B bootpd
+ will dump its internal database into when it receives a
+-SIGUSR1 signal
+-.RI ( bootpd
++.B SIGUSR1
++signal
++.RB ( bootpd
+ only).  This option is only recognized if
+-.I bootpd
++.B bootpd
+ was compiled with the -DDEBUG flag.
+ .TP
+ .I server
+ Specifies the name of a BOOTP server to which
+-.I bootpgw
++.B bootpgw
+ will forward all BOOTREQUEST packets it receives
+-.RI ( bootpgw
++.RB ( bootpgw
+ only).
+ .SH OPERATION
+ .PP
+ Both
+-.I bootpd
++.B bootpd
+ and
+-.I bootpgw
++.B bootpgw
+ operate similarly in that both listen for any packets sent to the
+-.I bootps
++.B bootps
+ port, and both simply forward any BOOTREPLY packets.
+ They differ in their handling of BOOTREQUEST packets.
+ .PP
+ When
+-.I bootpgw
++.B bootpgw
+ is started, it determines the address of a BOOTP server
+ whose name is provided as a command line parameter.  When
+-.I bootpgw
++.B bootpgw
+ receives a BOOTREQUEST packet, it sets the "gateway address"
+ and "hop count" fields in the packet and forwards the packet
+ to the BOOTP server at the address determined earlier.
+@@ -194,41 +206,43 @@
+ the client has been waiting for at least three seconds.
+ .PP
+ When
+-.I bootpd
++.B bootpd
+ is started it reads a configuration file, (normally
+ .IR /etc/bootptab )
+ that initializes the internal database of known clients and client
+ options.  This internal database is reloaded
+ from the configuration file when
+-.I bootpd
++.B bootpd
+ receives a hangup signal (SIGHUP) or when it discovers that the
+-configuration file has changed.
++configuration file has changed.  Note that any changes to the configuration
++file should be atomic to avoid race conditions.
+ .PP
+ When
+-.I bootpd
++.B bootpd
+ receives a BOOTREQUEST packet, it
+ .\" checks the modification time of the
+ .\" configuration file and reloads the database if necessary.  Then it
+ looks for a database entry matching the client request.
+ If the client is known,
+-.I bootpd
++.B bootpd
+ composes a BOOTREPLY packet using the database entry found above,
+ and sends the reply to the client (possibly using a gateway).
+ If the client is unknown, the request is discarded
+ (with a notice if debug > 0).
+ .PP
+ If
+-.I bootpd
+-is compiled with the -DDEBUG option, receipt of a SIGUSR1 signal causes
+-it to dump its internal database to the file
+-.I /etc/bootpd.dump
++.B bootpd
++is compiled with the -DDEBUG option, receipt of a
++.B SIGUSR1
++signal causes it to dump its internal database to the file
++.I /tmp/bootpd.dump
+ or the dumpfile specified as a command line parameter.
+ .PP
+ During initialization, both programs
+ determine the UDP port numbers to be used by calling
+-.I getservbyname
++.BR getservbyname (3)
+ (which nomally uses
+-.IR /etc/services).
++.IR /etc/services ).
+ Two service names (and port numbers) are used:
+ .IP
+ bootps \- BOOTP Server listening port
+@@ -240,21 +254,21 @@
+ .I getservbyname
+ then the values default to boopts=67 and bootpc=68.
+ .SH FILES
+-.TP 20
+-/etc/bootptab
++.TP 
++.I /etc/bootptab
+ Database file read by
+-.IR bootpd .
++.BR bootpd .
+ .TP
+-/etc/bootpd.dump
++.I /tmp/bootpd.dump
+ Debugging dump file created by
+-.IR bootpd .
++.BR bootpd .
+ .TP
+-/etc/services
++.I /etc/services
+ Internet service numbers.
+ .TP
+-/tftpboot
++.I /tftpboot
+ Current directory typically used by the TFTP server and
+-.IR bootpd .
++.BR bootpd .
+ 
+ .SH BUGS
+ Individual host entries must not exceed 1024 characters.
+@@ -268,7 +282,7 @@
+ Bill Croft at Stanford University in January 1986.
+ .PP
+ The current version of
+-.I bootpd
++.B bootpd
+ is primarily the work of David Kovar,
+ Drew D. Perkins, and Walter L. Wimer,
+ at Carnegie Mellon University.
+@@ -286,12 +300,20 @@
+ .br
+ Jim McKim <mckim@lerc.nasa.gov>
+ .br
++Pauline Middelink <middelin@calvin.polyware.iaf.nl>
++.br
++Martin Schulze <joey@infodrom.north.de>
++.br
+ Gordon W. Ross <gwr@mc.com>
+ .br
+ Jason Zions <jazz@hal.com>
+ .SH "SEE ALSO"
+ .LP
+-bootptab(5), inetd(8), tftpd(8)
++.BR bootptab (5),
++.BR services (5),
++.BR inetd (8),
++.BR inetd.conf (5),
++.BR tftpd (8).
+ .LP
+ DARPA Internet Request For Comments:
+ .TP 10
+--- bootp-2.4.3.orig/bootpd.c
++++ bootp-2.4.3/bootpd.c
+@@ -46,6 +46,7 @@
+ #include <sys/time.h>
+ #include <sys/stat.h>
+ #include <sys/utsname.h>
++#include <sys/select.h>
+ 
+ #include <net/if.h>
+ #include <netinet/in.h>
+@@ -76,6 +77,23 @@
+ # define bzero(p,l)      memset(p,0,l)
+ # define bcmp(a,b,c)     memcmp(a,b,c)
+ #endif
++#ifdef __linux__
++/* Use sigaction to make signal last... */
++inline void (*signal(int sig,void (*handler)(int)))(int) {
++#if !defined(__GLIBC__)
++	struct sigaction so,sa = {NULL,0,SA_NOMASK|SA_RESTART,NULL};
++#else /* __GLIBC__ */
++	struct sigaction so,sa;
++        so.sa_handler = NULL;
++        so.sa_flags = sa.sa_flags = SA_NOMASK|SA_RESTART;
++        sigemptyset(&so.sa_mask);
++        sigemptyset(&sa.sa_mask);
++#endif /* __GLIBC__ */
++	sa.sa_handler = handler;
++	if (sigaction(sig,&sa,&so)<0) return NULL;
++	return so.sa_handler;
++}
++#endif
+ 
+ #include "bootp.h"
+ #include "hash.h"
+@@ -92,7 +110,7 @@
+ #define CONFIG_FILE		"/etc/bootptab"
+ #endif
+ #ifndef DUMPTAB_FILE
+-#define DUMPTAB_FILE		"/tmp/bootpd.dump"
++#define DUMPTAB_FILE		"/var/run/bootpd.dump"
+ #endif
+ 
+ 
+@@ -110,16 +128,26 @@
+ extern void dumptab P((char *));
+ 
+ PRIVATE void catcher P((int));
+-PRIVATE int chk_access P((char *, int32 *));
++PRIVATE int chk_access P((char *, int32_t *));
+ #ifdef VEND_CMU
+ PRIVATE void dovend_cmu P((struct bootp *, struct host *));
+ #endif
+-PRIVATE void dovend_rfc1048 P((struct bootp *, struct host *, int32));
++PRIVATE int  dovend_rfc1048 P((struct bootp *, struct host *, int32_t));
+ PRIVATE void handle_reply P((void));
+ PRIVATE void handle_request P((void));
+-PRIVATE void sendreply P((int forward, int32 dest_override));
++PRIVATE void sendreply P((int forward, int32_t dest_override));
+ PRIVATE void usage P((void));
+ 
++#ifdef DHCP
++PRIVATE int dhcp_discover P((struct bootp *, struct host *, byte *, int));
++PRIVATE int dhcp_request P((struct bootp *, struct host *, byte *, int));
++PRIVATE int dhcp_decline P((struct bootp *, struct host *, byte *, int));
++PRIVATE int dhcp_release P((struct bootp *, struct host *, byte *, int));
++PRIVATE int dhcp_offer P((struct bootp *, struct host *, byte *, int));
++PRIVATE int dhcp_ack P((struct bootp *, struct host *, byte *, int));
++PRIVATE int dhcp_lease P((struct bootp *, struct host *, byte **));
++#endif
++
+ #undef	P
+ 
+ /*
+@@ -159,7 +187,6 @@
+ char *chdir_path;
+ struct in_addr my_ip_addr;
+ 
+-struct utsname my_uname;
+ char *hostname;
+ 
+ /* Flags set by signal catcher. */
+@@ -180,7 +207,7 @@
+  * main server loop is started.
+  */
+ 
+-void
++int
+ main(argc, argv)
+ 	int argc;
+ 	char **argv;
+@@ -189,9 +216,16 @@
+ 	struct bootp *bp;
+ 	struct servent *servp;
+ 	struct hostent *hep;
++	struct utsname my_uname;
+ 	char *stmp;
++#if !defined(__GLIBC__)
+ 	int n, ba_len, ra_len;
+-	int nfound, readfds;
++#else /* __GLIBC__ */
++        int n;
++        socklen_t ra_len, ba_len;
++#endif /* __GLIBC__ */   
++	int nfound;
++	fd_set readfds;
+ 	int standalone;
+ #ifdef	SA_NOCLDSTOP	/* Have POSIX sigaction(2). */
+ 	struct sigaction sa;
+@@ -343,7 +377,7 @@
+ 						"%s: invalid timeout specification\n", progname);
+ 				break;
+ 			}
+-			actualtimeout.tv_sec = (int32) (60 * n);
++			actualtimeout.tv_sec = (int32_t) (60 * n);
+ 			/*
+ 			 * If the actual timeout is zero, pass a NULL pointer
+ 			 * to select so it blocks indefinitely, otherwise,
+@@ -352,6 +386,14 @@
+ 			timeout = (n > 0) ? &actualtimeout : NULL;
+ 			break;
+ 
++			case 'v':
++#ifdef DHCP
++			printf("bootpd+dhcp %s.%d\n", VERSION, PATCHLEVEL);
++#else
++			printf("bootpd %s.%d\n", VERSION, PATCHLEVEL);
++#endif
++			exit (0);
++
+ 		default:
+ 			fprintf(stderr, "%s: unknown switch: -%c\n",
+ 					progname, argv[0][1]);
+@@ -380,6 +422,11 @@
+ 		exit(1);
+ 	}
+ 	bcopy(hep->h_addr, (char *)&my_ip_addr, sizeof(my_ip_addr));
++	hostname = strdup(hep->h_name);
++	if (!hostname) {
++		report(LOG_ERR, "strdup failed");
++		exit(1);
++	}
+ 
+ 	if (standalone) {
+ 		/*
+@@ -477,6 +524,17 @@
+ 		bootpc_port = (u_short) IPPORT_BOOTPC;
+ 	}
+ 
++#ifdef DHCP
++	/*
++	 * Maybe we have to broadcast, so enable it.
++	 */
++	n = 1;
++	if (setsockopt(s,SOL_SOCKET,SO_BROADCAST,&n,sizeof(n))<0) {
++		report(LOG_ERR, "setsockopt: %s\n", get_errmsg());
++		exit(1);
++	}
++#endif
++
+ 	/*
+ 	 * Set up signals to read or dump the table.
+ 	 */
+@@ -510,11 +568,12 @@
+ 	for (;;) {
+ 		struct timeval tv;
+ 
+-		readfds = 1 << s;
++		FD_ZERO(&readfds);
++		FD_SET(s, &readfds);
+ 		if (timeout)
+ 			tv = *timeout;
+ 
+-		nfound = select(s + 1, (fd_set *)&readfds, NULL, NULL,
++		nfound = select(s + 1, &readfds, NULL, NULL,
+ 						(timeout) ? &tv : NULL);
+ 		if (nfound < 0) {
+ 			if (errno != EINTR) {
+@@ -534,7 +593,7 @@
+ 			}
+ 			continue;
+ 		}
+-		if (!(readfds & (1 << s))) {
++		if (!FD_ISSET(s, &readfds)) {
+ 			if (debug > 1)
+ 				report(LOG_INFO, "exiting after %ld minutes of inactivity",
+ 					   actualtimeout.tv_sec / 60);
+@@ -569,6 +628,8 @@
+ 			break;
+ 		}
+ 	}
++
++	return 0;
+ }
+ 
+ 
+@@ -625,13 +686,15 @@
+ 	struct bootp *bp = (struct bootp *) pktbuf;
+ 	struct host *hp = NULL;
+ 	struct host dummyhost;
+-	int32 bootsize = 0;
++	struct hostent *hep;
++	int32_t bootsize = 0;
+ 	unsigned hlen, hashcode;
+-	int32 dest;
++	int32_t dest;
+ 	char realpath[1024];
+ 	char *clntpath;
+ 	char *homedir, *bootfile;
+ 	int n;
++	int lpos;
+ 
+ 	/* XXX - SLIP init: Set bp_ciaddr = recv_addr here? */
+ 
+@@ -641,7 +704,8 @@
+ 	 * If the server name field is null, throw in our name.
+ 	 */
+ 	if (strlen(bp->bp_sname)) {
+-		if (strcmp(bp->bp_sname, hostname)) {
++		hep = gethostbyname(bp->bp_sname);
++		if (!hep || strcmp(hep->h_name, hostname)) {
+ 			if (debug)
+ 				report(LOG_INFO, "\
+ ignoring request for server %s from client at %s address %s",
+@@ -654,6 +718,16 @@
+ 		strcpy(bp->bp_sname, hostname);
+ 	}
+ 
++	/* cevans - security as reported on Bugtraq! */
++	if (bp->bp_htype >= hwinfocnt) {
++		if (debug)
++			report(LOG_INFO,
++				"Request with unknown network type %u",
++				bp->bp_htype);
++		return;
++	}
++
++
+ 	/* Convert the request into a reply. */
+ 	bp->bp_op = BOOTREPLY;
+ 	if (bp->bp_ciaddr.s_addr == 0) {
+@@ -668,7 +742,7 @@
+ 		}
+ 		hlen = haddrlength(bp->bp_htype);
+ 		if (hlen != bp->bp_hlen) {
+-			report(LOG_NOTICE, "bad addr len from from %s address %s",
++			report(LOG_NOTICE, "bad addr len from %s address %s",
+ 				   netname(bp->bp_htype),
+ 				   haddrtoa(bp->bp_chaddr, hlen));
+ 		}
+@@ -701,7 +775,6 @@
+ 					   haddrtoa(bp->bp_chaddr, bp->bp_hlen));
+ 			return; /* not found */
+ 		}
+-		(bp->bp_yiaddr).s_addr = hp->iaddr.s_addr;
+ 
+ 	} else {
+ 
+@@ -724,6 +797,7 @@
+ 			return;
+ 		}
+ 	}
++	(bp->bp_yiaddr).s_addr = hp->iaddr.s_addr;
+ 
+ 	if (debug) {
+ 		report(LOG_INFO, "found %s (%s)", inet_ntoa(hp->iaddr),
+@@ -735,7 +809,7 @@
+ 	 * with a timestamp lower than the threshold.
+ 	 */
+ 	if (hp->flags.min_wait) {
+-		u_int32 t = (u_int32) ntohs(bp->bp_secs);
++		u_int32_t t = (u_int32_t) ntohs(bp->bp_secs);
+ 		if (t < hp->min_wait) {
+ 			if (debug > 1)
+ 				report(LOG_INFO,
+@@ -759,11 +833,9 @@
+ 	/* Run a program, passing the client name as a parameter. */
+ 	if (hp->flags.exec_file) {
+ 		char tst[100];
+-		/* XXX - Check string lengths? -gwr */
+-		strcpy (tst, hp->exec_file->string);
+-		strcat (tst, " ");
+-		strcat (tst, hp->hostname->string);
+-		strcat (tst, " &");
++		snprintf(tst, sizeof(tst), "%s %s &",
++			hp->exec_file->string,
++			hp->hostname->string);
+ 		if (debug)
+ 			report(LOG_INFO, "executing %s", tst);
+ 		system(tst);	/* Hope this finishes soon... */
+@@ -829,13 +901,20 @@
+ 	 * The "real" path is as seen by the BOOTP daemon on this
+ 	 * machine, while the client path is relative to the TFTP
+ 	 * daemon chroot directory (i.e. /tftpboot).
++	 *
++	 * The bootfile might not be properly zero terminated. We
++	 * need to play safe - AC
+ 	 */
+ 	if (hp->flags.tftpdir) {
++		lpos=strlen(hp->tftpdir->string);
++		if(lpos>=sizeof(realpath)-1)
++			return;
+ 		strcpy(realpath, hp->tftpdir->string);
+-		clntpath = &realpath[strlen(realpath)];
++		clntpath = &realpath[lpos];
+ 	} else {
+ 		realpath[0] = '\0';
+ 		clntpath = realpath;
++		lpos=0;
+ 	}
+ 
+ 	/*
+@@ -876,12 +955,18 @@
+ 	if (homedir) {
+ 		if (homedir[0] != '/')
+ 			strcat(clntpath, "/");
++		lpos+=strlen(homedir);
++		if(lpos>=sizeof(realpath))
++			return;
+ 		strcat(clntpath, homedir);
+ 		homedir = NULL;
+ 	}
+ 	if (bootfile) {
+ 		if (bootfile[0] != '/')
+ 			strcat(clntpath, "/");
++		lpos+=strlen(bootfile);
++		if(lpos>=sizeof(realpath))
++			return;
+ 		strcat(clntpath, bootfile);
+ 		bootfile = NULL;
+ 	}
+@@ -890,8 +975,15 @@
+ 	 * First try to find the file with a ".host" suffix
+ 	 */
+ 	n = strlen(clntpath);
+-	strcat(clntpath, ".");
+-	strcat(clntpath, hp->hostname->string);
++	
++	/*
++	 *	Don't test if it wont fit.
++	 */
++	if(n+1+strlen(hp->hostname->string)<sizeof(realpath))
++	{
++		strcat(clntpath, ".");
++		strcat(clntpath, hp->hostname->string);
++	}
+ 	if (chk_access(realpath, &bootsize) < 0) {
+ 		clntpath[n] = 0;			/* Try it without the suffix */
+ 		if (chk_access(realpath, &bootsize) < 0) {
+@@ -961,7 +1053,8 @@
+ 	 */
+ 	if (!bcmp(bp->bp_vend, vm_rfc1048, 4)) {
+ 		/* RFC1048 conformant bootp client */
+-		dovend_rfc1048(bp, hp, bootsize);
++		if (!dovend_rfc1048(bp, hp, bootsize))
++			return;
+ 		if (debug > 1) {
+ 			report(LOG_INFO, "sending reply (with RFC1048 options)");
+ 		}
+@@ -1009,7 +1102,7 @@
+ PRIVATE void
+ sendreply(forward, dst_override)
+ 	int forward;
+-	int32 dst_override;
++	int32_t dst_override;
+ {
+ 	struct bootp *bp = (struct bootp *) pktbuf;
+ 	struct in_addr dst;
+@@ -1018,12 +1111,6 @@
+ 	int len, haf;
+ 
+ 	/*
+-	 * XXX - Should honor bp_flags "broadcast" bit here.
+-	 * Temporary workaround: use the :ra=ADDR: option to
+-	 * set the reply address to the broadcast address.
+-	 */
+-
+-	/*
+ 	 * If the destination address was specified explicitly
+ 	 * (i.e. the broadcast address for HP compatiblity)
+ 	 * then send the response to that address.  Otherwise,
+@@ -1048,6 +1135,23 @@
+ 			report(LOG_INFO, "sending reply to gateway %s",
+ 				   inet_ntoa(dst));
+ 		}
++	} else if (ntohs(bp->bp_flags) & 0x8000) {
++		struct ifreq *ifr;
++		ifr = getif(s, &bp->bp_yiaddr);
++		if (ifr) {
++			struct sockaddr_in *bip;
++			struct ifreq myreq;
++			strcpy( myreq.ifr_name, ifr->ifr_name );
++			if (ioctl(s, SIOCGIFBRDADDR, &myreq) < 0) {
++			    report(LOG_ERR, "ioctl SIOCGIFBRDADDR");
++			    dst.s_addr = INADDR_BROADCAST;
++			} else {
++			    bip = (struct sockaddr_in *)&myreq.ifr_broadaddr;
++			    dst = bip->sin_addr;
++			}
++		} else {
++			dst.s_addr = INADDR_BROADCAST;
++		}
+ 	} else {
+ 		dst = bp->bp_yiaddr;
+ 		ha = bp->bp_chaddr;
+@@ -1125,12 +1229,12 @@
+ PRIVATE int
+ chk_access(path, filesize)
+ 	char *path;
+-	int32 *filesize;
++	int32_t *filesize;
+ {
+ 	struct stat st;
+ 
+ 	if ((stat(path, &st) == 0) && (st.st_mode & (S_IREAD >> 6))) {
+-		*filesize = (int32) st.st_size;
++		*filesize = (int32_t) st.st_size;
+ 		return 0;
+ 	} else {
+ 		return -1;
+@@ -1220,16 +1324,20 @@
+ 	if (bytesleft < (LEN)) { \
+ 		report(LOG_NOTICE, noroom, \
+ 			   hp->hostname->string, MSG); \
+-		return; \
++		return 0; \
+ 	} while (0)
+-PRIVATE void
++PRIVATE int
+ dovend_rfc1048(bp, hp, bootsize)
+ 	struct bootp *bp;
+ 	struct host *hp;
+-	int32 bootsize;
++	int32_t bootsize;
+ {
+ 	int bytesleft, len;
+ 	byte *vp;
++#ifdef DHCP
++	int dhcp = 0;
++	int isme = TRUE;	/* DHCP uses this for not-mine-requests */
++#endif
+ 
+ 	static char noroom[] = "%s: No room for \"%s\" option";
+ 
+@@ -1280,7 +1388,25 @@
+ 				case TAG_SUBNET_MASK:
+ 					/* XXX - Should preserve this if given... */
+ 					break;
+-				} /* swtich */
++#ifdef DHCP
++				case TAG_DHCP_MSG:
++					dhcp = *p;
++					break;
++				case TAG_DHCP_SERVERID:
++					{
++						struct in_addr tmp_addr;
++						isme = (len == 4) && (
++							memcpy(
++								&tmp_addr, p,
++								sizeof(tmp_addr)
++							),
++							my_ip_addr.s_addr ==
++							tmp_addr.s_addr
++						);
++					}
++					break;
++#endif
++				} /* switch */
+ 				p += len;
+ 			}
+ 
+@@ -1347,16 +1473,44 @@
+ 		vp += len;
+ 		*vp++ = TAG_END;
+ 		bytesleft -= len + 3;
+-		return;					/* no more options here. */
++		return 1;				/* no more options here. */
+ 	}
++
++#ifdef DHCP
+ 	/*
+-	 * The remaining options are inserted by the following
+-	 * function (which is shared with bootpef.c).
+-	 * Keep back one byte for the TAG_END.
++	 * Check if this is a DHCP request.
+ 	 */
+-	len = dovend_rfc1497(hp, vp, bytesleft - 1);
+-	vp += len;
+-	bytesleft -= len;
++	if (dhcp!=0) {
++		if (!isme)
++			return 0;	/* Not mine, discard! */
++
++		switch (dhcp) {
++		 case 1 : len = dhcp_discover(bp,hp,vp,bytesleft); break;
++		 case 3 : len = dhcp_request(bp,hp,vp,bytesleft); break;
++		 case 4 : len = dhcp_decline(bp,hp,vp,bytesleft); break;
++		 case 7 : len = dhcp_release(bp,hp,vp,bytesleft); break;
++		 default : report(LOG_NOTICE,"Unknown DHCP request (%d)",dhcp);
++			   return 0;
++		}
++		/* Is there a DHCP reply at all? */
++		if (len==0)
++			return 0;
++		vp += len;
++		bytesleft -= len;
++	}
++	else {
++#endif
++		/*
++		 * The remaining options are inserted by the following
++		 * function (which is shared with bootpef.c).
++		 * Keep back one byte for the TAG_END.
++		 */
++		len = dovend_rfc1497(hp, vp, bytesleft);
++		vp += len;
++		bytesleft -= len;
++#ifdef DHCP
++	}
++#endif
+ 
+ 	/* There should be at least one byte left. */
+ 	NEED(1, "(end)");
+@@ -1364,12 +1518,19 @@
+ 	bytesleft--;
+ 
+ 	/* Log message done by caller. */
++
++	/* Remove unnecessary bits. */
++	pktlen -= bytesleft;
++	bytesleft = 64 - (vp - bp->bp_vend);
+ 	if (bytesleft > 0) {
+ 		/*
+ 		 * Zero out any remaining part of the vendor area.
+ 		 */
+ 		bzero(vp, bytesleft);
++		pktlen += bytesleft;
+ 	}
++
++	return 1;	/* sent reply */
+ } /* dovend_rfc1048 */
+ #undef	NEED
+ 
+@@ -1390,6 +1551,173 @@
+ 
+ /* get_errmsg() - now in report.c */
+ 
++
++#ifdef DHCP
++
++/*
++ * PeP hic facet
++ * Stuff the packet with the Lease info, We need to do this on the Offer and
++ * the ack so separated out here
++ */
++PRIVATE
++int dhcp_lease(bp, hp, vp)
++    struct bootp *bp;
++    struct host *hp;
++    byte **vp;
++{
++	*(*vp)++ = TAG_DHCP_IPRENEW;	/* DHCP Renewal time 50% of lease */
++	*(*vp)++ = 4;			/* Length */
++	insert_u_long(htonl(hp->dhcp_lease/2),vp);
++
++	*(*vp)++ = TAG_DHCP_IPREBIND;	/* DHCP Rebinding time 85% of lease */
++	*(*vp)++ = 4;
++	insert_u_long(htonl(hp->dhcp_lease*7/8),vp);
++	
++	*(*vp)++ = TAG_DHCP_IPLEASE;	/* IP address lease time */
++	*(*vp)++ = 4;			/* Length */
++	insert_u_long(htonl(hp->dhcp_lease),vp); /* PeP hic facet, lets see if this works */
++
++	return(19);
++}
++
++
++/*
++ * Formulate an DHCP_DISCOVER reply
++ */
++PRIVATE
++int dhcp_discover(bp, hp, vp, bytesleft)
++    struct bootp *bp;
++    struct host *hp;
++    byte *vp;
++    int bytesleft;
++{
++	if(debug)
++		report(LOG_INFO, "Received: DHCPDISCOVER");
++	return(dhcp_offer(bp,hp,vp,bytesleft));
++}
++
++/*
++ * formulate an DHCP_RELEASE reply
++ */
++PRIVATE
++int dhcp_release(bp, hp, vp, bytesleft)
++    struct bootp *bp;
++    struct host *hp;
++    byte *vp;
++    int bytesleft;
++{
++	if (debug)
++		report(LOG_INFO, "Received: DHCPRELEASE (discarded)");
++	return 0;
++}
++
++PRIVATE
++int dhcp_offer(bp, hp, vp, bytesleft)
++    struct bootp *bp;
++    struct host *hp;
++    byte *vp;
++    int bytesleft;
++{
++	int len=0;
++	if (debug)
++		report(LOG_INFO, "Sent: DHCPOFFER");
++
++	bp->bp_secs = bp->bp_hops = 0;
++	bp->bp_ciaddr.s_addr = 0;
++
++	*vp++ = TAG_DHCP_MSG;		/* DHCP */
++	*vp++ = 1;			/* length */
++	*vp++ = 2;			/* DHCPOFFER */
++	len +=  3;	
++
++	if (hp->dhcp_lease)
++		len += dhcp_lease(bp,hp,&vp);
++
++	*vp++ = TAG_DHCP_SERVERID;
++	*vp++ = 4;
++	insert_u_long(my_ip_addr.s_addr,&vp);
++	len += 6;
++
++	return len + dovend_rfc1497(hp, vp, bytesleft - len);
++}
++
++/*
++ * Formulate an DHCP_REQUEST reply
++ */
++PRIVATE
++int dhcp_request(bp, hp, vp, bytesleft)
++    struct bootp *bp;
++    struct host *hp;
++    byte *vp;
++    int bytesleft;
++{
++	bp->bp_secs = bp->bp_hops = 0;
++
++	if(debug)
++		report(LOG_INFO,"Received: DHCPREQUEST");
++	/*
++	 * Make absolutely sure that if the client requests an address,
++	 * it is its own address, and also make sure the hardware
++	 * addresses match perfectly. We want to minimize spoofing!
++	 */
++	if ((bp->bp_ciaddr.s_addr && bp->bp_ciaddr.s_addr!=bp->bp_yiaddr.s_addr) ||
++	    bp->bp_htype != hp->htype ||
++            bcmp(bp->bp_chaddr, hp->haddr, haddrlength(hp->htype))) {
++		if (debug)
++			report(LOG_INFO, "Sent: DHCPNAK");
++
++		*vp++ = TAG_DHCP_MSG;	/* DHCPNAK */
++		*vp++ = 1;
++		*vp++ = 6;
++		return 3;
++	}
++	else 
++		return(dhcp_ack(bp,hp,vp,bytesleft));	
++}
++
++PRIVATE
++int dhcp_ack(bp, hp, vp, bytesleft)
++    struct bootp *bp;
++    struct host *hp;
++    byte *vp;
++    int bytesleft;
++{
++	int len=0;
++	if (debug)
++		report(LOG_INFO, "Sent: DHCPACK");
++
++	*vp++ = TAG_DHCP_MSG;	/* DHCPACK */
++	*vp++ = 1;
++	*vp++ = 5;
++	len += 3;
++
++	if (hp->dhcp_lease)
++		len += dhcp_lease(bp,hp,&vp);
++
++	*vp++ = TAG_DHCP_SERVERID;	/* Server id */
++	*vp++ = 4;
++	insert_u_long(my_ip_addr.s_addr,&vp);
++	len += 6;
++
++	return len + dovend_rfc1497(hp, vp, bytesleft - len);
++}
++
++/*
++ * formulate an DHCP_DECLINE reply
++ */
++PRIVATE
++int dhcp_decline(bp, hp, vp, bytesleft)
++    struct bootp *bp;
++    struct host *hp;
++    byte *vp;
++    int bytesleft;
++{
++	if (debug)
++		report(LOG_INFO, "Received: DHCPDECLINE (ignored)");
++	return 0;
++}
++#endif
++
+ /*
+  * Local Variables:
+  * tab-width: 4
+--- bootp-2.4.3.orig/bootpd.h
++++ bootp-2.4.3/bootpd.h
+@@ -25,6 +25,7 @@
+  * bootpd.h -- common header file for all the modules of the bootpd program.
+  */
+ 
++#include <sys/types.h>
+ #include "bptypes.h"
+ #include "hash.h"
+ #include "hwaddr.h"
+@@ -126,6 +127,9 @@
+ 		exec_file	:1,
+ 		msg_size	:1,
+ 		min_wait	:1,
++#ifdef DHCP
++		dhcp_lease	:1,	/* PeP hic facet */
++#endif
+ 		/* XXX - Add new tags here */
+ 		vm_cookie	:1;
+ };
+@@ -180,10 +184,13 @@
+ 			    htype,  /* RFC826 says this should be 16-bits but
+ 				       RFC951 only allocates 1 byte. . . */
+ 			    haddr[MAXHADDRLEN];
+-    int32		    time_offset;
+-    unsigned int32	    bootsize,
++    int32_t		    time_offset;
++    u_int32_t		    bootsize,
+ 			    msg_size,
+ 			    min_wait;
++#ifdef DHCP
++    u_int32_t		    dhcp_lease; /* PeP hic facet */
++#endif
+     struct in_addr	    bootserver,
+ 			    iaddr,
+ 			    swap_server,
+--- bootp-2.4.3.orig/bootpef.8
++++ bootp-2.4.3/bootpef.8
+@@ -5,10 +5,13 @@
+ .SH SYNOPSIS
+ .LP
+ .B bootpef
+-.RI [ "-c chdir" ]
+-.RI [ "-d debug-level" ]
+-.RI [ "-f config-file" ]
+-.RI [ client-name " [...]]"
++.RB [ " \-c"
++.IR chdir " ]"
++.RB [ " \-d"
++.IR debug-level " ]"
++.RB [ "-f"
++.IR config-file " ]"
++.RI "[ " client-name " [...]]"
+ .SH DESCRIPTION
+ .B bootpef
+ builds the
+@@ -28,7 +31,8 @@
+ extension file names are specified as relative pathnames, and
+ .I bootpef
+ needs to use the same current directory as the TFTP server
+-(typically /tftpboot).
++(typically 
++.IR /tftpboot ).
+ .TP
+ .BI \-d \ debug\-level
+ Sets the
+@@ -40,7 +44,8 @@
+ Set the name of the config file that specifies the option
+ data to be sent to each client.
+ .SH "SEE ALSO"
+-bootpd(8), tftpd(8)
++.BR bootpd (8), 
++.BR tftpd (8)
+ .SH REFERENCES
+ .TP
+ RFC951
+--- bootp-2.4.3.orig/bootpef.c
++++ bootp-2.4.3/bootpef.c
+@@ -133,7 +133,7 @@
+  * Initialization such as command-line processing is done and then the
+  * main server loop is started.
+  */
+-void
++int
+ main(argc, argv)
+ 	int argc;
+ 	char **argv;
+@@ -269,6 +269,8 @@
+ 		mktagfile(hp);
+ 		hp = (struct host *) hash_NextEntry(nmhashtable);
+ 	}
++
++	return 0;
+ }
+ 
+ 
+--- bootp-2.4.3.orig/bootpgw.c
++++ bootp-2.4.3/bootpgw.c
+@@ -38,6 +38,7 @@
+ #include <sys/time.h>
+ #include <sys/stat.h>
+ #include <sys/utsname.h>
++#include <sys/select.h>
+ 
+ #include <net/if.h>
+ #include <netinet/in.h>
+@@ -137,7 +138,7 @@
+ int pktlen;
+ char *progname;
+ char *servername;
+-int32 server_ipa;				/* Real server IP address, network order. */
++int32_t server_ipa;				/* Real server IP address, network order. */
+ 
+ struct in_addr my_ip_addr;
+ 
+@@ -153,7 +154,7 @@
+  * main server loop is started.
+  */
+ 
+-void
++int
+ main(argc, argv)
+ 	int argc;
+ 	char **argv;
+@@ -163,8 +164,14 @@
+ 	struct servent *servp;
+ 	struct hostent *hep;
+ 	char *stmp;
++#if !defined(__GLIBC__)
+ 	int n, ba_len, ra_len;
+-	int nfound, readfds;
++#else /* __GLIBC__ */
++        int n;
++        socklen_t ra_len, ba_len;
++#endif /* __GLIBC__ */   
++	int nfound;
++	fd_set readfds;
+ 	int standalone;
+ 
+ 	progname = strrchr(argv[0], '/');
+@@ -305,7 +312,7 @@
+ 						"%s: invalid timeout specification\n", progname);
+ 				break;
+ 			}
+-			actualtimeout.tv_sec = (int32) (60 * n);
++			actualtimeout.tv_sec = (int32_t) (60 * n);
+ 			/*
+ 			 * If the actual timeout is zero, pass a NULL pointer
+ 			 * to select so it blocks indefinitely, otherwise,
+@@ -314,6 +321,10 @@
+ 			timeout = (n > 0) ? &actualtimeout : NULL;
+ 			break;
+ 
++		case 'v':
++			printf("bootpgw %s.%d\n", VERSION, PATCHLEVEL);
++			exit (0);
++
+ 		case 'w':				/* wait time */
+ 			if (argv[0][2]) {
+ 				stmp = &(argv[0][2]);
+@@ -450,11 +461,12 @@
+ 	for (;;) {
+ 		struct timeval tv;
+ 
+-		readfds = 1 << s;
++		FD_ZERO(&readfds);
++		FD_SET(s, &readfds);
+ 		if (timeout)
+ 			tv = *timeout;
+ 
+-		nfound = select(s + 1, (fd_set *)&readfds, NULL, NULL,
++		nfound = select(s + 1, &readfds, NULL, NULL,
+ 						(timeout) ? &tv : NULL);
+ 		if (nfound < 0) {
+ 			if (errno != EINTR) {
+@@ -462,7 +474,7 @@
+ 			}
+ 			continue;
+ 		}
+-		if (!(readfds & (1 << s))) {
++		if (!FD_ISSET(s, &readfds)) {
+ 			report(LOG_INFO, "exiting after %ld minutes of inactivity",
+ 				   actualtimeout.tv_sec / 60);
+ 			exit(0);
+@@ -494,6 +506,8 @@
+ 			break;
+ 		}
+ 	}
++
++	return 0;
+ }
+ 
+ 
+--- bootp-2.4.3.orig/bootptab.5
++++ bootp-2.4.3/bootptab.5
+@@ -2,7 +2,9 @@
+ .\"
+ .\"	$Header: $
+ .\"
+-.TH BOOTPTAB 5 "October 31, 1991" "Carnegie Mellon University"
++.\" Mon Nov 12 19:23:27 1995  Martin Schulze  <joey@finlandia.infodrom.north.de>
++.\"	minor changes, made it linux man(7) conform
++.TH BOOTPTAB 5 "12 November 1995" "Version 2.4.3" "Carnegie Mellon University"
+ .UC 6
+ 
+ .SH NAME
+@@ -11,28 +13,28 @@
+ The
+ .I bootptab
+ file is the configuration database file for
+-.IR bootpd ,
++.BR bootpd ,
+ the Internet Bootstrap Protocol server.
+ It's format is similar to that of
+-.IR termcap (5)
++.BR termcap (5)
+ in which two-character case-sensitive tag symbols are used to
+ represent host parameters.  These parameter declarations are separated by
+ colons (:), with a general format of:
+ .PP
+-.I "	hostname:tg=value. . . :tg=value. . . :tg=value. . . ."
++.I "	hostname:tg=value... :tg=value... :tg=value. ..."
+ .PP
+ where
+ .I hostname
+ is the actual name of a bootp client (or a "dummy entry"), and
+-.I tg
++.B tg
+ is a two-character tag symbol.  Dummy entries have an invalid hostname
+ (one with a "." as the first character) and are used to provide
+ default values used by other entries via the
+-.B tc=.dummy-entry
++.BI tc= .dummy-entry
+ mechanism.  Most tags must be followed by an equals-sign
+ and a value as above.  Some may also appear in a boolean form with no
+ value (i.e.
+-.RI : tg :).
++.RB : tg :).
+ The currently recognized tags are:
+ .PP
+ .br
+@@ -44,12 +46,16 @@
+ .br
+ 	df	Merit dump file
+ .br
++	dl	DHCP lease time in seconds
++.br
+ 	dn	Domain name
+ .br
+ 	ds	Domain name server address list
+ .br
+ 	ef	Extension file
+ .br
++	ex	York ex option (huh?)
++.br
+ 	gw	Gateway address list
+ .br
+ 	ha	Host hardware address
+@@ -68,6 +74,8 @@
+ .br
+ 	lp	LPR server address list
+ .br
++	ms	Message size
++.br
+ 	ns	IEN-116 name server address list
+ .br
+ 	nt	NTP (time) Server (RFC 1129)
+@@ -100,12 +108,12 @@
+ 
+ .PP
+ There is also a generic tag,
+-.RI T n ,
++.BI T n ,
+ where
+ .I n
+ is an RFC1084 vendor field tag number.  Thus it is possible to immediately
+ take advantage of future extensions to RFC1084 without being forced to modify
+-.I bootpd
++.B bootpd
+ first.  Generic data may be represented as either a stream of hexadecimal
+ numbers or as a quoted string of ASCII characters.  The length of the generic
+ data is automatically determined and inserted into the proper field(s) of the
+@@ -136,12 +144,13 @@
+ and may use decimal, octal, or hexadecimal numbers
+ (octal numbers begin with 0, hexadecimal numbers begin with '0x' or '0X').
+ Any IP addresses may alternatively be specified as a hostname, causing
+-.I bootpd
+-to lookup the IP address for that host name using gethostbyname(3).
++.B bootpd
++to lookup the IP address for that host name using
++.BR gethostbyname(3).
+ If the
+ .B ip
+ tag is not specified,
+-.I bootpd
++.B bootpd
+ will determine the IP address using the entry name as the host name.
+ (Dummy entries use an invalid host name to avoid automatic IP lookup.)
+ .PP
+@@ -184,8 +193,9 @@
+ below).
+ If the hardware address is not specified and the type is specified
+ as either "ethernet" or "ieee802", then
+-.I bootpd
+-will try to determine the hardware address using ether_hton(3).
++.B bootpd
++will try to determine the hardware address using
++.BR ether_hton (3).
+ .PP
+ The hostname, home directory, and bootfile are ASCII strings which may be
+ optionally surrounded by double quotes (").  The client's request and the
+@@ -205,34 +215,39 @@
+ option is specified as well, its value is prepended to the
+ boot file copied into the reply packet.
+ The existence of the boot file is checked only if the
+-.BR bs =auto
++.BI bs= auto
+ option is used (to determine the boot file size).
+ A reply may be sent whether or not the boot file exists.
+ .PP
+ Some newer versions of
+-.I tftpd
++.BR tftpd (8)
+ provide a security feature to change their root directory using
+ the
+-.IR chroot (2)
++.BR chroot (2)
+ system call.
+ The
+ .B td
+ tag may be used to inform
+-.I bootpd
++.B bootpd
+ of this special root directory used by
+-.IR tftpd .
++.BR tftpd .
+ (One may alternatively use the
+-.I bootpd
+-"-c chdir" option.)
++.B bootpd
++.B  -c
++.I chdir
++option.)
+ The
+ .B hd
+ tag is actually relative to the root directory specified by the
+ .B td
+ tag.
+ For example, if the real absolute path to your BOOTP client bootfile is
+-/tftpboot/bootfiles/bootimage, and
+-.IR tftpd
+-uses /tftpboot as its "secure" directory, then specify the following in
++.IR /tftpboot/bootfiles/bootimage ,
++and
++.B tftpd
++uses
++.I /tftpboot
++as its "secure" directory, then specify the following in
+ .IR bootptab :
+ .PP
+ .br
+@@ -247,9 +262,9 @@
+ .B sa
+ tag may be used to specify the IP address of the particular TFTP server
+ you wish the client to use.  In the absence of this tag,
+-.I bootpd
++.B bootpd
+ will tell the client to perform TFTP to the same machine
+-.I bootpd
++.B bootpd
+ is running on.
+ .PP
+ The time offset
+@@ -292,8 +307,8 @@
+ tag is strictly a boolean tag; it does not take the usual equals-sign and
+ value.  It's presence indicates that the hostname should be sent to RFC1084
+ clients.
+-.I Bootpd
+-attempts to send the entire hostname as it is specified in the configuration
++.B Bootpd
++attempts to send the entire hostname (including domain) as it is specified in the configuration
+ file; if this will not fit into the reply packet, the name is shortened to
+ just the host field (up to the first period, if present) and then tried.
+ In no case is an arbitrarily-truncated hostname sent (if nothing reasonable
+@@ -308,9 +323,9 @@
+ never sends bootp requests.  This feature is similar to the
+ .B tc
+ feature of
+-.IR termcap (5)
++.BR termcap (5)
+ for similar terminals.  Note that
+-.I bootpd
++.B bootpd
+ allows the
+ .B tc
+ tag symbol to appear anywhere in the host entry, unlike
+@@ -332,7 +347,7 @@
+ which removes the effect of
+ .I tag
+ as in
+-.IR termcap (5).
++.BR termcap (5).
+ For example, to completely undo an IEN-116 name server specification, use
+ ":ns@:" at an appropriate place in the configuration entry.  After removal
+ with
+@@ -386,10 +401,12 @@
+ 
+ .fi
+ .SH FILES
+-/etc/bootptab
++.TP
++.I /etc/bootptab
++The definition file
+ 
+ .SH "SEE ALSO"
+-.br
+-bootpd(8), tftpd(8),
++.BR bootpd (8),
++.BR tftpd (8),
+ .br
+ DARPA Internet Request For Comments RFC951, RFC1048, RFC1084, Assigned Numbers
+--- bootp-2.4.3.orig/bootptab.cmu
++++ bootp-2.4.3/bootptab.cmu
+@@ -1,4 +1,4 @@
+-# /etc/bootptab: database for bootp server (/etc/bootpd)
++# /etc/bootptab: database for bootp server (/usr/sbin/bootpd)
+ # (I've hacked on this but can't test it... -gwr)
+ 
+ # Blank lines and lines beginning with '#' are ignored.
+@@ -33,6 +33,8 @@
+ #	to -- time offset (seconds)
+ #	ts -- time servers
+ #	vm -- vendor magic number
++#	ys -- NIS server
++#	yd -- NIS domain
+ #	Tn -- generic option tag n
+ #
+ # Be careful about including backslashes where they're needed.  Weird (bad)
+--- bootp-2.4.3.orig/bootptab.mcs
++++ bootp-2.4.3/bootptab.mcs
+@@ -1,4 +1,4 @@
+-# /etc/bootptab: database for bootp server (/etc/bootpd)
++# /etc/bootptab: database for bootp server (/usr/sbin/bootpd)
+ # Last update: gwr, Sun Dec 12 19:00:00 EDT 1993
+ # Blank lines and lines beginning with '#' are ignored.
+ #
+@@ -32,6 +32,8 @@
+ #	to -- time offset (seconds)
+ #	ts -- time servers
+ #	vm -- vendor magic number
++#	ys -- NIS server
++#	yd -- NIS domain
+ #	Tn -- generic option tag n
+ #
+ # Be careful about including backslashes where they're needed.  Weird (bad)
+--- bootp-2.4.3.orig/bootptest.c
++++ bootp-2.4.3/bootptest.c
+@@ -41,6 +41,7 @@
+ #include <sys/time.h>
+ #include <sys/stat.h>
+ #include <sys/utsname.h>
++#include <sys/select.h>
+ 
+ #include <net/if.h>
+ #include <netinet/in.h>
+@@ -50,6 +51,9 @@
+ #include <unistd.h>
+ #endif
+ 
++#ifndef	NO_UNISTD
++#include <unistd.h>
++#endif
+ #include <stdlib.h>
+ #include <signal.h>
+ #include <stdio.h>
+@@ -68,6 +72,9 @@
+ 
+ static void send_request();
+ 
++extern int getether();
++static void send_request();
++
+ #define LOG_ERR 1
+ #define BUFLEN 1024
+ #define WAITSECS 1
+@@ -125,7 +132,7 @@
+  * the receiver loop is started.  Die when interrupted.
+  */
+ 
+-void
++int
+ main(argc, argv)
+ 	int argc;
+ 	char **argv;
+@@ -137,12 +144,17 @@
+ 	char *servername = NULL;
+ 	char *vendor_file = NULL;
+ 	char *bp_file = NULL;
+-	int32 server_addr;			/* inet addr, network order */
++	int32_t server_addr;			/* inet addr, network order */
+ 	int s;						/* Socket file descriptor */
++#if !defined(__GLIBC__)
+ 	int n, fromlen, recvcnt;
++#else /* __GLIBC__ */
++        int n, recvcnt;
++        socklen_t fromlen;
++#endif /* __GLIBC__ */   
+ 	int use_hwa = 0;
+-	int32 vend_magic;
+-	int32 xid;
++	int32_t vend_magic;
++	int32_t xid;
+ 
+ 	progname = strrchr(argv[0], '/');
+ 	if (progname)
+@@ -304,8 +316,8 @@
+ 	bp = (struct bootp *) sndbuf;
+ 	bzero(bp, sizeof(*bp));
+ 	bp->bp_op = BOOTREQUEST;
+-	xid = (int32) getpid();
+-	bp->bp_xid = (u_int32) htonl(xid);
++	xid = (int32_t) getpid();
++	bp->bp_xid = (u_int32_t) htonl(xid);
+ 	if (bp_file)
+ 		strncpy(bp->bp_file, bp_file, BP_FILE_LEN);
+ 
+@@ -384,12 +396,13 @@
+ 	send_request(s);
+ 	while (1) {
+ 		struct timeval tv;
+-		int readfds;
++		fd_set readfds;
+ 
+ 		tv.tv_sec = WAITSECS;
+ 		tv.tv_usec = 0L;
+-		readfds = (1 << s);
+-		n = select(s + 1, (fd_set *) & readfds, NULL, NULL, &tv);
++		FD_ZERO(&readfds);
++		FD_SET(s, &readfds);
++		n = select(s + 1, &readfds, NULL, NULL, &tv);
+ 		if (n < 0) {
+ 			perror("select");
+ 			break;
+@@ -436,7 +449,7 @@
+ 		 */
+ 	}
+ 	fprintf(stderr, "no response from %s\n", servername);
+-	exit(1);
++	return 1;
+ }
+ 
+ static void
+--- bootp-2.4.3.orig/bptypes.h
++++ bootp-2.4.3/bptypes.h
+@@ -4,15 +4,6 @@
+ #define	BPTYPES_H
+ 
+ /*
+- * 32 bit integers are different types on various architectures
+- */
+-
+-#ifndef	int32
+-#define int32 long
+-#endif
+-typedef unsigned int32 u_int32;
+-
+-/*
+  * Nice typedefs. . .
+  */
+ 
+--- bootp-2.4.3.orig/dovend.c
++++ bootp-2.4.3/dovend.c
+@@ -57,11 +57,11 @@
+ 	int bytesleft = len;
+ 	byte *vp = buf;
+ 
+-	static char noroom[] = "%s: No room for \"%s\" option";
++	static char noroom[] = "%s: No room for \"%s\" option (%d bytes remaining, %d needed)";
+ #define	NEED(LEN, MSG) do                       \
+ 		if (bytesleft < (LEN)) {         	    \
+ 			report(LOG_NOTICE, noroom,          \
+-				   hp->hostname->string, MSG);  \
++				hp->hostname->string, MSG, bytesleft, LEN);  \
+ 			return (vp - buf);                  \
+ 		} while (0)
+ 
+@@ -159,7 +159,7 @@
+ 		 * TAG_NIS_DOMAIN and length.
+ 		 */
+ 		len = strlen(hp->nis_domain->string);
+-		NEED((len + 2), "dn");
++		NEED((len + 2), "yd");
+ 		*vp++ = TAG_NIS_DOMAIN;
+ 		*vp++ = (byte) (len & 0xFF);
+ 		bcopy(hp->nis_domain->string, vp, len);
+@@ -185,13 +185,17 @@
+ 					  hp->time_server,
+ 					  &vp, &bytesleft))
+ 			NEED(8, "ts");
++#ifdef DEBUG
++		if (debug)
++			report(LOG_INFO, "dovend.c(dovend_rfc1497): bytesleft after ts: %d", bytesleft);
++#endif
+ 	}
+ 	/* NTP (time) Server (RFC 1129) */
+ 	if (hp->flags.ntp_server) {
+ 		if (insert_ip(TAG_NTP_SERVER,
+ 					  hp->ntp_server,
+ 					  &vp, &bytesleft))
+-			NEED(8, "ts");
++			NEED(8, "nt");
+ 	}
+ 	/*
+ 	 * I wonder:  If the hostname were "promoted" into the BOOTP
+@@ -384,7 +388,7 @@
+ 
+ void
+ insert_u_long(value, dest)
+-	u_int32 value;
++	u_int32_t value;
+ 	byte **dest;
+ {
+ 	byte *temp;
+--- bootp-2.4.3.orig/dovend.h
++++ bootp-2.4.3/dovend.h
+@@ -1,5 +1,7 @@
+ /* dovend.h */
+ 
++#include <sys/types.h>
++
+ #ifdef	__STDC__
+ #define P(args) args
+ #else
+@@ -8,6 +10,6 @@
+ 
+ extern int dovend_rfc1497 P((struct host *hp, u_char *buf, int len));
+ extern int insert_ip P((int, struct in_addr_list *, u_char **, int *));
+-extern void insert_u_long P((u_int32, u_char **));
++extern void insert_u_long P((u_int32_t, u_char **));
+ 
+ #undef P
+--- bootp-2.4.3.orig/dumptab.c
++++ bootp-2.4.3/dumptab.c
+@@ -10,6 +10,8 @@
+ #include <stdlib.h>
+ #include <syslog.h>
+ #include <time.h>
++#include <sys/stat.h>
++#include <fcntl.h>
+ 
+ #ifndef USE_BFUNCS
+ #include <memory.h>
+@@ -56,7 +58,7 @@
+ dumptab(filename)
+ 	char *filename;
+ {
+-	int n;
++	int n, fd;
+ 	struct host *hp;
+ 	FILE *fp;
+ 	long t;
+@@ -103,7 +105,8 @@
+ 	/*
+ 	 * Open bootpd.dump file.
+ 	 */
+-	if ((fp = fopen(filename, "w")) == NULL) {
++	fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0600);
++	if (fd < 0 || (fp = fdopen(fd, "w")) == NULL) {
+ 		report(LOG_ERR, "error opening \"%s\": %s",
+ 			   filename, get_errmsg());
+ 		exit(1);
+@@ -150,7 +153,7 @@
+ 			if (hp->flags.bootsize_auto) {
+ 				fprintf(fp, "auto:");
+ 			} else {
+-				fprintf(fp, "%d:", hp->bootsize);
++				fprintf(fp, "%lu:", (unsigned long) hp->bootsize);
+ 			}
+ 		}
+ 		if (hp->flags.cookie_server) {
+@@ -218,10 +221,10 @@
+ 			fprintf(fp, ":");
+ 		}
+ 		if (hp->flags.msg_size) {
+-			fprintf(fp, "\\\n\t:ms=%d:", hp->msg_size);
++			fprintf(fp, "\\\n\t:ms=%lu:", (unsigned long) hp->msg_size);
+ 		}
+ 		if (hp->flags.min_wait) {
+-			fprintf(fp, "\\\n\t:mw=%d:", hp->min_wait);
++			fprintf(fp, "\\\n\t:mw=%lu:", (unsigned long) hp->min_wait);
+ 		}
+ 		if (hp->flags.name_server) {
+ 			fprintf(fp, "\\\n\t:ns=");
+@@ -260,7 +263,7 @@
+ 		/* NetBSD: domainname (see above) */
+ 		/* NetBSD: dumpfile (see above) */
+ 		if (hp->flags.time_offset) {
+-			fprintf(fp, "\\\n\t:to=%ld:", hp->time_offset);
++			fprintf(fp, "\\\n\t:to=%ld:", (long) hp->time_offset);
+ 		}
+ 		if (hp->flags.time_server) {
+ 			fprintf(fp, "\\\n\t:ts=");
+--- bootp-2.4.3.orig/getether.c
++++ bootp-2.4.3/getether.c
+@@ -329,7 +329,9 @@
+ #include <memory.h>
+ #include <sys/ioctl.h>
+ #include <net/if.h>	       	/* struct ifreq */
++#if !defined(__GLIBC__)
+ #include <sys/socketio.h>	/* Needed for IOCTL defs */
++#endif
+ 
+ int
+ getether(ifname, eap)
+--- bootp-2.4.3.orig/hwaddr.c
++++ bootp-2.4.3/hwaddr.c
+@@ -48,7 +48,6 @@
+ #define	ATF_INUSE 0
+ #endif
+ 
+-#include "bptypes.h"
+ #include "hwaddr.h"
+ #include "report.h"
+ 
+--- bootp-2.4.3.orig/lookup.c
++++ bootp-2.4.3/lookup.c
+@@ -12,9 +12,13 @@
+ #include <netinet/in.h>
+ 
+ #ifdef	ETC_ETHERS
++#ifdef __GLIBC__
++#include <netinet/ether.h>
++#else
+ #include <netinet/if_ether.h>
+ extern int ether_hostton();
+ #endif
++#endif
+ 
+ #include <netdb.h>
+ #include <syslog.h>
+@@ -72,7 +76,7 @@
+ int
+ lookup_ipa(hostname, result)
+ 	char *hostname;
+-	u_int32 *result;
++	u_int32_t *result;
+ {
+ 	struct hostent *hp;
+ 	hp = gethostbyname(hostname);
+@@ -93,10 +97,10 @@
+  */
+ int
+ lookup_netmask(addr, result)
+-	u_int32 addr;				/* both in network order */
+-	u_int32 *result;
++	u_int32_t addr;				/* both in network order */
++	u_int32_t *result;
+ {
+-	int32 m, a;
++	int32_t m, a;
+ 
+ 	a = ntohl(addr);
+ 	m = 0;
+--- bootp-2.4.3.orig/lookup.h
++++ bootp-2.4.3/lookup.h
+@@ -1,6 +1,6 @@
+ /* lookup.h */
+ 
+-#include "bptypes.h"	/* for int32, u_int32 */
++#include <sys/types.h>
+ 
+ #ifdef	__STDC__
+ #define P(args) args
+@@ -9,7 +9,7 @@
+ #endif
+ 
+ extern u_char *lookup_hwa P((char *hostname, int htype));
+-extern int lookup_ipa P((char *hostname, u_int32 *addr));
+-extern int lookup_netmask P((u_int32 addr, u_int32 *mask));
++extern int lookup_ipa P((char *hostname, u_int32_t *addr));
++extern int lookup_netmask P((u_int32_t addr, u_int32_t *mask));
+ 
+ #undef P
+--- bootp-2.4.3.orig/print-bootp.c
++++ bootp-2.4.3/print-bootp.c
+@@ -120,7 +120,7 @@
+ 		printf(" hops:%d", bp->bp_hops);
+ 
+ 	if (bp->bp_xid)
+-		printf(" xid:%d", ntohl(bp->bp_xid));
++		printf(" xid:%lu", (unsigned long) ntohl(bp->bp_xid));
+ 
+ 	if (bp->bp_secs)
+ 		printf(" secs:%d", ntohs(bp->bp_secs));
+@@ -172,9 +172,9 @@
+ 
+ 	TCHECK(bp->bp_vend[0], vdlen);
+ 	printf(" vend");
+-	if (!bcmp(bp->bp_vend, vm_rfc1048, sizeof(u_int32)))
++	if (!bcmp(bp->bp_vend, vm_rfc1048, sizeof(u_int32_t)))
+ 		rfc1048_print(bp->bp_vend, vdlen);
+-	else if (!bcmp(bp->bp_vend, vm_cmu, sizeof(u_int32)))
++	else if (!bcmp(bp->bp_vend, vm_cmu, sizeof(u_int32_t)))
+ 		cmu_print(bp->bp_vend, vdlen);
+ 	else
+ 		other_print(bp->bp_vend, vdlen);
+@@ -194,7 +194,7 @@
+  * a: ASCII
+  * b: byte (8-bit)
+  * i: inet address
+- * l: int32
++ * l: int32_t
+  * s: short (16-bit)
+  */
+ char *
+@@ -268,7 +268,14 @@
+ 	"iXW-FS",			/* 48: X Window System Font Servers */
+ 	"iXW-DM",			/* 49: X Window System Display Managers */
+ 
+-	/* DHCP extensions (RFC-1533, sect. 9) */
++#ifdef DHCP
++	/* DHCP extensions (RFC-1533, sect. 9) PeP hic facet */
++	"iDHCPreq",			/* 50: DHCP requested IP address */
++	"lDHCPlease",		/* 51: DHCP lease time */ 
++	"bDHCPooptol",		/* 52: DHCP option overload */
++	"bDHCPtype",		/* 53: DHCP message type */
++	"iDHCPSid",			/* 54: DHCP server ID */
++#endif
+ #endif
+ };
+ #define	KNOWN_OPTIONS (sizeof(rfc1048_opts) / sizeof(rfc1048_opts[0]))
+@@ -281,7 +288,7 @@
+ 	u_char tag;
+ 	u_char *ep;
+ 	register int len;
+-	u_int32 ul;
++	u_int32_t ul;
+ 	u_short us;
+ 	struct in_addr ia;
+ 	char *optstr;
+@@ -289,7 +296,7 @@
+ 	printf("-rfc1395");
+ 
+ 	/* Step over magic cookie */
+-	bp += sizeof(int32);
++	bp += sizeof(int32_t);
+ 	/* Setup end pointer */
+ 	ep = bp + length;
+ 	while (bp < ep) {
+@@ -310,7 +317,7 @@
+ 		len = *bp++;
+ 		if (bp + len > ep) {
+ 			/* truncated option */
+-			printf(" |(%d>%d)", len, ep - bp);
++			printf(" |(%d>%ld)", len, (long) (ep - bp));
+ 			return;
+ 		}
+ 		/* Print the option value(s). */
+@@ -336,7 +343,7 @@
+ 		case 'l':				/* Long words */
+ 			while (len >= 4) {
+ 				bcopy((char *) bp, (char *) &ul, 4);
+-				printf("%d", ntohl(ul));
++				printf("%lu", (unsigned long) ntohl(ul));
+ 				bp += 4;
+ 				len -= 4;
+ 				if (len) printf(",");
+--- bootp-2.4.3.orig/readfile.c
++++ bootp-2.4.3/readfile.c
+@@ -33,7 +33,7 @@
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <sys/file.h>
+-#include <sys/time.h>
++#include <time.h>
+ #include <netinet/in.h>
+ 
+ #include <stdlib.h>
+@@ -113,6 +113,11 @@
+ #define SYM_EXEC_FILE		 33	/* YORK_EX_OPTION */
+ #define SYM_MSG_SIZE 		 34
+ #define SYM_MIN_WAIT		 35
++#ifdef DHCP
++#define SYM_DHCP_LEASE		 36	/* RFC 1533 PeP hic facet */
++#define SYM_DHCP_IPRENEW	 37
++#define SYM_DHCP_IPREBIND	 38
++#endif
+ /* XXX - Add new tags here */
+ 
+ #define OP_ADDITION		  1	/* Operations on tags */
+@@ -144,7 +149,7 @@
+ 
+ PRIVATE int nhosts;				/* Number of hosts (/w hw or IP address) */
+ PRIVATE int nentries;			/* Total number of entries */
+-PRIVATE int32 modtime = 0;		/* Last modification time of bootptab */
++PRIVATE int32_t modtime = 0;		/* Last modification time of bootptab */
+ PRIVATE char *current_hostname;	/* Name of the current entry. */
+ PRIVATE char current_tagname[8];
+ 
+@@ -161,6 +166,9 @@
+ 	{"df", SYM_DUMP_FILE},
+ 	{"dn", SYM_DOMAIN_NAME},
+ 	{"ds", SYM_DOMAIN_SERVER},
++#ifdef DHCP
++	{"dl", SYM_DHCP_LEASE},		/* PeP hic facet */
++#endif
+ 	{"ef", SYM_EXTEN_FILE},
+ 	{"ex", SYM_EXEC_FILE},		/* YORK_EX_OPTION */
+ 	{"gw", SYM_GATEWAY},
+@@ -255,7 +263,7 @@
+ 	get_shared_string P((char **));
+ PRIVATE char *
+ 	get_string P((char **, char *, u_int *));
+-PRIVATE u_int32
++PRIVATE u_int32_t
+ 	get_u_long P((char **));
+ PRIVATE boolean
+ 	goodname P((char *));
+@@ -274,7 +282,7 @@
+ PRIVATE byte *
+ 	prs_haddr P((char **, u_int));
+ PRIVATE int
+-	prs_inetaddr P((char **, u_int32 *));
++	prs_inetaddr P((char **, u_int32_t *));
+ PRIVATE void
+ 	read_entry P((FILE *, char *, u_int *));
+ PRIVATE char *
+@@ -410,7 +418,7 @@
+ 		 */
+ 		if (goodname(hp->hostname->string)) {
+ 			char *hn = hp->hostname->string;
+-			u_int32 value;
++			u_int32_t value;
+ 			if (hp->flags.iaddr == 0) {
+ 				if (lookup_ipa(hn, &value)) {
+ 					report(LOG_ERR, "can not get IP addr for %s", hn);
+@@ -792,8 +800,8 @@
+ 	char tmpstr[MAXSTRINGLEN];
+ 	byte *tmphaddr;
+ 	struct symbolmap *symbolptr;
+-	u_int32 value;
+-	int32 timeoff;
++	u_int32_t value;
++	int32_t timeoff;
+ 	int i, numsymbols;
+ 	unsigned len;
+ 	int optype;					/* Indicates boolean, addition, or deletion */
+@@ -1125,7 +1133,16 @@
+ 		PARSE_UINT(min_wait);
+ 		break;
+ 
+-		/* XXX - Add new tags here */
++#ifdef DHCP		
++	/* PeP hic facet. */			
++	case SYM_DHCP_LEASE:
++		PARSE_UINT(dhcp_lease);
++		break;
++
++		/* XXX - Add new DHCP tags here */
++#endif
++
++	/* XXX - Add new tags here */
+ 
+ 	default:
+ 		return E_UNKNOWN_SYMBOL;
+@@ -1506,6 +1523,9 @@
+ 	DUP_COPY(min_wait);
+ 
+ 	/* XXX - Add new tags here */
++#ifdef	DHCP
++	DUP_COPY(dhcp_lease); /* PeP hic facet */
++#endif
+ 
+ 	DUP_LINK(generic);
+ 
+@@ -1623,7 +1643,7 @@
+ 		if (!**src) {			/* Quit if nothing more */
+ 			break;
+ 		}
+-		if (prs_inetaddr(src, &(address1->s_addr)) < 0) {
++		if (prs_inetaddr(src, (u_int32_t *) &(address1->s_addr)) < 0) {
+ 			break;
+ 		}
+ 		address1++;				/* Point to next address slot */
+@@ -1666,11 +1686,11 @@
+ PRIVATE int
+ prs_inetaddr(src, result)
+ 	char **src;
+-	u_int32 *result;
++	u_int32_t *result;
+ {
+ 	char tmpstr[MAXSTRINGLEN];
+-	register u_int32 value;
+-	u_int32 parts[4], *pp;
++	register u_int32_t value;
++	u_int32_t parts[4], *pp;
+ 	int n;
+ 	char *s, *t;
+ 
+@@ -1850,11 +1870,11 @@
+  * point to the first illegal character.
+  */
+ 
+-PRIVATE u_int32
++PRIVATE u_int32_t
+ get_u_long(src)
+ 	char **src;
+ {
+-	register u_int32 value, base;
++	register u_int32_t value, base;
+ 	char c;
+ 
+ 	/*
+--- bootp-2.4.3.orig/report.c
++++ bootp-2.4.3/report.c
+@@ -10,6 +10,8 @@
+ 
+ #include <stdio.h>
+ #include <syslog.h>
++#include <string.h>
++#include <errno.h>
+ 
+ #include "report.h"
+ 
+@@ -101,7 +103,7 @@
+ #endif
+ {
+ 	va_list ap;
+-	static char buf[128];
++	static char buf[256];
+ 
+ 	if ((priority < 0) || (priority >= numlevels)) {
+ 		priority = numlevels - 1;
+@@ -111,7 +113,7 @@
+ #else
+ 	va_start(ap);
+ #endif
+-	vsprintf(buf, fmt, ap);
++	vsnprintf(buf, sizeof(buf), fmt, ap);
+ 	va_end(ap);
+ 
+ 	/*
+@@ -135,9 +137,6 @@
+ char *
+ get_errmsg()
+ {
+-	extern int errno;
+-	extern char *strerror();
+-
+ 	return strerror(errno);
+ }
+ 
+--- bootp-2.4.3.orig/tzone.c
++++ bootp-2.4.3/tzone.c
+@@ -13,13 +13,13 @@
+ # include <sys/time.h>
+ # include <syslog.h>
+ #endif /* SVR4 */
++#include <sys/types.h>
+ 
+-#include "bptypes.h"
+ #include "report.h"
+ #include "tzone.h"
+ 
+ /* This is what other modules use. */
+-int32 secondswest;
++int32_t secondswest;
+ 
+ /*
+  * Get our timezone offset so we can give it to clients if the
+--- bootp-2.4.3.orig/tzone.h
++++ bootp-2.4.3/tzone.h
+@@ -1,3 +1,3 @@
+ /* tzone.h */
+-extern int32 secondswest;
++extern int32_t secondswest;
+ extern void tzone_init();
+--- bootp-2.4.3.orig/debian/substvars
++++ bootp-2.4.3/debian/substvars
+@@ -0,0 +1 @@
++shlibs:Depends=libc6 (>= 2.3.5-1)
+--- bootp-2.4.3.orig/debian/README.Debian
++++ bootp-2.4.3/debian/README.Debian
+@@ -0,0 +1,8 @@
++bootp for Debian
++----------------
++
++bootp is no longer maintained actively upstream.  It is recommended for you to
++use the dhcp package if at all possible.
++
++Herbert <herbert@debian.org>
++$Id: README.Debian,v 1.1 1999/02/06 07:11:19 herbert Exp $
+--- bootp-2.4.3.orig/debian/bootpgw.8
++++ bootp-2.4.3/debian/bootpgw.8
+@@ -0,0 +1 @@
++.so man8/bootpd.8
+--- bootp-2.4.3.orig/debian/control
++++ bootp-2.4.3/debian/control
+@@ -0,0 +1,18 @@
++Source: bootp
++Section: net
++Priority: extra
++Maintainer: Anibal Monsalve Salazar <anibal@debian.org>
++Standards-Version: 3.6.2
++Build-Depends: debhelper (>= 4)
++
++Package: bootp
++Architecture: any
++Depends: ${shlibs:Depends}, netbase
++Description: server for the bootp protocol with DHCP support
++ This is a server for the bootp protocol; which allows network administrator
++ to setup networking information for clients via an /etc/bootptab on a server
++ so that the clients can automatically get their networking information.  While
++ this server includes rudimentary DHCP support as well, we suggest using the
++ dhcp package if you need DHCP support, as it is much more complete.
++ .
++  Homepage: ftp://ftp.ntplx.net/pub/networking/bootp/
+--- bootp-2.4.3.orig/debian/bootptab
++++ bootp-2.4.3/debian/bootptab
+@@ -0,0 +1,40 @@
++# /etc/bootptab: database for bootp server (/usr/sbin/bootpd)
++
++# Blank lines and lines beginning with '#' are ignored.
++#
++# Legend:	(see bootptab.5)
++#	first field -- hostname (not indented)
++#	bf -- bootfile
++#	bs -- bootfile size in 512-octet blocks
++#	cs -- cookie servers
++#	df -- dump file name
++#	dn -- domain name
++#	ds -- domain name servers
++#	ef -- extension file
++#	gw -- gateways
++#	ha -- hardware address
++#	hd -- home directory for bootfiles
++#	hn -- host name set for client
++#	ht -- hardware type
++#	im -- impress servers
++#	ip -- host IP address
++#	lg -- log servers
++#	lp -- LPR servers
++#	ns -- IEN-116 name servers
++#	ra -- reply address
++#	rl -- resource location protocol servers
++#	rp -- root path
++#	sa -- boot server address
++#	sm -- subnet mask
++#	sw -- swap server
++#	tc -- template host (points to similar host entry)
++#	td -- TFTP directory
++#	to -- time offset (seconds)
++#	ts -- time servers
++#	vm -- vendor magic number
++#	Tn -- generic option tag n
++#
++# Be careful about including backslashes where they're needed.  Weird (bad)
++# things can happen when a backslash is omitted where one is intended.
++# Also, note that generic option data must be either a string or a
++# sequence of bytes where each byte is a two-digit hex value.
+--- bootp-2.4.3.orig/debian/rules
++++ bootp-2.4.3/debian/rules
+@@ -0,0 +1,59 @@
++#!/usr/bin/make -f
++# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
++# Copyright (C) 2004-2005 Anibal Monsalve Salazar <anibal@debian.org>
++
++# Uncomment this to turn on verbose mode.
++export DH_VERBOSE=1
++export DH_COMPAT=4
++
++build:
++	dh_testdir
++
++	$(MAKE) SYSDEFS=-DETC_ETHERS
++
++clean:
++	dh_testdir
++	dh_testroot
++
++	-$(MAKE) clean
++
++	dh_clean
++
++install: build
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++
++	# Add here commands to install the package into debian/tmp.
++	$(MAKE) BASEDIR=`pwd`/debian/bootp install
++	cp debian/bootptab debian/bootp/etc
++
++# Build architecture-independent files here.
++binary-indep: build install
++# We have nothing to do by default.
++
++# Build architecture-dependent files here.
++binary-arch: build install
++	dh_testdir
++	dh_testroot
++	dh_installdocs
++	dh_installexamples
++	dh_installmenu
++	dh_installcron
++	dh_installmanpages
++	dh_installchangelogs Changes
++	dh_strip
++	dh_compress
++	dh_fixperms
++	dh_installdeb
++	dh_shlibdeps
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
++
++source diff:                                                                  
++	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary install
+--- bootp-2.4.3.orig/debian/changelog
++++ bootp-2.4.3/debian/changelog
+@@ -0,0 +1,112 @@
++bootp (2.4.3-15) unstable; urgency=low
++
++  * Fixed "it says it does DHCPOFFER, but doesn't", closes: #282915.
++    Patch thanks to Petr Olivka <petr.olivka@vsb.cz>.
++  * Set DH_COMPAT to 4.
++  * Added watch file.
++
++ -- Anibal Monsalve Salazar <anibal@debian.org>  Sat, 18 Feb 2006 09:12:21 +1100
++
++bootp (2.4.3-14) unstable; urgency=low
++
++  * Set Standards-Version to 3.6.2 and added homepage to description.
++  * Fixed lintian warning "maintainer-script-needs-depends-on-netbase
++    {postinst,prerm,postrm}".
++  * Fixed lintian warning "package-uses-deprecated-debhelper-compat-
++    version 1".
++  * Fixed lintian error "duplicate-conffile /etc/bootptab".
++  * Fixed linda error "DH_COMPAT is greater than the major version
++    of debhelper depended on".
++
++ -- Anibal Monsalve Salazar <anibal@debian.org>  Thu, 24 Nov 2005 18:58:37 +1100
++
++bootp (2.4.3-13) unstable; urgency=low
++
++  * New maintainer's email address.
++
++ -- Anibal Monsalve Salazar <anibal@debian.org>  Sun, 06 Feb 2005 21:56:46 +1100
++
++bootp (2.4.3-12) unstable; urgency=low
++
++  * New maintainer.
++
++ -- Anibal Monsalve Salazar <A.Monsalve.Salazar@IEEE.org>  Thu, 20 May 2004 08:57:34 +1000
++
++bootp (2.4.3-11) unstable; urgency=low
++
++  * Removed build-stamp/install-stamp.
++  * Included errnor.h/string.h in report.c (closes: #219123).
++  * Use fd_set instead int for select.
++  * Removed reference to netstd.
++
++ -- Herbert Xu <herbert@debian.org>  Wed,  5 Nov 2003 19:52:40 +1100
++
++bootp (2.4.3-10) unstable; urgency=low
++
++  * Ensure that vendor area is at least 64 bytes long (closes: #189256).
++
++ -- Herbert Xu <herbert@debian.org>  Wed, 16 Apr 2003 20:23:53 +1000
++
++bootp (2.4.3-9) unstable; urgency=low
++
++  * Documented ms tag in manual page.
++  * Eliminated baroque padding in response packets (closes: #184300).
++
++ -- Herbert Xu <herbert@debian.org>  Fri, 28 Mar 2003 19:26:06 +1100
++
++bootp (2.4.3-8) unstable; urgency=low
++
++  * Added note about modifying configuration files (closes: #136057).
++
++ -- Herbert Xu <herbert@debian.org>  Sun,  7 Apr 2002 18:12:41 +1000
++
++bootp (2.4.3-7) unstable; urgency=low
++
++  * Compile with ETC_ETHERS (closes: #112223).
++
++ -- Herbert Xu <herbert@debian.org>  Sun, 16 Sep 2001 15:47:28 +1000
++
++bootp (2.4.3-6) unstable; urgency=low
++
++  * Make directed broadcasts if possible (closes: #108691).
++
++ -- Herbert Xu <herbert@debian.org>  Thu, 30 Aug 2001 21:15:43 +1000
++
++bootp (2.4.3-5) unstable; urgency=low
++
++  * Fixed typo in bootpd (closes: #83618).
++  * Added build-time dependencies (closes: #70171).
++  * Compile with -g and without -fomit-frame-pointer -pipe.  Omitting the
++    frame pointer makes the code 10% larger.
++  * Fixed the unaligned access properly.
++
++ -- Herbert Xu <herbert@debian.org>  Fri, 27 Apr 2001 22:35:58 +1000
++
++bootp (2.4.3-4) unstable; urgency=low
++
++  * Fixed unaligned trap on Alpha (David Huggins-Daines, closes #64552).
++
++ -- Herbert Xu <herbert@debian.org>  Wed, 24 May 2000 11:41:50 +1000
++
++bootp (2.4.3-3) frozen unstable; urgency=low
++
++  * Use int32_t/u_int32_t instead of locally defined int32/u_int32 which
++    always turns out to be long.  This is needed for bootpd to work on 64 bit
++    platforms like the Alpha.
++  * Made compliant with policy 3.1.1.
++
++ -- Herbert Xu <herbert@debian.org>  Sat, 22 Apr 2000 19:41:18 +1000
++
++bootp (2.4.3-2) unstable; urgency=low
++
++  * Better hostname comparison (fixes #37543).
++  * Dump file is now in /var/run.
++
++ -- Herbert Xu <herbert@debian.org>  Tue,  7 Sep 1999 23:19:34 +1000
++
++bootp (2.4.3-1) unstable; urgency=low
++
++  * Split from netstd.
++
++ -- Herbert Xu <herbert@debian.org>  Mon, 15 Mar 1999 12:18:40 +1100
++
+--- bootp-2.4.3.orig/debian/copyright
++++ bootp-2.4.3/debian/copyright
+@@ -0,0 +1,34 @@
++This package was split from netstd by Herbert Xu herbert@debian.org on
++Sat,  6 Feb 1999 18:07:27 +1100.
++
++It is maintained by Anibal Monsalve Salazar <anibal@debian.org>.
++
++netstd was created by Peter Tobias tobias@et-inf.fho-emden.de on
++Wed, 20 Jul 1994 17:23:21 +0200.
++
++It was downloaded from ftp://ftp.ntplx.net/pub/networking/bootp/.
++
++Copyright:
++
++/************************************************************************
++          Copyright 1988, 1991 by Carnegie Mellon University
++
++                          All Rights Reserved
++
++Permission to use, copy, modify, and distribute this software and its
++documentation for any purpose and without fee is hereby granted, provided
++that the above copyright notice appear in all copies and that both that
++copyright notice and this permission notice appear in supporting
++documentation, and that the name of Carnegie Mellon University not be used
++in advertising or publicity pertaining to distribution of the software
++without specific, written prior permission.
++
++CARNEGIE MELLON UNIVERSITY DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
++SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
++IN NO EVENT SHALL CMU BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL
++DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
++PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
++ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
++SOFTWARE.
++************************************************************************/
++
+--- bootp-2.4.3.orig/debian/watch
++++ bootp-2.4.3/debian/watch
+@@ -0,0 +1,2 @@
++version=2
++ftp://ftp.ntplx.net/pub/networking/bootp/bootp-([0-9.]+).tar.gz
+--- bootp-2.4.3.orig/debian/dirs
++++ bootp-2.4.3/debian/dirs
+@@ -0,0 +1,2 @@
++etc
++usr/sbin
+--- bootp-2.4.3.orig/debian/docs
++++ bootp-2.4.3/debian/docs
+@@ -0,0 +1,5 @@
++Announce
++Announce.old
++Problems
++README
++ToDo
+--- bootp-2.4.3.orig/debian/examples
++++ bootp-2.4.3/debian/examples
+@@ -0,0 +1,2 @@
++bootptab.cmu
++bootptab.mcs
+--- bootp-2.4.3.orig/debian/postinst
++++ bootp-2.4.3/debian/postinst
+@@ -0,0 +1,6 @@
++#!/bin/sh -e
++# $Id: postinst,v 1.1 1999/03/14 04:26:30 herbert Exp $
++
++update-inetd --group BOOT --add "#bootps		dgram	udp	wait	root	/usr/sbin/bootpd	bootpd -i -t 120"
++
++#DEBHELPER#
+--- bootp-2.4.3.orig/debian/postrm
++++ bootp-2.4.3/debian/postrm
+@@ -0,0 +1,8 @@
++#!/bin/sh -e
++# $Id: postrm,v 1.1 1999/03/14 04:26:30 herbert Exp $
++
++if [ "$1" = remove -o "$1" = purge ]; then
++	update-inetd --remove "bootps		dgram	udp	wait	root	/usr/sbin/bootpd	bootpd -i -t 120"
++fi
++
++#DEBHELPER#
+--- bootp-2.4.3.orig/debian/prerm
++++ bootp-2.4.3/debian/prerm
+@@ -0,0 +1,6 @@
++#!/bin/sh -e
++# $Id: prerm,v 1.1 1999/03/14 04:26:30 herbert Exp $
++
++update-inetd --disable bootp
++
++#DEBHELPER#

@@ -1,0 +1,204 @@
+#!/bin/sh
+
+# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# This script was written using the one from slackbuilds.org as a reference,
+# so thanks to Adis Nezirovic ( adis _at_ linux.org.ba ) for the original work.
+
+
+PKGNAM=httpd
+VERSION=${VERSION:-2.2.13}
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-1}
+
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-${PKGNAM}
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+cd $TMP
+rm -rf ${PKGNAM}-${VERSION}
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+cd ${PKGNAM}-$VERSION
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+# "prefork" is the default, safe, mpm type.  If you *are not* using PHP, and you
+# like to live on the bleeding edge, you may wish to change the --with-mpm option
+# to "worker", which is the new way of doing things, but is multithreaded and
+# many scripts (especially PHP ones) are not multithread safe.
+#
+# I'd leave this option the way is it on any production box that's keeping up
+# with HTTP requests.  No reason to chance it, IMHO.
+
+zcat $CWD/config.layout.diff.gz | sed -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" | patch --verbose -p1 || exit 1
+
+# Configure:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --enable-layout=Slackware-FHS \
+  --with-mpm=prefork \
+  --with-apr=/usr \
+  --with-apr-util=/usr \
+  --enable-mods-shared=all \
+  --enable-so \
+  --enable-pie \
+  --enable-cgi \
+  --with-pcre \
+  --enable-ssl \
+  --enable-rewrite \
+  --enable-vhost-alias \
+  --enable-proxy \
+  --enable-proxy-http \
+  --enable-proxy-ftp \
+  --enable-proxy-balancer \
+  --enable-cache \
+  --enable-mem-cache \
+  --enable-file-cache \
+  --enable-disk-cache \
+  --disable-speling \
+  --enable-dav \
+  --enable-ldap \
+  --enable-authnz-ldap \
+  --enable-authn-anon \
+  --enable-authn-alias \
+  --build=$ARCH-slackware-linux || exit 1
+
+# Build and install:
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+rmdir $PKG/usr/bin
+
+# Tweak default apache configuration
+( cd $PKG
+  zcat $CWD/httpd.nossldefault.diff.gz | sed -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" | patch -p1 --verbose || exit 1
+  zcat $CWD/httpd.runasapache.diff.gz | patch -p1 --verbose || exit 1
+  rm -f $PKG/etc/httpd/httpd.conf~
+) || exit 1
+# Change config files to .new:
+( cd $PKG/etc/httpd
+  mv httpd.conf httpd.conf.new
+  for file in extra/*; do
+    mv $file "${file}.new"
+  done
+)
+
+cat << EOF >> $PKG/etc/httpd/httpd.conf.new
+
+# Uncomment the following line to enable PHP:
+#
+#Include /etc/httpd/mod_php.conf
+
+# Uncomment the following lines to enable svn support:
+#
+#LoadModule dav_svn_module lib${LIBDIRSUFFIX}/httpd/modules/mod_dav_svn.so
+#LoadModule authz_svn_module lib${LIBDIRSUFFIX}/httpd/modules/mod_authz_svn.so
+
+EOF
+
+rmdir $PKG/var/log/httpd
+
+mkdir -p $PKG/etc/rc.d
+cat $CWD/rc.httpd > $PKG/etc/rc.d/rc.httpd.new
+
+mkdir -p $PKG/etc/logrotate.d
+cat $CWD/logrotate.httpd > $PKG/etc/logrotate.d/httpd.new
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/
+cp -a \
+  ABOUT_APACHE Apache.dsw BuildBin.dsp CHANGES INSTALL InstallBin.dsp LAYOUT LICENSE NOTICE NWGNUmakefile README* ROADMAP VERSIONING \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+
+# Other distributions also strip the manual down to just English.
+# If this isn't your language of choice, mea culpa.
+( cd $PKG/srv/httpd/htdocs/manual
+  for file in $(find . -type f -name "*.html") ; do
+    if [ -f ${file}.en ]; then
+      cp ${file}.en ${file}
+      rm -f ${file}.*
+    fi
+  done
+)
+
+# On Slackware, the traditional location for the Apache document root has always
+# been "/var/www/htdocs/".  We can avoid an unpleasant surprise for people by
+# leaving things where they've always been, and comply with the FHS by providing
+# symlinks allowing access through the FHS-approved pathnames.  KDE, for example,
+# will look for htdig's htsearch here:  /var/www/cgi-bin/htsearch
+mv $PKG/srv/httpd $PKG/var/www
+( cd $PKG/srv
+  ln -sf /var/www .
+  ln -sf /var/www httpd
+)
+
+# OK, it's just not generally good form to put your web site in /var/www/htdocs,
+# but people do it every day.  Like all new .new files, this won't save them this
+# time, but if they don't learn their lesson now then it will the next time:
+mv $PKG/var/www/htdocs/index.html $PKG/var/www/htdocs/index.html.new
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.*
+      )
+    done
+  )
+fi
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
+

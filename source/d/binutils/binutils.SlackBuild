@@ -1,0 +1,129 @@
+#!/bin/sh
+
+# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=2.18.50.0.9
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-binutils
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf binutils-$VERSION
+tar xvf $CWD/binutils-$VERSION.tar.bz2 || exit 1
+cd binutils-$VERSION
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Build for an x86 glibc2-based Linux system:
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-docdir=/usr/doc/binutils-$VERSION \
+  --enable-shared \
+  --enable-multilib \
+  --enable-64-bit-bfd \
+  --enable-targets=$ARCH-slackware-linux \
+  --build=$ARCH-slackware-linux \
+  || exit 1
+
+make clean || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# "make install" skips this, but binutils.spec doesn't.  Sneaky, huh?
+cp -a include/libiberty.h $PKG/usr/include/libiberty.h
+
+# Differentiate between BSD strings and GNU strings
+( cd $PKG/usr/bin ; mv strings strings-GNU )
+( cd $PKG/usr/man/man1 ; mv strings.1 strings-GNU.1 )
+
+# Move ldscripts to /usr/lib${LIBDIRSUFFIX}, and then put symlinks in place
+mv $PKG/usr/${ARCH}-slackware-linux/lib/ldscripts $PKG/usr/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/${ARCH}-slackware-linux
+  ln -s /usr/lib${LIBDIRSUFFIX}/ldscripts lib/ldscripts
+  for FILE in ar as ld nm objcopy objdump ranlib strip ; do
+    if [ -r "/usr/bin/$FILE" ]; then
+      rm -f bin/$FILE
+      ln -s /usr/bin/$FILE bin/$FILE
+    fi
+  done
+)
+      
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Remove some unneeded man pages, and then compress the rest
+rm -f $PKG/usr/man/man1/{dlltool,windres}.1
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $(find . -type l) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+)
+
+# Compress info pages
+rm -f $PKG/usr/info/dir
+gzip -9 $PKG/usr/info/*
+
+mkdir -p $PKG/usr/doc/binutils-$VERSION
+cp \
+  $CWD/release.binutils-* \
+  COPYING* ChangeLog.linux MAI* README* \
+  $PKG/usr/doc/binutils-$VERSION
+chown -R root:root $PKG/usr/doc/binutils-$VERSION
+
+# Add slack-desc:
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/binutils-$VERSION-$ARCH-$BUILD.txz
+
+cat << EOF
+
+#############################
+oprofile links to libbfd so
+be sure to recompile that
+#############################
+
+EOF

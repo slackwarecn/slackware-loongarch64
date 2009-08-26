@@ -1,0 +1,267 @@
+#!/bin/sh
+
+# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+# originally by:  David Cantrell <david@slackware.com>
+# maintained by:  <volkerdi@slackware.com>
+
+VERSION=5.10.0
+# IMPORTANT: also update -Dinc_version_list in ./configure below!
+
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-perl
+
+# Additional required modules:
+DBI=1.607
+DBDMYSQL=4.008
+XMLPARSER=2.36
+XMLSIMPLE=2.18
+URI=1.37
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+if [ -x /usr/bin/perl ]; then
+  echo "Perl detected."
+  echo
+  echo "It's a good idea to remove your existing perl first."
+  echo
+  sleep 15
+fi
+
+# Clear build location:
+rm -rf $PKG
+mkdir -p $PKG
+
+# Extract the source code:
+cd $TMP
+rm -rf perl-$VERSION
+tar xvf $CWD/perl-$VERSION.tar.bz2
+
+# Change into the source directory:
+cd perl-$VERSION
+
+# Adjust owner/perms to standard values:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# If after all this time you still don't trust threads, comment
+# out the variable below:
+#
+USE_THREADS="-Dusethreads -Duseithreads"
+
+if [ "$ARCH" = "x86_64" ]; then # adopted from "Cross Linux From Scratch"
+  # Configure must be told to also use lib64:
+  zcat $CWD/perl.configure.multilib.patch.gz | patch -p1 --verbose || exit 1
+  # "perl -V" should report that libc is in /lib64
+  sed -i -e '/libc/s#/lib/#/lib64/#' hints/linux.sh
+  # make perl use lib64:
+  echo 'installstyle="lib64/perl5"' >>hints/linux.sh
+fi
+
+# We no longer include suidperl.  To quote the INSTALL file:
+#
+#   Because of the buggy history of suidperl, and the difficulty
+#   of properly security auditing as large and complex piece of
+#   software as Perl, we cannot recommend using suidperl and the feature
+#   should be considered deprecated.
+#   Instead use for example 'sudo': http://www.courtesan.com/sudo/
+
+# Configure perl:
+./Configure -de \
+  -Dprefix=/usr \
+  -Dvendorprefix=/usr \
+  -Dcccdlflags='-fPIC' \
+  -Dinstallprefix=/usr \
+  -Dlibpth="/usr/local/lib${LIBDIRSUFFIX} /usr/lib${LIBDIRSUFFIX} /lib${LIBDIRSUFFIX}" \
+  -Doptimize="$SLKCFLAGS" \
+  $USE_THREADS \
+  -Dpager='/usr/bin/less -isr' \
+  -Dinc_version_list='5.8.8 5.8.7 5.8.6 5.8.5 5.8.4 5.8.3 5.8.2 5.8.1 5.8.0' \
+  -Darchname=$ARCH-linux
+
+# Kludge for gcc-4.2.4's needlessly changed output:
+cat makefile | grep -v '\<command-line\>' > foo
+mv foo makefile
+cat x2p/makefile | grep -v '\<command-line\>' > foo
+mv foo x2p/makefile
+
+# Build perl
+make -j6 || exit 1
+make test
+
+# Install perl (needed to build modules):
+make install
+( cd /usr/bin
+  ln -sf perl$VERSION perl
+  ln -sf c2ph pstruct
+  ln -sf s2p psed
+)
+mkdir -p /usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
+
+# Install perl package:
+make install DESTDIR=$PKG
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
+
+# Add additional modules:
+( cd ext
+  ( tar xzvf $CWD/DBI-${DBI}.tar.gz
+    cd DBI-${DBI}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make
+    make test
+    make install
+    make install DESTDIR=$PKG
+    mkdir -p $PKG/usr/doc/perl-$VERSION/DBI-${DBI}
+    cp -a README $PKG/usr/doc/perl-$VERSION/DBI-${DBI}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/DBI-${DBI}/README
+  )
+  ( tar xzvf $CWD/DBD-mysql-${DBDMYSQL}.tar.gz
+    cd DBD-mysql-${DBDMYSQL}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make
+    make test
+    make install
+    make install DESTDIR=$PKG
+    mkdir -p $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
+    cp -a INSTALL.html README TODO $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}/*
+  )
+  ( tar xzvf $CWD/XML-Parser-${XMLPARSER}.tar.gz
+    cd XML-Parser-${XMLPARSER}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make
+    make test
+    make install
+    make install DESTDIR=$PKG
+    mkdir -p $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}
+    cp -a README $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}/*
+  )
+  ( tar xzvf $CWD/XML-Simple-${XMLSIMPLE}.tar.gz
+    cd XML-Simple-${XMLSIMPLE}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make
+    make test
+    make install
+    make install DESTDIR=$PKG
+    mkdir -p $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}
+    cp -a README $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}/*
+  )
+  ( tar xzvf $CWD/URI-${URI}.tar.gz
+    cd URI-${URI}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make
+    make test
+    make install
+    make install DESTDIR=$PKG
+    mkdir -p $PKG/usr/doc/perl-$VERSION/URI-${URI}
+    cp -a README $PKG/usr/doc/perl-$VERSION/URI-${URI}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/URI-${URI}/*
+  )
+)
+
+# Strip everything:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+# There are also miniperl and microperl.
+# I haven't had any requests for them, but would be willing
+# to consider adding one or both to the package if anyone
+# actually needs them for some reason.
+#make microperl
+
+# Symlinks that replace hard links
+( cd $PKG/usr/bin
+  ln -sf perl$VERSION perl
+  ln -sf c2ph pstruct
+  ln -sf s2p psed )
+
+# Install documentation
+mkdir -p $PKG/usr/doc/perl-$VERSION
+cp -a \
+  AUTHORS Artistic Copying INSTALL MANIFEST README README.Y2K README.cn \
+  README.jp README.ko README.micro README.tw Todo.micro \
+  $PKG/usr/doc/perl-$VERSION
+
+# We follow LSB with symlinks in /usr/share:
+( cd $PKG/usr/share
+  mv man .. )
+( cd $PKG/usr/man/man1
+  mkdir foo
+  cp *.1 foo
+  rm *.1
+  mv foo/* .
+  rmdir foo
+  gzip -9 *
+  ln -sf c2ph.1.gz pstruct.1.gz
+  ln -sf s2p.1.gz psed.1.gz )
+( cd $PKG/usr/man/man3
+  gzip -9 * )
+
+chmod 755 $PKG/usr/bin/*
+chmod 644 $PKG/usr/man/man?/*
+rmdir $PKG/usr/share
+
+# This file shouldn't get clobbered:
+if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/perl5/${VERSION}/${ARCH}-linux-thread-multi/perllocal.pod ]; then
+  mv $PKG/usr/lib${LIBDIRSUFFIX}/perl5/${VERSION}/${ARCH}-linux-thread-multi/perllocal.pod $PKG/usr/lib${LIBDIRSUFFIX}/perl5/${VERSION}/${ARCH}-linux-thread-multi/perllocal.pod.new
+fi
+
+# Insert the slack-desc:
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz | \
+  sed -e "s#/lib/#/lib${LIBDIRSUFFIX}/#" | sed -e "s#i486#$ARCH#" \
+  > $PKG/install/doinst.sh
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/perl-$VERSION-$ARCH-$BUILD.txz
+

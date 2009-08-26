@@ -1,0 +1,34 @@
+--- ./fofi/FoFiType1.cc.orig	2007-02-27 16:05:51.000000000 -0600
++++ ./fofi/FoFiType1.cc	2007-04-11 19:58:28.000000000 -0500
+@@ -235,9 +235,14 @@
+ 	    }
+ 	  }
+ 	} else {
+-	  if (strtok(buf, " \t") &&
+-	      (p = strtok(NULL, " \t\n\r")) && !strcmp(p, "def")) {
+-	    break;
++	  p = strtok(buf, " \t\n\r");
++	  if (p)
++	  {
++	    if (!strcmp(p, "def")) break;
++	    if (!strcmp(p, "readonly")) break;
++	    // the spec does not says this but i'm mantaining old xpdf behaviour that accepts "foo def" as end of the encoding array
++	    p = strtok(buf, " \t\n\r");
++	    if (p && !strcmp(p, "def")) break;
+ 	  }
+ 	}
+       }
+--- ./splash/Splash.cc.orig	2007-02-27 16:05:52.000000000 -0600
++++ ./splash/Splash.cc	2007-04-11 19:58:35.000000000 -0500
+@@ -1501,6 +1501,11 @@
+     xPath->aaScale();
+   }
+   xPath->sort();
++  if (!&xPath->segs[0])
++  {
++    delete xPath;
++    return splashErrEmptyPath;
++  }
+   scanner = new SplashXPathScanner(xPath, eo);
+ 
+   // get the min and max x and y values

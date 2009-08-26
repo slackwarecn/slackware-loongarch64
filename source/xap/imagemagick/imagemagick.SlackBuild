@@ -1,0 +1,140 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-1}
+
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-imagemagick
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# NOTE:  This is to cope with ImageMagick version numbers such as 5.4.7-4,
+# which occur fairly often (but not always).  If these numbers are all the same,
+# then this is not one of those versions.
+
+# This is a bit messy, so we'll explain it well.  :-)
+
+# This is the base version number, which is needed to cd into the source tree
+BASEVER=6.5.3-3
+
+# This is the version number used in the source tarball filename
+FILEVER=6.5.3-3
+
+# This is the version number used in the package, where a version number cannot
+# contain a '-'
+PKGVER=6.5.3_3
+
+# --with-x or not --with-x, that is the question.  It seems many other
+# distributions don't compile with X support, but it's been traditional
+# here.  I am moving the prefix to /usr (instead of /usr/X11R6) though,
+# because many X-linked things are put into /usr now (like GNOME), and
+# I've heard a few reports of compile failures when this isn't in /usr.
+# Everyone else does it -- time to follow the path of least resistance.
+
+cd $TMP
+rm -rf ImageMagick-$BASEVER
+tar xvf $CWD/ImageMagick-$FILEVER.tar.?z* || exit 1
+cd ImageMagick-$BASEVER || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# --without-modules seems to avoid a segfault when identifying
+# or converting ps or eps files...
+
+# --disable-openmp seems to keep the perl Image::Magick from
+# eating up all RAM, and may help other script bindings.
+
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --program-prefix= \
+  --with-x \
+  --with-frozenpaths=no \
+  --without-modules \
+  --disable-openmp \
+  --enable-static=no \
+  --enable-shared \
+  --with-perl \
+  --build=$ARCH-slackware-linux
+
+make $NUMJOBS INSTALLDIRS=vendor || make INSTALLDIRS=vendor || exit 1
+make install INSTALLDIRS=vendor DESTDIR=$PKG || exit 1
+
+# Lately ImageMagick has been smoking crack:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libltdl.*
+
+( cd $PKG
+  # Nothing but a perl upgrade should replace this (and maybe not even that)
+  find . -name perllocal.pod | xargs rm -f
+)
+
+# DESTDIR is still broken about this, but works well enough otherwise:
+chmod 644 $PKG/usr/share/man/man3/*
+mv $PKG/usr/share/man/man3 $PKG/usr/man
+rmdir $PKG/usr/share/man
+
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/perl5
+  # Ditch empty dirs:
+  rmdir */* 2> /dev/null
+  rmdir * 2> /dev/null
+)
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+gzip -9 $PKG/usr/man/man?/*.?
+
+mkdir -p $PKG/usr
+mv $PKG/usr/share/doc $PKG/usr
+cp -a \
+  AUTHORS LICENSE NEWS NOTICE Platforms.txt QuickStart.txt README.txt \
+  $PKG/usr/doc/Imag*
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/imagemagick-$PKGVER-$ARCH-$BUILD.txz
+

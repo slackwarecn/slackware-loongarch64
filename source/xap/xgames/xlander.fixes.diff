@@ -1,0 +1,228 @@
+diff -ru a-slackware-1995-06-17/game.c b-gary/game.c
+--- a-slackware-1995-06-17/game.c	1995-06-17 21:23:00.000000000 -0400
++++ b-gary/game.c	2007-03-01 04:08:49.000000000 -0500
+@@ -165,7 +165,7 @@
+       switch (event.type) {
+       case KeyPress:
+ 	 if (lander->fuel > 0.0) {
+-	    XLookupString (&event, &ch, 1, &keysym, (XComposeStatus *) 0);
++	    XLookupString ((XKeyEvent *) &event, &ch, 1, &keysym, (XComposeStatus *) 0);
+ 	    if (ch == lander->controls[0] || keysym == XK_Up)
+ 	       lander->rear_thruster = lander->lateral_thrust;
+ 	    else if (ch == lander->controls[1] || keysym == XK_Down)
+@@ -179,7 +179,7 @@
+ 	 }
+ 	 break;
+       case KeyRelease:
+-	 XLookupString (&event, &ch, 1, &keysym, (XComposeStatus *) 0);
++	 XLookupString ((XKeyEvent *) &event, &ch, 1, &keysym, (XComposeStatus *) 0);
+ 	 if (ch == lander->controls[0] || keysym == XK_Up)
+ 	    lander->rear_thruster = 0;
+ 	 else if (ch == lander->controls[1] || keysym == XK_Down)
+@@ -197,24 +197,26 @@
+    }
+ 
+    if (lander->retro_thruster > 0)
+-      lander->fuel -= RETRO_BURN;
++      lander->fuel -= RETRO_BURN / fps;
+    if (lander->front_thruster > 0)
+-      lander->fuel -= LATERAL_BURN;
++      lander->fuel -= LATERAL_BURN / fps;
+    if (lander->rear_thruster > 0)
+-      lander->fuel -= LATERAL_BURN;
++      lander->fuel -= LATERAL_BURN / fps;
+    if (lander->left_thruster > 0)
+-      lander->fuel -= LATERAL_BURN;
++      lander->fuel -= LATERAL_BURN / fps;
+    if (lander->right_thruster > 0)
+-      lander->fuel -= LATERAL_BURN;
++      lander->fuel -= LATERAL_BURN / fps;
++   if (lander->fuel < 0.0)
++      lander->fuel = 0.0; /* Prevents gas gauge from going negative */
+    lander->vert_speed +=
+-      (lander->retro_thruster + acceleration) / TICKS_PER_SECOND;
+-   lander->alt += lander->vert_speed / TICKS_PER_SECOND;
++      (lander->retro_thruster + acceleration) / fps;
++   lander->alt += lander->vert_speed / fps;
+    lat_accel_x = lander->right_thruster - lander->left_thruster;
+    lat_accel_y = lander->rear_thruster - lander->front_thruster;
+    lat_veloc_x = lander->lat_veloc * cos (lander->heading) + lat_accel_x;
+    lat_veloc_y = lander->lat_veloc * sin (lander->heading) + lat_accel_y;
+-   craft->off_x += (lat_veloc_x / TICKS_PER_SECOND) * PIXELS_PER_FOOT;
+-   craft->off_z += (lat_veloc_y / TICKS_PER_SECOND) * PIXELS_PER_FOOT;
++   craft->off_x += (lat_veloc_x / fps) * PIXELS_PER_FOOT;
++   craft->off_z += (lat_veloc_y / fps) * PIXELS_PER_FOOT;
+    lander->lat_veloc =
+       sqrt (lat_veloc_x * lat_veloc_x + lat_veloc_y * lat_veloc_y);
+ 
+diff -ru a-slackware-1995-06-17/globals.c b-gary/globals.c
+--- a-slackware-1995-06-17/globals.c	1995-06-17 21:22:36.000000000 -0400
++++ b-gary/globals.c	2007-03-01 04:08:49.000000000 -0500
+@@ -27,3 +27,4 @@
+ XrmDatabase resources = (XrmDatabase) 0;
+                            /* X Resource database */
+ float acceleration = 0.0;  /* Acceleration due to gravity */
++float fps;                 /* Current frames per second */
+diff -ru a-slackware-1995-06-17/globals.h b-gary/globals.h
+--- a-slackware-1995-06-17/globals.h	1995-06-17 21:22:41.000000000 -0400
++++ b-gary/globals.h	2007-03-01 04:08:49.000000000 -0500
+@@ -30,5 +30,6 @@
+ extern int px, py, pz;
+ extern int roll, pitch, yaw;
+ extern float acceleration;
++extern float fps;
+ 
+-#endif _globals_h_
++#endif /* _globals_h_ */
+diff -ru a-slackware-1995-06-17/initialize.c b-gary/initialize.c
+--- a-slackware-1995-06-17/initialize.c	1995-06-17 21:23:00.000000000 -0400
++++ b-gary/initialize.c	2007-03-01 04:08:49.000000000 -0500
+@@ -61,7 +61,7 @@
+    lander->vert_speed = 0.0;
+    lander->heading = 1.36;
+    lander->lat_veloc = 100.0;
+-   lander->fuel = 320.0;
++   lander->fuel = FULL_TANK;
+    lander->alt = craft->off_y / PIXELS_PER_FOOT;
+ }
+ 
+@@ -293,7 +293,7 @@
+ 
+    world->min_x = world->min_y = -HALF_WORLD_LENGTH;
+    world->max_x = world->max_y = HALF_WORLD_WIDTH;
+-   srandom ((long) time ((int *) 0));
++   srandom ((long) time ((time_t *) 0));
+    for (x = -HALF_WORLD_WIDTH; x < HALF_WORLD_WIDTH;
+ 	r ^= 1, x += EDGE_LENGTH + (int) x_offset)
+       for (y = r * (int) y_offset - HALF_WORLD_LENGTH; y < HALF_WORLD_LENGTH;
+diff -ru a-slackware-1995-06-17/instrument.c b-gary/instrument.c
+--- a-slackware-1995-06-17/instrument.c	1995-06-17 21:22:39.000000000 -0400
++++ b-gary/instrument.c	2007-03-01 04:08:49.000000000 -0500
+@@ -48,7 +48,7 @@
+ {
+    static int heading_x = 50, heading_y = 15;
+    static int fuel_level = 80, old_x = 290, old_y = 10;
+-   int new_fuel_level = (int) fuel / 4;
++   int new_fuel_level = (int) (fuel / (float) FULL_TANK * 80.0);
+    char buf[32];
+ 
+    /*
+diff -ru a-slackware-1995-06-17/patchlevel.h b-gary/patchlevel.h
+--- a-slackware-1995-06-17/patchlevel.h	1995-06-17 21:23:00.000000000 -0400
++++ b-gary/patchlevel.h	2007-03-01 04:08:49.000000000 -0500
+@@ -1,2 +1,2 @@
+-#define PATCHLEVEL 2
++#define PATCHLEVEL 3
+ 
+diff -ru a-slackware-1995-06-17/xlander.c b-gary/xlander.c
+--- a-slackware-1995-06-17/xlander.c	1995-06-17 21:22:36.000000000 -0400
++++ b-gary/xlander.c	2007-03-01 04:08:49.000000000 -0500
+@@ -14,6 +14,7 @@
+ 
+ #include "xlander.h"
+ #include "globals.h"
++#include <sys/time.h>
+ 
+ /*
+  * A lander
+@@ -68,6 +69,7 @@
+ static DATABASE *world, *craft, *thrust, *shadow;
+ static LANDER lander;
+ int mask;
++struct timeval frame_time, prev_frame_time;
+ 
+ /******************************************************************************
+ ** DisplayWorld
+@@ -98,7 +100,26 @@
+    XSync (d,False);
+ }
+ 
+-void main (argc, argv)
++
++void UpdateFrameRate ()
++{
++   unsigned long sec, usec, diff;
++
++   gettimeofday(&frame_time, NULL);
++   sec = frame_time.tv_sec - prev_frame_time.tv_sec;
++   usec = frame_time.tv_usec - prev_frame_time.tv_usec;
++   if(usec < 0) {
++      usec += 1000000;
++      sec--;
++   }
++   diff = sec * 1000000 + usec;
++   fps = 1000000.0 / (float) diff;
++   prev_frame_time.tv_sec = frame_time.tv_sec;
++   prev_frame_time.tv_usec = frame_time.tv_usec;
++}
++
++
++int main (argc, argv)
+    int argc;
+    char *argv[];
+ {
+@@ -113,6 +134,10 @@
+    thrust = DBInitFromData (thrust_data, THRUSTSIZE);
+    shadow = DBInitFromData (shadow_data, SHADOWSIZE);
+ 
++   gettimeofday(&frame_time, NULL);
++   gettimeofday(&prev_frame_time, NULL);
++   fps = 1000000.0; /* Prevent startup pulse */
++
+    /*
+     * Initial coordinates of the lander...
+     */
+@@ -143,7 +168,9 @@
+    for (;;) {
+       UpdateOrientation (world, craft, &lander);
+       DisplayWorld ();
++      UpdateFrameRate ();
+       (void) sigsetmask (mask);
+       mask = sigblock (sigmask (SIGINT));
+    }
++   return 0;
+ }
+diff -ru a-slackware-1995-06-17/xlander.h b-gary/xlander.h
+--- a-slackware-1995-06-17/xlander.h	1995-06-17 21:23:00.000000000 -0400
++++ b-gary/xlander.h	2007-03-01 04:08:49.000000000 -0500
+@@ -20,6 +20,7 @@
+ #ifndef _xlander_h_
+ #define _xlander_h_
+ 
++#include <stdlib.h>
+ #include <stdio.h>
+ #include <math.h>
+ #include <signal.h>
+@@ -41,7 +42,6 @@
+ #define HALF_WORLD_LENGTH (WORLD_LENGTH >> 1)
+ #define HALF_WORLD_WIDTH (WORLD_WIDTH >> 1)
+ #define PIXELS_PER_FOOT 6        /* Number of pixels per foot */
+-#define TICKS_PER_SECOND 3       /* Number of frames per second */
+ #define ACCELERATION -5.310      /* Acceleration of gravity (ft/sec^2) */
+ #define RETRO 35.0               /* Acceleration due to retroactive thruster */
+ #define LATERAL_THRUST 5.0       /* Acceleration due to lateral thruster */
+@@ -53,7 +53,7 @@
+ #define LAT_SPEED 30.0           /* Maximum lateral speed without crashing */
+ #define RETRO_BURN 1.6           /* Retroactive thruster fuel consumption */
+ #define LATERAL_BURN 0.4         /* Lateral thruster fuel consumption */
+-#define FULL_TANK 320            /* Full tank of fuel */
++#define FULL_TANK 15             /* Full tank of fuel */
+ #define MAX_VELOC 640.0          /* Maximum velocity */
+ 
+ #define LANDER_WIDTH 600
+@@ -107,9 +107,6 @@
+ 
+ DATABASE *DBInit (), *DBInitFromData (), *LoadDataBase ();
+ void DBInsert (), DBFinish (), DBPlot (), SwapBuffers (), exit ();
+-#ifndef _AIX
+-char *malloc ();
+-#endif
+ double atof ();
+ #ifdef sun
+ int printf (), fprintf (), time ();
+@@ -122,4 +119,4 @@
+ #define WorldToRadarX(x) (290 + (((int) (x) + (WORLD_WIDTH >> 1)) / 250))
+ #define WorldToRadarY(y) (90 - (((int) (y) + (WORLD_LENGTH >> 1)) / 250))
+ 
+-#endif _xlander_h_
++#endif /* _xlander_h_ */

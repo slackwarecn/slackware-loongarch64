@@ -1,0 +1,107 @@
+#!/bin/sh
+
+# Copyright 2006, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+PKGNAM=sysstat
+VERSION=${VERSION:-7.0.0}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+else
+  LIBDIRSUFFIX=""
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-${PKGNAM}
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf ${PKGNAM}-${VERSION}
+tar xjvf $CWD/${PKGNAM}-$VERSION.tar.bz2
+cd ${PKGNAM}-$VERSION
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Put the config file in /etc/sysstat, not /etc/sysconfig (a Red Hat thing):
+zcat $CWD/sysstat.etc.sysstat.diff.gz | patch -p1 --verbose || exit 1
+
+# PREFIX is hardcoded in some places, so this is just easier:
+zcat $CWD/sysstat.prefix.usr.diff.gz | patch -p1 --verbose || exit 1
+
+# Don't use /tmp in a script root will probably run... that's not good.
+zcat $CWD/sysstat.var.run.diff.gz | patch -p1 --verbose || exit 1
+
+make SA_LIB_DIR=/usr/lib${LIBDIRSUFFIX}/sa DESTDIR=$PKG || exit 1
+make install SA_LIB_DIR=/usr/lib${LIBDIRSUFFIX}/sa DESTDIR=$PKG || exit 1
+
+# Yeah, technically this is an init script that could go in /etc/rc.d/, but
+# I'd rather not put too many things in there.  If you need this, I'm sure
+# you will find it here:
+mkdir -p $PKG/etc/sysstat
+cp -a sysstat $PKG/etc/sysstat/sysstat
+chown root:root $PKG/etc/sysstat/sysstat
+chmod 755 $PKG/etc/sysstat/sysstat
+
+# Strip binaries:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+# Compress and link manpages:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
+# Fix the documentation directory to preserve timestamps:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+rm -f $PKG/usr/doc/${PKGNAM}-$VERSION/*
+cp -a \
+  COPYING CREDITS FAQ README TODO sysstat-7.0.0.lsm \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $TMP/package-${PKGNAM}
+makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
+

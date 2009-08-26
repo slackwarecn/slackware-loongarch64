@@ -1,0 +1,280 @@
+			     NNTP SUPPORT
+			     ------------
+
+This file describes the NNTP support available in nn release 6.5.  The
+NNTP support was implemented by Rene' Seindal, seindal@diku.dk.
+
+
+			    PREREQUISITES
+			    -------------
+
+First of all, you need read-access to an NNTP-server, and if you want
+to post, the server must allow that.
+
+If you have news on one of your systems, and want to run an NNTP
+server on that system to feed other local systems, you need to get and
+install the nntp-1.5 distribution with at least patches 1-3 (I think
+patch 8 is the latest).  It is available from several ftp-sites in the
+USA.  It is also available on freja.diku.dk (ip 129.142.96.1).
+
+However, just to run nn on you local system with or without NNTP, you
+don't need anything besides the nn 6.5 distribution!!
+
+The necessary modules to access a remote NNTP server is an integrated
+part of nn, so if you specify to use NNTP, the necessary code is
+automatically included.
+
+			     HOW IT WORKS
+			     ------------
+
+NNTP is supported both in nn and nnmaster.  When NNTP is used, the
+database with the header information used by nn is still maintained on
+the local system (because NNTP does not know about the nn database
+(yet?)).
+
+When the master is set up to use NNTP, it will connect to the NNTP-
+server in each iteration of the collection (the interval set with -r),
+get a copy of the active file, and incorporate the new articles into the
+database.  To do this, the master will temporarily transfer one article
+at a time from the NNTP-server to the local system.
+
+When the articles are read with nn, it will use the local database to
+present the menus, and fetch the articles from the NNTP-server as they
+are requested by the user.  It will connect to the NNTP server the first
+time it is necessary to fetch an article.
+
+Neither nnmaster, nor nn will use NNTP if they run on the NNTP-server
+itself (they will directly access the news files).
+
+Both nn and nnmaster access the server in reading mode.  The master and
+all client MUST use the same server at all times, since the local
+database contains article numbers, that are only unique for each
+NNTP-server.
+
+
+			 SHARING THE DATABASE
+			 --------------------
+
+You must also decide whether you want to share the database between your
+local news clients, and how you are going to do it.
+
+The database will take up some disk space, normally about 1Mb per 10.000
+articles.  There are several ways to manage this space.
+
+This simplest solution, is to let each client run it own master, i.e.,
+have its own database.  This means, of course, no sharing.
+
+Alternatively, one host can run the master, and distribute the database
+to the others via e.g., rdist.  This doesn't save disk space, but saves
+load on the NNTP-server.
+
+Last, the database can be shared with NFS/RFS (see the description of
+NETWORK_DATABASE in the config.h file).
+
+The possibility of making a `nndb-server' stands open.  It could be
+realized either as a separate server, running under inetd, or it could
+be incorporated into nntpd.  It has not been implemented, but might be
+part of a future release (any volunteers?).
+
+
+			    CONFIGURATION
+			    -------------
+
+To use NNTP in nn, you must edit the relevant parts of config.h:
+
+NNTP
+	You enable the use of NNTP by defining the macro NNTP.
+
+NNTP_SERVER
+	Both the master and the clients will look up their NNTP-server
+	in the file given by the macro NNTP_SERVER.  If the name is not
+	an absolute path name, it is taken to be relative to
+	LIB_DIRECTORY.
+
+	The format of the file is compatible with the one used in
+	clientlib.c in the nntp-1.5 distribution, i.e., the first
+	non-blank line, not starting with '#' is taken to be the name of
+	the NNTP-server.  This file MUST be present, and must contain a
+	valid host name.
+
+NEWS_LIB_DIRECTORY & INEWS
+	If either is defined, they specify the destination of the
+	mini-inews program when installed below with INEWS being used
+	if both are defined.  If neither is defined, it will be
+	installed in /usr/lib/news/inews.
+
+
+				TUNING
+				------
+
+Both the server and each client maintains a cache of recently accessed
+articles, to minimize communication with the server (mainly to avoid
+fetching large digests continuously).  The master needs the cache when
+it splits digests, and the clients need it, because nn has a tendency to
+reopen the articles several times.
+
+The master's cache is kept in LIB_DIRECTORY, and each client's cache are
+kept in the users .nn directory.  The constant NNTPCACHE (defined in
+nntp.c but can be redefined in config.h) defines the size of the cache,
+whose optimal size depends on the amount of news kept on line on the
+NNTP-server.  Values of 5-10 gives reasonable results.  The effect is
+most striking when reading digested news.
+
+The location and size of the cache can also be changed on a per-user
+basis via the related nntp- variables (see nn.1).
+
+
+			     INSTALLATION
+			     ------------
+
+Making and installing nn using NNTP does not differ from a non-NNTP nn
+installation, except for the differences in the configuration and the
+need to specify the NNTP server in the NNTP_SERVER file.
+
+Notice however, that the NNTP_SERVER file must be properly initialized
+before doing the 'make initdb'.
+
+If something goes wrong in the initialization of the database, you will
+have to run 'nnmaster -I' again by hand.
+
+
+			    ERROR HANDLING
+			    --------------
+
+The handling of errors have been improved since the initial release.
+
+The master will handle most errors by closing the connection, and
+returning to the main loop.  All errors in the master are logged, with
+a code of `N,' so they can be inspected with the `n' command in
+nnadmin's Log menu.
+
+A few errors are considere fatal. If any of these occur operation will
+be discontinued.  These errors are such as failure to find the NNTP
+server, failure to find the NNTP service, and responses from the NNTP
+server in the 500 range (ill-formed requests, access denied, ...)
+
+NNTP server timeouts are handled specially.  If the NNTP server times
+out, both nn and the master will attempt to restart it (by connecting
+again).  This shouldn't happen in the master (which won't leave sockets
+idle for that long), but it can easily happen in nn, if it is left
+suspended for too long.  If the server responds with code 400 (Service
+discontinued), a reconnect is also tried.
+
+
+			       PROBLEMS
+			       --------
+
+I am not certain what should happen if the server sends back responses
+in the 1xx range.  I do not know whether a NNTP server is allowed to
+return one of these responses on its own initiative.  If it is, nn
+should probably ignore (or display) the messages.  Currently, nothing is
+done to treat these responses in any way.
+
+I have seen a strange thing happen to the master, which I have not been
+able to reproduce.  The master ran on a Sun-4 running SunOS 4.0, and the
+NNTP server was a VAX 785 running MORE/bsd.  The NNTP software was
+version 1.5.3.  The master was stuck in a read from the NNTP server.  A
+netstat on the Sun show an established connection to nntpd on the Vax,
+but a netstat on the Vasx did not show any NNTP connections.  There was
+no nntpd running, and no messages on the console indicating any
+failures.
+
+[ It is now known that this problem is related to the socket not
+  having the KEEP ALIVE flag set, but I have not got the necessary
+  patches to fix it,   ++Kim ]
+
+
+		      SPONTANEOUS NNTP ERROR 502
+		      --------------------------
+
+Sometimes nn or nnmaster may stop with the following message:
+
+	NNTP 502 You only have permission to transfer, sorry. 
+
+This particular case is probably the result of the NNTP server trying to
+turn your IP address into a fully qualified domain name (FQDN) so it can
+look you up in its access file.
+
+The NNTP server probably uses the domain name server (DNS) to map IP
+addresses into FQDNs.  If the local DNS doesn't already know the answer, it
+has to go out over the network to find it.  This can take a few seconds, and
+the library routine that does all this for the NNTP server might time out
+before the answer gets back to it.  If this happens, the NNTP server doesn't
+know your FQDN, so it gives you the default access specified in the server's
+nntp_access file, which is usually "xfer" (article transfer only).
+
+In the time it takes for you to run nn again the DNS usuallu has its answer
+back, so things usually work the second time.  
+
+One way to work around this problem is to specify the IP address of the
+client in the nntp server's access file; then it is not necessary to lookup
+the FQDN.
+
+Thanks to Tim Ramsey and Nick Sayer for this information.
+
+
+		      DEBUGGING NNTP CONNECTIONS
+		      --------------------------
+
+If you want to debug the nntp connection, you can run the nnmaster
+with the option -D2 (or -D3 which also turns on the normal -D verbose
+output).  In the nn client, you can turn on the nntp-debug variable in
+the init file.
+
+The debug output from nnmaster will be placed in $TMP/nnmaster.log
+while the output in the client will appear on the message line.
+
+
+		POSSIBLE EXTENTIONS TO THE NNTP SERVER
+		--------------------------------------
+
+The new expire method used in release 6.5 is very efficient on local
+systems, because it will just read the spool directories to get a list
+of available articles in each group.
+
+However, with nntp, the only way I know of to get a list of available
+articles in a group with nntp is the XHDR request.  However, this will
+open every article in the group to extract the desired field, but the
+only thing I am interested in is the article number itself.
+
+So I suggest to add a LISTGROUP request to the NNTP server to return
+the equivalent of
+	ls $GROUPDIR | sed -n '/^[0-9][0-9]*$/p'
+(in any order - nnmaster will sort the list itself).
+
+Currently nnmaster will test whether this request works before using
+the XHDR request, so no changes to nnmaster will be required to take
+advantage of such a fix.
+
+
+Another possible performance increase would be if there was a request
+to get the current modification time of the ACTIVE file.  This is the
+check nnmaster will do to see if there might be work to do on a local
+system, but with NNTP it has to read the active file from the server
+and compare it to a local copy to determine whether there is work to
+do.  A simple ACTIVESTAT request returning the active file's age and
+size would fix this.
+
+Currently nnmaster is not prepared to use such a request, but it would
+be easy to add.
+
+
+			     ALTERNATIVES
+			     ------------
+
+Alternative implementations can be conceived, especially in the master.
+The master normally collects articles by rereading the active file,
+looking for changed article numbers.  For each group with new articles,
+it reads the new articles and adds them to the database.  This scheme
+has been kept in the NNTP-based master, to keep the changes at a
+minimum.
+
+An alternative solution could be to use NEWNEWS to get a list of new
+articles since last collect, and fetch each article in sequence.  The
+newsgroups and article numbers within each group could then be found in
+the Xref: field.  This would probably improve efficiency, since the
+master would then generate fewer failing requests (for non-existent
+articles), and it would only read cross-posted articles once.  This
+solution would, however, require some surgery on the current structure
+of the masters main loop.
+

@@ -1,0 +1,60 @@
+#!/bin/sh
+# rc.rpc:  start/stop/restart RPC daemons needed to use NFS.
+#
+# You must run these daemons in order to mount NFS partitions
+# (unless you use the mount option '-o nolock', which can
+# corrupt files and is not generally recommended unless you
+# are mounting the partition(s) as read-only).
+#
+# To run an NFS server, starting these is mandatory.
+#
+
+rpc_start() {
+  if [ -x /sbin/rpc.portmap -a -x /sbin/rpc.statd ]; then
+    if ! ps axc | grep -q rpc.portmap ; then
+      echo "Starting RPC portmapper:  /sbin/rpc.portmap"
+      /sbin/rpc.portmap
+    fi
+    if ! ps axc | grep -q rpc.statd ; then
+      echo "Starting RPC NSM (Network Status Monitor):  /sbin/rpc.statd"
+      /sbin/rpc.statd
+    fi
+  else
+    echo "WARNING:  Cannot start RPC daemons needed for NFS.  One or more of"
+    echo "          these required daemons is not executable or is not present"
+    echo "          on your system:"
+    echo
+    echo "          /sbin/rpc.portmap or /sbin/rpc.statd"
+    echo
+  fi
+}
+
+rpc_stop() {
+  killall rpc.statd 2> /dev/null
+  sleep 1
+  killall rpc.portmap 2> /dev/null
+  sleep 1
+  killall -9 rpc.statd 2> /dev/null # make sure :)
+  sleep 1
+  killall -9 rpc.portmap 2> /dev/null # make sure :)
+  sleep 1
+}
+
+rpc_restart() {
+  rpc_stop
+  rpc_start
+}
+
+case "$1" in
+'start')
+  rpc_start
+  ;;
+'stop')
+  rpc_stop
+  ;;
+'restart')
+  rpc_restart
+  ;;
+*)
+  echo "usage $0 start|stop|restart"
+esac

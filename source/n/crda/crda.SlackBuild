@@ -1,0 +1,99 @@
+#!/bin/sh
+
+# Copyright 2009  Robby Workman, Northport, AL, USA
+# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-1.0.1}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+REGDBVERS=git_20090222
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-crda
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+elif [ "$ARCH" = "arm" ]; then
+  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
+elif [ "$ARCH" = "armel" ]; then
+  SLKCFLAGS="-O2 -march=armv4t"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# First, we need to install the wireless regulatory bin
+cd $TMP
+tar xvf $CWD/wireless-regdb-$REGDBVERS.tar.bz2 || exit 1
+cd wireless-regdb-$REGDBVERS || exit 1
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+# If this isn't installed on the system, crda will not build:
+mkdir -p /usr/lib/crda
+cat regulatory.bin > /usr/lib/crda/regulatory.bin
+
+mkdir -p $PKG/usr/lib/crda $PKG/usr/man/man5 $PKG/usr/doc/crda-$VERSION/regdb
+cat regulatory.bin > $PKG/usr/lib/crda/regulatory.bin
+gzip -9c regulatory.bin.5 > $PKG/usr/man/man5/regulatory.bin.5.gz
+cp -a LICENSE README db.txt $PKG/usr/doc/crda-$VERSION/regdb
+
+# Now we'll do crda itself
+cd $TMP
+rm -rf crda-$VERSION
+tar xvf $CWD/crda-$VERSION.tar.?z* || exit 1
+cd crda-$VERSION || exit 1
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+make CFLAGS="$SLKCFLAGS" MANDIR=/usr/man || exit 1
+make install MANDIR=/usr/man DESTDIR=$PKG || exit 1
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Manpages are already compressed
+
+mkdir -p $PKG/usr/doc/crda-$VERSION
+cp -a \
+  LICENSE README \
+  $PKG/usr/doc/crda-$VERSION
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/crda-$VERSION-$ARCH-$BUILD.txz
+

@@ -1,0 +1,43 @@
+#!/bin/sh
+#item   ####description                                      ###on off ###
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+rm -rf $TMP/SeTnewtag
+rm -rf $TMP/SeTpkgs
+cat /dev/null > $TMP/SeTnewtag
+dialog --title "SELECTING PACKAGES FROM SERIES TCL (Tcl/Tk/TclX)" \
+       --checklist "Please confirm the packages you wish to install \
+from series TCL.  Use the UP/DOWN keys to scroll through the list, and \
+the SPACE key to deselect any items you don't want to install.  \
+Press ENTER when you are done." \
+16 70 6 \
+"expect" "A tool for automating interactive applications" "on" \
+"hfsutils" "Tools for reading/writing Macintosh volumes" "on" \
+"tcl" "The TCL script language" "on" \
+"tclx" "Extended Tcl" "on" \
+"tix" "Tix widget library for Tk" "on" \
+"tk" "The TK toolkit for TCL" "on" \
+2> $TMP/SeTpkgs
+if [ $? = 1 -o $? = 255 ]; then
+ rm -f $TMP/SeTpkgs
+ > $TMP/SeTnewtag
+ for pkg in \
+expect hfsutils tcl tclx tix tk \
+  ; do
+  echo "$pkg: SKP" >> $TMP/SeTnewtag
+ done
+ exit
+fi
+cat /dev/null > $TMP/SeTnewtag
+for PACKAGE in \
+expect hfsutils tcl tclx tix tk \
+ ; do
+ if fgrep \"$PACKAGE\" $TMP/SeTpkgs 1> /dev/null 2> /dev/null ; then
+  echo "$PACKAGE: ADD" >> $TMP/SeTnewtag
+ else
+  echo "$PACKAGE: SKP" >> $TMP/SeTnewtag
+ fi
+done
+rm -f $TMP/SeTpkgs

@@ -1,0 +1,210 @@
+--- ./Makefile.orig	1995-08-17 05:44:54.000000000 -0500
++++ ./Makefile	2007-04-29 15:11:50.000000000 -0500
+@@ -22,7 +22,7 @@
+ 
+ LDFLAGS= $(CFLAGS)
+ 
+-OBJECTS= recvping.o print.o err.o icmpinfo.o
++OBJECTS= recvping.o print.o err.o icmpinfo.o pid.o
+ TARGET = icmpinfo
+ 
+ $(TARGET):  $(OBJECTS)
+--- ./icmpinfo.c.orig	1995-08-17 05:29:30.000000000 -0500
++++ ./icmpinfo.c	2007-04-29 15:11:50.000000000 -0500
+@@ -60,7 +60,7 @@
+  *	This program has to run SUID to ROOT to access the ICMP socket.
+  */
+ 
+-char	usage[] = "Usage:  icmpinfo [-v[v[v]]] [-s] [-n] [-p] [-l]\n   -v : more and more info\n   -s : show local interface address\n   -n : no name query (dot ip only)\n   -p : no port -> service name query\n   -l : fork + syslog output\nv1.11 - 8/1995 - dl";
++char	usage[] = "Usage:  icmpinfo [-v[v[v]]] [-s] [-n] [-p] [-l] [-k]\n   -v : more and more info\n   -s : show local interface address\n   -n : no name query (dot ip only)\n   -p : no port -> service name query\n   -l : fork + syslog output\n   -k : kill background process\nv1.11 - 8/1995 - dl";
+ char	*pname;
+ 
+ int main(argc, argv)
+@@ -99,6 +99,10 @@
+ 			case 's':
+ 				showsrcip++;
+ 				break;
++			case 'k':
++				pid_kill();
++				exit(0);
++				break;
+ 			case 'h':
+ 		        default :
+ 				err_quit(usage);
+@@ -128,6 +132,7 @@
+ 	  openlog("icmpinfo",0,LOG_DAEMON);
+ 	  syslog(LOG_NOTICE,"started, PID=%d.",getpid());
+ 	  setsid();
++	  pid_file();
+ 	  close(0);
+ 	  close(1);
+ 	  close(2);
+--- ./icmpinfo.man.orig	1995-08-17 05:25:11.000000000 -0500
++++ ./icmpinfo.man	2007-04-29 15:12:35.000000000 -0500
+@@ -6,7 +6,7 @@
+ .SH SYNOPSIS
+ 
+ .B icmpinfo
+-[\-v[v[v]]] [\-n] [\-p] [\-s] [\-l]
++[\-v[v[v]]] [\-n] [\-p] [\-s] [\-l] [\-k]
+ 
+ .SH DESCRIPTION
+ .BR Icmpinfo
+@@ -60,6 +60,13 @@
+ .I "\-l"
+ Forks and use the syslog(3) facility to record events (recomended use).
+ (root only option).
++
++.TP
++.I "\-k"
++Kills the background process started with the
++.I "\-l"
++option.
++
+ .SH WARNINGS
+ The packet decoding is planned for ICMP Unreachable outputs and might
+ not be significant for all other Icmp types. Output can be shorter
+--- ./linux_ip_icmp.h.orig	1994-05-11 07:08:29.000000000 -0500
++++ ./linux_ip_icmp.h	2007-04-29 15:11:50.000000000 -0500
+@@ -3,6 +3,8 @@
+ #ifndef _netinet_ip_icmp_h
+ #define _netinet_ip_icmp_h
+ 
++#include <netinet/ip.h>
++
+ struct icmp {
+ 	u_char	icmp_type;		/* type of message, see below */
+ 	u_char	icmp_code;		/* type sub code */
+@@ -22,6 +24,7 @@
+ #define	icmp_seq	icmp_hun.ih_idseq.icd_seq
+ #define	icmp_void	icmp_hun.ih_void
+ 
++#if 0
+ struct ip {
+         u_char  ip_hl:4,                /* header length */
+         ip_v:4;                 /* version */
+@@ -36,6 +39,7 @@
+         u_short ip_sum;                 /* checksum */
+         struct  in_addr ip_src,ip_dst;  /* source and dest address */
+       };
++#endif
+ 
+ 
+ 	union {
+--- ./pid.c.orig	2007-04-29 15:11:50.000000000 -0500
++++ ./pid.c	2007-04-29 15:11:50.000000000 -0500
+@@ -0,0 +1,52 @@
++#include <stdio.h>
++#include <signal.h>
++
++#define PIDFILE                 "/var/run/icmpinfo.pid"
++
++extern char *pname;
++
++void sig_handler(int);
++void pid_file(void);
++void pid_kill(void);
++
++void pid_file(void)
++{
++    FILE *fp;
++
++    if ((fp = fopen(PIDFILE, "w")) != (FILE *)NULL) {
++        fprintf(fp, "%d\n", getpid());
++        fclose(fp);
++    }
++    else
++    {
++        fprintf(stderr, "\n%s: Could not write PID file `%s', terminating.\n",
++            pname, PIDFILE);
++        exit(1);
++    }
++    signal(SIGHUP, sig_handler);
++    signal(SIGINT, sig_handler);
++    signal(SIGTERM, sig_handler);
++}
++
++void sig_handler(int sig)
++{
++    unlink(PIDFILE);
++    exit(0);
++}
++
++void pid_kill(void)
++{
++    FILE *fp;
++    int pid;
++
++    if ((fp = fopen(PIDFILE, "r")) != (FILE *)NULL)
++    {
++        if (fscanf(fp, "%d", &pid) == 1)
++        {
++            kill(pid, SIGHUP);
++            sleep(1);
++        }
++        fclose(fp);
++    }
++}
++ 
+--- ./print.c.orig	1995-08-25 08:37:53.000000000 -0500
++++ ./print.c	2007-04-29 15:11:50.000000000 -0500
+@@ -14,6 +14,7 @@
+  * program to be run without having intermingled output (or statistics!).
+  */
+ 
++#include <string.h>
+ #include	"defs.h"
+ 
+ #ifndef ANSI_OFFSETOF
+@@ -119,6 +120,29 @@
+ 		      inet_ntoa(icp->icmp_ip.ip_dst),
+ 		      hostent?hostent->h_name:NULL);
+ 	      tp = (struct tcphdr *)((char *)&(icp->icmp_dun)+sizeof(struct ip)) ;
++#if defined(__GLIBC__) && (__GLIBC__ >= 2)
++	      if (cc>=offsetof(struct icmp,icmp_dun)+sizeof(struct ip)+offsetof(struct tcphdr,seq)+sizeof(tp->seq))
++		{
++		  if (noportquery) {
++		      sprintf(prbuf+strlen(prbuf)," sp=%d dp=%d seq=0x%8.8x",
++			  ntohs(tp->source),ntohs(tp->dest),
++                          ntohl(tp->seq));
++		  } else {
++		    if ((servent=getservbyport(ntohs(tp->source),NULL))) 
++		      sprintf(prbuf+strlen(prbuf)," sp=%d [%s]",
++			      ntohs(tp->source),servent->s_name);
++		    else
++		      sprintf(prbuf+strlen(prbuf)," sp=%d",tp->source);
++		    if ((servent=getservbyport(ntohs(tp->dest),NULL))) 
++		      sprintf(prbuf+strlen(prbuf)," dp=%d [%s] seq=0x%8.8x",
++			      ntohs(tp->dest),servent->s_name,
++			      ntohl(tp->seq));
++		    else
++		      sprintf(prbuf+strlen(prbuf)," dp=%d seq=0x%8.8x",
++			      ntohs(tp->dest),ntohl(tp->seq));
++		  }
++		}
++#else
+ 	      if (cc>=offsetof(struct icmp,icmp_dun)+sizeof(struct ip)+offsetof(struct tcphdr,th_seq)+sizeof(tp->th_seq))
+ 		{
+ 		  if (noportquery) {
+@@ -140,6 +164,7 @@
+ 			      ntohs(tp->th_dport),ntohl(tp->th_seq));
+ 		  }
+ 		}
++#endif
+ 	    }
+ 	}
+       sprintf(prbuf+strlen(prbuf)," sz=%d(+%d)",cc,iphdrlen);
+--- ./recvping.c.orig	1994-01-07 05:04:04.000000000 -0600
++++ ./recvping.c	2007-04-29 15:11:50.000000000 -0500
+@@ -9,7 +9,11 @@
+ int recv_ping()
+ {
+ 	register int		n;
++#if !defined(__GLIBC__)
+ 	int			fromlen;
++#else /* __GLIBC__ */
++	socklen_t			fromlen;
++#endif /* __GLIBC__ */
+ 	struct sockaddr_in	from;
+ 
+ 	for ( ; ; ) {

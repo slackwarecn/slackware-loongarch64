@@ -1,0 +1,41 @@
+--- netkit-telnet-0.17/telnetd/utility.c.ayt	Wed Aug  8 16:33:01 2001
++++ netkit-telnet-0.17/telnetd/utility.c	Wed Aug  8 17:20:39 2001
+@@ -56,18 +56,25 @@
+ void
+ netoprintf(const char *fmt, ...)
+ {
+-   int len, maxsize;
++   int len = 0, maxsize;
+    va_list ap;
+    int done=0;
+ 
+    while (!done) {
+       maxsize = sizeof(netobuf) - (nfrontp - netobuf);
++      if (maxsize < 0) {
++	/* no way this is gonna fit - try to flush some */
++	netflush();
++        maxsize = sizeof(netobuf) - (nfrontp - netobuf);
++	if (maxsize < 0)
++	  break;
++      }
+ 
+       va_start(ap, fmt);
+       len = vsnprintf(nfrontp, maxsize, fmt, ap);
+       va_end(ap);
+ 
+-      if (len<0 || len==maxsize) {
++      if (len<=0 || len==maxsize) {
+ 	 /* didn't fit */
+ 	 netflush();
+       }
+--- netkit-telnet-0.17/telnetd/telnetd.c.ayt	Wed Aug  8 16:33:01 2001
++++ netkit-telnet-0.17/telnetd/telnetd.c	Wed Aug  8 17:21:44 2001
+@@ -1277,7 +1277,7 @@
+ 	return;
+     }
+ #endif
+-    netoprintf("\r\n[%s : yes]\r\n", host_name);
++    netoprintf("\r\n[Yes]\r\n");
+ }
+ 
+ void doeof(void) {

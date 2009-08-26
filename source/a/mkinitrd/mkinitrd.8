@@ -1,0 +1,194 @@
+.\" -*- nroff -*-
+.ds g \" empty
+.ds G \" empty
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH MKINITRD 8 "04 March 2008" "Slackware Version 12.1"
+.SH NAME
+mkinitrd \- create or rebuilt an initrd (initial ramdisk) using initramfs (simple cpio+gzip).
+.SH SYNOPSIS
+.B mkinitrd
+[
+.B \-F
+]
+[
+.B \-c
+]
+[
+.B \-f filesystem
+]
+[
+.B \-h hibernate_partition
+]
+[
+.B \-k kernel_version
+]
+[
+.B \-m module1:module2:module3...
+]
+[
+.B \-o output_file
+]
+[
+.B \-r root_device
+]
+[
+.B \-s source_tree
+]
+[
+.B \-C crypt_device
+]
+[
+.B \-L
+]
+[
+.B \-R
+]
+[
+.B \-V
+]
+.SH DESCRIPTION
+.B mkinitrd
+is used to build an initial ramdisk.  An initial ramdisk is a very small
+set of files that are loaded into RAM and "mounted" (as initramfs doesn't
+actually use a filesystem) as the kernel boots (before the main root
+filesystem is mounted).  The usual reason to use an initrd is because
+you need to load kernel modules before mounting the root partition.
+Usually these modules are required to support the filesystem used by the
+root partition (ext3, reiserfs, xfs), or perhaps the controller that the
+hard drive is attached to (SCSI, RAID, etc).  Essentially, there are so many
+different options available in modern Linux kernels that it isn't practical
+to try to ship many different kernels to try to cover everyone's needs.
+It's a lot more flexible to ship a generic kernel and a set of kernel
+modules for it.
+.SH OPTIONS
+.TP
+.B \-F
+Use the contents of /etc/mkinitrd.conf as options to mkinitrd (optional).
+If this is used in conjunction with any other options passed on the command 
+line, the command-line options will override the config file options.  
+.br
+See mkinitrd.conf(5) for details.
+.TP
+.B \-c
+Clear the existing initrd tree (by default in /boot/initrd-tree/) first.
+If this is not done, running mkinitrd will add additional modules to the
+existing initrd.
+.TP
+.B \-f filesystem
+Specify the filesystem to use for the root partition.  If this isn't given,
+mount will usually figure it out.  This option must be used together with the
+\-r option in order to be beneficial.
+.TP
+.B \--help
+Display a help summary.
+.TP
+.B \-h hibernate_partition
+Specify the swap partition holding the hibernation image.
+.TP
+.B \-k kernel version
+Use kernel modules from the specified kernel version.  mkinitrd will look
+for them in /lib/modules/(kernel version).
+.TP
+.B \-l keymap
+Load an alternative keyboard mapping. All supported keyboard mappings
+can be found in /usr/share/mkinitrd/keymaps.tar.gz
+Leave the '.bmap' out when you supply this parameter. E.g. '-l nl' will 
+add support for dutch keyboard mapping to the initrd.
+.TP
+.B \-m module list
+This is a list of colon-delimited modules to build into the initrd.
+Any dependencies of requested modules will also be added to the initrd.
+Additional options may be added to use when loading the kernel modules
+(but in this case the entire list must be wrapped with double quotes). 
+.TP
+.B \-o output image
+The file to write the initrd to.  (default: /boot/initrd.gz)
+.TP
+.B \-r root partition
+Specify the device to be used as the root partition.  If this isn't given, the
+kernel default will be used (which is usually fine).  This option must be used
+together with the \-f option in order to be beneficial.
+.TP
+.B \-s source tree
+The directory to use as the source for the initrd.  (default: /boot/initrd-tree/)
+.TP
+.B \-w
+The -w option specifies how long to wait in seconds before assuming that all the
+drives are spun up and ready to go.
+.TP
+.B \-C
+Use cryptsetup to enable the underlying device of an encrypted root partition.
+Requires '-r' parameter.  Two scenarios are possible.
+.br
+(1) root filesystem was created on the encrypted disk/LVM partition, example:
+
+  -C /dev/sda2 -r cryptroot
+
+where /dev/sda2 is the encrypted partition and the actual root device name in /etc/fstab is:
+
+  /dev/mapper/cryptroot
+
+(2) the encrypted partition contains a LVM volume which holds the root filesystem, example:
+
+  -C /dev/sda2 -r /dev/vg/root
+
+where /dev/sda2 is the encrypted partition and the actual root device name in /etc/fstab is:
+
+  /dev/vg/root
+.TP
+.B \-L
+This option adds LVM support to the initrd, if the tools are
+available on the system.
+.TP
+.B \-R
+This option adds RAID support to the initrd, if a static mdadm binary is
+available on the system.
+.TP
+.B \-V
+Display version information and exit.
+.SH EXAMPLES
+A simple example:  Build an initrd for a reiserfs root partition:
+
+  mkinitrd -c -m reiserfs
+
+Another example:  Build an initrd image using Linux 2.6.24.5 kernel
+modules for a system with an ext3 root partition on /dev/hdb3:
+
+  mkinitrd -c -k 2.6.24.5 -m ext3 -f ext3 -r /dev/hdb3
+
+If run without options, mkinitrd will rebuild an initrd image using
+the contents of the $SOURCE_TREE directory, or, if that directory
+does not exist it will be created and populated, and then mkinitrd
+will exit.  These options are handy for building an initrd mostly
+by hand.  After creating /boot/initrd-tree/, you can add modules and
+edit files by hand, and then rerun mkinitrd to create the initrd.
+
+Once the initrd is created, you'll need to tell your boot loader
+to load it.  If you boot with LILO, you will need to add an initrd
+line to /etc/lilo.conf.  Here's a section of lilo.conf that shows
+how to set this up:
+
+ # Linux bootable partition config begins
+ image = /boot/vmlinuz-generic-2.6.24.5
+   initrd = /boot/initrd.gz
+   root = /dev/hda6
+   label = Linux26245
+   read-only
+ # Linux bootable partition config ends
+
+Once you've created the initrd and editing /etc/lilo.conf, you will
+need to run 'lilo' to write out the changed boot block.  The next
+time you reboot the initrd should be loaded along with the kernel.
+
+Have fun!
+
+.SH SEE ALSO
+mkinitrd.conf (5)
+
+.SH AUTHOR
+Patrick J. Volkerding <volkerdi@slackware.com>

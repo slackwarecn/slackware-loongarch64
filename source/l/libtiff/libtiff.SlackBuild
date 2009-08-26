@@ -1,0 +1,96 @@
+#!/bin/sh
+
+# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=3.8.2
+ARCH=${ARCH:-x86_64}
+BUILD=3
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-libtiff
+
+rm -rf $PKG
+mkdir -p $PKG
+cd $TMP
+rm -rf tiff-$VERSION
+tar xjvf $CWD/tiff-$VERSION.tar.bz2
+cd tiff-$VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+zcat $CWD/tiff-3.8.2.goo-sec.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/tiff-3.8.2.tiffsplit.commandline.overflow.diff.gz | patch -p1 --verbose || exit 1
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --program-prefix="" \
+  --program-suffix="" \
+  $ARCH-slackware-linux
+
+make -j3 || exit 1
+make install DESTDIR=$PKG || exit 1
+rm -r $PKG/usr/share
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+strip -g $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a
+chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/libtiff*.so.*
+mkdir -p $PKG/usr/doc/libtiff-$VERSION
+cp -a \
+  COPYRIGHT README RELEASE-DATE TODO VERSION \
+  $PKG/usr/doc/libtiff-$VERSION
+
+mv $PKG/usr/local/man $PKG/usr
+rmdir $PKG/usr/local
+
+# I'd use that shiny new manpage script here but all the
+# .3 manpages end with '.3tiff'.
+gzip -9 $PKG/usr/man/man?/*
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+makepkg -l y -c n $TMP/libtiff-$VERSION-$ARCH-$BUILD.txz
+

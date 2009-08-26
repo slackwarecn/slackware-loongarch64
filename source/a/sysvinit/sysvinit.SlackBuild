@@ -1,0 +1,115 @@
+#!/bin/sh
+
+# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-2.86}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-6}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-sysvinit
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf sysvinit-$VERSION
+tar xzvf $CWD/sysvinit-$VERSION.tar.gz || exit 1
+cd sysvinit-$VERSION
+chown -R root:root .
+zcat $CWD/sysvinit.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/sysvinit.pidof.rhforkseverything.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
+if [ "$ARCH" = "x86_64" ]; then
+  # Don't overwrite ut_addr_v6 in utmp records on 64-bit platforms
+  zcat $CWD/sysvinit-2.86-timeval.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
+fi
+
+cd doc
+mkdir -p $PKG/usr/doc/sysvinit-$VERSION
+cp -a Install Propaganda sysvinit-$VERSION.lsm \
+  $PKG/usr/doc/sysvinit-$VERSION
+chmod -R 644 $PKG/usr/doc/sysvinit-$VERSION/*
+chmod 755 $PKG/usr/doc/sysvinit-$VERSION
+
+cd ../src
+if [ "$ARCH" = "x86_64" ]; then
+  # static 'init' segfaults, so your computer never reaches command prompt:
+  sed -i -e "s/-static//" Makefile
+fi
+make clobber
+make || exit 1
+
+mkdir -p $PKG/sbin
+for program in bootlogd halt init killall5 shutdown runlevel ; do
+  strip --strip-unneeded $program
+  cat $program > $PKG/sbin/$program
+  chmod 755 $PKG/sbin/$program
+  chown root:root $PKG/sbin/$program
+done
+mkdir -p $PKG/usr/bin
+for program in last mountpoint ; do
+  strip --strip-unneeded $program
+  cat $program > $PKG/usr/bin/$program
+  chmod 755 $PKG/usr/bin/$program
+  chown root:root $PKG/usr/bin/$program
+done
+( cd $PKG/usr/bin ; ln -sf last lastb )
+mv $PKG/sbin/init $PKG/sbin/init.new
+chmod 755 $PKG/sbin/init.new
+chown root:root $PKG/sbin/init.new
+
+# This version is old.  We use genpower now.
+#cat wall > $PKG/usr/bin/wall
+#strip --strip-unneeded powerd
+#cat powerd > $PKG/sbin/powerd
+#chmod 755 $PKG/usr/bin/wall $PKG/sbin/powerd
+#chown root:root $PKG/usr/bin/wall $PKG/sbin/powerd
+cp initscript.sample $PKG/sbin/initscript.sample
+
+cd ../man
+mkdir -p $PKG/usr/man/man{1,5,8}
+for page in last.1 mountpoint.1 ; do
+  cat $page | gzip -9c > $PKG/usr/man/man1/$page.gz
+done
+for page in inittab.5 initscript.5 ; do
+  cat $page | gzip -9c > $PKG/usr/man/man5/$page.gz
+done
+for page in halt.8 init.8 killall5.8 pidof.8 poweroff.8 reboot.8 runlevel.8 \
+  shutdown.8 telinit.8 bootlogd.8 ; do
+  cat $page | gzip -9c > $PKG/usr/man/man8/$page.gz
+done
+( cd $PKG/usr/man/man1 ; ln -sf last.1.gz lastb.1.gz )
+
+mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/sysvinit-$VERSION-$ARCH-$BUILD.txz
+
+# Clean up the extra stuff:
+if [ "$1" = "--cleanup" ]; then
+  rm -rf $TMP/sysvinit-$VERSION
+  rm -rf $PKG
+fi

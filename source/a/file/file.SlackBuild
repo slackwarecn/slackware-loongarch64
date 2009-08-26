@@ -1,0 +1,131 @@
+#!/bin/sh
+
+# Copyright 2005-2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=5.03
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j7}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-file
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf file-$VERSION
+tar xvf $CWD/file-$VERSION.tar.?z* || exit 1
+cd file-$VERSION || exit 1
+
+# Make the default data directory /etc/file like it has always been:
+zcat $CWD/file.etc.file.diff.gz | patch -p1 --verbose || exit 1
+# This is needed after the patch above:
+autoreconf || exit 1
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Don't spew warnings about using the flat text files
+zcat $CWD/file.quiet.diff.gz | patch -p1 -E --verbose || exit 1
+# I don't know what this one does
+zcat $CWD/file.short.diff.gz | patch -p1 -E --verbose || exit 1
+
+# Add zisofs and crda regulatory bin detection
+zcat $CWD/file.zisofs.magic.gz >> magic/Magdir/compress
+zcat $CWD/file.crdaregbin.magic.gz >> magic/Magdir/crdaregbin
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --datadir=/etc \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --docdir=/usr/doc/file-$VERSION \
+  --enable-fsect-man5 \
+  --disable-static \
+  --build=$ARCH-slackware-linux
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Is file really this much of a processing bottleneck?  Doubtful.
+#
+# NOTE:  Benchmarked flat files vs. .mgc June 2009, found no measurable
+# difference on 3000+ files.
+#
+# If you really need these (let's say you're doing virus scanning
+# and this *would* speed things up quite a bit) you can create
+# the pre-parsed file yourself using file's -C option.
+rm -f $PKG/etc/file/magic.mgc
+mkdir -p $PKG/etc/file/magic
+cp -a magic/Magdir/* $PKG/etc/file/magic
+# After building, this works fine.  /etc/file/magic/ takes up 1.2M,
+# while the magic.mgc file is 1.7M.  Considering a difference of 500k,
+# and the potential speedup, I'm not sure it's worth the effort...
+# but it does make it easier for an admin to add a small chunk of
+# new magic.
+
+# IMHO, moving this sort of thing does not make sense.
+# We'll support both the traditional and new locations.
+# I hate to squat on a name as generic as "/etc/misc/",
+# but it wasn't my idea.
+( cd $PKG/etc ; ln -sf file misc )
+
+# Strip everything for good measure:
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+( cd $PKG/usr/man || exit 1
+  find . -type f -exec gzip -9 {} \;
+  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
+
+mkdir -p $PKG/usr/doc/file-$VERSION
+cp -a \
+  AUTHORS COPYING INSTALL MAINT NEWS README TODO \
+    $PKG/usr/doc/file-$VERSION
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/file-$VERSION-$ARCH-$BUILD.txz
+

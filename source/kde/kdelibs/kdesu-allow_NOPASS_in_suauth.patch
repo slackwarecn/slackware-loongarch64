@@ -1,0 +1,94 @@
+diff -Naur kdesu/stub.cpp kdesu.new/stub.cpp
+--- kdesu/stub.cpp	2008-05-21 08:08:55.000000000 -0300
++++ kdesu.new/stub.cpp	2009-08-06 04:06:43.000000000 -0300
+@@ -111,7 +111,7 @@
+ 	if (line.isNull())
+ 	    return -1;
+ 
+-	if (line == "kdesu_stub")
++	if ((line == "kdesu_stub")||(line == "Password authentication bypassed."))
+ 	{
+ 	    // This makes parsing a lot easier.
+ 	    enableLocalEcho(false);
+diff -Naur kdesu/su.cpp kdesu.new/su.cpp
+--- kdesu/su.cpp	2008-05-21 08:08:55.000000000 -0300
++++ kdesu.new/su.cpp	2009-08-06 04:10:55.000000000 -0300
+@@ -163,7 +163,7 @@
+     }
+     // kDebug(900) << k_lineinfo << "Done StubProcess::exec()";
+ 
+-    SuErrors ret = (SuErrors) ConverseSU(password);
++    SuErrors ret = (SuErrors) ConverseSU(password,check);
+     // kDebug(900) << k_lineinfo << "Conversation returned " << ret;
+ 
+     if (ret == error)
+@@ -172,6 +172,7 @@
+             kError(900) << k_lineinfo << "Conversation with su failed\n";
+         return ret;
+     }
++    
+     if (check == NeedPassword)
+     {
+         if (ret == killme)
+@@ -235,10 +236,10 @@
+ 
+ /*
+ * Conversation with su: feed the password.
+-* Return values: -1 = error, 0 = ok, 1 = kill me, 2 not authorized
++* Return values: -1 = error, 0 = ok, 1 = kill me, 2 = not authorized
+ */
+ 
+-int SuProcess::ConverseSU(const char *password)
++int SuProcess::ConverseSU(const char *password, int check)
+ {
+     enum { WaitForPrompt, CheckStar, HandleStub } state = WaitForPrompt;
+     int colon;
+@@ -265,6 +266,27 @@
+                     return ok;
+                 }
+ 
++                if (line == "Password authentication bypassed.")
++                {
++		    if (check == 2) 
++		    {
++                    	unreadLine(line);
++                    	return ok;
++		    } 
++		    else 
++		    {
++			if (checkPid(m_Pid))
++                        { 
++			    state=HandleStub;
++			}
++			else
++			{
++			    return error;
++			}
++                    }
++                    break;
++                }
++
+                 while(waitMS(fd(),100)>0)
+                 {
+                     // There is more output available, so the previous line
+@@ -293,7 +315,7 @@
+                 }
+                 if ((colon == 1) && (line[j] == ':'))
+                 {
+-                    if (password == 0L)
++                    if (password == 0L) 
+                         return killme;
+                     if (!checkPid(m_Pid))
+                     {
+diff -Naur kdesu/su.h kdesu.new/su.h
+--- kdesu/su.h	2008-05-21 08:08:55.000000000 -0300
++++ kdesu.new/su.h	2009-08-06 02:50:02.000000000 -0300
+@@ -62,7 +62,7 @@
+ 
+ private:
+     enum SuErrors { error=-1, ok=0, killme=1, notauthorized=2 } ;
+-    int ConverseSU(const char *password);
++    int ConverseSU(const char *password, int check=NoCheck);
+ 
+ protected:
+     virtual void virtual_hook( int id, void* data );

@@ -1,0 +1,151 @@
+#!/bin/sh
+# Copyright 2001 BSDi, Inc. Concord, CA, USA
+# Copyright 2004 Slackware Linux, Inc.  Concord, CA, USA
+# Copyright 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=2007-03-28
+PKGVER=2007_03_28
+# ast still considers this an i386 arch, so we'll humor it
+# but package with our real arch label...
+ARCH=${ARCH:-x86_64}
+if [ "$ARCH" = "x86_64" ]; then
+  SARCH=i386-64
+else
+  SARCH=i386
+fi
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=/tmp/build-ksh93
+PKG=/tmp/package-ksh93
+
+rm -rf $TMP $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+
+mkdir -p ast-base/lib/package/tgz
+cp $CWD/*.tgz ast-base/lib/package/tgz
+cd ast-base/
+
+tar -xzf lib/package/tgz/INIT.$VERSION.tgz || exit 1
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+bin/package read || exit 1
+bin/package make SHELL=/bin/ash || exit 1
+
+mkdir -p $PKG/bin
+cp arch/linux.$SARCH/bin/ksh $PKG/bin/ksh.new
+strip --strip-unneeded $PKG/bin/ksh.new
+
+#cp arch/linux.$SARCH/lib/libshell.so.1.1 /usr/lib
+#cp arch/linux.$SARCH/lib/libshell.a /usr/lib
+#cp arch/linux.$SARCH/lib/libast.so.5.4 /usr/lib
+#cp arch/linux.$SARCH/lib/libast.a /usr/lib
+#cp arch/linux.$SARCH/src/cmd/ksh93/cc-g,-fpic/libshell.so.1.1 /usr/lib
+#cp arch/linux.$SARCH/src/cmd/ksh93/cc-g,-fpic/libshell.a /usr/lib
+#cp arch/linux.$SARCH/src/lib/libast/libast.so.5.4 /usr/lib
+#cp arch/linux.$SARCH/src/cmd/ksh93/cc-g,-fpic/libast.a /usr/lib
+#strip /usr/lib/libast.so.5.4 /usr/lib/libshell.so.1.1
+
+mkdir -p $PKG/usr/man/man1
+sed -e "s#\.nr Z 0#\.nr Z 1#g" src/cmd/ksh93/sh.1 > \
+       $PKG/usr/man/man1/ksh.1
+#mkdir -p $PKG/usr/man/man1
+#cp src/cmd/ksh93/shell.3 $PKG/usr/man/man3
+#cp src/cmd/ksh93/nval.3 $PKG/usr/man/man3
+gzip -9 $PKG/usr/man/man?/*
+
+# Install locale files:
+mkdir -p $PKG/usr/share
+cp -a share/lib/locale $PKG/usr/share
+chown -R root:root $PKG/usr/share
+( cd $PKG/usr/share
+  find . -type d -exec chmod 755 {} \;
+  find . -type f -exec chmod 644 {} \;
+)
+
+#cp src/cmd/ksh93/include/shell.h /usr/include
+
+# If anyone is actually using the ksh libraries, drop me some mail
+# and explain which libs you use and what they're for.  As it is, I
+# don't see a compeling reason to include them, as ksh itself doesn't
+# use them.
+#( cd /usr/lib ; ln -sf libshell.so.1.1 libshell.so )
+#( cd /usr/lib rm -rf libast.so ; ln -sf libast.so.5.4 libast.so )
+
+( cd $PKG/bin ; ln -sf ksh rksh )
+( cd $PKG/usr/man/man1 ; ln -sf ksh.1.gz rksh.1.gz )
+
+mkdir -p $PKG/usr/doc/ksh93-$VERSION
+( cd src/cmd/ksh93
+  cp -a COMPATIBILITY DESIGN OBSOLETE PROMO.mm README RELEASE* \
+     $PKG/usr/doc/ksh93-$VERSION
+)
+( cd /tmp/build-ksh93/ast-base
+  mkdir -p $PKG/usr/doc/ksh93-$VERSION/LICENSE
+  cp -a README $PKG/usr/doc/ksh93-$VERSION/LICENSE
+  cp -a $CWD/CPL $PKG/usr/doc/ksh93-$VERSION
+  chmod 644 $PKG/usr/doc/ksh93-$VERSION/CPL
+  chown root:root $PKG/usr/doc/ksh93-$VERSION/CPL
+  cp -a lib/package/LICENSES/ast $PKG/usr/doc/ksh93-$VERSION/LICENSE/LICENSE.ast )
+
+chown -R root:root $PKG/usr/doc/ksh93-$VERSION
+find $PKG/usr/doc/ksh93-$VERSION -type f -exec chmod 644 "{}" \;
+find $PKG/usr/doc/ksh93-$VERSION -type d -exec chmod 755 "{}" \;
+
+#chmod 755 $PKG/usr/lib/libshell.so.1.1
+#chmod 755 $PKG/usr/lib/libast.so.5.4
+
+mkdir -p $PKG/install
+cat <<EOF >> $PKG/install/doinst.sh
+# Backup the old copy if we find one, move the new one in place
+if [ -f bin/ksh ]; then
+   mv bin/ksh bin/ksh.old
+fi
+mv bin/ksh.new bin/ksh
+if [ -f bin/ksh.old ]; then
+  rm -f bin/ksh.old
+fi
+
+# Add entries to /etc/shells if we need them
+if [ ! -r etc/shells ] ; then
+   touch etc/shells
+   chmod 644 etc/shells
+fi
+ 
+if ! grep -q "/bin/ksh" etc/shells ; then
+   echo "/bin/ksh" >> etc/shells
+fi
+EOF
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n /tmp/ksh93-$PKGVER-$ARCH-$BUILD.txz
+

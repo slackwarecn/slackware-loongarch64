@@ -1,0 +1,105 @@
+--- ./pppsetup.orig	Sun May 19 18:41:04 2002
++++ ./pppsetup	Sun May 19 18:52:49 2002
+@@ -1,15 +1,10 @@
+ #!/bin/bash 
+-###############################################################################
+-#
+ #	PPPSETUP  --  Script to set up pppd
+ #  	History:
+ #	  7/21/95 RSL         Script created (v1.0)
+ #         9/15/96 RSL         Added code to get the ISP's domainname (v1.1)
+ #         9/19/96 RSL         Revamped interface to use the 'dialog' 
+ #                             program. (v1.2)
+-###############################################################################
+-
+-###############################################################################
+ #         2/22/98 KR          Added pap, chap, ms-chap, callback, & 
+ #                             modem init string options. (v1.98)
+ #                             Creates /etc/ppp/options, & pap, chap, 
+@@ -17,33 +12,21 @@
+ #                             More guidance.
+ #                             Monitor connection with tail & syslogd.
+ #                             Demand dialing setup with ppp-2.3.0 or later.        
+-###############################################################################
+-
+-###############################################################################
+ #          4/4/98 PJV         Fixed massive /tmp-related security problems
+ #                             Switched to a default init string that's more
+ #                             likely to work
+ #                             Increased TIMEOUTs
+ #                             fixed bad flags given to chat -- caused dialout
+ #                             to fail
+-###############################################################################
+-
+-###############################################################################
+ #          2/6/1999 PJV       Changed all occurances of /dev/cua* to /dev/ttyS*
+-###############################################################################
+-
+-###############################################################################
+ #          5/3/1999 PJV       Commented 'debug' in /etc/ppp/options
+ #                             Add commented 'noauth' in /etc/ppp/options so
+ #                             people who want to use ppp but already have a
+ #                             default route have an easier time figuring out
+ #                             what to do. :)
+-###############################################################################
+-
+-###############################################################################
+ #          6/18/2000 PJV      Added code to check for "ppp-stop" and "ppp-on"
+ #                             symlinks, and make them if they don't exist.
+-###############################################################################
++#          5/19/2002 PJV      Added support for more devices.
+ 
+ TMP=/var/log/setup/tmp
+ 
+@@ -137,25 +120,40 @@
+ done
+ 
+ echo "Where is your modem /dev/ttyS?" > $TMP/txtTEMP$$ 
+-dialog --backtitle "MODEM DEVICE ..." --menu "`cat $TMP/txtTEMP$$`" 11 50 4 \
++dialog --backtitle "MODEM DEVICE ..." --menu "`cat $TMP/txtTEMP$$`" 17 60 10 \
++modem "= use whatever /dev/modem is linked to" \
+ ttyS0 "= (COM1: under DOS)" \
+ ttyS1 "= (COM2: under DOS)" \
+ ttyS2 "= (COM3: under DOS)" \
+ ttyS3 "= (COM4: under DOS)" \
++ttyS4 "= PCI modem" \
++ttyS5 "= PCI modem" \
++ttyS6 "= PCI modem" \
++ttyS7 "= PCI modem" \
++ttyS8 "= PCI modem" \
++ttyS9 "= PCI modem" \
++ttyS10 "= PCI modem" \
++ttyS11 "= PCI modem" \
++ttyS12 "= PCI modem" \
++ttyS13 "= PCI modem" \
++ttyS14 "= PCI modem" \
++ttyS15 "= PCI modem" \
+ 2> $TMP/rspTEMP$$
+ 
+ MODEM="`cat $TMP/rspTEMP$$`"
+ 
+-if [ -z $MODEM ]; then
+-clear 2>/dev/null || echo
+-rm -f $TMP/*TEMP*
+-echo "PPP configuration cancelled."
+-exit 
+-elif [ ! -c "/dev/$MODEM" ]; then
+-/dev/MAKEDEV $MODEM >/dev/null 2>&1 || MODERROR="YES"
+-else
+-rm -f /dev/modem 2>/dev/null
+-ln -sf /dev/$MODEM /dev/modem 2>/dev/null
++if [ ! "$MODEM" = "modem" ]; then
++  if [ -z $MODEM ]; then
++    clear 2>/dev/null || echo
++    rm -f $TMP/*TEMP*
++    echo "PPP configuration cancelled."
++    exit 
++  elif [ ! -c "/dev/$MODEM" ]; then
++    /dev/MAKEDEV $MODEM >/dev/null 2>&1 || MODERROR="YES"
++  else
++    rm -f /dev/modem 2>/dev/null
++    ln -sf /dev/$MODEM /dev/modem 2>/dev/null
++  fi
+ fi
+ 
+ echo "What baud rate is your modem?" > $TMP/txtTEMP$$

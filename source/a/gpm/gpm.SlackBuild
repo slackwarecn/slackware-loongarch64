@@ -1,0 +1,149 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# by: volkerdi@slackware.com
+
+VERSION=1.20.1
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-5}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-gpm
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf gpm-$VERSION
+tar xjvf $CWD/gpm-$VERSION.tar.bz2
+cd gpm-$VERSION
+sed -i -e "s/OPEN_MAX/NR_OPEN/" $(grep -lr OPEN_MAX *)
+chown -R root:root .
+find . \
+  \( -perm 700 -o -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+zcat $CWD/gpm-evdev-cumulative.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm.evdevmakefile.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-math.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-weak-wgetch.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-nodebug.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-gpmopen.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-idie.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-subscript.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-input.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-consolename.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-multilib.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-no-console-error.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-lib-silent.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1.send-noise-to-syslogs.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gpm-1.20.1-input-defines.diff.gz | patch -p1 --verbose || exit 1
+
+autoconf
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  $ARCH-slackware-linux
+
+make || exit 1
+zcat $CWD/inputattach.c.gz > inputattach.c
+gcc $SLKCFLAGS -o inputattach inputattach.c || exit
+
+mkdir -p $PKG/usr/bin $PKG/etc/rc.d
+cat inputattach > $PKG/usr/bin/inputattach
+( cd src
+  mkdir -p $PKG/usr/sbin
+  cat gpm > $PKG/usr/sbin/gpm
+  cat prog/disable-paste > $PKG/usr/bin/disable-paste
+  cat prog/gpm-root > $PKG/usr/bin/gpm-root
+  cat prog/hltest > $PKG/usr/bin/hltest
+  cat prog/mev > $PKG/usr/bin/mev
+  cat prog/mouse-test > $PKG/usr/bin/mouse-test
+  mkdir -p $PKG/usr/include
+  cp headers/gpm.h $PKG/usr/include/gpm.h
+  chmod 644 $PKG/usr/include/gpm.h
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX} $PKG/lib${LIBDIRSUFFIX}
+  cat lib/libgpm.a > $PKG/usr/lib${LIBDIRSUFFIX}/libgpm.a
+  cat lib/libgpm.so.1.19.0 > $PKG/lib${LIBDIRSUFFIX}/libgpm.so.1.19.0
+  chmod 755 $PKG/lib${LIBDIRSUFFIX}/libgpm.so.1.19.0
+)
+( cd conf
+  mkdir -p $PKG/etc
+  cat gpm-root.conf > $PKG/etc/gpm-root.conf
+  cat gpm-syn.conf > $PKG/etc/gpm-syn.conf
+  cat gpm-twiddler.conf > $PKG/etc/gpm-twiddler.conf
+)
+( cd contrib/emacs
+  mkdir -p $PKG/usr/share/emacs/site-lisp
+  cat t-mouse.el > $PKG/usr/share/emacs/site-lisp/t-mouse.el
+)
+mkdir -p $PKG/usr/doc/gpm-$VERSION
+cp -a \
+  BUGS COPYING Changelog Changes MANIFEST README TODO \
+  $PKG/usr/doc/gpm-$VERSION
+( cd doc
+  for page in *.1 *.7 *.8 ; do
+    CHAPTER=`echo $page | cut -f 2 -d .`
+    mkdir -p $PKG/usr/man/man$CHAPTER
+    cat $page | gzip -9c > $PKG/usr/man/man${CHAPTER}/$page.gz
+  done
+  mkdir -p $PKG/usr/info
+  cat gpm.info | gzip -9c > $PKG/usr/info/gpm.info.gz
+  cp -a \
+    Announce FAQ HACK_GPM README* \
+    $PKG/usr/doc/gpm-$VERSION
+)
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  ln -sf ../../lib${LIBDIRSUFFIX}/libgpm.so.1 libgpm.so )
+( cd $PKG/lib${LIBDIRSUFFIX} ; ln -sf libgpm.so.1.19.0 libgpm.so.1 )
+zcat $CWD/mouseconfig.gz > $PKG/usr/sbin/mouseconfig
+chmod 755 $PKG/usr/bin/* $PKG/usr/sbin/*
+mkdir -p $PKG/var/log/setup
+zcat $CWD/setup.mouse.gz > $PKG/var/log/setup/setup.mouse
+chmod 755 $PKG/var/log/setup/setup.mouse
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/gpm-$VERSION-$ARCH-$BUILD.txz
+

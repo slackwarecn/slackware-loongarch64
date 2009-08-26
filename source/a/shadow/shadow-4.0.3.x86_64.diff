@@ -1,0 +1,166 @@
+--- shadow-4.0.3/libmisc/failure.h.orig	2004-01-02 18:47:01.000000000 -0800
++++ shadow-4.0.3/libmisc/failure.h	2004-01-02 18:52:38.000000000 -0800
+@@ -4,7 +4,12 @@
+ 
+ #include "defines.h"
+ #include "faillog.h"
++
++#if HAVE_UTMPX_H
++#include <utmpx.h>
++#else
+ #include <utmp.h>
++#endif
+ 
+ /*
+  * failure - make failure entry
+@@ -38,7 +43,11 @@
+  *	failtmp updates the (struct utmp) formatted failure log which
+  *	maintains a record of all login failures.
+  */
++#if HAVE_UTMPX_H
++extern void failtmp(const struct utmpx *);
++#else
+ extern void failtmp(const struct utmp *);
++#endif
+ 
+ #endif
+ 
+--- shadow-4.0.3/libmisc/failure.c.orig	2004-01-02 18:47:06.000000000 -0800
++++ shadow-4.0.3/libmisc/failure.c	2004-01-02 18:53:37.000000000 -0800
+@@ -39,7 +39,11 @@
+ #include "getdef.h"
+ #include "failure.h"
+ 
++#if HAVE_UTMPX_H
++#include <utmpx.h>
++#else
+ #include <utmp.h>
++#endif
+ 
+ #define	YEAR	(365L*DAY)
+ 
+@@ -248,7 +252,11 @@
+  */
+ 
+ void
++#if HAVE_UTMPX_H
++failtmp(const struct utmpx *failent)
++#else
+ failtmp(const struct utmp *failent)
++#endif
+ {
+ 	char *ftmp;
+ 	int fd;
+--- shadow-4.0.3/libmisc/log.c.orig	2004-01-02 18:58:04.000000000 -0800
++++ shadow-4.0.3/libmisc/log.c	2004-01-02 18:58:51.000000000 -0800
+@@ -57,6 +57,7 @@
+ 	int	fd;
+ 	off_t	offset;
+ 	struct	lastlog	newlog;
++	time_t  ll_time;
+ 
+ 	/*
+ 	 * If the file does not exist, don't create it.
+@@ -88,7 +89,8 @@
+ 	if (ll)
+ 		*ll = newlog;
+ 
+-	time(&newlog.ll_time);
++        ll_time = newlog.ll_time;
++	time(&ll_time);
+ 	strncpy(newlog.ll_line, line, sizeof newlog.ll_line);
+ #if HAVE_LL_HOST
+ 	strncpy(newlog.ll_host, host, sizeof newlog.ll_host);
+--- shadow-4.0.3/libmisc/utmp.c.orig	2004-01-02 18:59:04.000000000 -0800
++++ shadow-4.0.3/libmisc/utmp.c	2004-01-02 19:05:34.000000000 -0800
+@@ -79,6 +79,8 @@
+ {
+ 	char *line;
+ 	struct utmp *ut;
++	time_t uttime;
++
+ 	pid_t pid = getpid();
+ 
+ 	setutent();
+@@ -111,7 +113,8 @@
+ 		/* XXX - assumes /dev/tty?? */
+ 		strncpy(utent.ut_id, utent.ut_line + 3, sizeof utent.ut_id);
+ 		strcpy(utent.ut_user, "LOGIN");
+-		time(&utent.ut_time);
++		time(&uttime);
++		utent.ut_time = uttime;
+ 	}
+ }
+ 
+@@ -284,9 +287,14 @@
+ void
+ setutmp(const char *name, const char *line, const char *host)
+ {
++        time_t uttime;
++
+ 	utent.ut_type = USER_PROCESS;
+ 	strncpy(utent.ut_user, name, sizeof utent.ut_user);
+-	time(&utent.ut_time);
++	
++	time(&uttime);
++	utent.ut_time = uttime;
++
+ 	/* other fields already filled in by checkutmp above */
+ 	setutent();
+ 	pututline(&utent);
+--- shadow-4.0.3/src/lastlog.c.orig	2004-01-02 18:06:09.000000000 -0800
++++ shadow-4.0.3/src/lastlog.c	2004-01-02 18:29:57.000000000 -0800
+@@ -167,6 +167,7 @@
+ 	static int once;
+ 	char *cp;
+ 	struct tm *tm;
++	time_t ll_time;
+ 
+ #ifdef HAVE_STRFTIME
+ 	char ptime[80];
+@@ -184,7 +185,9 @@
+ #endif
+ 		once++;
+ 	}
+-	tm = localtime (&lastlog.ll_time);
++	ll_time = lastlog.ll_time; 
++	tm = localtime (&ll_time);
++
+ #ifdef HAVE_STRFTIME
+ 	strftime (ptime, sizeof (ptime), "%a %b %e %H:%M:%S %z %Y", tm);
+ 	cp = ptime;
+--- shadow-4.0.3/src/login.c.orig	2004-01-02 18:33:13.000000000 -0800
++++ shadow-4.0.3/src/login.c	2004-01-02 18:40:17.000000000 -0800
+@@ -1019,8 +1019,12 @@
+ 			const char *failent_user;
+ 
+ #if HAVE_UTMPX_H
++			struct timeval ut_tv;
++			ut_tv.tv_sec = failent.ut_tv.tv_sec;
++			ut_tv.tv_usec = failent.ut_tv.tv_usec;
++
+ 			failent = utxent;
+-			gettimeofday (&(failent.ut_tv), NULL);
++			gettimeofday (&ut_tv, NULL);
+ #else
+ 			failent = utent;
+ 			time (&failent.ut_time);
+@@ -1271,15 +1275,16 @@
+ 		}
+ 		if (getdef_bool ("LASTLOG_ENAB")
+ 		    && lastlog.ll_time != 0) {
++			time_t ll_time= lastlog.ll_time;
+ #ifdef HAVE_STRFTIME
+ 			strftime (ptime, sizeof (ptime),
+ 				  "%a %b %e %H:%M:%S %z %Y",
+-				  localtime (&lastlog.ll_time));
++				  localtime (&ll_time));
+ 			printf (_("Last login: %s on %s"),
+ 				ptime, lastlog.ll_line);
+ #else
+ 			printf (_("Last login: %.19s on %s"),
+-				ctime (&lastlog.ll_time),
++				ctime (&ll_time),
+ 				lastlog.ll_line);
+ #endif
+ #ifdef HAVE_LL_HOST		/* SVR4 || __linux__ || SUN4 */

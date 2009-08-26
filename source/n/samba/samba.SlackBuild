@@ -1,0 +1,198 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-3.2.13}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-samba
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf samba-$VERSION
+tar xvf $CWD/samba-$VERSION.tar.?z* || exit 1
+cd samba-$VERSION || exit 1
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+cd source
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+# Some of these options could be auto-detected, but declaring them
+# here doesn't hurt and helps document what features we're trying to
+# build in.
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-libdir=/usr/lib${LIBDIRSUFFIX} \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --mandir=/usr/man \
+  --sysconfdir=/etc \
+  --with-configdir=/etc/samba \
+  --with-piddir=/var/run \
+  --with-privatedir=/etc/samba/private \
+  --localstatedir=/var \
+  --with-lockdir=/var/cache/samba \
+  --with-swatdir=/usr/share/swat \
+  --with-logfilebase=/var/log/samba \
+  --enable-cups \
+  --enable-static=no \
+  --enable-shared=yes \
+  --with-acl-support=yes \
+  --with-automount \
+  --with-cifsmount \
+  --with-quotas \
+  --with-syslog \
+  --with-utmp \
+  --with-libsmbclient \
+  --with-winbind \
+  --with-ldap \
+  --build=$ARCH-slackware-linux
+  # Using with-fhs overrides our libdir, and besides we are already hard-coding
+  # directories. So, now we define them all explicitly...
+  #--with-fhs \
+
+# -j options don't seem to work...
+make || exit 1
+
+mkdir -p \
+         $PKG/usr/doc/samba-$VERSION \
+         $PKG/var/spool/samba \
+         $PKG/var/log/samba \
+         $PKG/etc/samba/private \
+         $PKG/var/cache/samba
+chmod 700 $PKG/etc/samba/private
+chmod 1777 $PKG/var/spool/samba
+
+make install-everything DESTDIR=$PKG || exit 1
+
+# Install libnss_win* libraries:
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+cp -a nsswitch/libnss_winbind.so $PKG/lib${LIBDIRSUFFIX}/libnss_winbind.so.2
+cp -a nsswitch/libnss_wins.so $PKG/lib${LIBDIRSUFFIX}/libnss_wins.so.2
+( cd $PKG/lib${LIBDIRSUFFIX}
+  ln -sf libnss_winbind.so.2 libnss_winbind.so
+  ln -sf libnss_wins.so.2 libnss_wins.so
+)
+
+## Make sure that other programs can link against libsmbclient:
+#( cd $PKG/usr/lib${LIBDIRSUFFIX}
+#  for FILE in samba/libsmbclient.so* ; do
+#    ln -sf $FILE
+#  done
+#)
+
+# Add some (u)mount links:
+mkdir -p $PKG/sbin
+( cd $PKG/sbin
+  # SMBFS is obsolete in the kernel now -- use mount.cifs
+  #rm -f mount.smbfs ; ln -sf /usr/bin/smbmount mount.smbfs
+  # Add a wrapper script from Debian that's included in the upstream Samba
+  # sources to help out people (like me ;-) who don't read every speck of
+  # documentation:
+  cat $TMP/samba-$VERSION/examples/scripts/mount/mount.smbfs > mount.smbfs
+  chmod 755 $PKG/sbin/mount.smbfs
+  # I suppose this wouldn't be the worst idea in the world, either:
+  ( cd $PKG/usr/bin ; ln -sf /sbin/mount.smbfs smbmount )
+  rm -f mount.cifs ; ln -sf /usr/sbin/mount.cifs mount.cifs
+  # smbumount was giving me problems so it seems wise to play it safe
+  #rm -f umount.smbfs ; ln -sf /usr/bin/smbumount umount.smbfs
+  #rm -f umount.cifs ; ln -sf /usr/sbin/umount.cifs umount.cifs
+)
+
+# Add a sample config file:
+cat $CWD/smb.conf.default > $PKG/etc/samba/smb.conf-sample
+
+if [ ! -r $PKG/usr/bin/smbget ]; then
+  rm -f $PKG/usr/share/man/man1/smbget.1
+  rm -f $PKG/usr/share/swat/help/smbget.1.html
+fi
+
+# We'll add rc.samba to the init directory, but chmod 644 so that it doesn't
+# start by default:
+mkdir -p $PKG/etc/rc.d
+cat $CWD/rc.samba > $PKG/etc/rc.d/rc.samba.new
+chmod 644 $PKG/etc/rc.d/rc.samba.new
+
+mv $PKG/usr/share/man $PKG/usr
+gzip -9 $PKG/usr/man/man?/*.?
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+cd ..
+cp -a \
+  COPYING* MAINTAINERS Manifest PFIF.txt README* \
+  Read-Manifest-Now Roadmap WHATSNEW.txt docs examples \
+  $PKG/usr/doc/samba-$VERSION
+# These are installed elsewhere:
+rm -rf $PKG/usr/doc/samba-$VERSION/docs/htmldocs \
+       $PKG/usr/doc/samba-$VERSION/docs/manpages
+mkdir -p $PKG/usr/doc/samba-$VERSION/docs
+( cd $PKG/usr/doc/samba-$VERSION/docs
+  ln -sf /usr/share/swat/help htmldocs
+  ln -sf /usr/share/swat/using_samba using_samba
+)
+# I'm sorry, but when all this info is included in HTML, adding 7MB worth of
+# PDF files just to have extra artwork is more fluff than I'll agree to.
+rm -f $PKG/usr/doc/samba-$VERSION/docs/*.pdf
+# Also redundant also:
+rm -rf $PKG/usr/doc/samba-$VERSION/docs/docbook
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+
+cat << EOF
+
+*** Be sure the package contains:
+
+drwx------   2 root     root         1024 Mar 12 13:21 /etc/samba/private
+drwxr-xr-x   2 root     root         4096 May  3 15:46 /var/cache/samba/
+drwxr-xr-x    2 root     root          48 Aug 29 13:06 /var/log/samba/
+drwxrwxrwt   2 root     root         1024 Mar 12 13:21 /var/spool/samba/
+
+EOF
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/samba-$VERSION-$ARCH-$BUILD.txz
+

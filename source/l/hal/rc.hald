@@ -1,0 +1,49 @@
+#!/bin/sh
+# Start/stop/restart the hal daemon:
+
+PIDFILE=/var/run/hald/pid
+
+hal_start() {
+  if [ -x /usr/sbin/hald ]; then
+    if ! ps axc | grep -q dbus-daemon ; then
+      if [ -r /etc/rc.d/rc.messagebus ]; then
+        sh /etc/rc.d/rc.messagebus start
+        sleep 1
+      else
+        echo "FATAL:  Can't start HAL daemon without dbus package."
+        sleep 5
+        exit 1
+      fi
+    fi
+    echo "Starting HAL daemon:  /usr/sbin/hald --daemon=yes"
+    /usr/sbin/hald --daemon=yes
+  fi
+}
+
+hal_stop() {
+  if [ -e "$PIDFILE" ]; then
+    kill $(cat $PIDFILE)
+    rm -f $PIDFILE
+  fi
+  # Just in case:
+  killall hald 1> /dev/null 2> /dev/null
+}
+
+# See how we were called.
+case "$1" in
+    start)
+        hal_start
+        ;;
+    stop)
+        hal_stop
+        ;;
+    restart)
+        hal_stop
+	sleep 1
+        hal_start
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|restart}"
+        ;;
+esac
+

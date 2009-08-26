@@ -1,0 +1,33 @@
+--- xfig.3.2.3d/d_text.c
++++ xfig.3.2.3d/d_text.c
+@@ -1485,6 +1485,7 @@
+   int i;
+   XVaNestedList preedit_att, status_att;
+   XPoint spot;
++  char *modifier_list;
+ 
+   preferred_style = style_notuseful;
+   if (strncasecmp(appres.xim_input_style, "OverTheSpot", 3) == 0)
+@@ -1501,6 +1502,10 @@
+   if (preferred_style == style_notuseful) return;
+ 
+   if (appres.DEBUG) fprintf(stderr, "initialize_input_method()...\n");
++  
++  if((modifier_list = XSetLocaleModifiers("")) == NULL) {
++	  /* printf("Warning: XSetLocaleModifiers() failed.\n"); */
++  }
+ 
+   xim_im = XOpenIM(XtDisplay(w), NULL, NULL, NULL);
+   if (xim_im == NULL) {
+@@ -1517,7 +1522,10 @@
+       if (xim_style == 0) xim_style = style_root;
+     }
+   }
+-  if (xim_style != preferred_style) {
++  if (xim_style != preferred_style
++      && *modifier_list != '\0'
++      && ! strstr(modifier_list,"@im=local")
++      && ! strstr(modifier_list,"@im=none")) {
+     fprintf(stderr, "xfig: this input-method doesn't support %s input style\n",
+ 	    appres.xim_input_style);
+     if (xim_style == 0) {

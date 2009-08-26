@@ -1,0 +1,120 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=3.1.2p1
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-dhcp
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf dhcp-$VERSION
+tar xvf $CWD/dhcp-$VERSION.tar.gz || exit 1
+cd dhcp-$VERSION || exit 1
+
+./configure
+make DEBUG="$SLKCFLAGS" || exit 1
+make DEBUG="$SLKCFLAGS" install DESTDIR=$PKG || exit 1
+
+mkdir -p $PKG/var/state/dhcp
+rm -f $PKG/var/state/dhcp/dhcpd.leases
+touch $PKG/var/state/dhcp/dhcpd.leases.new
+
+rm -rf $PKG/usr/local
+
+mkdir -p $PKG/usr/doc/dhcp-$VERSION
+cp -a \
+  LICENSE README RELNOTES \
+  $PKG/usr/doc/dhcp-$VERSION
+mkdir -p $PKG/usr/doc/dhcp-$VERSION/examples
+cp -a client/dhclient.conf server/dhcpd.conf \
+  $PKG/usr/doc/dhcp-$VERSION/examples
+chown -R root:root $PKG/usr/doc/dhcp-$VERSION
+
+cat << EOF > $PKG/etc/dhcpd.conf.new
+# dhcpd.conf
+#
+# Configuration file for ISC dhcpd (see 'man dhcpd.conf')
+#
+EOF
+
+cat << EOF > $PKG/etc/dhclient.conf.new
+# dhclient.conf
+#
+# Configuration file for ISC dhclient (see 'man dhclient.conf')
+#
+EOF
+
+cat client/scripts/linux > $PKG/sbin/dhclient-script
+chmod 700 $PKG/sbin/dhclient-script
+
+gzip -9 $PKG/usr/man/man?/*
+find $PKG/usr/man -type f -exec chmod 644 {} \;
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+cat << EOF > $PKG/install/doinst.sh
+#!/bin/sh
+config() {
+  NEW="\$1"
+  OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"
+  # If there's no config file by that name, mv it over:
+  if [ ! -r \$OLD ]; then
+    mv \$NEW \$OLD
+  elif [ "\$(cat \$OLD | md5sum)" = "\$(cat \$NEW | md5sum)" ]; then # toss the redundant copy
+    rm \$NEW
+  fi
+  # Otherwise, we leave the .new copy for the admin to consider...
+}
+config etc/dhcpd.conf.new
+config etc/dhclient.conf.new
+config var/state/dhcp/dhcpd.leases.new
+rm -f var/state/dhcp/dhcpd.leases.new
+EOF
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/dhcp-$VERSION-$ARCH-$BUILD.txz
+
+# Clean up the extra stuff:
+if [ "$1" = "--cleanup" ]; then
+ rm -rf $TMP/dhcp-$VERSION
+ rm -rf $PKG
+fi

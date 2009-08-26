@@ -1,0 +1,127 @@
+#!/bin/sh
+
+# Copyright 2006-2009  Robby Workman, Northport, AL, USA
+# Copyright 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SCRIPT IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SCRIPT, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+PKGNAME=gnupg2
+VERSION=2.0.12
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-gnupg
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf gnupg-$VERSION
+tar xvf $CWD/gnupg-$VERSION.tar.bz2 || exit 1
+cd gnupg-$VERSION
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --docdir=/usr/doc/gnupg2-$VERSION \
+  --program-prefix="" \
+  --program-suffix="" \
+  --build=$ARCH-slackware-linux \
+  --host=$ARCH-slackware-linux
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
+
+rm -f $PKG/usr/info/dir
+gzip -9 $PKG/usr/info/*
+
+mkdir -p $PKG/usr/doc/gnupg2-$VERSION
+cp -a \
+  ABOUT-NLS AUTHORS COPYING* INSTALL NEWS README* THANKS TODO VERSION \
+  $PKG/usr/doc/gnupg2-$VERSION
+# Build html docs
+( cd doc
+  make gnupg.html
+  mv gnupg.html $PKG/usr/doc/gnupg2-$VERSION/html
+)
+# Fix some filenames in the html directory
+( cd $PKG/usr/doc/gnupg2-$VERSION/html
+mv how_002dto_002dspecify_002da_002duser_002did.html howto_specify_user_id.html
+mv GnuPG_002d1-and-GnuPG_002d2.html GnuPG_1-and-GnuPG_2.html
+mv gpg_002dpreset_002dpassphrase.html gpg_preset_passphrase.html
+mv gpgsm_002dgencert_002esh.html gpgsm_gencert_sh.html
+mv Invoking-gpg_002dpreset_002dpassphrase.html Invoking-gpg_preset_passphrase.html
+mv Invoking-gpg_002dconnect_002dagent.html Invoking-gpg_connect_agent.html
+mv gpg_002dconnect_002dagent.html gpg_connect_agent.html
+mv Agent-GET_005fCONFIRMATION.html Agent-GET_CONFIRMATION.html
+mv option-_002d_002denable_002dssh_002dsupport.html option-enable_ssh_support.html
+mv option-_002d_002doptions.html option-options.html
+mv Invoking-GPG_002dAGENT.html Invoking-GPG_AGENT.html
+mv gpg_002dzip.html gpg_zip.html
+mv option-_002d_002dp12_002dcharset.html option-p12_charset.html
+mv option-_002d_002dallow_002dmark_002dtrusted.html option-allow_mark_trusted.html
+mv Controlling-gpg_002dconnect_002dagent.html Controlling-gpg_connect_agent.html
+mv Agent-GET_005fPASSPHRASE.html Agent-GET_PASSPHRASE.html
+mv option-_002d_002dhomedir.html option-homedir.html
+mv PKCS_002315-Card.html PKCS-15-Card.html
+)
+# Move html doc to the proper location
+mv $PKG/usr/doc/gnupg2-$VERSION/faq.html $PKG/usr/doc/gnupg2-$VERSION/html/
+
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAME-$VERSION-$ARCH-$BUILD.txz
+

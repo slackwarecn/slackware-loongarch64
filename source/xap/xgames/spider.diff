@@ -1,0 +1,121 @@
+--- ./globals.h.orig	1991-09-28 12:46:20.000000000 -0500
++++ ./globals.h	2007-02-21 20:14:54.000000000 -0600
+@@ -96,6 +96,6 @@
+ Bool	can_get_help_files();
+ #endif
+ 
+-extern char	*malloc();
+-extern char	*calloc();
+-extern char	*realloc();
++extern void	*malloc();
++extern void	*calloc();
++extern void	*realloc();
+--- ./movelog.c.orig	1991-09-28 12:46:17.000000000 -0500
++++ ./movelog.c	2007-02-21 20:17:21.000000000 -0600
+@@ -22,6 +22,7 @@
+ #ifdef SVR4
+ #include	<unistd.h>
+ #endif
++#include 	<stdlib.h>
+ 
+ #define	CACHE_SIZE	50
+ static int	move_index = 0;
+@@ -33,6 +34,21 @@
+ 
+ extern int	cheat_count;
+ 
++Rank	flip_ranks[NUM_RANKS] =	{
++	King, Queen, Jack, Ten, Nine, Eight, Seven, 
++	Six, Five, Four, Three, Deuce, Ace
++};
++
++static int
++card_to_int(card)
++CardPtr	card;
++{
++int	val;
++
++	val = card->suit * 13 + flip_ranks[card->rank];
++	return (val);
++}
++
+ make_deck_cache()
+ {
+ CardPtr	tmp;
+@@ -280,11 +296,6 @@
+ 	}
+ }
+ 
+-Rank	flip_ranks[NUM_RANKS] =	{
+-	King, Queen, Jack, Ten, Nine, Eight, Seven, 
+-	Six, Five, Four, Three, Deuce, Ace
+-};
+-
+ static void
+ int_to_card(val, suit, rank)
+ int	val;
+@@ -298,16 +309,6 @@
+ 	assert (*rank >= Ace && *suit <= King);
+ }
+ 
+-static int
+-card_to_int(card)
+-CardPtr	card;
+-{
+-int	val;
+-
+-	val = card->suit * 13 + flip_ranks[card->rank];
+-	return (val);
+-}
+-
+ static CardPtr
+ find_card(cache, suit, rank)
+ CardPtr	*cache;
+@@ -709,6 +710,23 @@
+ 	}
+ }
+ 
++static int
++restore_game(str, str2)
++char	*str, *str2;
++{
++
++	if (read_position(str) != 0)	{
++		return (-1);
++	}
++
++	init_cache();		/* clear out the move cache */
++
++	if (str2)
++		read_moves(str2);
++
++	return (0);
++}
++
+ read_selection(buf)
+ char	*buf;
+ {
+@@ -786,23 +804,6 @@
+ 	show_message(buf);
+ }
+ 
+-static int
+-restore_game(str, str2)
+-char	*str, *str2;
+-{
+-
+-	if (read_position(str) != 0)	{
+-		return (-1);
+-	}
+-
+-	init_cache();		/* clear out the move cache */
+-
+-	if (str2)
+-		read_moves(str2);
+-
+-	return (0);
+-}
+-
+ /*
+  * play the same deck again
+  */

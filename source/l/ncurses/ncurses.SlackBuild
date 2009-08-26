@@ -1,0 +1,165 @@
+#!/bin/sh
+
+# Copyright 2000-2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=5.7
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-ncurses
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  X86_64OPTS=" --with-chtype=long --with-mmask-t=long "
+  LIBDIRSUFFIX="64"
+fi
+
+ncurses_configure() {
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-gpm \
+  --disable-termcap \
+  --with-normal \
+  --with-shared \
+  --enable-symlinks \
+  --without-debug \
+  --without-profile \
+  --without-ada \
+  $X86_64OPTS \
+  --program-suffix="" \
+  --program-prefix="" \
+  $WIDEC \
+  $ARCH-slackware-linux
+}
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf ncurses-$VERSION
+tar xvf $CWD/ncurses-$VERSION.tar.gz || exit 1
+cd ncurses-$VERSION || exit 1
+chown -R root:root .
+if [ ! -z "$(ls $CWD/patches/ncurses*bz2)" ]; then
+  bzcat $CWD/patches/ncurses*bz2 > tmp-patch.sh
+  bash tmp-patch.sh || exit 1
+fi
+for file in $CWD/patches/ncurses-$VERSION-2*.patch.gz ; do
+  zcat $file | patch -p1 --verbose || exit 1
+done
+zcat $CWD/ncurses.mkhashsize.diff.gz | patch -p1 --verbose || exit 1
+ncurses_configure
+make -j4 || exit 1
+# Spamming the partition.
+# Sorry, but it's about the only way to get a good 'tic'.
+make install
+# Install the package:
+make install DESTDIR=$PKG
+
+# Build/install again with wide character support:
+make clean
+WIDEC=--enable-widec
+ncurses_configure
+make -j4 || exit 1
+make install
+make install DESTDIR=$PKG
+
+if [ ! -d $PKG/usr/include/ncursesw -a ! -L $PKG/usr/include/ncursesw ]; then
+  ( cd $PKG/usr/include ; ln -sf ncurses ncursesw )
+fi
+
+# Strip stuff:
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Move the include files from /usr/include into
+# /usr/include/ncurses, then make symlinks back
+# into /usr/include.
+( cd $PKG/usr/include
+  rm -rf ncurses
+  mkdir ncurses
+  mv *.h ncurses
+  for file in ncurses/* ; do
+    ln -sf $file .
+  done
+  # This shouldn't clobber the real one:
+  mv termcap.h termcap-ncurses.h
+)
+
+# Move the ncurses libraries into /lib, since they're important:
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  chmod 755 *.so
+  chmod 644 *.a
+  mv libncurses.so.5* $PKG/lib${LIBDIRSUFFIX}
+  mv libncursesw.so.5* $PKG/lib${LIBDIRSUFFIX}
+  rm -f libncurses.so
+  ln -sf /lib${LIBDIRSUFFIX}/libncurses.so.5 libncurses.so
+  rm -f libncursesw.so
+  ln -sf /lib${LIBDIRSUFFIX}/libncursesw.so.5 libncursesw.so
+  # Olde obsolete names, just in case
+  rm -f libcurses.so
+  ln -sf libncurses.so libcurses.so
+  rm -f libcursesw.so
+  ln -sf libncursesw.so libcursesw.so
+)
+
+# Set TERMINFO to point to the package:
+export TERMINFO=$PKG/usr/share/terminfo
+# Fix the xterm, screen, rxvt, and Eterm entries:
+for tfile in $CWD/xterm.terminfo $CWD/screeninfo.src $CWD/rxvt.terminfo $CWD/Eterm.ti ; do
+  if [ -r $tfile ]; then
+    progs/tic -v $tfile
+  fi
+done
+unset TERMINFO
+
+# Then, add /usr/doc/ncurses-xxxxx with appropriate files.
+mkdir -p $PKG/usr/doc/ncurses-$VERSION
+cp -a \
+  ANNOUNCE INSTALL MANIFEST NEWS README* TO-DO \
+  $PKG/usr/doc/ncurses-$VERSION
+mkdir -p $PKG/usr/doc/ncurses-$VERSION/c++
+cp -a \
+  c++/NEWS c++/PROBLEMS c++/README-first \
+  $PKG/usr/doc/ncurses-$VERSION/c++
+if [ -r $PKG/usr/man/man1/tack.1 ]; then
+  gzip -9 --force $PKG/usr/man/man1/tack.1
+fi
+
+# desc file:
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/ncurses-$VERSION-$ARCH-$BUILD.txz
+

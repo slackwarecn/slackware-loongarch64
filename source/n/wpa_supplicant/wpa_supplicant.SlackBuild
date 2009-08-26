@@ -1,0 +1,248 @@
+#!/bin/sh
+
+# Copyright 2004-2008 Eric Hameleers, Eindhoven, NL
+# Copyright 2008-2009  Patrick J. Volkerding, Sebeka, MN, USA
+#  Permission to use, copy, modify, and distribute this software for
+#  any purpose with or without fee is hereby granted, provided that
+#  the above copyright notice and this permission notice appear in all
+#  copies.
+#
+#  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#  IN NO EVENT SHALL THE AUTHORS AND COPYRIGHT HOLDERS AND THEIR
+#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+#  USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+#  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+
+PRGNAM=wpa_supplicant
+VERSION=${VERSION:-0.6.9}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+DOCS="ChangeLog ../COPYING README README-WPS *.txt examples wpa_supplicant.conf.sample"
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "arm" ]; then
+  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "armel" ]; then
+  SLKCFLAGS="-O2 -march=armv4t"
+  LIBDIRSUFFIX=""
+fi
+
+# Support for some of the wireless drivers needs the header files of those
+# drivers.
+# Change these *_INCLUDES variables to where _your_ driver include directory
+# is located. If any of these directories is found, support for the driver
+# will be added to wpa_supplicant.
+# My madwifi package for Slackware installs the headers here:
+MADWIFI_INCLUDES="/usr/include/madwifi"
+HERMES_INCLUDES=""
+BROADCOM_INCLUDES=""
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PRGNAM
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+if ! [ -f $CWD/${PRGNAM}.defconfig ]; then
+  echo "Could not find ${PRGNAM}.defconfig!"
+  exit 1
+fi
+
+cd $TMP
+rm -rf ${PRGNAM}-${VERSION}
+tar -xvf $CWD/${PRGNAM}-${VERSION}.tar.bz2 || exit 1
+cd ${PRGNAM}-${VERSION}
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+#sed -i -e \
+#  "s/^#define VERSION_STR \"\(.*\)\"/#define VERSION_STR \"\1_$VERSION\"/" \
+#  src/common/version.h
+
+# The source code has been re-organized:
+cd wpa_supplicant
+
+# Create the configuration file for building wpa_supplicant:
+cat $CWD/${PRGNAM}.defconfig > .config
+if [ ! -z $MADWIFI_INCLUDES -a -d $MADWIFI_INCLUDES ]; then
+  echo "Adding madwifi driver (Atheros) support"
+  cat <<-EOT >> .config
+	CONFIG_DRIVER_MADWIFI=y
+	CFLAGS += -I${MADWIFI_INCLUDES}
+	EOT
+fi
+if [ ! -z $HERMES_INCLUDES -a -d $HERMES_INCLUDES ]; then
+  echo "Adding hermes driver (Agere) support"
+  cat <<-EOT >> .config
+	CONFIG_DRIVER_HERMES=y
+	CFLAGS += -I${HERMES_INCLUDES}
+	EOT
+fi
+if [ ! -z $BROADCOM_INCLUDES -a -d $BROADCOM_INCLUDES ]; then
+  echo "Adding broadcom driver support"
+  cat <<-EOT >> .config
+	CONFIG_DRIVER_BROADCOM=y
+	CFLAGS += -I${BROADCOM_INCLUDES}
+	EOT
+fi
+make $NUMJOBS || make || exit 1
+
+# Build the Qt4 GUI client
+make wpa_gui-qt4 || exit 1
+
+# Make man pages if needed
+( cd doc/docbook
+  if ! ls *.? >/dev/null 2>&1 ; then
+    make man
+  fi
+)
+
+# Do not build the developer docs:
+#PATH=".:$PATH" make docs
+
+# This goes into the doc directory later on:
+cp wpa_supplicant.conf wpa_supplicant.conf.sample
+
+# Install binaries:
+mkdir -p $PKG/usr/sbin $PKG/usr/bin
+cp wpa_supplicant wpa_passphrase wpa_cli $PKG/usr/sbin/
+cp wpa_gui-qt4/wpa_gui $PKG/usr/bin/
+
+# Install dbus configuration file:
+mkdir -p $PKG/etc/dbus-1/system.d/
+cp dbus-wpa_supplicant.conf \
+  $PKG/etc/dbus-1/system.d/dbus-wpa_supplicant.conf.new
+
+# Install a .desktop file for wpa_gui:
+mkdir -p $PKG/usr/share/applications
+cat <<EOT > $PKG/usr/share/applications/wpa_gui.desktop
+[Desktop Entry]
+Name=wpa_gui
+Comment[en]=Wpa_supplicant management
+Exec=kdesu wpa_gui
+Icon=wpa_gui
+Type=Application
+Categories=Qt;Network;
+EOT
+
+# The icon used for the menu (converted from the wpa_gui.svg in the source)
+mkdir -p $PKG/usr/share/pixmaps
+cp -a $CWD/wpa_gui.png $PKG/usr/share/pixmaps/
+
+# Install man pages:
+for m in 5 8; do
+  mkdir -p $PKG/usr/man/man${m}
+  cp doc/docbook/*.${m} $PKG/usr/man/man${m}/
+done
+
+# Install a default configuration file:
+mkdir -p $PKG/etc
+cat <<-_EOT_ > $PKG/etc/wpa_supplicant.conf.new
+	# See /usr/doc/${PRGNAM}-${VERSION}/wpa_supplicant.conf.sample
+	# for many more options that you can use in this file.
+	
+	# This line enables the use of wpa_cli which is used by rc.wireless
+	# if possible (to check for successful association)
+	ctrl_interface=/var/run/wpa_supplicant
+	# By default, only root (group 0) may use wpa_cli
+	ctrl_interface_group=0
+	eapol_version=1
+	ap_scan=1
+	fast_reauth=1
+	#country=US
+	
+	# WPA protected network, supply your own ESSID and WPAPSK here:
+	network={
+	  scan_ssid=0
+	  ssid="your_essid_here"
+	  proto=WPA RSN
+	  key_mgmt=WPA-PSK
+	  pairwise=CCMP TKIP
+	  group=CCMP TKIP WEP104 WEP40
+	  psk=your_64_char_psk_here
+	  priority=10
+	}
+	
+	# Plaintext connection (no WPA, no IEEE 802.1X),
+	# nice for hotel/airport types of WiFi network.
+	network={
+	  key_mgmt=NONE
+	  priority=0
+	}
+	_EOT_
+
+# Create the 'doinst.sh' script:
+mkdir -p $PKG/install 2>/dev/null
+cat <<EOINS > $PKG/install/doinst.sh
+# Handle the incoming configuration files:
+config() {
+  for infile in \$1; do
+    NEW="\$infile"
+    OLD="\`dirname \$NEW\`/\`basename \$NEW .new\`"
+    # If there's no config file by that name, mv it over:
+    if [ ! -r \$OLD ]; then
+      mv \$NEW \$OLD
+    elif [ "\`cat \$OLD | md5sum\`" = "\`cat \$NEW | md5sum\`" ]; then
+      # toss the redundant copy
+      rm \$NEW
+    fi
+    # Otherwise, we leave the .new copy for the admin to consider...
+  done
+}
+config etc/wpa_supplicant.conf.new
+config etc/dbus-1/system.d/dbus-wpa_supplicant.conf.new
+
+EOINS
+
+# Add the documentation:
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+cp -a $DOCS $PKG/usr/doc/$PRGNAM-$VERSION
+cp -a $CWD/README.slackware $PKG/usr/doc/${PRGNAM}-${VERSION}/
+chmod -R a-w $PKG/usr/doc/$PRGNAM-$VERSION/*
+chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION/*
+
+# This should only be read/write by root:
+chmod 600 $PKG/etc/wpa_supplicant.conf.new
+
+# Compress the man page(s):
+find $PKG/usr/man -type f -name "*.?" -exec gzip -9f {} \;
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Add a package description:
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+if [ -f $CWD/doinst.sh ]; then
+  cat $CWD/doinst.sh >> $PKG/install/doinst.sh
+fi
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/${PRGNAM}-${VERSION}-${ARCH}-${BUILD}.txz
+

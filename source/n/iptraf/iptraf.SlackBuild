@@ -1,0 +1,91 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-3.0.0}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-iptraf
+
+cd $TMP
+rm -rf $PKG
+rm -rf iptraf-$VERSION
+tar xvf $CWD/iptraf-$VERSION.tar.gz || exit 1
+cd iptraf-$VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+zcat $CWD/iptraf_3.0.0-6.diff.gz | patch -p1 || exit 1
+zcat $CWD/iptraf.paths.diff.gz | patch -p1 || exit 1
+cd src
+
+make -j2 || exit 1
+
+mkdir -p $PKG/usr/sbin
+cp iptraf rawtime rvnamed $PKG/usr/sbin
+chmod 755 $PKG/usr/sbin/*
+
+cd ..
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/var/cache/iptraf
+mkdir -p $PKG//var/run/iptraf
+mkdir -p $PKG/var/log/iptraf
+
+mkdir -p $PKG/usr/doc/iptraf-$VERSION
+cp -a \
+  CHANGES Documentation FAQ INSTALL LICENSE README* RELEASE-NOTES \
+  $PKG/usr/doc/iptraf-$VERSION
+
+mkdir -p $PKG/usr/man/man8
+mv $PKG/usr/doc/iptraf-$VERSION/Documentation/iptraf.8 $PKG/usr/man/man8
+if [ -r $PKG/usr/doc/iptraf-$VERSION/Documentation/rawtime.8 ]; then
+  mv $PKG/usr/doc/iptraf-$VERSION/Documentation/rawtime.8 $PKG/usr/man/man8
+fi
+mv $PKG/usr/doc/iptraf-$VERSION/Documentation/rvnamed.8 $PKG/usr/man/man8
+gzip -9 $PKG/usr/man/man8/*
+
+# crud removal
+( cd $PKG/usr/doc/iptraf-$VERSION/Documentation
+  rm -rf manual.aux manual.dvi *.log manual.rtf manual.sgml manual.template .xvpics .log
+)
+
+rm -f $PKG/usr/doc/iptraf-$VERSION/Documentation/manual.template.gz
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/iptraf-$VERSION-$ARCH-$BUILD.txz
+

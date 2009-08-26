@@ -1,0 +1,114 @@
+#!/bin/sh
+#
+# Start/stop the Bluetooth daemons
+#
+# This version has been modified by SukkoPera, taking inspiration from then
+# Debian init script, to add support for register-passkeys.  Modified by
+# Patrick Volkerding to add "restart" support, and cleaned up a tiny bit.
+
+set -e
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DESC="Bluetooth subsystem"
+
+# The register-passkeys script was originally written by Debian:
+REGISTER_PASSKEYS=/usr/lib/bluetooth/register-passkeys
+
+HCID_NAME=hcid
+HIDD_NAME=hidd
+HID2HCI_NAME=hid2hci
+RFCOMM_NAME=rfcomm
+PAND_NAME=pand
+DUND_NAME=dund
+
+HCID_EXEC="`which $HCID_NAME || true`"
+HIDD_EXEC="`which $HIDD_NAME || true`"
+HID2HCI_EXEC="`which $HID2HCI_NAME || true`"
+RFCOMM_EXEC="`which $RFCOMM_NAME || true`"
+PAND_EXEC="`which $PAND_NAME || true`"
+DUND_EXEC="`which $DUND_NAME || true`"
+
+HCID_CONFIG="/etc/bluetooth/hcid.conf"
+RFCOMM_CONFIG="/etc/bluetooth/rfcomm.conf"
+
+# Source rc.bluetooth.conf
+. /etc/rc.d/rc.bluetooth.conf
+
+bluetooth_start() {
+        echo -n "Starting $DESC: "
+        if [ -x "$HIDD_EXEC" ] ; then
+                if $HIDD_ENABLE && [ -x "$HIDD_EXEC" -a -n "$HIDD_OPTIONS" ] ; then
+                        $HIDD_EXEC $HIDD_OPTIONS || true
+                        echo -n " $HIDD_NAME"
+                fi
+        else
+                echo "BlueZ does not appear to be installed!"
+                exit
+        fi
+        # Separate sdp daemon is depreciated, now internal function.
+        if $SDPD_ENABLE ; then
+                $HCID_EXEC -s -f $HCID_CONFIG
+                echo -n " $HCID_NAME sdp"
+        else
+                $HCID_EXEC -f $HCID_CONFIG
+                echo -n " $HCID_NAME"
+        fi
+        if $HID2HCI_ENABLE && [ -x "$HID2HCI_EXEC" ] ; then
+                $HID2HCI_EXEC --tohci > /dev/null 2>&1 || true
+                echo -n " $HID2HCI_NAME"
+        fi
+        if $RFCOMM_ENABLE && [ -x "$RFCOMM_EXEC" -a -f "$RFCOMM_CONFIG" ] ; then
+                $RFCOMM_EXEC -f $RFCOMM_CONFIG bind all || true
+                echo -n " $RFCOMM_NAME"
+        fi
+        if $DUND_ENABLE && [ -x "$DUND_EXEC" -a -n "$DUND_OPTIONS" ] ; then
+                $DUND_EXEC $DUND_OPTIONS
+                echo -n " $DUND_NAME"
+        fi
+        if $PAND_ENABLE && [ -x "$PAND_EXEC" -a -n "$PAND_OPTIONS" ] ; then
+                $PAND_EXEC $PAND_OPTIONS
+                echo -n " $PAND_NAME"
+        fi
+        if [ -x $REGISTER_PASSKEYS ]; then
+                $REGISTER_PASSKEYS
+                echo -n " passkeys"
+        fi
+        echo "."
+}
+
+bluetooth_stop() {
+        echo -n "Stopping $DESC: "
+        killall $PAND_NAME > /dev/null 2>&1 || true
+        echo -n " $PAND_NAME"
+        killall $DUND_NAME > /dev/null 2>&1 || true
+        echo -n " $DUND_NAME"
+        if [ -x "$RFCOMM_EXEC" ] ; then
+                $RFCOMM_EXEC release all > /dev/null 2>&1 || true
+                echo -n " $RFCOMM_NAME"
+        fi
+        killall $HIDD_NAME > /dev/null 2>&1 || true
+        echo -n " $HIDD_NAME"
+        killall $HCID_NAME > /dev/null 2>&1 || true
+        echo -n " $HCID_NAME"
+        echo "."
+}
+
+case "$1" in
+  start)
+        bluetooth_start
+	;;
+  stop)
+        bluetooth_stop
+	;;
+  restart)
+        bluetooth_stop
+        sleep 1
+        bluetooth_start
+        ;;
+  *)
+	echo "Usage: $0 start|stop|restart" >&2
+	exit 1
+	;;
+esac
+
+exit 0

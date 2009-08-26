@@ -1,0 +1,152 @@
+--- ./pom/pom.6.orig	2001-08-29 10:11:31.000000000 -0500
++++ ./pom/pom.6	2006-09-08 19:36:28.000000000 -0500
+@@ -33,7 +33,7 @@
+ .\"
+ .\"	@(#)pom.6	8.1 (Berkeley) 5/31/93
+ .\"
+-.Dd January 9, 1999
++.Dd September 8, 2006
+ .Dt POM 6
+ .Os
+ .Sh NAME
+@@ -41,7 +41,8 @@
+ .Nd display the phase of the moon
+ .Sh SYNOPSIS
+ .Nm
+-.Op [[[[[cc]yy]mm]dd]HH]
++.Op Fl d Ar num
++.Op Ar [[[[cc]yy]mm]dd]HH
+ .Sh DESCRIPTION
+ The
+ .Nm
+@@ -49,6 +50,13 @@
+ Useful for selecting software completion target dates and predicting
+ managerial behavior.
+ .Pp
++.Bl -tag -width [-d num]
++.It Ar [-d num]
++Display the percentage with
++.Ar num
++decimals (within reasonable limits).
++The default is to display an integer percentage.
++.El
+ .Bl -tag -width [[[[[cc]yy]mm]dd]HH]
+ .It Ar [[[[[cc]yy]mm]dd]HH]
+ Display the phase of the moon for a given time.  The format is similar to
+@@ -67,6 +75,9 @@
+ .Pp
+ This program does not allow for the difference between the TDT and
+ UTC timescales (about one minute at the time of writing).
++.Sh NOTES
++.Nm
++recognizes 3321 as being within reasonable limits.
+ .Sh ACKNOWLEDGEMENTS
+ This program is based on algorithms from
+ .%B Practical Astronomy with Your Calculator, Third Edition
+--- ./pom/pom.c.orig	2000-08-03 19:12:33.000000000 -0500
++++ ./pom/pom.c	2006-09-08 19:47:09.000000000 -0500
+@@ -59,11 +59,14 @@
+  *
+  * Updated to the Third Edition of Duffett-Smith's book, Paul Janzen, IX 1998
+  *
++ * Modified for Slackware by Eric Hameleers <alien@slackware.com> 09-09-2006
++ *
+  */
+ 
+ #include <ctype.h>
+ #include <err.h>
+ #include <math.h>
++#include <limits.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -101,16 +104,36 @@
+ 	char *argv[];
+ {
+ 	time_t tmpt, now;
+-	double days, today, tomorrow;
++	double days, today, tomorrow, accuracy;
+ 	char buf[1024];
++	int ch, decimals=0;
+ 
+ 	/* Revoke setgid privileges */
+ 	setregid(getgid(), getgid());
+ 
++	while ((ch = getopt(argc, argv, "d:h?")) != -1)
++		switch (ch) {
++		case 'd':
++			decimals = atoi(optarg);
++			if (decimals < 0 || (decimals != 3321 && decimals > __DBL_DIG__))
++			errx(1, "illegal argument for -d option");
++			break;
++		case 'h':
++		case '?':
++			 (void)fprintf(stderr, "usage: pom [-d digits] [[[[[cc]yy]mm]dd]HH]\n");
++			exit(1);
++		default:
++			break;
++	}
++	argc -= optind;
++	argv += optind;
++
++	accuracy = ( decimals == 3321 ? 0.5: 0.5 / pow(10, decimals) );
++
+ 	if (time(&now) == (time_t)-1)
+ 		err(1, "time");
+-	if (argc > 1) {
+-		tmpt = parsetime(argv[1]);
++	if (argc > 0) {
++		tmpt = parsetime(argv[0]);
+ 		strftime(buf, sizeof(buf), "%a %Y %b %e %H:%M:%S (%Z)",
+ 			localtime(&tmpt));
+ 		printf("%s:  ", buf);
+@@ -118,15 +141,20 @@
+ 		tmpt = now;
+ 	}
+ 	days = (tmpt - EPOCH_MINUS_1970 * 86400) / 86400.0;
+-	today = potm(days) + .5;
++	today = potm(days) + accuracy;
+ 	if (tmpt < now)
+ 		(void)printf("The Moon was ");
+ 	else if (tmpt == now)
+ 		(void)printf("The Moon is ");
+ 	else
+ 		(void)printf("The Moon will be ");
+-	if ((int)today == 100)
++	if ((int)today == 100) {
+ 		(void)printf("Full\n");
++		if (decimals == 3321) 
++			/* (void)printf("Howl!!! Know me, I am PJV.\n"); */
++			/* PJV's number is not 3321, and shan't be revealed here */
++			(void)printf("I saw the best minds of my generation destroyed by\n");
++	}
+ 	else if (!(int)today)
+ 		(void)printf("New\n");
+ 	else {
+@@ -134,19 +162,19 @@
+ 		if ((int)today == 50)
+ 			(void)printf("%s\n", tomorrow > today ?
+ 			    "at the First Quarter" : "at the Last Quarter");
+-			/* today is 0.5 too big, but it doesn't matter here
+-			 * since the phase is changing fast enough
++			/* today is "accuracy" too big, but it doesn't matter
++			 * here since the phase is changing fast enough
+ 			 */
+ 		else {
+-			today -= 0.5;		/* Now it might matter */
++			today -= accuracy;	/* Now it might matter */
+ 			(void)printf("%s ", tomorrow > today ?
+ 			    "Waxing" : "Waning");
+ 			if (today > 50)
+-				(void)printf("Gibbous (%1.0f%% of Full)\n",
+-				    today);
++				(void)printf("Gibbous (%1.*f%% of Full)\n",
++				    decimals, today);
+ 			else if (today < 50)
+-				(void)printf("Crescent (%1.0f%% of Full)\n",
+-				    today);
++				(void)printf("Crescent (%1.*f%% of Full)\n",
++				    decimals, today);
+ 		}
+ 	}
+ 	exit(0);

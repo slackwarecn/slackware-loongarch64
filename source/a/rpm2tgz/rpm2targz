@@ -1,0 +1,129 @@
+#!/bin/sh
+# Copyright 1997, 1998  Patrick Volkerding, Moorhead, MN USA
+# Copyright 2002, 2004  Slackware Linux, Inc., Concord, CA USA
+# Copyright 2006, 2009  Patrick Volkerding, Sebeka, MN USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+if [ "$1" = "" ]; then
+  echo "$0:  Converts RPM format to standard GNU tar + GNU zip format."
+  echo "            (view converted packages with \"less\", install and remove"
+  echo "            with \"installpkg\", \"removepkg\", \"pkgtool\", or manually"
+  echo "            with \"tar\")"
+  echo
+  echo "Usage:      $0 <file.rpm>"
+  if [ "$(basename $0)" = "rpm2tgz" ]; then
+    echo "            (Outputs \"file.tgz\")"
+  else
+    echo "            (Outputs \"file.tar.gz\")"
+  fi
+  exit 1;
+fi
+
+CWD=$(pwd)
+
+# Create a new temporary directory with a secure filename:
+make_temp_dir() {
+  if [ -x "$(which mcookie)" ]; then
+    tempd=/tmp/tmp.$(mcookie)
+    mkdir -p -m 0755 $tempd
+  elif [ -x "$(which openssl)" ]; then
+    tempd=/tmp/tmp.$(dd if=/dev/urandom bs=1k count=1 2> /dev/null | openssl dgst -md5)
+    mkdir -p -m 0755 $tempd
+  elif [ -x "$(which md5)" ]; then
+    tempd=/tmp/tmp.$(dd if=/dev/urandom bs=1k count=1 2> /dev/null | md5)
+    mkdir -p -m 0755 $tempd
+  elif [ -x "$(which mktemp)" ]; then
+    tempd=$(mktemp -d)
+    chmod 755 $tempd
+  ## Uncomment for insecure use, but don't blame me:
+  #else
+  #  tempd=/tmp/tmp.$$
+  #  mkdir -p -m 0755 $tempd
+  fi
+  if [ -d $tempd ]; then # success, return the name of the directory:
+    echo $tempd
+  else
+    echo "ERROR:  Could not find mcookie, openssl, or md5."
+    echo "        Exiting since a secure temporary directory could not be made."
+    exit 1
+  fi
+}
+
+for i in $* ; do
+  
+  # Determine if this is a source or binary RPM.
+  # If we have getrpmtype, use that.  Otherwise, try "file".
+  if which getrpmtype 1> /dev/null 2> /dev/null; then
+    if getrpmtype -n $i | grep source 1> /dev/null 2> /dev/null ; then
+      isSource=1
+    else
+      isSource=0
+    fi
+  else # use file.  This works fine on Slackware, and is the default.
+    if file $i | grep RPM | grep " src " 1> /dev/null 2> /dev/null ; then
+      isSource=1
+    else
+      isSource=0
+    fi
+  fi
+
+  # Create a temporary directory:
+  TMPDIR=$(make_temp_dir)
+
+  # Extract the RPM:
+  ofn=$TMPDIR/$(basename $i .rpm).cpio
+  if which rpm2cpio 1> /dev/null 2> /dev/null ; then
+    rpm2cpio $i > $ofn 2> /dev/null
+    if [ ! $? = 0 ]; then
+      echo "ERROR:  rpm2cpio failed.  (maybe $i is not an RPM?)"
+      rm -rf $TMPDIR
+      continue
+    fi
+  else # less reliable than rpm2cpio...
+    ( dd ibs=$(rpmoffset < $i) skip=1 if=$i 2> /dev/null | gzip -dc > $ofn 2>/dev/null ) || \
+    ( dd ibs=$(rpmoffset < $i) skip=1 if=$i 2> /dev/null | bzip2 -dc > $ofn 2>/dev/null )
+  fi
+  DEST=$TMPDIR
+  if [ "$isSource" = "1" ]; then
+     DEST=$DEST/$(basename $(basename $i .rpm) .src)
+  fi
+  mkdir -p $DEST
+  ( cd $DEST
+    cpio -i -m -d < $ofn 1> /dev/null 2> /dev/null
+    rm -f $ofn
+    find . -type d -perm 700 -exec chmod 755 {} \;
+  )
+
+  # If this program was called as "rpm2targz", then repack as a plain
+  # tar+gz archive.  If it was called as "rpm2tgz", use Slackware's
+  # makepkg to produce the .tgz:
+  if [ "$(basename $0)" = "rpm2tgz" ]; then
+    ( cd $TMPDIR ; makepkg -l y -c n $CWD/$(basename $i .rpm).tgz )
+  else
+    ( cd $TMPDIR ; tar cf - . ) > $(basename $i .rpm).tar
+    gzip -9 $(basename $i .rpm).tar
+  fi
+
+  # Remove temporary directory:
+  rm -rf $TMPDIR
+
+done
+

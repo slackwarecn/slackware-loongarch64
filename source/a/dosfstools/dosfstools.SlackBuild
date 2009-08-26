@@ -1,0 +1,74 @@
+#!/bin/sh
+
+# Copyright 2007-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=2.11
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-dosfstools
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf dosfstools-$VERSION
+tar xzvf $CWD/dosfstools-$VERSION.src.tar.gz
+cd dosfstools-$VERSION
+chown -R root:root .
+make -j4 || exit 1
+
+( cd mkdosfs
+  mkdir -p $PKG/sbin
+  cat mkdosfs > $PKG/sbin/mkdosfs
+  chmod 755 $PKG/sbin/mkdosfs
+  mkdir -p $PKG/usr/man/man8
+  cat mkdosfs.8 | gzip -9c > $PKG/usr/man/man8/mkdosfs.8.gz
+)
+( cd $PKG/sbin ; rm -f mkfs.msdos ; ln -sf mkdosfs mkfs.msdos )
+( cd dosfsck
+  cat dosfsck > $PKG/sbin/dosfsck
+  chmod 755 $PKG/sbin/dosfsck
+  cat dosfsck.8 | gzip -9c > $PKG/usr/man/man8/dosfsck.8.gz
+)
+mkdir -p $PKG/usr/doc/dosfstools-$VERSION
+cp -a \
+  CHANGES README.Atari TODO \
+  $PKG/usr/doc/dosfstools-$VERSION
+mkdir -p $PKG/usr/doc/dosfstools-$VERSION/mkdosfs
+( cd mkdosfs ; cp -a ANNOUNCE COPYING README mkdosfs-ygg-0.3b.lsm $PKG/usr/doc/dosfstools-$VERSION/mkdosfs )
+mkdir -p $PKG/usr/doc/dosfstools-$VERSION/dosfsck
+( cd dosfsck ; cp -a CHANGES COPYING README $PKG/usr/doc/dosfstools-$VERSION/dosfsck )
+
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/dosfstools-$VERSION-$ARCH-$BUILD.txz
+

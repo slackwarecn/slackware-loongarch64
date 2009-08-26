@@ -1,0 +1,356 @@
+This patch contains the following bugfixes:
+
+* the TIMEOUT (and -t flag) has now different effect for getty and uugetty:
+  with uugetty, TIMEOUT set will now cause uugetty exit no matter whether
+  there has been any input from the user (the counting will start immediately
+  after login() has been spawned - pre- getty-2.1.0 behavior), while for
+  getty, it will make the counter start after single input has been detected
+  from the user
+  * getty.1 manpage updated accordingly
+
+* @F issue substitution now works as expected
+
+* @V / VERSION functionality documentation fix in getty.1 manpage
+
+* fixed a bunch of memleaks (if not all):
+  * Fputs() made strdup()-free (we now use static structs where possible)
+  * avoided unnecessary dual strdup() for Version in defs()
+  * freeing of "DEF **def" including its internals is now handled, as well as
+    feeing of other variables in defs() pointing to strdup()ed memory areas
+
+Jan Rafaj
+
+--- ./man/getty.1.orig	2002-09-13 09:05:03.000000000 +0200
++++ ./man/getty.1	2005-07-21 10:24:53.000000000 +0200
+@@ -307,7 +307,18 @@
+ to exit (which
+ .I init
+ should then respawn), if the login is not completed within timeout seconds
+-(after the login name is entered)
++(after the login name is entered). This option behaves differently for
++.I getty
++and
++.I uugetty.
++If
++.I getty
++is used, the counting will start after single input from the user has been
++detected, whileas with
++.I uugetty,
++the counting will start immediately after
++.IR login (1m)
++has been spawned, no matter the input from the user.
+ 
+ Giving
+ .B \-w
+@@ -388,9 +399,12 @@
+ If
+ .I string
+ begins with a '/' character, it is assumed to be the full pathname of a
+-file, and
++text file, and
+ .B @V
+-is set to be the contents of that file.  The default is /proc/version.
++is set to be the contents of the first line in that file (line has to be
++terminated by newline character or by end of file).
++.br
++The default is /proc/version.
+ .TP
+ LOGIN=\fIname\fR
+ Sets the name of the login program to
+@@ -503,6 +517,14 @@
+ to exit if no user name is accepted before the
+ .I number
+ of seconds elapse after the login prompt is displayed.
++With
++.I getty,
++the counting will start as soon as a single character
++has been entered by the user, whileas with
++.I uugetty,
++the counting will start immediately after the login prompt
++is displayed, no matter the input from the user.
++.br
+ The default is to wait indefinitely for the user name.
+ .TP
+ CONNECT=\fIstring\fR
+@@ -865,6 +887,11 @@
+ .IR cu (1)
+ and others).  This prevents two or more processes from having conficting
+ use of a tty port.
++.br
++.I Uugetty
++also differs from
++.I getty
++by handling the -t parameter and TIMEOUT option.
+ .PP
+ When
+ .I uugetty
+--- ./main.c.orig	2004-04-11 03:34:34.000000000 +0200
++++ ./main.c	2005-07-21 11:37:19.000000000 +0200
+@@ -78,6 +78,8 @@
+ void	debugstart();
+ #endif /* DEBUG */
+ 
++DEF	**def;
++
+ /* trivial globals */
+ 
+ char	buf[MAXLINE];
+@@ -86,7 +88,7 @@
+ char	tbuf[64];
+ 
+ #define Perror(s)	{ debug(D_INIT, "Line %d: %s: Error %d: %s\n", \
+-				__LINE__, s, errno, sys_errlist[errno]); \
++				__LINE__, s, errno, strerror(errno)); \
+ 			    exit(errno); \
+ 			}
+ 
+@@ -149,6 +151,50 @@
+ 	}
+ }
+ 
++/*
++ * Why a lot of programmers ignore the fact that memory area returned
++ * by strdup() and *alloc() has to be freed upon exit? :(( -JR
++ */
++void free_def(void)
++{
++	register DEF **deflist = def;
++
++	for (; *deflist != (DEF *)NULL; deflist++) {
++	    free((*deflist)->name);
++	    free((*deflist)->value);
++	    free(*deflist);
++	}
++}
++
++void free_sysname(void)
++{
++	if (SysName)
++		free(SysName);
++	SysName = NULL;
++}
++
++void free_version(void)
++{
++	if (Version)
++		free(Version);
++	Version = NULL;
++}
++
++#ifdef UUGETTY
++void free_lock(void)
++{
++	if (lock)
++		free(lock);
++	lock = NULL;
++}
++
++void free_altlock(void)
++{
++	if (altlock)
++		free(altlock);
++	altlock = NULL;
++}
++#endif
+ 
+ /*
+ ** main
+@@ -320,7 +366,6 @@
+ char	**args;
+ {
+ 	register int	c;
+-	DEF		**def;
+ 	char		*p;
+ 	char		termcap[1024];
+ 
+@@ -416,22 +461,27 @@
+ /* now, get all that info in the defaults file */
+ 
+ 	def = defbuild(defname);
++	atexit(free_def);
+ #ifdef DEBUG
+ 	if ((p = defvalue(def, "DEBUG"))) (void) sscanf(p, "%o", &Debug);
+ 	if (Debug) debugstart();
+ #endif /* DEBUG */
+ 	SysName = strdup(getuname());
++	atexit(free_sysname);
+ 	if (p = defvalue(def, "SYSTEM")) SysName = p;
+-	if (p = defvalue(def, "VERSION"))
+-	     Version = strdup(p);
+-	if (*Version == '/')
+-	   { if ((fp = fopen(Version, "r")))
+-		{  fgets(buf, MAXLINE, fp);
+-		   fclose(fp);
+-		   buf[strlen(buf)-1] = '\0';
+-		   Version = strdup(buf);
++	if (p = defvalue(def, "VERSION")) {
++	    if (*p == '/') {
++		if ((fp = fopen(p, "r"))) {
++		    fgets(buf, MAXLINE, fp);
++		    fclose(fp);
++		    buf[strlen(buf)-1] = '\0';
++		    Version = strdup(buf);
+ 	        }
+-	   }
++	    } else {
++		Version = strdup(p);
++	    }
++	    atexit(free_version);
++	}
+ 	if((p = defvalue(def, "LOGIN"))) login_pgm = p;
+ 	if((p = defvalue(def, "ISSUE"))) issue = p;
+ 	if((p = defvalue(def, "CLEAR")) && (strequal(p, "NO"))) 
+@@ -489,12 +539,15 @@
+ #ifdef UUGETTY
+ 	(void) sprintf(buf, LOCK, Device);
+ 	lock = strdup(buf);
++	atexit(free_lock);
+ 	if((p = defvalue(def, "ALTLOCK"))) {
+ 		(void) sprintf(buf, LOCK, p);
+ 		altlock = strdup(buf);
++		atexit(free_altlock);
+ 	} else if(! strequal(Device, InitDevice)) {
+ 		(void) sprintf(buf, LOCK, InitDevice);
+ 		altlock = strdup(buf);
++		atexit(free_altlock);
+ 	}
+ 
+ 	debug(D_LOCK, "lock = (%s), altlock = (%s)", lock, altlock);
+@@ -625,8 +678,8 @@
+ 	with the uts struct filled above.
+ 	*/
+ 
+-	debug(D_UTMP, "adding utmp entry: type: %d, pid: %d, line: %s,
+-	   id: %c%c, time: %d, user: %s, host: %s, addr: %d",
++	debug(D_UTMP, "adding utmp entry: type: %d, pid: %d, line: %s, "
++	   "id: %c%c, time: %d, user: %s, host: %s, addr: %d",
+ 	   uts.ut_type, uts.ut_pid, uts.ut_line,
+ 	   (uts.ut_id[0] ? uts.ut_id[0] : ' '), 
+ 	   (uts.ut_id[1] ? uts.ut_id[1] : ' '), 
+@@ -1077,16 +1130,20 @@
+ login_prompt:
+ 		(void) ioctl(STDIN, TCFLSH, 0);
+ #ifdef FIDO
+-	if (emsi && (strcmp(emsi,"yes") == 0)) 
+-		(void) Fputs("**EMSI_REQA77E\r", stdout);
++		if (emsi && (strcmp(emsi,"yes") == 0)) 
++			(void) Fputs("**EMSI_REQA77E\r", stdout);
+ #endif
+ 		(void) Fputs(gtab->login, stdout);
+-
++#ifndef UUGETTY
+ 		login_result=getlogname(&termio, buf, MAXLINE);
++#endif
+ 		if(TimeOut > 0) {
+ 			(void) signal(SIGALRM, timeout);
+ 			(void) alarm((unsigned) TimeOut);
+ 		}
++#ifdef UUGETTY
++		login_result=getlogname(&termio, buf, MAXLINE);
++#endif
+ 
+ 		switch(login_result) {
+ #ifdef FIDO
+@@ -1114,6 +1171,13 @@
+ #ifdef SETTERM
+ 				setenv("TERM", term, TRUE);
+ #endif /* SETTERM */
++				free_def();
++				free_sysname();
++				free_version();
++#ifdef UUGETTY
++				free_lock();
++				free_altlock();
++#endif
+ 				debug(D_RUN, "execing login");
+ 				(void) execl(login_pgm, 
+ 				  "login", buf, NULLPTR);
+--- ./funcs.c.orig	2002-09-25 08:43:28.000000000 +0200
++++ ./funcs.c	2005-07-20 19:01:55.000000000 +0200
+@@ -87,12 +87,11 @@
+ register char *s;
+ register FILE *stream;
+ {
+-    char c, n, tbuf[20], ubuf[MAXBUF];
+-    char *cbuf;
++    char c, n, tbuf[20];
+     time_t clock;
+     struct tm *lt;
+-    struct utsname utsbuf;
+-    struct hostent *fqdname;
++    static struct utsname utsbuf;
++    static struct hostent *fqdname;
+     FILE  *fp1;
+ 
+     char *day_name[] = { "Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat" };
+@@ -119,21 +118,8 @@
+ 				return(EOF);
+ 			break;
+ 		case 'F':	/* FQDName */
+-			cbuf = strdup(SysName);
+-#if 0			/* The does a seg violation - no idea why.... */
+ 			fqdname = gethostbyname(SysName);
+-#endif
+-#if 0			/* So, we cheat.....! */
+-			/* Which also gets a seg violation! */
+-			if (fp1 = fopen("/etc/HOSTNAME", "r"))
+-			 { fgets(cbuf, MAXBUF, fp1);
+-			   fclose(fp1);
+-			   cbuf[strlen(cbuf)] = '\0';
+-			 }
+-			if (fqdname != NULL)
+-			    cbuf = strdup(fqdname->h_name);
+-#endif
+-			if (Fputs(cbuf, stream) == EOF)
++			if (fqdname && Fputs(fqdname->h_name, stream) == EOF)
+ 			    return(EOF);
+ 			break;
+ 		case 'L':	/* line */
+@@ -141,18 +127,15 @@
+ 				return(EOF);
+ 			break;
+ 		case 'M':	/* arch of machine */
+-			cbuf = strdup(utsbuf.machine);
+-			if (Fputs(cbuf, stream) == EOF)
++			if (Fputs(utsbuf.machine, stream) == EOF)
+ 				return(EOF);
+ 			break;
+ 		case 'O':	/* O/S name */
+-			cbuf = strdup(utsbuf.sysname);
+-			if (Fputs(cbuf, stream) == EOF)
++			if (Fputs(utsbuf.sysname, stream) == EOF)
+ 				return(EOF);
+ 			break;
+ 		case 'R':	/* O/S rev_id */
+-			cbuf = strdup(utsbuf.release);
+-			if (Fputs(cbuf, stream) == EOF)
++			if (Fputs(utsbuf.release, stream) == EOF)
+ 				return(EOF);
+ 			break;
+ 		case 'S':	/* system node name */
+@@ -166,8 +149,8 @@
+ 				return(EOF);
+ 			break;
+ 		case 'U':	/* number of active users */
+-			(void) sprintf(ubuf, "%d", Nusers);
+-			if (Fputs(ubuf, stream) == EOF)
++			(void) sprintf(tbuf, "%d", Nusers);
++			if (Fputs(tbuf, stream) == EOF)
+ 				return(EOF);
+ 			break;
+ 		case 'V':	/* version */
+@@ -175,12 +158,10 @@
+ 				return(EOF);
+ 			break;
+ 		case 'u':	/* user count str */
+-			cbuf = malloc(20);
+ 			(void) sprintf(tbuf, "%d User", Nusers);
+ 			if (Nusers > 1) 
+-			     cbuf = strcat(tbuf,"s");
+-			else cbuf=strdup(tbuf);
+-			if (Fputs(cbuf, stream) == EOF)
++			    strcat(tbuf, "s");
++			if (Fputs(tbuf, stream) == EOF)
+ 				return(EOF);
+ 			break;
+ 		case '@':	/* in case '@@' was used */

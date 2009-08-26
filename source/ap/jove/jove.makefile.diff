@@ -1,0 +1,132 @@
+--- jove4.16.0.70/Makefile	2005-09-30 19:14:41.000000000 -0300
++++ jove4.16.0.70.new/Makefile	2009-03-04 02:01:26.000000000 -0300
+@@ -21,13 +21,14 @@
+ # If they don't exist, this makefile will try to create the directories
+ # LIBDIR and SHAREDIR.  All others must already exist.
+ 
+-JOVEHOME = /usr/local
++JOVEHOME = /usr
+ SHAREDIR = $(JOVEHOME)/lib/jove
+ LIBDIR = $(JOVEHOME)/lib/jove
+ BINDIR = $(JOVEHOME)/bin
+ XEXT=
+ MANDIR = $(JOVEHOME)/man/man$(MANEXT)
+ MANEXT = 1
++DESTDIR := ${DESTDIR}
+ 
+ # TMPDIR is where the tmp files get stored, usually /tmp, /var/tmp, or
+ # /usr/tmp.  If you wish to be able to recover buffers after a system
+@@ -56,12 +57,12 @@
+ INSTALLFLAGS = # -g bin -o root
+ 
+ # to install executable files
+-XINSTALL=cp
++XINSTALL=/usr/bin/install -c -m 755 -D
+ #XINSTALL=/usr/ucb/install $(INSTALLFLAGS) -c -m 755 # -s
+ #CYGWIN32: XINSTALL=install $(INSTALLFLAGS) -c -m 755
+ 
+ # to install text files
+-TINSTALL=cp
++TINSTALL=/usr/bin/install -c -m 644 -D
+ #TINSTALL=/usr/ucb/install $(INSTALLFLAGS) -c -m 644
+ #CYGWIN32: TINSTALL=install $(INSTALLFLAGS) -c -m 644
+ 
+@@ -137,7 +138,7 @@
+ # Add -DUSE_EXIT if you're profiling or using purify (this causes Jove
+ # to exit using exit(), instead of _exit()).
+ 
+-SYSDEFS = -DBSDPOSIX_STDC
++SYSDEFS = -DSYSVR4 -D_XOPEN_SOURCE=500
+ 
+ # Select optimization level (flags passed to compiling and linking steps).
+ # On most systems: -g for debugging, -O for optimization.
+@@ -146,7 +147,7 @@
+ # On DEC OSF/1 and Digital UNIX VV4.0, add -std1 to enable ANSI C features
+ # and perhaps -g3 for more debugging info with optimization.
+ 
+-OPTFLAGS = -O
++OPTFLAGS := ${OPTFLAGS}
+ 
+ # For making dependencies under BSD systems
+ DEPENDFLAG = -M
+@@ -360,7 +361,7 @@
+ install: $(LIBDIR) $(SHAREDIR) \
+ 	 $(TEACH-JOVE) $(CMDS.DOC) $(TERMSDIR)docs \
+ 	 $(PORTSRVINST) $(RECOVER) $(JOVE) $(TEACHJOVE) $(MANUALS)
+-	$(TINSTALL) doc/jove.rc $(JOVERC)
++	$(TINSTALL) doc/jove.rc $(DESTDIR)$(JOVERC)
+ 	@echo See the README about changes to /etc/rc or /etc/rc.local
+ 	@echo so that the system recovers jove files on reboot after a crash
+ 
+@@ -371,7 +372,7 @@
+ 	test -d $(SHAREDIR) || mkdir $(SHAREDIR)
+ 
+ $(TEACH-JOVE): doc/teach-jove
+-	$(TINSTALL) doc/teach-jove $(TEACH-JOVE)
++	$(TINSTALL) doc/teach-jove $(DESTDIR)$(TEACH-JOVE)
+ 
+ doc/cmds.doc:	doc/cmds.macros.nr doc/cmds.nr
+ 	$(NROFF) doc/cmds.macros.nr doc/cmds.nr > doc/cmds.doc
+@@ -383,25 +384,25 @@
+ 	( cd doc; tbl intro.nr | $(TROFF) -ms - cmds.nr contents.nr $(TROFFPOST) >jove.man.ps )
+ 
+ $(CMDS.DOC): doc/cmds.doc
+-	$(TINSTALL) doc/cmds.doc $(CMDS.DOC)
++	$(TINSTALL) doc/cmds.doc $(DESTDIR)$(CMDS.DOC)
+ 
+ $(JOVERC): doc/jove.rc
+-	$(TINSTALL) doc/jove.rc $(JOVERC)
++	$(TINSTALL) doc/jove.rc $(DESTDIR)$(JOVERC)
+ 
+ $(TERMSDIR)docs: $(DOCTERMS)
+-	$(TINSTALL) $(DOCTERMS) $(TERMSDIR)
++	$(TINSTALL) $(DOCTERMS) $(DESTDIR)$(TERMSDIR)
+ 
+ $(PORTSRV): portsrv$(XEXT)
+-	$(XINSTALL) portsrv$(XEXT) $(PORTSRV)
++	$(XINSTALL) portsrv$(XEXT) $(DESTDIR)$(PORTSRV)
+ 
+ $(RECOVER): recover$(XEXT)
+-	$(XINSTALL) recover$(XEXT) $(RECOVER)
++	$(XINSTALL) recover$(XEXT) $(DESTDIR)$(RECOVER)
+ 
+ $(JOVE): jjove$(XEXT)
+-	$(XINSTALL) jjove$(XEXT) $(JOVE)
++	$(XINSTALL) jjove$(XEXT) $(DESTDIR)$(JOVE)
+ 
+ $(TEACHJOVE): teachjove$(XEXT)
+-	$(XINSTALL) teachjove$(XEXT) $(TEACHJOVE)
++	$(XINSTALL) teachjove$(XEXT) $(DESTDIR)$(TEACHJOVE)
+ 
+ doc/jove.$(MANEXT): doc/jove.nr
+ 	sed -e 's;<TMPDIR>;$(TMPDIR);' \
+@@ -410,7 +411,7 @@
+ 	     -e 's;<SHELL>;$(DFLTSHELL);' doc/jove.nr > doc/jove.$(MANEXT)
+ 
+ $(JOVEM): doc/jove.$(MANEXT)
+-	$(TINSTALL) doc/jove.$(MANEXT) $(JOVEM)
++	$(TINSTALL) doc/jove.$(MANEXT) $(DESTDIR)$(JOVEM)
+ 
+ # doc/jove.doc is the formatted manpage (only needed by DOS)
+ # Building it should be like building $(JOVEM) except that we
+@@ -427,17 +428,17 @@
+ 	     -e 's;<SHELL>;$(DFLTSHELL);' doc/teachjove.nr > doc/teachjove.$(MANEXT)
+ 
+ $(TEACHJOVEM): doc/teachjove.$(MANEXT)
+-	$(TINSTALL) doc/teachjove.$(MANEXT) $(TEACHJOVEM)
++	$(TINSTALL) doc/teachjove.$(MANEXT) $(DESTDIR)$(TEACHJOVEM)
+ 
+ $(XJOVEM): doc/xjove.nr
+-	$(TINSTALL) doc/xjove.nr $(XJOVEM)
++	$(TINSTALL) doc/xjove.nr $(DESTDIR)$(XJOVEM)
+ 
+ doc/jovetool.$(MANEXT): doc/jovetool.nr
+ 	sed -e 's;<MANDIR>;$(MANDIR);' \
+ 	     -e 's;<MANEXT>;$(MANEXT);' doc/jovetool.nr > doc/jovetool.$(MANEXT)
+ 
+ $(JOVETOOLM): doc/jovetool.$(MANEXT)
+-	$(TINSTALL) doc/jovetool.$(MANEXT) $(JOVETOOLM)
++	$(TINSTALL) doc/jovetool.$(MANEXT) $(DESTDIR)$(JOVETOOLM)
+ 
+ echo:
+ 	@echo $(C-FILES) $(HEADERS)

@@ -1,0 +1,97 @@
+#!/bin/sh
+
+# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=3.1
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-bash
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+elif [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# Determine bash patchlevel:
+PATCHLEVEL=`( cd $CWD/patches ; /bin/ls *gz | tail -1 | cut -f 2 -d - | cut -f 1 -d . 2> /dev/null )`
+if [ "$PATCHLEVEL" = "" ]; then
+  PATCHLEVEL=0
+fi
+
+cd $TMP
+rm -rf bash-$VERSION
+tar xzvf $CWD/bash-$VERSION.tar.gz || exit 1
+cd bash-$VERSION
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+for patch in $CWD/patches/bash* ; do
+  zcat $patch | patch -p0 --verbose || exit 1
+done
+CFLAGS="$SLKCFLAGS" \
+./configure --prefix=/usr $ARCH-slackware-linux
+make -j3 || exit 1
+make install DESTDIR=$PKG
+mkdir -p $PKG/bin
+mv $PKG/usr/bin/bash $PKG/bin/bash2.new
+strip --strip-unneeded $PKG/bin/bash2.new
+# We don't include the "bashbug" script.
+rm -rf $PKG/usr/bin $PKG/usr/man/man1/bashbug.1
+gzip -9 $PKG/usr/man/man1/*
+mkdir -p $PKG/usr/doc/bash-$VERSION
+cp -a AUTHORS CHANGES COMPAT COPYING INSTALL MANIFEST NEWS NOTES \
+  README Y2K doc/FAQ doc/INTRO $PKG/usr/doc/bash-$VERSION
+cd doc
+groff -ms -Tascii article.ms > $PKG/usr/doc/bash-$VERSION/article.txt
+# bash.1 is already installed by "make install"
+for page in builtins.1 rbash.1 ; do
+  cat $page | gzip -9c > $PKG/usr/man/man1/$page.gz
+done
+rm -f $PKG/usr/info/dir
+gzip -9 $PKG/usr/info/*
+mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -l y -c n $TMP/bash-$VERSION.$PATCHLEVEL-$ARCH-$BUILD.txz
+
+# Clean up the extra stuff:
+if [ "$1" = "--cleanup" ]; then
+  rm -rf $TMP/bash-$VERSION
+  rm -rf $PKG
+fi

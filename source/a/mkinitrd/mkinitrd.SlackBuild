@@ -1,0 +1,119 @@
+#!/bin/sh
+
+# Copyright 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=1.3.4
+BB=1.12.1
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:--j7}
+BUILD=${BUILD:-3}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-mkinitrd
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf busybox-$BB
+tar xvf $CWD/busybox-$BB.tar.bz2 || exit 1
+cd busybox-$BB
+
+#zcat $CWD/busybox-${BB}.remove_warning.diff.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/busybox-${BB}.no-gc-sections.diff.gz | patch -p1 --verbose || exit 1
+# Needed with 2.6.27 kernel:
+zcat $CWD/busybox-1.12.1_inotify.diff.gz | patch -p1 --verbose || exit 1
+
+chown -R root:root .
+sed -e \
+  's#^CONFIG_PREFIX=.*#CONFIG_PREFIX="'$PKG'/usr/share/mkinitrd/initrd-tree"#' \
+  $CWD/busybox-dot-config > .config
+make oldconfig
+make $NUMJOBS || make || exit 1
+
+mkdir -p $PKG/usr/share/mkinitrd/initrd-tree/{bin,sbin}
+make install || exit 1
+rm -f $PKG/usr/share/mkinitrd/initrd-tree/linuxrc
+
+# Copying additional files:
+cp $CWD/mkinitrd_command_generator.sh $PKG/usr/share/mkinitrd
+chmod 755 $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh
+cp $CWD/keymaps.tar.gz $PKG/usr/share/mkinitrd
+
+# Zip up the initrd-tree:
+( cd $PKG/usr/share/mkinitrd/initrd-tree
+  tar xf $CWD/_initrd-tree.tar.gz
+  cat $CWD/init > init
+  tar czf ../initrd-tree.tar.gz .
+)
+rm -rf $PKG/usr/share/mkinitrd/initrd-tree
+
+# Add busybox docs:
+mkdir -p $PKG/usr/doc/busybox-$BB
+cp -a AUTHORS INSTALL LICENSE README \
+  $PKG/usr/doc/busybox-$BB
+
+mkdir -p $PKG/sbin
+cat $CWD/mkinitrd > $PKG/sbin/mkinitrd
+chmod 755 $PKG/sbin/mkinitrd
+
+mkdir -p $PKG/usr/man/man{5,8}
+cat $CWD/mkinitrd.8 | gzip -9c > $PKG/usr/man/man8/mkinitrd.8.gz
+cat $CWD/mkinitrd.conf.5 | gzip -9c > $PKG/usr/man/man5/mkinitrd.conf.5.gz
+
+mkdir -p $PKG/etc
+cat $CWD/mkinitrd.conf.sample > $PKG/etc/mkinitrd.conf.sample
+
+mkdir -p $PKG/usr/doc/mkinitrd-$VERSION
+cp -a $CWD/README.initrd $PKG/usr/doc/mkinitrd-$VERSION
+
+( cd $PKG/usr/doc/mkinitrd-$VERSION
+  DATE="$(date)"
+  KERNEL_VERSION="$(uname -r)"
+  PACKAGE_VERSION="$(uname -r | tr - _)"
+  LILO_KERNEL_NAME="$(echo $(uname -r) | tr -d . | tr -d - )"
+  cat README.initrd | sed -e s/@DATE@/"$DATE"/ > README.initrd1
+  cat README.initrd1 | sed -e s/@KERNEL_VERSION@/"$KERNEL_VERSION"/ > README.initrd2
+  cat README.initrd2 | sed -e s/@PACKAGE_VERSION@/"$PACKAGE_VERSION"/ > README.initrd3
+  cat README.initrd3 | sed -e s/@LILO_KERNEL_NAME@/"$LILO_KERNEL_NAME"/ > README.initrd4
+  cat README.initrd4 | sed -e s/@MKINITRD_VERSION@/"$VERSION"/ > README.initrd5
+  cat README.initrd5 | sed -e s/@ARCH@/"$ARCH"/ > README.initrd6
+  cat README.initrd6 | sed -e s/@BUILD@/"$BUILD"/ > README.initrd
+  rm -f README.initrd{1,2,3,4,5,6}
+)
+chmod 644 $PKG/usr/doc/mkinitrd-$VERSION/*
+chown root:root $PKG/usr/doc/mkinitrd-$VERSION/*
+
+mkdir $PKG/boot
+( cd $PKG/boot
+  ln -sf /usr/doc/mkinitrd-$VERSION/README.initrd .
+)
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/mkinitrd-$VERSION-$ARCH-$BUILD.txz
+

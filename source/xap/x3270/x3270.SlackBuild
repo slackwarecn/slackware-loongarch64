@@ -1,0 +1,89 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+TARBVER=3.3.7p8
+VERSION=3.3.7p8
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-x3270
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf x3270-$VERSION
+tar xvf $CWD/x3270-$TARBVER.tar.bz2 || exit 1
+cd x3270-3.3 || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+./configure \
+  --prefix=/usr \
+  --sysconfdir=/etc/X11 \
+  --build=$ARCH-slackware-linux
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG
+
+mv $PKG/etc/X11/x3270/ibm_hosts $PKG/etc/X11/x3270/ibm_hosts.new
+find $PKG -name fonts.dir -exec rm {} \;
+if [ -d $PKG/usr/lib/X11/fonts/misc ]; then
+  mkdir -p $PKG/usr/share/fonts
+  mv $PKG/usr/lib/X11/fonts/misc $PKG/usr/share/fonts
+  rmdir $PKG/usr/lib/X11/fonts/misc 2> /dev/null
+  rmdir $PKG/usr/lib/X11/fonts 2> /dev/null
+  rmdir $PKG/usr/lib/X11 2> /dev/null
+  rmdir $PKG/usr/lib 2> /dev/null
+fi
+
+mkdir -p $PKG/etc/X11/app-defaults
+cat X3270.xad > $PKG/etc/X11/app-defaults/X3270
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/usr/man/man{1,5}
+for file in x3270-script.man x3270.man x3270if.man ; do
+  cat $file | gzip -9c > $PKG/usr/man/man1/`basename $file .man`.1.gz
+done
+cat ibm_hosts.man | gzip -9c > $PKG/usr/man/man5/ibm_hosts.5.gz
+
+mkdir -p $PKG/usr/doc/x3270-$VERSION
+cp -a \
+  LICENSE README* Examples html \
+  $PKG/usr/doc/x3270-$VERSION
+
+mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/x3270-$VERSION-$ARCH-$BUILD.txz
+

@@ -1,0 +1,81 @@
+--- sysvinit-2.86/man/pidof.8.chroot	1998-09-02 08:49:33.000000000 -0400
++++ sysvinit-2.86/man/pidof.8	2005-12-19 15:37:40.000000000 -0500
+@@ -4,6 +4,7 @@
+ .SH SYNOPSIS
+ .B pidof
+ .RB [ \-s ]
++.RB [ \-c ]
+ .RB [ \-x ]
+ .RB [ \-o
+ .IR omitpid ]
+@@ -24,6 +25,10 @@
+ .SH OPTIONS
+ .IP -s
+ Single shot - this instructs the program to only return one \fIpid\fP.
++.IP -c
++Only return process ids that are running with the same root directory.
++This option does not make sense for non-root users, as they will be
++unable to check the current root directory of processes they do not own.
+ .IP -x
+ Scripts too - this causes the program to also return process id's of
+ shells running the named scripts.
+--- sysvinit-2.86/src/killall5.c.chroot	2004-07-30 08:16:23.000000000 -0400
++++ sysvinit-2.86/src/killall5.c	2005-12-19 15:38:47.000000000 -0500
+@@ -476,16 +476,22 @@
+ 	int		f;
+ 	int		first = 1;
+ 	int		i, oind, opt, flags = 0;
++	int		chroot_check = 0;
++	struct stat	st;
++	char		tmp[512];
+ 
+ 	for (oind = PIDOF_OMITSZ-1; oind > 0; oind--)
+ 		opid[oind] = 0;
+ 	opterr = 0;
+ 
+-	while ((opt = getopt(argc,argv,"ho:sx")) != EOF) switch (opt) {
++	while ((opt = getopt(argc,argv,"hco:sx")) != EOF) switch (opt) {
+ 		case '?':
+ 			nsyslog(LOG_ERR,"invalid options on command line!\n");
+ 			closelog();
+ 			exit(1);
++		case 'c':
++			chroot_check = 1;
++			break;
+ 		case 'o':
+ 			if (oind >= PIDOF_OMITSZ -1) {
+ 				nsyslog(LOG_ERR,"omit pid buffer size %d "
+@@ -518,6 +524,16 @@
+ 	argc -= optind;
+ 	argv += optind;
+ 
++	/* Check if we are in a chroot */
++	if (chroot_check) {
++		snprintf(tmp, 512, "/proc/%d/root", getpid());
++		if (stat(tmp, &st) < 0) {
++			nsyslog(LOG_ERR, "stat failed for %s!\n", tmp);
++			closelog();
++			exit(1);
++		}
++	}
++
+ 	/* Print out process-ID's one by one. */
+ 	readproc();
+ 	for(f = 0; f < argc; f++) {
+@@ -541,6 +557,16 @@
+ 					else
+ 						spid = 1;
+ 				}
++				if (chroot_check) {
++					struct stat st2;
++					snprintf(tmp, 512, "/proc/%d/root",
++						 p->pid);
++					if (stat(tmp, &st2) < 0 ||
++					    st.st_dev != st2.st_dev ||
++					    st.st_ino != st2.st_ino) {
++						continue;
++					}
++				}
+ 				if (!first)
+ 					printf(" ");
+ 				printf("%d", p->pid);

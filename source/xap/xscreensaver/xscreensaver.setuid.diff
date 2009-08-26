@@ -1,0 +1,179 @@
+--- ./driver/setuid.c.orig	2006-02-08 20:28:38.000000000 -0600
++++ ./driver/setuid.c	2006-04-04 16:48:08.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* setuid.c --- management of runtime privileges.
+- * xscreensaver, Copyright (c) 1993-1998, 2005 Jamie Zawinski <jwz@jwz.org>
++ * xscreensaver, Copyright (c) 1993-1998 Jamie Zawinski <jwz@jwz.org>
+  *
+  * Permission to use, copy, modify, distribute, and sell this software and its
+  * documentation for any purpose is hereby granted without fee, provided that
+@@ -41,7 +41,7 @@
+   struct group *g = 0;
+   p = getpwuid (uid);
+   g = getgrgid (gid);
+-  sprintf (buf, "%.100s/%.100s (%ld/%ld)",
++  sprintf (buf, "%s/%s (%ld/%ld)",
+ 	   (p && p->pw_name ? p->pw_name : "???"),
+ 	   (g && g->gr_name ? g->gr_name : "???"),
+ 	   (long) uid, (long) gid);
+@@ -74,50 +74,11 @@
+ }
+ 
+ 
+-/* Returns true if we need to call setgroups().
+-
+-   Without calling setgroups(), the process will retain any supplementary
+-   gids associated with the uid, e.g.:
+-
+-       % groups root
+-       root : root bin daemon sys adm disk wheel
+-
+-   However, setgroups() can only be called by root, and returns EPERM
+-   for other users even if the call would be a no-op (e.g., setting the
+-   group list to the current list.)  So, to avoid that spurious error,
+-   before calling setgroups() we first check whether the current list
+-   of groups contains only one element, our target group.  If so, we
+-   don't need to call setgroups().
+- */
+-static int
+-setgroups_needed_p (uid_t target_group)
+-{
+-  gid_t groups[1024];
+-  int n, size;
+-  size = sizeof(groups) / sizeof(gid_t);
+-  n = getgroups (size - 1, groups);
+-  if (n < 0)
+-    {
+-      char buf [1024];
+-      sprintf (buf, "%s: getgroups(%ld, ...)", blurb(), (long int)(size - 1));
+-      perror (buf);
+-      return 1;
+-    }
+-  else if (n == 0)            /* an empty list means only egid is in effect. */
+-    return 0;
+-  else if (n == 1 && groups[0] == target_group)   /* one element, the target */
+-    return 0;
+-  else                        /* more than one, or the wrong one. */
+-    return 1;
+-}
+-
+-
+ static int
+ set_ids_by_number (uid_t uid, gid_t gid, char **message_ret)
+ {
+   int uid_errno = 0;
+   int gid_errno = 0;
+-  int sgs_errno = 0;
+   struct passwd *p = getpwuid (uid);
+   struct group  *g = getgrgid (gid);
+ 
+@@ -136,11 +97,6 @@
+   if (uid == (uid_t) -1) uid = (uid_t) -2;
+ 
+   errno = 0;
+-  if (setgroups_needed_p (gid) &&
+-      setgroups (1, &gid) < 0)
+-    sgs_errno = errno ? errno : -1;
+-
+-  errno = 0;
+   if (setgid (gid) != 0)
+     gid_errno = errno ? errno : -1;
+ 
+@@ -148,10 +104,10 @@
+   if (setuid (uid) != 0)
+     uid_errno = errno ? errno : -1;
+ 
+-  if (uid_errno == 0 && gid_errno == 0 && sgs_errno == 0)
++  if (uid_errno == 0 && gid_errno == 0)
+     {
+       static char buf [1024];
+-      sprintf (buf, "changed uid/gid to %.100s/%.100s (%ld/%ld).",
++      sprintf (buf, "changed uid/gid to %s/%s (%ld/%ld).",
+ 	       (p && p->pw_name ? p->pw_name : "???"),
+                (g && g->gr_name ? g->gr_name : "???"),
+ 	       (long) uid, (long) gid);
+@@ -162,71 +118,28 @@
+   else
+     {
+       char buf [1024];
+-      gid_t groups[1024];
+-      int n, size;
+-
+-      if (sgs_errno)
+-	{
+-	  sprintf (buf, "%s: couldn't setgroups to %.100s (%ld)",
+-		   blurb(),
+-		   (g && g->gr_name ? g->gr_name : "???"),
+-		   (long) gid);
+-	  if (sgs_errno == -1)
+-	    fprintf(stderr, "%s: unknown error\n", buf);
+-	  else
+-            {
+-              errno = sgs_errno;
+-              perror(buf);
+-            }
+-
+-	  fprintf (stderr, "%s: effective group list: ", blurb());
+-	  size = sizeof(groups) / sizeof(gid_t);
+-          n = getgroups (size - 1, groups);
+-          if (n < 0)
+-            fprintf (stderr, "unknown!\n");
+-          else
+-            {
+-              int i;
+-              fprintf (stderr, "[");
+-              for (i = 0; i < n; i++)
+-                {
+-                  g = getgrgid (groups[i]);
+-                  if (i > 0) fprintf (stderr, ", ");
+-                  if (g && g->gr_name) fprintf (stderr, "%s", g->gr_name);
+-                  else fprintf (stderr, "%ld", (long) groups[i]);
+-                }
+-              fprintf (stderr, "]\n");
+-            }
+-        }
+-
+       if (gid_errno)
+ 	{
+-	  sprintf (buf, "%s: couldn't set gid to %.100s (%ld)",
++	  sprintf (buf, "%s: couldn't set gid to %s (%ld)",
+ 		   blurb(),
+ 		   (g && g->gr_name ? g->gr_name : "???"),
+ 		   (long) gid);
+ 	  if (gid_errno == -1)
+ 	    fprintf(stderr, "%s: unknown error\n", buf);
+ 	  else
+-            {
+-              errno = gid_errno;
+-              perror(buf);
+-            }
++	    perror(buf);
+ 	}
+ 
+       if (uid_errno)
+ 	{
+-	  sprintf (buf, "%s: couldn't set uid to %.100s (%ld)",
++	  sprintf (buf, "%s: couldn't set uid to %s (%ld)",
+ 		   blurb(),
+ 		   (p && p->pw_name ? p->pw_name : "???"),
+ 		   (long) uid);
+ 	  if (uid_errno == -1)
+ 	    fprintf(stderr, "%s: unknown error\n", buf);
+ 	  else
+-            {
+-              errno = uid_errno;
+-              perror(buf);
+-            }
++	    perror(buf);
+ 	}
+ 
+       return -1;
+@@ -350,7 +263,7 @@
+ 	!strcmp (p->pw_name, "games"))
+       {
+ 	static char buf [1024];
+-	sprintf (buf, "running as %.100s",
++	sprintf (buf, "running as %s",
+ 		 (p && p->pw_name && *p->pw_name
+ 		  ? p->pw_name : "<unknown>"));
+ 	si->nolock_reason = buf;

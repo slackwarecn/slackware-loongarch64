@@ -1,0 +1,42 @@
+# Servers to build:
+BUILD_SERVERS="--enable-xorg \
+  --enable-xvfb \
+  --enable-xnest \
+  --enable-kdrive \
+  --enable-xephyr \
+  --enable-xsdl \
+  --enable-xfbdev"
+
+MESA_VERSION=${MESA_VERSION:-7.5}
+
+# Default font paths to be used by the X server
+DEF_FONTPATH="/usr/share/fonts/local,/usr/share/fonts/TTF,/usr/share/fonts/OTF,/usr/share/fonts/Type1,/usr/share/fonts/misc,/usr/share/fonts/CID,/usr/share/fonts/75dpi/:unscaled,/usr/share/fonts/100dpi/:unscaled,/usr/share/fonts/75dpi,/usr/share/fonts/100dpi,/usr/share/fonts/cyrillic"
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --infodir=/usr/info \
+  --mandir=/usr/man \
+  --disable-static \
+  --with-pic \
+  --with-int10=x86emu \
+  --with-default-font-path="${DEF_FONTPATH}" \
+  --with-module-dir=/usr/lib${LIBDIRSUFFIX}/xorg/modules \
+  --with-dri-driver-path=/usr/lib${LIBDIRSUFFIX}/xorg/modules/dri \
+  --with-os-name="Slackware 13.0" \
+  --with-os-vendor="Slackware Linux Project" \
+  --with-mesa-source=/tmp/Mesa-${MESA_VERSION} \
+  --with-xkb-path=/etc/X11/xkb \
+  --with-xkb-output=/var/lib/xkb \
+  $BUILD_SERVERS \
+  --build=$ARCH-slackware-linux
+
+if [ "$ARCH" = "x86_64" ]; then
+  # To prevent the error "No rule to make target `-ldl'"
+  sed -i -e 's#-ldl##' hw/xfree86/Makefile
+  sed -i -e 's#-lm#-lm -ldl#' hw/xfree86/Makefile
+fi
+

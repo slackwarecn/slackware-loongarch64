@@ -1,0 +1,46 @@
+#!/bin/sh
+# Build and install MySQL on Slackware
+# by:  David Cantrell <david@slackware.com>
+# Currently maintained by:  Patrick Volkerding <volkerdi@slackware.com>
+
+VERSION=5.0.84
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-mysql
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf mysql-$VERSION
+tar xvf $CWD/mysql-$VERSION.tar.?z* || exit 1
+cd mysql-$VERSION
+
+CFLAGS="$SLKCFLAGS -fPIC" CXXFLAGS="$SLKCFLAGS -fPIC" \
+    ./configure --prefix=/usr --libdir=/usr/lib${LIBDIRSUFFIX} \
+    --datadir=/usr/share --sysconfdir=/etc/mysql \
+    --libexecdir=/usr/sbin --localstatedir=/var/lib/mysql \
+    --without-docs --without-man --without-server \
+    --with-embedded-server --without-innodb --without-bench \
+    --without-berkeley-db --without-row-based-replication \
+    --without-readline --disable-shared --with-charset=utf8 \
+    --without-debug --with-pthread --without-openssl --without-query-cache \
+    --without-geometry --with-pic
+
+make -j6 || make || exit 1
+
+cp libmysqld/libmysqld.a /usr/lib${LIBDIRSUFFIX}/mysql/
+

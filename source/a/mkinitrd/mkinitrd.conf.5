@@ -1,0 +1,174 @@
+.\" mkinitrd.5   Robby Workman <rworkman@slackware.com>
+.\" 25 November 2007 "
+
+.TH MKINITRD.CONF 5 "05 Februrary 2008" "Slackware 12.1"
+.SH NAME 
+.B mkinitrd.conf(5)
+.SH SYNOPSIS
+.B mkinitrd.conf - optional configuration file for 
+.I mkinitrd(8)
+
+.SH DESCRIPTION
+The
+.I mkinitrd.conf
+file contains options to be passed to
+.I mkinitrd(8)
+on every run if mkinitrd is executed with the -F flag.  
+.br 
+It is intended as a fast and easy way for the system administrator to
+pass options to mkinitrd without having to type them on each execution.
+
+Options passed to 
+.I mkinitrd(8)
+on the command line will override any
+values set in the config file.
+
+.SH OPTIONS AND SYNTAX
+
+All options are in the format of OPTION="value"
+.br
+Unset variables have no effect.
+
+.TP 5
+.I SOURCE_TREE
+This is the location for the initrd's source tree.
+.br
+Defaults to "/boot/initrd-tree"
+
+.TP 5
+.I CLEAR_TREE
+This option specifies whether to clear the initrd source tree prior to
+creating the initrd. 
+.br
+This requires a value of either "0" or "1" where 0=no and 1=yes
+.br
+Examples:
+.br
+CLEAR_TREE="0"		# Do not clear initrd tree first
+.br
+CLEAR_TREE="1"		# Clear initrd tree first
+
+It is recommended to leave this unset and pass "-c" on the command line
+when clearing the tree is desired.  Clearing the tree is not desirable
+if you wish to build support for more than one kernel into the initrd
+image.
+
+.TP 5
+.I OUTPUT_IMAGE
+This is the location for the initrd image that is created.
+.br
+Defaults to "/boot/initrd.gz"
+
+.TP 5
+.I KERNEL_VERSION
+This is the kernel version for which the initrd should be created.
+.br
+Defaults to "$(uname -r)"
+
+.TP 5
+.I KEYMAP
+This is the custom keyboard map that should be loaded instead of the
+default 'us' keymap.
+.br
+The file /usr/share/mkinitrd/keymaps.tar.gz contains all possible keymaps
+to choose from (omit the '.bmap' extension in the mkinitrd command)
+.br
+Example: KEYMAP="nl"
+
+.TP 5
+.I MODULE_LIST
+This should be a colon-separated list of modules you wish to be included
+in the initrd image.  
+.br
+Example: MODULE_LIST="ext3:mbcache:jbd"
+
+If you have loadtime options that you need to specify when loading kernel
+modules, those can be added here as well.
+.br
+Example: MODULE_LIST="module1:module2 option=1:module3"
+
+.TP 5
+.I LUKSDEV
+When using cryptsetup with an encrypted root partition, use this variable to 
+define the *actual* device name of the encrypted root partition and define the
+*mapped* device name as ROOTDEV.
+.br
+For example, if your actual root device name in /etc/fstab is:
+.br
+.I /dev/mapper/cryptroot
+on 
+.I /dev/sda2
+
+Then you'll need to set:
+.br
+LUKSDEV="/dev/sda2"
+.br
+ROOTDEV="cryptroot"
+
+.TP 5
+.I ROOTDEV
+The device on which your root filesystem is located.
+.br
+Example: ROOTDEV="/dev/sda2"
+
+If you are using cryptsetup and an encrypted root filesystem, be sure to
+read the option above for LUKSDEV or Bad Things will happen.
+
+.TP 5
+.I ROOTFS
+The filesystem type of your root filesystem
+.br
+Example: ROOTFS="ext3"
+
+.TP 5
+.I RAID
+This option adds the mdadm binary to the initrd to support RAID.
+Additional modules may be required, depending on your kernel
+configuration.  If you wish to add LVM support to the initrd, then
+set this to 1; otherwise, leave it unset or set it to 0.
+.br
+Examples:
+.br
+RAID="0"          # Do not add RAID support to initrd
+.br
+RAID="1"          # Add RAID support to initrd
+
+.TP 5
+.I LVM
+This option adds support for LVM partitions into the initrd.
+If you wish to add LVM support to the initrd, then set this to 1;
+otherwise, leave it unset or set it to 0.
+.br
+Examples:
+.br
+LVM="0"          # Do not add LVM support to initrd
+.br
+LVM="1"          # Add LVM support to initrd
+
+.TP 5
+.I WAIT
+This defines the time to wait, in seconds, until all disks are detected.
+.br
+This is useful for allowing extra time that might be needed for slow usb disks or systems with large amounts of storage to become ready.
+.br
+If not defined, the default is 1 second.
+
+.TP 5
+.I RESUMEDEV
+The swap partition holding your hibernation image.
+.br
+Example: RESUMEDEV="/dev/sda2"
+
+.SH FILES
+.I /etc/mkinitrd.conf
+.br
+See /etc/mkinitrd.conf.sample
+
+.SH "SEE ALSO"
+.BR mkinitrd "(8)"
+
+.SH BUGS
+None known :-)
+
+.SH MISCELLANEOUS
+Support for mkinitrd.conf was added in mkinitrd-1.3.0

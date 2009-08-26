@@ -1,0 +1,93 @@
+--- ./comsat/comsat.c.orig	Sun Jun  3 01:31:30 2001
++++ ./comsat/comsat.c	Sun Jun  3 01:31:34 2001
+@@ -77,8 +77,8 @@
+ static int nutmp;
+ 
+ static void mailfor(char *name);
+-static void notify(struct utmp *utp, off_t offset);
+-static void jkfprintf(FILE *, const char *name, off_t offset, const char *cr);
++static void notify(struct utmp *utp, off_t offset, const char *mailfile);
++static void jkfprintf(FILE *, const char *name, off_t offset, const char *cr, const char *mailfile);
+ static void onalrm(int);
+ 
+ int main(void) {
+@@ -273,20 +273,27 @@
+ static void mailfor(char *name)
+ {
+ 	struct utmp *utp;
+-	char *cp;
++	char *cp, *cp2;
+ 	off_t offset;
+ 
++ 	dsyslog(LOG_DEBUG, "mailfor: name =  %s\n", name); /* T.Crane  29/06/2001 */
++
++	/* Eg. name is "tom@5990326:/var/spool/mail/tom.wien" */
+ 	/* Break off the file offset part and convert it to an integer. */
+ 	cp = strchr(name, '@');
++	/* First, get the actual filename, ie. the part after the ':' */
++	cp2 = strchr(name, ':')+1; /* If it does not exist cp2==NULL */
+ 	if (!cp) return;
+ 	*cp = 0;
+ 	offset = atol(cp + 1);
++ 	dsyslog(LOG_DEBUG, "mailfor: offset =  %d\n", offset); /* T.Crane  29/06/2001 */
++ 	dsyslog(LOG_DEBUG, "mailfor: mailfile =  %s\n", cp2); /* T.Crane  29/06/2001 */
+ 
+ 	/* Look through the utmp and call notify() for each matching login. */
+ 	utp = &utmp[nutmp];
+ 	while (--utp >= utmp) {
+ 		if (!strncmp(utp->ut_name, name, sizeof(utmp[0].ut_name)))
+-			notify(utp, offset);
++			notify(utp, offset, cp2);
+ 	}
+ }
+ 
+@@ -314,7 +321,7 @@
+ /*
+  * This actually writes to the user's terminal.
+  */
+-static void notify(struct utmp *utp, off_t offset)
++static void notify(struct utmp *utp, off_t offset, const char *mailfile)
+ {
+ 	FILE *tp;                              /* file open on tty */
+ 	struct stat stb;
+@@ -427,7 +434,7 @@
+ 	/*
+ 	 * Print the first few lines of the message.
+ 	 */
+-	jkfprintf(tp, name, offset, cr);
++	jkfprintf(tp, name, offset, cr, mailfile);
+ 
+ 	/*
+ 	 * Close up and quit the child process.
+@@ -439,8 +446,11 @@
+ /*
+  * This prints a few lines from the mailbox of the user "name" at offset
+  * "offset", using "cr" as the line break string, to the file "tp".
++ * Added mailfile variable to take the name of the actual mailfile
++ * passed to us rather than the defalt mailfile of the user "name", 
++ * T.Crane (T.Crane@rhul.ac.uk), 29/05/2001.
+  */
+-static void jkfprintf(FILE *tp, const char *name, off_t offset, const char *cr)
++static void jkfprintf(FILE *tp, const char *name, off_t offset, const char  *cr, const char *mailfile)
+ {
+ 	char *cp, ch;
+ 	FILE *fi;
+@@ -473,7 +483,17 @@
+ 	/*
+ 	 * Open the user's mailbox (recall we're already in the mail spool dir)
+ 	 */
+-	fi = fopen(name, "r");
++
++	/* If mailfile == NULL, then use name (ie. users' username instead) */
++	if (mailfile != NULL) {
++	 dsyslog(LOG_DEBUG, "jkfprint: actual mailbox = %s\n",mailfile);
++	 fi = fopen(mailfile, "r");
++	}
++	else {
++	 dsyslog(LOG_DEBUG, "jkfprint: actual mailbox==NULL, using name %s\n",name);
++	 fi = fopen(name, "r");
++	  }
++
+ 	if (fi == NULL)	return;
+ 
+ 	/* Move to requested offset */

@@ -1,0 +1,86 @@
+diff --git a/game.c b/game.c
+index e6f3a53..b789081 100644
+--- a/game.c
++++ b/game.c
+@@ -93,7 +93,7 @@ void RateLanding (db, lander)
+    extern LINE landingpad[];
+    int x_distance, z_distance;  /* Distance from center of pad */
+    int abs ();
+-   void InitializeLander (), DisplayAcceleration ();
++   void InitFrameRate (), InitializeLander (), DisplayAcceleration ();
+ 
+    x_distance =
+       abs ((int) (db->off_x - (landingpad[0].x1 + (PAD_WIDTH >> 1))));
+@@ -108,6 +108,7 @@ void RateLanding (db, lander)
+    }
+    XDrawImageString (d, instrBuffer, gcInstr, 381, 84, buf, strlen (buf));
+    Pause ("Press mouse button to continue");
++   InitFrameRate ();
+    InitializeLander (db, lander);
+ 
+    /*
+diff --git a/initialize.c b/initialize.c
+index 99a81c5..279e3f2 100644
+--- a/initialize.c
++++ b/initialize.c
+@@ -60,7 +60,7 @@ void InitializeLander (craft, lander)
+    lander->retro_thruster = 0;
+    lander->vert_speed = 0.0;
+    lander->heading = 1.36;
+-   lander->lat_veloc = 100.0;
++   lander->lat_veloc = 300.0;
+    lander->fuel = FULL_TANK;
+    lander->alt = craft->off_y / PIXELS_PER_FOOT;
+ }
+diff --git a/patchlevel.h b/patchlevel.h
+index 9625f98..be79bb8 100644
+--- a/patchlevel.h
++++ b/patchlevel.h
+@@ -1,2 +1,2 @@
+-#define PATCHLEVEL 3
++#define PATCHLEVEL 4
+ 
+diff --git a/xlander.c b/xlander.c
+index 2b2c103..318e5df 100644
+--- a/xlander.c
++++ b/xlander.c
+@@ -101,9 +101,17 @@ void DisplayWorld ()
+ }
+ 
+ 
++void InitFrameRate ()
++{
++   gettimeofday(&frame_time, NULL);
++   gettimeofday(&prev_frame_time, NULL);
++   fps = 1000000.0; /* Avoid initial spike */
++}
++
++
+ void UpdateFrameRate ()
+ {
+-   unsigned long sec, usec, diff;
++   long sec, usec, diff;
+ 
+    gettimeofday(&frame_time, NULL);
+    sec = frame_time.tv_sec - prev_frame_time.tv_sec;
+@@ -164,6 +172,7 @@ int main (argc, argv)
+     */
+    mask = sigblock (sigmask (SIGINT));
+    Pause ("Press any mouse button to begin");
++   InitFrameRate ();
+    DisplayAcceleration ();
+    for (;;) {
+       UpdateOrientation (world, craft, &lander);
+diff --git a/xlander.h b/xlander.h
+index ea157f7..ea072d3 100644
+--- a/xlander.h
++++ b/xlander.h
+@@ -44,7 +44,7 @@
+ #define PIXELS_PER_FOOT 6        /* Number of pixels per foot */
+ #define ACCELERATION -5.310      /* Acceleration of gravity (ft/sec^2) */
+ #define RETRO 35.0               /* Acceleration due to retroactive thruster */
+-#define LATERAL_THRUST 5.0       /* Acceleration due to lateral thruster */
++#define LATERAL_THRUST 1.0       /* Acceleration due to lateral thruster */
+ #define PI 3.1415926535897932384
+ #define HALFPI 1.5707963         /* pi/2 */
+ #define TWOPI100 628

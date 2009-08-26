@@ -1,0 +1,26 @@
+commit aec7c567419a1b8c33be1d08f962eea31a53e317
+Author: Andrey Borzenkov <arvidjaar@mail.ru>
+Date:   Tue Jul 14 21:34:07 2009 +0200
+
+    work aroud crash caused by LED device handling
+
+    During suspend led device is removed; during resume it is recreated.
+    Apparently removing led device cause hald-addon- leds to exit
+    (thus disconnecting D-Bus connection); and sometimes next "add" event
+    comes too early, before hald had chance to notice missing addon.
+
+    Adds extra check to hald_singleton_device_added() to ensure we do not
+    abort on disconnected D-Bus connection.
+
+diff -Nur hal-0.5.11.orig/hald/hald_dbus.c hal-0.5.11/hald/hald_dbus.c
+--- hal-0.5.11.orig/hald/hald_dbus.c	2008-05-07 18:23:29.000000000 -0500
++++ hal-0.5.11/hald/hald_dbus.c	2009-07-16 16:19:04.629624258 -0500
+@@ -3432,7 +3432,7 @@
+ 	if (dbus_connection_send_with_reply (connection,
+ 					     message,
+ 					     &pending_call,
+-					     /*-1*/ 8000)) {
++					     /*-1*/ 8000) && pending_call) {
+ 		/*HAL_INFO (("connection=%x message=%x", connection, message));*/
+ 		dbus_pending_call_set_notify (pending_call,
+ 					      reply_from_singleton_device_changed,

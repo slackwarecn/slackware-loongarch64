@@ -1,0 +1,99 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-1.5E}
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-1}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686" 
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-xaw3d
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf $TMP/xc
+tar xvf $CWD/Xaw3d-$VERSION.tar.gz || exit 1
+( cd xc ; zcat $CWD/Xaw3d-$VERSION.diff.gz | patch -p2 --verbose --backup --suffix=.orig )
+( cd xc ; zcat $CWD/Xaw3d-1.5-debian-fixes.diff.gz | patch -p2 --verbose --backup --suffix=.orig )
+cd xc
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+cd lib/Xaw3d
+ln -s .. X11
+xmkmf
+make CCOPTIONS="$SLKCFLAGS -I." || exit 1
+strip --strip-unneeded libXaw3d.so.8.0
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+cat libXaw3d.so.8.0 > $PKG/usr/lib${LIBDIRSUFFIX}/libXaw3d.so.8.0
+chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/libXaw3d.so.8.0
+# Make compat symlinks:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  ln -sf libXaw3d.so.8.0 libXaw3d.so.8
+  ln -sf libXaw3d.so.8 libXaw3d.so
+  ln -sf libXaw3d.so.8 libXaw3d.so.7
+  ln -sf libXaw3d.so.7 libXaw3d.so.6
+)
+mkdir -p $PKG/usr/doc/Xaw3d-$VERSION
+cp -a README.XAW3D $PKG/usr/doc/Xaw3d-$VERSION
+chmod 644 $PKG/usr/doc/Xaw3d-$VERSION/README.XAW3D
+mkdir -p $PKG/usr/include/X11/Xaw3d
+for header in AllWidgets.h AsciiSink.h AsciiSinkP.h AsciiSrc.h AsciiSrcP.h \
+AsciiText.h AsciiTextP.h Box.h BoxP.h Cardinals.h Command.h CommandP.h \
+Dialog.h DialogP.h Form.h FormP.h Grip.h GripP.h Label.h LabelP.h Layout.h \
+LayoutP.h List.h ListP.h MenuButton.h MenuButtoP.h MultiSrc.h MultiSrcP.h \
+MultiSink.h MultiSinkP.h Paned.h PanedP.h Panner.h PannerP.h Porthole.h \
+PortholeP.h Repeater.h RepeaterP.h Reports.h Scrollbar.h ScrollbarP.h \
+Simple.h SimpleP.h SimpleMenu.h SimpleMenP.h Sme.h SmeP.h SmeBSB.h SmeBSBP.h \
+SmeLine.h SmeLineP.h SmeThreeD.h SmeThreeDP.h StripChart.h StripCharP.h \
+Template.c Template.h TemplateP.h Text.h TextP.h TextSink.h TextSinkP.h \
+TextSrc.h TextSrcP.h ThreeD.h ThreeDP.h Tip.h TipP.h Toggle.h ToggleP.h Tree.h \
+TreeP.h VendorEP.h Viewport.h ViewportP.h Xaw3dP.h XawImP.h XawInit.h ; do
+ cp -a $header $PKG/usr/include/X11/Xaw3d/$header
+ chmod 644 $PKG/usr/include/X11/Xaw3d/$header
+done
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c y $TMP/xaw3d-$VERSION-$ARCH-$BUILD.txz
+

@@ -1,0 +1,150 @@
+#!/bin/sh
+
+# Copyright 2000 BSDi, Inc. Concord, CA, USA
+# Copyright 2001, 2002 Slackware Linux, Inc.  Concord, CA, USA
+# Copyright 2005, 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+# Set initial variables:
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+
+VERSION=${VERSION:-0.9.8k}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+PKG1=$TMP/package-openssl
+PKG2=$TMP/package-ossllibs
+NAME1=openssl-$VERSION-$ARCH-$BUILD
+NAME2=openssl-solibs-$VERSION-$ARCH-$BUILD
+
+NUMJOBS=${NUMJOBS:--j6}
+
+# So that ls has the right field counts for parsing...
+export LC_ALL=C
+
+cd $TMP
+rm -rf $PKG1 $PKG2 openssl-$VERSION
+tar xvf $CWD/openssl-$VERSION.tar.bz2 || exit 1
+cd openssl-$VERSION
+
+# Use .so.0, not .so.0.9.8:
+zcat $CWD/openssl.soname.diff.gz | patch -p1 --backup --verbose --suffix=.orig || exit 1
+if [ "$ARCH" = "i486" ]; then
+  # Build with -march=i486 -mtune=i686:
+  zcat $CWD/openssl.optsx86.diff.gz | patch -p1 --backup --verbose --suffix=.orig || exit 1
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+fi
+
+# Advertise TLS extensions only on TLS handshakes, not SSL:
+zcat $CWD/openssl.no-extssl.diff.gz | patch -p1 --verbose || exit 1
+
+chown -R root:root .
+mkdir -p $PKG1/usr/doc/openssl-$VERSION
+cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
+  LICENSE NEWS README README.ENGINE doc $PKG1/usr/doc/openssl-$VERSION
+find $PKG1/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \;
+find $PKG1/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \;
+
+# These are the known patent issues with OpenSSL:
+# name   #         expires
+# MDC-2: 4,908,861  2007-03-13, included.  :-)
+# IDEA:  5,214,703  2010-05-25, not included.
+# RC5:   5,724,428  2015-03-03, not included.
+
+./config \
+ --prefix=/usr \
+ --openssldir=/etc/ssl \
+ no-idea \
+ no-rc5 \
+ no-sse2 \
+ shared
+
+make depend || exit 1
+
+make $NUMJOBS || make || exit 1
+
+make install INSTALL_PREFIX=$PKG1 || exit 1
+
+( cd $PKG1/usr; mv lib lib${LIBDIRSUFFIX} )
+
+# Add a cron script to warn root if a certificate is going to expire soon:
+mkdir -p $PKG1/etc/cron.daily
+zcat $CWD/certwatch.gz > $PKG1/etc/cron.daily/certwatch.new
+chmod 755 $PKG1/etc/cron.daily/certwatch.new
+
+mv $PKG1/etc/ssl/openssl.cnf $PKG1/etc/ssl/openssl.cnf.new
+
+( cd $PKG1
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ldconfig -l * 2> /dev/null )
+( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ln -sf libcrypto.so.0 libcrypto.so )
+( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ln -sf libssl.so.0 libssl.so )
+mv $PKG1/etc/ssl/man $PKG1/usr
+( cd $PKG1/usr/man/man1 ; mv passwd.1 ssl_passwd.1 )
+( cd $PKG1/usr/man/man3 ; mv rand.3 ssl_rand.3 )
+( cd $PKG1/usr/man/man3 ; mv err.3 ssl_err.3 )
+# Compress and symlink the man pages:
+if [ -d $PKG1/usr/man ]; then
+  ( cd $PKG1/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
+cd $PKG1
+chmod 755 usr/lib${LIBDIRSUFFIX}/pkgconfig
+sed -i -e "s#lib\$#lib${LIBDIRSUFFIX}#" usr/lib${LIBDIRSUFFIX}/pkgconfig/*.pc
+mkdir -p install
+zcat $CWD/doinst.sh-openssl.gz > install/doinst.sh
+cat $CWD/slack-desc.openssl > install/slack-desc
+/sbin/makepkg -l y -c n $TMP/${NAME1}.txz
+
+# Make runtime package:
+mkdir -p $PKG2/usr/lib${LIBDIRSUFFIX}
+( cd usr/lib${LIBDIRSUFFIX} ; cp -a lib*.so.*.*.* $PKG2/usr/lib${LIBDIRSUFFIX} )
+( cd $PKG2/usr/lib${LIBDIRSUFFIX} ; ldconfig -l * )
+mkdir -p $PKG2/etc
+( cd $PKG2/etc ; cp -a $PKG1/etc/ssl . )
+mkdir -p $PKG2/usr/doc/openssl-$VERSION
+( cd $TMP/openssl-$VERSION
+  cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
+  LICENSE NEWS README README.ENGINE $PKG2/usr/doc/openssl-$VERSION
+)
+find $PKG2/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \;
+find $PKG2/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \;
+cd $PKG2
+mkdir -p install
+zcat $CWD/doinst.sh-openssl-solibs.gz > install/doinst.sh
+cat $CWD/slack-desc.openssl-solibs > install/slack-desc
+/sbin/makepkg -l y -c n $TMP/${NAME2}.txz

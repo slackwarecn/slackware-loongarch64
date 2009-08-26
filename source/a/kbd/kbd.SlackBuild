@@ -1,0 +1,177 @@
+#!/bin/sh
+
+# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PKGNAM=kbd
+VERSION=1.15
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+NUMJOBS=${NUMJOBS:--j4}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-kbd
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+
+# Add some extra fonts:
+( cd $PKG ; explodepkg $CWD/sources/extraf.tgz )
+
+# Extract source:
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/sources/$PKGNAM-$VERSION.tar.bz2
+cd $PKGNAM-$VERSION
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . -perm 666 -exec chmod 644 {} \;
+find . -perm 664 -exec chmod 644 {} \;
+find . -perm 600 -exec chmod 644 {} \;
+find . -perm 444 -exec chmod 644 {} \;
+find . -perm 400 -exec chmod 644 {} \;
+find . -perm 440 -exec chmod 644 {} \;
+find . -perm 777 -exec chmod 755 {} \;
+find . -perm 775 -exec chmod 755 {} \;
+find . -perm 511 -exec chmod 755 {} \;
+find . -perm 711 -exec chmod 755 {} \;
+find . -perm 555 -exec chmod 755 {} \;
+
+# Apply patches:
+# These are taken from Fedora's SRPM:
+zcat $CWD/sources/kbd-1.15-po.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-keycodes-man.patch | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-sparc.patch | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-unicode_start.patch | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-resizecon-x86_64.patch | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-quiet_doc.patch | patch -p1 --verbose || exit 1
+
+# This is from Fedora's spec file:
+# 7-bit maps are obsolete; so are non-euro maps
+( cd data/keymaps/i386
+  mv qwerty/fi.map qwerty/fi-old.map
+  cp -fav qwerty/fi-latin9.map qwerty/fi.map
+  cp -fav qwerty/pt-latin9.map qwerty/pt.map
+  cp -fav qwerty/sv-latin1.map qwerty/se-latin1.map
+  mv -fv azerty/fr.map azerty/fr-old.map
+  cp -fav azerty/fr-latin9.map azerty/fr.map
+  cp -fav azerty/fr-latin9.map azerty/fr-latin0.map # legacy alias
+
+  # Rename conflicting keymaps
+  mv -fv dvorak/no.map dvorak/no-dvorak.map
+  mv -fv fgGIod/trf.map fgGIod/trf-fgGIod.map
+  mv -fv olpc/es.map olpc/es-olpc.map
+  mv -fv olpc/pt.map olpc/pt-olpc.map
+  mv -fv qwerty/cz.map qwerty/cz-qwerty.map )
+
+# Apply a euro fix for the nl.map from alienBOB:
+zcat $CWD/sources/nl.euro.diff.gz | patch -p1 || exit 1
+
+# Configure:
+./configure \
+   --prefix=/usr \
+   --localedir=/usr/share/locale/ \
+   --mandir=/usr/man \
+   --docdir=/usr/doc/$PKGNAM-$VERSION \
+   --datadir=/usr/share/kbd \
+   --enable-nls || exit 1
+
+# Build:
+make $NUMJOBS || exit 1
+
+# Install into package:
+make install DESTDIR=$PKG || exit 1
+# This is where it's always been in Slackware, so let's move it back:
+( cd $PKG
+  mkdir -vpm755 bin
+  mv -fv usr/bin/loadkeys bin/
+  cd usr/bin ; ln -vsf ../../bin/loadkeys . )
+
+# ro_win.map.gz is useless
+rm -fv $PKG/usr/share/kbd/keymaps/i386/qwerty/ro_win.map.gz
+
+# The rhpl keyboard layout table is indexed by kbd layout names, so we need a
+# Korean keyboard
+ln -vfs us.map.gz $PKG/usr/share/kbd/keymaps/i386/qwerty/ko.map.gz
+
+# Install the setup script that will be run from the Slackware installer:
+mkdir -pm755 $PKG/var/log/setup
+install -vpm755 $CWD/setup.setconsolefont $PKG/var/log/setup/
+install -vpm755 $CWD/setconsolefont $PKG/usr/bin/
+
+# Copy docs:
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a \
+  ChangeLog COPYING README doc/* \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+rm -f $PKG/usr/doc/$PKGNAM-$VERSION/kbd.FAQ.sgml
+
+# Additional keymaps:
+# This is the keymap for Speakup (http://linux-speakup.org) users:
+cat $CWD/sources/speakupmap.map.gz > $PKG/usr/share/kbd/keymaps/i386/qwerty/speakupmap.map.gz
+# Another keymap for Speakup from Thomas Ward, for JFW users.
+tar xvf $CWD/sources/speakup-jfw.tar.gz
+( cd speakup-jfw
+  cat speakup-jfw.map | gzip -9c > $PKG/usr/share/kbd/keymaps/i386/qwerty/speakup-jfw.map.gz
+  cat readme > $PKG/usr/share/kbd/keymaps/i386/qwerty/speakup-jfw.readme )
+
+# Create the default run control script which will set the
+# console font to the default:
+mkdir -pm755 $PKG/etc/rc.d
+cat << EOF > $PKG/etc/rc.d/rc.font.new
+#!/bin/sh
+#
+# This selects your default screen font from among the ones in
+# /usr/share/kbd/consolefonts.
+#
+setfont -v
+EOF
+chmod 755 $PKG/etc/rc.d/rc.font.new
+
+# Create package post-install script:
+mkdir -p $PKG/install
+cat << EOF > $PKG/install/doinst.sh
+#if [ -r etc/rc.d/rc.font ]; then
+#  rm -f etc/rc.d/rc.font.new
+#else
+#  mv etc/rc.d/rc.font.new etc/rc.d/rc.font
+#fi
+EOF
+
+# Compress man pages:
+( cd $PKG/usr/man
+  find . -name "*.?" -type f | xargs gzip -9
+)
+
+# Install package description:
+install -vpm644 $CWD/slack-desc $PKG/install/
+
+# Strip binaries:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+cd $PKG
+makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+#EOF

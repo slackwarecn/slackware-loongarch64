@@ -1,0 +1,324 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>TCP/IP Configuration</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="Slackware Linux Essentials" href="index.html" />
+<link rel="UP" title="Network Configuration" href="network-configuration.html" />
+<link rel="PREVIOUS" title="Network Hardware Configuration"
+href="network-configuration-hardware.html" />
+<link rel="NEXT" title="PPP" href="network-configuration-ppp.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">Slackware Linux Essentials</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a
+href="network-configuration-hardware.html" accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 5 Network Configuration</td>
+<td width="10%" align="right" valign="bottom"><a href="network-configuration-ppp.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-CONFIGURATION-TCPIP"
+name="NETWORK-CONFIGURATION-TCPIP">5.3 TCP/IP Configuration</a></h1>
+
+<p>At this point, your network card should be physically installed in your computer, and
+the relevant kernel modules should be loaded. You will not yet be able to communicate
+over your network card, but information about the network device can be obtained with <tt
+class="COMMAND">ifconfig -a</tt>.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig -a</kbd>
+eth0 Link encap:Ethernet HWaddr 00:A0:CC:3C:60:A4
+UP BROADCAST NOTRAILERS RUNNING MULTICAST MTU:1500 Metric:1
+RX packets:110081 errors:1 dropped:0 overruns:0 frame:0
+TX packets:84931 errors:0 dropped:0 overruns:0 carrier:0
+collisions:0 txqueuelen:100
+RX bytes:114824506 (109.5 Mb) TX bytes:9337924 (8.9 Mb)
+Interrupt:5 Base address:0x8400
+
+lo Link encap:Local Loopback
+inet addr:127.0.0.1 Mask:255.0.0.0
+UP LOOPBACK RUNNING MTU:16436 Metric:1
+RX packets:2234 errors:0 dropped:0 overruns:0 frame:0
+TX packets:2234 errors:0 dropped:0 overruns:0 carrier:0
+collisions:0 txqueuelen:0
+RX bytes:168758 (164.8 Kb) TX bytes:168758 (164.8 Kb)
+</pre>
+</td>
+</tr>
+</table>
+
+<p>If you just typed <tt class="COMMAND">/sbin/ifconfig</tt> without the <var
+class="OPTION">-a</var> suffix, you would not see the <tt class="FILENAME">eth0</tt>
+interface, as your network card does not yet have a valid IP address or route.</p>
+
+<p>While there are many different ways to setup and subnet a network, all of them can be
+broken down into two types: Static and Dynamic. Static networks are setup such that each
+node (geek lingo for thing with an IP address) always has the same IP address. Dynamic
+networks are setup in such a way that the IP addresses for the nodes are controlled by a
+single server called the DHCP server.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CONFIGURATION-TCPIP-DHCP"
+name="NETWORK-CONFIGURATION-TCPIP-DHCP">5.3.1 DHCP</a></h2>
+
+<p>DHCP (or Dynamic Host Configuration Protocol), is a means by which an IP address may
+be assigned to a computer on boot. When the DHCP <span class="emphasis"><i
+class="EMPHASIS">client</i></span> boots, it puts out a request on the Local Area Network
+for a DHCP <span class="emphasis"><i class="EMPHASIS">server</i></span> to assign it an
+IP address. The DHCP server has a pool (or <span class="emphasis"><i
+class="EMPHASIS">scope</i></span>) of IP addresses available. The server will respond to
+this request with an IP address from the pool, along with a <span class="emphasis"><i
+class="EMPHASIS">lease time</i></span>. Once the lease time for a given IP address lease
+has expired, the client must contact the server again and repeat the negotiation.</p>
+
+<p>The client will then accept the IP address from the server and will configure the
+requested interface with the IP address. There is one more handy trick that DHCP clients
+use for negotiating the IP address that they will be assigned, however. The client will
+remember it's last assigned IP address, and will request that the server re-assign that
+IP address to the client again upon next negotiation. If possible, the server will do so,
+but if not, a new address is assigned. So, the negotiation resembles the following:</p>
+
+<p class="LITERALLAYOUT">&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Client</i></span>:&nbsp;Is&nbsp;there&nbsp;a&nbsp;DHCP&nbsp;server&nbsp;available&nbsp;on&nbsp;the&nbsp;LAN?<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Server</i></span>:&nbsp;Yes,&nbsp;there&nbsp;is.&nbsp;Here&nbsp;I&nbsp;am.<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Client</i></span>:&nbsp;I&nbsp;need&nbsp;an&nbsp;IP&nbsp;address.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Server</i></span>:&nbsp;You&nbsp;may&nbsp;take&nbsp;192.168.10.10&nbsp;for&nbsp;19200&nbsp;seconds.<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Client</i></span>:&nbsp;Thank&nbsp;you.</p>
+
+<p class="LITERALLAYOUT">&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Client</i></span>:&nbsp;Is&nbsp;there&nbsp;a&nbsp;DHCP&nbsp;server&nbsp;available&nbsp;on&nbsp;the&nbsp;LAN?<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Server</i></span>:Yes,&nbsp;there&nbsp;is.&nbsp;Here&nbsp;I&nbsp;am.<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Client</i></span>:I&nbsp;need&nbsp;an&nbsp;IP&nbsp;address.&nbsp;The&nbsp;last&nbsp;time&nbsp;we<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;talked,&nbsp;I&nbsp;had&nbsp;192.168.10.10;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;May&nbsp;I&nbsp;have&nbsp;it&nbsp;again?<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Server</i></span>:Yes,&nbsp;you&nbsp;may&nbsp;(or&nbsp;No,&nbsp;you&nbsp;may&nbsp;not:&nbsp;take&nbsp;192.168.10.12&nbsp;instead).<br />
+
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="emphasis"><i
+class="EMPHASIS">Client</i></span>:&nbsp;Thank&nbsp;you.</p>
+
+<p>The DHCP client in Linux is <tt class="COMMAND">/sbin/dhcpcd</tt>. If you load <tt
+class="FILENAME">/etc/rc.d/rc.inet1</tt> in your favorite text editor, you will notice
+that <tt class="COMMAND">/sbin/dhcpcd</tt> is called about midway through the script.
+This will force the conversation shown above. <tt class="COMMAND">dhcpcd</tt> will also
+track the amount of time left on the lease for the current IP address, and will
+automatically contact the DHCP server with a request to renew the lease when necessary.
+DHCP can also control related information, such as what ntp server to use, what route to
+take, etc.</p>
+
+<p>Setting up DHCP on Slackware is simple. Just run <tt class="COMMAND">netconfig</tt>
+and select DHCP when offered. If you have more than one NIC and do not wish <tt
+class="FILENAME">eth0</tt> to be configured by DHCP, just edit the <tt
+class="FILENAME">/etc/rc.d/rc.inet1.conf</tt> file and change the related variable for
+your NIC to &#8220;<var class="LITERAL">YES</var>&#8221;.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CONFIGURATION-TCPIP-STATIC"
+name="NETWORK-CONFIGURATION-TCPIP-STATIC">5.3.2 Static IP</a></h2>
+
+<p>Static IP addresses are fixed addresses that only change if manually told to. These
+are used in any case where an administrator doesn't want the IP information to change,
+such for internal servers on a LAN, any server connected to the Internet, and networked
+routers. With static IP addressing, you assign an address and leave it at that. Other
+machines know that you are always at that certain IP address and can contact you at that
+address always.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CONFIGURATION-TCPIP-CONF"
+name="NETWORK-CONFIGURATION-TCPIP-CONF">5.3.3 <tt
+class="FILENAME">/etc/rc.d/rc.inet1.conf</tt></a></h2>
+
+<p>If you plan on assigning an IP address to your new Slackware box, you may do so either
+through the <tt class="FILENAME">netconfig</tt> script, or you may edit <tt
+class="FILENAME">/etc/rc.d/rc.inet1.conf</tt>. In <tt
+class="FILENAME">/etc/rc.d/rc.inet1.conf</tt> , you will notice:</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="PROGRAMLISTING">
+    # Primary network interface card (eth0)
+    IPADDR[0]=""
+    NETMASK[0]=""
+    USE_DHCP[0]=""
+    DHCP_HOSTNAME[0]=""
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Then further at the bottom:</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="PROGRAMLISTING">
+    GATEWAY=""
+</pre>
+</td>
+</tr>
+</table>
+
+<p>In this case, our task is merely to place the correct information between the
+double-quotes. These variables are called by <tt class="FILENAME">/etc/rc.d/rc.inet1</tt>
+at boot time to setup the nics. For each NIC, just enter the correct IP information, or
+put &#8220;<var class="LITERAL">YES</var>&#8221; for <var class="LITERAL">USE_DHCP</var>.
+Slackware will startup the interfaces with the information placed here in the order they
+are found.</p>
+
+<p>The <var class="LITERAL">DEFAULT_GW</var> variable sets up the default route for
+Slackware. All communications between your computer and other computers on the Internet
+must pass through that gateway if no other route is specified for them. If you are using
+DHCP, you will usually not need to enter anything here, as the DHCP server will specify
+what gateway to use.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CONFIGURATION-TCPIP-RESOLVER"
+name="NETWORK-CONFIGURATION-TCPIP-RESOLVER">5.3.4 <tt
+class="FILENAME">/etc/resolv.conf</tt></a></h2>
+
+<p>Ok, so you've got an IP address, you've got a default gateway, you may even have ten
+million dollars (give us some), but what good is that if you can't resolve names to IP
+addresses? No one wants to type in <tt class="HOSTID">72.9.234.112</tt> into their web
+browser to reach <tt class="HOSTID">www.slackbook.org</tt>. After all, who other than the
+authors would memorize that IP address? We need to setup DNS, but how? That's where <tt
+class="FILENAME">/etc/resolv.conf</tt> comes into play.</p>
+
+<p>Chances are you already have the proper options in <tt
+class="FILENAME">/etc/resolv.conf</tt>. If you setup your network connection using DHCP,
+the DHCP server should handle updating this file for you. (Technically the DHCP server
+just tells <tt class="COMMAND">dhcpcd</tt> what to put here, and it obeys.) If you need
+to manually update your DNS server list though, you'll need to hand edit <tt
+class="FILENAME">/etc/resolv.conf</tt>. Below is an example:</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cat /etc/resolv.conf</kbd>
+nameserver 192.168.1.254
+search lizella.net
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The first line is simple. The nameserver directive tells us what DNS servers to query.
+By necessity these are always IP addresses. You may have as many listed there as you
+like. Slackware will happily check one after the other until one returns a match.</p>
+
+<p>The second line is a little more interesting. The search directive gives us a list of
+domain names to assume whenever a DNS request is made. This allows you to contact a
+machine by only the first part of its FQDN (Fully Qualified Domain Name). For example, if
+&#8220;slackware.com&#8221; were in your search path, you could reach <tt
+class="HOSTID">http://store.slackware.com</tt> by just pointing your web browser at <tt
+class="HOSTID">http://store</tt>.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ping -c 1 store</kbd>
+PING store.slackware.com (69.50.233.153): 56 data bytes
+64 bytes from 69.50.233.153 : icmp_seq=0 ttl=64 time=0.251 ms
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 0.251/0.251/0.251 ms
+</pre>
+</td>
+</tr>
+</table>
+
+<br />
+<br />
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CONFIGURATION-TCPIP-HOSTS"
+name="NETWORK-CONFIGURATION-TCPIP-HOSTS">5.3.5 <tt
+class="FILENAME">/etc/hosts</tt></a></h2>
+
+<p>Now that we've got DNS working fine, what if we want to bypass our DNS server, or add
+a DNS entry for a machine that isn't in DNS? Slackware includes the oft-loved <tt
+class="FILENAME">/etc/hosts</tt> file which contains a local list of DNS names and IP
+addresses they should match to.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cat /etc/hosts</kbd>
+127.0.0.1           localhost  locahost.localdomain
+192.168.1.101       redtail
+172.14.66.32        foobar.slackware.com
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Here you can see that localhost has an IP address of <tt class="HOSTID">127.0.0.1</tt>
+(always reserved for localhost), redtail can be reached at <tt
+class="HOSTID">192.168.1.101</tt>, and <tt class="HOSTID">foobar.slackware.com</tt> is
+<tt class="HOSTID">172.14.66.32</tt>.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-configuration-hardware.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-configuration-ppp.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Network Hardware Configuration</td>
+<td width="34%" align="center" valign="top"><a href="network-configuration.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">PPP</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

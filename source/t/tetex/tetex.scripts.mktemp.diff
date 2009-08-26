@@ -1,0 +1,244 @@
+--- tetex-src-3.0/texk/tetex/allcm.badscript	2004-06-20 21:38:02.000000000 +0900
++++ tetex-src-3.0/texk/tetex/allcm	2005-02-07 15:31:32.578141611 +0900
+@@ -14,7 +14,7 @@
+ test -n "${ZSH_VERSION+set}" && alias -g '${1+"$@"}'='"$@"'
+ 
+ progname=`basename $0`
+-tmpdir=${TMP-/tmp}/$progname.$$
++tmpdir=`mktemp -d ${TMP-/tmp}/$progname.XXXXXX`
+ 
+ case "$progname" in
+   allec)
+@@ -81,11 +81,6 @@
+   exit 1
+ ' 1 2 3 7 13 15
+ 
+-(umask 077; mkdir "$tmpdir") || {
+-  echo "$progname: failed to create temp directory." >&2
+-  exit 1
+-}
+-
+ cd $tmpdir || exit 1
+ echo >&2
+ echo "---------------------------------------------------------------------" >&2
+--- tetex-src-3.0/texk/tetex/fmtutil.badscript	2005-01-30 18:12:16.000000000 +0900
++++ tetex-src-3.0/texk/tetex/fmtutil	2005-02-07 15:31:32.579141429 +0900
+@@ -105,8 +105,6 @@
+ 
+   trap 'cleanup' 1 2 3 7 13 15
+   needsCleanup=true
+-  (umask 077; mkdir "$tmpdir") \
+-    || abort "could not create directory \`$tmpdir'"
+ }
+ 
+ ###############################################################################
+@@ -357,7 +355,7 @@
+   need_find_hyphenfile=false
+   cfgparam=
+   cfgmaint=
+-  tmpdir=${TMP-/tmp}/$progname.$$
++  tmpdir=`mktemp -d ${TMP-/tmp}/$progname.XXXXXX`
+   verboseFlag=true
+ 
+   # mktexfmtMode: if called as mktexfmt, set to true. Will echo the generated
+--- tetex-src-3.0/texk/tetex/texconfig.badscript	2005-02-07 03:20:53.000000000 +0900
++++ tetex-src-3.0/texk/tetex/texconfig	2005-02-07 15:31:32.581141065 +0900
+@@ -35,7 +35,7 @@
+   TEXMFDBS TEXMFINI TEXMFSCRIPTS TEXPICTS TEXPKS TEXPOOL TEXPSHEADERS
+   TEXSOURCES TFMFONTS TRFONTS TTFONTS VFFONTS WEB2C WEBINPUTS
+ "
+-tmpdir=${TMP-/tmp}/tctmp.$$
++tmpdir=`mktemp -d "${TMP-/tmp}/$progname.XXXXXX"` || exit 1
+ needsCleanup=false
+ lastUpdatedFile=
+ 
+@@ -214,8 +214,6 @@
+ 
+   trap 'cleanup' 1 2 3 7 13 15
+   needsCleanup=true
+-  (umask 077; mkdir "$tmpdir") \
+-    || abort "could not create directory \`$tmpdir'"
+ }
+ 
+ ###############################################################################
+--- tetex-src-3.0/texk/tetex/texlinks.badscript	2004-05-11 03:53:38.000000000 +0900
++++ tetex-src-3.0/texk/tetex/texlinks	2005-02-07 15:31:32.583140701 +0900
+@@ -92,8 +92,6 @@
+ 
+   trap 'cleanup' 1 2 3 7 13 15
+   needsCleanup=true
+-  (umask 077; mkdir "$tmpdir") \
+-    || abort "could not create directory \`$tmpdir'"
+ }
+ 
+ 
+@@ -209,7 +207,7 @@
+ upd_symlinkdir()
+ {
+   search_symlinkdir || return 0
+-  for i in `sed 's@ .*@@' cnf_file_ln.$$`; do
++  for i in `sed 's@ .*@@' $tmpdir/cnf_file_ln`; do
+     install_link "$selfautoloc/$i" "$symlinkdir/$i"
+   done
+ }
+@@ -253,7 +251,7 @@
+   test -f "$cnf_file" || abort "config file \`$cnf' not found"
+ 
+ 
+-  tmpdir=${TMP-/tmp}/texlinks.$$
++  tmpdir=`mktemp -d ${TMP-/tmp}/$progname.XXXXXX` || exit 1
+   setupTmpDir
+   cd "$tmpdir" || {
+     false  # some systems need this to set nonzero $?
+@@ -261,7 +259,7 @@
+   }
+ 
+   sed '/^[ 	]*#/d; /^[ 	]*$/d' $cnf_file \
+-    | awk '{print $1, $2}' > cnf_file_ln.$$
++    | awk '{print $1, $2}' > $tmpdir/cnf_file_ln
+ 
+   if test -z "$dirs"; then
+     if test $multiplatform = true; then
+@@ -279,8 +277,8 @@
+   for d in $dirs; do
+     kpseaccess -w $d \
+       || { errmsg "$d: no write permissions. Skipping..."; continue; }
+-    # cnf_file_ln.$$ has lines with "format engine" pairs
+-    set x `cat cnf_file_ln.$$`; shift
++    # $tmpdir/cnf_file_ln has lines with "format engine" pairs
++    set x `cat $tmpdir/cnf_file_ln`; shift
+     while test $# != 0; do
+       fmt=$1; engine=$2; shift; shift
+ 
+--- tetex-src-3.0/texk/tetex/updmap.badscript	2005-02-05 06:34:26.000000000 +0900
++++ tetex-src-3.0/texk/tetex/updmap	2005-02-07 15:31:32.585140338 +0900
+@@ -761,7 +761,6 @@
+ 
+   trap 'cleanup' 1 2 3 7 13 15
+   needsCleanup=true
+-  mkdir "$tmpdir" || abort "could not create directory \`$tmpdir'"
+ }
+ 
+ ###############################################################################
+@@ -1282,7 +1281,8 @@
+   dvipsoutputdir=; pdftexoutputdir=; dvipdfmoutputdir=
+   : ${TEXMFMAIN=`kpsewhich -var-value=TEXMFMAIN`}
+ 
+-  tmpdir=${TMP-/tmp}/$progname.$$
++  tmpdir=`mktemp -d ${TMP-/tmp}/$progname.XXXXXX` || \
++	abort "could not create directory"
+   tmp1=$tmpdir/a
+   tmp2=$tmpdir/b
+   tmp3=$tmpdir/c
+--- tetex-src-3.0/texk/kpathsea/mktexlsr.badscript	2005-01-22 04:13:57.000000000 +0900
++++ tetex-src-3.0/texk/kpathsea/mktexlsr	2005-02-07 15:31:32.586140156 +0900
+@@ -119,9 +119,8 @@
+   # Skip if we cannot write the file:
+   kpseaccess -w "$db_file" || { echo "$progname: $db_file: no write permission. Skipping..." >&2; continue; }
+ 
+-  db_dir_tmp="$db_dir/lsR$$.tmp"
+-  (umask 077 && mkdir "$db_dir_tmp" ) \
+-    || { echo "$progname: could not create directory '$db_dir_tmp'. Skipping..." >&2; continue; }
++  db_dir_tmp=`mktemp -d "$db_dir/lsR.XXXXXX"` \
++    || { echo "$progname: could not create secure temporary directory. Skipping..." >&2; continue; }
+   db_file_tmp="$db_dir_tmp/lsR$$.tmp"
+   rm -f "$db_file_tmp"
+ 
+--- tetex-src-3.0/texk/kpathsea/mktexmf.badscript	2005-01-26 02:39:21.000000000 +0900
++++ tetex-src-3.0/texk/kpathsea/mktexmf	2005-02-07 15:31:32.587139974 +0900
+@@ -87,50 +87,52 @@
+   exit 0
+ fi
+ 
++tmpfile=`mktemp mf.XXXXXX`
++
+ case "$name" in
+   ec*|tc*)
+-    cat > "mf$$.tmp" <<END
++    cat > "$tmpfile" <<END
+ if unknown exbase: input exbase fi;
+ gensize:=$realsize;
+ generate $rootname;
+ END
+     ;;
+   dc*)
+-    cat > "mf$$.tmp" <<END
++    cat > "$tmpfile" <<END
+ if unknown dxbase: input dxbase fi;
+ gensize:=$realsize;
+ generate $rootname;
+ END
+     ;;
+   cs*|lcsss*|icscsc*|icstt*|ilcsss*)
+-    cat > "mf$$.tmp" <<END
++    cat > "$tmpfile" <<END
+ input cscode
+ use_driver;
+ END
+     ;;
+   wn[bcdfirstuv]*|rx[bcdfiorstuvx][bcfhilmostx]*|l[abcdhl][bcdfiorstuvx]*)
+-    cat > "mf$$.tmp" <<END
++    cat > "$tmpfile" <<END
+ input fikparm;
+ END
+     ;;
+   g[lmorst][ijmtwx][cilnoru]*)
+     # A small superset of the names of the cbgreek fonts.
+-    cat > "mf$$.tmp" <<END
++    cat > "$tmpfile" <<END
+ gensize:=$realsize;
+ input $rootname;
+ END
+     ;;
+   *)
+-    cat > "mf$$.tmp" <<END
++    cat > "$tmpfile" <<END
+ design_size := $realsize;
+ input $rootname;
+ END
+     ;;
+ esac
+ 
+-chmod `kpsestat -xst,go-w .` "mf$$.tmp"
++chmod `kpsestat -xst,go-w .` "$tmpfile"
+ rm -f "$mfname"
+-mv "mf$$.tmp" "$mfname"
++mv "$tmpfile" "$mfname"
+ 
+ echo "$destdir/$mfname" >$STDOUT
+ echo "$progname: $destdir/$mfname: successfully generated." >&2
+--- tetex-src-3.0/texk/dviljk/dvihp.badscript	2002-07-08 02:49:09.000000000 +0900
++++ tetex-src-3.0/texk/dviljk/dvihp	2005-02-07 15:31:32.588139792 +0900
+@@ -7,9 +7,7 @@
+ : ${SPOOL=lpr}          # used to print an LJ file
+ : ${TMP=/tmp}        # for the dvicopy output
+ 
+-TMPDIR="${TMP}"/dvihp$$
+-(umask 077; mkdir "$TMPDIR") \
+-  || { echo "cannot create directory \`$TMPDIR'."; exit 1; }
++TMPDIR=`mktemp -d ${TMPDIR}/dvihp.XXXXXX` || { echo "cannot create secure temporary directory."; exit 1; }
+ 
+ trap '
+   cd "${TMP}"
+--- tetex-src-3.0/texk/dvipdfm/dvipdft.badscript	2004-11-19 06:26:19.000000000 +0900
++++ tetex-src-3.0/texk/dvipdfm/dvipdft	2005-02-07 15:31:32.589139610 +0900
+@@ -31,7 +31,7 @@
+        $progname --help
+        $progname --version"
+ 
+-tmpdir=${TMP-/tmp}/$progname.$$
++tmpdir=`mktemp -d ${TMP-/tmp}/$progname.XXXXXX`
+ 
+ quoteit()
+ {
+--- tetex-src-3.0/texk/xdvik/xdvizilla.badscript	2004-02-25 08:08:56.000000000 +0900
++++ tetex-src-3.0/texk/xdvik/xdvizilla	2005-02-07 15:31:32.590139429 +0900
+@@ -61,7 +61,7 @@
+ trap 'do_cleanup' 1 2 3 7 13 15
+ 
+ ### create a temporary directory only read/writable by user
+-TMP_DIR=${TMP-/tmp}/$progname.$$
++TMP_DIR=`mktmp -d ${TMP-/tmp}/$progname.XXXXXX`
+ (umask 077; mkdir "$TMP_DIR") || do_abort "Could not create directory \`$TMP_DIR'"
+ 
+ if [ $# -gt 1 -a "x$1" = "x-no-rm" ]; then

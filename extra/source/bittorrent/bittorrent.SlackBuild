@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=${VERSION:-4.4.0}
+ARCH=noarch
+BUILD=${BUILD:-3}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=/tmp/package-bittorrent
+rm -rf $PKG
+mkdir -p $PKG $TMP
+
+cd $TMP
+rm -rf BitTorrent-$VERSION
+tar xvf $CWD/BitTorrent-$VERSION.tar.bz2 || exit 1
+cd BitTorrent-$VERSION || exit 1
+chown -R root.root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+python setup.py build install --root=$PKG
+# Add bittorrent-xterm (this just opens an xterm for bittorrent-curses so
+# that it can work as a MIME handler from mailcap):
+mkdir -p $PKG/usr/bin
+zcat $CWD/bittorrent-xterm.sh.gz > $PKG/usr/bin/bittorrent-xterm
+chmod 755 $PKG/usr/bin/bittorrent-xterm
+mkdir -p $PKG/usr/doc/BitTorrent-$VERSION
+cp -a \
+  INSTALL.unix.txt LICENSE.txt PKG-INFO README.txt TRACKERLESS.txt \
+  credits-l10n.txt credits.txt public.key redirdonate.html \
+  $PKG/usr/doc/BitTorrent-$VERSION
+rm -rf $PKG/usr/share/doc $PKG/usr/share/pixmaps/BitTorrent-$VERSION/icons/old
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+# Add support for using bittorrent-curses instead of bittorrent-gui
+# in /etc/mailcap:
+zcat $CWD/doinst.sh > $PKG/install/doinst.sh
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/bittorrent-$VERSION-$ARCH-$BUILD.txz
+

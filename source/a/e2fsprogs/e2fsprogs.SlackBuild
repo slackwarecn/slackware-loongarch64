@@ -1,0 +1,159 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=${VERSION:-1.41.8}
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-1}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-e2fsprogs
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf e2fsprogs-$VERSION
+tar xvf $CWD/e2fsprogs-$VERSION.tar.?z* || exit 1
+cd e2fsprogs-$VERSION || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Disable --uuidd builds the same functionality into libuuid.*.
+# It's better that way.
+# Keep the included libblkid and libuuid for now, but we'll be using the 
+# system-wide one from util-linux-ng sooner or later...
+# fsck.* will also be moving to u-l-ng
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix= \
+  --libdir=/lib${LIBDIRSUFFIX} \
+  --bindir=/usr/bin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --docdir=/usr/doc/e2fsprogs-$VERSION \
+  --enable-elf-shlibs \
+  --enable-libblkid \
+  --enable-libuuid \
+  --disable-uuidd \
+  --build=$ARCH-slackware-linux
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+make install-libs DESTDIR=$PKG || exit 1
+
+# I guess Ted would rather not have this included, so we won't.
+# ( cd misc 
+#   make findsuper
+#   cat findsuper > $PKG/sbin/findsuper
+#   chmod 0755 $PKG/sbin/findsuper )
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Don't clobber an existing config file
+mv $PKG/etc/mke2fs.conf $PKG/etc/mke2fs.conf.new
+
+# Fix up package:
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+mv $PKG/lib${LIBDIRSUFFIX}/pkgconfig $PKG/lib${LIBDIRSUFFIX}/*.so \
+  $PKG/usr/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  for i in *.so ; do 
+    ln -sf /lib${LIBDIRSUFFIX}/$(readlink $i) $i ; 
+  done
+)
+( cd $PKG/sbin
+  rm -f \
+    mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.ext4dev \
+    fsck.ext2 fsck.ext3 fsck.ext4dev e2label findfs
+  ln -sf mke2fs mkfs.ext2
+  ln -sf mke2fs mkfs.ext3
+  ln -sf mke2fs mkfs.ext4
+  ln -sf mke2fs mkfs.ext4dev
+  ln -sf tune2fs e2label
+  ln -sf tune2fs findfs
+  cat << EOF > fsck.ext2
+#!/bin/sh
+exec /sbin/e2fsck -C 0 \$*
+EOF
+  chmod 0755 fsck.ext2
+  # Why won't symlinks work here?  --RW
+  # Because $0 will always be "fsck.ext2" in that case.  --PJV
+  cp -a fsck.ext2 fsck.ext3
+  cp -a fsck.ext2 fsck.ext4
+  cp -a fsck.ext2 fsck.ext4dev
+)
+( cd $PKG/usr/man/man3
+  rm -f uuid_generate_random.3 uuid_generate_time.3
+  ln -sf uuid_generate.3 uuid_generate_random.3
+  ln -sf uuid_generate.3 uuid_generate_time.3 
+)
+( cd $PKG/usr/man/man8
+  rm -f fsck.ext2.8 fsck.ext3.8 mkfs.ext2.8 mkfs.ext3.8 \
+    mkfs.ext4.8 mkfs.ext4dev.8
+  ln -sf e2fsck.8 fsck.ext2.8
+  ln -sf e2fsck.8 fsck.ext3.8
+  ln -sf e2fsck.8 fsck.ext4.8
+  ln -sf e2fsck.8 fsck.ext4dev.8
+  ln -sf mke2fs.8 mkfs.ext2.8
+  ln -sf mke2fs.8 mkfs.ext3.8
+  ln -sf mke2fs.8 mkfs.ext4.8
+  ln -sf mke2fs.8 mkfs.ext4dev.8
+)
+
+# Compress and link manpages
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $( find . -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+)
+
+mkdir -p $PKG/usr/doc/e2fsprogs-$VERSION
+cp -a \
+  COPYING* INSTALL INSTALL.elfbin README* RELEASE-NOTES SHLIBS \
+  $PKG/usr/doc/e2fsprogs-$VERSION
+chmod 644 $PKG/usr/doc/e2fsprogs-$VERSION/*
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/e2fsprogs-$VERSION-$ARCH-$BUILD.txz
+

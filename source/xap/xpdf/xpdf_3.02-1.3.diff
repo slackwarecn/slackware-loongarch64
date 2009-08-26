@@ -1,0 +1,4470 @@
+--- xpdf-3.02.orig/debian/README.Debian
++++ xpdf-3.02/debian/README.Debian
+@@ -0,0 +1,16 @@
++
++This package incorporates the following Xpdf language
++packages:
++
++xpdf-cyrillic 2002-jun-28
++xpdf-greek    2002-jun-28
++xpdf-hebrew   2003-feb-16
++xpdf-latin2   2002-oct-22
++xpdf-thai     2002-jan-16
++xpdf-turkish  2002-apr-10
++xpdf-arabic   2003-feb-16
++
++xpdf-chinese-simplified, xpdf-chinese-traditional, xpdf-korean
++and xpdf-japanese are separate Debian packages in the "non-free"
++section of the Debian archive.
++
+--- xpdf-3.02.orig/debian/xpdf-utils.files
++++ xpdf-3.02/debian/xpdf-utils.files
+@@ -0,0 +1,10 @@
++/usr/share/man/man1/pdftotext.1
++/usr/share/man/man1/pdfinfo.1
++/usr/share/man/man1/pdffonts.1
++/usr/share/man/man1/pdfimages.1
++/usr/share/man/man1/pdftops.1
++/usr/bin/pdftops
++/usr/bin/pdftotext
++/usr/bin/pdfinfo
++/usr/bin/pdffonts
++/usr/bin/pdfimages
+--- xpdf-3.02.orig/debian/patches-obselete/04_freetype-glyph.dpatch
++++ xpdf-3.02/debian/patches-obselete/04_freetype-glyph.dpatch
+@@ -0,0 +1,20 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 04_freetype-glyph.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Bug fix for Freetype glyph handling
++
++@DPATCH@
++
++--- xpdf-3.00.orig/splash/SplashFTFont.cc
+++++ xpdf-3.00/splash/SplashFTFont.cc
++@@ -238,6 +238,9 @@
++   if (FT_Get_Glyph(slot, &glyph)) {
++     return NULL;
++   }
+++  if (glyph->format != FT_GLYPH_FORMAT_OUTLINE) {
+++    return NULL;
+++  }
++   path.path = new SplashPath();
++   path.needClose = gFalse;
++   FT_Outline_Decompose(&((FT_OutlineGlyph)glyph)->outline,
+--- xpdf-3.02.orig/debian/patches-obselete/07_decrypt.dpatch
++++ xpdf-3.02/debian/patches-obselete/07_decrypt.dpatch
+@@ -0,0 +1,52 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 07_decrypt.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Avoid potential buffer overruns during decryption
++
++@DPATCH@
++diff -urNad --exclude=CVS --exclude=.svn ./xpdf/Decrypt.cc /tmp/dpep-work.wRRwAu/xpdf-3.01/xpdf/Decrypt.cc
++--- ./xpdf/Decrypt.cc	2005-08-17 15:34:31.000000000 +1000
+++++ /tmp/dpep-work.wRRwAu/xpdf-3.01/xpdf/Decrypt.cc	2005-08-19 18:47:09.000000000 +1000
++@@ -75,6 +75,11 @@
++   Guchar fx, fy;
++   int len, i, j;
++ 
+++  // check whether we have non-zero keyLength
+++  if ( !keyLength ) {
+++    return gFalse;
+++  }
+++
++   // try using the supplied owner password to generate the user password
++   *ownerPasswordOk = gFalse;
++   if (ownerPassword) {
++@@ -100,7 +105,7 @@
++     } else {
++       memcpy(test2, ownerKey->getCString(), 32);
++       for (i = 19; i >= 0; --i) {
++-	for (j = 0; j < keyLength; ++j) {
+++	for (j = 0; j < keyLength && j < 16; ++j) {
++ 	  tmpKey[j] = test[j] ^ i;
++ 	}
++ 	rc4InitKey(tmpKey, keyLength, fState);
++@@ -140,6 +145,11 @@
++   int len, i, j;
++   GBool ok;
++ 
+++  // check whether we have non-zero keyLength
+++  if ( !keyLength ) {
+++    return gFalse;
+++  }
+++
++   // generate file key
++   buf = (Guchar *)gmalloc(72 + fileID->getLength());
++   if (userPassword) {
++@@ -184,7 +194,7 @@
++   } else if (encRevision == 3) {
++     memcpy(test, userKey->getCString(), 32);
++     for (i = 19; i >= 0; --i) {
++-      for (j = 0; j < keyLength; ++j) {
+++      for (j = 0; j < keyLength && j < 16; ++j) {
++ 	tmpKey[j] = fileKey[j] ^ i;
++       }
++       rc4InitKey(tmpKey, keyLength, fState);
+--- xpdf-3.02.orig/debian/patches-obselete/03_freetype-build.dpatch
++++ xpdf-3.02/debian/patches-obselete/03_freetype-build.dpatch
+@@ -0,0 +1,301 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 03_freetype-build.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Use pkg-config to locate FreeType build information
++
++@DPATCH@
++diff -urNad --exclude=CVS --exclude=.svn ./configure.in /tmp/dpep-work.9fnwEh/xpdf-3.01/configure.in
++--- ./configure.in	2005-08-19 17:06:04.000000000 +1000
+++++ /tmp/dpep-work.9fnwEh/xpdf-3.01/configure.in	2005-08-19 17:12:11.000000000 +1000
++@@ -301,10 +301,8 @@
++ AC_SUBST(t1_CFLAGS)
++ 
++ dnl ##### Check for FreeType 2.x.
++-dnl ##### (Note: FT_Get_Name_Index was added in FT 2.0.5, and is
++-dnl ##### the reason that Xpdf requires 2.0.5+.)
++-smr_CHECK_LIB(freetype2, freetype, [FreeType2 font rasterizer - version 2.0.5+],
++-              FT_Get_Name_Index, ft2build.h, -lm)
+++PKG_CHECK_MODULES(freetype2, freetype2 >= 9.5.3, smr_have_freetype2_library="yes",
+++                  smr_have_freetype2_library="no")
++ AC_SUBST(freetype2_LIBS)
++ AC_SUBST(freetype2_CFLAGS)
++ if test "x$smr_have_freetype2_library" = xyes; then
++diff -urNad --exclude=CVS --exclude=.svn ./smr.m4 /tmp/dpep-work.9fnwEh/xpdf-3.01/smr.m4
++--- ./smr.m4	1970-01-01 10:00:00.000000000 +1000
+++++ /tmp/dpep-work.9fnwEh/xpdf-3.01/smr.m4	2005-08-19 17:12:05.000000000 +1000
++@@ -0,0 +1,274 @@
+++# <<< smr.m4 from smr_macros 0.2.4 >>>
+++
+++dnl ####################### -*- Mode: M4 -*- ###########################
+++dnl smr.m4 -- 
+++dnl 
+++dnl Copyright (C) 1999 Matthew D. Langston <langston at SLAC.Stanford.EDU>
+++dnl Copyright (C) 1998 Steve Robbins <stever at cs.mcgill.ca>
+++dnl
+++dnl This file is free software; you can redistribute it and/or modify it
+++dnl under the terms of the GNU General Public License as published by
+++dnl the Free Software Foundation; either version 2 of the License, or
+++dnl (at your option) any later version.
+++dnl
+++dnl This file is distributed in the hope that it will be useful, but
+++dnl WITHOUT ANY WARRANTY; without even the implied warranty of
+++dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+++dnl General Public License for more details.
+++dnl
+++dnl You should have received a copy of the GNU General Public License
+++dnl along with this file; if not, write to:
+++dnl
+++dnl   Free Software Foundation, Inc.
+++dnl   Suite 330
+++dnl   59 Temple Place
+++dnl   Boston, MA 02111-1307, USA.
+++dnl ####################################################################
+++
+++
+++dnl NOTE: The macros in this file are extensively documented in the
+++dnl       accompanying `smr_macros.texi' Texinfo file.  Please see the
+++dnl       Texinfo documentation for the definitive specification of how
+++dnl       these macros are supposed to work.  If the macros work
+++dnl       differently than the Texinfo documentation says they should,
+++dnl       then the macros (and not the Texinfo documentation) has the
+++dnl       bug(s).
+++
+++dnl This is a convenient macro which translates illegal characters for
+++dnl bourne shell variables into legal characters.  It has the same
+++dnl functionality as sed 'y%./+-:%__p__%'.
+++AC_DEFUN([smr_safe_translation], [patsubst(patsubst([$1], [+], [p]), [./-:], [_])])
+++
+++AC_DEFUN(smr_SWITCH,
+++[
+++  dnl Define convenient aliases for the arguments since there are so
+++  dnl many of them and I keep confusing myself whenever I have to edit
+++  dnl this macro.
+++  pushdef([smr_name],        $1)
+++  pushdef([smr_help_string], $2)
+++  pushdef([smr_default],     $3)
+++  pushdef([smr_yes_define],  $4)
+++  pushdef([smr_no_define],   $5)
+++
+++  dnl Do some sanity checking of the arguments.
+++  ifelse([regexp(smr_default, [^\(yes\|no\)$])], -1, [AC_MSG_ERROR($0: third arg must be either yes or no)])
+++
+++  dnl Create the help string
+++  pushdef([smr_lhs], [--ifelse(smr_default, yes, disable, enable)-smr_name])dnl
+++  pushdef([smr_rhs], [ifelse(smr_default, yes, disable, enable) smr_help_string (default is smr_default)])dnl
+++
+++  dnl Add the option to `configure --help'.  We don't need to supply the
+++  dnl 4th argument to AC_ARG_ENABLE (i.e. the code to set the default
+++  dnl value) because that is done below by AC_CACHE_CHECK.
+++  AC_ARG_ENABLE([smr_name],
+++                AC_HELP_STRING([smr_lhs], [smr_rhs]),
+++                smr_cv_enable_[]smr_name=$enableval)
+++
+++  dnl We cache the result so that the user doesn't have to remember
+++  dnl which flags they passed to `configure'.
+++  AC_CACHE_CHECK([whether to enable smr_help_string],
+++                 smr_cv_enable_[]smr_name,
+++                 smr_cv_enable_[]smr_name=smr_default)
+++
+++    ifelse(smr_yes_define, , , test x"[$]smr_cv_enable_[]smr_name" = xyes && AC_DEFINE(smr_yes_define))
+++    ifelse(smr_no_define, , ,  test x"[$]smr_cv_enable_[]smr_name" = xno  && AC_DEFINE(smr_no_define))
+++
+++  dnl Sanity check the value assigned to smr_cv_enable_$1 to force it to
+++  dnl be either `yes' or `no'.
+++  if test ! x"[$]smr_cv_enable_[]smr_name" = xyes; then
+++    if test ! x"[$]smr_cv_enable_[]smr_name" = xno; then
+++      AC_MSG_ERROR([smr_lhs must be either yes or no])
+++    fi
+++  fi
+++
+++  popdef([smr_name])
+++  popdef([smr_help_string])
+++  popdef([smr_default])
+++  popdef([smr_yes_define])
+++  popdef([smr_no_define])
+++  popdef([smr_lhs])
+++  popdef([smr_rhs])
+++])
+++
+++
+++AC_DEFUN(smr_ARG_WITHLIB,
+++[
+++  dnl Define convenient aliases for the arguments since there are so
+++  dnl many of them and I keep confusing myself whenever I have to edit
+++  dnl this macro.
+++  pushdef([smr_name],        $1)
+++  pushdef([smr_libname],     ifelse($2, , smr_name, $2))
+++  pushdef([smr_help_string], $3)
+++  pushdef([smr_safe_name],   smr_safe_translation(smr_name))
+++
+++  dnl Add the option to `configure --help'.  We don't need to supply the
+++  dnl 4th argument to AC_ARG_WITH (i.e. the code to set the default
+++  dnl value) because that is done below by AC_CACHE_CHECK.
+++  AC_ARG_WITH(smr_safe_name-library,
+++              AC_HELP_STRING([--with-smr_safe_name-library[[=PATH]]],
+++                             [use smr_name library ifelse(smr_help_string, , , (smr_help_string))]),
+++              smr_cv_with_[]smr_safe_name[]_library=$withval)
+++
+++  dnl We cache the result so that the user doesn't have to remember
+++  dnl which flags they passed to `configure'.
+++  AC_CACHE_CHECK([whether to use smr_name library],
+++                 smr_cv_with_[]smr_safe_name[]_library,
+++                 smr_cv_with_[]smr_safe_name[]_library=maybe)
+++
+++
+++  case x"[$]smr_cv_with_[]smr_safe_name[]_library" in
+++      xyes | xmaybe)
+++          smr_safe_name[]_LIBS="-l[]smr_libname"
+++          with_[]smr_safe_name=[$]smr_cv_with_[]smr_safe_name[]_library
+++          ;;
+++      xno)
+++          smr_safe_name[]_LIBS=
+++          with_[]smr_safe_name=no
+++          ;;
+++      *)
+++          if test -f "[$]smr_cv_with_[]smr_safe_name[]_library"; then
+++            smr_safe_name[]_LIBS=[$]smr_cv_with_[]smr_safe_name[]_library
+++          elif test -d "[$]smr_cv_with_[]smr_safe_name[]_library"; then
+++            smr_safe_name[]_LIBS="-L[$]smr_cv_with_[]smr_safe_name[]_library -l[]smr_libname"
+++          else
+++            AC_MSG_ERROR([argument must be boolean, file, or directory])
+++          fi
+++          with_[]smr_safe_name=yes
+++          ;;
+++  esac
+++
+++  popdef([smr_name])
+++  popdef([smr_libname])
+++  popdef([smr_help_string])
+++  popdef([smr_safe_name])
+++])
+++
+++
+++AC_DEFUN(smr_ARG_WITHINCLUDES,
+++[
+++  dnl Define convenient aliases for the arguments since there are so
+++  dnl many of them and I keep confusing myself whenever I have to edit
+++  dnl this macro.
+++  pushdef([smr_name],        $1)
+++  pushdef([smr_header],      $2)
+++  pushdef([smr_extra_flags], $3)
+++  pushdef([smr_safe_name],   smr_safe_translation(smr_name))
+++
+++  dnl Add the option to `configure --help'.  We don't need to supply the
+++  dnl 4th argument to AC_ARG_WITH (i.e. the code to set the default
+++  dnl value) because that is done below by AC_CACHE_CHECK.
+++  AC_ARG_WITH(smr_safe_name-includes,
+++              AC_HELP_STRING([--with-smr_safe_name-includes[[=DIR]]],
+++                             [set directory for smr_name headers]),
+++              smr_cv_with_[]smr_safe_name[]_includes=$withval)
+++
+++  dnl We cache the result so that the user doesn't have to remember
+++  dnl which flags they passed to `configure'.
+++  AC_CACHE_CHECK([where to find the smr_name header files],
+++                 smr_cv_with_[]smr_safe_name[]_includes,
+++                 smr_cv_with_[]smr_safe_name[]_includes=)
+++
+++  if test ! x"[$]smr_cv_with_[]smr_safe_name[]_includes" = x; then
+++    if test -d "[$]smr_cv_with_[]smr_safe_name[]_includes"; then
+++      smr_safe_name[]_CFLAGS="-I[$]smr_cv_with_[]smr_safe_name[]_includes"
+++    else
+++      AC_MSG_ERROR([argument must be a directory])
+++    fi
+++  else
+++    smr_safe_name[]_CFLAGS=
+++  fi
+++
+++  dnl This bit of logic comes from the autoconf AC_PROG_CC macro.  We
+++  dnl need to put the given include directory into CPPFLAGS temporarily,
+++  dnl but then restore CPPFLAGS to its old value.
+++  smr_test_CPPFLAGS="${CPPFLAGS+set}"
+++  smr_save_CPPFLAGS="$CPPFLAGS"
+++  CPPFLAGS="$CPPFLAGS [$]smr_safe_name[]_CFLAGS smr_extra_flags"
+++
+++  dnl If the header file smr_header exists, then define
+++  dnl HAVE_[]smr_header (in all capitals).
+++  AC_CHECK_HEADERS([smr_header],
+++                   smr_have_[]smr_safe_name[]_header=yes,
+++                   smr_have_[]smr_safe_name[]_header=no)
+++
+++  if test x"$smr_test_CPPFLAGS" = xset; then
+++    CPPFLAGS=$smr_save_CPPFLAGS
+++  else
+++    unset CPPFLAGS
+++  fi
+++
+++  popdef([smr_name])
+++  popdef([smr_header])
+++  popdef([smr_extra_flags])
+++  popdef([smr_safe_name])
+++])
+++
+++
+++AC_DEFUN(smr_CHECK_LIB,
+++[
+++  dnl Define convenient aliases for the arguments since there are so
+++  dnl many of them and I keep confusing myself whenever I have to edit
+++  dnl this macro.
+++  pushdef([smr_name],        $1)
+++  pushdef([smr_libname],     ifelse($2, , smr_name, $2))
+++  pushdef([smr_help_string], $3)
+++  pushdef([smr_function],    $4)
+++  pushdef([smr_header],      $5)
+++  pushdef([smr_extra_libs],  $6)
+++  pushdef([smr_extra_flags], $7)
+++  pushdef([smr_prototype],   $8)
+++  pushdef([smr_safe_name],   smr_safe_translation(smr_name))
+++
+++  dnl Give the user (via "configure --help") an interface to specify
+++  dnl whether we should use the library or not, and possibly where we
+++  dnl should find it.
+++  smr_ARG_WITHLIB([smr_name], [smr_libname], [smr_help_string])
+++
+++  if test ! x"$with_[]smr_safe_name" = xno; then
+++
+++    # If we got this far, then the user didn't explicitly ask not to use
+++    # the library.
+++
+++    dnl If the caller of smr_CHECK_LIB specified a header file for this
+++    dnl library, then give the user (via "configure --help") an
+++    dnl interface to specify where this header file can be found (if it
+++    dnl isn't found by the compiler by default).
+++    ifelse(smr_header, , , [smr_ARG_WITHINCLUDES(smr_name, smr_header, smr_extra_flags)])
+++
+++    # We need only look for the library if the header has been found
+++    # (or no header is needed).
+++    if test [$]smr_have_[]smr_safe_name[]_header != no; then
+++
+++       AC_CHECK_LIB(smr_libname,
+++                    smr_function,
+++                    smr_have_[]smr_safe_name[]_library=yes,
+++                    smr_have_[]smr_safe_name[]_library=no,
+++                    [$]smr_safe_name[]_CFLAGS [smr_extra_flags] [$]smr_safe_name[]_LIBS [smr_extra_libs],
+++                    [ifelse(smr_prototype, , , [[#]include <smr_header>])],
+++                    smr_prototype)
+++    fi
+++
+++    if test x"[$]smr_have_[]smr_safe_name[]_library" = xyes; then
+++      AC_MSG_RESULT([using smr_name library])
+++    else
+++      smr_safe_name[]_LIBS=
+++      smr_safe_name[]_CFLAGS=
+++
+++      if test x"$with_[]smr_safe_name" = xmaybe; then
+++        AC_MSG_RESULT([not using smr_name library])
+++      else
+++        AC_MSG_WARN([requested smr_name library not found!])
+++      fi
+++    fi
+++  fi
+++
+++  popdef([smr_name])
+++  popdef([smr_libname])
+++  popdef([smr_help_string])
+++  popdef([smr_function])
+++  popdef([smr_header])
+++  popdef([smr_extra_libs])
+++  popdef([smr_extra_flags])
+++  popdef([smr_prototype])
+++  popdef([smr_safe_name])
+++])
+--- xpdf-3.02.orig/debian/patches-obselete/05_gmem.dpatch
++++ xpdf-3.02/debian/patches-obselete/05_gmem.dpatch
+@@ -0,0 +1,97 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 05_gmem.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Change all size parameters to size_t (why?)
++
++@DPATCH@
++diff -urNad --exclude=CVS --exclude=.svn ./goo/gmem.c /tmp/dpep-work.0qyf6L/xpdf-3.01/goo/gmem.c
++--- ./goo/gmem.c	2005-08-19 19:02:18.000000000 +1000
+++++ /tmp/dpep-work.0qyf6L/xpdf-3.01/goo/gmem.c	2005-08-19 19:05:34.000000000 +1000
++@@ -54,9 +54,9 @@
++ 
++ #endif /* DEBUG_MEM */
++ 
++-void *gmalloc(int size) {
+++void *gmalloc(size_t size) {
++ #ifdef DEBUG_MEM
++-  int size1;
+++  size_t size1;
++   char *mem;
++   GMemHdr *hdr;
++   void *data;
++@@ -96,11 +96,11 @@
++ #endif
++ }
++ 
++-void *grealloc(void *p, int size) {
+++void *grealloc(void *p, size_t size) {
++ #ifdef DEBUG_MEM
++   GMemHdr *hdr;
++   void *q;
++-  int oldSize;
+++  size_t oldSize;
++ 
++   if (size == 0) {
++     if (p)
++@@ -137,8 +137,8 @@
++ #endif
++ }
++ 
++-void *gmallocn(int nObjs, int objSize) {
++-  int n;
+++void *gmallocn(int nObjs, size_t objSize) {
+++  size_t n;
++ 
++   n = nObjs * objSize;
++   if (objSize == 0 || n / objSize != nObjs) {
++@@ -148,8 +148,8 @@
++   return gmalloc(n);
++ }
++ 
++-void *greallocn(void *p, int nObjs, int objSize) {
++-  int n;
+++void *greallocn(void *p, int nObjs, size_t objSize) {
+++  size_t n;
++ 
++   n = nObjs * objSize;
++   if (objSize == 0 || n / objSize != nObjs) {
++@@ -161,7 +161,7 @@
++ 
++ void gfree(void *p) {
++ #ifdef DEBUG_MEM
++-  int size;
+++  size_t size;
++   GMemHdr *hdr;
++   GMemHdr *prevHdr, *q;
++   int lst;
++diff -urNad --exclude=CVS --exclude=.svn ./goo/gmem.h /tmp/dpep-work.0qyf6L/xpdf-3.01/goo/gmem.h
++--- ./goo/gmem.h	2005-08-19 19:02:18.000000000 +1000
+++++ /tmp/dpep-work.0qyf6L/xpdf-3.01/goo/gmem.h	2005-08-19 19:04:24.000000000 +1000
++@@ -19,13 +19,13 @@
++  * Same as malloc, but prints error message and exits if malloc()
++  * returns NULL.
++  */
++-extern void *gmalloc(int size);
+++extern void *gmalloc(size_t size);
++ 
++ /*
++  * Same as realloc, but prints error message and exits if realloc()
++  * returns NULL.  If <p> is NULL, calls malloc instead of realloc().
++  */
++-extern void *grealloc(void *p, int size);
+++extern void *grealloc(void *p, size_t size);
++ 
++ /*
++  * These are similar to gmalloc and grealloc, but take an object count
++@@ -33,8 +33,8 @@
++  * bytes, but there is an additional error check that the total size
++  * doesn't overflow an int.
++  */
++-extern void *gmallocn(int nObjs, int objSize);
++-extern void *greallocn(void *p, int nObjs, int objSize);
+++extern void *gmallocn(int nObjs, size_t objSize);
+++extern void *greallocn(void *p, int nObjs, size_t objSize);
++ 
++ /*
++  * Same as free, but checks for and ignores NULL pointers.
+--- xpdf-3.02.orig/debian/patches-obselete/00list
++++ xpdf-3.02/debian/patches-obselete/00list
+@@ -0,0 +1,10 @@
++# Security fixes:
++04_freetype-glyph.dpatch
++05_gmem.dpatch
++06_splashpath.dpatch
++07_decrypt.dpatch
++08_core_action.dpatch
++23_security3.dpatch
++# Fix for full screen handling (bug#247602)
++31_fullscreen.patch
++32_vscroll.patch
+--- xpdf-3.02.orig/debian/patches-obselete/31_fullscreen.dpatch
++++ xpdf-3.02/debian/patches-obselete/31_fullscreen.dpatch
+@@ -0,0 +1,45 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 31_fullscreen.dpatch by Junichi Uekawa <dancer@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: NETWM support, rediff of 247602 by Eugeniy Meshcheryakov <eugen@univ.kiev.ua>
++
++@DPATCH@
++diff -urNad xpdf-3.01~/xpdf/XPDFViewer.cc xpdf-3.01/xpdf/XPDFViewer.cc
++--- xpdf-3.01~/xpdf/XPDFViewer.cc	2006-07-12 23:58:06.000000000 +0900
+++++ xpdf-3.01/xpdf/XPDFViewer.cc	2006-07-12 23:59:42.000000000 +0900
++@@ -1049,6 +1049,9 @@
++ #endif
++   int depth;
++   Pixel fg, bg, arm;
+++  Atom wmStateAtom;
+++  Atom wmStateFullscreenAtom;
+++  XClientMessageEvent event;
++ 
++   // show the window
++   XtPopup(win, XtGrabNone);
++@@ -1240,6 +1243,24 @@
++ 					    about_height,
++ 					    fg, arm, depth),
++ 		NULL);
+++  if (app->getFullScreen()) {
+++    XtUnmanageChild(toolBar);
+++    wmStateAtom = XInternAtom(display, "_NET_WM_STATE", False);
+++    wmStateFullscreenAtom = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+++    event.type = ClientMessage;
+++    event.serial = 0;
+++    event.send_event = True;
+++    event.window = XtWindow(win);
+++    event.message_type = wmStateAtom;
+++    event.format = 32;
+++    event.data.l[0] = 1; /* _NET_WM_STATE_ADD */
+++    event.data.l[1] = wmStateFullscreenAtom;
+++    event.data.l[2] = 0;
+++    event.data.l[3] = 0;
+++    event.data.l[4] = 0;
+++    XSendEvent(display, RootWindow(display, screenNum), False,
+++		    SubstructureRedirectMask | SubstructureNotifyMask, (XEvent *)&event);
+++  }
++ }
++ 
++ void XPDFViewer::closeWindow() {
+--- xpdf-3.02.orig/debian/patches-obselete/08_core_action.dpatch
++++ xpdf-3.02/debian/patches-obselete/08_core_action.dpatch
+@@ -0,0 +1,20 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 08_core_action.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: No description.
++
++@DPATCH@
++diff -urNad --exclude=CVS --exclude=.svn ./xpdf/XPDFCore.cc /tmp/dpep-work.ujprcX/xpdf-3.01/xpdf/XPDFCore.cc
++--- ./xpdf/XPDFCore.cc	2005-08-19 18:27:53.000000000 +1000
+++++ /tmp/dpep-work.ujprcX/xpdf-3.01/xpdf/XPDFCore.cc	2005-08-19 18:52:50.000000000 +1000
++@@ -452,6 +452,9 @@
++   GString *msg;
++   int i;
++ 
+++  if (action == 0)
+++    return;
+++
++   switch (kind = action->getKind()) {
++ 
++   // GoTo / GoToR action
+--- xpdf-3.02.orig/debian/patches-obselete/32_vscroll.dpatch
++++ xpdf-3.02/debian/patches-obselete/32_vscroll.dpatch
+@@ -0,0 +1,98 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 32_vscroll.dpatch by Junichi Uekawa <dancer@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: remove scrollbar patch, updated from 247602 by Eugeniy Meshcheryakov <eugen@univ.kiev.ua>
++
++@DPATCH@
++diff -urNad xpdf-3.01~/xpdf/XPDFCore.cc xpdf-3.01/xpdf/XPDFCore.cc
++--- xpdf-3.01~/xpdf/XPDFCore.cc	2006-07-13 00:06:46.000000000 +0900
+++++ xpdf-3.01/xpdf/XPDFCore.cc	2006-07-13 00:08:17.000000000 +0900
++@@ -881,39 +881,40 @@
++   XtSetArg(args[n], XmNvisualPolicy, XmVARIABLE); ++n;
++   scrolledWin = XmCreateScrolledWindow(parentWidget, "scroll", args, n);
++   XtManageChild(scrolledWin);
++-  n = 0;
++-  XtSetArg(args[n], XmNorientation, XmHORIZONTAL); ++n;
++-  XtSetArg(args[n], XmNminimum, 0); ++n;
++-  XtSetArg(args[n], XmNmaximum, 1); ++n;
++-  XtSetArg(args[n], XmNsliderSize, 1); ++n;
++-  XtSetArg(args[n], XmNvalue, 0); ++n;
++-  XtSetArg(args[n], XmNincrement, 1); ++n;
++-  XtSetArg(args[n], XmNpageIncrement, 1); ++n;
++-  hScrollBar = XmCreateScrollBar(scrolledWin, "hScrollBar", args, n);
++-  XtManageChild(hScrollBar);
++-  XtAddCallback(hScrollBar, XmNvalueChangedCallback,
++-		&hScrollChangeCbk, (XtPointer)this);
+++  if (!fullScreen) {
+++    n = 0;
+++    XtSetArg(args[n], XmNorientation, XmHORIZONTAL); ++n;
+++    XtSetArg(args[n], XmNminimum, 0); ++n;
+++    XtSetArg(args[n], XmNmaximum, 1); ++n;
+++    XtSetArg(args[n], XmNsliderSize, 1); ++n;
+++    XtSetArg(args[n], XmNvalue, 0); ++n;
+++    XtSetArg(args[n], XmNincrement, 1); ++n;
+++    XtSetArg(args[n], XmNpageIncrement, 1); ++n;
+++    hScrollBar = XmCreateScrollBar(scrolledWin, "hScrollBar", args, n);
+++    XtManageChild(hScrollBar);
+++    XtAddCallback(hScrollBar, XmNvalueChangedCallback,
+++		    &hScrollChangeCbk, (XtPointer)this);
++ #ifndef DISABLE_SMOOTH_SCROLL
++-  XtAddCallback(hScrollBar, XmNdragCallback,
++-		&hScrollDragCbk, (XtPointer)this);
+++    XtAddCallback(hScrollBar, XmNdragCallback,
+++		    &hScrollDragCbk, (XtPointer)this);
++ #endif
++-  n = 0;
++-  XtSetArg(args[n], XmNorientation, XmVERTICAL); ++n;
++-  XtSetArg(args[n], XmNminimum, 0); ++n;
++-  XtSetArg(args[n], XmNmaximum, 1); ++n;
++-  XtSetArg(args[n], XmNsliderSize, 1); ++n;
++-  XtSetArg(args[n], XmNvalue, 0); ++n;
++-  XtSetArg(args[n], XmNincrement, 1); ++n;
++-  XtSetArg(args[n], XmNpageIncrement, 1); ++n;
++-  vScrollBar = XmCreateScrollBar(scrolledWin, "vScrollBar", args, n);
++-  XtManageChild(vScrollBar);
++-  XtAddCallback(vScrollBar, XmNvalueChangedCallback,
++-		&vScrollChangeCbk, (XtPointer)this);
+++    n = 0;
+++    XtSetArg(args[n], XmNorientation, XmVERTICAL); ++n;
+++    XtSetArg(args[n], XmNminimum, 0); ++n;
+++    XtSetArg(args[n], XmNmaximum, 1); ++n;
+++    XtSetArg(args[n], XmNsliderSize, 1); ++n;
+++    XtSetArg(args[n], XmNvalue, 0); ++n;
+++    XtSetArg(args[n], XmNincrement, 1); ++n;
+++    XtSetArg(args[n], XmNpageIncrement, 1); ++n;
+++    vScrollBar = XmCreateScrollBar(scrolledWin, "vScrollBar", args, n);
+++    XtManageChild(vScrollBar);
+++    XtAddCallback(vScrollBar, XmNvalueChangedCallback,
+++		    &vScrollChangeCbk, (XtPointer)this);
++ #ifndef DISABLE_SMOOTH_SCROLL
++-  XtAddCallback(vScrollBar, XmNdragCallback,
++-		&vScrollDragCbk, (XtPointer)this);
+++    XtAddCallback(vScrollBar, XmNdragCallback,
+++		    &vScrollDragCbk, (XtPointer)this);
++ #endif
++-
+++  }
++   // create the drawing area
++   n = 0;
++   XtSetArg(args[n], XmNshadowType, XmSHADOW_IN); ++n;
++@@ -1459,7 +1460,7 @@
++   XtSetArg(args[n], XmNsliderSize, drawAreaWidth); ++n;
++   XtSetArg(args[n], XmNincrement, 16); ++n;
++   XtSetArg(args[n], XmNpageIncrement, drawAreaWidth); ++n;
++-  XtSetValues(hScrollBar, args, n);
+++  if (hScrollBar) XtSetValues(hScrollBar, args, n);
++ 
++   if (pages->getLength() > 0) {
++     if (continuousMode) {
++@@ -1479,7 +1480,7 @@
++   XtSetArg(args[n], XmNsliderSize, drawAreaHeight); ++n;
++   XtSetArg(args[n], XmNincrement, 16); ++n;
++   XtSetArg(args[n], XmNpageIncrement, drawAreaHeight); ++n;
++-  XtSetValues(vScrollBar, args, n);
+++  if (vScrollBar) XtSetValues(vScrollBar, args, n);
++ }
++ 
++ void XPDFCore::setCursor(Cursor cursor) {
+--- xpdf-3.02.orig/debian/patches-obselete/23_security3.dpatch
++++ xpdf-3.02/debian/patches-obselete/23_security3.dpatch
+@@ -0,0 +1,45 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 23_security3.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Red Hat-supplied patch for CAN-2006-0301
++
++@DPATCH@
++diff -urNad xpdf-3.01~/splash/Splash.cc xpdf-3.01/splash/Splash.cc
++--- xpdf-3.01~/splash/Splash.cc	2006-02-01 20:41:14.000000000 +1100
+++++ xpdf-3.01/splash/Splash.cc	2006-02-01 20:41:41.000000000 +1100
++@@ -931,6 +931,10 @@
++   int alpha2, ialpha2;
++   Guchar t;
++ 
+++  if ( (unsigned) x >= (unsigned) bitmap->getWidth() ||
+++       (unsigned) y >= (unsigned) bitmap->getHeight())
+++    return;
+++
++   if (noClip || state->clip->test(x, y)) {
++     if (alpha != 1 || softMask || state->blendFunc) {
++       blendFunc = state->blendFunc ? state->blendFunc : &blendNormal;
++@@ -1198,6 +1202,11 @@
++     updateModY(y);
++   }
++ 
+++  if ((unsigned) x0 >= (unsigned) bitmap->getWidth() ||
+++      (unsigned) x1 >= (unsigned) bitmap->getWidth() ||
+++      (unsigned) y >= (unsigned) bitmap->getHeight())
+++    return;
+++
++   if (alpha != 1 || softMask || state->blendFunc) {
++     blendFunc = state->blendFunc ? state->blendFunc : &blendNormal;
++     if (softMask) {
++@@ -1828,6 +1837,11 @@
++     updateModY(y);
++   }
++ 
+++  if ((unsigned) x0 >= (unsigned) bitmap->getWidth() ||
+++      (unsigned) x1 >= (unsigned) bitmap->getWidth() ||
+++      (unsigned) y >= (unsigned) bitmap->getHeight())
+++    return;
+++
++   switch (bitmap->mode) {
++   case splashModeMono1:
++     p = &bitmap->data[y * bitmap->rowSize + (x0 >> 3)];
+--- xpdf-3.02.orig/debian/patches-obselete/06_splashpath.dpatch
++++ xpdf-3.02/debian/patches-obselete/06_splashpath.dpatch
+@@ -0,0 +1,20 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 06_splashpath.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: No description.
++
++@DPATCH@
++diff -urNad --exclude=CVS --exclude=.svn ./splash/Splash.cc /tmp/dpep-work.Z6NPbI/xpdf-3.01/splash/Splash.cc
++--- ./splash/Splash.cc	2005-08-17 15:34:30.000000000 +1000
+++++ /tmp/dpep-work.Z6NPbI/xpdf-3.01/splash/Splash.cc	2005-08-19 18:36:11.000000000 +1000
++@@ -820,6 +820,9 @@
++   if (path->length == 0) {
++     return splashErrEmptyPath;
++   }
+++  if (path->length == 1) {
+++    return splashErrBogusPath;
+++  }
++   xPath = new SplashXPath(path, state->flatness, gTrue);
++   xPath->sort();
++   scanner = new SplashXPathScanner(xPath, eo);
+--- xpdf-3.02.orig/debian/xpdfrc
++++ xpdf-3.02/debian/xpdfrc
+@@ -0,0 +1,96 @@
++#========================================================================
++#
++# System-wide xpdfrc file
++#
++# The Xpdf tools look for a config file in two places:
++# 1. ~/.xpdfrc
++# 2. /etc/xpdf/xpdfrc
++#
++# Note that if ~/.xpdfrc exists, Xpdf will NOT read the system
++# configuration file /etc/xpdf/xpdfrc. You may wish to include it
++# from your ~/.xpdfrc using:
++#    include /etc/xpdf/xpdfrc
++# and then add additional settings.
++#
++# For complete details on config file syntax and available options, 
++# please see the xpdfrc(5) man page.
++#
++# http://www.foolabs.com/xpdf/
++#
++#========================================================================
++
++#----- display fonts
++
++# These map the Base-14 fonts to the Type 1 fonts that ship with
++# ghostscript (gsfonts package).
++
++displayFontT1 Times-Roman		/usr/share/fonts/type1/gsfonts/n021003l.pfb
++displayFontT1 Times-Italic		/usr/share/fonts/type1/gsfonts/n021023l.pfb
++displayFontT1 Times-Bold		/usr/share/fonts/type1/gsfonts/n021004l.pfb
++displayFontT1 Times-BoldItalic		/usr/share/fonts/type1/gsfonts/n021024l.pfb
++displayFontT1 Helvetica			/usr/share/fonts/type1/gsfonts/n019003l.pfb
++displayFontT1 Helvetica-Oblique		/usr/share/fonts/type1/gsfonts/n019023l.pfb
++displayFontT1 Helvetica-Bold		/usr/share/fonts/type1/gsfonts/n019004l.pfb
++displayFontT1 Helvetica-BoldOblique	/usr/share/fonts/type1/gsfonts/n019024l.pfb
++displayFontT1 Courier			/usr/share/fonts/type1/gsfonts/n022003l.pfb
++displayFontT1 Courier-Oblique		/usr/share/fonts/type1/gsfonts/n022023l.pfb
++displayFontT1 Courier-Bold		/usr/share/fonts/type1/gsfonts/n022004l.pfb
++displayFontT1 Courier-BoldOblique	/usr/share/fonts/type1/gsfonts/n022024l.pfb
++displayFontT1 Symbol			/usr/share/fonts/type1/gsfonts/s050000l.pfb
++displayFontT1 ZapfDingbats		/usr/share/fonts/type1/gsfonts/d050000l.pfb
++
++# If you need to display PDF files that refer to non-embedded fonts,
++# you should add one or more fontDir options to point to the
++# directories containing the font files.  Xpdf will only look at .pfa,
++# .pfb, and .ttf files in those directories (other files will simply
++# be ignored).
++
++#fontDir		/usr/local/fonts/bakoma
++
++#----- PostScript output control
++
++# Set the default PostScript file or command.
++
++psFile			"|lpr"
++
++# Set the default PostScript paper size -- this can be letter, legal,
++# A4, or A3.  You can also specify a paper size as width and height
++# (in points). Xpdf uses the paper size in /etc/papersize by default.
++
++#psPaperSize		letter
++
++#----- text output control
++
++# Choose a text encoding for copy-and-paste and for pdftotext output.
++# The Latin1, ASCII7, and UTF-8 encodings are built into Xpdf.  Other
++# encodings are available in the language support packages.
++
++#textEncoding		UTF-8
++
++# Choose the end-of-line convention for multi-line copy-and-past and
++# for pdftotext output.  The available options are unix, mac, and dos.
++
++#textEOL		unix
++
++#----- misc settings
++
++# Enable Type 1 font rasterizing with t1lib. Default "yes".
++
++#enableT1lib		no
++
++# Enable TrueType and Type 1 font rasterizing with FreeType. Default "yes".
++
++#enableFreeType		no
++
++# Enable anti-aliasing of fonts. Default "yes".
++
++#antialias		no
++
++# Set the command used to run a web browser when a URL hyperlink is
++# clicked.
++
++urlCommand	"sensible-browser '%s'"
++
++# Include the language configuration file list generated by update-xpdfrc
++include /etc/xpdf/includes
++
+--- xpdf-3.02.orig/debian/xpdf-common.postinst
++++ xpdf-3.02/debian/xpdf-common.postinst
+@@ -0,0 +1,20 @@
++#!/bin/sh
++set -e
++
++if [ "$1" = "configure" ]; then
++	/usr/sbin/update-xpdfrc
++fi
++
++# Remove old /etc/xpdfrc if present
++rm -f /etc/xpdfrc
++
++# Move accidental /etc/xpdf/xpdf-* language files
++# to their proper names (bug in 2.01-1)
++for i in cyrillic greek hebrew latin2 thai turkish; do
++	if [ -e /etc/xpdf/xpdf-$i ]; then
++		mv /etc/xpdf/xpdf-$i /etc/xpdf/xpdfrc-$i
++	fi
++done
++
++#DEBHELPER#
++
+--- xpdf-3.02.orig/debian/control
++++ xpdf-3.02/debian/control
+@@ -0,0 +1,75 @@
++Source: xpdf
++Section: text
++Priority: optional
++Maintainer: Hamish Moffatt <hamish@debian.org>
++Standards-Version: 3.7.2
++Build-Depends: libt1-dev (>= 5.0.2-3), libxext-dev, libxp-dev, libxt-dev, libxpm-dev, libx11-dev, lesstif2-dev | libmotif-dev, x-dev, debhelper (>= 4.2.21), libfreetype6-dev (>= 2.1.2-1), libpaper-dev | libpaperg-dev, pkg-config, dpatch, automake1.9, autoconf
++Build-Conflicts: libttf-dev, libstroke0-dev, autoconf2.13
++
++Package: xpdf
++Architecture: all
++Depends: xpdf-reader, xpdf-utils, xpdf-common
++Conflicts: xpdf-i (<= 0.90-8)
++Replaces: xpdf-i (<= 0.90-8)
++Description: Portable Document Format (PDF) suite
++ xpdf is a suite of tools for Portable Document Format (PDF) files. (These are
++ sometimes called 'Acrobat' files after the name of Adobe's PDF software.)
++ .
++ The tools include xpdf, a PDF viewer (in the package xpdf-reader),
++ and PDF converters (including to/from PostScript) (in the package
++ xpdf-utils).
++ .
++ This package is intended for compatibility with previous versions of
++ this package only. You can safely remove it from your system.
++
++Package: xpdf-common
++Architecture: all
++Conflicts: xpdf (<= 0.93-6), xpdf-cyrillic, xpdf-greek, xpdf-hebrew, xpdf-latin2, xpdf-thai, xpdf-turkish
++Replaces: xpdf-cyrillic, xpdf-greek, xpdf-hebrew, xpdf-latin2, xpdf-thai, xpdf-turkish
++Suggests: xpdf-reader | xpdf-utils
++Recommends: gsfonts-x11
++Description: Portable Document Format (PDF) suite -- common files
++ xpdf is a suite of tools for Portable Document Format (PDF) files. (These are
++ sometimes called 'Acrobat' files after the name of Adobe's PDF software.)
++ .
++ This package contains common files needed by the other xpdf packages.
++
++Package: xpdf-reader
++Architecture: any
++Depends: ${shlibs:Depends}, gsfonts (>= 6.0-1), xpdf-common (>= ${source:Version}), xpdf-common (<< ${source:Version}.1~)
++Provides: pdf-viewer, postscript-preview
++Conflicts: xpdf-i (<= 0.90-8), xpdf (<= 0.93-6)
++Suggests: www-browser
++Description: Portable Document Format (PDF) suite -- viewer for X11 
++ xpdf is a suite of tools for Portable Document Format (PDF) files. (These are
++ sometimes called 'Acrobat' files after the name of Adobe's PDF software.)
++ .
++ This package contains xpdf itself, a PDF viewer for X11.
++ xpdf is designed to be small and efficient. xpdf supports encrypted
++ PDF files. Standard X fonts, Truetype fonts and Type 1 fonts are supported.
++ .
++ This package also contains pdftoppm, a utility for converting
++ PDF files to PBM, PGM and PPM formats.
++ .
++ See also the xpdf-utils package for conversion utilities and the
++ other xpdf-* packages for additional language support.
++
++Package: xpdf-utils
++Architecture: any
++Depends: ${shlibs:Depends}, gsfonts (>= 6.0-1), xpdf-common (>= ${source:Version}), xpdf-common (<< ${source:Version}.1~)
++Provides: pdf-viewer, postscript-preview, poppler-utils
++Conflicts: xpdf-i (<= 0.90-8), xpdf (<= 0.93-6), poppler-utils
++Replaces: poppler-utils
++Suggests: pdftk
++Description: Portable Document Format (PDF) suite -- utilities
++ xpdf is a suite of tools for Portable Document Format (PDF) files. (These are
++ sometimes called 'Acrobat' files after the name of Adobe's PDF software.)
++ .
++ This package contains pdftops (PDF to PostScript converter),
++ pdfinfo (PDF document information extractor), pdfimages
++ (PDF image extractor), pdftotext (PDF to text converter), and
++ pdffonts (PDF font analyzer).
++ .
++ To view PDF files, see the xpdf-reader package. That package
++ also contains pdftoppm (PDF to Portable Bitmap converter).
++
+--- xpdf-3.02.orig/debian/xpdf-reader.mime
++++ xpdf-3.02/debian/xpdf-reader.mime
+@@ -0,0 +1,2 @@
++application/pdf; /usr/bin/xpdf %s; test=test "$DISPLAY" != ""; description=Portable Document Format; nametemplate=%s.pdf; priority=6
++application/x-pdf; /usr/bin/xpdf %s; test=test "$DISPLAY" != ""; description=Portable Document Format; nametemplate=%s.pdf; priority=6
+--- xpdf-3.02.orig/debian/xpdf-common.dirs
++++ xpdf-3.02/debian/xpdf-common.dirs
+@@ -0,0 +1,7 @@
++usr/share/doc/xpdf-common
++usr/share/doc/xpdf-common/examples
++usr/share/man/man5
++usr/share/man/man8
++usr/share/xpdf
++usr/sbin
++etc/xpdf
+--- xpdf-3.02.orig/debian/update-xpdfrc
++++ xpdf-3.02/debian/update-xpdfrc
+@@ -0,0 +1,22 @@
++#!/bin/sh
++set -e
++
++TARGET=/etc/xpdf/includes
++
++# Generate /etc/xpdf/includes from /etc/xpdf/*
++# This allows the xpdf-* language add-on packages
++# to supply configuration file snippets.
++
++echo \# DO NOT EDIT THIS FILE DIRECTLY. >> $TARGET
++echo \# This file was automatically generated by /usr/sbin/update-xpdfrc. > $TARGET
++echo \# Instead, add or remove files in /etc/xpdf/ then run >> $TARGET
++echo \# /usr/sbin/update-xpdfrc to regenerate this file. >> $TARGET
++echo >> $TARGET
++
++find /etc/xpdf \
++  -name xpdfrc-\* \
++  -and -not -name \*.dpkg\* \
++  -and -not -name \*~ \
++  -and -not -name \*,v \
++  -printf "include %p\n" >> $TARGET
++
+--- xpdf-3.02.orig/debian/xpdf-reader.files
++++ xpdf-3.02/debian/xpdf-reader.files
+@@ -0,0 +1,4 @@
++usr/share/man/man1/pdftoppm.1
++usr/share/man/man1/xpdf.1
++usr/bin/xpdf
++usr/bin/pdftoppm
+--- xpdf-3.02.orig/debian/update-xpdfrc.8
++++ xpdf-3.02/debian/update-xpdfrc.8
+@@ -0,0 +1,46 @@
++.\" Please adjust this date whenever revising the manpage.
++.\" 
++.\" Some roff macros, for reference:
++.\" .nh        disable hyphenation
++.\" .hy        enable hyphenation
++.\" .ad l      left justify
++.\" .ad b      justify to both left and right margins
++.\" .nf        disable filling
++.\" .fi        enable filling
++.\" .br        insert line break
++.\" .sp <n>    insert n+1 empty lines
++.\" for manpage-specific macros, see man(7)
++.TH "update-xpdfrc" "8" "October 22, 2002" "Hamish Moffatt"
++.SH "NAME"
++update\-xpdfrc \- program to generate xpdf's configuration file
++.SH "SYNOPSIS"
++.B update\-xdfrc
++.SH "DESCRIPTION"
++.B \fBupdate\-xpdfrc\fR
++is a program used to generate part of the \fIxpdfrc(5)\fR file used 
++by xpdf. The generated configuration file contains a list of the
++configuration snippets provided by the xpdf-* language packages.
++
++You may edit the file \fI/etc/xpdfrc\fR to configure xpdf.
++However, do not edit the generated file \fI/etc/xpdf/includes\fR.
++It is updated whenever a language package is added or removed.
++You must include the file /etc/xpdf/includes in your xpdfrc
++to make use of this functionality.
++
++The language support packages (xpdf-japanese etc) provide additional
++configuration files such as \fI/etc/xpdf/xpdfrc-japanese\fR, which will be
++listed in the generated \fI/etc/xpdf/includes\fR.
++
++.SH "FILES"
++.nf
++.ta \w'/etc/xpdf/xpdfrc\-*	'u
++/etc/xpdf/xpdfrc	main configuration file
++.br
++/etc/xpdf/xpdf\-*	additional configuration files
++.SH "SEE ALSO"
++.BR xpdfrc (5),
++.BR xpdf (1).
++.SH "AUTHOR"
++This manual page and the update-xpdfrc utility was written by Hamish Moffatt <hamish@debian.org>
++for the Debian GNU/Linux system (but may be used by others).
++.\" vim:syn=nroff
+--- xpdf-3.02.orig/debian/xpdf.postinst
++++ xpdf-3.02/debian/xpdf.postinst
+@@ -0,0 +1,18 @@
++#!/bin/sh
++set -e
++
++# Attempt to remove the /usr/share/doc/xpdf directory.
++# If it exists. dpkg won't replace it with the symbolic
++# link.
++
++if [ "$1" = "configure" ]; then
++
++	if [ -d /usr/share/doc/xpdf ]; then
++		rm -rf /usr/share/doc/xpdf
++		ln -sf xpdf-common /usr/share/doc/xpdf
++	fi
++
++fi
++
++#DEBHELPER#
++
+--- xpdf-3.02.orig/debian/xpdf-utils.dirs
++++ xpdf-3.02/debian/xpdf-utils.dirs
+@@ -0,0 +1,3 @@
++usr/share/doc
++usr/share/man/man1
++usr/bin
+--- xpdf-3.02.orig/debian/compat
++++ xpdf-3.02/debian/compat
+@@ -0,0 +1 @@
++4
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-cyrillic
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-cyrillic
+@@ -0,0 +1,4 @@
++#----- begin Cyrillic support package (2003-jun-28)
++nameToUnicode                   /usr/share/xpdf/cyrillic/Bulgarian.nameToUnicode
++unicodeMap	KOI8-R		/usr/share/xpdf/cyrillic/KOI8-R.unicodeMap
++#----- end Cyrillic support package
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-hebrew
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-hebrew
+@@ -0,0 +1,4 @@
++#----- begin Hebrew support package (2003-feb-16)
++unicodeMap	ISO-8859-8	/usr/share/xpdf/hebrew/ISO-8859-8.unicodeMap
++unicodeMap	Windows-1255	/usr/share/xpdf/hebrew/Windows-1255.unicodeMap
++#----- end Hebrew support package
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-latin2
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-latin2
+@@ -0,0 +1,3 @@
++#----- begin Latin2 support package (2002-oct-22)
++unicodeMap	Latin2	/usr/share/xpdf/latin2/Latin2.unicodeMap
++#----- end Latin2 support package
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-turkish
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-turkish
+@@ -0,0 +1,3 @@
++#----- begin Turkish support package (2002-apr-10)
++unicodeMap	ISO-8859-9	/usr/share/xpdf/turkish/ISO-8859-9.unicodeMap
++#----- end Turkish support package
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-greek
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-greek
+@@ -0,0 +1,4 @@
++#----- begin Greek support package (2002-feb-13)
++nameToUnicode                   /usr/share/xpdf/greek/Greek.nameToUnicode
++unicodeMap	ISO-8859-7	/usr/share/xpdf/greek/ISO-8859-7.unicodeMap
++#----- end Greek support package
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-arabic
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-arabic
+@@ -0,0 +1,3 @@
++#----- begin Arabic support package (2003-feb-16)
++unicodeMap	ISO-8859-6	/usr/share/xpdf/arabic/ISO-8859-6.unicodeMap
++#----- end Arabic support package
+--- xpdf-3.02.orig/debian/lang/etc/xpdf/xpdfrc-thai
++++ xpdf-3.02/debian/lang/etc/xpdf/xpdfrc-thai
+@@ -0,0 +1,4 @@
++#----- begin Thai support package (2002-jan-16)
++nameToUnicode			/usr/share/xpdf/thai/Thai.nameToUnicode
++unicodeMap	TIS-620		/usr/share/xpdf/thai/TIS-620.unicodeMap
++#----- end Thai support package
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/hebrew/Windows-1255.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/hebrew/Windows-1255.unicodeMap
+@@ -0,0 +1,66 @@
++000a 000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 00a3 a0
++00a5 00a9 a5
++00ab 00b9 ab
++00bb 00bf bb
++00d7 aa
++00f7 ba
++010c 43
++010d 63
++0131 69
++0141 4c
++0142 6c
++0152 4f45
++0153 6f65
++0160 53
++0161 73
++0178 59
++017d 5a
++017e 7a
++0192 83
++02c6 88
++02da b0
++02dc 98
++05b0 05b9 c0
++05bb 05c3 cb
++05f0 05f4 d4
++05d0 05ea e0
++200e 200f fd
++2013 2014 96
++2018 2019 91
++201a 82
++201c 201d 93
++201e 84
++2020 86
++2021 87
++2022 95
++2026 85
++2030 89
++2039 8b
++203a 9b
++2044 2f
++20aa a4
++20ac 80
++2122 99
++2212 2d
++f6f9 4c
++f6fa 4f45
++f6fc b0
++f6fd 53
++f6fe 7e
++f6ff 5a
++f721 21
++f724 24
++f726 26
++f730 f739 30
++f73f 3f
++f761 f77a 41
++f7a1 f7a2 a1
++f7bf bf
++fb00 6666
++fb01 6669
++fb02 666c
++fb03 666669
++fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/hebrew/ISO-8859-8.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/hebrew/ISO-8859-8.unicodeMap
+@@ -0,0 +1,63 @@
++000a 000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 00a0 20
++00a2 00a9 a2
++00ab 00b9 ab
++00bb 00be bb
++010c 43
++010d 63
++0131 69
++0141 4c
++0142 6c
++0152 4f45
++0153 6f65
++0160 53
++0161 73
++0178 59
++017d 5a
++017e 7a
++02c6 5e
++02da b0
++02dc 7e
++05d0 05ea e0
++05f0 e5e5
++05f1 e5e9
++05f2 e9e9
++2013 ad
++2014 2d2d
++2018 60
++2019 27
++201a 2c
++201c 22
++201d 22
++201e 2c2c
++2022 b7
++2026 2e2e2e
++2039 3c
++203a 3e
++2044 2f
++2122 544d
++2212 2d
++f6f9 4c
++f6fa 4f45
++f6fc b0
++f6fd 53
++f6fe 7e
++f6ff 5a
++f721 21
++f724 24
++f726 26
++f730 f739 30
++f73f 3f
++f761 f77a 41
++f7a1 f7a2 a1
++f7bf bf
++f7e0 f7f6 c0
++f7f8 f7fe d8
++f7ff 59
++fb00 6666
++fb01 6669
++fb02 666c
++fb03 666669
++fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/arabic/ISO-8859-6.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/arabic/ISO-8859-6.unicodeMap
+@@ -0,0 +1,40 @@
++000a 000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 00a0 20
++00a4 a4
++00ad ad
++02c6 5e
++02dc 7e
++060c 060c ac
++061b 061b bb
++061f 061f bf
++0621 063a c1
++0640 0652 e0
++2013 2013 ad
++2014 2014 2d2d
++2018 2018 60
++2019 2019 27
++201a 201a 2c
++201c 201c 22
++201d 201d 22
++201e 201e 2c2c
++2026 2026 2e2e2e
++2039 2039 3c
++203a 203a 3e
++2044 2044 2f
++2122 2122 544d
++2212 2212 2d
++f6f9 f6f9 4c
++f6fe f6fe 7e
++f721 f721 21
++f724 f724 24
++f726 f726 26
++f730 f739 30
++f73f f73f 3f
++f761 f77a 41
++fb00 fb00 6666
++fb01 fb01 6669
++fb02 fb02 666c
++fb03 fb03 666669
++fb04 fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/thai/Thai.nameToUnicode
++++ xpdf-3.02/debian/lang/usr/share/xpdf/thai/Thai.nameToUnicode
+@@ -0,0 +1,116 @@
++0e01 ThaiCharacterKoKai
++0e02 ThaiCharacterKhoKhai
++0e03 ThaiCharacterKhoKhuat
++0e04 ThaiCharacterKhoKhwai
++0e05 ThaiCharacterKhoKhon
++0e06 ThaiCharacterKhoRakhang
++0e07 ThaiCharacterNgoNgu
++0e08 ThaiCharacterChoChan
++0e09 ThaiCharacterChoChing
++0e0a ThaiCharacterChoChang
++0e0b ThaiCharacterSoSo
++0e0c ThaiCharacterChoChoe
++0e0d ThaiCharacterYoYing
++0e0e ThaiCharacterDoChada
++0e0f ThaiCharacterToPatak
++0e10 ThaiCharacterThoThan
++0e11 ThaiCharacterThoNangmontho
++0e12 ThaiCharacterThoPhuthao
++0e13 ThaiCharacterNoNen
++0e14 ThaiCharacterDoDek
++0e15 ThaiCharacterToTao
++0e16 ThaiCharacterThoThung
++0e17 ThaiCharacterThoThahan
++0e18 ThaiCharacterThoThong
++0e19 ThaiCharacterNoNu
++0e1a ThaiCharacterBoBaimai
++0e1b ThaiCharacterPoPla
++0e1c ThaiCharacterPhoPhung
++0e1d ThaiCharacterFoFa
++0e1e ThaiCharacterPhoPhan
++0e1f ThaiCharacterFoFan
++0e20 ThaiCharacterPhoSamphao
++0e21 ThaiCharacterMoMa
++0e22 ThaiCharacterYoYak
++0e23 ThaiCharacterRoRua
++0e24 ThaiCharacterRu
++0e25 ThaiCharacterLoLing
++0e26 ThaiCharacterLu
++0e27 ThaiCharacterWoWaen
++0e28 ThaiCharacterSoSala
++0e29 ThaiCharacterSoRusi
++0e2a ThaiCharacterSoSua
++0e2b ThaiCharacterHoHip
++0e2c ThaiCharacterLoChula
++0e2d ThaiCharacterOAng
++0e2e ThaiCharacterHoNokhuk
++0e2f ThaiCharacterPaiyannoi
++0e30 ThaiCharacterSaraA
++0e31 ThaiCharacterMaiHan-akat
++0e32 ThaiCharacterSaraAa
++0e33 ThaiCharacterSaraAm
++0e34 ThaiCharacterSaraI
++0e35 ThaiCharacterSaraIi
++0e36 ThaiCharacterSaraUe
++0e37 ThaiCharacterSaraUee
++0e38 ThaiCharacterSaraU
++0e39 ThaiCharacterSaraUu
++0e3a ThaiCharacterPhinthu
++0e3f ThaiCurrencySymbolBaht
++0e40 ThaiCharacterSaraE
++0e41 ThaiCharacterSaraAe
++0e42 ThaiCharacterSaraO
++0e43 ThaiCharacterSaraAiMaimuan
++0e44 ThaiCharacterSaraAiMaimalai
++0e45 ThaiCharacterLakkhangyao
++0e46 ThaiCharacterMaiyamok
++0e47 ThaiCharacterMaitaikhu
++0e48 ThaiCharacterMaiEk
++0e49 ThaiCharacterMaiTho
++0e4a ThaiCharacterMaiTri
++0e4b ThaiCharacterMaiChattawa
++0e4c ThaiCharacterThanthakhat
++0e4d ThaiCharacterNikhahit
++0e4e ThaiCharacterYamakkan
++0e4f ThaiCharacterFongman
++0e50 ThaiDigitZero
++0e51 ThaiDigitOne
++0e52 ThaiDigitTwo
++0e53 ThaiDigitThree
++0e54 ThaiDigitFour
++0e55 ThaiDigitFive
++0e56 ThaiDigitSix
++0e57 ThaiDigitSeven
++0e58 ThaiDigitEight
++0e59 ThaiDigitNine
++0e5a ThaiCharacterAngkhankhu
++0e5b ThaiCharacterKhomut
++0e4c ThaiCharacterThanthakhatLowLeft
++0e49 ThaiCharacterMaiThoLeft
++0e38 ThaiCharacterSaraULow
++0e31 ThaiCharacterMaiHanAkat
++0e4b ThaiCharacterMaiChattawaLeft
++0e37 ThaiCharacterSaraUeeLeft
++0e4a ThaiCharacterMaiTriLeft
++0e3a ThaiCharacterPhinthuLow
++0e48 ThaiCharacterMaiEkLeft
++0e49 ThaiCharacterMaiThoLow
++0e0d ThaiCharacterYoYingDescless
++0e4b ThaiCharacterMaiChattawaLow
++0e4a ThaiCharacterMaiTriLow
++0e48 ThaiCharacterMaiEkLow
++0e31 ThaiCharacterMaiHanAkatLeft
++0e4c ThaiCharacterThanthakhatLeft
++0e34 ThaiCharacterSaraILeft
++0e4d ThaiCharacterNikhahitLeft
++0e3f ThaiCharacterBaht
++0e49 ThaiCharacterMaiThoLowLeft
++0e4b ThaiCharacterMaiChattawaLowLeft
++0e4c ThaiCharacterThanthakhatLow
++0e39 ThaiCharacterSaraUuLow
++0e4a ThaiCharacterMaiTriLowLeft
++0e35 ThaiCharacterSaraIiLeft
++0e48 ThaiCharacterMaiEkLowLeft
++0e47 ThaiCharacterMaitaikhuLeft
++0e10 ThaiCharacterThoThanDescless
++0e36 ThaiCharacterSaraUeLeft
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/thai/TIS-620.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/thai/TIS-620.unicodeMap
+@@ -0,0 +1,47 @@
++000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 20
++0131 69
++0141 4c
++0142 6c
++0152 4f45
++0153 6f65
++0160 53
++0161 73
++0178 59
++017d 5a
++017e 7a
++02c6 5e
++02dc 7e
++0e01 0e3a a1
++0e3f 0e5b df
++2013 2d2d
++2014 2d2d
++2018 60
++2019 27
++201a 2c
++201c 22
++201d 22
++201e 2c2c
++2022 2a
++2026 2e2e2e
++2039 3c
++203a 3e
++2044 2f
++2122 544d
++2212 2d
++f700 b0
++f701 f704 d4
++f705 f709 e8
++f70a f70e e8
++f70f ad
++f710 d1
++f711 ed
++f712 f717 e7
++f718 f71a d8
++fb00 6666
++fb01 6669
++fb02 666c
++fb03 666669
++fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/greek/ISO-8859-7.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/greek/ISO-8859-7.unicodeMap
+@@ -0,0 +1,63 @@
++000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 a0
++00a3 a3
++00a6 00a9 a6
++00ab 00ad ab
++00b0 00b4 b0
++00b5 ec
++00b7 b7
++00bb bb
++00bd bd
++02c6 5e
++02da b0
++02dc 7e
++0374 b4
++037e 3b
++0384 038a b4
++038c bc
++038e 03a1 be
++03a3 03ce d3
++03d0 e2
++03d1 e8
++03d2 d5
++03d3 be
++03d4 db
++03d5 f6
++03d6 f0
++03d7 eae1e9
++03da d3d4
++03db f3f4
++03f0 ea
++03f1 f1
++03f2 63
++03f3 6a
++03f4 c8
++03f5 e5
++2013 ad
++2014 af
++2018 60
++2019 a2
++201a 2c
++201b a1
++201c 22
++201d 22
++201e 2c2c
++2022 b7
++2026 2e2e2e
++2039 3c
++203a 3e
++2044 2f
++20ac c5f5f1fe
++20af c4f1f7
++2122 544d
++2126 d9
++2206 c4
++2212 2d
++2219 b7
++fb00 6666
++fb01 6669
++fb02 666c
++fb03 666669
++fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/greek/Greek.nameToUnicode
++++ xpdf-3.02/debian/lang/usr/share/xpdf/greek/Greek.nameToUnicode
+@@ -0,0 +1,11 @@
++0396 Dzeta
++039e Ksi
++039f Omikron
++03a7 Khi
++03b2 betatwo
++03b6 dzeta
++03be ksi
++03bf omikron
++03c3 sigmafinal
++03c6 phitwo
++03c7 khi
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/cyrillic/KOI8-R.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/cyrillic/KOI8-R.unicodeMap
+@@ -0,0 +1,100 @@
++000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 9a
++00a9 bf
++00b0 9c
++00b2 9d
++00b7 9e
++00f7 9f
++02c6 5e
++02da 9c
++02dc 7e
++0401 b3
++0410 0411 e1
++0412 f7
++0413 e7
++0414 0415 e4
++0416 f6
++0417 fa
++0418 041f e9
++0420 0423 f2
++0424 e6
++0425 e8
++0426 e3
++0427 fe
++0428 fb
++0429 fd
++042a ff
++042b f9
++042c f8
++042d fc
++042e e0
++042f f1
++0430 0431 c1
++0432 d7
++0433 c7
++0434 0435 c4
++0436 d6
++0437 da
++0438 c9
++0439 043f ca
++0440 0443 d2
++0444 c6
++0445 c8
++0446 c3
++0447 de
++0448 db
++0449 dd
++044a df
++044b d9
++044c d8
++044d dc
++044e c0
++044f d1
++0451 a3
++2013 2d
++2014 2d2d
++2018 60
++2019 27
++201a 2c
++201c 22
++201d 22
++201e 2c2c
++2022 9e
++2026 2e2e2e
++2039 3c
++203a 3e
++2044 2f
++2122 544d
++2212 2d
++2219 221a 95
++2248 97
++2264 2265 98
++2320 93
++2321 9b
++2500 80
++2502 81
++250c 82
++2510 83
++2514 84
++2518 85
++251c 86
++2524 87
++252c 88
++2534 89
++253c 8a
++2550 2552 a0
++2553 2561 a4
++2562 256c b4
++2580 8b
++2584 8c
++2588 8d
++258c 8e
++2590 2593 8f
++25a0 94
++fb00 6666
++fb01 6669
++fb02 666c
++fb03 666669
++fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/cyrillic/Bulgarian.nameToUnicode
++++ xpdf-3.02/debian/lang/usr/share/xpdf/cyrillic/Bulgarian.nameToUnicode
+@@ -0,0 +1,58 @@
++0410 As
++0411 Buki
++0412 Wjedi
++0413 Glagol
++0414 Dobro
++0415 Jest
++0416 Schiwete
++0417 Selmja
++0418 Ische
++0419 Ischebreve
++041a Kako
++041b Ljudi
++041c Muislete
++041d Nasche
++041e On
++041f Pakoj
++0420 Rzui
++0421 Slovo
++0422 Twerdo
++0423 Uk
++0424 Fert
++0425 Cherr
++0426 Zui
++0427 Tscherw
++0428 Scha
++0429 Schtscha
++042a Jerr
++042e Ju
++042f Ja
++0430 as
++0431 buki
++0432 wjedi
++0433 glagol
++0434 dobro
++0435 jest
++0436 schiwete
++0437 selmja
++0438 ische
++0439 ischebreve
++043a kako
++043b ljudi
++043c muislete
++043d nasche
++043e on
++043f pakoj
++0440 rzui
++0441 slovo
++0442 twerdo
++0443 uk
++0444 fert
++0445 cherr
++0446 zui
++0447 tscherw
++0448 scha
++0449 schtscha
++044a jerr
++044e ju
++044f ja
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/latin2/Latin2.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/latin2/Latin2.unicodeMap
+@@ -0,0 +1,134 @@
++000a 000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 00a0 20
++00a4 a4
++00a7 00a8 a7
++00ad ad
++00b0 b0
++00b4 b4
++00b8 b8
++00c1 00c2 c1
++00c4 c4
++00c7 c7
++00c9 c9
++00cb cb
++00cd 00ce cd
++00d3 00d4 d3
++00d6 00d7 d6
++00da da
++00dc 00dd dc
++00df df
++00e1 00e2 e1
++00e4 e4
++00e7 e7
++00e9 e9
++00eb eb
++00ed 00ee ed
++00f3 00f4 f3
++00f6 00f7 f6
++00fa fa
++00fc 00fd fc
++0102 c3
++0103 e3
++0104 a1
++0105 b1
++0106 c6
++0107 e6
++010c c8
++010d e8
++010e cf
++010f ef
++0110 d0
++0111 f0
++0118 ca
++0119 ea
++011a cc
++011b ec
++0131 69
++0132 494a
++0133 696a
++0139 c5
++013a e5
++013d a5
++013e b5
++0141 a3
++0142 b3
++0143 d1
++0144 f1
++0147 d2
++0148 f2
++0150 d5
++0151 f5
++0152 4f45
++0153 6f65
++0154 c0
++0155 e0
++0158 d8
++0159 f8
++015a a6
++015b b6
++015e aa
++015f ba
++0160 a9
++0161 b9
++0162 de
++0163 fe
++0164 ab
++0165 bb
++016e d9
++016f f9
++0170 db
++0171 fb
++0178 59
++0179 ac
++017a bc
++017b af
++017c bf
++017d ae
++017e be
++02c6 5e
++02c7 b7
++02d8 a2
++02d9 ff
++02da b0
++02db b2
++02dc 7e
++02dd bd
++2013 2013 ad
++2014 2014 2d2d
++2018 2018 60
++2019 2019 27
++201a 201a 2c
++201c 201c 22
++201d 201d 22
++201e 201e 2c2c
++2022 2022 b7
++2026 2026 2e2e2e
++2039 2039 3c
++203a 203a 3e
++2044 2044 2f
++2122 2122 544d
++2212 2212 2d
++f6f9 f6f9 4c
++f6fa f6fa 4f45
++f6fc f6fc b0
++f6fd f6fd 53
++f6fe f6fe 7e
++f6ff f6ff 5a
++f721 f721 21
++f724 f724 24
++f726 f726 26
++f730 f739 30
++f73f f73f 3f
++f761 f77a 41
++f7a1 f7a2 a1
++f7bf f7bf bf
++f7e0 f7f6 c0
++f7f8 f7fe d8
++f7ff f7ff 59
++fb00 fb00 6666
++fb01 fb01 6669
++fb02 fb02 666c
++fb03 fb03 666669
++fb04 fb04 66666c
+--- xpdf-3.02.orig/debian/lang/usr/share/xpdf/turkish/ISO-8859-9.unicodeMap
++++ xpdf-3.02/debian/lang/usr/share/xpdf/turkish/ISO-8859-9.unicodeMap
+@@ -0,0 +1,67 @@
++000a 0a
++000c 000d 0c
++0020 007e 20
++00a0 20
++00a1 00ac a1
++00ae 00cf ae
++00d1 00dc d1
++00df 00ef df
++00f1 00fc f1
++00ff ff
++010c 43
++010d 63
++011e d0
++011f f0
++0130 dd
++0131 fd
++0141 4c
++0142 6c
++0152 4f45
++0153 6f65
++015e de
++015f fe
++0160 53
++0161 73
++0178 59
++017d 5a
++017e 7a
++02c6 5e
++02da b0
++02dc 7e
++2013 ad
++2014 2d2d
++2018 60
++2019 27
++201a 2c
++201c 22
++201d 22
++201e 2c2c
++2022 b7
++2026 2e2e2e
++2039 3c
++203a 3e
++2044 2f
++2122 544d
++2212 2d
++f6f9 4c
++f6fa 4f45
++f6fc b0
++f6fd 53
++f6fe 7e
++f6ff 5a
++f721 21
++f724 24
++f726 26
++f730 f739 30
++f73f 3f
++f761 f77a 41
++f7a1 f7a2 a1
++f7bf bf
++f7e0 f7f6 c0
++f7f8 f7fe d8
++f7ff 59
++fb00 6666
++fb01 6669
++fb02 666c
++fb03 666669
++fb04 66666c
+--- xpdf-3.02.orig/debian/changelog
++++ xpdf-3.02/debian/changelog
+@@ -0,0 +1,801 @@
++xpdf (3.02-1.3) unstable; urgency=high
++
++  * Non-maintainer upload by testing security team.
++  * Included fix-CVE-2007-5393_2007-5392_2007-4352.dpatch to address the
++    following security issues (Closes: #450629)
++    - CVE-2007-5393 buffer overflow in the CCITTFaxStream::lookChar leading
++      to arbitrary code execution via a crafted pdf file.
++    - CVE-2007-5392 integer overflow in the DCTStream::reset resulting in a
++      heap based buffer overflow allows code execution.
++    - CVE-2007-4352 array index error in DCTStream::readProgressiveDataUnit
++      leads to memory corruption and possibly arbitrary code execution.
++
++ -- Nico Golde <nion@debian.org>  Fri, 09 Nov 2007 09:22:19 +0100
++
++xpdf (3.02-1.2) unstable; urgency=high
++
++  * Non-maintainer upload by testing security team.
++  * Removed post-3.5.7-kdegraphics-CVE-2007-3387.diff.dpatch and
++    created fix-CVE-2007-3387_CVE-2007-5049.dpatch to have a fix
++    for CVE-2007-3387 and a buffer overflow in GetNextLine()
++    (CVE-2007-5049) since they are related (Closes: #443906).
++
++ -- Nico Golde <nion@debian.org>  Thu, 27 Sep 2007 12:05:46 +0200
++
++xpdf (3.02-1.1) unstable; urgency=high
++
++  * Non-maintainer upload with permission of the maintainer
++  * Fix integer overflow in the StreamPredictor::StreamPredictor
++    function by adding post-3.5.7-kdegraphics-CVE-2007-3387.diff.dpatch
++    (Closes: #435462) Fixes: CVE-2007-3387
++
++ -- Steffen Joeris <white@debian.org>  Tue, 07 Aug 2007 14:00:34 +1000
++
++xpdf (3.02-1) unstable; urgency=low
++
++  * New upstream release (closes: #413611)
++    * Adds PDF 1.6 and 1.7 support (closes: #320509, #329372)
++    * Fixes segfault on Postscript conversion (in xpdf or pdftops)
++      with libc6 2.5-1, though probably also fixed in libc6 already
++      (closes: #419618)
++    * Improved rendering of some PDFs (closes: #409759, #242294, #280767)
++    * Improved full screen handling (obseletes patches incorporated
++      in 3.01-9; 31_fullscreen.dpatch, 32_vscroll.dpatch)
++    * Adds new options to the xpdfrc(5) (closes: #384024)
++    * Fixed handling of some broken PDFs (closes: #330711)
++    * On-the-fly switch to full screen is possible (closes: #281479)
++    * Adds configurable keybindings
++
++  * Patched Latin2 unicode map to include IJ sequences; thanks to
++    Petr Peringer for the patch (closes: #402757)
++  * Fix reference to /etc/xpdf/xpdf-* -> /etc/xpdf/xpdfrc-* in
++    update-xpdfrc(8) (closes: #402852)
++  * Added -title support to zxpdf (closes: #338096)
++  * Updated debian/copyright (closes: #407888)
++  * Modified xpdfrc(5) to note that options are case sensitive (closes:
++    #417979)
++  * Fix package relationships so that package is bin-NMU safe
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 25 Apr 2007 02:42:16 +1000
++
++xpdf (3.01-9) unstable; urgency=low
++
++  * Incorporate patches from Eugeniy Meshcheryakov and Junichi Uekawa to
++    fix fullscreen mode when using a NETWM-compliant window manager
++    (closes: #247602, #362496, #367845, #168970, #192397, #165047)
++    (31_fullscreen.dpatch, 32_vscroll.dpatch)
++  * Nasty, nasty patch to workaround FTBFS due to incompatility
++    between latest g++-4.1 and lesstif - bug#377230 (40_lesstif_copy.dpatch,
++    41_lesstif_cpp.dpatch)
++  * Upgrade to standards-revision 3.7.2
++  * Made xpdf-common recommend gsfonts-x11 (closes: #329804)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 15 Jul 2006 16:01:16 +1000
++
++xpdf (3.01-8) unstable; urgency=low
++
++  * Add patch 05_freetype-2.2.dpatch: make splash/SplashFTFont.cc
++    compatible with FreeType 2.2 (ie don't use FreeType internals
++    directly any more). Fixes unreported FTBFS.
++  * Enable additional compile-time options: --enable-opi,
++    --enable-multithreaded, --enable-wordlist
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 27 May 2006 00:58:12 +1000
++
++xpdf (3.01-7) unstable; urgency=high
++
++  * SECURITY UPDATE: incorporated upstream patch revision 3.01pl2 
++    (obseletes several patches collected from Red Hat, Ubuntu etc).
++  * References: CAN-2005-3191/3192/3193/3624/3625/2626/2627/3628,
++    CAN-2006-0301 (all included, some improved by this patch)
++
++ -- Hamish Moffatt <hamish@debian.org>  Thu, 16 Feb 2006 00:22:13 +1100
++
++xpdf (3.01-6) unstable; urgency=high
++
++  * SECURITY UPDATE: fixed buffer overflow in splash image handling
++    (Splash/splash.cc) using patch supplied by Red Hat:
++    https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=179046
++    (closes: #350785, #350783)
++  * References: CVE-2006-0301
++  * My first upload from the side of the road on borrowed wifi
++    in a foreign country...
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed,  1 Feb 2006 22:42:42 +1300
++
++xpdf (3.01-5) unstable; urgency=low
++
++  * Changed build-dep on libpaperg-dev to libpaper-dev (closes: #346397)
++  * Made xpdf-utils conflicts/replaces/provides poppler-utils
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun,  8 Jan 2006 13:25:57 +1100
++
++xpdf (3.01-4) unstable; urgency=high
++
++  * SECURITY UPDATE: added additional precautionary checks
++    supplied by Martin Pitt, Chris Evans and Ludwid Nussel
++  * Changed build-dep on xlibs-dev to individual lib*-dev packages
++
++ -- Hamish Moffatt <hamish@debian.org>  Fri,  6 Jan 2006 18:55:24 +1100
++
++xpdf (3.01-3) unstable; urgency=high
++
++  * SECURITY UPDATE: fix several potential buffer overflows:
++    DCTStream Baseline Heap Overflow, DCTStream Progressive Heap Overflow,
++    StreamPredictor Heap Overflow, JPX Stream Reader Heap Overflow 
++    (closes: #322462) (21_security.dpatch)
++  * References: CAN-2005-3193, CAN-2005-3191
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue,  6 Dec 2005 23:05:10 +0000
++
++xpdf (3.01-2) unstable; urgency=low
++
++  * Incorporate upstream patch to fix resize issues with some
++    window managers (20_resize.dpatch)
++    (closes: #325112, #326888, #327572, #329112, #324172)
++  * Fix incorrect escape sequences in xpdf.1 (closes: #320631)
++    Thanks to Erik Schanze for the patch. (01_manpage.dpatch)
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon, 10 Oct 2005 23:34:46 +1000
++
++xpdf (3.01-1) unstable; urgency=low
++
++  * New upstream release (closes: #323715)
++    * Added initial transparency support (closes: #181958, #284504, #243533)
++    * Improved performance of pattern handling (closes: #220628)
++    * Rasterizer optimisations (closes: #229714, #283549)
++    * Handle negative font sizes (closes: #267790, #269495)
++    * Fixed bugs in the Type 1C font parser
++      (closes: #280291, #308547, #316895, #322906, #317708)
++      and TrueType (closes: #270086)
++    * Fix borders with some files (closes: #284307)
++    * Fixed copy/paste losing text (closes: #310042)
++    * Window is sized to fit the document page (closes: #249039, #254843)
++    * Background window is now gray to show page size (closes: #295696)
++    * Directories are not scanned until open dialog used (closes: #298742)
++    * Fixed other crashes (closes: #251057, #264298, #303710),
++      PostScript output bugs (closes: #295685)
++
++  * Added build-conflicts with libstroke0-dev, as it supplies
++    autoconf macros that conflict with xpdf's own
++  * Added category and generic name entries to the Desktop file
++    (closes: #302546); thanks to Alejandro Exojo for the patch
++  * Register for MIME type application/x-pdf in addition to
++    application/pdf (closes: #319057)
++  * Updated to standards-revision 3.6.2
++
++ -- Hamish Moffatt <hamish@debian.org>  Fri, 19 Aug 2005 22:48:35 +1000
++
++xpdf (3.00-15) unstable; urgency=low
++
++  * SECURITY UPDATE: fix potiential DoS attack through hand-crafted
++    PDFs with corrupt loca tables (closes: #322462)
++  * References: CAN-2005-2097
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 17 Aug 2005 07:55:17 +1000
++
++xpdf (3.00-14) unstable; urgency=low
++
++  * Use dpatch for patch management; added build-dep on dpatch
++  * Fix FTBFS with gcc-4.0 (closes: #316836); 
++    thanks to Daniel Schepler for the patch
++  * xpdf-utils now suggests: pdftk (closes: #306624)
++  * Fix page parameter handling in zxpdf (closes: #315458)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 17 Jul 2005 01:07:20 +1000
++
++xpdf (3.00-13) unstable; urgency=low
++
++  * SECURITY UPDATE: fix buffer overflow for PDF documents with an /Encrypt
++    /Length value > 16 (xpdf/XRef.cc) (upstream xpdf-3.00pl3.patch)
++  * References: CAN-2005-0064 (in addition to previous changes)
++
++  * Added desktop entry to xpdf-reader (adapted from Ubuntu with thanks)
++    (closes: #280812)
++  * Updated build-dependency on debhelper to 4.2.21 to get dh_desktop
++
++  * Fixed FTBFS on amd64 with gcc-4.0 resulting from cast from void*
++    to int in xpdf/XPDFViewer.cc (closes: #288727)
++    Thanks to Andreas Jochens for the patch.
++
++  * Added note to header of source files modified to remove PDF
++    permission checking as requested by upstream in bug#298584
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 22 Mar 2005 23:33:52 +1100
++
++xpdf (3.00-12) unstable; urgency=high
++
++  * SECURITY UPDATE: Fixed buffer overflow that could overwrite the stack 
++    and hence cause the execution of arbitrary code as reported by 
++    iDEFENSE (xpdf/Decrypt.cc)
++  * References: CAN-2005-0064
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 19 Jan 2005 23:48:56 +1100
++
++xpdf (3.00-11) unstable; urgency=high
++
++  * SECURITY UPDATE: fix potential buffer overflow
++    Applied patch to colour map handling in xpdf/Gfx.cc (closes: #286742)
++  * References: CAN-2004-1125
++
++ -- Hamish Moffatt <hamish@debian.org>  Thu, 23 Dec 2004 08:16:24 +1100
++
++xpdf (3.00-10) unstable; urgency=high
++
++  * SECURITY UPDATE: fix potential buffer overflow
++  * goo/gmem.[ch]: change declarations of gmalloc and grealloc to use size_t
++    instead of int; int truncated sizes to 32 bits, which made xpdf still
++    vulnerable to integer (and eventually buffer) overflow attacks on 64 bit
++    platforms like amd64.
++  * Thanks to Marcus Meissner <meissner@suse.de> for providing the patch
++    and Martin Pitt <mpitt@debian.org> for providing the changes for
++    Debian in the form of 3.00-9ubuntu2
++  * References:
++    CAN-2004-0889 (incomplete fix in version 3.00-9)
++
++  * Incorporated patch from Arnaud Giersch to fix crashes with
++    certain PDFs (closes: #278693, #279292)
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon,  8 Nov 2004 00:23:22 +1100
++
++xpdf (3.00-9) unstable; urgency=high
++
++  * Applied patch to fix vulnerability CAN-2004:0889: integer overflow 
++    issues that could allow denial of service or possibly arbitrary 
++    code execution
++
++ -- Hamish Moffatt <hamish@debian.org>  Thu, 21 Oct 2004 23:49:32 +1000
++
++xpdf (3.00-8) unstable; urgency=low
++
++  * Final cleanup for sarge.
++  * Fixed handling of some PDFs causing crashes (Closes: #254864)
++    Modified splash/SplashFTFont.cc to prevent crash caused by calling
++    FreeType's FT_Decompose_Outline with a non-outline object
++  * Cleaned up dependency on libt1-5 to prevent duplicate depends
++  * Moved pixmaps to /usr/share/pixmaps
++  * Cleaned up lintian warnings
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 18 Aug 2004 23:32:07 +1000
++
++xpdf (3.00-7) unstable; urgency=low
++
++  * Changed wrapper script to use /bin/bash explicitly
++    (closes: #245943, #248090)
++  * Add /usr/share/bug/xpdf/control so that bugs submitted to 'xpdf'
++    go to 'xpdf-reader' instead
++  * Update supplied configuration file for new configuration options
++    (closes: #246351)
++  * Added menu icon (closes: #244504)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun,  9 May 2004 23:24:30 +1000
++
++xpdf (3.00-6) unstable; urgency=low
++
++  * Add dependency on libt1-5 >= 5.0.2 to fix several Xpdf crashes
++    (closes: #238946, #243847, #243879)
++  * Fixed wrapper script so that X resources are still located
++    correctly (closes: #242513)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 25 Apr 2004 21:48:25 +1000
++
++xpdf (3.00-5) unstable; urgency=low
++
++  * Fix crash when clicking bookmarks in some PDFs (closes: #236007)
++  * Not uploaded
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 30 Mar 2004 23:31:16 +1000
++
++xpdf (3.00-4) unstable; urgency=low
++
++  * Build with new libt1 rather than old t1lib (closes: #234273)
++  * Fixed repeated text in pdfimages(1) (closes: #202139)
++  * Fix crash on some PDFs due to empty paths (closes: #231709, #240187)
++    (thanks to Guillaume Morin for the patch)
++  * Applied upstream patch to add TrueType font collection (TTC) support
++    (closes: #232340)
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 30 Mar 2004 22:30:35 +1000
++
++xpdf (3.00-3) unstable; urgency=low
++
++  * Add upstream patch to fix handling of 16-bit TrueType fonts
++  * Added note to /etc/xpdf/xpdfrc file warning that user configuration
++    files (~/.xpdfrc) override the system-wide file, rather than supplement
++    it (closes: #230853)
++  * Updated /etc/xpdf/xpdfrc to remove obselete X font mappings
++    (no longer supported)
++  * Updated /usr/share/doc/xpdf-common/examples/sample-xpdfrc for 3.00
++    (closes: #229874) by supplying the debian package version instead
++    of upstream's
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 10 Feb 2004 23:00:02 +1100
++
++xpdf (3.00-2) unstable; urgency=low
++
++  * Added build-dep for pkg-config
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 28 Jan 2004 00:38:31 +1100
++
++xpdf (3.00-1) unstable; urgency=low
++
++  * New upstream release
++    * Enter now works in Find dialog to start searching (closes: #167975)
++    * Find dialog text input grows when window is resized (closes: #205208)
++    * Fixed crashes with some PDFs (closes: #223989, #224943, #225289, #229264)
++    * Fixed inverted horizontal mouse wheel behaviour (closes: #224849)
++    * Fixed slow rendering of some documents (closes: #222254)
++  * Corrected location of upstream sources in copyright file
++    (closes: #229670)
++  * Fixed location of configuration file in manual pages
++    (/etc/xpdfrc -> /etc/xpdf/xpdfrc)
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon, 26 Jan 2004 14:39:30 +1100
++
++xpdf (2.03-2) unstable; urgency=low
++
++  * Applied upstream patch to fix reading of JBIG encoded files (closes:
++    #220450)
++  * Wrapper script will now use exec when calling xpdf.bin
++    (closes: #219736) and zxpdf will do the same when calling xpdf
++
++ -- Hamish Moffatt <hamish@debian.org>  Fri, 14 Nov 2003 09:08:11 +1100
++
++xpdf (2.03-1) unstable; urgency=low
++
++  * New upstream release
++    * Fixes crashes with some documents (closes: #215867, #212990)
++    * Supports PDF outline (bookmarks) (closes: #166926)
++    * Supports clipping to text which makes some more PDF files
++      display correctly (closes: #184070)
++    * Fix PDF BitsPerComponent handling (closes: #185950)
++    * Handle PDFs with broken Unicode cmap table (closes: #188532)
++    * Handle PDFs with broken DCT streams (closes: #193718)
++    * Improved text extraction with right-to-left scripts (closes: #176745)
++    * If the print command is changed in the print dialog, it won't
++      be reset if another file is opened (closes: #200466)
++
++  * Updated Greek and Cyrillic language support to 2003-jun-28 versions
++  * Provided manual page for xpdf.bin (symlink to xpdf(1)) (closes: #211887)
++  * update-xpdfrc will now ignore backup (*~) and RCS files (closes: #194124)
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 22 Oct 2003 22:43:47 +1000
++
++xpdf (2.02pl1-1) unstable; urgency=high
++
++  * Upstream patch release to fix security hole in URL handling
++    (closes: #198032)
++
++ -- Hamish Moffatt <hamish@debian.org>  Thu, 19 Jun 2003 23:06:21 +1000
++
++xpdf (2.02-2) unstable; urgency=low
++
++  * Modified xpdf(1) to include information about zxpdf
++    (closes: #175535)
++  * Modified zxpdf to work with no command line parameters
++  * Modified zxpdf to recognise .PDF (upper case) file extension
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 23 Apr 2003 00:27:50 +1000
++
++xpdf (2.02-1) unstable; urgency=low
++
++  * New upstream release
++  * Incorporated new Arabic language package 2003-feb-16
++  * Updated Hebrew language support to 2003-feb-16
++  * Upstream: fixed display problems in some PDFs (closes: #181076,
++    #144047, #167827, #176856, #180829)
++  * Upstream: fixed crash on find-next before find (closes: #172973)
++  * Upstream: fixed color handling in buttons (closes: #171398)
++  * Upstream: fixed crash if Ctrl-W pressed while file open (closes: #177698)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 30 Mar 2003 14:06:43 +1000
++
++xpdf (2.01-3) unstable; urgency=low
++
++  * Fixed wrapper script bug: incorrect handling of command line
++    parameters (closes: #174965, #174851)
++  * Fixed wrapper script bug: should set $LC_ALL as well as $LANG
++    (closes: #174717)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat,  4 Jan 2003 15:59:01 +1100
++
++xpdf (2.01-2) unstable; urgency=low
++
++  * Applied patch to fix buffer overflow as reported by iDEFENSE
++  * Fixed name of language configuration files (/etc/xpdf/xpdf-* renamed
++    back to xpdfrc-*) (closes: #173046)
++  * Modified update-xpdfrc to ignore .dpkg* files in /etc/xpdf
++    (closes: #173268)
++  * Made xpdf a wrapper script which calls real xpdf binary to work
++    around locale problems (closes: #167956, #168717, #169339, #172009)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 28 Dec 2002 00:35:52 +1100
++
++xpdf (2.01-1) unstable; urgency=low
++
++  * New upstream release
++  * Merged in the small and free xpdf language packages xpdf-cyrillic,
++    xpdf-greek, xpdf-hebrew, xpdf-latin2, xpdf-thai and xpdf-turkish;
++    the others remain as seperate packages in non-free.
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun,  8 Dec 2002 00:02:37 +1100
++
++xpdf (2.00-2) unstable; urgency=low
++
++  * Recompile with lesstif2 (closes: #170624)
++  * Change the default urlCommand to sensible-browser, which will make it
++    honour the BROWSER variable, and run a good default browser that is
++    installed if that is not set. Sure beats hardcoding non-free netscape.
++    (closes: #170085)
++  * Suggest www-browser.
++  * Fixed incorrect resource names in xpdf(1) (closes: #168730)
++  * Set a default print command (closes: #168520)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 30 Nov 2002 13:08:38 +1100
++
++xpdf (2.00-1) unstable; urgency=low
++
++  * New upstream release - uses Lesstif instead of old Xpdf-specific toolkit
++  * Upstream: Control-P now brings up the print dialog (closes: #157225)
++  * Upstream: Worked around problems with fonts in some PDF files
++    (closes: #159778)
++  * Upstream: 'Save as' now uses the standard Motif save dialog, so any
++    filename can be entered (closes: #158423)
++  * Upstream: handles malformed PDFs with error messages rather than
++    silently as happened previously in some cases (closes: #151241)
++  * Upstream: fullscreen behaviour is working fine in this version
++    (closes: #156252)
++  * Upstream: Enter works in save dialog (closes: #166942)
++  * Upstream: now uses standard Motif file selector dialog (closes: #160255)
++  * No performance issues observed with resizing the window (closes: #165847)
++  * Tweaked configuration mechanism not to build /etc/xpdfrc now,
++    but an include file for the main configuration file instead.
++    No changes to the language packages are required to support this.
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue,  5 Nov 2002 11:49:24 +1100
++
++xpdf (1.01-3) unstable; urgency=low
++
++  * Recompile with more recent FreeType, updated dependencies to match
++    (closes: #155946)
++  * Made xpdf handle missing default paper name from libpaper
++    (eg if $PAPERSIZE is set to a non-existent file) (closes: #150360)
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed,  4 Sep 2002 21:49:41 +1000
++
++xpdf (1.01-2) unstable; urgency=low
++
++  * Fixed dependencies to ensure that xpdf-common, xpdf-reader and
++    xpdf-utils versions are always synchronised (closes: #147897,
++    #151683)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun,  7 Jul 2002 01:24:00 +1000
++
++xpdf (1.01-1) unstable; urgency=low
++
++  * New upstream release (closes: #146286, #147428)
++    including support for Type 3 fonts (closes: #128686, #137378,
++    #137416, #143245, #145541, #147614)
++  * Removed empty examples directory (closes: #145057, #146336)
++  * Changed dependency on gsfonts to require the woody version
++    or newer (>= 6.0-1) (closes: #146398)
++  * Applied patch to allow copying and printing of protected
++    PDF files (closes: #145558)
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 22 May 2002 23:16:47 +1000
++
++xpdf (1.00-4) unstable; urgency=low
++
++  * xpdf-reader: added zxpdf script contributed by Yann Dirson to allow
++    viewing of compressed PDF files (closes: #87316, #14227)
++  * xpdf-reader, xpdf-utils: corrected location of the configuration 
++    files in the manual pages (closes: #139982)
++  * xpdf-common: added note to /etc/xpdf/xpdfrc describing configuration
++    file scheme (closes: #143372)
++
++ -- Hamish Moffatt <hamish@debian.org>  Thu, 25 Apr 2002 10:57:47 +1000
++
++xpdf (1.00-3) unstable; urgency=low
++
++  * Fixed conflicts with xpdf-i (should conflict with versions
++    <= 0.90-8, not 0.90-7) (closes: #136385, #136157)
++  * Applied patch from the upstream author to fix the missing
++    initialZoom X resource (closes: #135712)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat,  9 Mar 2002 00:23:33 +1100
++
++xpdf (1.00-2) unstable; urgency=low
++
++  * Fixed problem with building the arch-specific packages when
++    xpdf-common was not installed (tried to overwrite /etc/xpdfrc)
++    (closes: #134336, #134338)
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon, 18 Feb 2002 08:36:59 +1100
++
++xpdf (1.00-1) unstable; urgency=low
++
++  * New upstream release (closes: #131961)
++  * Split the xpdf package into xpdf-reader, xpdf-utils and a
++    metapackage, xpdf. This reduces the number of library packages
++    required if you just want pdf2ps, for example. (closes: #122786)
++  * The new upstream release has the language support split into
++    seperate packages. See xpdf-chinese-simplified,
++    xpdf-chinese-traditional, xpdf-korean, xpdf-japanese,
++    xpdf-thai and xpdf-cyrillic. NOTE: some of these are
++    non-free.
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat,  2 Feb 2002 23:44:20 +1100
++
++xpdf (0.93-6) unstable; urgency=low
++
++  * Applied patch from the upstream author Derek Noonburg
++    to fix an unitialized variable which causes xpdf
++    to sometimes crash on Alpha systems (closes: #124314)
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed, 16 Jan 2002 21:30:53 +1100
++
++xpdf (0.93-5) unstable; urgency=low
++
++  * Applied patch from the upstream author Derek Noonburg
++    to fix TrueType font embedding bugs (closes: #123913)
++  * Added Build-Conflicts: with libttf-dev; the compile gets
++    mixed up between freetype1 and freetype2 when libttf-dev
++    is installed (closes: #123565)
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed,  9 Jan 2002 22:46:49 +1100
++
++xpdf (0.93-4) unstable; urgency=low
++
++  * Added menu hint "Documents" (closes: #121029)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 25 Nov 2001 13:02:24 +1100
++
++xpdf (0.93-3) unstable; urgency=low
++
++  * Added app-defaults file mapping for Type 1 base-14 fonts (requires
++    gsfonts) (closes: #120649, #120994)
++  * Added libpaper support; xpdf now gets the default paper size from
++    X resources, $PAPERSIZE, /etc/papersize, or defaults to letter
++    (closes: #120645)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 25 Nov 2001 11:38:19 +1100
++
++xpdf (0.93-2) unstable; urgency=low
++
++  * Removed final references to install-mime (closes: #120423)
++  * Linked with libfreetype6 (closes: #116283)
++  * Configuration file moved to /etc/xpdfrc (was /usr/etc/xpdfrc by mistake)
++  * Also linked with t1lib
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 24 Nov 2001 16:20:23 +1100
++
++xpdf (0.93-1) unstable; urgency=low
++
++  * New upstream release (closes: #81911, #107448)
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed,  7 Nov 2001 23:54:52 +1100
++
++xpdf (0.92-5) unstable; urgency=low
++
++  * Fixed freetype file locations which caused the build to fail if
++    libfreetype6-dev wasn't installed (but isn't actually used)
++    (closes: #111745)
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 11 Sep 2001 20:21:47 +1000
++
++xpdf (0.92-4) unstable; urgency=low
++
++  * Added libttf-dev to build-deps so that xpdf will be built with
++    TrueType font support (closes: #108667)
++  * Increased xpdf's priority in mailcap from 4 to 6 to be above
++    gv and acroread (closes: #106858)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun,  2 Sep 2001 14:54:11 +1000
++
++xpdf (0.92-3) unstable; urgency=low
++
++  * Changed build-dep on xpm4g-dev to xlibs-dev (closes: #83814)
++  * Re-enabled Chinese language support (closes: #74974)
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon, 29 Jan 2001 08:23:06 +1100
++
++xpdf (0.92-2) unstable; urgency=low
++
++  * Recompiled with latest X libraries
++
++ -- Hamish Moffatt <hamish@debian.org>  Thu, 18 Jan 2001 08:21:23 +1100
++
++xpdf (0.92-1) unstable; urgency=low
++
++  * New upstream release
++  * Updated Standards-Version
++
++ -- Hamish Moffatt <hamish@debian.org>  Wed,  6 Dec 2000 21:16:34 +1100
++
++xpdf (0.91-3) unstable; urgency=low
++
++  * Enabled Chinese language support (closes: #74974)
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue,  7 Nov 2000 15:52:41 +1100
++
++xpdf (0.91-2) unstable; urgency=low
++
++  * Changed replaces/conflicts with xpdf-i to allow installation
++    of xpdf-i 0.91-1 (dummy package) as well as xpdf >= 0.91
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 19 Sep 2000 22:55:44 +1100
++
++xpdf (0.91-1) unstable; urgency=low
++
++  * New upstream version (closes: #43604, #47391, #61055, #67591, #50170)
++  * Upstream source now includes decryption; xpdf-i is now obselete
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 20 Aug 2000 18:25:07 +1000
++
++xpdf (0.90-6) unstable; urgency=low
++
++  * Added build-depends for debhelper, xpm4g-dev and xlib6g-dev
++    (closes: #68464, #61585)
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon,  7 Aug 2000 19:29:08 +1000
++
++xpdf (0.90-5) unstable; urgency=low
++
++  * Added build-depends for t1lib-dev (closes: #55658)
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue,  1 Aug 2000 21:03:43 +1000
++
++xpdf (0.90-4) unstable; urgency=low
++
++  * Recompile for t1lib1
++
++ -- Hamish Moffatt <hamish@debian.org>  Mon,  3 Jan 2000 09:45:45 +1100
++
++xpdf (0.90-3) unstable; urgency=low
++
++  * FHS compliant
++  * Converted to debhelper
++  * Moved xpdf binary from /usr/X11R6/bin to /usr/bin
++
++ -- Hamish Moffatt <hamish@debian.org>  Fri,  1 Oct 1999 23:51:31 +1000
++
++xpdf (0.90-2) unstable; urgency=low
++
++  * Recompiled with t1lib 0.9.1-4 to get correct dependencies
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 11 Sep 1999 00:59:17 +1000
++
++xpdf (0.90-1) unstable; urgency=low
++
++  * New upstream version
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 14 Aug 1999 14:31:00 +1000
++
++xpdf (0.80-6) unstable; urgency=low
++
++  * Added code in postinst and postrm to remove old MIME entries
++    added using install-mime (fixes #37724, #31293)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 23 May 1999 00:25:00 +1000
++
++xpdf (0.80-5) unstable; urgency=low
++
++  * Fixed error in /usr/lib/mime/packages/xpdf (fixes #37537)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 15 May 1999 22:35:00 +1000
++
++xpdf (0.80-4) unstable; urgency=low
++
++  * Fixed bug in postinst introduced in 0.80-3 (fixes #37009, #37026)
++  * xpdf now Conflicts with and Replaces xpdf-i
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 02 May 1999 18:20:00 +1000
++
++xpdf (0.80-3) unstable; urgency=low
++
++  * Fixed incorrect mime support handling with patch from David Rocher
++    (fixes bug#36901)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 01 May 1999 18:45:00 +1000
++
++xpdf (0.80-2) unstable; urgency=low
++
++  * Enabled support for 16-bit Japanese fonts (fixes bug#30671)
++
++ -- Hamish Moffatt <hamish@debian.org>  Fri, 18 Dec 1998 00:18:00 +1100
++
++xpdf (0.80-1) unstable; urgency=low
++
++  * New upstream release
++
++ -- Hamish Moffatt <hamish@debian.org>  Sun, 29 Nov 1998 01:03:00 +1100
++
++xpdf (0.7a-3) unstable; urgency=low
++
++  * Previous upload had wrong section and was rejected
++  * Change of license; xpdf is now GPL (see
++    http://www.debian.org/Lists-Archives/debian-devel-9809/msg00193.html)
++
++ -- Hamish Moffatt <hamish@debian.org>  Sat, 10 Oct 1998 11:12:00 +1000
++
++xpdf (0.7a-2) unstable; urgency=low
++
++  * New maintainer
++  * Updated to use update-mime (fixes#26532)
++  * Removed dependency on mime-support, as instructed by update-mime(1)
++  * Rebuilt with new libstdc++
++
++ -- Hamish Moffatt <hamish@debian.org>  Tue, 06 Oct 1998 19:43:00 +1000
++
++xpdf (0.7a-1) non-free; urgency=low
++
++  * Upgraded to new upstream release xpdf-0.7a
++
++ -- Dirk Eddelbuettel <edd@debian.org>  Mon,  2 Mar 1998 19:24:35 -0500
++
++xpdf (0.7-3) non-free; urgency=low
++
++  * Moved to non-free as the copyright violated #3 of the DFSG (fixes #14360)
++  
++ -- Dirk Eddelbuettel <edd@debian.org>  Tue,  4 Nov 1997 20:44:26 -0500
++
++xpdf (0.7-2) unstable; urgency=low
++
++  * Compiled with GNU libc2 aka libc6
++  * Linked against xlib6g and xpm4g (fixes bug #12915)
++  * Uses pristine upstream sources as xpdf_0.7.orig.tar.gz
++  * Upgraded to Debian Policy 2.3.0.0
++  * Added menu file for xpdf
++  
++ -- Dirk Eddelbuettel <edd@debian.org>  Tue, 30 Sep 1997 20:34:09 -0400
++
++xpdf (0.7-1) unstable; urgency=low
++
++  * New upstream release xpdf-0.7
++
++ -- Dirk Eddelbuettel <edd@debian.org>  Thu, 29 May 1997 21:22:38 -0400
++
++xpdf (0.6-1) unstable frozen; urgency=low
++
++  * New upstream release xpdf-0.6 (fixes bug #4476)
++
++  * Changed Priority: to optional as per override file on master 
++    
++  * Converted package management files to Debian Standard 2.1.1.0 
++  * Changed maintainer email address to <edd@debian.org>
++  
++ -- Dirk Eddelbuettel <edd@debian.org>  Sun, 24 Nov 1996 16:50:23 -0500
++
++Sat Aug 10 16:22:28 1996  Dirk Eddelbuettel  <edd@miles.econ.queensu.ca>
++
++	* xpdf-0.5-1 release: only changes to Debian package files
++
++	* debian.control: now Depends on mime-support, suitable postinst
++ 	  and postrm scripts added (with thanks to Brian White);
++	  also updated virtual package dependencies, now Provides: a 
++	  pdf-viewer as well as postscript-preview and Depends changed 
++	  to X11R6 from elf-x11r6lib 
++
++	* debian.rules: install xpdf.1x, not xpdf.1 
++
++Mon May 27 20:58:19 1996  Dirk Eddelbuettel  <edd@miles.econ.queensu.ca>
++
++	* xpdf-0.5-0 release: upgraded to upstream version 0.5 
++
++Sun Apr 28 09:51:02 1996  Dirk Eddelbuettel  <edd@miles.econ.queensu.ca>
++
++	* xpdf-0.4-0 release: upgraded to upstream version 0.4
++
++	* debian.control: added Architecture:, changed Section: to text,
++	  added note that xpdftops is now included
++
++Wed Feb 14 21:49:17 1996  Dirk Eddelbuettel  <edd@miles.econ.queensu.ca>
++
++	* xpdf-0.3-1 release
++
++	* debian.rules: fix location of README to /usr/doc/xpdf (bug#2333)
++
++Sun Jan 28 17:36:31 1996  Dirk Eddelbuettel  <edd@miles.econ.queensu.ca>
++
++	* xpdf-0.3-0: Initial Debian release
++
+--- xpdf-3.02.orig/debian/xpdf.dirs
++++ xpdf-3.02/debian/xpdf.dirs
+@@ -0,0 +1,2 @@
++usr/share/doc
++usr/share/bug/xpdf
+--- xpdf-3.02.orig/debian/xpdf-common.postrm
++++ xpdf-3.02/debian/xpdf-common.postrm
+@@ -0,0 +1,9 @@
++#!/bin/sh
++set -e
++
++if [ "$1" = "purge" ]; then
++	rm -f /etc/xpdf/includes
++fi
++
++#DEBHELPER#
++
+--- xpdf-3.02.orig/debian/xpdf.desktop
++++ xpdf-3.02/debian/xpdf.desktop
+@@ -0,0 +1,11 @@
++[Desktop Entry]
++Encoding=UTF-8
++Name=xpdf
++GenericName=PDF viewer
++Comment=View PDF files
++Exec=xpdf
++Icon=xpdf.xpm
++Terminal=false
++Type=Application
++MimeType=application/pdf;
++Categories=PDFViewer;Viewer;Graphics;
+--- xpdf-3.02.orig/debian/xpdf-reader.menu
++++ xpdf-3.02/debian/xpdf-reader.menu
+@@ -0,0 +1,8 @@
++?package(xpdf-reader):\
++	needs="x11" \
++	section="Apps/Viewers" \
++	command="/usr/bin/xpdf" \
++	title="Xpdf" \
++	hints="Documents" \
++	icon="/usr/share/pixmaps/xpdf.xpm" \
++	longtitle="Xpdf: Portable Document Format (PDF) file viewer for X"
+--- xpdf-3.02.orig/debian/xpdf-bug-control
++++ xpdf-3.02/debian/xpdf-bug-control
+@@ -0,0 +1 @@
++Submit-As: xpdf-reader
+--- xpdf-3.02.orig/debian/xpdf-reader.dirs
++++ xpdf-3.02/debian/xpdf-reader.dirs
+@@ -0,0 +1,7 @@
++usr/share/doc
++usr/share/applications
++usr/share/man/man1
++usr/lib/mime/packages
++usr/lib/menu
++usr/bin
++usr/share/pixmaps
+--- xpdf-3.02.orig/debian/patches/40_lesstif_copy.dpatch
++++ xpdf-3.02/debian/patches/40_lesstif_copy.dpatch
+@@ -0,0 +1,18 @@
++#! /bin/sh -e
++## DP: make local copy of lesstif headers for use in patch 41
++
++dpatch_patch ()
++{
++	mkdir lesstif
++	cp -a /usr/include/Xm lesstif/
++}
++
++dpatch_unpatch ()
++{
++	rm -rf lesstif
++}
++
++DPATCH_LIB_NO_DEFAULT=1
++
++. /usr/share/dpatch/dpatch.lib.sh
++
+--- xpdf-3.02.orig/debian/patches/01_manpage.dpatch
++++ xpdf-3.02/debian/patches/01_manpage.dpatch
+@@ -0,0 +1,258 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 01_manpage.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Manual page updates
++
++@DPATCH@
++diff -urNad xpdf-3.02~/doc/pdffonts.1 xpdf-3.02/doc/pdffonts.1
++--- xpdf-3.02~/doc/pdffonts.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/pdffonts.1	2007-04-25 01:26:55.000000000 +1000
++@@ -73,9 +73,7 @@
++ .SH CONFIGURATION FILE
++ Pdffonts reads a configuration file at startup.  It first tries to
++ find the user's private config file, ~/.xpdfrc.  If that doesn't
++-exist, it looks for a system-wide config file, typically
++-/usr/local/etc/xpdfrc (but this location can be changed when pdffonts
++-is built).  See the
+++exist, it looks for a system-wide config file, /etc/xpdf/xpdfrc.  See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++diff -urNad xpdf-3.02~/doc/pdfimages.1 xpdf-3.02/doc/pdfimages.1
++--- xpdf-3.02~/doc/pdfimages.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/pdfimages.1	2007-04-25 01:26:55.000000000 +1000
++@@ -12,9 +12,9 @@
++ saves images from a Portable Document Format (PDF) file as Portable
++ Pixmap (PPM), Portable Bitmap (PBM), or JPEG files.
++ .PP
++-Pdfimages reads the PDF file, scans one or more pages,
+++Pdfimages reads the PDF file
++ .IR PDF-file ,
++-and writes one PPM, PBM, or JPEG file for each image,
+++scans one or more pages, and writes one PPM, PBM, or JPEG file for each image,
++ .IR image-root - nnn . xxx ,
++ where
++ .I nnn
++@@ -28,9 +28,7 @@
++ .SH CONFIGURATION FILE
++ Pdfimages reads a configuration file at startup.  It first tries to
++ find the user's private config file, ~/.xpdfrc.  If that doesn't
++-exist, it looks for a system-wide config file, typically
++-/usr/local/etc/xpdfrc (but this location can be changed when pdfimages
++-is built).  See the
+++exist, it looks for a system-wide config file, /etc/xpdf/xpdfrc.  See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++diff -urNad xpdf-3.02~/doc/pdfinfo.1 xpdf-3.02/doc/pdfinfo.1
++--- xpdf-3.02~/doc/pdfinfo.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/pdfinfo.1	2007-04-25 01:26:55.000000000 +1000
++@@ -71,8 +71,7 @@
++ .SH CONFIGURATION FILE
++ Pdfinfo reads a configuration file at startup.  It first tries to find
++ the user's private config file, ~/.xpdfrc.  If that doesn't exist, it
++-looks for a system-wide config file, typically /usr/local/etc/xpdfrc
++-(but this location can be changed when pdfinfo is built).  See the
+++looks for a system-wide config file, /etc/xpdf/xpdfrc.  See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++diff -urNad xpdf-3.02~/doc/pdftoppm.1 xpdf-3.02/doc/pdftoppm.1
++--- xpdf-3.02~/doc/pdftoppm.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/pdftoppm.1	2007-04-25 01:26:55.000000000 +1000
++@@ -24,9 +24,7 @@
++ .SH CONFIGURATION FILE
++ Pdftoppm reads a configuration file at startup.  It first tries to
++ find the user's private config file, ~/.xpdfrc.  If that doesn't
++-exist, it looks for a system-wide config file, typically
++-/usr/local/etc/xpdfrc (but this location can be changed when pdftoppm
++-is built).  See the
+++exist, it looks for a system-wide config file, /etc/xpdf/xpdfrc. See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++diff -urNad xpdf-3.02~/doc/pdftops.1 xpdf-3.02/doc/pdftops.1
++--- xpdf-3.02~/doc/pdftops.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/pdftops.1	2007-04-25 01:26:55.000000000 +1000
++@@ -31,8 +31,7 @@
++ .SH CONFIGURATION FILE
++ Pdftops reads a configuration file at startup.  It first tries to find
++ the user's private config file, ~/.xpdfrc.  If that doesn't exist, it
++-looks for a system-wide config file, typically /usr/local/etc/xpdfrc
++-(but this location can be changed when pdftops is built).  See the
+++looks for a system-wide config file, /etc/xpdf/xpdfrc.  See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++diff -urNad xpdf-3.02~/doc/pdftotext.1 xpdf-3.02/doc/pdftotext.1
++--- xpdf-3.02~/doc/pdftotext.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/pdftotext.1	2007-04-25 01:26:55.000000000 +1000
++@@ -28,9 +28,7 @@
++ .SH CONFIGURATION FILE
++ Pdftotext reads a configuration file at startup.  It first tries to
++ find the user's private config file, ~/.xpdfrc.  If that doesn't
++-exist, it looks for a system-wide config file, typically
++-/usr/local/etc/xpdfrc (but this location can be changed when pdftotext
++-is built).  See the
+++exist, it looks for a system-wide config file, /etc/xpdf/xpdfrc.  See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++diff -urNad xpdf-3.02~/doc/xpdf.1 xpdf-3.02/doc/xpdf.1
++--- xpdf-3.02~/doc/xpdf.1	2007-04-25 01:26:52.000000000 +1000
+++++ xpdf-3.02/doc/xpdf.1	2007-04-25 01:26:55.000000000 +1000
++@@ -7,10 +7,15 @@
++ [options]
++ .RI [ PDF-file
++ .RI [ page " | +" dest ]]
+++.sp
+++.B zxpdf
+++[options]
+++.RI [ PDF-file
+++.RI [ page " | +" dest ]]
++ .SH DESCRIPTION
++ .B Xpdf
++ is a viewer for Portable Document Format (PDF) files.  (These are also
++-sometimes also called \'Acrobat' files, from the name of Adobe's PDF
+++sometimes also called 'Acrobat' files, from the name of Adobe's PDF
++ software.)  Xpdf runs under the X Window System on UNIX, VMS, and
++ OS/2.
++ .PP
++@@ -29,7 +34,7 @@
++ xpdf file.pdf 18
++ .RE
++ .PP
++-You can also give a named destination, prefixed with \'+' in place of
+++You can also give a named destination, prefixed with '+' in place of
++ the page number.  (This is only useful with PDF files that provide
++ named destination targets.)
++ .PP
++@@ -38,11 +43,17 @@
++ .RS
++ xpdf
++ .RE
+++.PP
+++Compressed files (gz and bz2) may be viewed using the command:
+++.PP
+++.RS
+++zxpdf file.pdf.gz
+++.RE
+++.PP
++ .SH CONFIGURATION FILE
++ Xpdf reads a configuration file at startup.  It first tries to find
++ the user's private config file, ~/.xpdfrc.  If that doesn't exist, it
++-looks for a system-wide config file, typically /usr/local/etc/xpdfrc
++-(but this location can be changed when xpdf is built).  See the
+++looks for a system-wide config file, /etc/xpdf/xpdfrc.  See the
++ .BR xpdfrc (5)
++ man page for details.
++ .SH OPTIONS
++@@ -92,8 +103,8 @@
++ .TP
++ .BI \-z " zoom"
++ Set the initial zoom factor.  A number specifies a zoom percentage,
++-where 100 means 72 dpi.You may also specify \'page', to fit the page
++-to the window size, or \'width', to fit the page width to the window
+++where 100 means 72 dpi.You may also specify 'page', to fit the page
+++to the window size, or 'width', to fit the page width to the window
++ width.
++ .RB "[config file: " initialZoom "; or X resource: " xpdf.initialZoom ]
++ .TP
++@@ -123,7 +134,7 @@
++ .BI \-ps " PS-file"
++ Set the default file name for PostScript output (i.e., the name which
++ will appear in the print dialog).  This can also be of the form
++-\'|command' to pipe the PostScript through a command.
+++'|command' to pipe the PostScript through a command.
++ .RB "[config file: " psFile ]
++ .TP
++ .BI \-paper " size"
++@@ -231,7 +242,7 @@
++ .RB "[X resource: " xpdf*fontList ]
++ .PP
++ The color and font options only affect the user interface elements,
++-not the PDF display (the \'paper').
+++not the PDF display (the 'paper').
++ .PP
++ The following X resources do not have command line option equivalents:
++ .TP
++@@ -254,7 +265,7 @@
++ .B "dashed left/right arrow buttons"
++ Move backward or forward along the history path.
++ .TP
++-.B "\'Page' entry box"
+++.B "'Page' entry box"
++ Move to a specific page number.  Click in the box to activate it, type
++ the page number, then hit return.
++ .TP
++@@ -267,17 +278,17 @@
++ .B "print button"
++ Bring up a dialog for generating a PostScript file.  The dialog has
++ options to set the pages to be printed and the PostScript file name.
++-The file name can be \'-' for stdout or \'|command' to pipe the
++-PostScript through a command, e.g., \'|lpr'.
+++The file name can be '-' for stdout or '|command' to pipe the
+++PostScript through a command, e.g., '|lpr'.
++ .TP
++-.B "\'?' button"
++-Bring up the \'about xpdf' window.
+++.B "'?' button"
+++Bring up the 'about xpdf' window.
++ .TP
++ .B "link info"
++-The space between the \'?' and \'Quit' buttons is used to show the URL
+++The space between the '?' and 'Quit' buttons is used to show the URL
++ or external file name when the mouse is over a link.
++ .TP
++-.B "\'Quit' button"
+++.B "'Quit' button"
++ Quit xpdf.
++ .PP
++ .SS Menu
++@@ -333,9 +344,9 @@
++ .PP
++ .SS Links
++ Clicking on a hyperlink will jump to the link's destination.  A link
++-to another PDF document will make xpdf load that document.  A
++-\'launch' link to an executable program will display a dialog, and if
++-you click \'ok', execute the program.  URL links call an external
+++to another PDF document will make xpdf load that document.  A 'launch'
+++link to an executable program will display a dialog, and if
+++you click 'ok', execute the program.  URL links call an external
++ command (see the
++ .B WEB BROWSERS
++ section below).
++@@ -458,7 +469,7 @@
++ .PP
++ When you click on a URL link in a PDF file, xpdf will execute the
++ command specified by the urlCommand config file option, replacing an
++-occurrence of \'%s' with the URL.  For example, to call netscape with
+++occurrence of '%s' with the URL.  For example, to call netscape with
++ the URL, add this line to your config file:
++ .PP
++ .RS
++@@ -809,8 +820,8 @@
++ xpdf -remote myServer file.pdf
++ .RE
++ .PP
++-If there is currently no xpdf running in server mode with the name
++-\'myServer', a new xpdf window will be opened.  If another command:
+++If there is currently no xpdf running in server mode with the name 'myServer',
+++a new xpdf window will be opened.  If another command:
++ .PP
++ .RS
++ xpdf -remote myServer another.pdf 9
++diff -urNad xpdf-3.02~/doc/xpdfrc.5 xpdf-3.02/doc/xpdfrc.5
++--- xpdf-3.02~/doc/xpdfrc.5	2007-02-28 09:05:51.000000000 +1100
+++++ xpdf-3.02/doc/xpdfrc.5	2007-04-25 01:28:30.000000000 +1000
++@@ -19,6 +19,9 @@
++ .PP
++ The following sections list all of the configuration options, sorted
++ into functional groups.  There is an examples section at the end.
+++.PP
+++Note that all settings are case-sensitive; in particular, boolean options
+++are "yes" and "no" (rather than "Yes" or "No").
++ .SH INCLUDE FILES
++ .TP
++ .BI include " config\-file"
+--- xpdf-3.02.orig/debian/patches/00list
++++ xpdf-3.02/debian/patches/00list
+@@ -0,0 +1,24 @@
++01_manpage.dpatch
++02_permissions.dpatch
++#10_add_accelerators.dpatch # doesn't work
++
++# Security fixes:
++#04_freetype-glyph.dpatch # Not obvious
++#05_gmem.dpatch # Not obvious
++#06_splashpath.dpatch # Not obvious
++#07_decrypt.dpatch # Not obvious
++#08_core_action.dpatch # Not obvious
++#23_security3.dpatch # Not obvious
++
++# Lesstif bug#377230 workaround:
++40_lesstif_copy.dpatch
++41_lesstif_cpp.dpatch
++
++# Final cleanup:
++99_autoconf.dpatch
++
++# Fix CVE-2007-3387 and CVE-2007-5049
++fix-CVE-2007-3387_CVE-2007-5049.dpatch
++
++# Fix CVE-2007-5393, CVE-2007-5392, CVE-2007-4352
++fix-CVE-2007-5393_2007-5392_2007-4352.dpatch
+--- xpdf-3.02.orig/debian/patches/02_permissions.dpatch
++++ xpdf-3.02/debian/patches/02_permissions.dpatch
+@@ -0,0 +1,176 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## permissions.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Remove PDF file permission checks
++
++@DPATCH@
++diff -urNad xpdf-3.02~/xpdf/PDFCore.cc xpdf-3.02/xpdf/PDFCore.cc
++--- xpdf-3.02~/xpdf/PDFCore.cc	2007-02-28 09:05:52.000000000 +1100
+++++ xpdf-3.02/xpdf/PDFCore.cc	2007-04-24 23:43:59.000000000 +1000
++@@ -4,6 +4,8 @@
++ //
++ // Copyright 2004 Glyph & Cog, LLC
++ //
+++// Modified for Debian by Hamish Moffatt, 18 August 2005.
+++//
++ //========================================================================
++ 
++ #include <aconf.h>
++@@ -1563,9 +1565,11 @@
++   int x0, y0, x1, y1, t;
++   GString *s;
++ 
+++#ifdef ENFORCE_PERMISSIONS
++   if (!doc->okToCopy()) {
++     return NULL;
++   }
+++#endif
++   if ((page = findPage(pg))) {
++     cvtUserToDev(pg, xMin, yMin, &x0, &y0);
++     cvtUserToDev(pg, xMax, yMax, &x1, &y1);
++diff -urNad xpdf-3.02~/xpdf/XPDFCore.cc xpdf-3.02/xpdf/XPDFCore.cc
++--- xpdf-3.02~/xpdf/XPDFCore.cc	2007-02-28 09:05:52.000000000 +1100
+++++ xpdf-3.02/xpdf/XPDFCore.cc	2007-04-24 23:46:39.000000000 +1000
++@@ -4,6 +4,8 @@
++ //
++ // Copyright 2002-2003 Glyph & Cog, LLC
++ //
+++// Modified for Debian by Hamish Moffatt, 22 May 2002.
+++//
++ //========================================================================
++ 
++ #include <aconf.h>
++@@ -384,11 +386,15 @@
++ #ifndef NO_TEXT_SELECT
++       if (selectULX != selectLRX &&
++ 	  selectULY != selectLRY) {
+++#ifdef ENFORCE_PERMISSIONS
++ 	if (doc->okToCopy()) {
++ 	  copySelection();
++ 	} else {
++ 	  error(-1, "Copying of text from this document is not allowed.");
++ 	}
+++#else
+++        copySelection();
+++#endif
++       }
++ #endif
++     }
++@@ -407,9 +413,11 @@
++   int pg;
++   double ulx, uly, lrx, lry;
++ 
+++#ifdef ENFORCE_PERMISSIONS
++   if (!doc->okToCopy()) {
++     return;
++   }
+++#endif
++   if (getSelection(&pg, &ulx, &uly, &lrx, &lry)) {
++     //~ for multithreading: need a mutex here
++     if (currentSelection) {
++diff -urNad xpdf-3.02~/xpdf/XPDFViewer.cc xpdf-3.02/xpdf/XPDFViewer.cc
++--- xpdf-3.02~/xpdf/XPDFViewer.cc	2007-02-28 09:05:52.000000000 +1100
+++++ xpdf-3.02/xpdf/XPDFViewer.cc	2007-04-24 23:43:59.000000000 +1000
++@@ -4,6 +4,8 @@
++ //
++ // Copyright 2002-2003 Glyph & Cog, LLC
++ //
+++// Modified for Debian by Hamish Moffatt, 22 May 2002.
+++//
++ //========================================================================
++ 
++ #include <aconf.h>
++@@ -3406,10 +3408,12 @@
++   PSOutputDev *psOut;
++ 
++   doc = viewer->core->getDoc();
+++#ifdef ENFORCE_PERMISSIONS
++   if (!doc->okToPrint()) {
++     error(-1, "Printing this document is not allowed.");
++     return;
++   }
+++#endif
++ 
++   viewer->core->setBusyCursor(gTrue);
++ 
++diff -urNad xpdf-3.02~/xpdf/pdfimages.cc xpdf-3.02/xpdf/pdfimages.cc
++--- xpdf-3.02~/xpdf/pdfimages.cc	2007-02-28 09:05:52.000000000 +1100
+++++ xpdf-3.02/xpdf/pdfimages.cc	2007-04-24 23:43:59.000000000 +1000
++@@ -4,6 +4,8 @@
++ //
++ // Copyright 1998-2003 Glyph & Cog, LLC
++ //
+++// Modified for Debian by Hamish Moffatt, 22 May 2002.
+++//
++ //========================================================================
++ 
++ #include <aconf.h>
++@@ -119,11 +121,13 @@
++   }
++ 
++   // check for copy permission
+++#ifdef ENFORCE_PERMISSIONS
++   if (!doc->okToCopy()) {
++     error(-1, "Copying of images from this document is not allowed.");
++     exitCode = 3;
++     goto err1;
++   }
+++#endif
++ 
++   // get page range
++   if (firstPage < 1)
++diff -urNad xpdf-3.02~/xpdf/pdftops.cc xpdf-3.02/xpdf/pdftops.cc
++--- xpdf-3.02~/xpdf/pdftops.cc	2007-02-28 09:05:52.000000000 +1100
+++++ xpdf-3.02/xpdf/pdftops.cc	2007-04-24 23:43:59.000000000 +1000
++@@ -4,6 +4,8 @@
++ //
++ // Copyright 1996-2003 Glyph & Cog, LLC
++ //
+++// Modified for Debian by Hamish Moffatt, 22 May 2002.
+++//
++ //========================================================================
++ 
++ #include <aconf.h>
++@@ -278,12 +280,14 @@
++     goto err1;
++   }
++ 
+++#ifdef ENFORCE_PERMISSIONS
++   // check for print permission
++   if (!doc->okToPrint()) {
++     error(-1, "Printing this document is not allowed.");
++     exitCode = 3;
++     goto err1;
++   }
+++#endif
++ 
++   // construct PostScript file name
++   if (argc == 3) {
++diff -urNad xpdf-3.02~/xpdf/pdftotext.cc xpdf-3.02/xpdf/pdftotext.cc
++--- xpdf-3.02~/xpdf/pdftotext.cc	2007-02-28 09:05:52.000000000 +1100
+++++ xpdf-3.02/xpdf/pdftotext.cc	2007-04-24 23:43:59.000000000 +1000
++@@ -4,6 +4,8 @@
++ //
++ // Copyright 1997-2003 Glyph & Cog, LLC
++ //
+++// Modified for Debian by Hamish Moffatt, 22 May 2002.
+++//
++ //========================================================================
++ 
++ #include <aconf.h>
++@@ -160,12 +162,14 @@
++     goto err2;
++   }
++ 
+++#ifdef ENFORCE_PERMISSIONS
++   // check for copy permission
++   if (!doc->okToCopy()) {
++     error(-1, "Copying of text from this document is not allowed.");
++     exitCode = 3;
++     goto err2;
++   }
+++#endif
++ 
++   // construct text file name
++   if (argc == 3) {
+--- xpdf-3.02.orig/debian/patches/fix-CVE-2007-5393_2007-5392_2007-4352.dpatch
++++ xpdf-3.02/debian/patches/fix-CVE-2007-5393_2007-5392_2007-4352.dpatch
+@@ -0,0 +1,652 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## fix-CVE-2007-5393_2007-5392_2007-4352.dpatch by Nico Golde <nion@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: No description.
++
++@DPATCH@
++diff -urNad xpdf-3.02~/xpdf/Stream.cc xpdf-3.02/xpdf/Stream.cc
++--- xpdf-3.02~/xpdf/Stream.cc	2007-02-27 23:05:52.000000000 +0100
+++++ xpdf-3.02/xpdf/Stream.cc	2007-11-09 09:20:09.000000000 +0100
++@@ -1245,23 +1245,26 @@
++   columns = columnsA;
++   if (columns < 1) {
++     columns = 1;
++-  }
++-  if (columns + 4 <= 0) {
++-    columns = INT_MAX - 4;
+++  } else if (columns > INT_MAX - 2) {
+++    columns = INT_MAX - 2;
++   }
++   rows = rowsA;
++   endOfBlock = endOfBlockA;
++   black = blackA;
++-  refLine = (short *)gmallocn(columns + 3, sizeof(short));
++-  codingLine = (short *)gmallocn(columns + 2, sizeof(short));
+++  // 0 <= codingLine[0] < codingLine[1] < ... < codingLine[n] = columns
+++  // ---> max codingLine size = columns + 1
+++  // refLine has one extra guard entry at the end
+++  // ---> max refLine size = columns + 2
+++  codingLine = (int *)gmallocn(columns + 1, sizeof(int));
+++  refLine = (int *)gmallocn(columns + 2, sizeof(int));
++ 
++   eof = gFalse;
++   row = 0;
++   nextLine2D = encoding < 0;
++   inputBits = 0;
++-  codingLine[0] = 0;
++-  codingLine[1] = refLine[2] = columns;
++-  a0 = 1;
+++  codingLine[0] = columns;
+++  a0i = 0;
+++  outputBits = 0;
++ 
++   buf = EOF;
++ }
++@@ -1280,9 +1283,9 @@
++   row = 0;
++   nextLine2D = encoding < 0;
++   inputBits = 0;
++-  codingLine[0] = 0;
++-  codingLine[1] = columns;
++-  a0 = 1;
+++  codingLine[0] = columns;
+++  a0i = 0;
+++  outputBits = 0;
++   buf = EOF;
++ 
++   // skip any initial zero bits and end-of-line marker, and get the 2D
++@@ -1299,211 +1302,230 @@
++   }
++ }
++ 
+++inline void CCITTFaxStream::addPixels(int a1, int blackPixels) {
+++  if (a1 > codingLine[a0i]) {
+++    if (a1 > columns) {
+++      error(getPos(), "CCITTFax row is wrong length (%d)", a1);
+++      err = gTrue;
+++      a1 = columns;
+++    }
+++    if ((a0i & 1) ^ blackPixels) {
+++      ++a0i;
+++    }
+++    codingLine[a0i] = a1;
+++  }
+++}
+++
+++inline void CCITTFaxStream::addPixelsNeg(int a1, int blackPixels) {
+++  if (a1 > codingLine[a0i]) {
+++    if (a1 > columns) {
+++      error(getPos(), "CCITTFax row is wrong length (%d)", a1);
+++      err = gTrue;
+++      a1 = columns;
+++    }
+++    if ((a0i & 1) ^ blackPixels) {
+++      ++a0i;
+++    }
+++    codingLine[a0i] = a1;
+++  } else if (a1 < codingLine[a0i]) {
+++    if (a1 < 0) {
+++      error(getPos(), "Invalid CCITTFax code");
+++      err = gTrue;
+++      a1 = 0;
+++    }
+++    while (a0i > 0 && a1 <= codingLine[a0i - 1]) {
+++      --a0i;
+++    }
+++    codingLine[a0i] = a1;
+++  }
+++}
+++
++ int CCITTFaxStream::lookChar() {
++   short code1, code2, code3;
++-  int a0New;
++-  GBool err, gotEOL;
++-  int ret;
++-  int bits, i;
+++  int b1i, blackPixels, i, bits;
+++  GBool gotEOL;
++ 
++-  // if at eof just return EOF
++-  if (eof && codingLine[a0] >= columns) {
++-    return EOF;
+++  if (buf != EOF) {
+++    return buf;
++   }
++ 
++   // read the next row
++-  err = gFalse;
++-  if (codingLine[a0] >= columns) {
+++  if (outputBits == 0) {
+++
+++    // if at eof just return EOF
+++    if (eof) {
+++      return EOF;
+++    }
+++
+++    err = gFalse;
++ 
++     // 2-D encoding
++     if (nextLine2D) {
++-      // state:
++-      //   a0New = current position in coding line (0 <= a0New <= columns)
++-      //   codingLine[a0] = last change in coding line
++-      //                    (black-to-white if a0 is even,
++-      //                     white-to-black if a0 is odd)
++-      //   refLine[b1] = next change in reference line of opposite color
++-      //                 to a0
++-      // invariants:
++-      //   0 <= codingLine[a0] <= a0New
++-      //           <= refLine[b1] <= refLine[b1+1] <= columns
++-      //   0 <= a0 <= columns+1
++-      //   refLine[0] = 0
++-      //   refLine[n] = refLine[n+1] = columns
++-      //     -- for some 1 <= n <= columns+1
++-      // end condition:
++-      //   0 = codingLine[0] <= codingLine[1] < codingLine[2] < ...
++-      //     < codingLine[n-1] < codingLine[n] = columns
++-      //     -- where 1 <= n <= columns+1
++       for (i = 0; codingLine[i] < columns; ++i) {
++ 	refLine[i] = codingLine[i];
++       }
++-      refLine[i] = refLine[i + 1] = columns;
++-      b1 = 1;
++-      a0New = codingLine[a0 = 0] = 0;
++-      do {
+++      refLine[i++] = columns;
+++      refLine[i] = columns;
+++      codingLine[0] = 0;
+++      a0i = 0;
+++      b1i = 0;
+++      blackPixels = 0;
+++      // invariant:
+++      // refLine[b1i-1] <= codingLine[a0i] < refLine[b1i] < refLine[b1i+1]
+++      //                                                             <= columns
+++      // exception at left edge:
+++      //   codingLine[a0i = 0] = refLine[b1i = 0] = 0 is possible
+++      // exception at right edge:
+++      //   refLine[b1i] = refLine[b1i+1] = columns is possible
+++      while (codingLine[a0i] < columns) {
++ 	code1 = getTwoDimCode();
++ 	switch (code1) {
++ 	case twoDimPass:
++-	  if (refLine[b1] < columns) {
++-	    a0New = refLine[b1 + 1];
++-	    b1 += 2;
+++	  addPixels(refLine[b1i + 1], blackPixels);
+++	  if (refLine[b1i + 1] < columns) {
+++	    b1i += 2;
++ 	  }
++ 	  break;
++ 	case twoDimHoriz:
++-	  if ((a0 & 1) == 0) {
++-	    code1 = code2 = 0;
+++	  code1 = code2 = 0;
+++	  if (blackPixels) {
++ 	    do {
++-	      code1 += code3 = getWhiteCode();
+++	      code1 += code3 = getBlackCode();
++ 	    } while (code3 >= 64);
++ 	    do {
++-	      code2 += code3 = getBlackCode();
+++	      code2 += code3 = getWhiteCode();
++ 	    } while (code3 >= 64);
++ 	  } else {
++-	    code1 = code2 = 0;
++ 	    do {
++-	      code1 += code3 = getBlackCode();
+++	      code1 += code3 = getWhiteCode();
++ 	    } while (code3 >= 64);
++ 	    do {
++-	      code2 += code3 = getWhiteCode();
+++	      code2 += code3 = getBlackCode();
++ 	    } while (code3 >= 64);
++ 	  }
++-	  if (code1 > 0 || code2 > 0) {
++-	    if (a0New + code1 <= columns) {
++-	      codingLine[a0 + 1] = a0New + code1;
++-	    } else {
++-	      codingLine[a0 + 1] = columns;
++-	    }
++-	    ++a0;
++-	    if (codingLine[a0] + code2 <= columns) {
++-	      codingLine[a0 + 1] = codingLine[a0] + code2;
++-	    } else {
++-	      codingLine[a0 + 1] = columns;
++-	    }
++-	    ++a0;
++-	    a0New = codingLine[a0];
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	  addPixels(codingLine[a0i] + code1, blackPixels);
+++	  if (codingLine[a0i] < columns) {
+++	    addPixels(codingLine[a0i] + code2, blackPixels ^ 1);
+++	  }
+++	  while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	    b1i += 2;
+++	  }
+++	  break;
+++	case twoDimVertR3:
+++	  addPixels(refLine[b1i] + 3, blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    ++b1i;
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++ 	  }
++ 	  break;
++-	case twoDimVert0:
++-	  if (refLine[b1] < columns) {
++-	    a0New = codingLine[++a0] = refLine[b1];
++-	    ++b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	case twoDimVertR2:
+++	  addPixels(refLine[b1i] + 2, blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    ++b1i;
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++-	  } else {
++-	    a0New = codingLine[++a0] = columns;
++ 	  }
++ 	  break;
++ 	case twoDimVertR1:
++-	  if (refLine[b1] + 1 < columns) {
++-	    a0New = codingLine[++a0] = refLine[b1] + 1;
++-	    ++b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	  addPixels(refLine[b1i] + 1, blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    ++b1i;
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++-	  } else {
++-	    a0New = codingLine[++a0] = columns;
++ 	  }
++ 	  break;
++-	case twoDimVertL1:
++-	  if (refLine[b1] - 1 > a0New || (a0 == 0 && refLine[b1] == 1)) {
++-	    a0New = codingLine[++a0] = refLine[b1] - 1;
++-	    --b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	case twoDimVert0:
+++	  addPixels(refLine[b1i], blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    ++b1i;
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++ 	  }
++ 	  break;
++-	case twoDimVertR2:
++-	  if (refLine[b1] + 2 < columns) {
++-	    a0New = codingLine[++a0] = refLine[b1] + 2;
++-	    ++b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	case twoDimVertL3:
+++	  addPixelsNeg(refLine[b1i] - 3, blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    if (b1i > 0) {
+++	      --b1i;
+++	    } else {
+++	      ++b1i;
+++	    }
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++-	  } else {
++-	    a0New = codingLine[++a0] = columns;
++ 	  }
++ 	  break;
++ 	case twoDimVertL2:
++-	  if (refLine[b1] - 2 > a0New || (a0 == 0 && refLine[b1] == 2)) {
++-	    a0New = codingLine[++a0] = refLine[b1] - 2;
++-	    --b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	  addPixelsNeg(refLine[b1i] - 2, blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    if (b1i > 0) {
+++	      --b1i;
+++	    } else {
+++	      ++b1i;
++ 	    }
++-	  }
++-	  break;
++-	case twoDimVertR3:
++-	  if (refLine[b1] + 3 < columns) {
++-	    a0New = codingLine[++a0] = refLine[b1] + 3;
++-	    ++b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++-	  } else {
++-	    a0New = codingLine[++a0] = columns;
++ 	  }
++ 	  break;
++-	case twoDimVertL3:
++-	  if (refLine[b1] - 3 > a0New || (a0 == 0 && refLine[b1] == 3)) {
++-	    a0New = codingLine[++a0] = refLine[b1] - 3;
++-	    --b1;
++-	    while (refLine[b1] <= a0New && refLine[b1] < columns) {
++-	      b1 += 2;
+++	case twoDimVertL1:
+++	  addPixelsNeg(refLine[b1i] - 1, blackPixels);
+++	  blackPixels ^= 1;
+++	  if (codingLine[a0i] < columns) {
+++	    if (b1i > 0) {
+++	      --b1i;
+++	    } else {
+++	      ++b1i;
+++	    }
+++	    while (refLine[b1i] <= codingLine[a0i] && refLine[b1i] < columns) {
+++	      b1i += 2;
++ 	    }
++ 	  }
++ 	  break;
++ 	case EOF:
+++	  addPixels(columns, 0);
++ 	  eof = gTrue;
++-	  codingLine[a0 = 0] = columns;
++-	  return EOF;
+++	  break;
++ 	default:
++ 	  error(getPos(), "Bad 2D code %04x in CCITTFax stream", code1);
+++	  addPixels(columns, 0);
++ 	  err = gTrue;
++ 	  break;
++ 	}
++-      } while (codingLine[a0] < columns);
+++      }
++ 
++     // 1-D encoding
++     } else {
++-      codingLine[a0 = 0] = 0;
++-      while (1) {
+++      codingLine[0] = 0;
+++      a0i = 0;
+++      blackPixels = 0;
+++      while (codingLine[a0i] < columns) {
++ 	code1 = 0;
++-	do {
++-	  code1 += code3 = getWhiteCode();
++-	} while (code3 >= 64);
++-	codingLine[a0+1] = codingLine[a0] + code1;
++-	++a0;
++-	if (codingLine[a0] >= columns) {
++-	  break;
++-	}
++-	code2 = 0;
++-	do {
++-	  code2 += code3 = getBlackCode();
++-	} while (code3 >= 64);
++-	codingLine[a0+1] = codingLine[a0] + code2;
++-	++a0;
++-	if (codingLine[a0] >= columns) {
++-	  break;
+++	if (blackPixels) {
+++	  do {
+++	    code1 += code3 = getBlackCode();
+++	  } while (code3 >= 64);
+++	} else {
+++	  do {
+++	    code1 += code3 = getWhiteCode();
+++	  } while (code3 >= 64);
++ 	}
+++	addPixels(codingLine[a0i] + code1, blackPixels);
+++	blackPixels ^= 1;
++       }
++     }
++ 
++-    if (codingLine[a0] != columns) {
++-      error(getPos(), "CCITTFax row is wrong length (%d)", codingLine[a0]);
++-      // force the row to be the correct length
++-      while (codingLine[a0] > columns) {
++-	--a0;
++-      }
++-      codingLine[++a0] = columns;
++-      err = gTrue;
++-    }
++-
++     // byte-align the row
++     if (byteAlign) {
++       inputBits &= ~7;
++@@ -1562,14 +1584,17 @@
++     // this if we know the stream contains end-of-line markers because
++     // the "just plow on" technique tends to work better otherwise
++     } else if (err && endOfLine) {
++-      do {
+++      while (1) {
+++	code1 = lookBits(13);
++ 	if (code1 == EOF) {
++ 	  eof = gTrue;
++ 	  return EOF;
++ 	}
+++	if ((code1 >> 1) == 0x001) {
+++	  break;
+++	}
++ 	eatBits(1);
++-	code1 = lookBits(13);
++-      } while ((code1 >> 1) != 0x001);
+++      }
++       eatBits(12); 
++       if (encoding > 0) {
++ 	eatBits(1);
++@@ -1577,11 +1602,11 @@
++       }
++     }
++ 
++-    a0 = 0;
++-    outputBits = codingLine[1] - codingLine[0];
++-    if (outputBits == 0) {
++-      a0 = 1;
++-      outputBits = codingLine[2] - codingLine[1];
+++    // set up for output
+++    if (codingLine[0] > 0) {
+++      outputBits = codingLine[a0i = 0];
+++    } else {
+++      outputBits = codingLine[a0i = 1];
++     }
++ 
++     ++row;
++@@ -1589,39 +1614,43 @@
++ 
++   // get a byte
++   if (outputBits >= 8) {
++-    ret = ((a0 & 1) == 0) ? 0xff : 0x00;
++-    if ((outputBits -= 8) == 0) {
++-      ++a0;
++-      if (codingLine[a0] < columns) {
++-	outputBits = codingLine[a0 + 1] - codingLine[a0];
++-      }
+++    buf = (a0i & 1) ? 0x00 : 0xff;
+++    outputBits -= 8;
+++    if (outputBits == 0 && codingLine[a0i] < columns) {
+++      ++a0i;
+++      outputBits = codingLine[a0i] - codingLine[a0i - 1];
++     }
++   } else {
++     bits = 8;
++-    ret = 0;
+++    buf = 0;
++     do {
++       if (outputBits > bits) {
++-	i = bits;
++-	bits = 0;
++-	if ((a0 & 1) == 0) {
++-	  ret |= 0xff >> (8 - i);
+++	buf <<= bits;
+++	if (!(a0i & 1)) {
+++	  buf |= 0xff >> (8 - bits);
++ 	}
++-	outputBits -= i;
+++	outputBits -= bits;
+++	bits = 0;
++       } else {
++-	i = outputBits;
++-	bits -= outputBits;
++-	if ((a0 & 1) == 0) {
++-	  ret |= (0xff >> (8 - i)) << bits;
+++	buf <<= outputBits;
+++	if (!(a0i & 1)) {
+++	  buf |= 0xff >> (8 - outputBits);
++ 	}
+++	bits -= outputBits;
++ 	outputBits = 0;
++-	++a0;
++-	if (codingLine[a0] < columns) {
++-	  outputBits = codingLine[a0 + 1] - codingLine[a0];
+++	if (codingLine[a0i] < columns) {
+++	  ++a0i;
+++	  outputBits = codingLine[a0i] - codingLine[a0i - 1];
+++	} else if (bits > 0) {
+++	  buf <<= bits;
+++	  bits = 0;
++ 	}
++       }
++-    } while (bits > 0 && codingLine[a0] < columns);
+++    } while (bits);
+++  }
+++  if (black) {
+++    buf ^= 0xff;
++   }
++-  buf = black ? (ret ^ 0xff) : ret;
++   return buf;
++ }
++ 
++@@ -1663,6 +1692,9 @@
++   code = 0; // make gcc happy
++   if (endOfBlock) {
++     code = lookBits(12);
+++    if (code == EOF) {
+++      return 1;
+++    }
++     if ((code >> 5) == 0) {
++       p = &whiteTab1[code];
++     } else {
++@@ -1675,6 +1707,9 @@
++   } else {
++     for (n = 1; n <= 9; ++n) {
++       code = lookBits(n);
+++      if (code == EOF) {
+++	return 1;
+++      }
++       if (n < 9) {
++ 	code <<= 9 - n;
++       }
++@@ -1686,6 +1721,9 @@
++     }
++     for (n = 11; n <= 12; ++n) {
++       code = lookBits(n);
+++      if (code == EOF) {
+++	return 1;
+++      }
++       if (n < 12) {
++ 	code <<= 12 - n;
++       }
++@@ -1711,9 +1749,12 @@
++   code = 0; // make gcc happy
++   if (endOfBlock) {
++     code = lookBits(13);
+++    if (code == EOF) {
+++      return 1;
+++    }
++     if ((code >> 7) == 0) {
++       p = &blackTab1[code];
++-    } else if ((code >> 9) == 0) {
+++    } else if ((code >> 9) == 0 && (code >> 7) != 0) {
++       p = &blackTab2[(code >> 1) - 64];
++     } else {
++       p = &blackTab3[code >> 7];
++@@ -1725,6 +1766,9 @@
++   } else {
++     for (n = 2; n <= 6; ++n) {
++       code = lookBits(n);
+++      if (code == EOF) {
+++	return 1;
+++      }
++       if (n < 6) {
++ 	code <<= 6 - n;
++       }
++@@ -1736,6 +1780,9 @@
++     }
++     for (n = 7; n <= 12; ++n) {
++       code = lookBits(n);
+++      if (code == EOF) {
+++	return 1;
+++      }
++       if (n < 12) {
++ 	code <<= 12 - n;
++       }
++@@ -1749,6 +1796,9 @@
++     }
++     for (n = 10; n <= 13; ++n) {
++       code = lookBits(n);
+++      if (code == EOF) {
+++	return 1;
+++      }
++       if (n < 13) {
++ 	code <<= 13 - n;
++       }
++@@ -1963,6 +2013,12 @@
++     // allocate a buffer for the whole image
++     bufWidth = ((width + mcuWidth - 1) / mcuWidth) * mcuWidth;
++     bufHeight = ((height + mcuHeight - 1) / mcuHeight) * mcuHeight;
+++    if (bufWidth <= 0 || bufHeight <= 0 ||
+++	bufWidth > INT_MAX / bufWidth / (int)sizeof(int)) {
+++      error(getPos(), "Invalid image size in DCT stream");
+++      y = height;
+++      return;
+++    }
++     for (i = 0; i < numComps; ++i) {
++       frameBuf[i] = (int *)gmallocn(bufWidth * bufHeight, sizeof(int));
++       memset(frameBuf[i], 0, bufWidth * bufHeight * sizeof(int));
++@@ -3038,6 +3094,11 @@
++   }
++   scanInfo.firstCoeff = str->getChar();
++   scanInfo.lastCoeff = str->getChar();
+++  if (scanInfo.firstCoeff < 0 || scanInfo.lastCoeff > 63 ||
+++      scanInfo.firstCoeff > scanInfo.lastCoeff) {
+++    error(getPos(), "Bad DCT coefficient numbers in scan info block");
+++    return gFalse;
+++  }
++   c = str->getChar();
++   scanInfo.ah = (c >> 4) & 0x0f;
++   scanInfo.al = c & 0x0f;
++diff -urNad xpdf-3.02~/xpdf/Stream.h xpdf-3.02/xpdf/Stream.h
++--- xpdf-3.02~/xpdf/Stream.h	2007-02-27 23:05:52.000000000 +0100
+++++ xpdf-3.02/xpdf/Stream.h	2007-11-09 09:20:09.000000000 +0100
++@@ -528,13 +528,15 @@
++   int row;			// current row
++   int inputBuf;			// input buffer
++   int inputBits;		// number of bits in input buffer
++-  short *refLine;		// reference line changing elements
++-  int b1;			// index into refLine
++-  short *codingLine;		// coding line changing elements
++-  int a0;			// index into codingLine
+++  int *codingLine;		// coding line changing elements
+++  int *refLine;			// reference line changing elements
+++  int a0i;			// index into codingLine
+++  GBool err;			// error on current line
++   int outputBits;		// remaining ouput bits
++   int buf;			// character buffer
++ 
+++  void addPixels(int a1, int black);
+++  void addPixelsNeg(int a1, int black);
++   short getTwoDimCode();
++   short getWhiteCode();
++   short getBlackCode();
+--- xpdf-3.02.orig/debian/patches/10_add_accelerators.dpatch
++++ xpdf-3.02/debian/patches/10_add_accelerators.dpatch
+@@ -0,0 +1,33 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 10_add_accelerators.dpatch by  <hamish@noddy.cloud.net.au>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Add keyboard accelerators for rotate (#385962)
++
++@DPATCH@
++diff -urNad xpdf-3.02~/xpdf/XPDFViewer.cc xpdf-3.02/xpdf/XPDFViewer.cc
++--- xpdf-3.02~/xpdf/XPDFViewer.cc	2007-04-25 01:40:50.000000000 +1000
+++++ xpdf-3.02/xpdf/XPDFViewer.cc	2007-04-25 01:42:13.000000000 +1000
++@@ -1958,16 +1958,22 @@
++   n = 0;
++   s = XmStringCreateLocalized("Rotate counterclockwise");
++   XtSetArg(args[n], XmNlabelString, s); ++n;
+++  s2 = XmStringCreateLocalized("[");
+++  XtSetArg(args[n], XmNacceleratorText, s2); ++n;
++   btn = XmCreatePushButton(popupMenu, "rotateCCW", args, n);
++   XmStringFree(s);
+++  XmStringFree(s2);
++   XtManageChild(btn);
++   XtAddCallback(btn, XmNactivateCallback,
++ 		&rotateCCWCbk, (XtPointer)this);
++   n = 0;
++   s = XmStringCreateLocalized("Rotate clockwise");
++   XtSetArg(args[n], XmNlabelString, s); ++n;
+++  s2 = XmStringCreateLocalized("]");
+++  XtSetArg(args[n], XmNacceleratorText, s2); ++n;
++   btn = XmCreatePushButton(popupMenu, "rotateCW", args, n);
++   XmStringFree(s);
+++  XmStringFree(s2);
++   XtManageChild(btn);
++   XtAddCallback(btn, XmNactivateCallback,
++ 		&rotateCWCbk, (XtPointer)this);
+--- xpdf-3.02.orig/debian/patches/fix-CVE-2007-3387_CVE-2007-5049.dpatch
++++ xpdf-3.02/debian/patches/fix-CVE-2007-3387_CVE-2007-5049.dpatch
+@@ -0,0 +1,31 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## fix-CVE-2007-3387_CVE-2007-5049.dpatch by Nico Golde <nion@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: No description.
++
++@DPATCH@
++diff -urNad xpdf-3.02~/xpdf/Stream.cc xpdf-3.02/xpdf/Stream.cc
++--- xpdf-3.02~/xpdf/Stream.cc	2007-02-27 23:05:52.000000000 +0100
+++++ xpdf-3.02/xpdf/Stream.cc	2007-09-27 12:04:52.000000000 +0200
++@@ -410,15 +410,13 @@
++   ok = gFalse;
++ 
++   nVals = width * nComps;
++-  if (width <= 0 || nComps <= 0 || nBits <= 0 ||
++-      nComps >= INT_MAX / nBits ||
++-      width >= INT_MAX / nComps / nBits ||
++-      nVals * nBits + 7 < 0) {
++-    return;
++-  }
++   pixBytes = (nComps * nBits + 7) >> 3;
++   rowBytes = ((nVals * nBits + 7) >> 3) + pixBytes;
++-  if (rowBytes <= 0) {
+++  if (width <= 0 || nComps <= 0 || nBits <= 0 ||
+++      nComps > gfxColorMaxComps ||
+++      nBits > 16 ||
+++      width >= INT_MAX / nComps ||      // check for overflow in nVals 
+++      nVals >= (INT_MAX - 7) / nBits) { // check for overflow in rowBytes
++     return;
++   }
++   predLine = (Guchar *)gmalloc(rowBytes);
+--- xpdf-3.02.orig/debian/patches/99_autoconf.dpatch
++++ xpdf-3.02/debian/patches/99_autoconf.dpatch
+@@ -0,0 +1,19 @@
++#! /bin/sh -e
++## DP: run aclocal and autoconf
++
++dpatch_patch ()
++{
++	tar cf debian/patched/autoconf.tar configure aclocal.m4
++	aclocal-1.9 -I .
++	autoconf
++}
++
++dpatch_unpatch ()
++{
++	tar xf debian/patched/autoconf.tar
++}
++
++DPATCH_LIB_NO_DEFAULT=1
++
++. /usr/share/dpatch/dpatch.lib.sh
++
+--- xpdf-3.02.orig/debian/patches/41_lesstif_cpp.dpatch
++++ xpdf-3.02/debian/patches/41_lesstif_cpp.dpatch
+@@ -0,0 +1,30 @@
++#! /bin/sh /usr/share/dpatch/dpatch-run
++## 41_lesstif_cpp.dpatch by  <hamish@debian.org>
++##
++## All lines beginning with `## DP:' are a description of the patch.
++## DP: Work around mixed C/C++ linkages in lesstif - #377230
++
++@DPATCH@
++diff -urNad xpdf-3.01~/lesstif/Xm/VendorSP.h xpdf-3.01/lesstif/Xm/VendorSP.h
++--- xpdf-3.01~/lesstif/Xm/VendorSP.h	2006-05-28 08:30:56.000000000 +1000
+++++ xpdf-3.01/lesstif/Xm/VendorSP.h	2006-07-15 14:42:38.000000000 +1000
++@@ -30,10 +30,6 @@
++ #include <Xm/VendorS.h>
++ #include <X11/ShellP.h>
++ 
++-#ifdef __cplusplus
++-extern "C" {
++-#endif
++-
++ XMLIBEXPORT extern Cardinal _XmFilterResources(XtResource *resources,
++ 				   Cardinal numResources,
++ 				   WidgetClass filterClass,
++@@ -58,8 +54,5 @@
++ XMLIBEXPORT extern VendorShellClassRec  vendorShellClassRec;
++ 
++ 
++-#ifdef __cplusplus
++-}
++-#endif
++ 
++ #endif /* _XM_VENDORSP_H */
+--- xpdf-3.02.orig/debian/zxpdf
++++ xpdf-3.02/debian/zxpdf
+@@ -0,0 +1,52 @@
++#!/bin/bash
++
++# Copyright (c) 2001 Alcove - http://www.alcove.com/
++# Please distribute under the terms of the GNU GPL, version 2
++
++# Author: Yann Dirson <yann.dirson@fr.alcove.com>
++# $Id: zxpdf,v 1.1 2001/09/28 10:23:35 ydirson Exp $
++
++set -e
++
++file=
++flags=
++title="zxpdf"
++while [ $# -gt 0 ]
++do
++    case "$1" in
++    -z|-g|-geometry|-remote|-rgb|-papercolor|-eucjp|-t1lib|-ps|-paperw|-paperh)
++	flags="$flags $1 $2"; shift ;;
++    -title) title="$2"; shift ;;
++    -*) flags="$flags $1" ;;
++    *.pdf|*.PDF) file="$1"; shift; pages="$@"; cat=; break ;;
++    *.gz|*.Z) file="$1"; shift; pages="$@"; cat=zcat; break ;;
++    *.bz2) file="$1"; shift; pages="$@"; cat=bzcat; break ;;
++    *) echo >&2 "ERROR: unknown suffix in file \`$1'"; exit 1 ;;
++    esac
++    shift
++done
++
++if [ $# -ge 1 ] # optional page argument
++then
++    echo >&2 "ERROR: Too many arguments"
++fi
++
++if [ x"$title" == x -a x"$tmp" != x ]
++then
++    title="zxpdf: $file"
++fi
++
++if [ -z "$cat" ]
++then
++    tmp="$file"
++else
++    tmp=$(basename "$file")
++    tmp=$(tempfile -p "${tmp%.pdf*}" -s .pdf)
++    $cat "$file" >"$tmp"
++fi
++
++if [ "$tmp" == "" ]; then
++    exec xpdf -title $title $flags
++else
++    exec xpdf -title $title $flags "$tmp" $pages
++fi
+--- xpdf-3.02.orig/debian/copyright
++++ xpdf-3.02/debian/copyright
+@@ -0,0 +1,42 @@
++
++This is Debian GNU/Linux's prepackaged version of the 'xpdf' viewer written
++by Derek B. Noonburg. This package was original built by
++Dirk Eddelbuettel <edd@qed.econ.queensu.ca> and since 1998 has been
++maintained by Hamish Moffatt <hamish@debian.org>. Current sources are found
++at
++	http://www.foolabs.com/xpdf
++
++
++The upstream author's email address is: derekn@foolabs.com
++
++Copyright:
++
++Xpdf is copyright 1996-2007 Derek B. Noonburg.
++
++Xpdf is licensed under the GNU General Public License (GPL), version
++2.  In my opinion, the GPL is a convoluted, confusing, ambiguous mess.
++But it's also pervasive, and I'm sick of arguing.  And even if it is
++confusing, the basic idea is good.
++
++In order to cut down on the confusion a little bit, here are some
++informal clarifications:
++
++- I don't mind if you redistribute xpdf in source and/or binary form,
++  as long as you include all of the documentation: README, man pages
++  (or help files), and COPYING.  (Note that the README file contains a
++  pointer to a web page with the source code.)
++
++- Selling a CD-ROM that contains xpdf is fine with me, as long as it
++  includes the documentation.  I wouldn't mind receiving a sample
++  copy, but it's not necessary.
++
++- If you make useful changes to xpdf, please make the source code
++  available -- post it on a web site, email it to me, whatever.
++
++For information on commercial licensing and consulting, please see the
++Glyph & Cog web site:
++
++    http://www.glyphandcog.com/
++
++The full text of the GPL can be found in /usr/share/common-licenses/GPL.
++
+--- xpdf-3.02.orig/debian/xpdf.xpm
++++ xpdf-3.02/debian/xpdf.xpm
+@@ -0,0 +1,177 @@
++/* XPM */
++static char *xpdf[] = {
++/* columns rows colors chars-per-pixel */
++"32 32 139 2",
++"   c #003D000F000F",
++".  c #0CE40CE00CE0",
++"X  c #1E7600000000",
++"o  c #138D13B413B4",
++"O  c #19E816001600",
++"+  c #1B021CF31CF3",
++"@  c #26B900000000",
++"#  c #2D20004E004E",
++"$  c #2DCD0F260F26",
++"%  c #342B0C290C29",
++"&  c #39F700000000",
++"*  c #35BB16E016E0",
++"=  c #3F3D10DC10DC",
++"-  c #23C023C023C0",
++";  c #2DB72DF22DF2",
++":  c #32B02C2C2C2C",
++">  c #331533153315",
++",  c #3D4F3DAB3DAB",
++"<  c #412900000000",
++"1  c #4E4400000000",
++"2  c #438A16751675",
++"3  c #552E00090009",
++"4  c #589D00000000",
++"5  c #553814381438",
++"6  c #466A40084008",
++"7  c #578D29C429C4",
++"8  c #63DD00000000",
++"9  c #706515B015B0",
++"0  c #708517F717F7",
++"q  c #71D819011901",
++"w  c #42B142B242B2",
++"e  c #4AB94AB64AB6",
++"r  c #5F30420C420C",
++"t  c #52F852745274",
++"y  c #553A59885988",
++"u  c #5C0B535A535A",
++"i  c #599959D559D5",
++"p  c #618059D459D4",
++"a  c #7FA2562B562B",
++"s  c #63F465206520",
++"d  c #699169916991",
++"f  c #7B317B717B71",
++"g  c #AE2F00880088",
++"h  c #B26E00000000",
++"j  c #B8C604F204F2",
++"k  c #B90308810881",
++"l  c #B13817391739",
++"z  c #BFF611DD11DD",
++"x  c #A7343C313C31",
++"c  c #B6A136E436E4",
++"v  c #B14F39523952",
++"b  c #A7CA44514451",
++"n  c #AC7B5BE65BE6",
++"m  c #ABF678C378C3",
++"M  c #C79F00000000",
++"N  c #CD5500170017",
++"B  c #C4B212E112E1",
++"V  c #CED416B516B5",
++"C  c #DD5300000000",
++"Z  c #DCAC0C610C61",
++"A  c #D83D139D139D",
++"S  c #DCCB13C113C1",
++"D  c #D90D194E194E",
++"F  c #D87234623462",
++"G  c #D84A3CFC3CFC",
++"H  c #DED13D643D64",
++"J  c #E229000B000B",
++"K  c #E2CE09930993",
++"L  c #E45115631563",
++"P  c #E54D19161916",
++"I  c #E2BC21232123",
++"U  c #CE1D46944694",
++"Y  c #CD8C53CB53CB",
++"T  c #D70F42BB42BB",
++"R  c #DA5454E754E7",
++"E  c #D9295CAA5CAA",
++"W  c #CAFD63A163A1",
++"Q  c #C9846E7E6E7E",
++"!  c #DEBA65C865C8",
++"~  c #DD2D7F957F95",
++"^  c #E4DA44214421",
++"/  c #E3A452AE52AE",
++"(  c #ED3959C459C4",
++")  c #E22F650D650D",
++"_  c #845284888488",
++"`  c #86F188C288C2",
++"'  c #8DE18DEE8DEE",
++"]  c #935A941B941B",
++"[  c #9CE89CF49CF4",
++"{  c #A7A8850E850E",
++"}  c #AA8084FC84FC",
++"|  c #AFF888F088F0",
++" . c #B29381928192",
++".. c #B6EE8A448A44",
++"X. c #A3FDA3EBA3EB",
++"o. c #AB35AC0CAC0C",
++"O. c #B246B246B246",
++"+. c #B969B4DDB4DD",
++"@. c #BB90BB8FBB8F",
++"#. c #CD068F7A8F7A",
++"$. c #CDC0936A936A",
++"%. c #D20085B385B3",
++"&. c #D6699ED29ED2",
++"*. c #DC829C599C59",
++"=. c #CD42A62FA62F",
++"-. c #CE21ABF7ABF7",
++";. c #CD9AB2CBB2CB",
++":. c #CD0CC08AC08A",
++">. c #D8C2A77BA77B",
++",. c #EAE89F659F65",
++"<. c #EC71BE37BE37",
++"1. c #F4BBA0EAA0EA",
++"2. c #F5C9AB37AB37",
++"3. c #FB7DAD09AD09",
++"4. c #C526C505C505",
++"5. c #CD07CC65CC65",
++"6. c #D032D33DD33D",
++"7. c #D630C522C522",
++"8. c #DA43C538C538",
++"9. c #DFD0CAA7CAA7",
++"0. c #D260D3EFD3EF",
++"q. c #D4D9D990D990",
++"w. c #DB0BDBC3DBC3",
++"e. c #E08DE8F0E8F0",
++"r. c #E76CC6A0C6A0",
++"t. c #E78BD27BD27B",
++"y. c #EFD9D5B1D5B1",
++"u. c #EAC6DCDCDCDC",
++"i. c #E5DCE474E474",
++"p. c #E7BFEA2AEA2A",
++"a. c #ED83E7CCE7CC",
++"s. c #EBD0EBC8EBC8",
++"d. c #EE64F2ADF2AD",
++"f. c #F714E461E461",
++"g. c #F915E48FE48F",
++"h. c #FD3EEA64EA64",
++"j. c #F276F27AF27A",
++"k. c #FCA4F400F400",
++"l. c #FFF3FFF3FFF3",
++/* pixels */
++"                                                                ",
++"                                                                ",
++"< 1 1 3 3 &                                           @ 1 1 @   ",
++"8 N J J J N 4                                       # g J h #   ",
++"  4 N J J J N 4                     O w w o     o 6 b A h #     ",
++"    4 N J C J N 4                   , w.5.>   O X.4.7.>.%       ",
++"      4 N J J J N 4                   O.O.    ` y.F ! q.O       ",
++"        4 N J J J N 4               - 0.o.  # ;.2.h 2 ,         ",
++"          4 N J J J N 4             w s.] @ x p.| #             ",
++"            4 N J J J N 4           w p.} g T p._               ",
++"              3 N J J J N 4         e d.%.C U s.f               ",
++"            . . 3 M J J J N 4 X     i k.H g a s.>               ",
++"          ; @.f t n / D J J B 6 y u  .h.l 7 ] j.d t .           ",
++"        > @.l.w.] s 6.*.K A #.8.W ! u.a.* ; [ d.d t             ",
++"      o _ 4.l.d     d h.A Q e.R C A r.6.o . +.5.o               ",
++"        + _ j.e     i s.0 &.<.A J A 8.4.. . 4.4.o               ",
++"          _ s.w     i p.O o.3.C J S t.4.. o 5.@..               ",
++"          ] s.w   . ] 6.= -.2.C J P h.~ 4 O i.f                 ",
++"          X.j.w   w w...j ,.r.c N ^ k.( N 0 s.i                 ",
++"          o.s.] ' o...z J c 4.5.$.=.f.1.K ) g.X..               ",
++"        O 4.O.O + 2 k J g # o + + 5 V P K L D q                 ",
++"        w s.]   # g J h #           4 N J J C N 4               ",
++"        w p._ @ h J g #               4 N J J J N 4             ",
++"        e d.} g J h #                   4 N J J J N 4           ",
++"        i k.Y J g #                       4 N J J J N 4         ",
++"        s h.I g #                           4 N J J J N 4       ",
++"      $ +.s.m #                               4 N J J J N 4     ",
++"    # g T b :                                   4 N J J J N 4   ",
++"  # h J g #                                       4 N J J J N < ",
++"  @ 1 1 @                                           & 1 3 1 3 X ",
++"                                                                ",
++"                                                                "
++};
+--- xpdf-3.02.orig/debian/xpdf-wrapper
++++ xpdf-3.02/debian/xpdf-wrapper
+@@ -0,0 +1,5 @@
++#!/bin/bash
++LANG=C
++LC_ALL=C
++export LANG LC_ALL
++exec -a xpdf xpdf.bin "$@"
+--- xpdf-3.02.orig/debian/rules
++++ xpdf-3.02/debian/rules
+@@ -0,0 +1,110 @@
++#!/usr/bin/make -f
++# 							-*- makefile -*-
++# debian.rules file for the Debian GNU/Linux xpdf package
++# Copyright 1996,1997,1998 by Dirk Eddelbuettel <edd@debian.org>
++# Copyright 1998-2006 by Hamish Moffatt <hamish@debian.org>
++
++build: build-stamp
++build-stamp: patch
++	dh_testdir
++	#CC=gcc-4.0 CXX=g++-4.0 ./configure
++	./configure \
++		--prefix=/usr \
++		--sysconfdir=/etc/xpdf \
++		--mandir=/usr/share/man \
++		--with-x \
++		--enable-freetype2 \
++		--enable-opi \
++		--enable-wordlist \
++		--enable-multithreaded \
++		--with-Xm-includes=$(shell pwd)/lesstif \
++		--with-freetype2-includes=/usr/include/freetype2 \
++		--with-t1-includes=/usr/include
++	$(MAKE) 
++	touch build-stamp
++
++clean: clean1 unpatch
++clean1:
++	dh_testdir
++	-$(MAKE) -i distclean
++	rm -rf *~ debian/*~ debian/files* build-stamp aconf.h
++	rm -rf fofi/Makefile splash/Makefile
++	dh_clean
++
++binary-indep:   # Nothing to build
++	dh_testdir
++	dh_installdirs -i
++	ln -sf xpdf-common debian/xpdf/usr/share/doc/xpdf
++
++	cp doc/xpdfrc.5 debian/xpdf-common/usr/share/man/man5
++	cp debian/xpdfrc debian/xpdf-common/usr/share/doc/xpdf-common/examples/sample-xpdfrc
++	cp debian/update-xpdfrc debian/xpdf-common/usr/sbin
++	chmod +x debian/xpdf-common/usr/sbin/update-xpdfrc
++	cp debian/xpdfrc debian/xpdf-common/etc/xpdf
++	cp debian/xpdf-bug-control debian/xpdf/usr/share/bug/xpdf/control
++
++	dh_installdocs -pxpdf-common README debian/README.Debian
++	dh_installchangelogs -pxpdf-common CHANGES
++	cp debian/update-xpdfrc.8 debian/xpdf-common/usr/share/man/man8
++
++	cp -a debian/lang/* debian/xpdf-common/
++
++	dh_compress -i
++	dh_fixperms -i
++	dh_installdeb -i
++	dh_shlibdeps -i
++	dh_gencontrol -i
++	dh_md5sums -i
++	dh_builddeb -i
++
++binary-arch:    build
++	dh_testdir
++
++	dh_installdirs -a
++	mkdir -p debian/tmp
++	mkdir -p debian/tmp/usr/share
++	$(MAKE) install DESTDIR=`pwd`/debian/tmp
++
++	ln -sf xpdf-common debian/xpdf-reader/usr/share/doc/xpdf-reader
++	ln -sf xpdf-common debian/xpdf-utils/usr/share/doc/xpdf-utils
++
++	cp debian/zxpdf debian/xpdf-reader/usr/bin
++	chmod +x debian/xpdf-reader/usr/bin/zxpdf
++	ln -sf xpdf.1.gz debian/xpdf-reader/usr/share/man/man1/zxpdf.1.gz
++	ln -sf xpdf.1.gz debian/xpdf-reader/usr/share/man/man1/xpdf.bin.1.gz
++
++	cp debian/xpdf.xpm debian/xpdf-reader/usr/share/pixmaps
++
++	dh_installdocs -a
++	dh_movefiles -a
++	rm -rf debian/tmp
++
++	# rename xpdf binary and install wrapper script
++	mv debian/xpdf-reader/usr/bin/xpdf debian/xpdf-reader/usr/bin/xpdf.bin
++	cp debian/xpdf-wrapper debian/xpdf-reader/usr/bin/xpdf
++	chmod +x debian/xpdf-reader/usr/bin/xpdf
++	cp debian/xpdf.desktop debian/xpdf-reader/usr/share/applications/
++
++	dh_installmime -pxpdf-reader
++	dh_installmenu -pxpdf-reader
++	dh_strip -a
++	dh_desktop -a
++	dh_compress -a
++	dh_fixperms -a
++	dh_installdeb -a
++	dh_shlibdeps -a
++	dh_gencontrol -a
++	dh_md5sums -a
++	dh_builddeb -a
++
++patch: patch-stamp
++patch-stamp:
++	dpatch apply-all
++	#dpatch call-all -a=pkg-info >patch-stamp
++	touch patch-stamp
++
++unpatch:
++	dpatch deapply-all
++	rm -rf patch-stamp debian/patched
++
++binary:		binary-indep binary-arch

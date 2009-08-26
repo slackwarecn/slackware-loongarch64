@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-2.29}
+ARCH=noarch
+BUILD=1
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-dejavu-fonts-ttf
+
+# I suppose we'll be nice and try to fetch this if
+# you know the version you want.
+if [ ! -e $CWD/dejavu-fonts-ttf-$VERSION.tar.gz ]; then
+  if [ ! -e $CWD/dejavu-fonts-ttf-$VERSION.tar.bz2 ]; then
+    lftpget http://dejavu.sourceforge.net/snapshots/dejavu-fonts-ttf-$VERSION.tar.gz
+  fi
+fi
+if [ -e $CWD/dejavu-fonts-ttf-$VERSION.tar.gz ]; then
+  gzip -d $CWD/dejavu-fonts-ttf-$VERSION.tar.gz
+  bzip2 -9 $CWD/dejavu-fonts-ttf-$VERSION.tar
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf dejavu-fonts-ttf-$VERSION
+tar xvf $CWD/dejavu-fonts-ttf-$VERSION.tar.bz2 || exit 1
+cd dejavu-fonts-ttf-$VERSION || exit 1
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+mkdir -p $PKG/usr/share/fonts/TTF/
+cp -a ttf/*.ttf $PKG/usr/share/fonts/TTF/
+
+mkdir -p $PKG/etc/fonts/conf.avail
+mkdir -p $PKG/etc/fonts/conf.d
+( cd fontconfig
+  for file in * ; do
+    cp -a $file $PKG/etc/fonts/conf.avail
+    ( cd $PKG/etc/fonts/conf.d ; ln -sf ../conf.avail/$file . )
+  done
+)
+
+mkdir -p $PKG/usr/doc/dejavu-fonts-ttf-$VERSION
+cp -a \
+  AUTHORS LICENSE NEWS README* *.txt \
+  $PKG/usr/doc/dejavu-fonts-ttf-$VERSION
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/dejavu-fonts-ttf-$(echo $VERSION | tr - _ )-$ARCH-$BUILD.txz
+

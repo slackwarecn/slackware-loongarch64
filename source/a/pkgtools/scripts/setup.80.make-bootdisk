@@ -1,0 +1,175 @@
+#!/bin/sh
+#BLURB="Create a USB Linux boot stick"
+RDIR=/dev/tty4
+NDIR=/dev/null
+TMP=/var/log/setup/tmp
+
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+T_PX="$1"
+ROOT_DEVICE="$2"
+
+while [ 0 ]; do # the bootdisk menu loop
+ # Run "rescan-scsi-bus -l" to get an up to date overview of devices:
+ /sbin/rescan-scsi-bus -l 1>$RDIR 2>$RDIR
+ # Get a list of removable block devices before the USB stick is inserted:
+ echo "" > $TMP/remov_prior
+ for BDEV in $(ls --indicator-style none /sys/block | egrep -v "loop|ram"); do
+   [ -r /sys/block/$BDEV/removable -a "$(cat /sys/block/$BDEV/removable)" == "1" ] \
+     && echo $BDEV >> $TMP/remov_prior
+ done
+ dialog --title "MAKE USB FLASH BOOT" --default-item "Skip" --menu \
+"If your computer supports booting from a USB device, it is recommended that you make \
+a USB boot stick for your system at this time. It will boot your computer straight \
+into the root filesystem on $ROOT_DEVICE. \n\
+\n\
+Please insert a USB flash memory stick and then press ENTER to create a boot stick.  \n\
+\n\
+WARNING!  The existing contents of the USB stick will be erased. \n\
+   " 18 70 2 \
+ "Create" "Make a USB Linux boot stick" \
+ "Skip" "Skip making a USB boot stick" \
+ 2> $TMP/return
+ REPLY=`cat $TMP/return`
+ rm -f $TMP/return
+ if [ "$REPLY" = "Create" ]; then
+  # Run "rescan-scsi-bus -l" to discover our USB stick if needed:
+  /sbin/rescan-scsi-bus -l 1>$RDIR 2>$RDIR
+  # Get a list of removable block devices after the USB stick is inserted:
+  echo "" > $TMP/remov_after
+  for BDEV in $(ls --indicator-style none /sys/block | egrep -v "loop|ram"); do
+    [ -r /sys/block/$BDEV/removable -a "$(cat /sys/block/$BDEV/removable)" == "1" ] \
+      && echo $BDEV >> $TMP/remov_after
+  done
+  ADDED=$(diff -u $TMP/remov_prior $TMP/remov_after | sed -n 's/^\+//p' | grep -v '^+')
+  REMVD=$(diff -u $TMP/remov_prior $TMP/remov_after | sed -n 's/^\+//p' | grep -v '^+')
+  if [ -n "$ADDED" ] ; then STICK=$ADDED ; else STICK="" ; fi
+  rm $TMP/remov_prior $TMP/remov_after
+  if [ ! -n "$STICK" ]; then
+   dialog --title "NO NEW DEVICE DETECTED" --ok-label Restart --msgbox  \
+"No new USB device was detected. 
+If you had already inserted your USB stick, please remove it now. \
+Then select 'Restart'." 7 70
+   continue
+  else
+   VENDOR="Vendor : $(cat /sys/block/$STICK/device/vendor)"
+   MODEL="Model  : $(cat /sys/block/$STICK/device/model)"
+   SIZE="Size   : $(( $(cat /sys/block/$STICK/size) / 2048)) MB"
+   dialog --title "NEW DEVICE DETECTED" --yesno \
+"A new USB device '/dev/$STICK' was detected with specifications:
+
+--  $VENDOR
+--  $MODEL
+--  $SIZE
+
+If this is the USB stick to use, select 'Yes',
+otherwise select 'No'." 12 70
+   if [ $? -eq 1 ]; then
+    continue
+   fi
+  fi
+
+  dialog --title "CREATING USB BOOT STICK" --infobox "Creating SYSLINUX bootdisk for \
+$ROOT_DEVICE on /dev/$STICK." 3 64 
+  # Determine max size of the filesystem (in KB) we want to create:
+  USBSIZE=$(( $(cat /sys/block/$STICK/size) / 2048))
+  if [ $USBSIZE -lt 512 ]; then DOSSIZE=$(($USBSIZE*1024))
+  else DOSSIZE=$((512*1024))
+  fi
+  # Hack from Pat.  If we're wasting a whole stick, who cares if the partition is
+  # extra-small, as long as the kernel fits?  Also, FAT12 is the least problematic.
+  DOSSIZE=15861
+  if [ -x /sbin/mkdosfs ]; then
+    /sbin/mkdosfs -I -n USBSLACK -F 12 /dev/$STICK $DOSSIZE 1> /dev/null 2> /dev/null
+  else
+    chroot $T_PX /sbin/mkdosfs -I -n USBSLACK -F 12 /dev/$STICK $DOSSIZE 1> /dev/null 2> /dev/null
+  fi
+  if [ ! -d $TMP/bootdisk ]; then
+    mkdir $TMP/bootdisk
+  fi
+  mount -t vfat /dev/$STICK $TMP/bootdisk 1> /dev/null 2> /dev/null
+  if [ -r $T_PX/vmlinuz ]; then
+    cp $T_PX/vmlinuz $TMP/bootdisk/vmlinuz
+  elif [ -r $T_PX/boot/vmlinuz ]; then
+    cp $T_PX/boot/vmlinuz $TMP/bootdisk/vmlinuz
+  fi
+  # We don't need the isolinux bootloader with syslinux do we?
+  #cp $T_PX/usr/share/syslinux/isolinux.bin $TMP/bootdisk/
+  cat << EOF > $TMP/bootdisk/message.txt
+
+Welcome to the 09Slackware07 Linux custom USB boot stick!
+
+By default, this stick boots a root Linux partition on $ROOT_DEVICE when you
+hit ENTER.  If you'd like to boot some other partition, use a command like
+this on the prompt below:
+
+    mount root=/dev/sda1 ro
+
+Where "/dev/sda1" is the partition you want to boot, and "ro" specifies that
+the partition should be initially mounted as read-only.  If you wish to mount
+the partition read-write, use "rw" instead.  To set the video console mode,
+use the vga= parameter (press F1 to see a table).  You may also add any other
+kernel parameters you might need depending on your hardware, and which
+drivers are included in your kernel.
+
+EOF
+   cat << EOF > $TMP/bootdisk/syslinux.cfg
+default vmlinuz root=$ROOT_DEVICE vga=normal ro
+prompt 1
+timeout 6000
+display message.txt
+F1 f1.txt
+F2 message.txt
+#F3 f3.txt
+#F4 f4.txt
+#F5 f5.txt
+#F6 f6.txt
+#F7 f7.txt
+label mount
+  kernel vmlinuz
+  append root=$ROOT_DEVICE vga=normal ro
+EOF
+  cat << EOF > $TMP/bootdisk/f1.txt
+ STANDARD MODES:
+ To make the kernel prompt for standard video modes use: vga=ask
+
+ FRAMEBUFFER MODES:
+ To get the kernel to start in VESA framebuffer mode, you need to pass it
+ a vga= init string on the "boot:" prompt.  Here's a table:
+
+   Colors   640x480 800x600 1024x768 1280x1024 1600x1200
+  --------+---------------------------------------------
+  256     |   769     771      773      775       796
+  32,768  |   784     787      790      793       797
+  65,536  |   785     788      791      794       798
+  16.8M   |   786     789      792      795       799
+
+  ...such as this for 1024x768x64k:
+   vga=791
+
+  F2 returns to the previous page.
+
+EOF
+  umount /dev/$STICK
+  rm -r $TMP/bootdisk
+  # Make the device bootable:
+  syslinux -s /dev/$STICK 1> /dev/null 2> /dev/null
+  dialog --title "USB BOOT STICK CREATED" --ok-label Continue --cancel-label Create --menu \
+"The USB boot stick has been successfully created in /dev/$STICK.  If you would like to \
+create an additional boot stick, please select 'Create' and we'll go back and make another \
+one, otherwise select 'Continue' to continue configuring your system." 12 70 2 \
+ "Continue" "Continue the configuration (done making boot sticks)" \
+ "Create" "Make a spare Linux boot stick in /dev/$STICK" \
+ 2> $TMP/return
+  REPLY=`cat $TMP/return`
+  rm -f $TMP/return
+  if [ "$REPLY" = "Create" ]; then
+   continue
+  else
+   break
+  fi
+ else # ! Create
+  break
+ fi
+done

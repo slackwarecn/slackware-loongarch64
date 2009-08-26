@@ -1,0 +1,51 @@
+diff -uarN dropbear-0.50.orig/options.h dropbear-0.50/options.h
+--- dropbear-0.50.orig/options.h	2007-08-08 17:39:37.000000000 +0200
++++ dropbear-0.50/options.h	2008-02-01 00:22:07.000000000 +0100
+@@ -148,6 +148,9 @@
+  * SSH_ASKPASS instead. Comment out this var to remove this functionality.*/
+ #define DROPBEAR_PASSWORD_ENV "DROPBEAR_PASSWORD"
+ 
++/* disable server empty password check because root has no password on EZX */
++#define DISABLE_SVR_EMPTY_PASSWD_CHECK
++
+ /* Define this (as well as ENABLE_CLI_PASSWORD_AUTH) to allow the use of
+  * a helper program for the ssh client. The helper program should be
+  * specified in the SSH_ASKPASS environment variable, and dbclient
+diff -uarN dropbear-0.50.orig/svr-auth.c dropbear-0.50/svr-auth.c
+--- dropbear-0.50.orig/svr-auth.c	2007-08-08 17:39:37.000000000 +0200
++++ dropbear-0.50/svr-auth.c	2008-02-01 00:22:07.000000000 +0100
+@@ -236,6 +236,7 @@
+ 		return DROPBEAR_FAILURE;
+ 	}
+ 
++#ifndef DISABLE_SVR_EMPTY_PASSWD_CHECK
+ 	/* check for an empty password */
+ 	if (ses.authstate.pw->pw_passwd[0] == '\0') {
+ 		TRACE(("leave checkusername: empty pword"))
+@@ -244,6 +245,7 @@
+ 		send_msg_userauth_failure(0, 1);
+ 		return DROPBEAR_FAILURE;
+ 	}
++#endif
+ 
+ 	TRACE(("shell is %s", ses.authstate.pw->pw_shell))
+ 
+diff -uarN dropbear-0.50.orig/svr-authpasswd.c dropbear-0.50/svr-authpasswd.c
+--- dropbear-0.50.orig/svr-authpasswd.c	2007-08-08 17:39:37.000000000 +0200
++++ dropbear-0.50/svr-authpasswd.c	2008-02-01 00:23:00.000000000 +0100
+@@ -60,6 +60,7 @@
+ 	passwdcrypt = DEBUG_HACKCRYPT;
+ #endif
+ 
++#ifndef DISABLE_SVR_EMPTY_PASSWD_CHECK
+ 	/* check for empty password - need to do this again here
+ 	 * since the shadow password may differ to that tested
+ 	 * in auth.c */
+@@ -69,6 +70,7 @@
+ 		send_msg_userauth_failure(0, 1);
+ 		return;
+ 	}
++#endif
+ 
+ 	/* check if client wants to change password */
+ 	changepw = buf_getbool(ses.payload);

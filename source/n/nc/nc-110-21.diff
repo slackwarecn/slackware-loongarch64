@@ -1,0 +1,787 @@
+--- netcat-1.10.orig/Makefile
++++ netcat-1.10/Makefile
+@@ -14,8 +14,8 @@
+ XLIBS =		# xtra libs if necessary?
+ # -Bstatic for sunos,  -static for gcc, etc.  You want this, trust me.
+ STATIC =
+-CC = cc $(CFLAGS)
+-LD = $(CC) -s	# linker; defaults to stripped executables
++CC = gcc $(CFLAGS)
++LD = $(CC)	# linker; defaults to unstripped executables
+ o = o		# object extension
+ 
+ ALL = nc
+--- netcat-1.10.orig/debian/nc.1
++++ netcat-1.10/debian/nc.1
+@@ -0,0 +1,146 @@
++.TH NC 1 
++.SH NAME
++nc \- TCP/IP swiss army knife
++.SH SYNOPSIS
++.B nc
++.I "[-options] hostname port[s] [ports] ..."
++.br
++.B nc
++.I "-l -p port [-options] [hostname] [port]"
++.SH "DESCRIPTION"
++.B netcat
++is a simple unix utility which reads and writes data across network
++connections, using TCP or UDP protocol. It is designed to be a
++reliable "back-end" tool that can be used directly or easily driven by
++other programs and scripts.  At the same time, it is a feature-rich
++network debugging and exploration tool, since it can create almost any
++kind of connection you would need and has several interesting built-in
++capabilities.  Netcat, or "nc" as the actual program is named, should
++have been supplied long ago as another one of those cryptic but
++standard Unix tools.
++.P
++In the simplest usage, "nc host port" creates a TCP connection to the
++given port on the given target host.  Your standard input is then sent
++to the host, and anything that comes back across the connection is
++sent to your standard output.  This continues indefinitely, until the
++network side of the connection shuts down.  Note that this behavior is
++different from most other applications which shut everything down and
++exit after an end-of-file on the standard input.
++.P
++Netcat can also function as a server, by listening for inbound
++connections on arbitrary ports and then doing the same reading and
++writing.  With minor limitations, netcat doesn't really care if it
++runs in "client" or "server" mode -- it still shovels data back and
++forth until there isn't any more left. In either mode, shutdown can be
++forced after a configurable time of inactivity on the network side.
++.P
++And it can do this via UDP too, so netcat is possibly the "udp
++telnet-like" application you always wanted for testing your UDP-mode
++servers.  UDP, as the "U" implies, gives less reliable data
++transmission than TCP connections and some systems may have trouble
++sending large amounts of data that way, but it's still a useful
++capability to have.
++.P
++You may be asking "why not just use telnet to connect to arbitrary
++ports?" Valid question, and here are some reasons.  Telnet has the
++"standard input EOF" problem, so one must introduce calculated delays
++in driving scripts to allow network output to finish.  This is the
++main reason netcat stays running until the *network* side closes.
++Telnet also will not transfer arbitrary binary data, because certain
++characters are interpreted as telnet options and are thus removed from
++the data stream.  Telnet also emits some of its diagnostic messages to
++standard output, where netcat keeps such things religiously separated
++from its *output* and will never modify any of the real data in
++transit unless you *really* want it to.  And of course telnet is
++incapable of listening for inbound connections, or using UDP instead.
++Netcat doesn't have any of these limitations, is much smaller and
++faster than telnet, and has many other advantages.
++.SH OPTIONS
++.TP 13
++.I \-g gateway
++source-routing hop point[s], up to 8
++.TP 13
++.I \-G num
++source-routing pointer: 4, 8, 12, ...
++.TP 13
++.I \-h
++display help
++.TP 13
++.I \-i secs
++delay interval for lines sent, ports scanned
++.TP 13
++.I \-l
++listen mode, for inbound connects
++.TP 13
++.I \-n
++numeric-only IP addresses, no DNS
++.TP 13
++.I \-o file
++hex dump of traffic
++.TP 13
++.I \-p port
++local port number (port numbers can be individual or ranges: lo-hi
++[inclusive])
++.TP 13
++.I \-q seconds
++after EOF is detected, wait the specified number of seconds and then
++quit.
++.TP 13
++.I \-b
++allow UDP broadcasts
++.TP 13
++.I \-r
++randomize local and remote ports
++.TP 13
++.I \-s addr
++local source address
++.TP 13
++.I \-t
++enable telnet negotiation
++.TP 13
++.I \-e prog
++specify program to exec after connect (use with caution)
++.TP 13
++.I \-u
++UDP mode
++.TP 13
++.I \-v
++verbose [use twice to be more verbose]
++.TP 13
++.I \-w secs
++timeout for connects and final net reads
++.TP 13
++.I \-z
++zero-I/O mode [used for scanning]
++.SH COPYRIGHT
++Netcat is entirely my own creation, although plenty of other code was
++used as examples.  It is freely given away to the Internet community
++in the hope that it will be useful, with no restrictions except giving
++credit where it is due.  No GPLs, Berkeley copyrights or any of that
++nonsense.  The author assumes NO responsibility for how anyone uses
++it.  If netcat makes you rich somehow and you're feeling generous,
++mail me a check.  If you are affiliated in any way with Microsoft
++Network, get a life.  Always ski in control.  Comments, questions, and
++patches to hobbit@avian.org.
++.SH BUGS
++Efforts have been made to have netcat "do the right thing" in all its
++various modes.  If you believe that it is doing the wrong thing under
++whatever circumstances, please notify me and tell me how you think it
++should behave.  If netcat is not able to do some task you think up,
++minor tweaks to the code will probably fix that.  It provides a basic
++and easily-modified template for writing other network applications,
++and I certainly encourage people to make custom mods and send in any
++improvements they make to it. Continued feedback from the Internet
++community is always welcome!
++.P
++Some port names in /etc/services contain hyphens -- netcat currently
++will not correctly parse those, so specify ranges using numbers if you
++can.
++.SH "SEE ALSO"
++/usr/share/doc/netcat/README.gz
++.SH AUTHOR
++This manual page was written by Joey Hess <joeyh@debian.org> and
++Robert Woodcock <rcw@debian.org>, cribbing heavily from Netcat's
++README file.
++.P
++Netcat was written by a guy we know as the Hobbit <hobbit@avian.org>.
+--- netcat-1.10.orig/debian/control
++++ netcat-1.10/debian/control
+@@ -0,0 +1,18 @@
++Source: netcat
++Section: net
++Priority: optional
++Maintainer: Decklin Foster <decklin@red-bean.com>
++Standards-Version: 3.5.6
++Build-Depends: debhelper (>= 3.0.0)
++
++Package: netcat
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: TCP/IP swiss army knife
++ A simple Unix utility which reads and writes data across network 
++ connections using TCP or UDP protocol.  It is designed to be a reliable
++ "back-end" tool that can be used directly or easily driven by other 
++ programs and scripts. At the same time it is a feature-rich network
++ debugging and exploration tool, since it can create almost any kind of
++ connection you would need and has several interesting built-in 
++ capabilities.
+--- netcat-1.10.orig/debian/netcat.examples
++++ netcat-1.10/debian/netcat.examples
+@@ -0,0 +1,2 @@
++data/
++scripts/
+--- netcat-1.10.orig/debian/rules
++++ netcat-1.10/debian/rules
+@@ -0,0 +1,64 @@
++#!/usr/bin/make -f
++# Sample debian/rules that uses debhelper.
++# This file is public domain software, originally written by Joey Hess.
++
++# Uncomment this to turn on verbose mode.
++#export DH_VERBOSE=1
++
++# This is the debhelper compatibility version to use.
++export DH_COMPAT=3
++
++DEB_CFLAGS = -O2
++ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
++DEB_CFLAGS += -g
++endif
++
++build: build-stamp
++build-stamp:
++	dh_testdir
++	$(MAKE) linux CFLAGS='$(DEB_CFLAGS)' STATIC='' \
++	    DFLAGS='-DLINUX -DTELNET -DGAPING_SECURITY_HOLE'
++	touch build-stamp
++
++clean:
++	dh_testdir
++	dh_testroot
++	rm -f build-stamp
++	# Add here commands to clean up after the build process.
++	-$(MAKE) clean
++	dh_clean
++
++install:
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++	install -m 0755 nc debian/netcat/usr/bin
++	ln -s nc debian/netcat/usr/bin/netcat
++
++# Build architecture-independent files here.
++binary-indep: build install
++# We have nothing to do by default.
++
++# Build architecture-dependent files here.
++binary-arch: build install
++	dh_testdir
++	dh_testroot
++	dh_installdocs
++	dh_installexamples
++#	dh_installmenu
++	dh_installman
++	ln -s nc.1.gz debian/netcat/usr/share/man/man1/netcat.1.gz
++	dh_installchangelogs Changelog
++	dh_link
++	dh_strip
++	dh_compress -Xexamples
++	dh_fixperms
++	dh_installdeb
++	dh_shlibdeps
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary install
+--- netcat-1.10.orig/debian/netcat.copyright
++++ netcat-1.10/debian/netcat.copyright
+@@ -0,0 +1,12 @@
++The netcat Debian package was originally created by Michael Shields
++<shields@crosslink.net>. It is currently maintained by Decklin Foster
++<decklin@red-bean.com>.
++
++Netcat was written by *Hobbit* <hobbit@avian.org>, and can be
++downloaded from <URL:ftp://avian.org/src/hacks/>.
++
++The following permission statement is excerpted from `netcat.blurb':
++
++  Netcat and the associated package is a product of Avian Research,
++  and is freely available in full source form with no restrictions
++  save an obligation to give credit where due.
+--- netcat-1.10.orig/debian/changelog
++++ netcat-1.10/debian/changelog
+@@ -0,0 +1,157 @@
++netcat (1.10-21) unstable; urgency=low
++
++  * Documented -e in man page. (Closes: #131269)
++
++ -- Decklin Foster <decklin@red-bean.com>  Tue, 29 Jan 2002 16:30:30 -0500
++
++netcat (1.10-20) unstable; urgency=low
++
++  * Moved around shutdown call in -q patch to be more compatible with standard
++    nc. Thanks to Dmitry Chernyak <cdl@inkasbank.ru> for pointing this out.
++  * Applied UDP broadcast patch from NetBSD (Closes: #108182)
++    - Updated man page to document this option
++    - Also applied patch to use inet_aton instead of IADDR_NONE (which is
++      obsolete), so that it will work.
++  * Bumped Standards-Version to 3.5.6
++
++ -- Decklin Foster <decklin@red-bean.com>  Tue,  9 Oct 2001 18:08:24 -0400
++
++netcat (1.10-19) unstable; urgency=low
++
++  * Reupload source package (my typo fix was lost due to a misconfigured
++    dput). This should really fix #97583.
++
++ -- Decklin Foster <decklin@red-bean.com>  Fri,  1 Jun 2001 18:18:17 -0400
++
++netcat (1.10-18) unstable; urgency=low
++
++  * Applied patch from Joe Pepin <jdp@ll.mit.edu> to fix multiple timeouts
++    (Closes: #97583)
++  * Lookup services with getservbyname even if resolving hostnames with DNS is
++    disabled (Closes: #98902)
++  * Install a symlink to the nc binary called 'netcat'. (Closes: #97625)
++
++ -- Decklin Foster <decklin@red-bean.com>  Fri,  1 Jun 2001 13:13:25 -0400
++
++netcat (1.10-17) unstable; urgency=low
++
++  * Added include for <resolv.h>, which is needed to compile with recent
++    versions of glibc.
++  * Added patch to always print "connection refused" messages, without having
++    to turn on the other junk that -v prints. (Closes: #65413)
++  * Upgraded to debhelper 3 and policy 3.5.2.0.
++  * Added DEB_BUILD_OPTIONS =~ /debug/ support.
++
++ -- Decklin Foster <decklin@red-bean.com>  Wed, 28 Feb 2001 16:53:33 -0500
++
++netcat (1.10-16) unstable; urgency=low
++
++  * Rebuild with dpkg 1.8.1.2 to fix bad .diff.gz
++
++ -- Decklin Foster <decklin@red-bean.com>  Mon,  8 Jan 2001 14:54:48 -0500
++
++netcat (1.10-15) unstable; urgency=low
++
++  * Add shutdown() patch back in (Closes: #81384)
++  * updated /usr/doc -> /usr/share/doc in man page.
++
++ -- Decklin Foster <decklin@red-bean.com>  Sat,  6 Jan 2001 08:58:21 -0500
++
++netcat (1.10-14) unstable; urgency=low
++
++  * Ship with -e turned on. (Closes: #66355)
++  * Fix debian/copyright typo.
++
++ -- Decklin Foster <decklin@red-bean.com>  Sat, 30 Dec 2000 13:27:33 -0500
++
++netcat (1.10-13) unstable; urgency=low
++
++  * New maintainer. (Closes: #80305)
++  * Updated debhelper rules to v2. Also cleaned up/moved some targets and dh_*
++    options.
++  * Bumped Standards-Version to 3.2.1.0.
++  * Compress README file, as per policy.
++  * Applied -q patch properly (Closes: #62402). I think that this is also what
++    caused #71616, but I'll hold off on closing that one.
++  * Added README.Debian explanation about -e. This is possibly the problem
++    behind #66355, so maybe I can close that as well.
++
++ -- Decklin Foster <decklin@red-bean.com>  Thu, 28 Dec 2000 19:02:56 -0500
++
++netcat (1.10-12.1) frozen unstable; urgency=low
++
++  * Non-maintained upload.
++  * Rename arm() to arm_timer() (Closes: #56390) 
++
++ -- Edward Brocklesby <ejb@styx.uucp.openprojects.net>  Tue, 22 Feb 2000 12:59:12 +0000
++
++netcat (1.10-12) unstable; urgency=low
++
++  * Fixed bugs #45669 and #45675 (removed extraneous sleep(1) command and also
++    removed the "punt!" message; added -q feature)
++
++ -- Robert S. Edmonds <stu@novare.net>  Wed, 22 Sep 1999 19:29:47 -0400
++
++netcat (1.10-11) unstable; urgency=low
++
++  * Applied patch from Graham Stoney <greyham@research.canon.com.au> that
++    fixes deadlock if the server doesn't close its end until it reads EOF on
++    the connection
++
++ -- Robert S. Edmonds <stu@novare.net>  Mon, 13 Sep 1999 21:53:59 -0400
++
++netcat (1.10-10) unstable; urgency=low
++
++  * Man page fixed (/usr/doc/netcat/README.gz). Fixes bug #35811
++
++ -- Robert S. Edmonds <edmonds@freewwweb.com>  Sat, 12 Jun 1999 15:21:31 -0400
++
++netcat (1.10-9) unstable; urgency=low
++
++  * Compiled with -DTELNET.
++
++ -- Robert S. Edmonds <edmonds@freewwweb.com>  Wed,  4 Nov 1998 09:27:40 -0500
++
++netcat (1.10-8) unstable frozen; urgency=low
++
++  * At the request of many users (and a few bug reports) the binary is now
++    going to be called "nc" as it always was.
++
++ -- Robert S. Edmonds <edmonds@freewwweb.com>  Sun, 26 Apr 1998 19:36:00 -0400
++
++netcat (1.10-7) unstable; urgency=low
++
++  * Fixed lintian error possible-name-space-pollution. (binary nc -> netcat)
++
++ -- Robert S. Edmonds <edmonds@freewwweb.com>  Mon, 30 Mar 1998 19:11:49 -0500
++
++netcat (1.10-6) unstable; urgency=low
++
++  * Upgraded to Standards-Version 2.4.0.0.
++
++ -- Robert S. Edmonds <edmonds@freewwweb.com>  Tue, 17 Feb 1998 13:06:22 -0500
++
++netcat (1.10-5) unstable; urgency=low
++
++  * Merged in changes from Robert Woodcock <rcw@oz.net>.
++    - Man page updates.
++    - Compiled with -DTELNET
++  * Removed bogus menu file.
++  * Full source upload.
++
++ -- Joey Hess <joeyh@master.debian.org>  Sat, 10 Jan 1998 13:53:59 -0500
++
++netcat (1.10-4) unstable; urgency=low
++
++  * Updated to "new" source format. (#9489)
++  * Libc6. (#11716)
++  * Orphaned the package.
++  * Fixed up description in control file to conform with policy, short
++    description doesn't include package name now.
++  * Fixed documentation location to comply with current policy. (#13194,
++    #11530, #9785)
++  * Wrote a man page. (#9785, #5304, #6647)
++  * Rewrote debian/rules to use debhelper.
++  * Install upstream changelog.
++
++ -- Joey Hess <joeyh@master.debian.org>  Sat, 10 Jan 1998 00:53:45 -0500
+--- netcat-1.10.orig/debian/netcat.manpages
++++ netcat-1.10/debian/netcat.manpages
+@@ -0,0 +1 @@
++debian/nc.1
+--- netcat-1.10.orig/debian/netcat.README.Debian
++++ netcat-1.10/debian/netcat.README.Debian
+@@ -0,0 +1,17 @@
++netcat for Debian
++-----------------
++
++netcat has been compiled with -DGAPING_SECURITY_HOLE turned on. I do
++not believe this is as much of a security hole as the author makes it
++out to be, *if* you know what you're doing (but then, if you didn't,
++you'd still be using telnet ;-)). Since the spawned program will run
++as whatever user started netcat, don't use -e as root. You have been
++warned, so if some cracker breaks into your system due to your own
++stupidity, don't blame me.
++
++A symlink to the netcat binary called 'netcat' has been installed.
++However, the canonical name is still 'nc'. If you use netcat on other
++systems, it will probably only be installed as 'nc', so keep this in
++mind when writing scripts.
++
++ -- Decklin Foster <decklin@red-bean.com>  Fri,  1 Jun 2001 13:38:10 -0400
+--- netcat-1.10.orig/debian/netcat.dirs
++++ netcat-1.10/debian/netcat.dirs
+@@ -0,0 +1 @@
++usr/bin
+--- netcat-1.10.orig/debian/netcat.docs
++++ netcat-1.10/debian/netcat.docs
+@@ -0,0 +1 @@
++README
+--- netcat-1.10.orig/netcat.c
++++ netcat-1.10/netcat.c
+@@ -59,6 +59,14 @@
+ #define RAND rand
+ #endif /* HAVE_RANDOM */
+ 
++/* #define POSIX_SETJMP		/* If you want timeouts to work under the */
++				/* posixly correct, yet non-standard glibc-2.x*/
++				/* then define this- you may also need it for */
++				/* IRIX, and maybe some others */
++#ifdef LINUX
++#define POSIX_SETJMP
++#endif
++
+ /* includes: */
+ #include <sys/time.h>		/* timeval, time_t */
+ #include <setjmp.h>		/* jmp_buf et al */
+@@ -73,6 +81,9 @@
+ #include <errno.h>
+ #include <signal.h>
+ #include <fcntl.h>		/* O_WRONLY et al */
++#ifdef LINUX			/* Linux needs the HERE, oh well. */
++#include <resolv.h>
++#endif
+ 
+ /* handy stuff: */
+ #define SA struct sockaddr	/* socket overgeneralization braindeath */
+@@ -106,7 +117,11 @@
+ #define PINF struct port_poop
+ 
+ /* globals: */
++#ifdef POSIX_SETJMP
++sigjmp_buf jbuf;		/* timer crud */
++#else
+ jmp_buf jbuf;			/* timer crud */
++#endif
+ int jval = 0;			/* timer crud */
+ int netfd = -1;
+ int ofd = 0;			/* hexdump output fd */
+@@ -151,6 +166,7 @@
+ 
+ /* global cmd flags: */
+ USHORT o_alla = 0;
++USHORT o_allowbroad = 0;
+ unsigned int o_interval = 0;
+ USHORT o_listen = 0;
+ USHORT o_nflag = 0;
+@@ -160,6 +176,7 @@
+ USHORT o_verbose = 0;
+ unsigned int o_wait = 0;
+ USHORT o_zero = 0;
++int o_quit = -1; /* 0 == quit-now; >0 == quit after o_quit seconds */
+ /* o_tn in optional section */
+ 
+ /* Debug macro: squirt whatever message and sleep a bit so we can see it go
+@@ -211,7 +228,6 @@
+   o_verbose = 1;
+   holler (str, p1, p2, p3, p4, p5, p6);
+   close (netfd);
+-  sleep (1);
+   exit (1);
+ } /* bail */
+ 
+@@ -222,7 +238,15 @@
+   errno = 0;
+   if (o_verbose > 1)		/* normally we don't care */
+     bail (wrote_txt, wrote_net, wrote_out);
+-  bail (" punt!");
++  bail ("");
++}
++
++/* quit :
++   handler for a "-q" timeout (exit 0 instead of 1) */
++void quit()
++{
++  close(netfd);
++  exit(0);
+ }
+ 
+ /* timeout and other signal handling cruft */
+@@ -232,12 +256,16 @@
+   alarm (0);
+   if (jval == 0)
+     bail ("spurious timer interrupt!");
++#ifdef POSIX_SETJMP
++  siglongjmp (jbuf, jval);
++#else
+   longjmp (jbuf, jval);
++#endif
+ }
+ 
+-/* arm :
++/* arm_timer :
+    set the timer.  Zero secs arg means unarm */
+-void arm (num, secs)
++void arm_timer (num, secs)
+   unsigned int num;
+   unsigned int secs;
+ {
+@@ -250,7 +278,7 @@
+     alarm (secs);
+     jval = num;
+   } /* if secs */
+-} /* arm */
++} /* arm_timer */
+ 
+ /* Hmalloc :
+    malloc up what I want, rounded up to *4, and pre-zeroed.  Either succeeds
+@@ -333,6 +361,7 @@
+   struct in_addr iaddr;
+   register HINF * poop = NULL;
+   register int x;
++  int rc;
+ 
+ /* I really want to strangle the twit who dreamed up all these sockaddr and
+    hostent abstractions, and then forced them all to be incompatible with
+@@ -361,9 +390,9 @@
+     bail ("gethostpoop fuxored");
+   strcpy (poop->name, unknown);		/* preload it */
+ /* see wzv:workarounds.c for dg/ux return-a-struct inet_addr lossage */
+-  iaddr.s_addr = inet_addr (name);
++  rc = inet_aton(name, &iaddr);
+ 
+-  if (iaddr.s_addr == INADDR_NONE) {	/* here's the great split: names... */
++  if (rc == 0) {	/* here's the great split: names... */
+     if (numeric)
+       bail ("Can't parse %s as an IP address", name);
+     hostent = gethostbyname (name);
+@@ -444,8 +473,10 @@
+     if (pstring)			/* one or the other, pleeze */
+       return (0);
+     x = pnum;
+-    if (o_nflag)			/* go faster, skip getservbyblah */
+-      goto gp_finish;
++    /* disabled, see bug #98902. if this is *really* slowing someone
++     * down I'll reconsider. */
++    /* if (o_nflag) */			/* go faster, skip getservbyblah */
++      /* goto gp_finish; */
+     y = htons (x);			/* gotta do this -- see Fig.1 below */
+     servent = getservbyport (y, whichp);
+     if (servent) {
+@@ -620,6 +651,13 @@
+   rr = setsockopt (nnetfd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof (x));
+   if (rr == -1)
+     holler ("nnetfd reuseaddr failed");		/* ??? */
++#ifdef SO_BROADCAST
++  if (o_allowbroad) {
++    rr = setsockopt (nnetfd, SOL_SOCKET, SO_BROADCAST, &x, sizeof (x));
++    if (rr == -1)
++       holler ("nnetfd reuseaddr failed");         /* ??? */
++  }
++#endif
+ #ifdef SO_REUSEPORT	/* doesnt exist everywhere... */
+   rr = setsockopt (nnetfd, SOL_SOCKET, SO_REUSEPORT, &x, sizeof (x));
+   if (rr == -1)
+@@ -743,14 +781,23 @@
+   } /* if gatesidx */
+ 
+ /* wrap connect inside a timer, and hit it */
+-  arm (1, o_wait);
++  arm_timer (1, o_wait);
++#ifdef POSIX_SETJMP
++  if (sigsetjmp (jbuf,1) == 0) {
++    rr = connect (nnetfd, (SA *)remend, sizeof (SA));
++  } else {				/* setjmp: connect failed... */
++    rr = -1;
++    errno = ETIMEDOUT;			/* fake it */
++  }
++#else
+   if (setjmp (jbuf) == 0) {
+     rr = connect (nnetfd, (SA *)remend, sizeof (SA));
+   } else {				/* setjmp: connect failed... */
+     rr = -1;
+     errno = ETIMEDOUT;			/* fake it */
+   }
+-  arm (0, 0);
++#endif
++  arm_timer (0, 0);
+   if (rr == 0)
+     return (nnetfd);
+   close (nnetfd);			/* clean up junked socket FD!! */
+@@ -820,14 +867,15 @@
+    actually does work after all.  Yow.  YMMV on strange platforms!  */
+   if (o_udpmode) {
+     x = sizeof (SA);		/* retval for recvfrom */
+-    arm (2, o_wait);		/* might as well timeout this, too */
+-    if (setjmp (jbuf) == 0) {	/* do timeout for initial connect */
++    arm_timer (2, o_wait);		/* might as well timeout this, too */
++#ifdef POSIX_SETJMP
++    if (sigsetjmp (jbuf,1) == 0) {	/* do timeout for initial connect */
+       rr = recvfrom		/* and here we block... */
+ 	(nnetfd, bigbuf_net, BIGSIZ, MSG_PEEK, (SA *) remend, &x);
+ Debug (("dolisten/recvfrom ding, rr = %d, netbuf %s ", rr, bigbuf_net))
+     } else
+       goto dol_tmo;		/* timeout */
+-    arm (0, 0);
++    arm_timer (0, 0);
+ /* I'm not completely clear on how this works -- BSD seems to make UDP
+    just magically work in a connect()ed context, but we'll undoubtedly run
+    into systems this deal doesn't work on.  For now, we apparently have to
+@@ -842,15 +890,45 @@
+     rr = connect (nnetfd, (SA *)remend, sizeof (SA));
+     goto whoisit;
+   } /* o_udpmode */
++#else
++    if (setjmp (jbuf) == 0) {   /* do timeout for initial connect */
++      rr = recvfrom             /* and here we block... */
++        (nnetfd, bigbuf_net, BIGSIZ, MSG_PEEK, (SA *) remend, &x);
++Debug (("dolisten/recvfrom ding, rr = %d, netbuf %s ", rr, bigbuf_net))
++    } else  
++      goto dol_tmo;             /* timeout */
++    arm (0, 0);
++/* I'm not completely clear on how this works -- BSD seems to make UDP
++   just magically work in a connect()ed context, but we'll undoubtedly run
++   into systems this deal doesn't work on.  For now, we apparently have to
++   issue a connect() on our just-tickled socket so we can write() back.
++   Again, why the fuck doesn't it just get filled in and taken care of?!
++   This hack is anything but optimal.  Basically, if you want your listener
++   to also be able to send data back, you need this connect() line, which
++   also has the side effect that now anything from a different source or even a
++   different port on the other end won't show up and will cause ICMP errors.
++   I guess that's what they meant by "connect".
++   Let's try to remember what the "U" is *really* for, eh? */
++    rr = connect (nnetfd, (SA *)remend, sizeof (SA));
++    goto whoisit;
++  } /* o_udpmode */ 
++#endif
+ 
+ /* fall here for TCP */
+   x = sizeof (SA);		/* retval for accept */
+-  arm (2, o_wait);		/* wrap this in a timer, too; 0 = forever */
++  arm_timer (2, o_wait);		/* wrap this in a timer, too; 0 = forever */
++#ifdef POSIX_SETJMP
++  if (sigsetjmp (jbuf,1) == 0) {
++    rr = accept (nnetfd, (SA *)remend, &x);
++  } else
++    goto dol_tmo;		/* timeout */
++#else
+   if (setjmp (jbuf) == 0) {
+     rr = accept (nnetfd, (SA *)remend, &x);
+   } else
+     goto dol_tmo;		/* timeout */
+-  arm (0, 0);
++#endif
++  arm_timer (0, 0);
+   close (nnetfd);		/* dump the old socket */
+   nnetfd = rr;			/* here's our new one */
+ 
+@@ -1216,6 +1294,18 @@
+ 	if (rr <= 0) {			/* at end, or fukt, or ... */
+ 	  FD_CLR (0, ding1);		/* disable and close stdin */
+ 	  close (0);
++	  /* if the user asked to exit on EOF, do it */
++	  if (o_quit == 0) {
++	    shutdown(netfd, 1);
++	    close (fd);
++	    exit (0);
++	  }
++	  /* if user asked to die after a while, arrange for it */
++	  if (o_quit > 0) {
++	    shutdown(netfd, 1);
++	    signal (SIGALRM, quit);
++	    alarm(o_quit);
++	  }
+ 	} else {
+ 	  rzleft = rr;
+ 	  zp = bigbuf_in;
+@@ -1389,12 +1479,14 @@
+ 
+ /* If your shitbox doesn't have getopt, step into the nineties already. */
+ /* optarg, optind = next-argv-component [i.e. flag arg]; optopt = last-char */
+-  while ((x = getopt (argc, argv, "ae:g:G:hi:lno:p:rs:tuvw:z")) != EOF) {
++  while ((x = getopt (argc, argv, "abe:g:G:hi:lno:p:q:rs:tuvw:z")) != EOF) {
+ /* Debug (("in go: x now %c, optarg %x optind %d", x, optarg, optind)) */
+     switch (x) {
+       case 'a':
+ 	bail ("all-A-records NIY");
+ 	o_alla++; break;
++      case 'b':
++	o_allowbroad++; break;
+ #ifdef GAPING_SECURITY_HOLE
+       case 'e':				/* prog to exec */
+ 	pr00gie = optarg;
+@@ -1443,6 +1535,8 @@
+ 	break;
+       case 'r':				/* randomize various things */
+ 	o_random++; break;
++      case 'q':				/* quit after stdin does EOF */
++	o_quit = atoi(optarg); break;
+       case 's':				/* local source address */
+ /* do a full lookup [since everything else goes through the same mill],
+    unless -n was previously specified.  In fact, careful placement of -n can
+@@ -1602,8 +1696,16 @@
+ /* if we're scanning at a "one -v" verbosity level, don't print refusals.
+    Give it another -v if you want to see everything. */
+ 	if ((Single || (o_verbose > 1)) || (errno != ECONNREFUSED))
++	{
++	  /* bug 65413 - if we're not scanning, we always want an
++	   * error to be printed for refused connects. This is a
++	   * disgustingly ugly way to do it, I really should just
++	   * rewrite the holler() interface... */
++	  if (Single) o_verbose++;
+ 	  holler ("%s [%s] %d (%s)",
+ 	    whereto->name, whereto->addrs[0], curport, portpoop->name);
++	  if (Single) o_verbose--;
++	}
+       } /* if netfd */
+       close (netfd);			/* just in case we didn't already */
+       if (o_interval)
+@@ -1642,6 +1744,7 @@
+ 	-e prog			program to exec after connect [dangerous!!]");
+ #endif
+   holler ("\
++	-b			allow broadcasts\n\
+ 	-g gateway		source-routing hop point[s], up to 8\n\
+ 	-G num			source-routing pointer: 4, 8, 12, ...\n\
+ 	-h			this cruft\n\
+@@ -1651,6 +1754,7 @@
+ 	-o file			hex dump of traffic\n\
+ 	-p port			local port number\n\
+ 	-r			randomize local and remote ports\n\
++	-q secs			quit after EOF on stdin and delay of secs\n\
+ 	-s addr			local source address");
+ #ifdef TELNET
+   holler ("\

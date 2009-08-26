@@ -1,0 +1,141 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Thanks to the folks at the Mozilla Foundation for permission to
+# distribute this, and for all the great work!  :-)
+
+VERSION=2.0.0.23
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-Os -march=i486 -mcpu=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-Os"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-Os -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-mozilla-thunderbird
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf mozilla
+tar xvf $CWD/thunderbird-$VERSION-source.tar.bz2 || exit 1
+cd mozilla || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+export MOZILLA_OFFICIAL="1" &&
+export BUILD_OFFICIAL="1" &&
+export MOZ_CO_PROJECT="mail" &&
+export CFLAGS="$SLKCFLAGS" &&
+export CXXFLAGS="$SLKCFLAGS" &&
+./configure \
+  --enable-official-branding \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-default-mozilla-five-home=/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION \
+  --with-user-appdir=.thunderbird \
+  --with-system-zlib \
+  --with-system-png \
+  --enable-application=mail \
+  --enable-default-toolkit=gtk2 \
+  --enable-crypto \
+  --enable-xft \
+  --enable-pango \
+  --enable-xinerama \
+  --enable-optimize \
+  --enable-reorder \
+  --enable-strip \
+  --enable-cpp-rtti \
+  --enable-single-profile \
+  --enable-ldap \
+  --disable-freetype2 \
+  --disable-accessibility \
+  --disable-debug \
+  --disable-tests \
+  --disable-logging \
+  --disable-pedantic \
+  --disable-installer \
+  --disable-profilesharing \
+  --disable-gnomevfs \
+  --disable-gnomeui
+
+make MOZ_OPT_FLAGS="$SLKCFLAGS" MOZ_MAKE_FLAGS="$NUMJOBS" || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# We do not need 20+ MB of includes:
+rm -rf $PKG/usr/include
+
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
+  echo "Applying firefox patch"
+  zcat $CWD/mozilla-thunderbird-firefox.diff.gz | patch -p0 --verbose || exit 1
+) || exit 1
+
+mkdir -p $PKG/usr/share/applications
+cat $CWD/mozilla-thunderbird.desktop > $PKG/usr/share/applications/mozilla-thunderbird.desktop
+mkdir -p $PKG/usr/share/pixmaps
+cat $CWD/thunderbird.png > $PKG/usr/share/pixmaps/thunderbird.png
+
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/chrome/icons/default/
+install -m 644 other-licenses/branding/thunderbird/default.xpm \
+  $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/chrome/icons/default/
+install -m 644 other-licenses/branding/thunderbird/default.xpm \
+  $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/icons/
+
+# These files/directories are usually created if Thunderbird is run as root,
+# which on many systems might (and possibly should) be never.  Therefore,
+# if we don't see them we'll put stubs in place to prevent startup errors.
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
+  if [ -d chrome ]; then
+    if [ ! -r chrome/app-chrome.manifest ]; then
+      echo > chrome/app-chrome.manifest
+    fi
+  fi
+  if [ ! -d updates ]; then
+    mkdir -p updates/0
+  fi
+)
+
+# Copy over the LICENSE
+install -c -m 644 LICENSE $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
+
+mkdir $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/mozilla-thunderbird-$VERSION-${ARCH}-$BUILD.txz
+

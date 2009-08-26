@@ -1,0 +1,144 @@
+#!/bin/sh
+
+# Copyright (c) 2007, 2009 Eric Hameleers <alien@slackware.com>
+# Copyright (c) 2007, 2009 Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# -----------------------------------------------------------------------------
+#
+# Slackware SlackBuild script 
+# ===========================
+# By:        Eric Hameleers <alien@slackware.com>
+# For:       cryptsetup
+# Descr:     Utility for setting up encrypted filesystems
+# URL:       http://luks.endorphin.org/dm-crypt
+# 
+# -----------------------------------------------------------------------------
+
+PRGNAM=cryptsetup
+VERSION=${VERSION:-1.0.7}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-1}
+
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-cryptsetup
+
+rm -rf $PKG
+mkdir -p $TMP $PKG/usr
+
+cd $TMP
+rm -rf cryptsetup-$VERSION
+tar xvf $CWD/cryptsetup-$VERSION.tar.bz2 || exit 1
+cd cryptsetup-$VERSION
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+echo Building ...
+LDFLAGS="$SLKLDFLAGS" \
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --localstatedir=/var \
+  --sysconfdir=/etc \
+  --mandir=/usr/man \
+  --enable-libgcrypt \
+  --enable-libdevmapper \
+  --program-prefix= \
+  --program-suffix= \
+  --build=$ARCH-slackware-linux
+make
+make DESTDIR=$PKG install
+
+# 
+# Next, make the static version that we will use for mkinitrd:
+#
+
+make clean
+echo Building ...
+LDFLAGS="$SLKLDFLAGS" \
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --localstatedir=/var \
+  --sysconfdir=/etc \
+  --mandir=/usr/man \
+  --enable-libgcrypt \
+  --enable-libdevmapper \
+  --enable-static \
+  --disable-shared \
+  --disable-shared-library \
+  --program-prefix= \
+  --program-suffix= \
+  --build=$ARCH-slackware-linux
+make
+
+# I have to do one old-school thing to leave a mark here:
+mkdir -p $PKG/sbin
+cat src/cryptsetup > $PKG/sbin/cryptsetup.static
+chmod 755 $PKG/sbin/cryptsetup.static
+
+mv $PKG/usr/sbin/cryptsetup $PKG/usr/sbin/cryptsetup.dynamic
+# Replace with a link:
+( cd $PKG/usr/sbin ; ln -sf cryptsetup.dynamic cryptsetup )
+# In /sbin, use the static version as /usr *might* not be mounted yet.
+# However, note that some cryptsetup operations cause the static
+# version to segfault, so for things like formatting you'll want
+# to use the dynamic one.  That's what should be in the $PATH first.
+( cd $PKG/sbin ; ln -sf cryptsetup.static cryptsetup )
+
+# Remove unneeded empty directory:
+#rmdir $PKG/usr/lib/cryptsetup
+
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+cp -a \
+  AUTHORS COPYING* ChangeLog INSTALL NEWS README TODO \
+  $PKG/usr/doc/$PRGNAM-$VERSION
+chmod -R a-w $PKG/usr/doc/$PRGNAM-$VERSION/*
+
+find $PKG/usr/man -type f -name "*.?" -exec gzip -9f {} \; || true
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/${PRGNAM}-${VERSION}-${ARCH}-${BUILD}.txz
+

@@ -1,0 +1,40 @@
+#!/bin/sh
+#item   ####description                                      ###on off ###
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+cat /dev/null > $TMP/SeTnewtag
+dialog --title "SELECTING PACKAGES FROM SERIES T (teTeX)" \
+       --checklist "Use this menu to confirm the packages you \
+wish to install for series T (The teTeX distribution of TeX).  \
+Use the UP/DOWN keys to scroll through the list, and \
+the SPACE key to deselect any items you don't want to install.  \
+Press ENTER when you are done." \
+14 70 4 \
+"tetex" "teTeX base package" "on" \
+"tetex-doc" "teTeX documentation" "on" \
+"transfig" "transfig (used by xfig)" "on" \
+"xfig" "drawing tool for LaTeX" "on" \
+2> $TMP/SeTpkgs
+if [ $? = 1 -o $? = 255 ]; then
+ rm -f $TMP/SeTpkgs
+ > $TMP/SeTnewtag
+ for pkg in \
+tetex tetex-doc transfig xfig \
+  ; do
+  echo "$pkg: SKP" >> $TMP/SeTnewtag
+ done
+ exit
+fi
+cat /dev/null > $TMP/SeTnewtag
+for PACKAGE in \
+tetex tetex-doc transfig xfig \
+ ; do
+ if fgrep \"$PACKAGE\" $TMP/SeTpkgs 1> /dev/null 2> /dev/null ; then
+  echo "$PACKAGE: ADD" >> $TMP/SeTnewtag
+ else
+  echo "$PACKAGE: SKP" >> $TMP/SeTnewtag
+ fi
+done
+rm -f $TMP/SeTpkgs

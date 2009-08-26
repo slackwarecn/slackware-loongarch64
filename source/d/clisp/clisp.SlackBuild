@@ -1,0 +1,192 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=2.47
+DIRNAME=2.47
+ARCH=${ARCH:-x86_64}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-2}
+
+# Bundled libraries:
+FFCALLVER=20080704cvs
+LIBSIGSEVVER=2.6
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-clisp
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+#=================================================================
+# First we need this.  It used to ship with CLISP, but no longer does.
+cd $TMP
+rm -rf libsigsegv-$LIBSIGSEVVER
+tar xvf $CWD/libsigsegv-$LIBSIGSEVVER.tar.bz2 || exit 1
+cd libsigsegv-$LIBSIGSEVVER || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Nah.
+# --enable-shared=yes 
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --enable-static=yes
+make $NUMJOBS || make || exit 1
+
+# Now I must install this.  Sorry, it's gotta happen.
+make install
+# Now add to the package:
+mkdir -p $PKG/usr
+make install prefix=$PKG/usr
+strip --strip-unneeded $PKG/usr/lib${LIBDIRSUFFIX}/*.so
+strip -g $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+mkdir -p $PKG/usr/doc/clisp-$VERSION/libsigsegv-$LIBSIGSEVVER
+cp -a \
+  AUTHORS COPYING ChangeLog NEWS PORTING README \
+  $PKG/usr/doc/clisp-$VERSION/libsigsegv-$LIBSIGSEVVER
+
+#=================================================================
+# Build ffcall - needed for --dynamic-ffi with clisp.
+cd $TMP
+rm -rf ffcall*
+tar xvf $CWD/ffcall-$FFCALLVER.tar.* || exit 1
+cd ffcall* || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --build=$ARCH-slackware-linux || exit 1
+
+make $NUMJOBS || make || exit 1
+
+make install DESTDIR=$PKG || exit 1
+# We need ffcall installed in order to build clisp:
+make install
+
+# Don't need this:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
+
+# Move docs around:
+mkdir -pm755 $PKG/usr/doc/clisp-$VERSION/ffcall-$FFCALLVER
+install -vpm644 README NEWS COPYING \
+  $PKG/usr/doc/clisp-$VERSION/ffcall-$FFCALLVER
+mv -f $PKG/usr/share/html/* $PKG/usr/doc/clisp-$VERSION/ffcall-$FFCALLVER
+rmdir $PKG/usr/share/html/
+rmdir $PKG/usr/share/
+
+#=================================================================
+ 
+# OK, now we compile CLISP:
+cd $TMP
+rm -rf clisp-$VERSION
+tar xvf $CWD/clisp-$VERSION.tar.bz2 || exit 1
+cd clisp-$DIRNAME || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/clisp-$VERSION \
+  --with-module=clx/new-clx \
+  --with-module=pcre \
+  --with-module=rawsock \
+  --with-module=wildcard \
+  --with-module=zlib \
+  --cbc with-gcc-wall \
+  --with-dynamic-ffi || exit 1
+
+cd with-gcc-wall
+./makemake \
+  --with-dynamic-ffi  \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-module=clx/new-clx \
+  --with-module=pcre \
+  --with-module=rawsock \
+  --with-module=wildcard \
+  --with-module=zlib \
+  --srcdir=../src \
+  > Makefile
+make config.lisp
+make init
+make allc
+make $NUMJOBS lisp.run
+make interpreted.mem
+make halfcompiled.mem
+make lispinit.mem
+make manual
+make modular
+
+make install DESTDIR=$PKG || exit 1
+
+# Strip stuff:
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+#mv $PKG/usr/share/doc/clisp/* $PKG/usr/doc/clisp-$VERSION
+rm -r $PKG/usr/share/doc
+
+mv $PKG/usr/share/man $PKG/usr/man
+gzip -9 $PKG/usr/man/man?/*.?
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/clisp-$VERSION-$ARCH-$BUILD.txz
+

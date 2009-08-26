@@ -1,0 +1,202 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>xdm</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="Slackware Linux Essentials" href="index.html" />
+<link rel="UP" title="X Configuration" href="x-window-system.html" />
+<link rel="PREVIOUS" title="xwmconfig" href="x-window-system-xwmconfig.html" />
+<link rel="NEXT" title="Booting" href="booting.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">Slackware Linux Essentials</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="x-window-system-xwmconfig.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 6 X Configuration</td>
+<td width="10%" align="right" valign="bottom"><a href="booting.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="X-WINDOW-SYSTEM-XDM" name="X-WINDOW-SYSTEM-XDM">6.5 <tt
+class="COMMAND">xdm</tt></a></h1>
+
+<p>As Linux becomes more and more useful as a desktop operating system, many users find
+it desirable for the machine to boot straight into a graphical environment. For this, you
+will need to tell Slackware to boot straight into X, and assign a graphical login
+manager. Slackware ships with three graphical login tools, <tt
+class="COMMAND">xdm</tt>(1), <tt class="COMMAND">kdm</tt>, and <tt
+class="COMMAND">gdm</tt>(1).</p>
+
+<p><tt class="COMMAND">xdm</tt> is the graphical login manager shipped with the X.org
+system. It's ubiquitous, but not as fully features as alternatives. <tt
+class="COMMAND">kdm</tt> is the graphical login manager shipped with KDE, The K Desktop
+Environment. Finally, <tt class="COMMAND">gdm</tt> is the login manager shipped with
+GNOME. Any of the choices will allow you to log in as any user, and choose what desktop
+you wish to use.</p>
+
+<p>Unfortunately, Slackware doesn't include a nice program like <tt
+class="COMMAND">xwmconfig</tt> for choosing what login manager to use, so if all three
+are installed you may have to do some editing to choose your preference. But first, we'll
+discuss how to boot into a graphical environment.</p>
+
+<p>In order to start X at boot, you need to boot into run-level 4. Run-levels are just a
+way of telling <tt class="COMMAND">init</tt>(8) to do something different when it starts
+the OS. We do this by editing the config file for <tt class="COMMAND">init</tt>, <tt
+class="FILENAME">/etc/inittab</tt>.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="PROGRAMLISTING">
+# These are the default runlevels in Slackware:
+#   0 = halt
+#   1 = single user mode
+#   2 = unused (but configured the same as runlevel 3)
+#   3 = multiuser mode (default Slackware runlevel)
+#   4 = X11 with KDM/GDM/XDM (session managers)
+#   5 = unused (but configured the same as runlevel 3)
+#   6 = reboot
+
+# Default runlevel. (Do not set to 0 or 6)
+id:3:initdefault:
+</pre>
+</td>
+</tr>
+</table>
+
+<p>In order to make Slackware boot to a graphical environment, we just change the 3 to a
+4.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="PROGRAMLISTING">
+  # Default runlevel. (Do not set to 0 or 6)
+  id:4:initdefault:
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Now Slackware will boot into runlevel 4 and execute <tt
+class="FILENAME">/etc/rc.d/rc.4</tt>. This file starts up X and calls whatever login
+manager you've chosen. So, how do we choose login managers? There are a few ways to do
+this, and I'll explain them after we look at <tt class="FILENAME">rc.4</tt>.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="PROGRAMLISTING">
+  # Try to use GNOME's gdm session manager:
+  if [ -x /usr/bin/gdm ]; then
+    exec /usr/bin/gdm -nodaemon
+  fi
+
+  # Not there?  OK, try to use KDE's kdm session manager:
+  if [ -x /opt/kde/bin/kdm ]; then
+    exec /opt/kde/bin/kdm -nodaemon
+  fi
+
+  # If all you have is XDM, I guess it will have to do:
+  if [ -x /usr/X11R6/bin/xdm ]; then
+    exec /usr/X11R6/bin/xdm -nodaemon
+  fi
+</pre>
+</td>
+</tr>
+</table>
+
+<p>As you can see here, <tt class="FILENAME">rc.4</tt> first checks to see if <tt
+class="COMMAND">gdm</tt> is executable, and if so runs it. Second on the list is <tt
+class="COMMAND">kdm</tt>, and finally <tt class="COMMAND">xdm</tt>. One way of choosing a
+login manager is to simply remove the ones you don't wish to use using <tt
+class="COMMAND">removepkg</tt>. You can find out more about <tt
+class="COMMAND">removepkg</tt> in <a href="package-management.html">Chapter 18</a>.</p>
+
+<p>Optionally, you can remove the executable permission from those files that you don't
+want to use. We discuss <tt class="COMMAND">chmod</tt> in <a
+href="filesystem-structure.html">Chapter 9</a>.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod -x /usr/bin/gdm</kbd>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Finally, you can just comment out the lines for the login manager you don't want to
+use.</p>
+
+<table border="0" bgcolor="#E0E0E0" width="100%">
+<tr>
+<td>
+<pre class="PROGRAMLISTING">
+  # Try to use GNOME's gdm session manager:
+  # if [ -x /usr/bin/gdm ]; then
+  #   exec /usr/bin/gdm -nodaemon
+  # fi
+
+  # Not there?  OK, try to use KDE's kdm session manager:
+  if [ -x /opt/kde/bin/kdm ]; then
+    exec /opt/kde/bin/kdm -nodaemon
+  fi
+
+  # If all you have is XDM, I guess it will have to do:
+  if [ -x /usr/X11R6/bin/xdm ]; then
+    exec /usr/X11R6/bin/xdm -nodaemon
+  fi
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Any lines preceded by the hash mark (<var class="LITERAL">#</var>) are considered
+comments and the shell silently passes them. Thus, even if <tt class="COMMAND">gdm</tt>
+is installed and executable, the shell (in this case <tt class="COMMAND">bash</tt>) won't
+bother checking for it.</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="x-window-system-xwmconfig.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="booting.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top"><tt class="COMMAND">xwmconfig</tt></td>
+<td width="34%" align="center" valign="top"><a href="x-window-system.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Booting</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,358 @@
+Installing Slackware Linux With Speakup
+By Saqib Shaikh <ss@saqibshaikh.com>
+
+<Note from PJV>
+Sorry, this document is out of date, but probably still helpful.  A
+couple of quick hints.  A working boot line might look like this:
+
+speakup.s speakup.synth=dectlk speakup.ser=1
+
+Some synths need the speakup.ser to set the port and cannot probe
+(even if they could with older kernels).  Anyway, good luck with the
+install!  Ignore the parts about floppy disks and read the other docs
+and you should have no problems...  hopefully.  With the 2.6.24.x
+kernel series came many changes in console handling which initially
+broke speakup completely.  Now there's been a report that while the
+installation works, the system will not speak upon reboot.  Perhaps
+this could be due to the appending of vt.default_utf8=0 in lilo.conf.
+If you run into this problem, you could try removing that, or changing
+the 0 to 1.  Also, gpm was interfering with serial installations in
+the Slackware 12.0 release, and could perhaps be another factor if
+it does something to grab control of the serial port when the system
+is rebooted after installation.
+
+In short, there are probably still some problems that remain with
+this, but that should be possible to work around.  I apologize for
+not having this as polished and tested as I would wish for it to be.
+Any feedback that could help make this better the next time around
+would be greatly appreciated.
+
+Also, note that the speakup kernel is also supported within the USB
+and PXE installers, so there are additional options for machines
+that are not able to boot a CD or DVD.  For more information on
+these, read the documentation in the usb-and-pxe-installers
+directory.
+
+Enjoy!
+</Note from PJV>
+
+Introduction
+
+Recently, a Linux screen reader called Speakup has become part of the
+popular Slackware Linux distribution. This document describes the
+procedure for installing Slackware Linux on your computer with speech
+output, courtesy of Speakup. It should be noted that this document is only
+a whirl-wind tour of installing Slackware, paying particular attention to
+the use of Speakup. You should also refer to "The Speakup Tutorial", which
+is also written by myself. This tutorial discusses how to use Speakup in
+your day-to-day tasks. You should also consult "Slackware Linux
+Essentials", which is the official Slackware book. It can be bought
+separately, or with a copy of Slackware, or read online at
+http://www.slackware.com.
+
+Getting Started
+
+The minimum requirements of running Linux with speech are similar to those
+detailed in the "Slackware Essentials" book. In addition, however, you
+will require a hardware speech synthesiser. The following synthesisers are
+currently supported. I give the keyword used to refer to each synthesiser
+as you will require this later in the installation process.
+
+acntpc: Accent PC internal speech synthesiser.
+acntsa: Accent SA external speech synthesiser.
+apolo: Apollo II external speech synthesiser.
+audptr: Audapter external speech synthesiser.
+bns: Braille 'n Speak family of note-takers, including the Braille 'n
+ Speak, Type 'n Speak, Braille Lite and Type Lite.
+decext: External DEC-Talk (for the older DEC-Talk and Multi-Voice speech
+ synthesisers).
+dectlk: DEC-Talk Express external speech synthesiser.
+dtlk: Doubletalk PC internal speech synthesiser.
+ltlk: Doubletalk external or Litetalk speech synthesiser.
+spkout: Speakout external speech synthesiser.
+txprt: Transport external speech synthesiser.
+
+The easiest way of getting started is to either have bought a copy of the
+Slackware CD-ROM or burned a copy of the Slackware CD ISO image onto a
+CD-R.  This will allow you to boot into the installer directly without the
+need for any floppy disks.  Due to various binaries and libraries that
+have increased in size, starting the installer from floppy disks will
+require loading 6 floppies.  That is, a bootdisk and 5 rootdisk floppies.
+If your machine cannot boot a CD-ROM and you will need to create floppy
+disk images, read on to find out how.  Otherwise, if you will be booting
+the CD-ROM to install, you may skip ahead to the section on Starting The
+Installation Process.
+
+If you are using DOS or Windows, then change to the directory where the
+boot disks are kept. An example command may be:
+
+c:\>d:
+d:\>cd\bootdisks
+d:\bootdisks>
+
+Confirm that the directory contains the file "speakup.s", "speakup.s",
+"speakup2.s", or "speakaha.s".  The decision of which disk you are going
+to use depends on whether you are going to install onto an IDE hard drive
+or a SCSI one. If you don't know, then you're probably using an IDE hard
+drive.  There is a complete description of the SCSI drivers included in
+each disk in the README.TXT in the bootdisks directory if you need more
+information to choose the proper disk.  Now, you must write the contents
+of the disk image to one of the blank floppy disks. You do this under
+DOS/Windows using the "rawrite" command. Insert one of the disks and issue
+a command such as:
+
+d:\bootdisks>rawrite speakup.s a:
+
+If you are using a SCSI hard drive then use the speakup.s file instead.
+
+Now you must create the root disk. Change into the directory where the root
+disks are kept:
+
+d:\bootdisks>cd \rootdisks
+d:\rootdisks>
+
+The disk images you will need for the installation are called install.1,
+install.2, install.3, install.4, and install.5.  There are also two extra
+disks in the rootdsks directory, namely "pcmcia.dsk" and "network.dsk".
+These disks are for people who wish to install from a PCMCIA device or
+using NFS.
+
+To actually create the root disks insert a blank floppy disk for install.1
+and issue a command such as:
+
+d:\rootdisks>rawrite install.1 a: 
+
+You will need to repeat this process with 4 more disks to create install.2,
+install.3, install.4, and install.5 as well.
+
+If you are already running Linux or another Unix-compatible
+operating-system then you can create the disks by mounting the CD-ROM (in
+this example I assume you mount it under /mnt).
+
+dd if=/mnt/bootdisks/speakup.s of=/dev/fd0
+dd if=/mnt/rootdisks/install.1 of=/dev/fd0
+dd if=/mnt/rootdisks/install.2 of=/dev/fd0
+dd if=/mnt/rootdisks/install.3 of=/dev/fd0
+dd if=/mnt/rootdisks/install.4 of=/dev/fd0
+dd if=/mnt/rootdisks/install.5 of=/dev/fd0
+
+Starting The Installation Process
+
+To start the talking version of the setup program, you'll need to boot the
+CD-ROM or bootdisk.  Some machines will automatically boot a CD-ROM, but
+it might be necessary to make a change in the BIOS settings if it doesn't
+boot right away.  The process for entering the BIOS setup differs from
+system to system, so you may need to consult your system documentation if
+you need to change your system's boot defaults.
+
+If you are booting from CD-ROM, insert the disc and boot your computer.
+After a while, the disc will stop spinning and at this point you should
+enter:
+
+speakup.s speakup.synth=synthname
+
+replacing synthname with the short keyword that refers to your synthesiser
+as discussed above.  If you have an external speech synthesiser that is not
+plugged into your first serial port, such as com2/3/4 under DOS, then you
+will need to specify the serial port to use. Do this by entering:
+
+speakup.s speakup.synth=synthname speakup.ser=n
+
+If you are booting with a floppy disk, the syntax is a little bit
+different. First insert the boot disk and turn on your computer. After a
+second or so the floppy disk should stop spinning. At this point enter:
+
+ramdisk speakup.synth=synthname
+
+replacing synthname with the short keyword that refers to your synthesiser
+as discussed above.  Just like with the CD-ROM, if you have an external
+speech synthesiser that is not plugged into your first serial port, such
+as com2/3/4 under DOS, then you will need to specify the serial port to
+use like this:
+
+ramdisk speakup.synth=synthname speakup.ser=n
+
+Where n is the number of your serial port. Note that the serial ports are
+numbered 1-4.
+
+With either the CD-ROM or bootdisk, once you've entered the correct
+command the Linux kernel will load and boot, and after a few seconds your
+synthesiser should start talking. It will read all boot-up messages, which
+you probably don't want to hear. To silence speech press the enter key on
+the numeric keypad.
+
+At this point it is probably worth giving a brief overview of the Speakup
+screen reading functions, though a more detailed description can be found
+in the "Speakup Tutorial".
+
+To temporarily silence speech press the control key. To silence speech
+until another key is pressed use the enter key on the numeric keypad. You
+can move around the screen using Speakup's reading cursor. Note that
+moving the reading cursor does not move the actual cursor on the screen.
+The numbers 1, 2 and 3 on the numeric keypad read the prior, current and
+enxt characters respectively. Similarly the 4, 5 and 6 keys read the
+prior, current and next word. 7, 8 and 9 read the previous, current and
+next line. The plus key reads the entire screen. There are many other
+screen reading keystrokes, but these are the main ones to get you started.
+
+If you used a floppy disk to start the system, you will be asked to insert
+the root disk and press enter, so you'll need to put in the install.1
+disk, hit enter, and let it load.  You'll need to repeat this process for
+each of the five install disks.
+
+Finally you will reach the login prompt. Just type the word "root" and
+press enter. Speakup will not say anything. This is because once you have
+logged in the prompt is a % symbol, which Speakup doesn't read with the
+default punctuation setting.
+
+Partitioning Your Hard Drive
+
+The issue of partitioning is one which Linux books spend entire chapters
+explaining. In this document I shall not go into all the details, but
+rather concentrate on Speakup specific usage.
+
+To start the partitioning tool use the command:
+
+%cfdisk /dev/diskname
+
+Where diskname is the name of the disk to partition. This is often hda1.
+
+Now you are in a screen which contains a list of partitions at the top.
+You can move through these with the up/down arrow keys, and read them in
+more detail using the review keys on the numeric keypad. At the bottom are
+a number of options to perform various actions. Cycle through these using
+the tab key.
+
+First of all, if your hard drive is already full (this is the case with
+most newly bought computers), then you will need to delete some partitions
+by moving to it and pressing the letter d. Using Speakup this is quite
+hard to do. Move up until the computer beeps, indicating that you are on
+the top partition. Then move down to the number you want and free up some
+more space. If you want to start from scratch then press d and then down,
+repeating this for each partition. Every deleted partition will be
+replaced with "free space". Note that deleting a partition will completely
+destroy all data stored on it.
+
+In my example I will delete all partitions. Next you need to create at
+minimum two partitions. To create the first one highlight "free space".
+Then press tab. Each time you will hear a couple of options, followed by a
+description. Listen to the description, and this will let you know which
+option is selected. Select "New". You will be prompted with
+primary/extended. Just press enter for primary in most cases. Then you
+will be asked for the size in megabytes. The total size of the free space
+will be given. For your main Linux partition you should use almost all of
+the free space, leaving just a bit for swap space, which acts as virtual
+memory. Typically it is recommended to have twice as much swap space as
+you do RAM, with a maximum of 128 mb. In my example I am prompted with
+4023, so I enter 3900 and press enter. Finally I am asked whether I want
+the partition at the beginning or end of the partition. Once again press
+enter for beginning.
+
+Now we must create a swap partition. Move down to the second block of free
+space and select "new" again. Press enter to create a primary partition,
+enter a second time to except the default value, and enter a third time to
+place it at the beginning.
+
+Now, move up to the first partition you created. Press tap until you hear
+the "boot" option. Press enter. Move down to the second partition and tab
+until you hear "type". Press enter. You will be given lots of options and
+will need to press space to get to the second screen of options. Enter the
+number 82 and press enter.
+
+Now, use the review keys to move up to the partition list and examine the
+entries. You should have one partition of type "Linux", with the word
+"boot" on that line. Then you should have another line on which the word
+"boot" does not exist, of type "Linux Swap".
+
+Finally, press tab until you reach the "write" option and press enter.
+When prompted type the word yes and press enter. When it is complete tab
+to quit and press enter.
+
+Now, that is a very complicated procedure, and so that it doesn't go wrong
+you should really consult some other sources of information. This
+discussion has only been included to get around some of Speakup's little
+querks.
+
+Starting Setup
+
+To actually start the setup procedure just enter the word "setup" and
+press enter.
+
+You will be placed in a menu with many options. Note that when using the
+up/down arrows in this menu Speakup will say two values. When moving down
+the menu you should listen to the second item, and when moving back up the
+menu take note of the first one. This is because Speakup doesn't fully
+support cursor tracking yet. You may turn on experimental cursor tracking
+by using the star key on the numeric keypad.
+
+The first option is "help". Select this if you want to read more
+information about the setup procedure.
+
+The next item is "Remap your keyboard". When using Speakup you generally
+do not need to do this as the kernel includes a us+speakup map, however
+there are now two Speakup related choices on the menu if you want to try
+them out -- speakupmap.map, and speakup-jfw.map.
+
+The next option is "Add swap". You will be placed on the first swap
+partition, which is generally the right one so just press enter. When it
+completes it will display some more messages, just acknowledge these by
+pressing enter. You will automatically be taken to the next step, which is
+to add a Linux partition. Once again you will be placed on the first Linux
+partition, so just continue pressing enter.
+
+The next step is to select where you want to install from. This is
+generally CD-ROM or maybe hard drive. Select the option from the list and
+press enter. Just continue to press enter through most of the prompts,
+which are self-explanatory.
+
+Next, you will be placed in a list of package groups you may install. Use
+the arrow keys to move to an option and then press the space bar. A letter
+x means that an option is selected. Once you've chosen all the groups just
+press enter.
+
+Now you will be asked for the prompting mode. Just press enter for full
+prompting mode. The files will now be uncompressed to your hard drive. You
+may wish to press keypad-enter while it installs.
+
+You will next be asked to install a kernel. You have two options. The
+first is to choose to install the kernel from the boot disk in which case
+you will be asked to enter that disk. The alternative is to install a
+kernel from the CD-ROM. If you choose the first option you will
+automatically get a talking kernel. If you choose to select one from the
+CD-ROM, then you will need to choose speakup.s, speakup.s, speakup2.s, or
+speakaha.s (whichever you used before) from the list of available kernels.
+
+The next few sections depend what software you installed. It includes such
+things as selecting your time zone and configuring the network. By now you
+should have got the idea of selecting an item with up/down and then
+pressing enter to move to the next stage, so I will not go into all the
+details. Refer to the Slackware manual for further details.
+
+Finally you will be asked to specify the root password. When you type the
+password Speakup will not say anything. This is because nothing is being
+written to the screen so that someone looking over your shoulder doesn't
+see the password.
+
+And that's it! You now have Linux installed on your computer!
+
+Reboot your system. When your computer stops at the boot prompt enter the
+text:
+
+linux speakup.synth=synthname
+
+using the same synthname as before, and your computer should come up talking.
+
+Where Now?
+
+You should now continue reading the online book, "Slackware Linux
+Essentials" to learn more about Linux. The "Speakup Tutorial" will also
+help you learn more about Speakup, as well as giving more information
+about joining the Speakup mailing list, which is an invaluable resource
+for getting your questions answered.
+
+Good luck in your Linux adventures. If you found this document useful then
+please let me know. Equally, if you don't like it then tell me also.
+
+You may reach the author via email at ss@saqibshaikh.com. You may also
+like to visit his home page at http://www.saqibshaikh.com.
+

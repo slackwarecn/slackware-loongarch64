@@ -1,0 +1,704 @@
+diff -ru netkit-routed-0.17/ChangeLog netkit-routed-0.18/ChangeLog
+--- netkit-routed-0.17/ChangeLog	Sun Jul 23 01:25:08 2000
++++ netkit-routed-0.18/ChangeLog	Mon Dec 25 14:18:04 2000
+@@ -1,3 +1,25 @@
++25-Dec-2000:
++	Bug fix - on newer kernels, don't attempt to add direct
++	  interface-routes to KRT - assume they're always present.
++	Bug fix - corrected handling of direct interface-routes
++	  in rtioctl(): use rt.rt_dev entry instead of rt.rt_gateway
++	  for these (was old BSDism).
++	Bug fix - do not add routes to remote subnets with netmask
++	  set to 255.255.255.255, when pointopoint interfaces whose
++	  IP belongs to the same network class as IP of another
++	  non-pointopoint interface, are in use.
++	Feature change - do not "timeout" interface-routes even if we
++	  act as route supplier.
++	Feature change - removed arbitrary limit on number of interfaces
++	  that routed can look up in rtinit().
++	New feature - introduced "announced" type of distant gateways
++	  for use in "gateways" file.
++	New feature - introduced command-line flag "-p" to ignore
++	  all interfaces with IFF_POINTOPOINT set.
++	New feature - introduced command-line flag "-i <dev>" to ignore
++	  given network interface <dev>.
++	Routed manpage upgraded accordingly. (Jan Rafaj, rafaj@vabo.cz)
++
+ 22-Jul-2000:
+ 	Allow appending to an existing log file, as long as it's in
+ 	  the log directory. Also some cosmetic fixes. (Dennis Reichel,
+diff -ru netkit-routed-0.17/README netkit-routed-0.18/README
+--- netkit-routed-0.17/README	Mon Jul 31 01:53:25 2000
++++ netkit-routed-0.18/README	Mon Dec 25 14:20:54 2000
+@@ -1,6 +1,6 @@
+-This is netkit-routed-0.17 for Linux.
++This is netkit-routed-0.18 for Linux.
+ 
+-This package updates netkit-routed-0.16.
++This package updates netkit-routed-0.17.
+ 
+ If you're reading this off a CD, go right away and check the net
+ archives for later versions and security fixes. As of this writing the
+@@ -16,7 +16,7 @@
+ 
+ Security:
+ 	This release contains no security fixes relative to
+-	netkit-routed-0.16. However, netkit-routed-0.10 and older are
++	netkit-routed-0.17. However, netkit-routed-0.10 and older are
+ 	insecure and should not be used.
+ 
+ Installation:
+--- netkit-routed-0.17/routed/defs.h	Sun Aug  1 21:19:16 1999
++++ netkit-routed-0.18/routed/defs.h	Mon Dec 25 14:56:55 2000
+@@ -32,7 +32,7 @@
+  *
+  *	from: @(#)defs.h	5.10 (Berkeley) 2/28/91
+  *	from: @(#)defs.h	8.1 (Berkeley) 6/5/93
+- *	$Id: defs.h,v 1.9 1999/08/01 19:19:16 dholland Exp $
++ *	$Id: defs.h,v 1.10 2000/12/25 14:56:55 jr Exp $
+  */
+ 
+ /*
+@@ -76,7 +76,9 @@
+ 
+ extern int sock;			/* source and sink of all data */
+ extern int supplier;			/* process should supply updates */
++extern int ignoreptp;			/* whether to ignore PTP devices */
+ extern int lookforinterfaces;	/* if 1 probe kernel for new up interfaces */
++extern struct iflist igniflist;		/* holds info about ignored devices */
+ extern struct timeval now;		/* current idea of time */
+ extern struct timeval lastbcast;	/* last time all/changes broadcast */
+ extern struct timeval lastfullupdate;	/* last time full table broadcast */
+@@ -103,6 +105,7 @@
+ int inet_rtflags(struct sockaddr *);
+ int inet_sendroute(struct rt_entry *, struct sockaddr *);
+ void quit(char *);
++int is_ignored(char *);
+ void rip_input(struct sockaddr *, struct rip *, int);
+ void rtadd(struct sockaddr *, struct sockaddr *, int, int);
+ void rtchange(struct rt_entry *, struct sockaddr *, short);
+diff -ru netkit-routed-0.17/routed/inet.c netkit-routed-0.18/routed/inet.c
+--- netkit-routed-0.17/routed/inet.c	Sun Apr  6 00:26:22 1997
++++ netkit-routed-0.18/routed/inet.c	Mon Dec 25 14:01:30 2000
+@@ -36,7 +36,7 @@
+  * From: @(#)inet.c	8.2 (Berkeley) 8/14/93
+  */
+ char inet_rcsid[] = 
+-  "$Id: inet.c,v 1.5 1997/04/05 22:26:22 dholland Exp $";
++  "$Id: inet.c,v 1.6 2000/12/25 14:01:30 jr Exp $";
+ 
+ 
+ /*
+@@ -123,9 +123,12 @@
+ 	 * Check whether network is a subnet;
+ 	 * if so, use the modified interpretation of `host'.
+ 	 */
+-	for (ifp = ifnet; ifp; ifp = ifp->int_next)
++	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
++		if (ifp->int_flags & IFF_POINTOPOINT)
++			continue;
+ 		if ((ifp->int_netmask & i) == ifp->int_net)
+ 			mask = ifp->int_subnetmask;
++	}
+ 	return (htonl(mask));
+ }
+ 
+diff -ru netkit-routed-0.17/routed/interface.h netkit-routed-0.18/routed/interface.h
+--- netkit-routed-0.17/routed/interface.h	Sun Apr  6 00:26:22 1997
++++ netkit-routed-0.18/routed/interface.h	Fri Dec 22 19:43:08 2000
+@@ -32,12 +32,20 @@
+  *
+  *	From: @(#)interface.h	5.6 (Berkeley) 6/1/90
+  *	From: @(#)interface.h	8.1 (Berkeley) 6/5/93
+- *	$Id: interface.h,v 1.7 1997/04/05 22:26:22 dholland Exp $
++ *	$Id: interface.h,v 1.8 2000/12/22 19:43:08 jr Exp $
+  */
+ 
+ /*
+  * Routing table management daemon.
+  */
++
++/*
++ * iflist describes array of ignored interface names
++ */
++struct iflist {
++	u_long	length;
++	char	*array;
++};
+ 
+ /*
+  * An ``interface'' is similar to an ifnet structure,
+diff -ru netkit-routed-0.17/routed/main.c netkit-routed-0.18/routed/main.c
+--- netkit-routed-0.17/routed/main.c	Thu Jan  6 00:16:12 2000
++++ netkit-routed-0.18/routed/main.c	Sat Dec 23 18:07:39 2000
+@@ -40,7 +40,7 @@
+  * From: @(#)main.c	8.1 (Berkeley) 6/5/93
+  */
+ char main_rcsid[] = 
+-  "$Id: main.c,v 1.16 2000/01/05 23:16:12 dholland Exp $";
++  "$Id: main.c,v 1.17 2000/12/23 18:07:39 jr Exp $";
+ 
+ #include "../version.h"
+ 
+@@ -68,12 +68,15 @@
+ int	supplier = -1;		/* process should supply updates */
+ int	gateway = 0;		/* 1 if we are a gateway to parts beyond */
+ int	debug = 0;
++int	ignoreptp = 0;
++struct	iflist igniflist;
+ struct	rip *msg = (struct rip *)packet;
+ int	kernel_version;
+ 
+ static void getkversion(void);
+ static int getsocket(void);
+ static void process(int);
++void addignoredif(char *);
+ 
+ int
+ main(int argc, char *argv[])
+@@ -84,8 +87,9 @@
+ 	struct rip *query = msg;
+ 	fd_set ibits;
+ 	sigset_t sigset, osigset;
+-	
+-	while ((ch = getopt(argc, argv, "sqtdg")) != EOF) {
++
++	memset(&igniflist, 0, sizeof(struct iflist));
++	while ((ch = getopt(argc, argv, "sqtdgpi:")) != EOF) {
+ 		switch (ch) {
+ 			case 's': supplier = 1; break;
+ 			case 'q': supplier = 0; break;
+@@ -97,8 +101,12 @@
+ 				setlogmask(LOG_UPTO(LOG_DEBUG));
+ 				break;
+ 			case 'g': gateway = 1; break;
++			case 'p': ignoreptp = 1; break;
++			case 'i':
++				addignoredif(optarg);
++				break;
+ 			default:
+-				fprintf(stderr, "usage: routed [ -sqtdg ]\n");
++				fprintf(stderr, "usage: routed [ -sqtdgp ] [ -i device ]\n");
+ 				exit(1);
+ 		}
+ 	}
+@@ -397,3 +405,27 @@
+ 
+ 	return (s);
+ }
++
++/*
++ * Add single interface name to the list of ignored interface names.
++ */
++void
++addignoredif(char *ifn)
++{
++	char *ifl = NULL;
++
++	/* avoiding realloc() */
++	ifl = calloc(1, igniflist.length * IFNAMSIZ + IFNAMSIZ);
++	if (ifl == NULL) {
++		syslog(LOG_ERR, "routed: addignoredif: out of memory\n");
++		return;
++	}
++	memcpy(ifl, igniflist.array, igniflist.length * IFNAMSIZ);
++	memcpy(ifl + igniflist.length++ * IFNAMSIZ,
++		ifn,
++		strlen(ifn) >= IFNAMSIZ ? IFNAMSIZ - 1 : strlen (ifn));
++	if (igniflist.array != NULL)
++		free(igniflist.array);
++	igniflist.array = ifl;
++}
++
+diff -ru netkit-routed-0.17/routed/routed.8 netkit-routed-0.18/routed/routed.8
+--- netkit-routed-0.17/routed/routed.8	Mon Jul 31 01:57:03 2000
++++ netkit-routed-0.18/routed/routed.8	Mon Dec 25 14:36:27 2000
+@@ -32,11 +32,11 @@
+ .\"     From: @(#)routed.8	6.6 (Berkeley) 3/16/91
+ .\"	From: @(#)routed.8	8.2 (Berkeley) 12/11/93
+ .\"	From: NetBSD: routed.8,v 1.6 1995/03/18 15:00:38 cgd Exp
+-.\"	$Id: routed.8,v 1.15 2000/07/30 23:57:03 dholland Exp $
++.\"	$Id: routed.8,v 1.16 2000/12/25 14:36:27 jr Exp $
+ .\"
+ .Dd December 11, 1993
+ .Dt ROUTED 8
+-.Os "Linux NetKit (0.17)"
++.Os "Linux NetKit (0.18)"
+ .Sh NAME
+ .Nm routed
+ .Nd network routing daemon
+@@ -44,9 +44,11 @@
+ .Nm routed
+ .Op Fl d
+ .Op Fl g
+-.Op Fl q
+ .Op Fl s
++.Op Fl q
+ .Op Fl t
++.Op Fl p
++.Op Fl i Nm device
+ .Op Ar logfile
+ .Sh DESCRIPTION
+ .Nm Routed
+@@ -177,8 +179,8 @@
+ Supplying this
+ option forces 
+ .Nm routed
+-to supply routing information whether it is acting as an internetwork
+-router or not.
++to supply routing information that it is acting as an internetwork
++router.
+ This is the default if multiple network interfaces are present,
+ or if a point-to-point link is in use.
+ .It Fl q
+@@ -194,23 +196,59 @@
+ .Nm routed
+ will not divorce itself from the controlling terminal
+ so that interrupts from the keyboard will kill the process.
++.It Fl p
++this option forces
++.Nm routed
++to ignore existence of all point-to-point network interfaces.
++.Nm Routed
++wont send nor receive routing updates through these interfaces
++and also wont propagate corresponding routes to remote endpoints directly
++reachable through them. Sometimes it is not desirable to send/receive
++routing information about routes through such interfaces, for example
++when point-to-point link with proxy-arp is in use.
++.It Fl i Nm dev
++this option forces
++.Nm routed
++to ignore existence of a specified network interface
++.Nm dev .
++Similarly to
++.Fl p
++flag, routed wont send nor receive routing updates through
++.Nm dev ,
++nor it will advertise direct routes via such interface.
+ .El
+ .Pp
+-Any other argument supplied is interpreted as the name
++Any other argument supplied is interpreted as the full path to and name
+ of file in which 
+ .Nm routed Ns \'s
+ actions should be logged.  This log contains information
+ about any changes to the routing tables and, if not tracing all packets,
+ a history of recent messages sent and received which are related to
+ the changed route.
++With first event to be logged,
++.Nm routed
++will create log file in "/var/log/routed" directory (which has to
++exist and be readable/writeable only by root). For security reasons,
++this argument has to begin with "/var/log/routed", as
++.Nm routed
++itself does not perform other security checks towards validity of the
++remote traceon/traceoff requests it may receive. Unless
++for debugging purposes, it is strongly recommended that the logging
++path itself does not exist nor is specified as
++.Nm routed
++parameter at all.
+ .Pp
+ In addition to the facilities described above, 
+ .Nm routed
+ supports the notion of ``distant''
+ .Em passive
+-and 
++, 
+ .Em active
+-gateways.  When 
++, 
++.Em external
++and 
++.Em announced
++gateway types.  When 
+ .Nm routed
+ is started up, it reads the file
+ .Pa /etc/gateways
+@@ -225,27 +263,51 @@
+ they should have a
+ .Nm routed
+ process running on the machine).
+-Routes through passive gateways are installed in the
+-kernel's routing tables once upon startup.
+-Such routes are not included in
+-any routing information transmitted.
+-Active gateways are treated equally to network
++.Pp
++Routes through
++.Nm passive
++gateways are installed in the
++kernel's routing tables by
++.Nm routed
++once upon its startup. Such routes are not included
++in any routing information transmitted.
++.Pp
++.Nm Active
++gateways are treated equally to network
+ interfaces.  Routing information is distributed
+-to the gateway and if no routing information is
+-received for a period of time, the associated
+-route is deleted.
++to the gateway and
++.Nm routed
++listens for updates on the interface that the gateway is
++reachable through.
++.Pp
+ Gateways marked
+-.Em external
++.Nm external
+ are also passive, but are not placed in the kernel
+ routing table nor are they included in routing updates.
+-The function of external entries is to inform
++The function of
++.Nm external
++entries is to inform
+ .Nm routed
+ that another routing process
+-will install such a route, and that alternate routes to that destination
+-should not be installed.
++will install such a route, so that it should not install
++alternate routes to that destination.
+ Such entries are only required when both routers may learn of routes
+ to the same destination.
+ .Pp
++Routes to networks through gateways marked as
++.Nm announced
++will be included in each routing advertisement, but won't be installed
++in the kernel routing table. This kind of entries is only required
++for the gateways that are directly reachable, but are unable
++to announce their routes, so that the rest of the RIP1 protocol-equipped
++network will know about such routes too. Entries of
++.Nm announced
++type can also be used to announce direct routes for own interfaces, that
++didn't exist at the time when
++.Nm routed
++has been started, but can be expected to come up later
++(such as routes for point-to-point interfaces).
++.Pp
+ The 
+ .Pa /etc/gateways
+ is comprised of a series of lines, each in
+@@ -260,7 +322,8 @@
+ .Ar value
+ .Pf < Cm passive No \&|
+ .Cm active No \&|
+-.Cm external Ns >
++.Cm external No \&|
++.Cm announced Ns >
+ .Ed
+ .Pp
+ The 
+@@ -291,25 +354,28 @@
+ .Pp
+ One of the keywords
+ .Cm passive ,
+-.Cm active
+-or
++.Cm active ,
+ .Cm external
++or
++.Cm announced
+ indicates if the gateway should be treated as 
+ .Em passive
+ or
+ .Em active
+ (as described above),
+-or whether the gateway is
++whether the gateway is
+ .Em external
+ to the scope of the
+ .Nm routed
+-protocol.
++protocol, or whether
++the route reachable via such gateway should
++be included in the routing table announcements.
+ .Pp
+ Internetwork routers that are directly attached to the Arpanet or Milnet
+ should use the Exterior Gateway Protocol
+ .Pq Tn EGP
+ to gather routing information
+-rather then using a static routing table of passive gateways.
++rather than using a static routing table of passive gateways.
+ .Tn EGP
+ is required in order to provide routes for local networks to the rest
+ of the Internet system.
+@@ -320,15 +386,17 @@
+ .El
+ .Sh SEE ALSO
+ .Xr udp 7 ,
+-.Xr icmp 7 
++.Xr icmp 7 .
+ .Rs
+ .%T Internet Transport Protocols
+ .%R XSIS 028112
+ .%Q Xerox System Integration Standard
+ .Re
+ .Sh BUGS
+-.Nm routed
+-is of dubious value. Consider using 
++.Pp
++.Nm Routed
++is heavily 32bit architecture dependant. You should eventually
++consider using
+ .Xr gated 8
+ or
+ .Xr zebra 8 .
+@@ -341,6 +409,11 @@
+ the
+ .Tn ICMP
+ packets received via a raw socket.
++.Pp
++.Nm Routed
++also doesn't notice of any new interface, that didn't exist prior to
++its start, but has newly appeared and come to ``up'' state after
++routed has been started, and won't announce route for such interface.
+ .Pp
+ .Nm Routed
+ should incorporate other routing protocols.
+diff -ru netkit-routed-0.17/routed/startup.c netkit-routed-0.18/routed/startup.c
+--- netkit-routed-0.17/routed/startup.c	Sun Dec 12 20:06:02 1999
++++ netkit-routed-0.18/routed/startup.c	Mon Dec 25 14:32:34 2000
+@@ -36,7 +36,7 @@
+  * From: @(#)startup.c	8.1 (Berkeley) 6/5/93
+  */
+ char startup_rcsid[] = 
+-  "$Id: startup.c,v 1.10 1999/12/12 19:06:02 dholland Exp $";
++  "$Id: startup.c,v 1.11 2000/12/25 14:32:34 jr Exp $";
+ 
+ 
+ /*
+@@ -73,6 +73,17 @@
+ 	exit(1);
+ }
+ 
++int is_ignored(char *ifname)
++{
++	u_long i;
++
++	for (i = 0; i < igniflist.length; i++)
++		if (!(strcmp(ifname, igniflist.array + i * IFNAMSIZ)) )
++			return (1);
++
++	return (0);
++}
++
+ #define ROUNDUP(a) \
+ 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
+ #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+@@ -87,8 +98,8 @@
+ void ifinit(void)
+ {
+ 	struct interface ifs, *ifp;
+-	int s;
+-	char buf[BUFSIZ], *cp, *cplim;
++	int s, maxifaces = 16;
++	char *cp;
+         struct ifconf ifc;
+         struct ifreq ifreq, *ifr;
+         struct sockaddr_in *sin;
+@@ -99,18 +110,26 @@
+ 		close(s);
+                 return;
+ 	}
+-        ifc.ifc_len = sizeof (buf);
+-        ifc.ifc_buf = buf;
+-        if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0) {
+-                syslog(LOG_ERR, "ioctl (get interface configuration)");
+-		close(s);
+-                return;
++	for (;;) {
++		ifc.ifc_len = sizeof(struct ifreq) * maxifaces;
++		ifc.ifc_buf = malloc(ifc.ifc_len);
++		if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0) {
++			syslog(LOG_ERR, "ioctl (get interface configuration)");
++			return;
++		}
++		/*
++		 * Assume overflow (more interfaces). Increase size/repeat.
++		 */
++		if (ifc.ifc_len == (int) sizeof(struct ifreq) * maxifaces) {
++			maxifaces += 16;
++			free(ifc.ifc_buf);
++			continue;
++		}
++		break;
+         }
+-        ifr = ifc.ifc_req;
+ 	lookforinterfaces = 0;
+-	cplim = buf + ifc.ifc_len; /*skip over if's with big ifr_addr's */
+-	for (cp = buf; cp < cplim;
+-			cp += sizeof (ifr->ifr_name) + sizeof(ifr->ifr_ifru)) {
++	for (cp = ifc.ifc_buf; cp < (ifc.ifc_buf + ifc.ifc_len);
++			cp += sizeof(struct ifreq)) {
+ 		ifr = (struct ifreq *)cp;
+ 		bzero((char *)&ifs, sizeof(ifs));
+ 		ifs.int_addr = ifr->ifr_addr;
+@@ -130,7 +149,11 @@
+ 		/* argh, this'll have to change sometime */
+ 		if (ifs.int_addr.sa_family != AF_INET)
+ 			continue;
++		if (is_ignored(ifr->ifr_name))
++			continue;
+                 if (ifs.int_flags & IFF_POINTOPOINT) {
++			if (ignoreptp)
++				continue;
+                         if (ioctl(s, SIOCGIFDSTADDR, (char *)&ifreq) < 0) {
+                                 syslog(LOG_ERR, "%s: ioctl (get dstaddr)",
+ 				    ifr->ifr_name);
+@@ -230,11 +253,10 @@
+ 		if ((ifs.int_flags & IFF_POINTOPOINT) && supplier < 0)
+ 			supplier = 1;
+ 		ifp->int_name = malloc(strlen(ifr->ifr_name) + 1);
+-		if (ifp->int_name == 0) {
++		if (ifp->int_name == NULL) {
+ 			fprintf(stderr, "routed: ifinit: out of memory\n");
+ 			syslog(LOG_ERR, "routed: ifinit: out of memory\n");
+-			close(s);
+-			return;
++			goto escape;
+ 		}
+ 		strcpy(ifp->int_name, ifr->ifr_name);
+ 		*ifnext = ifp;
+@@ -244,7 +266,10 @@
+ 	}
+ 	if (externalinterfaces > 1 && supplier < 0)
+ 		supplier = 1;
++escape:
++	free(ifc.ifc_buf);
+ 	close(s);
++	return;
+ }
+ 
+ /*
+@@ -353,9 +378,9 @@
+  * at the hardware level).  If a gateway is marked ``passive''
+  * in the file, then we assume it doesn't have a routing process
+  * of our design and simply assume it's always present.  Those
+- * not marked passive are treated as if they were directly
+- * connected -- they're added into the interface list so we'll
+- * send them routing updates.
++ * not marked passive, external nor announced are treated as if they
++ * were directly connected -- they're added into the interface list
++ * so we'll send them routing updates.
+  *
+  * PASSIVE ENTRIES AREN'T NEEDED OR USED ON GATEWAYS RUNNING EGP.
+  */
+@@ -379,7 +404,10 @@
+ 	memset(&dst, 0, sizeof (dst));
+ 	memset(&gate, 0, sizeof (gate));
+ 	memset(&route, 0, sizeof(route));
+-/* format: {net | host} XX gateway XX metric DD [passive | external]\n */
++	/*
++	 * format:
++	 * {net | host} XX gateway XX metric DD [passive | external | announced]
++	 */
+ #define	readentry(fp) \
+ 	fscanf((fp), "%s %s gateway %s metric %d %s\n", \
+ 		type, dname, gname, &metric, qual)
+@@ -432,6 +460,21 @@
+ 			rtadd((struct sockaddr *)&dst,
+ 			    (struct sockaddr *)&gate, metric,
+ 			    RTS_EXTERNAL|RTS_PASSIVE);
++			continue;
++		}
++		if (strcmp(qual, "announced") == 0) {
++			/*
++			 * Entries marked "announced" are added
++			 * into our internal tables and advertised,
++			 * but not added to the kernel routing table.
++			 * This allows sort of route "injection" to RIP1
++			 * network for routes through directly reachable
++			 * gateways that arent capable of RIP1 advertising
++			 * themselves.
++			 */
++			rtadd((struct sockaddr *)&dst,
++			    (struct sockaddr *)&gate, metric,
++			    RTS_CHANGED|RTS_PASSIVE|RTS_INTERNAL);
+ 			continue;
+ 		}
+ 		/* assume no duplicate entries */
+diff -ru netkit-routed-0.17/routed/tables.c netkit-routed-0.18/routed/tables.c
+--- netkit-routed-0.17/routed/tables.c	Sat Oct  2 18:36:39 1999
++++ netkit-routed-0.18/routed/tables.c	Mon Dec 25 14:41:54 2000
+@@ -36,7 +36,7 @@
+  * From: @(#)tables.c	8.1 (Berkeley) 6/5/93
+  */
+ char tables_rcsid[] = 
+-  "$Id: tables.c,v 1.12 1999/10/02 16:36:39 dholland Exp $";
++  "$Id: tables.c,v 1.13 2000/12/25 14:41:54 jr Exp $";
+ 
+ 
+ /*
+@@ -365,10 +365,34 @@
+ 
+ 	rt.rt_flags = (ort->rtu_flags & (RTF_UP|RTF_GATEWAY|RTF_HOST));
+ 	rt.rt_metric = ort->rtu_metric;
+-	rt.rt_dev = NULL;
+-	rt.rt_dst     = *(struct sockaddr *)&ort->rtu_dst;
++	/*
++	 * SIOCADDRT ioctl in linux kernels v. 2.1.15 and up will no longer
++	 * add direct route to subnet/host through interface, even if the
++	 * specified gateway's IP is the same as IP of that interface (BSDism).
++	 * -- if this is the case, assure that no matter what kernel we use,
++	 * the subnet route to directly attached network is always added
++	 * to KRT as direct one.
++	 */
++	if (rt.rt_flags & RTF_GATEWAY) {
++		rt.rt_dev = NULL;
++		rt.rt_gateway = *(struct sockaddr *)&ort->rtu_router;
++	} else {
++		rt.rt_dev = ort->rtu_ifp->int_name;
++		/*
++		 * We could add a direct route to the KRT this way
++		 * on whatever kernel, but kernels v. 2.1.15 and up
++		 * add such route immediately as soon as the interface
++		 * is labelled with IFF_UP. However, the resulting route
++		 * would be added twice, since kernel distinguishes
++		 * between direct route it added itself and the one
++		 * added explicitly by SIOCADDRT ioctl. So instead,
++		 * we safely exit with "route successfully added" sign, here.
++		 */
++		if (kernel_version >= 0x02010f)
++			return 0;
++	}
++	rt.rt_dst = *(struct sockaddr *)&ort->rtu_dst;
+ 	dst = ((struct sockaddr_in *)&rt.rt_dst)->sin_addr.s_addr;
+-	rt.rt_gateway = *(struct sockaddr *)&ort->rtu_router;
+ 	if (rt.rt_flags & RTF_HOST)
+ 		netmask = 0xffffffff;
+ 	else
+diff -ru netkit-routed-0.17/routed/timer.c netkit-routed-0.18/routed/timer.c
+--- netkit-routed-0.17/routed/timer.c	Mon Aug  2 00:39:59 1999
++++ netkit-routed-0.18/routed/timer.c	Mon Dec 25 14:43:05 2000
+@@ -36,7 +36,7 @@
+  * From: @(#)timer.c	8.1 (Berkeley) 6/5/93
+  */
+ char timer_rcsid[] = 
+-  "$Id: timer.c,v 1.7 1999/08/01 22:39:59 dholland Exp $";
++  "$Id: timer.c,v 1.8 2000/12/25 14:43:05 jr Exp $";
+ 
+ 
+ /*
+@@ -73,11 +73,9 @@
+ 		for (; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
+ 			/*
+ 			 * We don't advance time on a routing entry for
+-			 * a passive gateway, or any interface if we're
+-			 * not acting as supplier.
++			 * a passive gateway or interface.
+ 			 */
+-			if (!(rt->rt_state & RTS_PASSIVE) &&
+-			    (supplier || !(rt->rt_state & RTS_INTERFACE)))
++			if ((rt->rt_state & (RTS_PASSIVE|RTS_INTERFACE)) == 0)
+ 				rt->rt_timer += TIMER_RATE;
+ 			if (rt->rt_timer >= GARBAGE_TIME) {
+ 				rt = rt->rt_back;
+diff -ru netkit-routed-0.17/version.h netkit-routed-0.18/version.h
+--- netkit-routed-0.17/version.h	Mon Jul 31 01:57:02 2000
++++ netkit-routed-0.18/version.h	Mon Dec 25 14:19:29 2000
+@@ -2,4 +2,4 @@
+  * String to embed in binaries to identify package
+  */
+ 
+-char pkg[]="$NetKit: netkit-routed-0.17 $";
++char pkg[]="$NetKit: netkit-routed-0.18 $";

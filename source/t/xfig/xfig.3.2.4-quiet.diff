@@ -1,0 +1,183 @@
+--- main.c
++++ main.c	2004-08-25 14:21:34.000000000 +0200
+@@ -1018,6 +1018,11 @@
+ 	setup_sizes(init_canv_wd, init_canv_ht);
+     }
+ 
++    (void) init_tool_menus();
++    (void) init_tool_style_panel();
++    (void) init_tool_ind_pannel();
++    (void) init_tool_canvas();
++
+     (void) init_main_menus(tool_form, arg_filename);
+     (void) init_msg(tool_form);
+     (void) init_mousefun(tool_form);
+--- w_canvas.c
++++ w_canvas.c	2004-08-25 14:20:40.000000000 +0200
+@@ -173,6 +173,13 @@
+     ~Meta<Key>:EventCanv()\n\
+     <Expose>:ExposeCanv()\n";
+ 
++void
++init_tool_canvas(void)
++{
++    XtAppAddActions(tool_app, canvas_actions, XtNumber(canvas_actions));
++}
++
++int
+ init_canvas(tool)
+     Widget	   tool;
+ {
+@@ -193,7 +200,6 @@
+     canvas_middlebut_proc = null_proc;
+     canvas_rightbut_proc = null_proc;
+     canvas_kbd_proc = canvas_locmove_proc = null_proc;
+-    XtAppAddActions(tool_app, canvas_actions, XtNumber(canvas_actions));
+     XtAugmentTranslations(canvas_sw,
+ 			   XtParseTranslationTable(canvas_translations));
+ #ifndef NO_COMPKEYDB
+@@ -204,13 +210,14 @@
+ }
+ 
+ /* at this point, the canvas widget is realized so we can get the window from it */
+-
++void
+ setup_canvas()
+ {
+     init_grid();
+     reset_clip_window();
+ }
+ 
++void
+ canvas_selected(tool, event, params, nparams)
+     Widget	    tool;
+     XButtonEvent   *event;
+--- w_canvas.h
++++ w_canvas.h	2004-08-25 14:21:18.000000000 +0200
+@@ -35,9 +35,12 @@
+ extern void	toggle_show_borders();
+ extern void	clear_canvas();
+ 
+-extern		canvas_selected();
++extern void	canvas_selected();
+ extern void	paste_primary_selection();
+ 
++extern void	init_tool_canvas(void);
++extern int	init_canvas(Widget tool);
++
+ extern int	clip_xmin, clip_ymin, clip_xmax, clip_ymax;
+ extern int	clip_width, clip_height;
+ extern int	cur_x, cur_y;
+--- w_cmdpanel.c
++++ w_cmdpanel.c	2004-08-25 14:26:00.000000000 +0200
+@@ -204,6 +204,13 @@
+ 
+ /* command panel */
+ void
++init_tool_menus(void)
++{
++    /* add actions to position the menus if the user uses an accelerator */
++    XtAppAddActions(tool_app, menu_actions, XtNumber(menu_actions));
++}
++
++void
+ init_main_menus(tool, filename)
+     Widget	    tool;
+     char	   *filename;
+@@ -212,6 +219,7 @@
+     Widget	    beside = NULL;
+     DeclareArgs(11);
+ 
++
+     FirstArg(XtNborderWidth, 0);
+     NextArg(XtNcolormap, tool_cm);
+     NextArg(XtNdefaultDistance, 0);
+@@ -246,8 +254,6 @@
+ 		      filename_balloon_trigger, (XtPointer) name_panel);
+     XtAddEventHandler(name_panel, LeaveWindowMask, False,
+ 		      filename_unballoon, (XtPointer) name_panel);
+-    /* add actions to position the menus if the user uses an accelerator */
+-    XtAppAddActions(tool_app, menu_actions, XtNumber(menu_actions));
+     refresh_view_menu();
+ }
+ 
+--- w_cmdpanel.h
++++ w_cmdpanel.h	2004-08-25 14:10:45.000000000 +0200
+@@ -33,6 +33,8 @@
+ extern int	num_main_menus();
+ extern Widget	create_menu_item();
+ extern void	refresh_view_menu();
++extern void	init_tool_menus(void);
++extern void	init_main_menus(Widget tool, char* filename);
+ 
+ /* def for menu */
+ 
+--- w_indpanel.c
++++ w_indpanel.c	2004-08-25 14:12:57.000000000 +0200
+@@ -476,6 +476,12 @@
+ static ind_sw_info upd_sw_info, upd_set_sw_info, upd_clr_sw_info, upd_tog_sw_info;
+ 
+ void
++init_tool_ind_pannel(void)
++{
++	XtAppAddActions(tool_app, ind_actions, XtNumber(ind_actions));
++}
++
++void
+ init_ind_panel(tool)
+     Widget	    tool;
+ {
+@@ -626,8 +632,6 @@
+     ind_box = XtCreateManagedWidget("ind_box", boxWidgetClass, ind_panel,
+ 			       Args, ArgCount);
+ 
+-    XtAppAddActions(tool_app, ind_actions, XtNumber(ind_actions));
+-
+     for (i = 0; i < NUM_IND_SW; ++i) {
+ 	sw = &ind_switches[i];
+ 	sw->panel = (Widget) NULL;	/* not created yet */
+--- w_indpanel.h
++++ w_indpanel.h	2004-08-25 14:14:07.000000000 +0200
+@@ -34,6 +34,9 @@
+ extern void	wheel_inc_zoom(), wheel_dec_zoom();
+ #endif /* WHEELMOUSE */
+ 
++extern void	init_tool_ind_pannel(void);
++extern void	init_ind_panel(Widget tool);
++
+ /* size of buttons in indicator panel */
+ #define		DEF_IND_SW_HT		34
+ #define		DEF_IND_SW_WD		64
+--- w_style.c
++++ w_style.c	2004-08-25 14:05:33.000000000 +0200
+@@ -759,6 +759,12 @@
+ /**********************************/
+ 
+ void
++init_tool_style_panel(void)
++{
++    XtAppAddActions (tool_app, style_actions, XtNumber (style_actions));
++}
++
++void
+ init_manage_style_panel (void)
+ {
+     char    buf[50];
+@@ -966,7 +972,6 @@
+     XtAddCallback (style_close_style, XtNcallback,
+ 		   (XtCallbackProc) close_style, (XtPointer) NULL);
+ 
+-    XtAppAddActions (tool_app, style_actions, XtNumber (style_actions));
+     style_update ();
+ }
+ 
+--- w_style.h
++++ w_style.h	2004-08-25 14:06:27.000000000 +0200
+@@ -14,6 +14,7 @@
+  *
+  */
+ 
++extern void	init_tool_style_panel(void);
+ extern void	init_manage_style_panel(void);
+ extern void	setup_manage_style_panel(void);
+ extern void	popup_manage_style_panel(void);

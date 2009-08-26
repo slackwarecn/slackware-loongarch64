@@ -1,0 +1,55 @@
+* Mon Jun 16 2008 Hans de Goede <j.w.r.degoede@hhs.nl> 0.95.0-25
+- Fix PutPixel32 crashing on 64 bit (bz 437133)
+
+diff -up lesstif-0.95.0/lib/Xm-2.1/Xpmcreate.c~ lesstif-0.95.0/lib/Xm-2.1/Xpmcreate.c
+--- lesstif-0.95.0/lib/Xm-2.1/Xpmcreate.c~	2008-06-16 22:22:43.000000000 +0200
++++ lesstif-0.95.0/lib/Xm-2.1/Xpmcreate.c	2008-06-16 22:22:43.000000000 +0200
+@@ -179,9 +179,7 @@ LFUNC(PutImagePixels1, void, (XImage *im
+ 
+ LFUNC(PutPixel1, int, (XImage *ximage, int x, int y, unsigned long pixel));
+ LFUNC(PutPixel, int, (XImage *ximage, int x, int y, unsigned long pixel));
+-#if !defined(WORD64) && !defined(LONG64)
+ LFUNC(PutPixel32, int, (XImage *ximage, int x, int y, unsigned long pixel));
+-#endif
+ LFUNC(PutPixel32MSB, int, (XImage *ximage, int x, int y, unsigned long pixel));
+ LFUNC(PutPixel32LSB, int, (XImage *ximage, int x, int y, unsigned long pixel));
+ LFUNC(PutPixel16MSB, int, (XImage *ximage, int x, int y, unsigned long pixel));
+@@ -1879,7 +1877,6 @@ PutPixel(ximage, x, y, pixel)
+     return 1;
+ }
+ 
+-#if !defined(WORD64) && !defined(LONG64)
+ static int
+ PutPixel32(ximage, x, y, pixel)
+     register XImage *ximage;
+@@ -1893,10 +1890,9 @@ PutPixel32(ximage, x, y, pixel)
+     	return 0;
+ 
+     addr = &((unsigned char *)ximage->data) [ZINDEX32(x, y, ximage)];
+-    *((unsigned long *)addr) = pixel;
++    *((unsigned int *)addr) = pixel;
+     return 1;
+ }
+-#endif
+ 
+ static int
+ PutPixel32MSB(ximage, x, y, pixel)
+@@ -2211,15 +2207,12 @@ xpmParseDataAndCreate(display, data, ima
+ 	    else
+ 		ximage->f.put_pixel = PutPixel16LSB;
+ 	else if (ximage->bits_per_pixel == 32)
+-#if !defined(WORD64) && !defined(LONG64)
+ 	    if (*((char *)&byteorderpixel) == ximage->byte_order)
+ 		ximage->f.put_pixel = PutPixel32;
++	    else if (ximage->bitmap_bit_order == MSBFirst)
++		ximage->f.put_pixel = PutPixel32MSB;
+ 	    else
+-#endif
+-		if (ximage->bitmap_bit_order == MSBFirst)
+-		    ximage->f.put_pixel = PutPixel32MSB;
+-		else
+-		    ximage->f.put_pixel = PutPixel32LSB;
++		ximage->f.put_pixel = PutPixel32LSB;
+ 	else if ((ximage->bits_per_pixel | ximage->depth) == 1)
+ 	    ximage->f.put_pixel = PutPixel1;
+ 	else

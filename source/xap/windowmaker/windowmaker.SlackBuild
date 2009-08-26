@@ -1,0 +1,120 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=20060427cvs
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-windowmaker
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf WindowMaker-$VERSION
+tar xvf $CWD/WindowMaker-$VERSION.tar.bz2 || exit 1
+cd WindowMaker-$VERSION || exit 1
+
+zcat $CWD/windowmaker.no-mmx.diff.gz | patch -p1 --verbose -F 3 || exit 1
+sh autogen.sh
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# This should be non-interactive where possible.
+zcat $CWD/wmaker.inst.diff.gz | patch -p1 --verbose || exit
+
+LINGUAS="$(cd po ; /bin/ls *.po | sed 's/.po//g')" \
+GNUSTEP_LOCAL_ROOT=/usr/lib${LIBDIRSUFFIX}/GNUstep \
+CFLAGS="$SLKCFLAGS" \
+NLSDIR=/usr/share/locale \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --sysconfdir=/etc/X11 \
+  --enable-gnome \
+  --enable-kde \
+  --enable-usermenu \
+  --with-appspath=/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications \
+  --build=$ARCH-slackware-linux
+
+# NLS bugs like -i
+make $NUMJOBS || make -i || exit 1
+
+# Change /usr/local/GNUstep to /usr/lib/GNUstep in the WMRootMenu:
+sed -i -e "s#/usr/local/GNUstep/Applications/WPrefs.app/#/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications/WPrefs.app/#" \
+  $(grep -lr '/usr/local/GNUstep/Applications/WPrefs.app/' *)
+
+make -i install DESTDIR=$PKG 
+mkdir -p $PKG/usr/doc/WindowMaker-$VERSION
+cp -a \
+  AUTHORS BUGFORM BUGS COPYING COPYING.WTFPL FAQ FAQ.I18N FAQ.I18N.cs FAQ.I18N.sk INSTALL INSTALL.cs INSTALL.es INSTALL.fr INSTALL.pt INSTALL.sk MIRRORS NEWS README README.definable-cursor README.pt TODO \
+   $PKG/usr/doc/WindowMaker-$VERSION
+cd $TMP
+rm -rf WindowMaker-extra-0.1
+tar xvf $CWD/WindowMaker-extra-0.1.tar.gz || exit 1
+cd WindowMaker-extra-0.1 || exit 1
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-iconsdir=/usr/share/pixmaps \
+  $ARCH-slackware-linux
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/etc/X11/xinit
+cat $CWD/xinitrc.wmaker > $PKG/etc/X11/xinit/xinitrc.wmaker
+chmod 755 $PKG/etc/X11/xinit/xinitrc.wmaker
+
+gzip -9 $PKG/usr/man/man1/* $PKG/usr/man/sk/man1/*
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/windowmaker-$VERSION-$ARCH-$BUILD.txz
+

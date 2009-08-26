@@ -1,0 +1,43 @@
+diff -Nur module-init-tools-3.6.old/modprobe.c module-init-tools-3.6.new/modprobe.c
+--- module-init-tools-3.6.old/modprobe.c	2009-02-04 01:45:24.000000000 -0600
++++ module-init-tools-3.6.new/modprobe.c	2009-02-08 01:40:24.143637295 -0600
+@@ -38,6 +38,7 @@
+ #include <asm/unistd.h>
+ #include <sys/wait.h>
+ #include <syslog.h>
++#include <regex.h>
+ 
+ #define streq(a,b) (strcmp((a),(b)) == 0)
+ #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+@@ -1275,6 +1276,20 @@
+ 	return 1;
+ }
+ 
++/* Let's exclude a few file extensions */
++static int valid_file_name(const char *filename)
++{
++       static regex_t *re = NULL;
++
++       if (!re) {
++               re = NOFAIL(malloc(sizeof(regex_t)));
++               if (regcomp(re, "(^(\\.|\\.\\.)|\\.(new|orig|bak)$)",
++                   REG_EXTENDED|REG_NOSUB) != 0)
++                       fatal("regcomp failed: %s\n", strerror(errno));
++       }
++       return regexec(re, filename, 0, NULL, 0);
++}
++
+ /* Simple format, ignore lines starting with #, one command per line.
+    Returns true or false. */
+ static int read_config(const char *filename,
+@@ -1294,7 +1309,10 @@
+ 	if (dir) {
+ 		struct dirent *i;
+ 		while ((i = readdir(dir)) != NULL) {
++			/* Removed this line:
+			if (!streq(i->d_name,".") && !streq(i->d_name,"..")
++			and replaced with this one: */
++			if (valid_file_name(i->d_name)
+ 			    && config_filter(i->d_name)) {
+ 				char sub[strlen(filename) + 1
+ 					 + strlen(i->d_name) + 1];

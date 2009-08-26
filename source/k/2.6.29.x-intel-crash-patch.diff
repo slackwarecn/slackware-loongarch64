@@ -1,0 +1,37 @@
+   [Intel-gfx] [PATCH] drm/i915: Don't allow binding objects into the last page of the aperture.
+
+   Eric Anholt eric at anholt.net
+   Tue May 12 15:29:56 PDT 2009
+
+ This should avoid a class of bugs where the hardware prefetches past the
+ end of the object, and walks into unallocated memory when the object is
+ bound to the last page of the aperture.
+
+ fd.o bug #21488
+ ---
+  drivers/gpu/drm/i915/i915_dma.c |   12 ++++++++++--
+  1 files changed, 10 insertions(+), 2 deletions(-)
+
+ diff --git a/drivers/gpu/drm/i915/i915_dma.c b/drivers/gpu/drm/i915/i915_dma.c
+ index 051134c..3133f99 100644
+ --- a/drivers/gpu/drm/i915/i915_dma.c
+ +++ b/drivers/gpu/drm/i915/i915_dma.c
+ @@ -1011,8 +1011,16 @@ static int i915_load_modeset_init(struct drm_device *dev)
+         /* Basic memrange allocator for stolen space (aka vram) */
+         drm_mm_init(&dev_priv->vram, 0, prealloc_size);
+
+ -       /* Let GEM Manage from end of prealloc space to end of aperture */
+ -       i915_gem_do_init(dev, prealloc_size, agp_size);
+ +       /* Let GEM Manage from end of prealloc space to end of aperture.
+ +        *
+ +        * However, leave one page at the end still bound to the scratch page.
+ +        * There are a number of places where the hardware apparently
+ +        * prefetches past the end of the object, and we've seen multiple
+ +        * hangs with the GPU head pointer stuck in a batchbuffer bound
+ +        * at the last page of the aperture.  One page should be enough to
+ +        * keep any prefetching inside of the aperture.
+ +        */
+ +       i915_gem_do_init(dev, prealloc_size, agp_size - 4096);
+
+         ret = i915_gem_init_ringbuffer(dev);
+

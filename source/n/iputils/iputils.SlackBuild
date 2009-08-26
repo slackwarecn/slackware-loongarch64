@@ -1,0 +1,96 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION=s20070202
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-2}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-iputils
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf iputils-$VERSION
+tar xvf $CWD/iputils-$VERSION.tar.bz2 || exit 1
+cd iputils-$VERSION || exit 1
+# Modern compiler...
+sed -i -e "s/OPEN_MAX/NR_OPEN/" $(grep -lr OPEN_MAX *)
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+make || exit 1
+( cd doc ; make man || exit 1 ) || exit 1
+
+strip arping clockdiff ping ping6 rarpd rdisc tracepath tracepath6 traceroute6
+mkdir -p $PKG/sbin
+cat arping > $PKG/sbin/arping
+chmod 755 $PKG/sbin/arping
+mkdir -p $PKG/usr/sbin
+cat clockdiff > $PKG/usr/sbin/clockdiff
+chmod 755 $PKG/usr/sbin/clockdiff
+mkdir -p $PKG/bin
+cat ping > $PKG/bin/ping
+cat ping6 > $PKG/bin/ping6
+chmod 4711 $PKG/bin/ping $PKG/bin/ping6
+cat rarpd > $PKG/usr/sbin/rarpd
+cat rdisc > $PKG/usr/sbin/rdisc
+chmod 755 $PKG/usr/sbin/rarpd $PKG/usr/sbin/rdisc
+mkdir -p $PKG/usr/bin
+cat tracepath > $PKG/usr/bin/tracepath
+cat tracepath6 > $PKG/usr/bin/tracepath6
+cat traceroute6 > $PKG/usr/bin/traceroute6
+chmod 755 $PKG/usr/bin/tracepath*
+chmod 4711 $PKG/usr/bin/traceroute6
+
+mkdir -p $PKG/usr/man/man8
+( cd doc
+  for file in arping clockdiff ping rarpd rdisc tracepath traceroute6 ; do
+    cat $file.8 | gzip -9c > $PKG/usr/man/man8/$file.8.gz
+  done
+  cd $PKG/usr/man/man8
+  ln -sf ping.8.gz ping6.8.gz
+  ln -sf tracepath.8.gz tracepath6.8.gz
+)
+
+mkdir -p $PKG/usr/doc/iputils-$VERSION
+cp -a \
+  RELNOTES \
+  $PKG/usr/doc/iputils-$VERSION
+chmod 644 $PKG/usr/doc/iputils-$VERSION/*
+
+# Finish up the package:
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/iputils-$VERSION-$ARCH-$BUILD.txz
+

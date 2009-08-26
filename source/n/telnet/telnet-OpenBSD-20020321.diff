@@ -1,0 +1,70 @@
+--- ./telnet/commands.c.orig	Thu Mar 21 20:27:13 2002
++++ ./telnet/commands.c	Thu Mar 21 20:27:42 2002
+@@ -2196,7 +2196,7 @@
+     if (skiprc)
+ 	return;
+ 
+-    strlcpy(m1save, m1, sizeof(m1save));
++    strncpy(m1save, m1, sizeof(m1save));
+     m1 = m1save;
+ 
+     if (rcname[0] == 0) {
+--- ./telnet/GNUmakefile.orig	Thu Mar 21 20:22:45 2002
++++ ./telnet/GNUmakefile	Thu Mar 21 20:22:23 2002
+@@ -0,0 +1,34 @@
++all: telnet
++
++include ../MCONFIG
++include ../MRULES
++
++ifeq ($(USE_GLIBC),1)
++CFLAGS += -D_GNU_SOURCE
++endif
++
++#CFLAGS:=$(patsubst -O2, -g, $(CFLAGS))
++
++# -DAUTHENTICATE
++CFLAGS += -DUSE_TERMIO -DKLUDGELINEMODE
++LIBS += $(LIBTERMCAP)
++
++CFLAGS += -I../
++
++LIBTELNETOBJS = genget.o
++
++OBJS =	authenc.o commands.o main.o network.o ring.o sys_bsd.o telnet.o \
++	terminal.o tn3270.o utilities.o $(LIBTELNETOBJS)
++
++telnet: $(OBJS)
++	$(CC) $(LDFLAGS) $^ $(LIBS) -o $@
++
++install: telnet
++	install -s -m$(BINMODE) telnet $(INSTALLROOT)$(BINDIR)
++	install -m$(MANMODE) telnet.1 $(INSTALLROOT)$(MANDIR)/man1
++
++clean:
++	rm -f *.o telnet
++
++genget.o:	../libtelnet/genget.c
++	 $(CC) $(CFLAGS) $< -c
+--- ./telnet/main.c.orig	Thu Mar 21 20:27:27 2002
++++ ./telnet/main.c	Thu Mar 21 20:27:51 2002
+@@ -325,7 +325,7 @@
+ 			break;
+ 		case 't':
+ #if defined(TN3270) && defined(unix)
+-			(void)strlcpy(tline, optarg, sizeof tline);
++			(void)strncpy(tline, optarg, sizeof tline);
+ 			transcom = tline;
+ #else
+ 			fprintf(stderr,
+--- ./telnet/utilities.c.orig	Thu Mar 21 20:27:22 2002
++++ ./telnet/utilities.c	Thu Mar 21 20:27:47 2002
+@@ -101,7 +101,7 @@
+     if (file  && (strcmp(file, "-") != 0)) {
+ 	NetTrace = fopen(file, "w");
+ 	if (NetTrace) {
+-	    strlcpy((char *)NetTraceFile, file, sizeof(NetTraceFile));
++	    strncpy((char *)NetTraceFile, file, sizeof(NetTraceFile));
+ 	    return;
+ 	}
+ 	fprintf(stderr, "Cannot open %s.\n", file);

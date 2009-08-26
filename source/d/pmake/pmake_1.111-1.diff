@@ -1,0 +1,3501 @@
+--- pmake-1.111.orig/mk/Makefile
++++ pmake-1.111/mk/Makefile
+@@ -0,0 +1,16 @@
++#	$NetBSD: Makefile,v 1.24 1999/02/13 02:54:36 lukem Exp $
++#	@(#)Makefile	8.1 (Berkeley) 6/8/93
++
++.include <bsd.own.mk>
++
++.if ${MKSHARE} != "no"
++FILES=	bsd.README bsd.doc.mk bsd.dep.mk bsd.files.mk bsd.inc.mk bsd.info.mk \
++	bsd.kinc.mk bsd.kmod.mk bsd.lib.mk bsd.links.mk bsd.man.mk bsd.nls.mk \
++	bsd.obj.mk bsd.own.mk bsd.prog.mk bsd.subdir.mk bsd.sys.mk sys.mk
++FILESDIR=/usr/share/mk
++.endif
++MKOBJ=	no
++
++FILESMODE=444
++
++.include <bsd.prog.mk>
+--- pmake-1.111.orig/mk/bsd.README
++++ pmake-1.111/mk/bsd.README
+@@ -0,0 +1,537 @@
++#	$NetBSD: bsd.README,v 1.48 1999/02/13 03:04:09 lukem Exp $
++#	@(#)bsd.README	8.2 (Berkeley) 4/2/94
++
++This is the README file for the new make "include" files for the BSD
++source tree.  The files are installed in /usr/share/mk, and are, by
++convention, named with the suffix ".mk".
++
++Note, this file is not intended to replace reading through the .mk
++files for anything tricky.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++RANDOM THINGS WORTH KNOWING:
++
++The files are simply C-style #include files, and pretty much behave like
++you'd expect.  The syntax is slightly different in that a single '.' is
++used instead of the hash mark, i.e. ".include <bsd.prog.mk>".
++
++One difference that will save you lots of debugging time is that inclusion
++of the file is normally done at the *end* of the Makefile.  The reason for
++this is because .mk files often modify variables and behavior based on the
++values of variables set in the Makefile.  To make this work, remember that
++the FIRST target found is the target that is used, i.e. if the Makefile has:
++
++	a:
++		echo a
++	a:
++		echo a number two
++
++the command "make a" will echo "a".  To make things confusing, the SECOND
++variable assignment is the overriding one, i.e. if the Makefile has:
++
++	a=	foo
++	a=	bar
++
++	b:
++		echo ${a}
++
++the command "make b" will echo "bar".  This is for compatibility with the
++way the V7 make behaved.
++
++It's fairly difficult to make the BSD .mk files work when you're building
++multiple programs in a single directory.  It's a lot easier split up the
++programs than to deal with the problem.  Most of the agony comes from making
++the "obj" directory stuff work right, not because we switched to a new version
++of make.  So, don't get mad at us, figure out a better way to handle multiple
++architectures so we can quit using the symbolic link stuff.  (Imake doesn't
++count.)
++
++The file .depend in the source directory is expected to contain dependencies
++for the source files.  This file is read automatically by make after reading
++the Makefile.
++
++The variable DESTDIR works as before.  It's not set anywhere but will change
++the tree where the file gets installed.
++
++The profiled libraries are no longer built in a different directory than
++the regular libraries.  A new suffix, ".po", is used to denote a profiled
++object, and ".so" denotes a shared (position-independent) object.
++
++The following variables that control how things are made/installed that
++are not set by default. These should not be set by Makefiles; they're for
++the user to define in MAKECONF (see bsd.own.mk, below) or on the make(1)
++command line:
++
++BUILD 		If defined, 'make install' checks that the targets in the
++		source directories are up-to-date and remakes them if they
++                are out of date, instead of blindly trying to install
++                out of date or non-existant targets.
++
++UPDATE 		If defined, 'make install' only installs targets that are
++		more recently modified in the source directories that their
++		installed counterparts.
++
++MKCATPAGES	If "no", don't build or install the catman pages.
++
++MKDOC		If "no", don't build or install the documentation.
++
++MKINFO		If "no", don't build or install Info documentation from
++		Texinfo source files.
++
++MKLINT		If "no", don't build or install the lint libraries.
++
++MKMAN		If "no", don't build or install the man or catman pages.
++		Also acts as "MKCATPAGES=no"
++
++MKNLS		If "no", don't build or install the NLS files.
++
++MKOBJ		If "no", don't create objdirs.
++
++MKPIC		If "no", don't build or install shared libraries.
++
++MKPICINSTALL	If "no", don't install the *_pic.a libraries.
++
++MKPROFILE	If "no", don't build or install the profiling libraries.
++
++MKSHARE		If "no", act as "MKCATPAGES=no MKDOC=no MKINFO=no MKMAN=no
++		MKNLS=no".  I.e, don't build catman pages, documentation,
++		Info documentation, man pages, NLS files, ...
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <sys.mk> has the default rules for all makes, in the BSD
++environment or otherwise.  You probably don't want to touch this file.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.man.mk> handles installing manual pages and their
++links.
++
++It has a two targets:
++
++	maninstall:
++		Install the manual page sources and their links.
++	catinstall:
++		Install the preformatted manual pages and their links.
++
++It sets/uses the following variables:
++
++MANDIR		Base path for manual installation.
++
++MANGRP		Manual group.
++
++MANOWN		Manual owner.
++
++MANMODE		Manual mode.
++
++MANSUBDIR	Subdirectory under the manual page section, i.e. "/vax"
++		or "/tahoe" for machine specific manual pages.
++
++MAN		The manual pages to be installed (use a .1 - .9 suffix).
++
++MLINKS		List of manual page links (using a .1 - .9 suffix).  The
++		linked-to file must come first, the linked file second,
++		and there may be multiple pairs.  The files are soft-linked.
++
++The include file <bsd.man.mk> includes a file named "../Makefile.inc" if
++it exists.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.own.mk> contains source tree configuration parameters,
++such as the owners, groups, etc. for both manual pages and binaries, and
++a few global "feature configuration" parameters.
++
++It has no targets.
++
++To get system-specific configuration parameters, bsd.own.mk will try to
++include the file specified by the "MAKECONF" variable.  If MAKECONF is not
++set, or no such file exists, the system make configuration file, /etc/mk.conf
++is included.  These files may define any of the variables described below.
++
++bsd.own.mk sets the following variables, if they are not already defined
++(defaults are in brackets):
++
++BSDSRCDIR	The real path to the system sources, so that 'make obj'
++		will work correctly. [/usr/src]
++
++BSDOBJDIR	The real path to the system 'obj' tree, so that 'make obj'
++		will work correctly. [/usr/obj]
++
++BINGRP		Binary group. [wheel]
++
++BINOWN		Binary owner. [root]
++
++BINMODE		Binary mode. [555]
++
++NONBINMODE	Mode for non-executable files. [444]
++
++MANDIR		Base path for manual installation. [/usr/share/man/cat]
++
++MANGRP		Manual group. [wheel]
++
++MANOWN		Manual owner. [root]
++
++MANMODE		Manual mode. [${NONBINMODE}]
++
++MANINSTALL	Manual installation type: maninstall, catinstall, or both
++
++LIBDIR		Base path for library installation. [/usr/lib]
++
++LINTLIBDIR	Base path for lint(1) library installation. [/usr/libdata/lint]
++
++LIBGRP		Library group. [${BINGRP}]
++
++LIBOWN		Library owner. [${BINOWN}]
++
++LIBMODE		Library mode. [${NONBINMODE}]
++
++DOCDIR		Base path for system documentation (e.g. PSD, USD, etc.)
++	        installation. [/usr/share/doc]
++
++DOCGRP		Documentation group. [wheel]
++
++DOCOWN		Documentation owner. [root]
++
++DOCMODE		Documentation mode. [${NONBINMODE}]
++
++NLSDIR		Base path for National Language Support files installation.
++		[/usr/share/nls]
++
++NLSGRP		National Language Support files group. [wheel]
++
++NLSOWN		National Language Support files owner. [root]
++
++NLSMODE		National Language Support files mode. [${NONBINMODE}]
++
++STRIPFLAG	The flag passed to the install program to cause the binary
++		to be stripped.  This is to be used when building your
++		own install script so that the entire system can be made
++		stripped/not-stripped using a single knob. [-s]
++
++COPY		The flag passed to the install program to cause the binary
++		to be copied rather than moved.  This is to be used when
++		building our own install script so that the entire system
++		can either be installed with copies, or with moves using
++		a single knob. [-c]
++
++Additionally, the following variables may be set by bsd.own.mk or in a
++make configuration file to modify the behaviour of the system build
++process (default values are in brackets along with comments, if set by
++bsd.own.mk):
++
++EXPORTABLE_SYSTEM
++		Do not build /usr/src/domestic, even if it is present.
++
++SKEY		Compile in support for S/key authentication. [yes, set
++		unconditionally]
++
++KERBEROS	Compile in support for Kerberos 4 authentication.
++
++KERBEROS5	Compile in support for Kerberos 5 authentication.
++
++MANZ		Compress manual pages at installation time.
++
++SYS_INCLUDE	Copy or symlink kernel include files into /usr/include.
++		Possible values are "symlinks" or "copies" (which is
++		the same as the variable being unset).
++
++NOPROFILE	Do not build profiled versions of system libraries
++
++NOPIC		Do not build PIC versions of system libraries, and
++		do not build shared libraries.  [set if ${MACHINE_ARCH}
++		is "sparc64", unset otherwise.]
++
++NOLINT		Do not build lint libraries.
++
++OBJECT_FMT	Object file format. [set to "ELF" on  ports that use
++		ELF -- currently if ${MACHINE_ARCH} is "alpha", "mips"
++		or "powerpc" or  set to "a.out" on other ports].
++
++
++bsd.own.mk is generally useful when building your own Makefiles so that
++they use the same default owners etc. as the rest of the tree.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.prog.mk> handles building programs from one or
++more source files, along with their manual pages.  It has a limited number
++of suffixes, consistent with the current needs of the BSD tree.
++
++It has eight targets:
++
++	all:
++		build the program and its manual page
++	clean:
++		remove the program, any object files and the files a.out,
++		Errs, errs, mklog, and ${PROG}.core.
++	cleandir:
++		remove all of the files removed by the target clean, as
++		well as .depend, tags, and any manual pages.
++		`distclean' is a synonym for `cleandir'.
++	depend:
++		make the dependencies for the source files, and store
++		them in the file .depend.
++	includes:
++		install any header files.
++	install:
++		install the program and its manual pages; if the Makefile
++		does not itself define the target install, the targets
++		beforeinstall and afterinstall may also be used to cause
++		actions immediately before and after the install target
++		is executed.
++	lint:
++		run lint on the source files
++	tags:
++		create a tags file for the source files.
++
++It sets/uses the following variables:
++
++BINGRP		Binary group.
++
++BINOWN		Binary owner.
++
++BINMODE		Binary mode.
++
++CLEANFILES	Additional files to remove for the clean and cleandir targets.
++
++COPTS		Additional flags to the compiler when creating C objects.
++
++CPPFLAGS	Additional flags to the C pre-processor
++
++LDADD		Additional loader objects.  Usually used for libraries.
++		For example, to load with the compatibility and utility
++		libraries, use:
++
++			LDADD+=-lutil -lcompat
++
++LDFLAGS		Additional loader flags.
++
++LINKS		The list of binary links; should be full pathnames, the
++		linked-to file coming first, followed by the linked
++		file.  The files are hard-linked.  For example, to link
++		/bin/test and /bin/[, use:
++
++			LINKS=	${DESTDIR}/bin/test ${DESTDIR}/bin/[
++
++SYMLINKS	The list of symbolic links; should be full pathnames.
++                Syntax is identical to LINKS. Note that DESTDIR is not
++		automatically included in the link.
++
++MAN		Manual pages (should end in .1 - .9).  If no MAN variable is
++		defined, "MAN=${PROG}.1" is assumed.
++
++PROG		The name of the program to build.  If not supplied, nothing
++		is built.
++
++PROGNAME	The name that the above program will be installed as, if
++		different from ${PROG}.
++
++SRCS		List of source files to build the program.  If SRCS is not
++		defined, it's assumed to be ${PROG}.c.
++
++DPADD		Additional dependencies for the program.  Usually used for
++		libraries.  For example, to depend on the compatibility and
++		utility libraries use:
++
++			DPADD+=${LIBCOMPAT} ${LIBUTIL}
++
++		The following libraries are predefined for DPADD:
++
++		LIBC?=		${DESTDIR}/usr/lib/libc.a
++		LIBC_PIC?=	${DESTDIR}/usr/lib/libc_pic.a
++		LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
++		LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
++		LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
++		LIBDBM?=	${DESTDIR}/usr/lib/libdbm.a
++		LIBDES?=	${DESTDIR}/usr/lib/libdes.a
++		LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
++		LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
++		LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
++		LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a
++		LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a
++		LIBKVM?=	${DESTDIR}/usr/lib/libkvm.a
++		LIBL?=		${DESTDIR}/usr/lib/libl.a
++		LIBM?=		${DESTDIR}/usr/lib/libm.a
++		LIBMP?=		${DESTDIR}/usr/lib/libmp.a
++		LIBNTP?=	${DESTDIR}/usr/lib/libntp.a
++		LIBPC?=		${DESTDIR}/usr/lib/libpc.a
++		LIBPCAP?=	${DESTDIR}/usr/lib/libpcap.a
++		LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a
++		LIBPOSIX?=	${DESTDIR}/usr/lib/libposix.a
++		LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
++		LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
++		LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
++		LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
++		LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
++		LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
++		LIBWRAP?=	${DESTDIR}/usr/lib/libwrap.a
++		LIBY?=		${DESTDIR}/usr/lib/liby.a
++		LIBZ?=		${DESTDIR}/usr/lib/libz.a
++
++
++SHAREDSTRINGS	If defined, a new .c.o rule is used that results in shared
++		strings, using xstr(1). Note that this will not work with
++		parallel makes.
++
++STRIP		The flag passed to the install program to cause the binary
++		to be stripped.
++
++SUBDIR		A list of subdirectories that should be built as well.
++		Each of the targets will execute the same target in the
++		subdirectories.
++
++SCRIPTS		A list of interpreter scripts [file.{sh,csh,pl,awk,...}].
++		These are installed exactly like programs.
++
++SCRIPTSNAME	The name that the above program will be installed as, if
++		different from ${SCRIPTS}. These can be further specialized
++		by setting SCRIPTSNAME_<script>.
++
++FILES		A list of files to install. The installation is controlled
++		by the FILESNAME, FILESOWN, FILESGRP, FILESMODE, FILESDIR
++		variables that can be further specialized by FILES<VAR>_<file>
++
++The include file <bsd.prog.mk> includes the file named "../Makefile.inc"
++if it exists, as well as the include file <bsd.man.mk>.
++
++Some simple examples:
++
++To build foo from foo.c with a manual page foo.1, use:
++
++	PROG=	foo
++
++	.include <bsd.prog.mk>
++
++To build foo from foo.c with a manual page foo.2, add the line:
++
++	MAN=	foo.2
++
++If foo does not have a manual page at all, add the line:
++
++	NOMAN=	noman
++
++If foo has multiple source files, add the line:
++
++	SRCS=	a.c b.c c.c d.c
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.subdir.mk> contains the default targets for building
++subdirectories.  It has the same eight targets as <bsd.prog.mk>: all, 
++clean, cleandir, depend, includes, install, lint, and tags.  For all of
++the directories listed in the variable SUBDIRS, the specified directory 
++will be visited and the target made.  There is also a default target which
++allows the command "make subdir" where subdir is any directory listed in
++the variable SUBDIRS.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.links.mk> handles the LINKS and SYMLINKS variables
++and is included from from bsd.lib.mk and bsd.prog.mk.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.files.mk> handles the FILES variables and is included
++from bsd.lib.mk and bsd.prog.mk.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.inc.mk> defines the includes target and uses two
++variables:
++
++INCS	The list of include files
++
++INCSDIR	The location to install the include files.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.kinc.mk> defines the many targets (includes,
++subdirectories, etc.), and is used by kernel makefiles to handle
++include file installation.  It is intended to be included alone, by
++kernel Makefiles.  Please see bsd.kinc.mk for more details, and keep
++the documentation in that file up to date.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.info.mk> is used to generate and install GNU Info
++documentation from respective Texinfo source files.  It defines three
++implicit targets (.txi.info, .texi.info, and .texinfo.info), and uses the
++following variables:
++
++TEXINFO		List of Texinfo source files.  Info documentation will
++		consist of single files with the extension replaced by
++		.info.
++
++INFOFLAGS	Flags to pass to makeinfo.  []
++
++INSTALL_INFO	Name of install-info program.  [install-info]
++
++MAKEINFO	Name of makeinfo program.  [makeinfo]
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.sys.mk> is used by <bsd.prog.mk> and
++<bsd.lib.mk>.  It contains overrides that are used when building
++the NetBSD source tree.  For instance, if "PARALLEL" is defined by
++the program/library Makefile, it includes a set of rules for lex and
++yacc that allow multiple lex and yacc targets to be built in parallel.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
++
++The include file <bsd.lib.mk> has support for building libraries.  It has
++the same eight targets as <bsd.prog.mk>: all, clean, cleandir, depend,
++includes, install, lint, and tags.  Additionally, it has a checkver target
++which checks for installed shared object libraries whose version is greater
++that the version of the source. It has a limited number of suffixes,
++consistent with the current needs of the BSD tree.
++
++It sets/uses the following variables:
++
++LIB		The name of the library to build.
++
++LIBDIR		Target directory for libraries.
++
++LINTLIBDIR	Target directory for lint libraries.
++
++LIBGRP		Library group.
++
++LIBOWN		Library owner.
++
++LIBMODE		Library mode.
++
++LDADD		Additional loader objects.
++
++MAN		The manual pages to be installed (use a .1 - .9 suffix).
++
++MKLINKLIB	If "no", act as "MKPICINSTALL=no MKPROFILE=no".
++		Also:
++			- don't install the .a libraries
++			- don't install _pic.a libraries on PIC systems
++			- don't build .a libraries on PIC systems
++			- don't install the .so symlink on ELF systems
++		I.e, only install the shared library (and the .so.major
++		symlink on ELF).
++
++NOCHECKVER_<library>
++NOCHECKVER	If set, disables checking for installed shared object
++		libraries with versions greater than the source.  A
++		particular library name, without the "lib" prefix, may
++		be appended to the variable name to disable the check for
++		only that library.
++
++SRCS		List of source files to build the library.  Suffix types
++		.s, .c, and .f are supported.  Note, .s files are preferred
++		to .c files of the same name.  (This is not the default for
++		versions of make.)
++
++The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
++if it exists, as well as the include file <bsd.man.mk>.
++
++It has rules for building profiled objects; profiled libraries are
++built by default.
++
++Libraries are ranlib'd when made.
++
++=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+--- pmake-1.111.orig/mk/bsd.dep.mk
++++ pmake-1.111/mk/bsd.dep.mk
+@@ -0,0 +1,62 @@
++#	$NetBSD: bsd.dep.mk,v 1.26 1999/02/24 22:04:15 simonb Exp $
++
++.PHONY:		cleandepend
++cleandir distclean: cleandepend
++
++MKDEP?=		mkdep
++
++# some of the rules involve .h sources, so remove them from mkdep line
++depend: beforedepend
++.if defined(SRCS)
++depend: .depend
++	@true # hack to prevent "make depend" from using implicit rules
++.NOPATH: .depend
++.depend: ${SRCS} ${DPSRCS}
++	@rm -f .depend
++	@files="${.ALLSRC:M*.s} ${.ALLSRC:M*.S}"; \
++	if [ "$$files" != " " ]; then \
++	  echo ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${AFLAGS:M-[ID]*:Q} ${CPPFLAGS:Q} ${AINC:Q} $$files; \
++	  ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${AFLAGS:M-[ID]*} ${CPPFLAGS} ${AINC} $$files; \
++	fi
++	@files="${.ALLSRC:M*.c}"; \
++	if [ "$$files" != "" ]; then \
++	  echo ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${CFLAGS:M-[ID]*:Q} ${CPPFLAGS:Q} $$files; \
++	  ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${CFLAGS:M-[ID]*} ${CPPFLAGS} $$files; \
++	fi
++	@files="${.ALLSRC:M*.m}"; \
++	if [ "$$files" != "" ]; then \
++	  echo ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${OBJCFLAGS:M-[ID]*:Q} ${CPPFLAGS:Q} $$files; \
++	  ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${OBJCFLAGS:M-[ID]*} ${CPPFLAGS} $$files; \
++	fi
++	@files="${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}"; \
++	if [ "$$files" != "  " ]; then \
++	  echo ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${CXXFLAGS:M-[ID]*:Q} ${CPPFLAGS:Q} $$files; \
++	  ${MKDEP} -a ${MKDEPFLAGS} \
++	    ${CXXFLAGS:M-[ID]*} ${CPPFLAGS} $$files; \
++	fi
++cleandepend:
++	rm -f .depend ${.CURDIR}/tags
++.else
++cleandepend:
++.endif
++depend: afterdepend
++
++beforedepend:
++afterdepend:
++
++.if !target(tags)
++.if defined(SRCS)
++tags: ${SRCS}
++	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC:N*.h} | \
++	    sed "s;\${.CURDIR}/;;" > tags
++.else
++tags:
++.endif
++.endif
+--- pmake-1.111.orig/mk/bsd.doc.mk
++++ pmake-1.111/mk/bsd.doc.mk
+@@ -0,0 +1,78 @@
++#	$NetBSD: bsd.doc.mk,v 1.41 1999/02/12 01:10:06 lukem Exp $
++#	@(#)bsd.doc.mk	8.1 (Berkeley) 8/14/93
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.MAIN:		all
++.endif
++
++.PHONY:		cleandoc docinstall print spell
++.if ${MKSHARE} != "no"
++realinstall:	docinstall
++.endif
++clean cleandir distclean: cleandoc
++
++BIB?=		bib
++EQN?=		eqn
++GREMLIN?=	grn
++GRIND?=		vgrind -f
++INDXBIB?=	indxbib
++PIC?=		pic
++REFER?=		refer
++ROFF?=         groff ${MACROS} ${PAGES}
++SOELIM?=	soelim
++TBL?=		tbl
++
++.if !target(all)
++.if ${MKSHARE} != "no"
++all: paper.ps
++.else
++all:
++.endif
++.endif
++
++.if !target(paper.ps)
++paper.ps: ${SRCS}
++	${ROFF} ${.ALLSRC} > ${.TARGET}
++.endif
++
++.if !target(print)
++print: paper.ps
++	lpr -P${PRINTER} ${.ALLSRC}
++.endif
++
++cleandoc:
++	rm -f paper.* [eE]rrs mklog ${CLEANFILES}
++
++.if ${MKDOC} != "no"
++FILES?=	${SRCS}
++.for F in ${FILES} ${EXTRA} Makefile
++docinstall:: ${DESTDIR}${DOCDIR}/${DIR}/${F}
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${DOCDIR}/${DIR}/${F}
++.endif
++.if !defined(BUILD)
++${DESTDIR}${DOCDIR}/${DIR}/${F}: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${DOCDIR}/${DIR}/${F}
++${DESTDIR}${DOCDIR}/${DIR}/${F}: ${F}
++	${INSTALL} ${RENAME} ${PRESERVE} -c -o ${DOCOWN} -g ${DOCGRP} \
++		-m ${DOCMODE} ${.ALLSRC} ${.TARGET}
++.endfor
++.endif
++
++.if !target(docinstall)
++docinstall::
++.endif
++
++spell: ${SRCS}
++	spell ${.ALLSRC} | sort | comm -23 - spell.ok > paper.spell
++
++depend includes lint obj tags:
++
++.include <bsd.obj.mk>
+--- pmake-1.111.orig/mk/bsd.files.mk
++++ pmake-1.111/mk/bsd.files.mk
+@@ -0,0 +1,43 @@
++#	$NetBSD: bsd.files.mk,v 1.8 1999/02/11 13:25:42 tv Exp $
++
++# This file can be included multiple times.  It clears the definition of
++# FILES at the end so that this is possible.
++
++.PHONY:		filesinstall
++realinstall:	filesinstall
++
++.if defined(FILES) && !empty(FILES)
++FILESDIR?=${BINDIR}
++FILESOWN?=${BINOWN}
++FILESGRP?=${BINGRP}
++FILESMODE?=${NONBINMODE}
++.for F in ${FILES}
++FILESDIR_${F}?=${FILESDIR}
++FILESOWN_${F}?=${FILESOWN}
++FILESGRP_${F}?=${FILESGRP}
++FILESMODE_${F}?=${FILESMODE}
++.if defined(FILESNAME)
++FILESNAME_${F} ?= ${FILESNAME}
++.else
++FILESNAME_${F} ?= ${F:T}
++.endif
++filesinstall:: ${DESTDIR}${FILESDIR_${F}}/${FILESNAME_${F}}
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${FILESDIR_${F}}/${FILESNAME_${F}}
++.endif
++.if !defined(BUILD)
++${DESTDIR}${FILESDIR_${F}}/${FILESNAME_${F}}: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${FILESDIR_${F}}/${FILESNAME_${F}}
++${DESTDIR}${FILESDIR_${F}}/${FILESNAME_${F}}: ${F}
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${FILESOWN_${F}} \
++		-g ${FILESGRP_${F}} -m ${FILESMODE_${F}} ${.ALLSRC} ${.TARGET}
++.endfor
++.endif
++
++.if !target(filesinstall)
++filesinstall::
++.endif
++
++FILES:=
+--- pmake-1.111.orig/mk/bsd.inc.mk
++++ pmake-1.111/mk/bsd.inc.mk
+@@ -0,0 +1,25 @@
++#	$NetBSD: bsd.inc.mk,v 1.12 1999/02/04 11:58:30 christos Exp $
++
++.PHONY:		incinstall
++includes:	${INCS} incinstall
++
++.if defined(INCS)
++.for I in ${INCS}
++incinstall:: ${DESTDIR}${INCSDIR}/$I
++
++.PRECIOUS: ${DESTDIR}${INCSDIR}/$I
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${INCSDIR}/$I
++.endif
++${DESTDIR}${INCSDIR}/$I: $I
++	@cmp -s ${.ALLSRC} ${.TARGET} > /dev/null 2>&1 || \
++	    (echo "${INSTALL} ${RENAME} ${PRESERVE} -c -o ${BINOWN} \
++		-g ${BINGRP} -m ${NONBINMODE} ${.ALLSRC} ${.TARGET}" && \
++	     ${INSTALL} ${RENAME} ${PRESERVE} -c -o ${BINOWN} -g ${BINGRP} \
++		-m ${NONBINMODE} ${.ALLSRC} ${.TARGET})
++.endfor
++.endif
++
++.if !target(incinstall)
++incinstall::
++.endif
+--- pmake-1.111.orig/mk/bsd.info.mk
++++ pmake-1.111/mk/bsd.info.mk
+@@ -0,0 +1,60 @@
++#	$NetBSD: bsd.info.mk,v 1.7.2.1 1999/04/22 14:46:13 perry Exp $
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.include <bsd.obj.mk>
++.MAIN:		all
++.endif
++
++MAKEINFO?=	makeinfo
++INFOFLAGS?=	
++INSTALL_INFO?=	install-info
++
++.SUFFIXES: .txi .texi .texinfo .info
++
++.txi.info .texi.info .texinfo.info:
++	@${MAKEINFO} ${INFOFLAGS} --no-split -o $@ $<
++
++.if defined(TEXINFO) && !empty(TEXINFO) && ${MKINFO} != "no"
++INFOFILES=	${TEXINFO:C/\.te?xi(nfo)?$/.info/}
++FILES+=		${INFOFILES}
++
++infoinstall:
++.for F in ${INFOFILES}
++	@${INSTALL_INFO} --remove --info-dir=${DESTDIR}${INFODIR} ${DESTDIR}${INFODIR}/${F}
++	${INSTALL_INFO} --info-dir=${DESTDIR}${INFODIR} ${DESTDIR}${INFODIR}/${F}
++.endfor
++
++.for F in ${INFOFILES}
++FILESDIR_${F}=	${INFODIR}
++FILESOWN_${F}=	${INFOOWN}
++FILESGRP_${F}=	${INFOGRP}
++FILESMODE_${F}=	${INFOMODE}
++FILESNAME_${F}=	${F:T}
++.endfor
++
++all: ${INFOFILES}
++.else
++all:
++.endif
++
++.if ${MKINFO} != "no"
++cleaninfo:
++	rm -f ${INFOFILES}
++.else
++cleaninfo infoinstall:
++.endif
++
++.include <bsd.files.mk>
++
++# These need to happen *after* filesinstall.
++.PHONY: infoinstall cleaninfo
++realinstall: infoinstall
++cleandir distclean: cleaninfo
++
++# Make sure all of the standard targets are defined, even if they do nothing.
++clean depend includes lint regress tags:
+--- pmake-1.111.orig/mk/bsd.kinc.mk
++++ pmake-1.111/mk/bsd.kinc.mk
+@@ -0,0 +1,136 @@
++#	$NetBSD: bsd.kinc.mk,v 1.5 1999/02/04 11:58:30 christos Exp $
++
++# System configuration variables:
++#
++# SYS_INCLUDE	"symlinks": symlinks to include directories are created.
++#		This may not work 100% properly for all headers.
++#
++#		"copies": directories are made, if necessary, and headers
++#		are installed into them.
++#
++# Variables:
++#
++# INCSDIR	Directory to install includes into (and/or make, and/or
++#		symlink, depending on what's going on).
++#
++# KDIR		Kernel directory to symlink to, if SYS_INCLUDE is symlinks.
++#		If unspecified, no action will be taken when making include
++#		for the directory if SYS_INCLUDE is symlinks.
++#
++# INCS		Headers to install, if SYS_INCLUDE is copies.
++#
++# DEPINCS	Headers to install which are built dynamically.
++#
++# SUBDIR	Subdirectories to enter
++#
++# SYMLINKS	Symlinks to make (unconditionally), a la bsd.links.mk.
++#		Note that the original bits will be 'rm -rf'd rather than
++#		just 'rm -f'd, to make the right thing happen with include
++#		directories.
++#
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.MAIN:		all
++.endif
++
++# Change SYS_INCLUDE in bsd.own.mk or /etc/mk.conf to "symlinks" if you
++# don't want copies
++SYS_INCLUDE?=   copies
++
++# If DESTDIR is set, we're probably building a release, so force "copies".
++.if defined(DESTDIR) && (${DESTDIR} != "/" && !empty(DESTDIR))
++SYS_INCLUDE=    copies
++.endif
++
++
++.PHONY:		incinstall
++includes:	${INCS} incinstall
++
++
++.if ${SYS_INCLUDE} == "symlinks"
++
++# don't install includes, just make symlinks.
++
++.if defined(KDIR)
++SYMLINKS+=	${KDIR} ${INCSDIR}
++.endif
++
++.else # not symlinks
++
++# make sure the directory is OK, and install includes.
++
++.PRECIOUS: ${DESTDIR}${INCSDIR}
++.PHONY: ${DESTDIR}${INCSDIR}
++${DESTDIR}${INCSDIR}:
++	@if [ ! -d ${.TARGET} ] || [ -L ${.TARGET} ] ; then \
++		echo creating ${.TARGET}; \
++		/bin/rm -rf ${.TARGET}; \
++		${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 ${.TARGET}; \
++	fi
++
++incinstall:: ${DESTDIR}${INCSDIR}
++
++.if defined(INCS)
++.for I in ${INCS}
++incinstall:: ${DESTDIR}${INCSDIR}/$I
++
++.PRECIOUS: ${DESTDIR}${INCSDIR}/$I
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${INCSDIR}/$I
++.endif
++${DESTDIR}${INCSDIR}/$I: ${DESTDIR}${INCSDIR} $I 
++	@cmp -s ${.CURDIR}/$I ${.TARGET} > /dev/null 2>&1 || \
++	    (echo "${INSTALL} ${RENAME} ${PRESERVE} -c -o ${BINOWN} \
++		-g ${BINGRP} -m ${NONBINMODE} ${.CURDIR}/$I ${.TARGET}" && \
++	     ${INSTALL} ${RENAME} ${PRESERVE} -c -o ${BINOWN} -g ${BINGRP} \
++		-m ${NONBINMODE} ${.CURDIR}/$I ${.TARGET})
++.endfor
++.endif
++
++.if defined(DEPINCS)
++.for I in ${DEPINCS}
++incinstall:: ${DESTDIR}${INCSDIR}/$I
++
++.PRECIOUS: ${DESTDIR}${INCSDIR}/$I
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${INCSDIR}/$I
++.endif
++${DESTDIR}${INCSDIR}/$I: ${DESTDIR}${INCSDIR} $I 
++	@cmp -s $I ${.TARGET} > /dev/null 2>&1 || \
++	    (echo "${INSTALL} ${RENAME} ${PRESERVE} -c -o ${BINOWN} \
++		-g ${BINGRP} -m ${NONBINMODE} $I ${.TARGET}" && \
++	     ${INSTALL} ${RENAME} ${PRESERVE} -c -o ${BINOWN} -g ${BINGRP} \
++		-m ${NONBINMODE} $I ${.TARGET})
++.endfor
++.endif
++
++.endif # not symlinks
++
++.if defined(SYMLINKS) && !empty(SYMLINKS)
++incinstall::
++	@set ${SYMLINKS}; \
++	 while test $$# -ge 2; do \
++		l=$$1; \
++		shift; \
++		t=${DESTDIR}$$1; \
++		shift; \
++		echo ".include <bsd.own.mk>"; \
++		echo "all:: $$t"; \
++		echo ".PHONY: $$t"; \
++		echo "$$t:"; \
++		echo "	@echo \"$$t -> $$l\""; \
++		echo "	@rm -rf $$t"; \
++		echo "	@ln -s $$l $$t"; \
++	done | ${MAKE} -f-
++.endif
++
++.if !target(incinstall)
++incinstall::
++.endif
++
++.include <bsd.subdir.mk>
+--- pmake-1.111.orig/mk/bsd.kmod.mk
++++ pmake-1.111/mk/bsd.kmod.mk
+@@ -0,0 +1,95 @@
++#	$NetBSD: bsd.kmod.mk,v 1.30 1999/03/10 06:34:19 ross Exp $
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.include <bsd.obj.mk>
++.MAIN:		all
++.endif
++
++.PHONY:		cleankmod kmodinstall load unload
++realinstall:	kmodinstall
++clean cleandir distclean: cleankmod
++
++S?=		/sys
++KERN=		$S/kern
++
++CFLAGS+=	${COPTS} -D_KERNEL -D_LKM -I. -I${.CURDIR} -I$S -I$S/arch
++
++DPSRCS+=	${SRCS:M*.l:.l=.c} ${SRCS:M*.y:.y=.c}
++CLEANFILES+=	${DPSRCS}
++.if defined(YHEADER)
++CLEANFILES+=	${SRCS:M*.y:.y=.h}
++.endif
++
++OBJS+=		${SRCS:N*.h:N*.sh:R:S/$/.o/g}
++
++.if !defined(PROG)
++PROG=	${KMOD}.o
++.endif
++
++${PROG}: ${DPSRCS} ${OBJS} ${DPADD}
++	${LD} -r ${LDFLAGS} -o tmp.o ${OBJS}
++	mv tmp.o ${.TARGET}
++
++.if	!defined(MAN)
++MAN=	${KMOD}.4
++.endif
++
++all: machine-links ${PROG}
++
++.PHONY:	machine-links
++beforedepend: machine-links
++machine-links:
++	-rm -f machine && \
++	    ln -s $S/arch/${MACHINE}/include machine
++	-rm -f ${MACHINE_ARCH} && \
++	    ln -s $S/arch/${MACHINE_ARCH}/include ${MACHINE_ARCH}
++CLEANFILES+=machine ${MACHINE_ARCH}
++
++cleankmod:
++	rm -f a.out [Ee]rrs mklog core *.core \
++		${PROG} ${OBJS} ${LOBJS} ${CLEANFILES}
++
++#
++# define various install targets
++#
++.if !target(kmodinstall)
++kmodinstall:: ${DESTDIR}${KMODDIR}/${PROG}
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${KMODDIR}/${PROG}
++.endif
++.if !defined(BUILD)
++${DESTDIR}${KMODDIR}/${PROG}: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${KMODDIR}/${PROG}
++${DESTDIR}${KMODDIR}/${PROG}: ${PROG}
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${KMODOWN} -g ${KMODGRP} \
++		-m ${KMODMODE} ${.ALLSRC} ${.TARGET}
++.endif
++
++lint: ${LOBJS}
++.if defined(LOBJS) && !empty(LOBJS)
++	${LINT} ${LINTFLAGS} ${LDFLAGS:M-L*} ${LOBJS} ${LDADD}
++.endif
++
++.if !target(load)
++load:	${PROG}
++	/sbin/modload -o ${KMOD} -e${KMOD}_lkmentry ${PROG}
++.endif
++
++.if !target(unload)
++unload: ${PROG}
++	/sbin/modunload -n ${KMOD}
++.endif
++
++.include <bsd.man.mk>
++.include <bsd.links.mk>
++.include <bsd.dep.mk>
++.include <bsd.sys.mk>
++
++.-include "machine/Makefile.inc"
+--- pmake-1.111.orig/mk/bsd.lib.mk
++++ pmake-1.111/mk/bsd.lib.mk
+@@ -0,0 +1,396 @@
++#	$NetBSD: bsd.lib.mk,v 1.152 1999/03/30 09:30:43 fair Exp $
++#	@(#)bsd.lib.mk	8.3 (Berkeley) 4/22/94
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.include <bsd.obj.mk>
++.MAIN:		all
++.endif
++
++.PHONY:		checkver cleanlib libinstall
++realinstall:	checkver libinstall
++clean cleandir distclean: cleanlib
++
++.if exists(${.CURDIR}/shlib_version)
++SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
++SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
++
++# Check for higher installed library versions.
++.if !defined(NOCHECKVER) && !defined(NOCHECKVER_${LIB}) && \
++	exists(${BSDSRCDIR}/lib/checkver)
++checkver:
++	@(cd ${.CURDIR} && \
++		${BSDSRCDIR}/lib/checkver -d ${DESTDIR}${LIBDIR} ${LIB})
++.else
++checkver:
++.endif
++.else
++checkver:
++.endif
++
++# add additional suffixes not exported.
++# .po is used for profiling object files.
++# .so is used for PIC object files.
++.SUFFIXES: .out .a .ln .so .po .o .s .S .c .cc .C .m .F .f .r .y .l .cl .p .h
++.SUFFIXES: .sh .m4 .m
++
++
++# Set PICFLAGS to cc flags for producing position-independent code,
++# if not already set.  Includes -DPIC, if required.
++
++# Data-driven table using make variables to control  how shared libraries
++# are built for different platforms and object formats.
++# OBJECT_FMT:		currently either "ELF" or "a.out", from <bsd.own.mk>
++# SHLIB_SOVERSION:  	version number to be compiled into a shared library
++#                    	via -soname. Usualy ${SHLIB_MAJOR} on ELF.
++#   			NetBSD/pmax used to use ${SHLIB_MAJOR}.{SHLIB-MINOR}.
++# SHLIB_SHFLAGS:	Flags to tell ${LD} to emit  shared library.
++#			with ELF, also set shared-lib version for ld.so.
++# SHLIB_LDSTARTFILE:	support .o file, call C++ file-level constructors
++# SHLIB_LDENDFILE:	support .o file, call C++ file-level destructors
++# CPPICFLAGS:	flags for ${CPP} to preprocess  .[sS]  files for ${AS}
++# CPICFLAGS:	flags for ${CC} to compile  .[cC] files to .so objects.
++# CAPICFLAGS	flags for {$CC} to compiling .[Ss] files
++#		 	(usually just ${CPPPICFLAGS} ${CPICFLAGS})
++# APICFLAGS:	flags for ${AS} to assemble .[sS]  to .so objects.
++
++.if ${MACHINE_ARCH} == "alpha"
++		# Alpha-specific shared library flags
++CPICFLAGS ?= -fpic -DPIC
++CPPPICFLAGS?= -DPIC 
++CAPICFLAGS?= ${CPPPICFLAGS} ${CPICFLAGS}
++APICFLAGS ?=
++.elif ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
++		# mips-specific shared library flags
++
++# On mips, all libs need to be compiled with ABIcalls, not just sharedlibs.
++CPICFLAGS?=
++APICFLAGS?=
++#CPICFLAGS?= -fpic -DPIC
++#APICFLAGS?= -DPIC
++
++# so turn shlib PIC flags on for ${CPP}, ${CC}, and ${AS} as follows:
++AINC+=-DPIC -DABICALLS
++COPTS+=	-fPIC ${AINC}
++AFLAGS+= -fPIC
++AS+=	-KPIC
++
++.elif ${MACHINE_ARCH} == "sparc" && ${OBJECT_FMT} == "ELF"
++
++CPICFLAGS ?= -fpic -DPIC
++CPPPICFLAGS?= -DPIC 
++CAPICFLAGS?= ${CPPPICFLAGS} ${CPICFLAGS}
++APICFLAGS ?= -KPIC
++
++.elif (${MACHINE} == "debian")
++
++SHLIB_TYPE=ELF
++SHLIB_LDSTARTFILE=
++SHLIB_LDENDFILE=
++SHLIB_SOVERSION=${SHLIB_MAJOR}
++CPICFLAGS ?= -fPIC -DPIC
++CPPPICFLAGS?= -DPIC
++CAPICFLAGS?= ${CPPPICFLAGS} ${CPICFLAGS}
++APICFLAGS ?=
++
++.else
++
++# Platform-independent flags for NetBSD a.out shared libraries (and PowerPC)
++SHLIB_LDSTARTFILE=
++SHLIB_LDENDFILE=
++SHLIB_SHFLAGS=
++SHLIB_SOVERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}
++CPICFLAGS?= -fpic -DPIC
++CPPPICFLAGS?= -DPIC 
++CAPICFLAGS?= ${CPPPICFLAGS} ${CPICFLAGS}
++APICFLAGS?= -k
++
++.endif
++
++# Platform-independent linker flags for ELF shared libraries
++.if ${OBJECT_FMT} == "ELF"
++SHLIB_SOVERSION=${SHLIB_MAJOR}
++SHLIB_SHFLAGS=-soname lib${LIB}.so.${SHLIB_SOVERSION}
++SHLIB_LDSTARTFILE= ${DESTDIR}/usr/lib/crtbeginS.o
++SHLIB_LDENDFILE= ${DESTDIR}/usr/lib/crtendS.o
++.endif
++
++CFLAGS+=	${COPTS}
++
++.c.o:
++	@echo ${COMPILE.c:Q} ${.IMPSRC}
++	@${COMPILE.c} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.c.po:
++	@echo ${COMPILE.c:Q} -pg ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.c} -pg ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -X -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.c.so:
++	@echo ${COMPILE.c:Q} ${CPICFLAGS} ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.c} ${CPICFLAGS} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.c.ln:
++	${LINT} ${LINTFLAGS} ${CPPFLAGS:M-[IDU]*} -i ${.IMPSRC}
++
++.cc.o .C.o:
++	@echo ${COMPILE.cc:Q} ${.IMPSRC}
++	@${COMPILE.cc} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.cc.po .C.po:
++	@echo ${COMPILE.cc:Q} -pg ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.cc} -pg ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -X -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.cc.so .C.so:
++	@echo ${COMPILE.cc:Q} ${CPICFLAGS} ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.cc} ${CPICFLAGS} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.m.o:
++	@echo ${COMPILE.m:Q} ${.IMPSRC}
++	@${COMPILE.m} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.m.po:
++	@echo ${COMPILE.m:Q} -pg ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.m} -pg ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -X -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.m.so:
++	@echo ${COMPILE.m:Q} ${CPICFLAGS} ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.m} ${CPICFLAGS} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.S.o .s.o:
++	@echo ${COMPILE.S:Q} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC}
++	@${COMPILE.S} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.S.po .s.po:
++	@echo ${COMPILE.S:Q} -DGPROF -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.S} -DGPROF -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -X -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.S.so .s.so:
++	@echo ${COMPILE.S:Q} ${CAPICFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
++	@${COMPILE.S} ${CAPICFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
++	@${LD} -x -r ${.TARGET}.o -o ${.TARGET}
++	@rm -f ${.TARGET}.o
++
++.if ${MKPIC} == "no" || (defined(LDSTATIC) && ${LDSTATIC} != "") \
++	|| ${MKLINKLIB} != "no"
++_LIBS=lib${LIB}.a
++.else
++_LIBS=
++.endif
++
++.if ${MKPROFILE} != "no"
++_LIBS+=lib${LIB}_p.a
++.endif
++
++.if ${MKPIC} != "no"
++_LIBS+=lib${LIB}_pic.a
++.if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
++_LIBS+=lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
++.endif
++.endif
++
++.if ${MKLINT} != "no" && ${MKLINKLIB} != "no"
++_LIBS+=llib-l${LIB}.ln
++.endif
++
++all: ${SRCS} ${_LIBS}
++
++__archivebuild: .USE
++	@rm -f ${.TARGET}
++	@${AR} cq ${.TARGET} `NM=${NM} ${LORDER} ${.ALLSRC:M*o} | ${TSORT}`
++	${RANLIB} ${.TARGET}
++
++__archiveinstall: .USE
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${LIBOWN} -g ${LIBGRP} \
++		-m 600 ${.ALLSRC} ${.TARGET}
++	${RANLIB} -t ${.TARGET}
++	chmod ${LIBMODE} ${.TARGET}
++
++DPSRCS+=	${SRCS:M*.l:.l=.c} ${SRCS:M*.y:.y=.c}
++CLEANFILES+=	${DPSRCS}
++.if defined(YHEADER)
++CLEANFILES+=	${SRCS:M*.y:.y=.h}
++.endif
++
++OBJS+=		${SRCS:N*.h:N*.sh:R:S/$/.o/g}
++lib${LIB}.a:: ${OBJS} __archivebuild
++	@echo building standard ${LIB} library
++
++POBJS+=		${OBJS:.o=.po}
++lib${LIB}_p.a:: ${POBJS} __archivebuild
++	@echo building profiled ${LIB} library
++
++SOBJS+=		${OBJS:.o=.so}
++lib${LIB}_pic.a:: ${SOBJS} __archivebuild
++	@echo building shared object ${LIB} library
++
++lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: lib${LIB}_pic.a ${DPADD} \
++    ${SHLIB_LDSTARTFILE} ${SHLIB_LDENDFILE}
++	@echo building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
++	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
++.if defined(DESTDIR)
++	$(CC) -shared ${SHLIB_SHFLAGS} -o ${.TARGET} \
++	    ${SHLIB_LDSTARTFILE} \
++	    --whole-archive lib${LIB}_pic.a \
++	    -nostdlib -L${DESTDIR}${LIBDIR} -R${LIBDIR} \
++	    --no-whole-archive ${LDADD} \
++	    ${SHLIB_LDENDFILE}
++.else
++	$(CC) -shared ${SHLIB_SHFLAGS} -o ${.TARGET} \
++	    ${SHLIB_LDSTARTFILE} \
++	    --whole-archive lib${LIB}_pic.a --no-whole-archive ${LDADD} \
++	    ${SHLIB_LDENDFILE}
++.endif
++.if ${OBJECT_FMT} == "ELF"
++	rm -f lib${LIB}.so.${SHLIB_MAJOR}
++	ln -s lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
++	    lib${LIB}.so.${SHLIB_MAJOR}
++	rm -f lib${LIB}.so
++	ln -s lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
++	    lib${LIB}.so
++.endif
++
++LOBJS+=		${LSRCS:.c=.ln} ${SRCS:M*.c:.c=.ln}
++LLIBS?=		-lc
++llib-l${LIB}.ln: ${LOBJS}
++	@echo building llib-l${LIB}.ln
++	@rm -f llib-l${LIB}.ln
++	@${LINT} -C${LIB} ${.ALLSRC} ${LLIBS}
++
++cleanlib:
++	rm -f a.out [Ee]rrs mklog core *.core ${CLEANFILES}
++	rm -f lib${LIB}.a ${OBJS}
++	rm -f lib${LIB}_p.a ${POBJS}
++	rm -f lib${LIB}_pic.a lib${LIB}.so.* lib${LIB}.so ${SOBJS}
++	rm -f llib-l${LIB}.ln ${LOBJS}
++
++.if defined(SRCS)
++afterdepend: .depend
++	@(TMP=/tmp/_depend$$$$; \
++	    sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so \1.ln:/' \
++	      < .depend > $$TMP; \
++	    mv $$TMP .depend)
++.endif
++
++.if !target(libinstall)
++# Make sure it gets defined, in case MKPIC==no && MKLINKLIB==no
++libinstall::
++
++.if ${MKLINKLIB} != "no"
++libinstall:: ${DESTDIR}${LIBDIR}/lib${LIB}.a
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${LIBDIR}/lib${LIB}.a
++.endif
++.if !defined(BUILD)
++${DESTDIR}${LIBDIR}/lib${LIB}.a: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${LIBDIR}/lib${LIB}.a
++${DESTDIR}${LIBDIR}/lib${LIB}.a: lib${LIB}.a __archiveinstall
++.endif
++
++.if ${MKPROFILE} != "no"
++libinstall:: ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
++.endif
++.if !defined(BUILD)
++${DESTDIR}${LIBDIR}/lib${LIB}_p.a: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
++${DESTDIR}${LIBDIR}/lib${LIB}_p.a: lib${LIB}_p.a __archiveinstall
++.endif
++
++.if ${MKPIC} != "no" && ${MKPICINSTALL} != "no"
++libinstall:: ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
++.endif
++.if !defined(BUILD)
++${DESTDIR}${LIBDIR}/lib${LIB}_pic.a: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
++${DESTDIR}${LIBDIR}/lib${LIB}_pic.a: lib${LIB}_pic.a __archiveinstall
++.endif
++
++.if ${MKPIC} != "no" && defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
++libinstall:: ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
++.endif
++.if !defined(BUILD)
++${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
++${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${LIBOWN} -g ${LIBGRP} \
++		-m ${LIBMODE} ${.ALLSRC} ${.TARGET}
++.if ${OBJECT_FMT} == "a.out" && !defined(DESTDIR)
++	/sbin/ldconfig -m ${LIBDIR}
++.endif
++.if ${OBJECT_FMT} == "ELF"
++	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}
++	ln -s lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
++	    ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}
++	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.so
++.if ${MKLINKLIB} != "no"
++	ln -s lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
++	    ${DESTDIR}${LIBDIR}/lib${LIB}.so
++.endif
++.endif
++.endif
++
++.if ${MKLINT} != "no" && ${MKLINKLIB} != "no"
++libinstall:: ${DESTDIR}${LINTLIBDIR}/llib-l${LIB}.ln
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${LINTLIBDIR}/llib-l${LIB}.ln
++.endif
++.if !defined(BUILD)
++${DESTDIR}${LINTLIBDIR}/llib-l${LIB}.ln: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${LINTLIBDIR}/llib-l${LIB}.ln
++${DESTDIR}${LINTLIBDIR}/llib-l${LIB}.ln: llib-l${LIB}.ln
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${LIBOWN} -g ${LIBGRP} \
++		-m ${LIBMODE} ${.ALLSRC} ${DESTDIR}${LINTLIBDIR}
++.endif
++.endif
++
++.include <bsd.man.mk>
++.include <bsd.nls.mk>
++.include <bsd.files.mk>
++.include <bsd.inc.mk>
++.include <bsd.links.mk>
++.include <bsd.dep.mk>
++.include <bsd.sys.mk>
++
++# Make sure all of the standard targets are defined, even if they do nothing.
++lint regress:
+--- pmake-1.111.orig/mk/bsd.links.mk
++++ pmake-1.111/mk/bsd.links.mk
+@@ -0,0 +1,43 @@
++#	$NetBSD: bsd.links.mk,v 1.8 1998/12/31 15:28:52 castor Exp $
++
++.PHONY:		linksinstall
++realinstall:	linksinstall
++
++.if defined(SYMLINKS) && !empty(SYMLINKS)
++linksinstall::
++	@set ${SYMLINKS}; \
++	 while test $$# -ge 2; do \
++		l=$$1; \
++		shift; \
++		t=${DESTDIR}$$1; \
++		shift; \
++		echo ".include <bsd.own.mk>"; \
++		echo "all:: $$t"; \
++		echo ".PHONY: $$t"; \
++		echo "$$t:"; \
++		echo "	@echo \"$$t -> $$l\""; \
++		echo "	@rm -f $$t"; \
++		echo "	@ln -s $$l $$t"; \
++	done | ${MAKE} -f-
++.endif
++.if defined(LINKS) && !empty(LINKS)
++linksinstall::
++	@set ${LINKS}; \
++	 while test $$# -ge 2; do \
++		l=${DESTDIR}$$1; \
++		shift; \
++		t=${DESTDIR}$$1; \
++		shift; \
++		echo ".include <bsd.own.mk>"; \
++		echo "all:: $$t"; \
++		echo ".PHONY: $$t"; \
++		echo "$$t:"; \
++		echo "	@echo \"$$t -> $$l\""; \
++		echo "	@rm -f $$t"; \
++		echo "	@ln $$l $$t"; \
++	done | ${MAKE} -f-
++.endif
++
++.if !target(linksinstall)
++linksinstall:
++.endif
+--- pmake-1.111.orig/mk/bsd.man.mk
++++ pmake-1.111/mk/bsd.man.mk
+@@ -0,0 +1,156 @@
++#	$NetBSD: bsd.man.mk,v 1.45 1999/02/13 16:34:39 christos Exp $
++#	@(#)bsd.man.mk	8.1 (Berkeley) 6/8/93
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.include <bsd.obj.mk>
++.MAIN:		all
++.endif
++
++.PHONY:		catinstall maninstall catpages manpages catlinks manlinks cleanman
++.if ${MKMAN} != "no"
++realinstall:	${MANINSTALL}
++.endif
++cleandir distclean: cleanman
++
++MANTARGET?=	cat
++NROFF?=		nroff
++TBL?=		tbl
++
++.SUFFIXES: .1 .2 .3 .4 .5 .6 .7 .8 .9 \
++	   .cat1 .cat2 .cat3 .cat4 .cat5 .cat6 .cat7 .cat8 .cat9
++
++.9.cat9 .8.cat8 .7.cat7 .6.cat6 .5.cat5 .4.cat4 .3.cat3 .2.cat2 .1.cat1:
++.if !defined(USETBL)
++	@echo "${NROFF} -mandoc ${.IMPSRC} > ${.TARGET}"
++	@${NROFF} -mandoc ${.IMPSRC} > ${.TARGET} || \
++	 (rm -f ${.TARGET}; false)
++.else
++	@echo "${TBL} ${.IMPSRC} | ${NROFF} -mandoc > ${.TARGET}"
++	@${TBL} ${.IMPSRC} | ${NROFF} -mandoc > ${.TARGET} || \
++	 (rm -f ${.TARGET}; false)
++.endif
++
++.if defined(MAN) && !empty(MAN)
++MANPAGES=	${MAN}
++CATPAGES=	${MANPAGES:C/(.*).([1-9])/\1.cat\2/}
++.endif
++
++MINSTALL=	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${MANOWN} \
++			-g ${MANGRP} -m ${MANMODE}
++
++.if defined(MANZ)
++# chown and chmod are done afterward automatically
++MCOMPRESS=	gzip -9cf
++MCOMPRESSSUFFIX= .gz
++.endif
++
++catinstall: catlinks
++maninstall: manlinks
++
++__installpage: .USE
++.if defined(MCOMPRESS) && !empty(MCOMPRESS)
++	@rm -f ${.TARGET}
++	${MCOMPRESS} ${.ALLSRC} > ${.TARGET}
++	@chown ${MANOWN}:${MANGRP} ${.TARGET}
++	@chmod ${MANMODE} ${.TARGET}
++.else
++	${MINSTALL} ${.ALLSRC} ${.TARGET}
++.endif
++
++
++# Rules for cat'ed man page installation
++.if defined(CATPAGES) && !empty(CATPAGES) && ${MKCATPAGES} != "no"
++.   for P in ${CATPAGES}
++catpages:: ${DESTDIR}${MANDIR}/${P:T:E}${MANSUBDIR}/${P:T:R}.0${MCOMPRESSSUFFIX}
++
++.	if !defined(UPDATE)
++.PHONY: ${DESTDIR}${MANDIR}/${P:T:E}${MANSUBDIR}/${P:T:R}.0${MCOMPRESSSUFFIX}
++.	endif
++.	if !defined(BUILD)
++${DESTDIR}${MANDIR}/${P:T:E}${MANSUBDIR}/${P:T:R}.0${MCOMPRESSSUFFIX}: .MADE
++.	endif
++
++.PRECIOUS: ${DESTDIR}${MANDIR}/${P:T:E}${MANSUBDIR}/${P:T:R}.0${MCOMPRESSSUFFIX}
++${DESTDIR}${MANDIR}/${P:T:E}${MANSUBDIR}/${P:T:R}.0${MCOMPRESSSUFFIX}: ${P} __installpage
++.   endfor
++.else
++catpages::
++.endif
++
++# Rules for source page installation
++.if defined(MANPAGES) && !empty(MANPAGES)
++.   for P in ${MANPAGES}
++manpages:: ${DESTDIR}${MANDIR}/man${P:T:E}${MANSUBDIR}/${P}${MCOMPRESSSUFFIX}
++.	if !defined(UPDATE)
++.PHONY: ${DESTDIR}${MANDIR}/man${P:T:E}${MANSUBDIR}/${P}${MCOMPRESSSUFFIX}
++.	endif
++
++.PRECIOUS: ${DESTDIR}${MANDIR}/man${P:T:E}${MANSUBDIR}/${P}${MCOMPRESSSUFFIX}
++${DESTDIR}${MANDIR}/man${P:T:E}${MANSUBDIR}/${P}${MCOMPRESSSUFFIX}: ${P} __installpage
++.   endfor
++.else
++manpages::
++.endif
++
++.if ${MKCATPAGES} != "no"
++catlinks: catpages
++.if defined(MLINKS) && !empty(MLINKS)
++	@set ${MLINKS}; \
++	while test $$# -ge 2; do \
++		name=$$1; \
++		shift; \
++		dir=${DESTDIR}${MANDIR}/cat$${name##*.}; \
++		l=$${dir}${MANSUBDIR}/$${name%.*}.0${MCOMPRESSSUFFIX}; \
++		name=$$1; \
++		shift; \
++		dir=${DESTDIR}${MANDIR}/cat$${name##*.}; \
++		t=$${dir}${MANSUBDIR}/$${name%.*}.0${MCOMPRESSSUFFIX}; \
++		if [ -z "${UPDATE}" -o ! -f $$t ]; then \
++		    echo $$t -\> $$l; \
++		    ln -sf $$l $$t; \
++		fi; \
++	done
++.endif
++.else
++catlinks:
++.endif
++
++manlinks: manpages
++.if defined(MLINKS) && !empty(MLINKS)
++	@set ${MLINKS}; \
++	while test $$# -ge 2; do \
++		name=$$1; \
++		shift; \
++		dir=${DESTDIR}${MANDIR}/man$${name##*.}; \
++		l=$${dir}${MANSUBDIR}/$${name}${MCOMPRESSSUFFIX}; \
++		name=$$1; \
++		shift; \
++		dir=${DESTDIR}${MANDIR}/man$${name##*.}; \
++		t=$${dir}${MANSUBDIR}/$${name}${MCOMPRESSSUFFIX}; \
++		if [ -z "${UPDATE}" -o ! -f $$t ]; then \
++		    echo $$t -\> $$l; \
++		    ln -sf $$l $$t; \
++		fi; \
++	done
++.endif
++
++.if defined(CATPAGES)
++.if ${MKCATPAGES} != "no" && ${MKMAN} != "no"
++all: ${CATPAGES}
++.else
++all:
++.endif
++
++cleanman:
++	rm -f ${CATPAGES}
++.else
++cleanman:
++.endif
++
++# Make sure all of the standard targets are defined, even if they do nothing.
++clean depend includes lint regress tags:
+--- pmake-1.111.orig/mk/bsd.nls.mk
++++ pmake-1.111/mk/bsd.nls.mk
+@@ -0,0 +1,64 @@
++#	$NetBSD: bsd.nls.mk,v 1.17 1999/02/12 12:38:45 lukem Exp $
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++
++.MAIN:		all
++.endif
++.PHONY:		cleannls nlsinstall
++.if ${MKNLS} != "no"
++realinstall:	nlsinstall
++.endif
++cleandir distclean: cleannls
++
++.SUFFIXES: .cat .msg
++
++.msg.cat:
++	@rm -f ${.TARGET}
++	gencat ${.TARGET} ${.IMPSRC}
++
++.if defined(NLS) && !empty(NLS)
++NLSALL= ${NLS:.msg=.cat}
++.endif
++
++.if !defined(NLSNAME)
++.if defined(PROG)
++NLSNAME=${PROG}
++.else
++NLSNAME=lib${LIB}
++.endif
++.endif
++
++.if defined(NLSALL)
++.if ${MKNLS} != "no"
++all: ${NLSALL}
++.endif
++
++cleannls:
++	rm -f ${NLSALL}
++
++.for F in ${NLSALL}
++nlsinstall:: ${DESTDIR}${NLSDIR}/${F:T:R}/${NLSNAME}.cat
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${NLSDIR}/${F:T:R}/${NLSNAME}.cat
++.endif
++.if !defined(BUILD)
++${DESTDIR}${NLSDIR}/${F:T:R}/${NLSNAME}.cat: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${NLSDIR}/${F:T:R}/${NLSNAME}.cat
++${DESTDIR}${NLSDIR}/${F:T:R}/${NLSNAME}.cat: ${F}
++	${INSTALL} -d ${.TARGET:H}
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${NLSOWN} -g ${NLSGRP} \
++		-m ${NLSMODE} ${.ALLSRC} ${.TARGET}
++.endfor
++.else
++cleannls:
++.endif
++
++.if !target(nlsinstall)
++nlsinstall::
++.endif
+--- pmake-1.111.orig/mk/bsd.obj.mk
++++ pmake-1.111/mk/bsd.obj.mk
+@@ -0,0 +1,54 @@
++#	$NetBSD: bsd.obj.mk,v 1.17 1999/02/12 04:13:26 lukem Exp $
++
++.if !target(__initialized_obj__)
++__initialized_obj__:
++.include <bsd.own.mk>
++.endif
++
++.if ${MKOBJ} == "no"
++obj:
++.else
++
++.if defined(OBJMACHINE)
++__objdir=	obj.${MACHINE}
++.else
++__objdir=	obj
++.endif
++
++.if defined(USR_OBJMACHINE)
++__usrobjdir=	${BSDOBJDIR}.${MACHINE}
++__usrobjdirpf=	
++.else
++__usrobjdir=	${BSDOBJDIR}
++.if defined(OBJMACHINE)
++__usrobjdirpf=	.${MACHINE}
++.else
++__usrobjdirpf=
++.endif
++.endif
++
++obj:
++	@cd ${.CURDIR}; rm -f ${__objdir} > /dev/null 2>&1 || true; \
++	here=`/bin/pwd`; subdir=$${here#${BSDSRCDIR}/}; \
++	if test $$here != $$subdir ; then \
++		dest=${__usrobjdir}/$$subdir${__usrobjdirpf} ; \
++		echo "$$here/${__objdir} -> $$dest"; \
++		rm -rf ${__objdir}; \
++		ln -s $$dest ${__objdir}; \
++		if test -d ${__usrobjdir} -a ! -d $$dest; then \
++			mkdir -p $$dest; \
++		else \
++			true; \
++		fi; \
++	else \
++		true ; \
++		dest=$$here/${__objdir} ; \
++		if test ! -d ${__objdir} ; then \
++			echo "making $$dest" ; \
++			mkdir $$dest; \
++		fi ; \
++	fi;
++.endif
++
++print-objdir:
++	@echo ${.OBJDIR}
+--- pmake-1.111.orig/mk/bsd.own.mk
++++ pmake-1.111/mk/bsd.own.mk
+@@ -0,0 +1,257 @@
++#	$NetBSD: bsd.own.mk,v 1.120 1999/02/24 14:42:36 drochner Exp $
++
++.if !defined(_BSD_OWN_MK_)
++_BSD_OWN_MK_=1
++
++.if defined(MAKECONF) && exists(${MAKECONF})
++.include "${MAKECONF}"
++.elif exists(/etc/mk.conf)
++.include "/etc/mk.conf"
++.endif
++
++# Defining `SKEY' causes support for S/key authentication to be compiled in.
++SKEY=		yes
++# Defining `KERBEROS' causes support for Kerberos authentication to be
++# compiled in.
++#KERBEROS=	yes
++# Defining 'KERBEROS5' causes support for Kerberos5 authentication to be
++# compiled in.
++#KERBEROS5=	yes
++
++# where the system object and source trees are kept; can be configurable
++# by the user in case they want them in ~/foosrc and ~/fooobj, for example
++BSDSRCDIR?=	/usr/src
++BSDOBJDIR?=	/usr/obj
++
++BINGRP?=	root
++BINOWN?=	root
++BINMODE?=	755
++NONBINMODE?=	644
++
++# Define MANZ to have the man pages compressed (gzip)
++MANZ=		1
++
++MANDIR?=	/usr/share/man
++MANGRP?=	root
++MANOWN?=	root
++MANMODE?=	${NONBINMODE}
++MANINSTALL?=	maninstall catinstall
++
++INFODIR?=	/usr/share/info
++INFOGRP?=	root
++INFOOWN?=	root
++INFOMODE?=	${NONBINMODE}
++
++LIBDIR?=	/usr/lib
++LINTLIBDIR?=	/usr/libdata/lint
++LIBGRP?=	${BINGRP}
++LIBOWN?=	${BINOWN}
++LIBMODE?=	${NONBINMODE}
++
++DOCDIR?=        /usr/share/doc
++DOCGRP?=	root
++DOCOWN?=	root
++DOCMODE?=       ${NONBINMODE}
++
++NLSDIR?=	/usr/share/nls
++NLSGRP?=	root
++NLSOWN?=	root
++NLSMODE?=	${NONBINMODE}
++
++KMODDIR?=	/usr/lkm
++KMODGRP?=	root
++KMODOWN?=	root
++KMODMODE?=	${NONBINMODE}
++
++COPY?=		-c
++.if defined(UPDATE)
++PRESERVE?=	-p
++.else
++PRESERVE?=
++.endif
++RENAME?=
++STRIPFLAG?=	-s
++
++# Define SYS_INCLUDE to indicate whether you want symbolic links to the system
++# source (``symlinks''), or a separate copy (``copies''); (latter useful
++# in environments where it's not possible to keep /sys publicly readable)
++#SYS_INCLUDE= 	symlinks
++
++# XXX The next two are temporary until the transition to UVM is complete.
++
++# Systems on which UVM is the standard VM system.
++.if ${MACHINE} != "pica"
++UVM?=		yes
++.endif
++
++# Systems that use UVM's new pmap interface.
++.if ${MACHINE} == "alpha" || \
++    ${MACHINE} == "i386" || \
++    ${MACHINE} == "pc532" || \
++    ${MACHINE} == "vax"
++PMAP_NEW?=	yes
++.endif
++
++# The sparc64 port is incomplete.
++.if ${MACHINE_ARCH} == "sparc64"
++NOPROFILE=1
++NOPIC=1
++NOLINT=1
++.endif
++
++# The PowerPC port is incomplete.
++.if ${MACHINE_ARCH} == "powerpc"
++NOPROFILE=
++.endif
++
++# Data-driven table using make variables to control how 
++# toolchain-dependent targets and shared libraries are built
++# for different platforms and object formats.
++# OBJECT_FMT:		currently either "ELF" or "a.out".
++# SHLIB_TYPE:		"ELF" or "a.out" or "" to force static libraries.
++#
++#.if ${MACHINE_ARCH} == "alpha" || \
++#    ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb" || \
++#    ${MACHINE_ARCH} == "powerpc" || \
++#    ${MACHINE_ARCH} == "sparc64"
++#OBJECT_FMT?=ELF
++#.else
++
++# On Debian GNU/Linux, Everything is ELF.
++OBJECT_FMT?=a.out
++#.endif
++
++# GNU sources and packages sometimes see architecture names differently.
++# This table maps an architecture name to its GNU counterpart.
++# Use as so:  ${GNU_ARCH.${TARGET_ARCH}} or ${MACHINE_GNU_ARCH}
++GNU_ARCH.alpha=alpha
++GNU_ARCH.arm32=arm
++GNU_ARCH.i386=i386
++GNU_ARCH.m68k=m68k
++GNU_ARCH.mipseb=mipseb
++GNU_ARCH.mipsel=mipsel
++GNU_ARCH.ns32k=ns32k
++GNU_ARCH.powerpc=powerpc
++GNU_ARCH.sparc=sparc
++GNU_ARCH.sparc64=sparc
++GNU_ARCH.vax=vax
++.if ${MACHINE_ARCH} == "mips"
++.INIT:
++	@echo Must set MACHINE_ARCH to one of mipseb or mipsel
++	@false
++.endif
++
++.if ${MACHINE_ARCH} == "sparc64"
++MACHINE_GNU_ARCH=${MACHINE_ARCH}
++.else
++MACHINE_GNU_ARCH=${GNU_ARCH.${MACHINE_ARCH}}
++.endif
++
++TARGETS+=	all clean cleandir depend distclean includes install lint obj \
++		regress tags
++.PHONY:		all clean cleandir depend distclean includes install lint obj \
++		regress tags beforedepend afterdepend beforeinstall \
++		afterinstall realinstall
++
++# set NEED_OWN_INSTALL_TARGET, if it's not already set, to yes
++# this is used by bsd.pkg.mk to stop "install" being defined
++NEED_OWN_INSTALL_TARGET?=	yes
++
++.if ${NEED_OWN_INSTALL_TARGET} == "yes"
++.if !target(install)
++install:	.NOTMAIN beforeinstall subdir-install realinstall afterinstall
++beforeinstall:	.NOTMAIN
++subdir-install:	.NOTMAIN beforeinstall
++realinstall:	.NOTMAIN beforeinstall
++afterinstall:	.NOTMAIN subdir-install realinstall
++.endif
++.endif
++
++# Define MKxxx variables (which are either yes or no) for users
++# to set in /etc/mk.conf and override on the make commandline.
++# These should be tested with `== "no"' or `!= "no"'.
++# The NOxxx variables should only be used by Makefiles.
++#
++
++MKCATPAGES?=no
++
++.if defined(NODOC)
++MKDOC=no
++#.elif !defined(MKDOC)
++#MKDOC=yes
++.else
++MKDOC?=yes
++.endif
++
++MKINFO?=yes
++
++.if defined(NOLINKLIB)
++MKLINKLIB=no
++.else
++MKLINKLIB?=yes
++.endif
++.if ${MKLINKLIB} == "no"
++MKPICINSTALL=no
++MKPROFILE=no
++.endif
++
++.if defined(NOLINT)
++MKLINT=no
++.else
++MKLINT?=yes
++.endif
++
++.if defined(NOMAN)
++MKMAN=no
++.else
++MKMAN?=yes
++.endif
++.if ${MKMAN} == "no"
++MKCATPAGES=no
++.endif
++
++.if defined(NONLS)
++MKNLS=no
++.else
++MKNLS?=yes
++.endif
++
++.if defined(NOOBJ)
++MKOBJ=no
++.else
++MKOBJ?=yes
++.endif
++
++.if defined(NOPIC)
++MKPIC=no
++.else
++MKPIC?=yes
++.endif
++
++.if defined(NOPICINSTALL)
++MKPICINSTALL=no
++.else
++MKPICINSTALL?=yes
++.endif
++
++.if defined(NOPROFILE)
++MKPROFILE=no
++.else
++MKPROFILE?=yes
++.endif
++
++.if defined(NOSHARE)
++MKSHARE=no
++.else
++MKSHARE?=yes
++.endif
++.if ${MKSHARE} == "no"
++MKCATPAGES=no
++MKDOC=no
++MKINFO=no
++MKMAN=no
++MKNLS=no
++.endif
++
++
++.endif		# _BSD_OWN_MK_
+--- pmake-1.111.orig/mk/bsd.prog.mk
++++ pmake-1.111/mk/bsd.prog.mk
+@@ -0,0 +1,202 @@
++#	$NetBSD: bsd.prog.mk,v 1.100 1999/02/12 01:10:08 lukem Exp $
++#	@(#)bsd.prog.mk	8.2 (Berkeley) 4/2/94
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.include <bsd.obj.mk>
++.MAIN:		all
++.endif
++
++.PHONY:		cleanprog proginstall scriptsinstall
++realinstall:	proginstall scriptsinstall
++clean cleandir distclean: cleanprog
++
++CFLAGS+=	${COPTS}
++
++# ELF platforms depend on crtbegin.o and crtend.o
++.if ${OBJECT_FMT} == "ELF"
++LIBCRTBEGIN?=	${DESTDIR}/usr/lib/crtbegin.o
++LIBCRTEND?=	${DESTDIR}/usr/lib/crtend.o
++.else
++LIBCRTBEGIN?=
++LIBCRTEND?=
++.endif
++
++LIBCRT0?=	
++
++LIBBZ2?=	${DESTDIR}/usr/lib/libbz2.a
++LIBC?=		${DESTDIR}/usr/lib/libc.a
++LIBC_PIC?=	${DESTDIR}/usr/lib/libc_pic.a
++LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
++LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
++LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
++LIBDBM?=	${DESTDIR}/usr/lib/libdbm.a
++LIBDES?=	${DESTDIR}/usr/lib/libdes.a
++LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
++LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
++LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
++LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a
++LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a
++LIBKVM?=	${DESTDIR}/usr/lib/libkvm.a
++LIBL?=		${DESTDIR}/usr/lib/libl.a
++LIBM?=		${DESTDIR}/usr/lib/libm.a
++LIBMP?=		${DESTDIR}/usr/lib/libmp.a
++LIBNTP?=	${DESTDIR}/usr/lib/libntp.a
++LIBOBJC?=	${DESTDIR}/usr/lib/libobjc.a
++LIBPC?=		${DESTDIR}/usr/lib/libpc.a
++LIBPCAP?=	${DESTDIR}/usr/lib/libpcap.a
++LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a
++LIBPOSIX?=	${DESTDIR}/usr/lib/libposix.a
++LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
++LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
++LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
++LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
++LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
++LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
++LIBWRAP?=	${DESTDIR}/usr/lib/libwrap.a
++LIBY?=		${DESTDIR}/usr/lib/liby.a
++LIBZ?=		${DESTDIR}/usr/lib/libz.a
++
++.if defined(SHAREDSTRINGS)
++CLEANFILES+=strings
++.c.o:
++	${CC} -E ${CFLAGS} ${.IMPSRC} | xstr -c -
++	@${CC} ${CFLAGS} -c x.c -o ${.TARGET}
++	@rm -f x.c
++
++.cc.o:
++	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
++	@mv -f x.c x.cc
++	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
++	@rm -f x.cc
++
++.C.o:
++	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
++	@mv -f x.c x.C
++	@${CXX} ${CXXFLAGS} -c x.C -o ${.TARGET}
++	@rm -f x.C
++.endif
++
++
++.if defined(PROG)
++SRCS?=		${PROG}.c
++
++DPSRCS+=	${SRCS:M*.l:.l=.c} ${SRCS:M*.y:.y=.c}
++CLEANFILES+=	${DPSRCS}
++.if defined(YHEADER)
++CLEANFILES+=	${SRCS:M*.y:.y=.h}
++.endif
++
++.if !empty(SRCS:N*.h:N*.sh)
++OBJS+=		${SRCS:N*.h:N*.sh:R:S/$/.o/g}
++LOBJS+=		${LSRCS:.c=.ln} ${SRCS:M*.c:.c=.ln}
++.endif
++
++.if defined(OBJS) && !empty(OBJS)
++.NOPATH: ${OBJS}
++.if defined(DESTDIR)
++
++${PROG}: ${LIBCRT0} ${DPSRCS} ${OBJS} ${LIBC} ${LIBCRTBEGIN} ${LIBCRTEND} ${DPADD}
++	${CC} ${LDFLAGS} ${LDSTATIC} -o ${.TARGET} -nostdlib -L${DESTDIR}/usr/lib ${LIBCRT0} ${LIBCRTBEGIN} ${OBJS} ${LDADD} -lgcc -lc -lgcc ${LIBCRTEND}
++
++.else
++
++${PROG}: ${LIBCRT0} ${DPSRCS} ${OBJS} ${LIBC} ${LIBCRTBEGIN} ${LIBCRTEND} ${DPADD}
++	${CC} ${LDFLAGS} ${LDSTATIC} -o ${.TARGET} ${OBJS} ${LDADD}
++
++.endif	# defined(DESTDIR)
++.endif	# defined(OBJS) && !empty(OBJS)
++
++.if !defined(MAN)
++MAN=	${PROG}.1
++.endif	# !defined(MAN)
++.endif	# defined(PROG)
++
++all: ${PROG}
++
++cleanprog:
++	rm -f a.out [Ee]rrs mklog core *.core \
++	    ${PROG} ${OBJS} ${LOBJS} ${CLEANFILES}
++
++.if defined(SRCS)
++afterdepend: .depend
++	@(TMP=/tmp/_depend$$$$; \
++	    sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.ln:/' \
++	      < .depend > $$TMP; \
++	    mv $$TMP .depend)
++.endif
++
++.if defined(PROG) && !target(proginstall)
++PROGNAME?= ${PROG}
++proginstall:: ${DESTDIR}${BINDIR}/${PROGNAME}
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${BINDIR}/${PROGNAME}
++.endif
++.if !defined(BUILD)
++${DESTDIR}${BINDIR}/${PROGNAME}: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${BINDIR}/${PROGNAME}
++${DESTDIR}${BINDIR}/${PROGNAME}: ${PROG}
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} ${STRIPFLAG} -o ${BINOWN} \
++	    -g ${BINGRP} -m ${BINMODE} ${.ALLSRC} ${.TARGET}
++.endif
++
++.if !target(proginstall)
++proginstall::
++.endif
++
++.if defined(SCRIPTS) && !target(scriptsinstall)
++SCRIPTSDIR?=${BINDIR}
++SCRIPTSOWN?=${BINOWN}
++SCRIPTSGRP?=${BINGRP}
++SCRIPTSMODE?=${BINMODE}
++.for S in ${SCRIPTS}
++SCRIPTSDIR_${S}?=${SCRIPTSDIR}
++SCRIPTSOWN_${S}?=${SCRIPTSOWN}
++SCRIPTSGRP_${S}?=${SCRIPTSGRP}
++SCRIPTSMODE_${S}?=${SCRIPTSMODE}
++.if defined(SCRIPTSNAME)
++SCRIPTSNAME_${S} ?= ${SCRIPTSNAME}
++.else
++SCRIPTSNAME_${S} ?= ${S:T:R}
++.endif
++SCRIPTSDIR_${S} ?= ${SCRIPTSDIR}
++scriptsinstall:: ${DESTDIR}${SCRIPTSDIR_${S}}/${SCRIPTSNAME_${S}}
++.if !defined(UPDATE)
++.PHONY: ${DESTDIR}${SCRIPTSDIR_${S}}/${SCRIPTSNAME_${S}}
++.endif
++.if !defined(BUILD)
++${DESTDIR}${SCRIPTSDIR_${S}}/${SCRIPTSNAME_${S}}: .MADE
++.endif
++
++.PRECIOUS: ${DESTDIR}${SCRIPTSDIR_${S}}/${SCRIPTSNAME_${S}}
++${DESTDIR}${SCRIPTSDIR_${S}}/${SCRIPTSNAME_${S}}: ${S}
++	${INSTALL} ${RENAME} ${PRESERVE} ${COPY} -o ${SCRIPTSOWN_${S}} -g \
++	    ${SCRIPTSGRP_${S}} -m ${SCRIPTSMODE_${S}} ${.ALLSRC} ${.TARGET}
++.endfor
++.endif
++
++.if !target(scriptsinstall)
++scriptsinstall::
++.endif
++
++lint: ${LOBJS}
++.if defined(LOBJS) && !empty(LOBJS)
++	${LINT} ${LINTFLAGS} ${LDFLAGS:M-L*} ${LOBJS} ${LDADD}
++.endif
++
++.include <bsd.man.mk>
++.include <bsd.nls.mk>
++.include <bsd.files.mk>
++.include <bsd.inc.mk>
++.include <bsd.links.mk>
++.include <bsd.dep.mk>
++.include <bsd.sys.mk>
++
++# Make sure all of the standard targets are defined, even if they do nothing.
++regress:
+--- pmake-1.111.orig/mk/bsd.subdir.mk
++++ pmake-1.111/mk/bsd.subdir.mk
+@@ -0,0 +1,34 @@
++#	$NetBSD: bsd.subdir.mk,v 1.31 1999/02/11 05:01:39 tv Exp $
++#	@(#)bsd.subdir.mk	8.1 (Berkeley) 6/8/93
++
++.if !target(__initialized__)
++__initialized__:
++.if exists(${.CURDIR}/../Makefile.inc)
++.include "${.CURDIR}/../Makefile.inc"
++.endif
++.include <bsd.own.mk>
++.MAIN:		all
++.endif
++
++.for dir in ${SUBDIR}
++.if exists(${dir}.${MACHINE})
++__REALSUBDIR+=${dir}.${MACHINE}
++.else
++__REALSUBDIR+=${dir}
++.endif
++.endfor
++
++.for dir in ${__REALSUBDIR}
++.for targ in ${TARGETS}
++.PHONY: ${targ}-${dir}
++${targ}-${dir}: .MAKE
++	@echo "${targ} ===> ${_THISDIR_}${dir}"
++	@cd ${.CURDIR}/${dir}; \
++	${MAKE} "_THISDIR_=${_THISDIR_}${dir}/" ${targ}
++subdir-${targ}: ${targ}-${dir}
++${targ}: subdir-${targ}
++.endfor
++.endfor
++
++# Make sure all of the standard targets are defined, even if they do nothing.
++${TARGETS}:
+--- pmake-1.111.orig/mk/bsd.sys.mk
++++ pmake-1.111/mk/bsd.sys.mk
+@@ -0,0 +1,110 @@
++#	$NetBSD: bsd.sys.mk,v 1.34 1999/01/31 09:17:20 mrg Exp $
++#
++# Overrides used for NetBSD source tree builds.
++
++.if defined(WARNS) && ${WARNS} == 1
++CFLAGS+= -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
++.endif
++.if !defined(NOGCCERROR)
++CFLAGS+= -Werror
++.endif
++CFLAGS+= ${CWARNFLAGS}
++
++.if defined(DESTDIR)
++CPPFLAGS+= -nostdinc -idirafter ${DESTDIR}/usr/include
++LINTFLAGS+= -d ${DESTDIR}/usr/include
++.endif
++
++.if defined(AUDIT)
++CPPFLAGS+= -D__AUDIT__
++.endif
++
++# Helpers for cross-compiling
++HOST_CC?=	cc
++HOST_CFLAGS?=	-O
++HOST_COMPILE.c?=${HOST_CC} ${HOST_CFLAGS} ${HOST_CPPFLAGS} -c
++HOST_LINK.c?=	${HOST_CC} ${HOST_CFLAGS} ${HOST_CPPFLAGS} ${HOST_LDFLAGS}
++
++HOST_CPP?=	cpp
++HOST_CPPFLAGS?=
++
++HOST_LD?=	ld
++HOST_LDFLAGS?=
++
++STRIPPROG?=	strip
++
++
++.SUFFIXES:	.m .o .ln .lo
++
++# Objective C
++# (Defined here rather than in <sys.mk> because `.m' is not just
++#  used for Objective C source)
++.m:
++	${LINK.m} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.m.o:
++	${COMPILE.m} ${.IMPSRC}
++
++# Host-compiled C objects
++.c.lo:
++	${HOST_COMPILE.c} -o ${.TARGET} ${.IMPSRC}
++
++
++.if defined(PARALLEL) || defined(LPREFIX)
++LPREFIX?=yy
++LFLAGS+=-P${LPREFIX}
++# Lex
++.l:
++	${LEX.l} -o${.TARGET:R}.${LPREFIX}.c ${.IMPSRC}
++	${LINK.c} -o ${.TARGET} ${.TARGET:R}.${LPREFIX}.c ${LDLIBS} -ll
++	rm -f ${.TARGET:R}.${LPREFIX}.c
++.l.c:
++	${LEX.l} -o${.TARGET} ${.IMPSRC}
++.l.o:
++	${LEX.l} -o${.TARGET:R}.${LPREFIX}.c ${.IMPSRC}
++	${COMPILE.c} -o ${.TARGET} ${.TARGET:R}.${LPREFIX}.c 
++	rm -f ${.TARGET:R}.${LPREFIX}.c
++.l.lo:
++	${LEX.l} -o${.TARGET:R}.${LPREFIX}.c ${.IMPSRC}
++	${HOST_COMPILE.c} -o ${.TARGET} ${.TARGET:R}.${LPREFIX}.c 
++	rm -f ${.TARGET:R}.${LPREFIX}.c
++.endif
++
++# Yacc
++.if defined(YHEADER) || defined(YPREFIX)
++.if defined(YPREFIX)
++YFLAGS+=-p${YPREFIX}
++.endif
++.if defined(YHEADER)
++YFLAGS+=-d
++.endif
++.y:
++	${YACC.y} -b ${.TARGET:R} ${.IMPSRC}
++	${LINK.c} -o ${.TARGET} ${.TARGET:R}.tab.c ${LDLIBS}
++	rm -f ${.TARGET:R}.tab.c ${.TARGET:R}.tab.h
++.y.h: ${.TARGET:R}.c
++.y.c:
++	${YACC.y} -o ${.TARGET} ${.IMPSRC}
++.y.o:
++	${YACC.y} -b ${.TARGET:R} ${.IMPSRC}
++	${COMPILE.c} -o ${.TARGET} ${.TARGET:R}.tab.c
++	rm -f ${.TARGET:R}.tab.c ${TARGET:R}.tab.h
++.y.lo:
++	${YACC.y} -b ${.TARGET:R} ${.IMPSRC}
++	${HOST_COMPILE.c} -o ${.TARGET} ${.TARGET:R}.tab.c
++	rm -f ${.TARGET:R}.tab.c ${TARGET:R}.tab.h
++.elif defined(PARALLEL)
++.y:
++	${YACC.y} -b ${.TARGET:R} ${.IMPSRC}
++	${LINK.c} -o ${.TARGET} ${.TARGET:R}.tab.c ${LDLIBS}
++	rm -f ${.TARGET:R}.tab.c
++.y.c:
++	${YACC.y} -o ${.TARGET} ${.IMPSRC}
++.y.o:
++	${YACC.y} -b ${.TARGET:R} ${.IMPSRC}
++	${COMPILE.c} -o ${.TARGET} ${.TARGET:R}.tab.c
++	rm -f ${.TARGET:R}.tab.c
++.y.lo:
++	${YACC.y} -b ${.TARGET:R} ${.IMPSRC}
++	${HOST_COMPILE.c} -o ${.TARGET} ${.TARGET:R}.tab.c
++	rm -f ${.TARGET:R}.tab.c
++.endif
+--- pmake-1.111.orig/mk/sys.mk
++++ pmake-1.111/mk/sys.mk
+@@ -0,0 +1,207 @@
++#	$NetBSD: sys.mk,v 1.54 1999/03/10 14:06:14 mycroft Exp $
++#	@(#)sys.mk	8.2 (Berkeley) 3/21/94
++
++unix?=		We run NetBSD.
++
++.SUFFIXES: .out .a .ln .o .s .S .c .cc .C .F .f .r .y .l .cl .p .h .sh .m4
++
++.LIBS:		.a
++
++AR?=		ar
++ARFLAGS?=	rl
++RANLIB?=	ranlib
++
++AS?=		as
++AFLAGS?=
++COMPILE.s?=	${CC} ${AFLAGS} -c
++LINK.s?=	${CC} ${AFLAGS} ${LDFLAGS}
++COMPILE.S?=	${CC} ${AFLAGS} ${CPPFLAGS} -c -traditional-cpp
++LINK.S?=	${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
++
++CC?=		cc
++.if ${MACHINE_ARCH} == "alpha" || \
++    ${MACHINE_ARCH} == "arm32" || \
++    ${MACHINE_ARCH} == "i386" || \
++    ${MACHINE_ARCH} == "m68k" || \
++    ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb" || \
++    ${MACHINE_ARCH} == "sparc"
++CFLAGS?=	-O2
++.else
++CFLAGS?=	-O
++.endif
++COMPILE.c?=	${CC} ${CFLAGS} ${CPPFLAGS} -c
++LINK.c?=	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
++
++CXX?=		c++
++CXXFLAGS?=	${CFLAGS}
++COMPILE.cc?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
++LINK.cc?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
++
++OBJC?=		${CC}
++OBJCFLAGS?=	${CFLAGS}
++COMPILE.m?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} -c
++LINK.m?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} ${LDFLAGS}
++
++CPP?=		cpp
++CPPFLAGS?=	
++
++FC?=		f77
++FFLAGS?=	-O
++RFLAGS?=
++COMPILE.f?=	${FC} ${FFLAGS} -c
++LINK.f?=	${FC} ${FFLAGS} ${LDFLAGS}
++COMPILE.F?=	${FC} ${FFLAGS} ${CPPFLAGS} -c
++LINK.F?=	${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
++COMPILE.r?=	${FC} ${FFLAGS} ${RFLAGS} -c
++LINK.r?=	${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
++
++INSTALL?=	install
++
++LEX?=		lex
++LFLAGS?=
++LEX.l?=		${LEX} ${LFLAGS}
++
++LD?=		ld
++LDFLAGS?=
++
++LINT?=		lint
++LINTFLAGS?=	-chapbxzF
++
++LORDER?=	lorder
++
++MAKE?=		pmake
++
++NM?=		nm
++
++PC?=		pc
++PFLAGS?=
++COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
++LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
++
++SHELL?=		sh
++
++SIZE?=		size
++
++TSORT?= 	tsort
++
++YACC?=		yacc
++YFLAGS?=
++YACC.y?=	${YACC} ${YFLAGS}
++
++# C
++.c:
++	${LINK.c} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.c.o:
++	${COMPILE.c} ${.IMPSRC}
++.c.a:
++	${COMPILE.c} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++.c.ln:
++	${LINT} ${LINTFLAGS} ${CPPFLAGS:M-[IDU]*} -i ${.IMPSRC}
++
++# C++
++.cc:
++	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.cc.o:
++	${COMPILE.cc} ${.IMPSRC}
++.cc.a:
++	${COMPILE.cc} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++.C:
++	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.C.o:
++	${COMPILE.cc} ${.IMPSRC}
++.C.a:
++	${COMPILE.cc} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++# Fortran/Ratfor
++.f:
++	${LINK.f} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.f.o:
++	${COMPILE.f} ${.IMPSRC}
++.f.a:
++	${COMPILE.f} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++.F:
++	${LINK.F} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.F.o:
++	${COMPILE.F} ${.IMPSRC}
++.F.a:
++	${COMPILE.F} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++.r:
++	${LINK.r} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.r.o:
++	${COMPILE.r} ${.IMPSRC}
++.r.a:
++	${COMPILE.r} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++# Pascal
++.p:
++	${LINK.p} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.p.o:
++	${COMPILE.p} ${.IMPSRC}
++.p.a:
++	${COMPILE.p} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++# Assembly
++.s:
++	${LINK.s} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.s.o:
++	${COMPILE.s} ${.IMPSRC}
++.s.a:
++	${COMPILE.s} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++.S:
++	${LINK.S} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
++.S.o:
++	${COMPILE.S} ${.IMPSRC}
++.S.a:
++	${COMPILE.S} ${.IMPSRC}
++	${AR} ${ARFLAGS} $@ $*.o
++	rm -f $*.o
++
++# Lex
++.l:
++	${LEX.l} ${.IMPSRC}
++	${LINK.c} -o ${.TARGET} lex.yy.c ${LDLIBS} -ll
++	rm -f lex.yy.c
++.l.c:
++	${LEX.l} ${.IMPSRC}
++	mv lex.yy.c ${.TARGET}
++.l.o:
++	${LEX.l} ${.IMPSRC}
++	${COMPILE.c} -o ${.TARGET} lex.yy.c 
++	rm -f lex.yy.c
++
++# Yacc
++.y:
++	${YACC.y} ${.IMPSRC}
++	${LINK.c} -o ${.TARGET} y.tab.c ${LDLIBS}
++	rm -f y.tab.c
++.y.c:
++	${YACC.y} ${.IMPSRC}
++	mv y.tab.c ${.TARGET}
++.y.o:
++	${YACC.y} ${.IMPSRC}
++	${COMPILE.c} -o ${.TARGET} y.tab.c
++	rm -f y.tab.c
++
++# Shell
++.sh:
++	rm -f ${.TARGET}
++	cp ${.IMPSRC} ${.TARGET}
+--- pmake-1.111.orig/arch.c
++++ pmake-1.111/arch.c
+@@ -173,7 +173,7 @@
+ static FILE *ArchFindMember(char *, char *, struct ar_hdr *, const char *);
+ #if defined(__svr4__) || defined(__SVR4) || defined(__ELF__)
+ #define SVR4ARCHIVES
+-static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
++static int ArchSVR4Entry(Arch *, char **, size_t, FILE *);
+ #endif
+ 
+ #ifdef CLEANUP
+@@ -535,7 +535,7 @@
+     Arch	  *ar;	      /* Archive descriptor */
+     Hash_Entry	  *he;	      /* Entry containing member's description */
+     struct ar_hdr arh;        /* archive-member header for reading archive */
+-    char	  memName[MAXPATHLEN+1];
++    char	  *memName = NULL; 
+     	    	    	    /* Current member name while hashing. */
+ 
+     /*
+@@ -617,7 +617,6 @@
+     ar->fnametab = NULL;
+     ar->fnamesize = 0;
+     Hash_InitTable(&ar->members, -1);
+-    memName[AR_MAX_NAME_LEN] = '\0';
+ 
+     while (fread ((char *)&arh, sizeof (struct ar_hdr), 1, arch) == 1) {
+ 	if (strncmp ( arh.ar_fmag, ARFMAG, sizeof (arh.ar_fmag)) != 0) {
+@@ -636,10 +635,9 @@
+ 	    arh.ar_size[sizeof(arh.ar_size)-1] = '\0';
+ 	    size = (int) strtol(arh.ar_size, NULL, 10);
+ 
+-	    (void) strncpy (memName, arh.ar_name, sizeof(arh.ar_name));
+-	    for (cp = &memName[AR_MAX_NAME_LEN]; *cp == ' '; cp--) {
+-		continue;
+-	    }
++	    memName = estrdup(arh.ar_name);
++
++	    for(cp = strchr(memName, 0)-1; *cp == ' '; cp--);
+ 	    cp[1] = '\0';
+ 
+ #ifdef SVR4ARCHIVES
+@@ -650,7 +648,7 @@
+ 		/*
+ 		 * svr4 magic mode; handle it
+ 		 */
+-		switch (ArchSVR4Entry(ar, memName, size, arch)) {
++		switch (ArchSVR4Entry(ar, &memName, size, arch)) {
+ 		case -1:  /* Invalid data */
+ 		    goto badarch;
+ 		case 0:	  /* List of files entry */
+@@ -675,8 +673,8 @@
+ 
+ 		unsigned int elen = atoi(&memName[sizeof(AR_EFMT1)-1]);
+ 
+-		if (elen > MAXPATHLEN)
+-			goto badarch;
++		memName = erealloc(memName, elen+1);
++		
+ 		if (fread (memName, elen, 1, arch) != 1)
+ 			goto badarch;
+ 		memName[elen] = '\0';
+@@ -692,6 +690,9 @@
+ 	    memcpy ((Address)Hash_GetValue (he), (Address)&arh,
+ 		sizeof (struct ar_hdr));
+ 	}
++	/* time to free memName */
++	free(memName);
++
+ 	fseek (arch, (size + 1) & ~1, SEEK_CUR);
+     }
+ 
+@@ -742,15 +743,15 @@
+  *-----------------------------------------------------------------------
+  */
+ static int
+-ArchSVR4Entry(Arch *ar, char *name, size_t size, FILE *arch)
++ArchSVR4Entry(Arch *ar, char **name, size_t size, FILE *arch)
+ {
+ #define ARLONGNAMES1 "//"
+ #define ARLONGNAMES2 "/ARFILENAMES"
+     size_t entry;
+     char *ptr, *eptr;
+ 
+-    if (strncmp(name, ARLONGNAMES1, sizeof(ARLONGNAMES1) - 1) == 0 ||
+-	strncmp(name, ARLONGNAMES2, sizeof(ARLONGNAMES2) - 1) == 0) {
++    if (strncmp(*name, ARLONGNAMES1, sizeof(ARLONGNAMES1) - 1) == 0 ||
++	strncmp(*name, ARLONGNAMES2, sizeof(ARLONGNAMES2) - 1) == 0) {
+ 
+ 	if (ar->fnametab != NULL) {
+ 	    if (DEBUG(ARCH)) {
+@@ -793,30 +794,30 @@
+ 	return 0;
+     }
+ 
+-    if (name[1] == ' ' || name[1] == '\0')
++    if ((*name)[1] == ' ' || (*name)[1] == '\0')
+ 	return 2;
+ 
+-    entry = (size_t) strtol(&name[1], &eptr, 0);
+-    if ((*eptr != ' ' && *eptr != '\0') || eptr == &name[1]) {
++    entry = (size_t) strtol(&(*name)[1], &eptr, 0);
++    if ((*eptr != ' ' && *eptr != '\0') || eptr == &(*name)[1]) {
+ 	if (DEBUG(ARCH)) {
+-	    printf("Could not parse SVR4 name %s\n", name);
++	    printf("Could not parse SVR4 name %s\n", *name);
+ 	}
+ 	return 2;
+     }
+     if (entry >= ar->fnamesize) {
+ 	if (DEBUG(ARCH)) {
+ 	    printf("SVR4 entry offset %s is greater than %lu\n",
+-		   name, (u_long)ar->fnamesize);
++		   *name, (u_long)ar->fnamesize);
+ 	}
+ 	return 2;
+     }
+ 
+     if (DEBUG(ARCH)) {
+-	printf("Replaced %s with %s\n", name, &ar->fnametab[entry]);
++	printf("Replaced %s with %s\n", *name, &ar->fnametab[entry]);
+     }
+ 
+-    (void) strncpy(name, &ar->fnametab[entry], MAXPATHLEN);
+-    name[MAXPATHLEN] = '\0';
++		free(*name);
++		*name = estrdup(&ar->fnametab[entry]);
+     return 1;
+ }
+ #endif
+@@ -926,12 +927,9 @@
+ 		isdigit((unsigned char)arhPtr->ar_name[sizeof(AR_EFMT1) - 1])) {
+ 
+ 		unsigned int elen = atoi(&arhPtr->ar_name[sizeof(AR_EFMT1)-1]);
+-		char ename[MAXPATHLEN];
++		char *ename = NULL;
+ 
+-		if (elen > MAXPATHLEN) {
+-			fclose (arch);
+-			return NULL;
+-		}
++		ename = emalloc(elen+1);
+ 		if (fread (ename, elen, 1, arch) != 1) {
+ 			fclose (arch);
+ 			return NULL;
+@@ -945,6 +943,8 @@
+ 			fseek (arch, -sizeof(struct ar_hdr) - elen, SEEK_CUR);
+ 			return (arch);
+ 		}
++		/* time to free ename */
++		free(ename);
+ 		fseek (arch, -elen, SEEK_CUR);
+ 		goto skip;
+ 	} else
+--- pmake-1.111.orig/buf.c
++++ pmake-1.111/buf.c
+@@ -192,7 +192,8 @@
+ {
+ 
+     if (numBytesPtr != (int *)NULL) {
+-	*numBytesPtr = bp->inPtr - bp->outPtr;
++	intptr_t num = bp->inPtr - bp->outPtr;
++	*numBytesPtr = num;
+     }
+ 
+     return (bp->outPtr);
+--- pmake-1.111.orig/compat.c
++++ pmake-1.111/compat.c
+@@ -130,7 +130,7 @@
+ 
+     Shell_Init();		/* setup default shell */
+     
+-    for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
++    for (cp = "~#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
+ 	meta[(unsigned char) *cp] = 1;
+     }
+     /*
+@@ -498,7 +498,7 @@
+ 	    }
+ 	    goto cohorts;
+ 	} else if (DEBUG(MAKE)) {
+-	    printf("out-of-date.\n");
++	    printf("out-of-date\n");
+ 	}
+ 
+ 	/*
+--- pmake-1.111.orig/job.c
++++ pmake-1.111/job.c
+@@ -2162,7 +2162,8 @@
+ 	    (void) fprintf(stdout, "Remaking `%s'\n", gn->name);
+   	    (void) fflush(stdout);
+ 	    (void) strcpy(job->outFile, TMPPAT);
+-	    job->outFd = mkstemp(job->outFile);
++	    if ((job->outFd = mkstemp(job->outFile)) == -1)
++	       Punt("Cannot create temp file: %s", strerror(errno));
+ 	    (void) fcntl(job->outFd, F_SETFD, 1);
+ 	}
+     }
+--- pmake-1.111.orig/main.c
++++ pmake-1.111/main.c
+@@ -825,7 +825,10 @@
+ 	 * in a different format).
+ 	 */
+ #ifdef POSIX
+-	Main_ParseArgLine(getenv("MAKEFLAGS"));
++	/*
++	 * If we are called by GNU make, do not read MAKEFLAGS.
++	 */
++	Main_ParseArgLine(getenv(getenv("MAKELEVEL") ? "MAKE" : "MAKEFLAGS"));
+ #else
+ 	Main_ParseArgLine(getenv("MAKE"));
+ #endif
+@@ -1149,6 +1152,9 @@
+ 	}
+ 	free(path);
+ 	return(TRUE);
++	/* `path' is not freed before return because its
++	 * pointer is stored somewhere else
++	 */
+ }
+ 
+ 
+--- pmake-1.111.orig/make.1
++++ pmake-1.111/make.1
+@@ -33,7 +33,7 @@
+ .Dt MAKE 1
+ .Os
+ .Sh NAME
+-.Nm make
++.Nm pmake
+ .Nd maintain program dependencies
+ .Sh SYNOPSIS
+ .Nm
+@@ -1233,7 +1233,7 @@
+ .It Ic defined
+ Takes a variable name as an argument and evaluates to true if the variable
+ has been defined.
+-.It Ic make
++.It Ic pmake
+ Takes a target name as an argument and evaluates to true if the target
+ was specified as part of
+ .Nm Ns 's
+@@ -1602,7 +1602,6 @@
+ .Sh SEE ALSO
+ .Xr mkdep 1
+ .Sh HISTORY
+-A
+-.Nm
++A make
+ command appeared in
+ .At v7 .
+--- pmake-1.111.orig/var.c
++++ pmake-1.111/var.c
+@@ -124,6 +124,7 @@
+  */
+ 
+ #ifndef NO_REGEX
++#include    <stdio.h>
+ #include    <sys/types.h>
+ #include    <regex.h>
+ #endif
+--- pmake-1.111.orig/debian/changelog
++++ pmake-1.111/debian/changelog
+@@ -0,0 +1,220 @@
++pmake (1.111-1) unstable; urgency=low
++
++  * New upstream snapshot.
++  * This version properly parses arguments and does not crash when parameters
++    are missing (Closes: #287336, #316394).
++  * debian/control:
++    + Set policy to 3.6.2.1.
++
++ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Thu,  7 Jul 2005 10:20:56 +0200
++
++pmake (1.98-3) unstable; urgency=low
++
++  * mk/bsd.man.mk:
++    + Use symlinks instead of hard links when using the MLINKS directive
++      to link manual pages, courtesy of Robert Millan.
++
++ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Fri, 12 Mar 2004 13:14:27 +0100
++
++pmake (1.98-2) unstable; urgency=low
++
++  * buf.c:
++    + Work around a GCC 3 ICE on hppa.
++
++ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed, 10 Mar 2004 18:43:16 +0100
++
++pmake (1.98-1) unstable; urgency=low
++
++  * New maintainer (Closes: #218804).
++  * New upstream version from NetBSD HEAD (Closes: #134798).
++  * Moved to a non-native package.
++  * debian/rules:
++    + Switched to debhelper.
++  * main.c:
++    + Parse $MAKE instead of $MAKEFLAGS when called from GNU make to avoid
++      strange interactions (Closes: #189097).
++
++ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Fri, 27 Feb 2004 16:04:12 +0100
++
++pmake (1.45-11) unstable; urgency=low
++
++  * Set defaults to match policy better. Closes: #150895. Thanks to 
++    Matej Vela for the patch.
++
++ -- Steve McIntyre <93sam@debian.org>  Sun, 30 Jun 2002 23:52:31 +0100
++
++pmake (1.45-10) unstable; urgency=low
++
++  * Fixed broken '.Nm ""' directives in the man page. Closes: #137768
++  * Changed name from "make" to "pmake" in manpage.
++
++ -- Steve McIntyre <93sam@debian.org>  Tue, 12 Mar 2002 21:59:55 +0000
++
++pmake (1.45-9) unstable; urgency=low
++
++  * Fixed broken .Bl directives in the man page. Closes: #117723
++
++ -- Steve McIntyre <93sam@debian.org>  Sun, 04 Nov 2001 17:00:14 +0000
++
++pmake (1.45-8) unstable; urgency=high
++
++  * High urgency because of two important bug fixes...
++  * Fixed important bug in getopt handling that broke -n flag in
++    recursive Makefiles. Closes: #109608
++  * Modified shared library targets to use $(CC) -shared instead of
++    $(LD) -x -shared, which didn't work. Closes: #109959
++
++ -- Steve McIntyre <93sam@debian.org>  Sat, 08 Sep 2001 15:35:11 +0100
++
++pmake (1.45-7) unstable; urgency=low
++
++  * Don't depend on particular locations of groff's macros, as they may
++    change, and indeed have done with groff 1.17 (closes:
++    #101973). Thanks to Colin Watson for the patch.
++
++ -- Steve McIntyre <93sam@debian.org>  Sun, 24 Apr 2001 02:40:21 +0100
++
++pmake (1.45-6) unstable; urgency=low
++
++  * Make sure that make execs a shell to expand target rules
++    containing "~". Closes: #89313.
++  * Fixed the definition of "sh" in job.c so that pmake will play
++    nicely with bash if non-compat mode is used (e.g parallel
++    makes). It was assuming that "sh" was "ash" and understood the -q
++    flag.
++  
++ -- Steve McIntyre <93sam@debian.org>  Tue, 17 Apr 2001 02:10:41 +0100
++
++pmake (1.45-5) unstable; urgency=low
++
++  * Applied patch for Hurd from Igor Khavkine <i_khavki@alcor.concordia.ca>.
++  * Added Build-Depends for groff. Closes: #90358
++  * New maintainer address
++  * Updated Standards-Version.
++  
++ -- Steve McIntyre <93sam@debian.org>  Thu, 22 Mar 2001 19:19:08 +0100
++
++pmake (1.45-4) unstable; urgency=low
++
++  * New maintainer.
++  * Updated Standards-Version.
++  * Fixed multiple lintian warnings.
++  
++ -- Steve McIntyre <stevem@chiark.greenend.org.uk>  Sun, 21 May 2000 18:36:23 +0100
++
++pmake (1.45-3.2) frozen unstable; urgency=low
++
++  * it's for frozen too
++
++ -- Jim Lynch <jwl@debian.org>  Mon,  6 Mar 2000 09:03:28 +0800
++
++pmake (1.45-3.1) unstable; urgency=low
++
++  * Apply patch in Bug#56878 (Closes Bug#56878)
++
++ -- Jim Lynch <jwl@debian.org>  Sun,  5 Mar 2000 12:45:54 +0800
++
++pmake (1.45-3) unstable; urgency=low
++
++  * Unconditionally set OBJECT_FMT to "a.out" in mk/bsd.own.mk (Fixes
++    crtbegin/crtend.o problems on powerpc and alpha). (Closes Bug#38951).
++
++ -- Edward Brocklesby <ejb@debian.org>  Sun,  6 Jun 1999 09:35:15 +0000
++
++pmake (1.45-2) unstable; urgency=low
++
++  * Fixed crt0.o stuff in mk/bsd.prog.mk.
++  * Fixed FUD in /usr/share/mk/bsd.README
++
++ -- Edward Brocklesby <ejb@debian.org>  Sun, 23 May 1999 16:55:06 +0000
++
++pmake (1.45-1) unstable; urgency=low
++
++  * New upstream version.
++  * Moved mk files back from /usr/lib/mk to /usr/share/mk.
++
++ -- Edward Brocklesby <ejb@debian.org>  Wed,  5 May 1999 21:08:58 +0000
++
++pmake (1.39-4) unstable; urgency=low
++
++  * New maintainer.
++
++ -- Edward Brocklesby <ejb@debian.org>  Tue, 23 Feb 1999 21:01:53 +0000
++
++pmake (1.39-3) unstable; urgency=low
++
++  * debian/control (Maintainer): new address.
++  * debian/copyright: ditto.
++  * debian/control (Standards-Version): updated to 2.5.0.0.
++
++ -- James Troup <james@nocrew.org>  Tue, 10 Nov 1998 13:37:41 +0000
++
++pmake (1.39-2) frozen unstable; urgency=medium
++
++  * mk/bsd.man.mk: correct CATDEPS, Herbet Xu
++    <herbert@gondor.apana.org.au>. [#21158]
++  * debian/control (Standards-Version): Updated to 2.4.1.0.
++
++ -- James Troup <jjtroup@comp.brad.ac.uk>  Wed, 15 Apr 1998 12:12:11 +0200
++
++pmake (1.39-1) unstable; urgency=high
++
++  * New upstream version [98-03-16].
++  * Reverts back to .orig.tar.gz and .diff.gz.
++  * Replace mkdep with the one from OpenBSD as it deals with temporary
++    files in a secure fashion. [#19806]
++  * pmake now comes with ASCII and postscript versions of the pmake
++    tutorial in /usr/doc/pmake/.
++  * debian/control: Updated Standards-Version to 2.4.0.0 [#16780].
++  * debian/copyright: Corrected ftp site information.
++  * debian/copyright: Expanded changes description.
++  * debian/rules: No longer uses {,} and other minor changes.
++  * mk/bsd.doc.mk: Groff's tmac macros are in /usr/share/groff/tmac, 
++    not /usr/share/tmac on Debian GNU/Linux.
++  * mk/bsd.lib.mk: added a machine definition "debian".
++  * mk/bsd.own.mk: s#/usr/share/"/usr/" for  MANDIR and DOCDIR.
++  * mk/bsd.own.mk: s/wheel/root/g.
++  * mk/bsd.own.mk: define MANZ.
++  * mk/bsd.own.mk: don't make files unwritable by owner.
++  * mk/bsd.prog.mk: undefine LIBCRT0.
++  * mk/sys.mk: MAKE is pmake not GNU make.
++  * var.c: #include <stdio.h> because <regex.h> needs it.
++  * util.c: don't try to redefine libc functions by #ifndefing a large
++    chunk on (__linux__).
++
++ -- James Troup <jjtroup@comp.brad.ac.uk>  Thu, 19 Mar 1998 20:53:45 +0100
++
++pmake (1.0-17) unstable; urgency=low
++
++  * Fixed mk/bsd.lib.mk so that bogus `-q' argument isn't passed to 
++    tsort [#11536]
++
++ -- James Troup <jjtroup@comp.brad.ac.uk>  Mon, 28 Jul 1997 21:17:39 +0100
++
++pmake (1.0-16) unstable; urgency=low
++
++  * Abandonned debian diff, since the diff is bigger than the original
++    source.
++  * Added mkdep (again from NetBSD Current) [fixes #11464].
++
++ -- James Troup <jjtroup@comp.brad.ac.uk>  Fri, 25 Jul 1997 13:50:44 +0100
++
++pmake (1.0-15) unstable; urgency=low
++
++  * Updated source to NetBSD Current.
++  * Rebuilt with libc6.
++
++ -- James Troup <jjtroup@comp.brad.ac.uk>  Sat,  5 Jul 1997 01:10:27 +0100
++
++pmake (1.0-14) unstable; urgency=low
++
++  * New maintainer.
++  * Upgraded to Standards 2.1.3.0 (Fixes bug #9491, #3793).
++  * bsd.lib.mk no longer passes spurious `T' argument to ar 
++    (Fixes bug #3793), patch from Philip Blundell <pb@nexus.co.uk>.
++
++ -- James Troup <jjtroup@comp.brad.ac.uk>  Wed, 14 May 1997 01:34:07 +0100
++
++Local variables:
++mode: debian-changelog
++End:
+--- pmake-1.111.orig/debian/control
++++ pmake-1.111/debian/control
+@@ -0,0 +1,15 @@
++Source: pmake
++Section: devel
++Priority: optional
++Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
++Standards-Version: 3.6.2.1
++Build-Depends: debhelper (>= 4.0), groff
++
++Package: pmake
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: NetBSD make
++ pmake is a program designed to simplify the maintenance of other
++ programs. Its input is a list of specifications as to the files upon
++ which programs and other files depend.  mkdep, a program to construct
++ Makefile dependency lists, is also included.
+--- pmake-1.111.orig/debian/copyright
++++ pmake-1.111/debian/copyright
+@@ -0,0 +1,71 @@
++This is the Debian GNU/Linux prepackaged version of 4.4BSD make (pmake).
++
++This package was put together by James Troup <james@nocrew.org>, from
++sources obtained from:
++ ftp.netbsd.org:/pub/NetBSD-current/src/usr.bin/make/
++ ftp.openbsd.org:/pub/OpenBSD/src/usr.bin/mkdep/
++ ftp.netbsd.org:/pub/NetBSD-current/src/share/mk/
++This package was rebuilt by Sam Hocevar <sam@zoy.org> from the NetBSD
++CVS tree available from:
++ cvs://anoncvs@anoncvs.NetBSD.org:/cvsroot (module /src/usr.bin/make/)
++
++Changes:
++ o added Debian GNU/Linux package maintenance system files.
++ o var.c: #include <stdio.h> because <regex.h> needs it.
++ o util.c: don't try to redefine libc functions by #ifndefing a large
++           chunk on (__linux__).
++ o mk/bsd.doc.mk: don't give groff explicit macro paths; instead let it work
++                  them out for itself.
++ o mk/bsd.lib.mk: added a machine definition "debian" for Debian GNU/Linux.
++ o mk/bsd.man.mk: correct CATDEPS, Herbet Xu <herbert@gondor.apana.org.au>.
++ o mk/bsd.own.mk: change MANDIR and DOCDIR to reflect the FSSTND
++                  orientated Debian GNU/Linux directory structure
++                  (i.e. /usr/share/* -> /usr/*).
++ o mk/bsd.own.mk: s/wheel/root/g.
++ o mk/bsd.own.mk: define MANZ.
++ o mk/bsd.own.mk: don't make files unwritable by owner.
++ o mk/bsd.prog.mk: undefine LIBCRT0.
++ o mk/sys.mk: MAKE should be pmake and not make on Debian GNU/Linux.
++ o mk/sys.mk: tsort from bsdmainutils doesn't accept -q as an argument, 
++              so don't try to pass it.
++
++Modifications for Debian Copyright (C) 1997,1998 James Troup.
++			 Copyright (C) 1999 Edward Brocklesby.
++			 Copyright (C) 2003,2004 Sam Hocevar.
++/*
++ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
++ * Copyright (c) 1988, 1989 by Adam de Boor
++ * Copyright (c) 1989 by Berkeley Softworks
++ * All rights reserved.
++ *
++ * This code is derived from software contributed to Berkeley by
++ * Adam de Boor.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. All advertising materials mentioning features or use of this software
++ *    must display the following acknowledgement:
++ *	This product includes software developed by the University of
++ *	California, Berkeley and its contributors.
++ * 4. Neither the name of the University nor the names of its contributors
++ *    may be used to endorse or promote products derived from this software
++ *    without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
+--- pmake-1.111.orig/debian/rules
++++ pmake-1.111/debian/rules
+@@ -0,0 +1,61 @@
++#!/usr/bin/make -f
++
++#export DH_VERBOSE=1
++
++ARCH=$(shell dpkg --print-gnu-build-architecture)
++CFLAGS="-O2  -g -Wall -D__COPYRIGHT\(x\)= -D__RCSID\(x\)= \
++	-I. -DMACHINE=\\\"debian\\\" -DMACHINE_ARCH=\\\"${ARCH}\\\" \
++	-DHAVE_SETENV -DHAVE_STRERROR -DHAVE_STRDUP -DHAVE_STRFTIME \
++	-DHAVE_VSNPRINTF \
++	-D_GNU_SOURCE"
++
++build: build-stamp
++build-stamp:
++	dh_testdir
++	$(MAKE) -f Makefile.boot CFLAGS=$(CFLAGS)
++	touch build-stamp
++
++clean:
++	dh_testdir
++	dh_testroot
++	rm -f build-stamp
++	$(MAKE) -f Makefile.boot clean
++	rm -f pmake pmake.1
++	dh_clean
++
++install: build
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs usr/bin usr/share/mk usr/share/doc/pmake
++	cp bmake pmake
++	cp make.1 pmake.1
++	dh_install pmake mkdep usr/bin
++	dh_install mk/* usr/share/mk/
++	groff -Tascii -ms PSD.doc/tutorial.ms > \
++	      debian/pmake/usr/share/doc/pmake/tutorial.asc
++	groff -Tps -ms PSD.doc/tutorial.ms > \
++	      debian/pmake/usr/share/doc/pmake/tutorial.ps
++	gzip -9v debian/pmake/usr/share/doc/pmake/*
++
++binary-indep: build install
++
++binary-arch: build install
++	dh_testdir
++	dh_testroot
++	dh_installdocs
++	dh_installchangelogs
++	dh_install
++	dh_installman pmake.1 mkdep.1
++	dh_link
++	dh_strip
++	dh_compress
++	dh_fixperms
++	dh_installdeb
++	dh_shlibdeps
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary install
+--- pmake-1.111.orig/debian/compat
++++ pmake-1.111/debian/compat
+@@ -0,0 +1 @@
++4
+--- pmake-1.111.orig/mkdep
++++ pmake-1.111/mkdep
+@@ -0,0 +1,113 @@
++#!/bin/sh -
++#
++#	$OpenBSD: mkdep.gcc.sh,v 1.8 1998/09/02 06:40:07 deraadt Exp $
++#	$NetBSD: mkdep.gcc.sh,v 1.9 1994/12/23 07:34:59 jtc Exp $
++#
++# Copyright (c) 1991, 1993
++#	The Regents of the University of California.  All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions
++# are met:
++# 1. Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++# 2. Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the distribution.
++# 3. All advertising materials mentioning features or use of this software
++#    must display the following acknowledgement:
++#	This product includes software developed by the University of
++#	California, Berkeley and its contributors.
++# 4. Neither the name of the University nor the names of its contributors
++#    may be used to endorse or promote products derived from this software
++#    without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++# SUCH DAMAGE.
++#
++#	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
++#
++
++D=.depend			# default dependency file is .depend
++append=0
++pflag=
++
++while :
++	do case "$1" in
++		# -a appends to the depend file
++		-a)
++			append=1
++			shift ;;
++
++		# -f allows you to select a makefile name
++		-f)
++			D=$2
++			shift; shift ;;
++
++		# the -p flag produces "program: program.c" style dependencies
++		# so .o's don't get produced
++		-p)
++			pflag=p
++			shift ;;
++		*)
++			break ;;
++	esac
++done
++
++if [ $# = 0 ] ; then
++	echo 'usage: mkdep [-p] [-f depend_file] [cc_flags] file ...'
++	exit 1
++fi
++
++DTMP=/tmp/mkdep$$
++TMP=$DTMP/mkdep
++
++um=`umask`
++umask 022
++if ! mkdir $DTMP ; then
++	echo failed to create tmp dir $DTMP
++	exit 1
++fi
++
++umask $um
++trap 'rm -rf $DTMP ; trap 2 ; kill -2 $$' 1 2 3 13 15
++
++if [ x$pflag = x ]; then
++	${CC:-cc} -M "$@" | sed -e 's; \./; ;g' > $TMP
++else
++	${CC:-cc} -M "$@" | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
++fi
++
++if [ $? != 0 ]; then
++	echo 'mkdep: compile failed.'
++	rm -rf $DTMP
++	exit 1
++fi
++
++if [ $append = 1 ]; then
++	cat $TMP >> $D
++	if [ $? != 0 ]; then
++		echo 'mkdep: append failed.'
++		rm -rf $DTMP
++		exit 1
++	fi
++else
++	mv $TMP $D
++	if [ $? != 0 ]; then
++		echo 'mkdep: rename failed.'
++		rm -rf $DTMP
++		exit 1
++	fi
++fi
++
++rm -rf $DTMP
++exit 0
+--- pmake-1.111.orig/mkdep.1
++++ pmake-1.111/mkdep.1
+@@ -0,0 +1,106 @@
++.\"	$OpenBSD: mkdep.1,v 1.3 1998/09/26 19:55:08 aaron Exp $
++.\"	$NetBSD: mkdep.1,v 1.3 1994/12/23 07:34:56 jtc Exp $
++.\"
++.\" Copyright (c) 1987, 1990, 1993
++.\"	The Regents of the University of California.  All rights reserved.
++.\"
++.\" Redistribution and use in source and binary forms, with or without
++.\" modification, are permitted provided that the following conditions
++.\" are met:
++.\" 1. Redistributions of source code must retain the above copyright
++.\"    notice, this list of conditions and the following disclaimer.
++.\" 2. Redistributions in binary form must reproduce the above copyright
++.\"    notice, this list of conditions and the following disclaimer in the
++.\"    documentation and/or other materials provided with the distribution.
++.\" 3. All advertising materials mentioning features or use of this software
++.\"    must display the following acknowledgement:
++.\"	This product includes software developed by the University of
++.\"	California, Berkeley and its contributors.
++.\" 4. Neither the name of the University nor the names of its contributors
++.\"    may be used to endorse or promote products derived from this software
++.\"    without specific prior written permission.
++.\"
++.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++.\" SUCH DAMAGE.
++.\"
++.\"     @(#)mkdep.1	8.1 (Berkeley) 6/6/93
++.\"
++.Dd June 6, 1993
++.Dt MKDEP 1
++.Os BSD 4.2
++.Sh NAME
++.Nm mkdep
++.Nd construct Makefile dependency list
++.Sh SYNOPSIS
++.Nm mkdep
++.Op Fl ap
++.Op Fl f Ar file
++.Op Ar flags
++.Ar file Op Ar ...
++.Sh DESCRIPTION
++.Nm mkdep
++takes a set of flags for the C compiler and a list
++of C source files as arguments and constructs a set of include
++file dependencies which are written into the file ``.depend''.
++An example of its use in a Makefile might be:
++.Bd -literal -offset indent
++CFLAGS= -O -I../include
++SRCS= file1.c file2.c
++
++depend:
++	mkdep ${CFLAGS} ${SRCS}
++.Ed
++.Pp
++where the macro SRCS is the list of C source files and the macro
++CFLAGS is the list of flags for the C compiler.
++.Pp
++The options are as follows:
++.Bl -tag -width Ds
++.It Fl a
++Append to the output file,
++so that multiple
++.Nm mkdep Ns 's
++may be run from a single Makefile.
++.It Fl f Ar file
++Write the include file dependencies to 
++.Ar file ,
++instead of the default ``.depend''.
++.It Fl p
++Cause
++.Nm mkdep
++to produce dependencies of the form:
++.Bd -literal -offset indent
++program: program.c
++.Ed
++.Pp
++so that subsequent makes will produce
++.Ar program
++directly from its C module rather than using an intermediate
++.Pa \&.o
++module.
++This is useful for programs whose source is contained in a single
++module.
++.El
++.Sh SEE ALSO
++.Xr cc 1 ,
++.Xr cpp 1 ,
++.Xr make 1
++.Sh FILES
++.Bl -tag -width .depend -compact
++.It Pa .depend
++file containing list of dependencies
++.El
++.Sh HISTORY
++The
++.Nm mkdep
++command appeared in
++.Bx 4.3 Tahoe .

@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+VERSION=${VERSION:-6b}
+ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-5}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-libjpeg
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# Explode the package framework:
+cd $PKG
+explodepkg $CWD/_libjpeg.tar.gz
+if [ "$ARCH" = "x86_64" ]; then
+  mv usr/lib usr/lib${LIBDIRSUFFIX}
+  sed -i -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" install/doinst.sh
+fi
+
+cd $TMP
+rm -rf jpeg-6b
+tar xzvf $CWD/jpegsrc.v6b.tar.gz
+cd jpeg-6b
+chown -R root:root .
+zcat $CWD/jpeg-6b.diff.gz | patch -p0 -E
+export CFLAGS="$SLKCFLAGS"
+./configure \
+  --libdir=/usr/lib${LIBDIRSUFFIX}
+make -j3 || exit 1
+strip cjpeg djpeg rdjpgcom wrjpgcom jpegtran
+cat cjpeg > $PKG/usr/bin/cjpeg
+cat djpeg > $PKG/usr/bin/djpeg
+cat jpegtran > $PKG/usr/bin/jpegtran
+cat rdjpgcom > $PKG/usr/bin/rdjpgcom
+cat wrjpgcom > $PKG/usr/bin/wrjpgcom
+for page in cjpeg.1 djpeg.1 jpegtran.1 rdjpgcom.1 wrjpgcom.1 ; do
+  cat $page | gzip -9c > $PKG/usr/man/man1/$page.gz
+done
+strip --strip-unneeded libjpeg.so.62.0.0
+cat libjpeg.so.62.0.0 > $PKG/usr/lib${LIBDIRSUFFIX}/libjpeg.so.62.0.0
+cat libjpeg.a > $PKG/usr/lib${LIBDIRSUFFIX}/libjpeg.a
+cp -a jconfig.h jpeglib.h jmorecfg.h jerror.h $PKG/usr/include
+# KDE includes this complete header list, but the libjpeg source doesn't
+# suggest it, and we trust them. :)
+#for file in jchuff.h jdhuff.h jdct.h jerror.h jinclude.h jmemsys.h \
+#  jmorecfg.h jpegint.h jpeglib.h jversion.h cdjpeg.h cderror.h jconfig.h ; do
+#  cp -a $file $PKG/usr/include
+#done
+mkdir -p $PKG/usr/doc/libjpeg-$VERSION
+cp -a README *.doc $PKG/usr/doc/libjpeg-$VERSION
+chmod 644 $PKG/usr/doc/libjpeg-$VERSION/*
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# Build the package:
+cd $PKG
+makepkg -c y -l y $TMP/libjpeg-$VERSION-$ARCH-$BUILD.txz
+

@@ -1,0 +1,546 @@
+Sun Oct  1 23:00:46 CDT 2006
+
+NOTE:  If you are interested in booting your system using PXE, a USB stick,
+or a mini-ISO (which may then be used to start network (NFS) installations)
+see Eric Hameleers' helpful page at this location:
+
+  http://slackware.com:/~alien
+
+Since this is the 'BOOTING' file, pointing out the alternate installers
+would be the on-topic thing to do here, but I'll also note that everything
+else there is also pretty good, except that part where Alien BOB tries to
+get people to gang up on me and get all of this stuff included.  Shame,
+shame!  ;-)  I'm trying to cobble together an operating system here, not
+bundle every application on the planet!  We're already at six ISO images,
+and DVD5 is looking small!  OK, just kidding.  (mostly ;-)  Eric's done a
+massive amount of work on Slackware gratis, and we should all thank him
+for the more complete and pleasant Slackware we now enjoy.  :-)
+
+All that said, most of this file after this is about 10 years old and I'm
+not sure how much (if any) of it still pertains to modern Linux.  In most
+cases Slackware on a DVD (or the first disc) should just boot automatically
+from the primary DVD drive.  Or, if you're booting from CD the first one
+is the bootable one.  Sometimes you need to go into the machine's BIOS and
+make some adjustments to make the system boot from optical media (be
+careful in there!)
+
+This file contains some helpful (hopefully! :^) information on what to do if
+your Linux system won't boot properly.
+
+Section 1: What to do if after the installation process, the machine will 
+           not boot.
+
+This problem is not uncommon.  The reason for it is that the kernel your system
+tries to boot after installation is not the same as the one used to install (the
+bootdisk kernel).  Typically the kernel that is installed to your hard drive 
+will contain more device drivers, and sometimes one of them won't like some 
+piece of hardware in your machine.
+
+There are a couple of approaches that can be used to deal with this situation.
+Perhaps the simplest solution is to open up the machine and pull any cards that
+aren't crucial, and then try to reboot the system.  If this is successful, then
+follow the instructions in the FAQ.TXT for building and installing a kernel
+that is customized for your hardware.
+
+Another approach (that doesn't involve opening the machine) is to try to use the
+bootdisk you installed with to kickstart the system.  To do this, boot the disk
+and then use the "mount" option to have the kernel boot the root partition on
+your hard drive rather that a root/install disk.  Let's assume your root Linux
+partition is on /dev/hda2.  To boot the system, you'd use this command at the
+Syslinux "boot:" prompt on the bootdisk:
+
+  mount noinitrd ro root=/dev/hda2
+
+If you installed using the Slackware CDROM, you should boot from this CDROM
+again and then load the kernel you used while installing, with additional
+parameters to make it mount your hard drive's root partition.  Let's assume
+your root Linux partition is on /dev/hda2 and you used the 'sata.i' kernel.
+To boot the system, you'd enter this command at the "boot: " prompt:
+
+  sata.i root=/dev/hda2 noinitrd ro
+
+
+Section 2:  Trying to get the kernel to detect hardware.
+
+The first thing you should do is make sure you're using a kernel that supports
+the hardware you're trying to use.  If it doesn't, you've got a few options for
+how to add the support.  You can compile a custom kernel of your own, or you
+can look for an appropriate pre-compiled kernel in the /kernels directory.
+Another approach is to try loading a kernel module to add the extra support you
+need.  This is usually the fastest and easiest way to get a device working, so
+you might want to try it first.  Use 'vi' (or some other editor) to edit the
+file /etc/rc.d/rc.modules.  Look for a module that supports the hardware you
+want to get working, remove the '#' from the beginning of the line, and fill in
+any extra parameters that the module might require.
+
+If you install a new kernel, be sure to reinstall LILO afterwards (if you use 
+it).  For more details on installing a kernel, see the FAQ.TXT.
+
+There are a number of extra parameters that can be used on the LILO bootdisk
+prompt, with Loadlin, or in your /etc/lilo.conf.  These flags help tell the
+kernel which I/O port, IRQ, and so forth, that a particular piece of hardware
+uses, so that if the kernel doesn't see a peripheral while autoscanning you
+should be able to force detection by telling the kernel exactly where to look.
+
+To use an extra flag with a bootdisk, put the flags after the standard command
+used to boot the system.  So, to boot /dev/hda2 and try to force detection of
+a Mitsumi CD-ROM drive with Mitsumi interface card, you might use something
+like this at the LILO prompt:
+
+mount root=/dev/hda2 mcd=0x300,11
+
+To use a parameter with Loadlin, just add it to the end of the boot command
+in a similar fashion:
+
+loadlin vmlinuz root=/dev/hda2 mcd=0x300,11
+
+Or, you can enclose the parameters in an append="" and add the line to your
+/etc/lilo.conf.  Don't forget to reinstall lilo after editing the
+/etc/lilo.conf.  To do this, just type "lilo" as root.
+
+Here's how the line you'd add to your /etc/lilo.conf looks:
+
+append="mcd=0x300,11"
+
+Here is a list of known kernel parameters from the Loadlin documentation:
+
+    LOADLIN 1.5 ((C) 1994 lermen@elserv.ffm.fgan.de)
+     and
+    Linux version: 0.99.14, 0.99.15, 1.0, 1.1.47
+
+This is a list of command line parameters recognized and interpreted by:
+========================================================================
+
+  1. LOADLIN
+       ramdisk=size        (size in Kbytes)
+     or
+       ramdisk=size,no     (same as above, but disk change prompt disabled)
+                           e.g.:  ramdisk=1440,no
+       vga=mode
+
+  2. The Linux kernel
+       mem=number       (for > 0.99.15,  number = end of physical memory in bytes)
+       root=device
+       ro
+       rw
+       no387
+       debug            sets console_loglevel = 10
+       no-hlt           disables check of HLT instruction at startup
+
+  3. init
+       single
+       auto
+       ro,rw,no387   (forwarded from the kernel)
+
+  4. Some drivers
+       reserve=port1,num1,...,port5,num5 #reserves 80x86 ioports
+       ether=irq,base_addr,mem_start,mem_end,dev_name
+       hd=cyl,head,sect                  # for 2 drives you need this twice
+                                         # first relates to drive 0
+       bmouse=irq
+       max_scsi_luns=n                          # (n should be between 1 and 8)
+       st0x=base_address,irq                    # SEAGATE controller ST01/ST02
+       tmc8xx=base_address,irq                  # Future Domain TMC-885,TMC-950
+       t128=address,irq                         # Trantor T128/T128F/T228
+       ncr5380=port,irq,dma                     # Generic NCR5380 driver
+       aha152x=portbase,irq,scsiid,reconnect    # Adaptec AHA-152x driver
+       cdu31a=portbase,irq,PAS                  # Sony CDU-31a.  Third parameter
+                         # should be "PAS" if on a Pro-Audio Spectrum, or 
+                         # nothing if on something else.
+       xd=type,irq,iobase,dma
+       mcd=port,irq
+       sound=0x0TTPPPID, ..
+       sbpcd=sbport,SoundBlaster
+       sbpcd=LMport,LaserMate
+       sbpcd=SpeaFXport,SPEA
+
+
+  5. Environment
+       All parameters of format  name=xxxx  which are not recognized by
+       the kernel or a driver are put onto the environment.
+
+       LOADLIN itself always puts  BOOT_IMAGE=imagefile  onto the environ-
+       ment.  The user may put additional values onto the environment in
+       order to allow  /etc/rc  to behave differently for a given condition.
+
+
+==============================================================================
+
+Following are detailed descriptions:
+
+
+Parameters recognized by LOADLIN:
+=================================
+
+  root=device
+  -----------
+        device     may be a symbolic device name such as "/dev/hda2"
+                   or the numeric device number (hex)
+                   (highbyte=major, lowbyte=minor)
+                   recognized symbolic devices (with their partitions) are:
+                   "hda", "hdb", "sda", "sdb", "sdc", "sdd", "sde",
+                   "fd", "xda", "xdb"
+
+        There is a problem:
+
+        Linux interprets the number following "/dev/hda" as a HEX number,
+        The device names in  /dev  of the Slackware distribution, however,
+        are numbered /dev/hda1 .. hda9 .. hda10 .. hda16,
+        instead of   /dev/hda1 .. hda9 .. hdaa ..  hdaf  as Linus would have done.
+
+        So, starting with version 1.3 of LOADLIN, I interpret the root device
+        myself and pass the device numerically in the boot sector.
+        My naming convention is a compromise which I hope will result in
+        fewer irritations:
+
+        If the number following "/dev/hda, hdb, sda ..."
+        starts with 0, 0x or a..f, it is interpreted as a HEX number.
+        If it starts with 1..9 it is interpreted as a decimal number.
+        If none is appropriate, the string is passed to the command line.
+        (some later kernel versions may have other device names).
+
+        Examples:
+        root=302
+        root=0x201
+        root=/dev/hda2
+        root=/dev/sdaa   same as  root=/dev/sda10  or  /dev/sda0xa
+
+  Ramdisk size option (used with 1.2.x kernels)
+
+  ramdisk=size 
+  ------------
+        size      number of Kbytes for the RAMDISK device.
+                  The image for the ramdisk is loaded by the
+                  kernel at startup from a floppy drive, if
+                  root=/dev/fdx  is also given.
+                  After loading the image, the kernel then makes
+                  the ramdisk the root device (NOT the floppy).
+                  In addition to this, LOADLIN prompts for inserting
+                  the ramdisk image into the floppy drive if it no
+                  longer needs the drive (i.e. after loading the kernel).
+
+  Ramdisk options for new (1.3.x and 2.0.x) kernels
+
+  load_ramdisk=1
+  --------------
+                  This option tells the kernel that you wish to load
+                  a ramdisk.  With new Linux kernels, a size does not
+                  need to be specified -- the kernel will dynamically
+                  allocate the needed memory as the kernel is loaded.
+
+  prompt_ramdisk=1
+  ----------------
+
+                  This option tells the kernel that you wish to be prompted
+                  to insert the ramdisk before the kernel tries to load it.
+                  Useful when loading the ramdisk from floppy disk.
+
+  vga=mode
+  --------
+        mode      -3  the user is asked to specify the VGA mode
+                 ask  equal to -3
+                  -2  80x50 extended VGA mode
+            extended  equal to -2
+                  -1  80x25 normal mode
+              normal  equal to -1
+                   0  as if "0" was entered at the boot prompt
+                   .
+                   .
+                   n  as if the number "n" was entered at the boot prompt
+
+  ro
+  --
+        "ro" forces the root device to be mounted read-only (Not for UMSDOS!)
+
+  rw
+  --
+        "rw" forces the root device to be mounted read/write.
+
+------------------------------------------------------------------------------
+
+Parameters recognized only by the kernel:
+=========================================
+
+  mem=number
+  ----------
+        number     End of physical RAM, this is recognized by kernels
+                   of 0.99.15 and higher and is useful if the exact
+                   installed RAM size cannot be determined automatically.
+
+  root=device
+  -----------
+        device     May be a symbolic device name such as "/dev/hda2"
+                   or the numeric device number (highbyte=major, lowbyte=minor)
+                   Recognized symbolic devices (with their partitions) are:
+                   "hda", "hdb", "sda", "sdb", "sdc", "sdd", "sde",
+                   "fd", "xda", "xdb"
+                   But NOTE: old kernels < 1.1.47 have xda=0xC00, xdb=0xC40
+                             newer kernels have        xda=0xD00, xdb=0xD40
+        example:
+        root=302
+        root=/dev/hda2
+
+!!      NOTE:   Older kernels ( below Linux 1.0.5 ) have a little bug in
+!!              (init/main.c), but it is of little concern:
+!!               The last part of the symbolic device name ("hda2") is
+!!               passed as option parameter to  init, so init will
+!!               say "illegal option", but continue without errors.
+!!
+!!              Of greater concern is the too-small static buffer
+!!              "command_line" (80 bytes, in init/main.c).   It is
+!!              preferable to set it to 512 and recompile the kernel.
+!!
+!!              This bug is fixed with Linux 1.0.5, the "command_line"
+!!              is now 256 by default and (if needed ) can easily be changed
+!!              with   #define COMMAND_LINE_SIZE xxxx  in init/main.c  (to a
+!!              maximum size of 2047).
+
+
+  no387
+  -----
+        "no387" disables use of the hardware math coprocessor.
+
+  since 1.1.47 (or perhaps earlier) the following options are no more
+  passed to init:
+
+  ro,rw,no387
+  -----------
+
+
+  the following are new:
+
+
+  debug  sets console_loglevel = 10
+  -----
+
+  no-hlt
+  ------
+         disables check of HLT instruction at startup.
+         If you have a clone 486, this option is *very* useful.
+
+------------------------------------------------------------------------------
+
+Option Parameters recognized by "init":
+=======================================
+
+  single
+  ------
+        Enter "single user mode" on boot
+
+
+  auto
+  ----
+
+  ro,rw,no387   (forwarded from kernels < 1.1.47).   (see !!comment!! above)
+  -----------
+
+
+------------------------------------------------------------------------------
+
+
+
+Configuration of ethernet cards:
+================================
+
+  ether=irq,base_addr,mem_start,mem_end,dev_name
+  ---------------------------------------------
+        irq        number, IRQ-number (3..15)
+        base_addr  number, IO-base (0x280,...)
+        mem_start  number, shared mem start
+        mem_end    number, shared mem end
+        dev_name   string,
+                        eth0..3     all configured ethernetcards
+                        dl0         D-Link DE600 pocket adaptor
+                        atp0        AT-LAN-TEC (RealTek) pocket adaptor
+                        plip0..2    parallel IP (PLIP)
+                        sl0..3      serial IP (SLIP)
+        example:
+                ether=10,0x280,0xc8000,0xcbfff,eth0
+
+  related files: net/inet/eth.c, drivers/net/Space.c
+
+------------------------------------------------------------------------------
+
+Reserving I/O port space:
+=========================
+
+  reserve=port1,num1,...,port5,num5
+  ---------------------------------
+
+        portn     first IOport-address in range
+        numn      number of addresses in this range to reserve
+                  (there will be bits set to "1" in "ioport_register")
+
+  related files:  kernel/ioport.c
+
+
+------------------------------------------------------------------------------
+
+Setting hard disk parameters for the root device:
+=================================================
+
+  hd=cyl,head,sect
+  ---------------
+         # NOTE: if you have two drives, you must put
+         #       two hd= params into the commandline
+         #       the first for drive 1, the second for drive 2
+         #       eg.
+         #       loadlin zimage hd=1001,15,17 hd=989,15,56 root=/dev/hdb2 ro
+         #       (this example from my machine however is not needed,
+         #       you need it only, if Linux can't get the drive params properly
+         #       from the BIOS).
+  related files: drivers/block/hd.c
+  config:        CONFIG_BLK_DEV_HD
+
+------------------------------------------------------------------------------
+
+Setting the IRQ for the bus-mouse:
+==================================
+
+  bmouse=irq
+  ----------
+  related files: drivers/char/busmouse.c
+  config:        CONFIG_BUSMOUSE
+
+
+
+------------------------------------------------------------------------------
+
+Parameters for SCSI controllers:
+================================
+
+  max_scsi_luns=n                           (n should be between 1 and 8)
+
+  st0x=base_address,irq                     SEAGATE controller ST01/ST02
+
+  tmc8xx=base_address,irq                   Future Domain TMC-885,TMC-950
+
+  t128=address,irq                          Trantor T128/T128F/T228
+
+  ncr5380=port,irq,dma                      Generic NCR5380 driver
+
+  aha152x=portbase,irq,scsiid,reconnect     Adaptec AHA-152x driver
+
+
+
+  related files: drivers/scsi/seagate.c, t128.c, g_NCR5380.c, aha152x.c
+
+  config:        CONFIG_SCSI_SEAGATE, CONFIG_SCSI_T128,
+                 CONFIG_SCSI_GENERIC_NCR5380, CONFIG_SCSI_AHA152X
+
+
+------------------------------------------------------------------------------
+
+Parameters for SCSI Tapes:
+=========================
+
+  st=buffer_size,write_threshould,max_buffers
+
+     buffer_size       Size of tape buffer in Kbyte (i.e. ST_BLOCK_SIZE)
+     write_threshould  Number of Kbytes to buffer before write.
+                       (must be < buffer_size)
+     max_buffers       Number of buffers to reserve
+
+  related files: drivers/scsi/st.c
+  config:        CONFIG_CHR_DEV_ST
+
+------------------------------------------------------------------------------
+
+Parameter for XT hard disk controller (DTC 5150X):
+==================================================
+
+  xd=type,irq,iobase,dma
+  ----------------------
+
+  related files: drivers/block/xd.c
+  config:        CONFIG_BLK_DEV_XD
+
+------------------------------------------------------------------------------
+Parameter for Sony CDU-31/33a CDROM driver:
+===========================================
+
+  cdu31a=iobase,irq,PAS
+  ---------------------
+
+  related files: drivers/block/cdu31a.c
+                 include/linux/cdu31a.h
+  config:        CONFIG_CDU31A
+
+  WARNING -    All autoprobes have been removed from the driver.
+               You MUST configure the CDU31A via a LILO config
+               at boot time or in lilo.conf.  I have the
+               following in my lilo.conf:
+ 
+                 append="cdu31a=0x1f88,0,PAS"
+ 
+               The first number is the I/O base address of the
+               card.  The second is the interrupt (0 means none).
+               The third should be "PAS" if on a Pro-Audio
+               spectrum, or nothing if on something else.
+ 
+
+------------------------------------------------------------------------------
+Parameter for Mitsumi CDROM driver:
+===================================
+
+  mcd=port,irq
+  ------------
+
+  related files: drivers/block/mcd.c
+  config:        CONFIG_MCD
+
+
+------------------------------------------------------------------------------
+
+Parameter for sound cards:
+==========================
+
+  sound=0x0TTPPPID, ..
+  ----------------
+     all values are embedded in one longint, the above format
+     shows a hex number, each place is a hex-digit
+
+     TT         Supported card type.
+                This is the index into the list of configured cards
+                If all cards are configured (which normally is not the case)
+                the following order is kept:
+                        Roland MPU-401
+                        Gravis Ultrasound
+                        ProAudio Spectrum
+                        SoundBlaster
+                        SoundBlaster 16
+                        SB16 MPU-401 (SB16-MIDI port)
+                        AdLib
+
+     PPP        Port Address
+
+     I          IRQ
+
+     D          DMA Channel
+
+
+  related files: drivers/sound/dev_table.h,dev_table.c
+  config:        CONFIG_SOUND
+
+------------------------------------------------------------------------------
+
+Parameter for IDE-style CD-ROM device driver (Kotobuki/Matsushita/Panasonic):
+=============================================================================
+
+  sbpcd=sbport,SoundBlaster
+  ------------------------
+  sbpcd=LMport,LaserMate
+  ----------------------
+  sbpcd=SpeaFXport,SPEA
+  ----------------------
+
+        sbport     soundblaster base port +0x10 (i.e 0x230 = 0x220+0x10)
+        LMport     MPU-type port at 0x300 or equivalent
+        SpeaFXport base port on SpeaFX card
+
+  related files: drivers/block/sbpcd.c
+  config:        CONFIG_SBPCD
+
+
+
+------------------------------------------------------------------------------

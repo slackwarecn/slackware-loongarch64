@@ -1,0 +1,73 @@
+#!/bin/sh
+# GCC package build script (written by volkerdi@slackware.com)
+#
+# Copyright 2003, 2005  Slackware Linux, Inc., Concord, California, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+# NOTE - THIS DOESN'T MAKE PACKAGES! IT JUST BUILDS GCC AND G++
+# this is for the purpose of getting libstdc++.so.5
+VERSION=3.3.6
+ARCH=${ARCH:-x86_64}
+TARGET=${TARGET:-$ARCH-slackware-linux}
+BUILD=${BUILD:-1}
+
+CWD=`pwd`
+# Temporary build location.  This should *NOT* be a directory
+# path a non-root user could create later...
+TMP=/gcc-build-$(mcookie)
+
+# Clear the build locations:
+if [ -d $TMP ]; then
+  rm -rf $TMP
+fi
+
+EXTRA=--disable-multilib
+
+mkdir -p $TMP
+cd $TMP
+tar xjvf $CWD/gcc-$VERSION.tar.bz2
+# install docs
+( cd gcc-$VERSION
+  # Fix perms/owners
+  chown -R root.root .
+  find . -perm 777 -exec chmod 755 {} \;
+  find . -perm 775 -exec chmod 755 {} \;
+  find . -perm 754 -exec chmod 755 {} \;
+  find . -perm 664 -exec chmod 644 {} \;
+)
+# build gcc
+( mkdir gcc.build.lnx;
+  cd gcc.build.lnx;
+  CFLAGS="-O2 -fPIC" \
+  ../gcc-$VERSION/configure \
+              --enable-shared \
+              --enable-threads=posix \
+              --enable-__cxa_atexit \
+              --enable-languages=c,c++ \
+              --disable-checking \
+              --with-gnu-ld \
+              --verbose \
+              --target=${TARGET} \
+              --host=${TARGET} \
+	      $EXTRA
+  # Include all debugging info (for now):
+  make #bootstrap;
+) 2>&1 | tee $TMP/gcc.build.log

@@ -1,0 +1,230 @@
+#!/bin/ash
+#
+# /init:  init script to load kernel modules from an initramfs
+#         This requires that your kernel supports initramfs!!!
+#
+# Copyright 2004  Slackware Linux, Inc., Concord, CA, USA
+# Copyright 2007, 2008  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+# With a generic kernel, you need to load the modules needed to mount the
+# root partition.  This might mean a SCSI, RAID, or other drive controller
+# module, as well as the module to support the root filesystem.  Once the
+# root partition is mounted all the other modules will be available so you
+# don't need to load them here.
+#
+# Config files used by this script:
+#
+# /rootdev   Contains the name of the root device, such as: /dev/hda1 
+#
+# /rootfs    Contains the root filesystem type, such as: xfs
+#
+# /initrd-name    Contains the name of the initrd file.
+#
+# Optional:
+# /load_kernel_modules   A script that uses insmod to load the desired
+#            modules.  If this file is not present, all the modules
+#            in /lib/modules/`uname -r`/ will be loaded in the usual
+#            sorted order.  If you need to load the modules in a
+#            certain order, or if the modules need extra options,
+#            then use a load_kernel_modules script.
+#
+#            There's an example in here.  To actually use it, you'll
+#            need to make it executable:  
+#
+#                chmod 755 load_kernel_modules
+
+INITRD=`cat /initrd-name`
+ROOTDEV=`cat /rootdev`
+ROOTFS=`cat /rootfs`
+LUKSDEV=`cat /luksdev`
+RESUMEDEV=`cat /resumedev`
+WAIT=`cat /wait-for-root`
+KEYMAP=`cat /keymap`
+
+# Mount /proc and /sys:
+mount -n proc /proc -t proc
+mount -n sysfs /sys -t sysfs
+
+# Parse command line
+for ARG in `cat /proc/cmdline`; do
+  case $ARG in
+    rescue)
+      RESCUE=1
+    ;;
+    root=/dev/*)
+      ROOTDEV=`echo $ARG | cut -f2 -d=`
+    ;;
+    rootfs=*)
+      ROOTFS=`echo $ARG | cut -f2 -d=`
+    ;;
+    luksdev=/dev/*)
+      LUKSDEV=`echo $ARG | cut -f2 -d=`
+    ;;
+    waitforroot=*)
+      WAIT=`echo $ARG | cut -f2 -d=`
+    ;;
+    root=LABEL=*)
+      ROOTDEV=`echo $ARG | cut -f2- -d=`
+    ;;
+    resume=*)
+      RESUMEDEV=`echo $ARG | cut -f2 -d=`
+    ;;
+    0|1|2|3|4|5|6)
+      RUNLEVEL=$ARG
+    ;;
+  esac
+done
+
+# Load kernel modules:
+if [ ! -d /lib/modules/`uname -r` ]; then
+  echo "No kernel modules found for Linux `uname -r`."
+elif [ -x ./load_kernel_modules ]; then # use load_kernel_modules script:
+  echo "${INITRD}:  Loading kernel modules from initrd image:"
+  . ./load_kernel_modules
+else # load modules (if any) in order:
+  if ls /lib/modules/`uname -r`/*.*o 1> /dev/null 2> /dev/null ; then
+    echo "${INITRD}:  Loading kernel modules from initrd image:"
+    for module in /lib/modules/`uname -r`/*.*o ; do
+      insmod $module
+    done
+    unset module
+  fi
+fi
+
+# Sometimes the devices needs extra time to be available.
+# root on USB are good example of that.
+sleep $WAIT
+
+# If udevd is available, use it to generate block devices
+# else use mdev to read sysfs and generate the needed devices 
+if [ -x /sbin/udevd -a -x /sbin/udevadm ]; then
+  /sbin/udevd --daemon
+  /sbin/udevadm trigger --subsystem-match=block
+  /sbin/udevadm settle --timeout=10
+else
+  mdev -s
+fi
+
+# Load a custom keyboard mapping:
+if [ -n "$KEYMAP" ]; then
+  echo "${INITRD}:  Loading '$KEYMAP' keyboard mapping:"
+  tar xzOf /etc/keymaps.tar.gz ${KEYMAP}.bmap | loadkmap
+fi
+
+if [ "$RESCUE" = "" ]; then 
+  # Initialize RAID:
+  if [ -x /sbin/mdadm ]; then
+    /sbin/mdadm -E -s >/etc/mdadm.conf
+    /sbin/mdadm -A -s
+  fi
+  
+  # Find root device if a label was given:
+  if echo $ROOTDEV | grep -q "LABEL=" ; then
+    ROOTDEV=`findfs $ROOTDEV`
+  fi
+
+  # Make encrypted root partition available:
+  # The useable device will be under /dev/mapper/
+  # Three scenarios for the commandline exist:
+  # 1- ROOTDEV is on a LUKS volume, and LUKSDEV is a real block device
+  # 2- ROOTDEV is on a LVM volume, and LUKSDEV is a real block device
+  # 3- ROOTDEV is on a LUKS volume, and LUKSDEV is on a LVM volume
+  # Case (3) will have to wait until we initialize the LVM.
+  # Test if ROOTDEV is "/dev/someting" or just "something" - the first means
+  # ROOTDEV is on a LVM volume (scenario 2); we don't need to rewrite ROOTDEV.
+  # The second means that ROOTDEV is on a LUKS volume (scenario 1).
+  CRYPTDEV=""
+  if [ -x /sbin/cryptsetup ]; then
+    # If we find a LUKS device now, it is on a real block device: 
+    if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
+      CRYPTDEV=$(basename $ROOTDEV)
+      echo "Unlocking LUKS crypt volume '${CRYPTDEV}' on device '$LUKSDEV':"
+      /sbin/cryptsetup luksOpen ${LUKSDEV} $CRYPTDEV </dev/systty >/dev/systty 2>&1
+      if [ "$CRYPTDEV" == "$ROOTDEV" ]; then # scenario 1
+        ROOTDEV="/dev/mapper/${CRYPTDEV}"
+      fi
+    fi
+  fi
+
+  # Initialize LVM:
+  if [ -x /sbin/vgscan ]; then
+    /sbin/vgscan --mknodes --ignorelockingfailure
+    sleep 10
+    /sbin/vgchange -ay --ignorelockingfailure
+  fi
+  
+  # Make encrypted root partition available (scenario 3):
+  # We have to handle cases here where the LUKS volume is created on a LV
+  if [ -x /sbin/cryptsetup ]; then
+    if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
+      # Only act if we could not open the LUKS device before (i.e. is on a LV):
+      if [ "x$CRYPTDEV" == "x" ]; then
+        echo "Unlocking LUKS crypt volume '${ROOTDEV}' on device '$LUKSDEV':"
+        /sbin/cryptsetup luksOpen ${LUKSDEV} $ROOTDEV </dev/systty >/dev/systty 2>&1
+        ROOTDEV="/dev/mapper/${ROOTDEV}"
+      fi
+    fi
+  fi
+
+  # Resume state from swap
+  if [ "$RESUMEDEV" != "" ]; then
+    if ls -l $RESUMEDEV | grep -q "^l" ; then
+      RESUMEDEV=`ls -l $RESUMEDEV | awk '{ print $NF }'`
+    fi
+    echo "Trying to resume from $RESUMEDEV"
+    RESMAJMIN=`ls -l $RESUMEDEV | tr , : | awk '{ print $5$6 }'`
+    echo $RESMAJMIN > /sys/power/resume
+  fi
+  
+  # Switch to real root partition:
+  echo 0x0100 > /proc/sys/kernel/real-root-dev
+  mount -o ro -t $ROOTFS $ROOTDEV /mnt
+  
+  if [ ! -r /mnt/sbin/init ]; then
+    echo "ERROR:  No /sbin/init found on rootdev (or not mounted).  Trouble ahead."
+    echo "        You can try to fix it. Type 'exit' when things are done." 
+    echo
+    /bin/sh
+  fi
+else
+  echo "RESCUE mode"
+  echo
+  echo "        You can try to fix or rescue your system now. If you want"
+  echo "        to boot into your fixed system, mount your root filesystem"
+  echo "        read-only under /mnt:"
+  echo
+  echo "            # mount -o ro -t filesystem root_device /mnt"
+  echo
+  echo "        Type 'exit' when things are done."
+  echo
+  /bin/sh
+fi
+
+if ps axc | grep -q udevd ; then
+  killall udevd
+fi
+
+unset ERR
+umount /proc
+umount /sys
+echo "${INITRD}:  exiting"
+exec switch_root /mnt /sbin/init $RUNLEVEL

@@ -1,0 +1,176 @@
+{ This Program is released unter the terms of the GNU Public License (GPL).
+  In short words this means anybody can do anything with it except incorporating it
+  in whole or part into a new application that is sold and/or marketed commercially,
+  without disclosing the sources to the public.
+  For further details, refer to www.gnu.org.
+
+  This program has been written by Benedikt Hochstrasser (bhoc@pentagroup.ch or
+  tictactux@swissonline.ch. Its purpose is to transfer raw images to diskette, just
+  like the rawrite program supplied with Slackware Linux. The difference is: this is
+  a native Windows NT application.
+  Syntax: RaWriteNT <source image file> <target drive>
+
+  Use at your own risk. Although that piece of software has been thouroughly tested I
+  am not responsible for any damage resulting in the use of this software. This software
+  will overwrite stuff stored on a direct-access storage device such as a diskette,
+  hard disk, zip drive, LS-120 drive or similar medium. You have been warned.
+
+  Zurich, Late August 2000. (c) 2000 bhoc@pentagroup.ch
+}
+
+program RaWriteNT;
+
+{$APPTYPE CONSOLE}
+{$D-,L-,Y-,C-}
+
+uses windows;
+
+{$R *.RES}
+
+const IOCTL_DISK_GET_DRIVE_GEOMETRY: Cardinal = $70000;
+
+type TDiskGeometry = record
+    Cylinders         : Int64;
+    Media_Type        : LongInt;
+    TracksPerCylinder : Cardinal;
+    SectorsPerTrack   : Cardinal;
+    BytesPerSector    : Cardinal;
+  end;
+
+var InFileName, OutFileName: String;
+    Drive: Char;
+    HIn, HOut, BufBytes, FileSize, MediaSize, BlkSize, BlkNum, i: Cardinal;
+    Buf: Array[0..65535] of Byte;
+    DriveGeometry: TDiskGeometry;
+
+function ExtractFileName(FullName: String): String;
+  { cf SysUtils.ExtractFileName - mimicked here for size purposes }
+  var i, n: integer;
+  begin
+    n := Length(FullName);
+    Result := FullName;
+    for i := n downto 1 do if FullName[i] = '\' then break;
+    if i > 1 then Result := Copy(FullName, i+1, n-i);
+  end;
+
+function IsWinNT: Boolean;
+  { that should be obvious }
+  var osinfo: TOSVersionInfo;
+  begin
+    Result := False;
+    osinfo.dwOSVersionInfoSize := SizeOf(osinfo);
+    if GetVersionEx(osinfo) then
+      Result := (osinfo.dwPlatformId = VER_PLATFORM_WIN32_NT);
+  end;
+
+procedure ReReadDrive;
+  { just invoke a dummy 'get free disk space' to re-initialize the drive after
+    the write }
+  var BytesPerSect, FreeCl, TotCl, SecPerCl: Cardinal;
+  begin
+    GetDiskFreeSpace(PChar(Drive + ':\'), SecPerCl, BytesPerSect, FreeCl, TotCl);
+  end;
+
+begin { finally. dah main program. }
+
+  Writeln;
+
+  { do the copyright messages }
+  Writeln('RaWriteNT 1.0 by Ben Hochstrasser (bhoc@pentagroup.ch)');
+
+  { discourage Win9x users }
+  If Not IsWinNT then begin
+    Writeln(ParamStr(0), ' has been tested under Windows NT only. Sorry...');
+    halt(255);
+  end;
+
+  { get parameters }
+  InFileName := '';
+  OutFileName := '';
+  if ParamCount > 0 then InFileName := ParamStr(1);
+  if ParamCount > 1 then OutFileName := ParamStr(2);
+  if InFileName = '' then begin
+    Write('Source Image File name: ');
+    Readln(InFileName);
+    if InFileName = '' then halt(255);
+  end;
+  if OutFileName = '' then begin
+    Write('Target Drive [A]: ');
+    Readln(OutFileName);
+  end;
+
+  { check target }
+  if OutFileName = '' then
+    Drive := 'A'
+  else
+    Drive := UpCase(Char(OutFileName[1]));
+  if GetDriveType(PChar(Drive + ':\')) in [DRIVE_FIXED, DRIVE_REMOTE, DRIVE_CDROM] then begin
+    Writeln('Drive ' + Drive + ': does not appear to be a removable (and writable) drive.');
+    Writeln('Hard Disks, Network Drives and CD-ROM Drives cannot be Targets. Sorry.');
+    Halt(255);
+  end;
+  { prepend the NT incantation stuff }
+  OutFileName := '\\.\' + Drive + ':';
+
+  { try to open devices }
+  HIn := CreateFile(PChar(InFileName), GENERIC_READ, 0, NIL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL or FILE_FLAG_SEQUENTIAL_SCAN, 0);
+  if HIn = 0 then begin
+    Writeln('Fatal Error: Cannot open ' + InFileName + ' for read.');
+    Halt(1);
+  end;
+  HOut := CreateFile(PChar(OutFileName), GENERIC_WRITE, 0, NIL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+  if HOut = 0 then begin
+    Writeln('Fatal Error: Cannot open ' + OutFileName + ' for write.');
+    CloseHandle(HIn);
+    Halt(2);
+  end;
+
+  { overwrite 1st sector with 0 };
+  FillChar(Buf, 512, 0);
+  WriteFile(HOut, Buf, 512, BufBytes, NIL);
+  { get target geometry }
+  DeviceIoControl(HOut, IOCTL_DISK_GET_DRIVE_GEOMETRY, nil, 0, @DriveGeometry, SizeOf(DriveGeometry), BufBytes, NIL);
+  { determine sizes }
+  MediaSize := DriveGeometry.BytesPerSector * DriveGeometry.SectorsPerTrack * DriveGeometry.TracksPerCylinder * DriveGeometry.Cylinders;
+  FileSize := GetFileSize(HIn, Nil);
+  if FileSize > MediaSize then begin
+    Writeln('Oops - That file is too big for this medium (', FileSize, ' vs. ', MediaSize, ' Bytes).');
+    Halt(3);
+  end;
+  { block size is 1 track }
+  BlkSize := DriveGeometry.SectorsPerTrack * DriveGeometry.BytesPerSector;
+  { round up # of blocks if necessary }
+  BlkNum := (FileSize + BlkSize - 1) DIV BlkSize;
+  Writeln('Transferring ', FileSize, ' Bytes (',
+         (FileSize + DriveGeometry.BytesPerSector - 1) div DriveGeometry.BytesPerSector,
+          ' Sectors) from Image ', ExtractFileName(InFileName), ' to Drive ', Drive, ':');
+  { move file pointers to beginning }
+  SetFilePointer(hIn, 0, NIL, FILE_BEGIN);
+  SetFilePointer(hOut, 0, NIL, FILE_BEGIN);
+  { loop through all blocks }
+  for i := 1 to BlkNum do begin
+    if not ReadFile(HIn, Buf, BlkSize, BufBytes, NIL) then begin
+      writeln('Error ', GetLastError, ' on File Read');
+      break;
+    end;
+    if not WriteFile(HOut, Buf, BlkSize, BufBytes, NIL) then begin
+      writeln('Error ', GetLastError, ' on File Write');
+      break;
+    end;
+    write((100 * i) div BlkNum, '% completed.', #13);
+  end;
+  writeln;
+  { close files }
+  CloseHandle(HIn);
+  CloseHandle(HOut);
+
+  { re-read target medium information }
+  ReReadDrive;
+
+  If ParamCount = 0 then begin
+    Writeln;
+    Writeln('(Press any Key) ');
+    Readln;
+  end;
+end.
+

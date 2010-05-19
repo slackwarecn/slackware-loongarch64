@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,17 +21,31 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.11.4
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=${VERSION:-$(echo wget-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-if [ "$ARCH" = "i486" ]; then
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mtune=i686"
+elif [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 CWD=$(pwd)
@@ -75,6 +89,14 @@ mkdir -p $PKG/usr/doc/wget-$VERSION
 cp -a \
   AUTHORS COPYING* MAILING-LIST NEWS PATCHES README* TODO \
   $PKG/usr/doc/wget-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

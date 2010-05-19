@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2007,2008,2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,8 +22,17 @@
 
 
 VERSION=3.2.4
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-5}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -69,8 +78,11 @@ zcat $CWD/xfig.no.xfig_ref_en.pdf.diff.gz | patch -E -p1 --verbose || exit 1
 # Use Firefox and xpdf, not netscape and acroread:
 zcat $CWD/xfig.fig.ad.diff.gz | patch -E -p1 --verbose || exit 1
 zcat $CWD/xfig.docs.location.diff.gz | patch -E -p1 --verbose || exit 1
+# Drop a call to a function no longer included in libpng-1.4.0 (by default,
+# anyway) to see if it really matters.
+zcat $CWD/xfig.png14.nodither.diff.gz | patch -p1 --verbose || exit 1
 
-xmkmf
+xmkmf || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 make install.man DESTDIR=$PKG || exit 1
@@ -84,11 +96,19 @@ gzip -9 $PKG/usr/man/man1/*
 
 mkdir -p $PKG/usr/doc/xfig-$VERSION
 cp -a \
-  CHANGES FIGAPPS LATEX.AND.XFIG README \
+  FIGAPPS LATEX.AND.XFIG README \
   $PKG/usr/doc/xfig-$VERSION
 ( cd $PKG/usr/doc/xfig-$VERSION
   ln -sf /usr/lib${LIBDIRSUFFIX}/X11/xfig/Libraries Libraries
 )
+
+# If there's a CHANGES file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

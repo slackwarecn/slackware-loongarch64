@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,10 +21,22 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.63
-ARCH=noarch
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=2.65
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Note: the package is _built_ as 'noarch'
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -35,7 +47,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf autoconf-$VERSION
-tar xvf $CWD/autoconf-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/autoconf-$VERSION.tar.xz || exit 1
 cd autoconf-$VERSION
 chown -R root:root .
 find . \
@@ -47,7 +59,8 @@ find . \
 ./configure \
   --prefix=/usr \
   --infodir=/usr/info \
-  --mandir=/usr/man
+  --mandir=/usr/man \
+  --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -66,5 +79,5 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/autoconf-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/autoconf-$VERSION-noarch-$BUILD.txz
 

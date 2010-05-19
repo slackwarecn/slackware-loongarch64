@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,17 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=2.2_0
-ARCH=${ARCH:-x86_64}
 BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -34,6 +43,11 @@ cd $TMP
 rm -rf elvis-$VERSION
 tar xjvf $CWD/elvis-$VERSION.tar.bz2
 cd elvis-$VERSION
+
+# Fix redefined getline() with glibc > 2.9 by changing the
+# local function to elv_getline():
+zcat $CWD/elvis.ref.c.getline.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 # Time for a kludge (i.e. don't suggest this kind of thing be
 # done as a rule... I don't know why I'm crazy today).

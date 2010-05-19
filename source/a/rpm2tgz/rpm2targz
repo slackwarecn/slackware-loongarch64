@@ -22,22 +22,35 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-if [ "$1" = "" ]; then
+CWD=$(pwd)
+
+# Breaking the help out into it's own deal
+usage() {
   echo "$0:  Converts RPM format to standard GNU tar + GNU zip format."
   echo "            (view converted packages with \"less\", install and remove"
   echo "            with \"installpkg\", \"removepkg\", \"pkgtool\", or manually"
   echo "            with \"tar\")"
   echo
-  echo "Usage:      $0 <file.rpm>"
   if [ "$(basename $0)" = "rpm2tgz" ]; then
+    echo "Usage:      $0 [OPTION] <file.rpm>"
     echo "            (Outputs \"file.tgz\")"
+    echo
+    echo "  -s    extract the install scripts to /usr/doc/\$PRGNAM-\$VERSION/"
+    echo "          for review."
+    echo "  -S    extracts the install scripts to be executed on package installation"
+    echo "          (only pre-install and post-install scripts used)"
+    echo "          USE WITH CAUTION! "
+    echo "  -n    name the output package using the rpm's metadata"
+    echo "  -r    extract what the rpm's \"requires\" (dependencies)"
+    echo "          as documention to /usr/doc/\$PRGNAM-\$VERSION/"
+    echo "  -d    attempt a wellformed slack-desc from the rpm meta data"
+    echo
   else
+    echo "Usage:      $0 <file.rpm>"
     echo "            (Outputs \"file.tar.gz\")"
   fi
   exit 1;
-fi
-
-CWD=$(pwd)
+}
 
 # Create a new temporary directory with a secure filename:
 make_temp_dir() {
@@ -67,6 +80,51 @@ make_temp_dir() {
   fi
 }
 
+# Get the meta data off of the rpm
+get_meta_data() {
+  RPM=$1
+  PRGNAM=$(rpm -qp --qf %{NAME} $RPM )
+  ARCH=$(rpm -qp --qf %{ARCH} $RPM )
+  VERSION=$(rpm -qp --qf %{VERSION} $RPM )
+  BUILD=$(rpm -qp --qf %{RELEASE} $RPM )
+}
+
+if [ "$1" = "" ]; then
+  usage
+fi
+
+ARGS=$(getopt "hsSndr" $* )
+set -- ${ARGS}
+for i; do
+  case "$1" in
+    -s)
+      DOC_SCRIPTS="true"
+      shift
+      ;;
+    -S)
+      INSTALL_SCRIPTS="true"
+      shift
+      ;;
+    -r)
+      DOC_REQUIRES="true"
+      shift
+      ;;
+    -d)
+      DESC="true"
+      shift
+      ;;
+    -n)
+      META_NAME="true"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+  esac
+done
+
+
 for i in $* ; do
   
   # Determine if this is a source or binary RPM.
@@ -78,7 +136,7 @@ for i in $* ; do
       isSource=0
     fi
   else # use file.  This works fine on Slackware, and is the default.
-    if file $i | grep RPM | grep " src " 1> /dev/null 2> /dev/null ; then
+    if file $i | grep RPM | grep -w src 1> /dev/null 2> /dev/null ; then
       isSource=1
     else
       isSource=0
@@ -112,11 +170,56 @@ for i in $* ; do
     find . -type d -perm 700 -exec chmod 755 {} \;
   )
 
+  # Save the scripts in the rpm as documentation
+  if [ "$DOC_SCRIPTS" = "true" ]; then
+    get_meta_data $i
+    mkdir -p $TMPDIR/usr/doc/$PRGNAM-$VERSION/
+    for state in PREIN POSTIN PREUN POSTUN ; do
+      if [ "$(rpm -qp --qf %{$state} $i )" != '(none)' ] ; then
+        rpm -qp --qf %{$state} $i > $TMPDIR/usr/doc/$PRGNAM-$VERSION/$state.script
+      fi
+    done
+  fi
+
+  # Save the scripts in the rpm to be installed
+  if [ "$INSTALL_SCRIPTS" = "true" ]; then
+    mkdir -p $TMPDIR/install
+    echo '#!/bin/sh' > $TMPDIR/install/doinst.sh
+    for state in PREIN POSTIN ; do
+      if [ "$(rpm -qp --qf %{$state} $i )" != '(none)' ] ; then
+        rpm -qp --qf %{$state} $i > $TMPDIR/install/doinst.sh
+        echo "" >> $TMPDIR/install/doinst.sh
+      fi
+    done
+  fi
+
+  # Save the rpm's requires (dependencies) as documentation
+  if [ "$DOC_REQUIRES" = "true" ]; then
+    get_meta_data $i
+    mkdir -p $TMPDIR/usr/doc/$PRGNAM-$VERSION/
+    rpm -qp --qf %{REQUIRES} $i  > $TMPDIR/usr/doc/$PRGNAM-$VERSION/README-$PRGNAM-rpm-dependencies.txt
+  fi
+
+  # Save the rpm's summary and description as the slack-desc
+  if [ "$DESC" = "true" ]; then
+    mkdir -p $TMPDIR/install
+    rpm -qp --qf %{SUMMARY} $i | sed -l 70 -r "s/^(.*)/$PRGNAM: $PRGNAM - \1\n/" > $TMPDIR/install/slack-desc
+    rpm -qp --qf %{DESCRIPTION} $i | sed -l 70 -r "s/^/$PRGNAM: /" >> $TMPDIR/install/slack-desc
+  fi
+
   # If this program was called as "rpm2targz", then repack as a plain
   # tar+gz archive.  If it was called as "rpm2tgz", use Slackware's
   # makepkg to produce the .tgz:
   if [ "$(basename $0)" = "rpm2tgz" ]; then
-    ( cd $TMPDIR ; makepkg -l y -c n $CWD/$(basename $i .rpm).tgz )
+    ( 
+      cd $TMPDIR
+      if [ "$META_NAME" = "true" ]; then
+        get_meta_data $CWD/$i
+        makepkg -l y -c n $CWD/$PRGNAM-$VERSION-$ARCH-${BUILD}.tgz
+      else
+        makepkg -l y -c n $CWD/$(basename $i .rpm).tgz
+      fi
+    )
   else
     ( cd $TMPDIR ; tar cf - . ) > $(basename $i .rpm).tar
     gzip -9 $(basename $i .rpm).tar

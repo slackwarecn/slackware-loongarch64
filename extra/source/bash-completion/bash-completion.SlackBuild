@@ -1,50 +1,80 @@
 #!/bin/sh
-# Set initial variables:
-CWD=`pwd`
-if [ "$TMP" = "" ]; then
-  TMP=/tmp
-fi
+
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Slackware build script for bash-completion
+
+VERSION=1.1
+ARCH=noarch
+BUILD=${BUILD:-3}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
 PKG=$TMP/package-bash-completion
 
-VERSION=20060301
-ARCH=noarch
-BUILD=2
-
-if [ ! -d $TMP ]; then
-  mkdir -p $TMP # location to build the source
-fi
 rm -rf $PKG
-mkdir -p $PKG
-
+mkdir -p $TMP $PKG
 cd $TMP
-rm -rf bash_completion
-tar xjvf $CWD/bash-completion-$VERSION.tar.bz2
-cd bash_completion
+rm -rf bash-completion-$VERSION
+tar xvf $CWD/bash-completion-$VERSION.tar.?z*
+cd bash-completion-$VERSION
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
 
-# Add support for xz file formats:
-zcat $CWD/bash-completion-xz.diff.gz | patch -p1 || exit 1
+# Add support for txz packages instead of only tgz
+zcat $CWD/bash-completion-1.1-pkgtools_tgxz.diff.gz | patch -p1 || exit 1
 
-mkdir -p $PKG/etc/bash_completion.d $PKG/etc/profile.d
-cp -a $CWD/bash_completion.sh.gz $PKG/etc/profile.d
-gzip -d $PKG/etc/profile.d/bash_completion.sh.gz
-chmod 755 $PKG/etc/profile.d/bash_completion.sh
-cp -a bash_completion $PKG/etc
-chmod 644 $PKG/etc/bash_completion
-cp -a contrib/* $PKG/etc/bash_completion.d
-chmod 755 $PKG/etc/bash_completion.d/*
+./configure \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --docdir=/usr/doc/bash_completion-$VERSION
+
+make || exit 1
+make install DESTDIR=$PKG || exit 1
+  
+mkdir -p $PKG/etc/profile.d
+zcat $CWD/bash_completion.sh.gz > $PKG/etc/profile.d/bash_completion.sh
+chmod 0755 $PKG/etc/profile.d/bash_completion.sh
+
 mkdir -p $PKG/usr/doc/bash-completion-$VERSION
-cp -a BUGS COPYING README $PKG/usr/doc/bash-completion-$VERSION
-chmod 644 $PKG/usr/doc/bash-completion-$VERSION/*
-( cd $PKG ; chown -R root.root . )
+cp -a \
+  AUTHORS COPYING README TODO \
+    $PKG/usr/doc/bash-completion-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/bash-completion-$VERSION-$ARCH-$BUILD.txz
-
-# Clean up the extra stuff:
-if [ "$1" = "--cleanup" ]; then
-  rm -rf $TMP/bash_completion
-  rm -rf $PKG
-fi
+/sbin/makepkg -l y -c n $TMP/bash-completion-$VERSION-$ARCH-$BUILD.txz

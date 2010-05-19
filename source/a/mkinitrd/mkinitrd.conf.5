@@ -1,7 +1,7 @@
 .\" mkinitrd.5   Robby Workman <rworkman@slackware.com>
-.\" 25 November 2007 "
+.\" 19 December 2009 "
 
-.TH MKINITRD.CONF 5 "05 Februrary 2008" "Slackware 12.1"
+.TH MKINITRD.CONF 5 "27 March 2010" "Slackware 13.1"
 .SH NAME 
 .B mkinitrd.conf(5)
 .SH SYNOPSIS
@@ -89,21 +89,44 @@ Example: MODULE_LIST="module1:module2 option=1:module3"
 
 .TP 5
 .I LUKSDEV
-When using cryptsetup with an encrypted root partition, use this variable to 
-define the *actual* device name of the encrypted root partition and define the
-*mapped* device name as ROOTDEV.
+Contains a colon (:) delimited list of luks encrypted block devices to be
+unlocked by the initrd using cryptsetup.  All devices that must be unlocked
+in order to access the root filesystem must be specified.
 .br
-For example, if your actual root device name in /etc/fstab is:
-.br
-.I /dev/mapper/cryptroot
-on 
-.I /dev/sda2
+Example: LUKSDEV="/dev/sda2:/dev/sda3"
 
-Then you'll need to set:
+Each unlocked device will be assigned an automatically generated luks device
+name of the form luks<device> where '<device>' will be the basename of the
+encrypted device.  e.g.
+
+  /dev/mapper/lukssda2
+
+As a convenience to users, if
+.I ROOTDEV
+(see below) specifies one of the device names listed in the
+.I LUKSDEV
+option, then it will be automatically adjusted to use the correct luks
+device name. i.e. when specifying
+.I "LUKSDEV=/dev/sda2"
+then
+.I "ROOTDEV=/dev/sda2"
+and
+.I "ROOTDEV=/dev/mapper/lukssda2"
+are equivalent.
+.TP 5
+.I LUKSKEY
+When using cryptsetup to encrypt your partition, you can use a keyfile instead
+of a passphrase to unlock the LUKS volume.  The LUKSKEY variable holds the
+filename of a keyfile, as well as the label (or uuid) of the partition this
+file is on.  This way, you can unlock your computer automatically if you have a
+USB stick with your LUKS key inserted at boot. A passphrase will still be asked
+if the LUKS key can not be found.
 .br
-LUKSDEV="/dev/sda2"
+For example, if your USB thumb drive has a FAT partition with label
+"TRAVELSTICK" and the actual keyfile is called "/keys/alien.luks", then
+you need to set:
 .br
-ROOTDEV="cryptroot"
+LUKSKEY="LABEL=TRAVELSTICK:/keys/alien.luks"
 
 .TP 5
 .I ROOTDEV
@@ -144,6 +167,12 @@ Examples:
 LVM="0"          # Do not add LVM support to initrd
 .br
 LVM="1"          # Add LVM support to initrd
+
+.TP 5
+.I UDEV
+Use UDEV in the initrd.
+.br
+Example: UDEV="1"
 
 .TP 5
 .I WAIT

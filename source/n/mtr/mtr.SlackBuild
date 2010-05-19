@@ -22,10 +22,19 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-PRGNAM=mtr
-VERSION=0.73
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+PKGNAM=mtr
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -35,19 +44,20 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf ${PRGNAM}-${VERSION}
-tar xvf $CWD/${PRGNAM}-${VERSION}.tar.bz2 || exit 1
-cd ${PRGNAM}-${VERSION} || exit 1
-zcat $CWD/mtr-0.73.configure.error.diff.gz | patch -p1 --verbose || exit 1
+rm -rf ${PKGNAM}-${VERSION}
+tar xvf $CWD/${PKGNAM}-${VERSION}.tar.?z* || exit 1
+cd ${PKGNAM}-${VERSION} || exit 1
 
 chown -R root.root *
 find . \
@@ -70,11 +80,19 @@ make DESTDIR=$PKG install || exit 1
 
 chmod -s $PKG/usr/sbin/mtr
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   AUTHORS COPYING* FORMATS INSTALL NEWS README* SECURITY TODO \
-  $PKG/usr/doc/$PRGNAM-$VERSION
-chmod -R a-w $PKG/usr/doc/$PRGNAM-$VERSION/*
+  $PKG/usr/doc/$PKGNAM-$VERSION
+chmod -R a-w $PKG/usr/doc/$PKGNAM-$VERSION/*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 # Compress the man page(s)
 find $PKG/usr/man -type f -name "*.?" -exec gzip -9f {} \;
@@ -88,5 +106,6 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+
 

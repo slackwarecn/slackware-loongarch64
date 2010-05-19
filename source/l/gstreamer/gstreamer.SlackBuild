@@ -2,7 +2,7 @@
 
 # Copyright 2008  Robby Workman, Northport, Alabama, USA
 # Copyright 2008  Michiel van Wessem <michiel@slackbuilds.org>
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,11 +23,21 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-PRGNAM=gstreamer
-VERSION=0.10.23
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+PKGNAM=gstreamer
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -41,19 +51,22 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.?z* || exit 1
-cd $PRGNAM-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+cd $PKGNAM-$VERSION
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -69,20 +82,20 @@ CXXFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --mandir=/usr/man \
-  --docdir=/usr/doc/$PRGNAM-$VERSION \
-  --with-cachedir=/var/cache/$PRGNAM \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
   --disable-debug \
+  --disable-gst-debug \
+  --with-package-name='gstreamer' \
+  --with-package-origin='http://gstreamer.freedesktop.org' \
   --build=$ARCH-slackware-linux
 
 # --disable-gst-debug was always used before, but now the option prevents
 # gstreamer (10.22) from compiling.  Check again with future releases.
+# Seems fine as of 0.10.26, so it's enabled again  -RW
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# Create the cache directory
-mkdir -p $PKG/var/cache/gstreamer
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -92,14 +105,22 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   for i in $(find . -type l) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 )
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   ABOUT-NLS AUTHORS COPYING* INSTALL MAINTAINERS NEWS README* RELEASE TODO \
-  $PKG/usr/doc/$PRGNAM-$VERSION
+  $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

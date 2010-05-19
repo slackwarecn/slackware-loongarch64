@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,10 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.02.40
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=$(echo LVM2.*.tar.?z* | cut -f 2- -d . | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -39,13 +49,16 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf LVM2.$VERSION
-tar xvf $CWD/LVM2.$VERSION.tar.bz2
+tar xvf $CWD/LVM2.$VERSION.tar.xz
 cd LVM2.$VERSION || exit 1
 
 chown -R root:root .
@@ -55,23 +68,59 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# uid 0 = root
+# gid 6 = disk
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --disable-readline \
   --enable-cmdlib \
   --enable-dmeventd \
-  --libdir=/lib${LIBDIRSUFFIX} \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-usrlibdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --enable-static_link \
-  --with-lvm1=internal
+  --with-lvm1=internal \
+  --enable-pkgconfig \
+  --enable-udev_sync \
+  --enable-udev_rules \
+  --with-udev-prefix="" \
+  --with-device-uid=0 \
+  --with-device-gid=6 \
+  --with-device-mode=0664 \
+  --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
 mv $PKG/etc/lvm/lvm.conf $PKG/etc/lvm/lvm.conf.new
 
+if [ -d $PKG/usr/share/man ]; then # --mandir was ignored
+  mv $PKG/usr/share/man $PKG/usr
+  rmdir $PKG/usr/share
+fi
+
+# Move the binary and shared library to /sbin and /lib{,64}:
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  for file in lib*.so.?.* ; do
+    mv $file ../../lib${LIBDIRSUFFIX}
+    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+  done
+  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
+)
+# The Makefile is DIW.
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  find . -name "*.so" -type l | cut -b3- | while read file ; do
+    rm -f $file
+    ln -sf ${file}.?.* $file
+  done
+)
+
 ( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
+    xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | \
+    xargs strip --strip-unneeded 2> /dev/null
 )
 
 mkdir -p $PKG/usr/doc/LVM2.$VERSION
@@ -99,5 +148,5 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg -l y -c n $TMP/lvm2-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/lvm2-$VERSION-$ARCH-$BUILD.txz
 

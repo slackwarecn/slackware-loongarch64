@@ -22,18 +22,24 @@
 
 
 PKGNAM=audacious-plugins
-VERSION=${VERSION:-1.5.1}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-2.3}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
-rm -rf $PKG
-mkdir -p $TMP $PKG
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -47,15 +53,18 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX="64"
   ARCHOPTS=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  ARCHOPTS=""
 fi
 
+rm -rf $PKG
+mkdir -p $TMP $PKG
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
-
-zcat $CWD/audacious-plugins.libmtp8.diff.gz | patch -p1 || exit 1
-zcat $CWD/amidi-plug.fix-drct.diff.gz | patch -p1 || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -75,7 +84,6 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-chardet \
   --enable-amidiplug \
-  --enable-timidity \
   --disable-altivec \
   --program-prefix= \
   --program-suffix= \
@@ -116,11 +124,10 @@ fi
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL Mercurial-Access \
+  AUTHORS COPYING INSTALL Mercurial-Access README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
-#zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

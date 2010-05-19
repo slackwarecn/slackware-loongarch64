@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,10 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.49
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=${VERSION:-$(echo dnsmasq-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -34,7 +44,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf dnsmasq-$VERSION
-tar xvf $CWD/dnsmasq-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/dnsmasq-$VERSION.tar.?*z || exit 1
 cd dnsmasq-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -45,6 +55,7 @@ find . \
 
 zcat $CWD/dnsmasq.leasedir.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
+# Default CFLAGS are "-W -Wall -O2" - that's good enough.
 make $NUMJOBS all-i18n PREFIX=/usr MANDIR=/usr/man || exit 1
 make install-i18n PREFIX=/usr DESTDIR=$PKG MANDIR=/usr/man || exit 1
 chmod 0755 $PKG/usr/sbin/dnsmasq
@@ -77,8 +88,16 @@ zcat $CWD/rc.dnsmasq.gz > $PKG/etc/rc.d/rc.dnsmasq.new
 
 mkdir -p $PKG/usr/doc/dnsmasq-$VERSION
 cp -a \
-  CHANGELOG COPYING FAQ doc.html setup.html \
+  COPYING FAQ doc.html setup.html \
   $PKG/usr/doc/dnsmasq-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGELOG ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGELOG | head -n 1000 > $DOCSDIR/CHANGELOG
+  touch -r CHANGELOG $DOCSDIR/CHANGELOG
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

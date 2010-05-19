@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,13 +21,23 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.8.1
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-3}
+PKGNAM=diffutils
+VERSION=3.0
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-diffutils
+PKG=$TMP/package-${PKGNAM}
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
@@ -37,15 +47,17 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf diffutils-$VERSION
-tar xzvf $CWD/diffutils-$VERSION.tar.gz
-cd diffutils-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.xz
+cd $PKGNAM-$VERSION
 
 chown -R root:root .
 find . \
@@ -61,17 +73,17 @@ touch man/sdiff.1
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
   --program-prefix="" \
   --program-suffix="" \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
 make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-)
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then
@@ -96,15 +108,22 @@ if [ -d $PKG/usr/info ]; then
   )
 fi
 
-mkdir -p $PKG/usr/doc/diffutils-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING INSTALLME NEWS README THANKS \
-  $PKG/usr/doc/diffutils-$VERSION
+  AUTHORS COPYING NEWS README THANKS TODO \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-makepkg -l y -c n $TMP/diffutils-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

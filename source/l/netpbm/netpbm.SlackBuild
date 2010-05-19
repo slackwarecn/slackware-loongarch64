@@ -22,10 +22,18 @@
 
 
 PKGNAM=netpbm
-VERSION=${VERSION:-10.35.22}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-10.49.02}
+BUILD=${BUILD:-1}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -36,6 +44,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -46,7 +57,7 @@ mkdir -p $TMP # Do not create $PKG or 'make package' fails
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -59,10 +70,10 @@ find . \
 
 # Configure:
 if [ "$ARCH" = "x86_64" ]; then
-  zcat $CWD/Makefile.config.gz \
-    | sed -e '/^CFLAGS/s/^CFLAGS = .*/& -fPIC/' > Makefile.config
+  zcat $CWD/config.mk.gz \
+    | sed -e '/^CFLAGS/s/^CFLAGS = .*/& -fPIC/' > config.mk
 else
-  zcat $CWD/Makefile.config.gz > Makefile.config
+  zcat $CWD/config.mk.gz > config.mk
 fi
 
 # Build and install (does not like parallel build):
@@ -109,9 +120,14 @@ fi
 # Add a documentation directory:
 ( cd doc
   cp -a \
-  COPYRIGHT.PATENT GPL_LICENSE.txt HISTORY INSTALL Netpbm.programming \
+  COPYRIGHT.PATENT GPL_LICENSE.txt INSTALL Netpbm.programming \
   README* USERDOC copyright_summary lgpl_v21.txt \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+  if [ -r HISTORY ]; then
+    DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+    cat HISTORY | head -n 1000 > $DOCSDIR/HISTORY
+    touch -r HISTORY $DOCSDIR/HISTORY
+  fi
 )
 
 mkdir -p $PKG/install

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,11 +20,20 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=1.4.3.2
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo iptables-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -33,19 +42,22 @@ PKG=$TMP/package-iptables
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
   LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf iptables-$VERSION
-tar xvf $CWD/iptables-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/iptables-$VERSION.tar.?z* || exit 1
 cd iptables-$VERSION
 chown -R root:root .
 find . \

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2007-2008  Frank Caraballo <fecaraballo{at}gmail{dot}com>
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,10 +22,19 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-PRGNAM=libgphoto2
-VERSION=2.4.6
-ARCH=${ARCH:-x86_64}
+PKGNAM=libgphoto2
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -41,18 +50,21 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.?z* || exit 1
-cd $PRGNAM-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+cd $PKGNAM-$VERSION
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -67,8 +79,8 @@ CXXFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --disable-static \
   --mandir=/usr/man \
-  --docdir=/usr/doc/$PRGNAM-$VERSION \
-  --with-doc-dir=/usr/doc/$PRGNAM-$VERSION \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --with-doc-dir=/usr/doc/$PKGNAM-$VERSION \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -94,7 +106,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # Generate udev rules and hal device information files
 # First, we'll have to set (and export) some important variables
 LD_LIBRARY_PATH=$PKG/usr/lib${LIBDIRSUFFIX}
-CAMLIBS=$PKG/usr/lib${LIBDIRSUFFIX}/$PRGNAM/$VERSION 
+CAMLIBS=$PKG/usr/lib${LIBDIRSUFFIX}/$PKGNAM/$VERSION 
 LIBDIR=$PKG/usr/lib${LIBDIRSUFFIX}
 export LD_LIBRARY_PATH CAMLIBS LIBDIR
 # Generate udev rules
@@ -115,30 +127,37 @@ unset LD_LIBRARY_PATH CAMLIBS LIBDIR   # Unset these just in case
   for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 )
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   AUTHORS COPYING* HACKING INSTALL MAINTAINERS \
   NEWS README* TESTERS \
-  $PKG/usr/doc/$PRGNAM-$VERSION
-# The entire ChangeLog is excessive for most users:
-cat $PKG/usr/doc/$PRGNAM-$VERSION/ChangeLog | head -n 1000 > $PKG/usr/doc/$PRGNAM-$VERSION/CL
-mv $PKG/usr/doc/$PRGNAM-$VERSION/CL $PKG/usr/doc/$PRGNAM-$VERSION/ChangeLog
+  $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
 # The apidocs are huge, and probably only of interest to developers who will
 # very likely use the source code as a reference:
-rm -r $PKG/usr/doc/$PRGNAM-$VERSION/apidocs.html
-cat << EOF > $PKG/usr/doc/$PRGNAM-$VERSION/apidocs.html/README
+rm -r $PKG/usr/doc/$PKGNAM-$VERSION/apidocs.html
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/apidocs.html
+cat << EOF > $PKG/usr/doc/$PKGNAM-$VERSION/apidocs.html/README
 The complete API documentation may be found in the
 libgphoto2 source code archive.
 EOF
 
 # This library is not built, but it is useful for users to know why that is:
-cp -a camlibs/jl2005a/README.jl2005a $PKG/usr/doc/$PRGNAM-$VERSION/camlibs
-chmod 644 $PKG/usr/doc/$PRGNAM-$VERSION/camlibs/README.jl2005a
-chown root:root $PKG/usr/doc/$PRGNAM-$VERSION/camlibs/README.jl2005a
+cp -a camlibs/jl2005a/README.jl2005a $PKG/usr/doc/$PKGNAM-$VERSION/camlibs
+chmod 644 $PKG/usr/doc/$PKGNAM-$VERSION/camlibs/README.jl2005a
+chown root:root $PKG/usr/doc/$PKGNAM-$VERSION/camlibs/README.jl2005a
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

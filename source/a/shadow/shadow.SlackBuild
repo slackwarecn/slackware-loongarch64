@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,24 +20,40 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=4.0.3
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-18}
+VERSION=4.1.4.2
+BUILD=${BUILD:-3}
+
+NUMJOBS=${NUMJOBS:--j6}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-shadow
 
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
-
-# Explode the package framework:
-cd $PKG
-explodepkg $CWD/_shadow.tar.gz
-
 cd $TMP
 rm -rf shadow-$VERSION
-tar xjvf $CWD/shadow-$VERSION.tar.bz2
+tar xvf $CWD/shadow-$VERSION.tar.?z* || exit 1
 cd shadow-$VERSION
 
 chown -R root:root .
@@ -47,110 +63,91 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/shadow.shadowconfig.diff.gz | patch -p1 --verbose --backup || exit 1
-zcat $CWD/shadow.newgrp.nopam.gz | patch -p0 --verbose --backup || exit 1
-zcat $CWD/shadow.login.defs.diff.gz | patch -p0 --verbose --backup || exit 1
-zcat $CWD/shadow.newgrp.getlogin.gz | patch -p1 --verbose --backup || exit 1
-zcat $CWD/shadow.gcc34.diff.gz | patch -p1 --verbose --backup || exit 1
-zcat $CWD/shadow.remove.obsolete.options.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-if [ "$ARCH" = "x86_64" ]; then
-  zcat $CWD/shadow-4.0.3.x86_64.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-fi
-
+CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --sysconfdir=/etc \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/shadow-$VERSION \
   --disable-shared \
-  --disable-desrpc \
+  --without-libcrack \
   --build=$ARCH-slackware-linux
 
-make -j6 || exit 1
-cat etc/login.defs.linux > $PKG/etc/login.defs.new
-cat etc/login.access > $PKG/etc/login.access.new
+#  --enable-utmpx   # defaults to 'no'
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Fix user group = 100:
+zcat $CWD/useradd.gz > $PKG/etc/default/useradd
+
+# /bin/groups is provided by coreutils.
+rm -f $PKG/bin/groups
+find $PKG -name groups.1 -exec rm {} \;
+
+# Install a login.defs with unsurprising defaults:
+rm -f $PKG/etc/login.defs
+zcat $CWD/login.defs.gz > $PKG/etc/login.defs.new
+
+mv $PKG/etc/login.access $PKG/etc/login.access.new
+
+# I don't think this works well enough to recommend it.
+#mv $PKG/etc/limits $PKG/etc/limits.new
+rm -f $PKG/etc/limits
+
+# Add the friendly 'adduser' script:
 cat $CWD/adduser > $PKG/usr/sbin/adduser
+chmod 0755 $PKG/usr/sbin/adduser
 
-# These things aren't needed when using glibc, as it
-# supplies its own shadow functions:
-#cat lib/libshadow.a > $PKG/usr/lib/libshadow.a
-#cp -a lib/pwauth.h $PKG/usr/include/shadow/pwauth.h
-#cp -a lib/shadow_.h $PKG/usr/include/shadow/shadow.h
-#chmod 644 $PKG/usr/include/shadow/*
-#chown root.root $PKG/usr/include/shadow/*
+# Add sulogin to the package:
+cp -a src/sulogin $PKG/sbin
+( cd $PKG/bin ; ln -s ../sbin/sulogin )
 
-cd po
-for file in *.gmo ; do
-  mkdir -p $PKG/usr/share/locale/$(basename $file .gmo)/LC_MESSAGES
-  cat $file > $PKG/usr/share/locale/$(basename $file .gmo)/LC_MESSAGES/shadow.mo
-done
-cd ../src
-cat login > $PKG/bin/login
-cat su > $PKG/bin/su
-cat sulogin > $PKG/sbin/sulogin
-cat ../debian/shadowconfig.sh > $PKG/usr/sbin/shadowconfig
-for file in chpasswd dpasswd faillog groupadd groupdel groupmod grpck \
-lastlog logoutd mkpasswd newusers pwck useradd userdel usermod \
-pwconv pwunconv grpconv grpunconv vipw ; do
-  cat $file > $PKG/usr/sbin/$file
-done
-for file in chage chfn chsh expiry gpasswd newgrp passwd ; do
-  cat $file > $PKG/usr/bin/$file
-done
-cd ..
-cp contrib/adduser.sh /sbin/adduser
+# Add the empty faillog log file:
+mkdir -p $PKG/var/log
+touch $PKG/var/log/faillog.new
+
+# Put some stuff back in "old" locations and make symlinks for compat
+( cd $PKG/usr/bin
+  mv faillog ../sbin
+  mv lastlog ../sbin
+  ln -s ../sbin/faillog
+  ln -s ../sbin/lastlog
+)
+
+# Fixup a few permissions:
+chmod 4711 $PKG/bin/su
+chmod 4711 $PKG/usr/bin/*
+
+# Compress and if needed symlink the man pages:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
 mkdir -p $PKG/usr/doc/shadow-$VERSION
 cp -a \
-  ABOUT-NLS ChangeLog NEWS README TODO doc/* \
+  COPYING ChangeLog NEWS README TODO doc/{README*,HOWTO,WISHLIST,*.txt} \
   $PKG/usr/doc/shadow-$VERSION
-chmod 644 $PKG/usr/doc/shadow-$VERSION/*
+#chmod 0644 $PKG/usr/doc/shadow-$VERSION/*
 
-install_man_pages() {
-for file in chage.1 chfn.1 chsh.1 gpasswd.1 groups.1 login.1 newgrp.1 \
-passwd.1 su.1 ; do
-  if [ -r $file ]; then
-    mkdir -p $1/man1
-    gzip -9c $file > $1/man1/$file.gz
-  fi
-done
-for file in pw_auth.3 shadow.3 ; do
-  if [ -r $file ]; then
-    mkdir -p $1/man3
-    gzip -9c $file > $1/man3/$file.gz
-  fi
-done
-for file in faillog.5 limits.5 login.access.5 login.defs.5 passwd.5 \
-porttime.5 shadow.5 suauth.5 ; do
-  if [ -r $file ]; then
-    mkdir -p $1/man5
-    gzip -9c $file > $1/man5/$file.gz
-  fi
-done
-for file in chpasswd.8 dpasswd.8 faillog.8 groupadd.8 groupdel.8 groupmod.8 \
-grpck.8 lastlog.8 logoutd.8 mkpasswd.8 newusers.8 pwauth.8 pwck.8 pwconv.8 \
-shadowconfig.8 sulogin.8 useradd.8 userdel.8 usermod.8 vipw.8 ; do
-  if [ -r $file ]; then
-    mkdir -p $1/man8
-    gzip -9c $file > $1/man8/$file.gz
-  fi
-done
-}
-
-cd man
-  install_man_pages $PKG/usr/man
-  for dir in * ; do
-    if [ -d $dir ] ; then
-      ( cd $dir ; install_man_pages $PKG/usr/man/$dir )
-    fi
-  done
-cd ..
+# The entire ChangeLog is excessive for most users:
+cat $PKG/usr/doc/shadow-$VERSION/ChangeLog | head -n 2000 > $PKG/usr/doc/shadow-$VERSION/CL
+mv $PKG/usr/doc/shadow-$VERSION/CL $PKG/usr/doc/shadow-$VERSION/ChangeLog
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
-# Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/shadow-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/shadow-$VERSION-$ARCH-$BUILD.txz
 
-# Clean up the extra stuff:
-if [ "$1" = "--cleanup" ]; then
-  rm -rf $TMP/shadow-$VERSION
-  rm -rf $PKG
-fi

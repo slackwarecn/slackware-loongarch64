@@ -2,7 +2,7 @@
 
 # Copyright 2000 BSDi, Inc. Concord, CA, USA
 # Copyright 2001, 2002 Slackware Linux, Inc.  Concord, CA, USA
-# Copyright 2005, 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,9 +27,18 @@
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 
-VERSION=${VERSION:-0.9.8k}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo openssl-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 PKG1=$TMP/package-openssl
 PKG2=$TMP/package-ossllibs
@@ -43,7 +52,7 @@ export LC_ALL=C
 
 cd $TMP
 rm -rf $PKG1 $PKG2 openssl-$VERSION
-tar xvf $CWD/openssl-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/openssl-$VERSION.tar.?z* || exit 1
 cd openssl-$VERSION
 
 # Use .so.0, not .so.0.9.8:
@@ -56,15 +65,20 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 fi
 
-# Advertise TLS extensions only on TLS handshakes, not SSL:
-zcat $CWD/openssl.no-extssl.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 mkdir -p $PKG1/usr/doc/openssl-$VERSION
 cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
   LICENSE NEWS README README.ENGINE doc $PKG1/usr/doc/openssl-$VERSION
 find $PKG1/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \;
 find $PKG1/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \;
+
+# If there's a CHANGES file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG1/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 2000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
 
 # These are the known patent issues with OpenSSL:
 # name   #         expires
@@ -86,7 +100,23 @@ make $NUMJOBS || make || exit 1
 
 make install INSTALL_PREFIX=$PKG1 || exit 1
 
+# Use proper libdir:
 ( cd $PKG1/usr; mv lib lib${LIBDIRSUFFIX} )
+
+# Make the .so.? library symlinks:
+( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.* )
+
+# Move libraries, as they might be needed by programs that bring a network
+# mounted /usr online:
+
+mkdir $PKG1/lib${LIBDIRSUFFIX}
+( cd $PKG1/usr/lib${LIBDIRSUFFIX}
+  for file in lib*.so.?.* ; do
+    mv $file ../../lib${LIBDIRSUFFIX}
+    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+  done 
+  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
+)
 
 # Add a cron script to warn root if a certificate is going to expire soon:
 mkdir -p $PKG1/etc/cron.daily
@@ -100,9 +130,6 @@ mv $PKG1/etc/ssl/openssl.cnf $PKG1/etc/ssl/openssl.cnf.new
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ldconfig -l * 2> /dev/null )
-( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ln -sf libcrypto.so.0 libcrypto.so )
-( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ln -sf libssl.so.0 libssl.so )
 mv $PKG1/etc/ssl/man $PKG1/usr
 ( cd $PKG1/usr/man/man1 ; mv passwd.1 ssl_passwd.1 )
 ( cd $PKG1/usr/man/man3 ; mv rand.3 ssl_rand.3 )
@@ -131,9 +158,9 @@ cat $CWD/slack-desc.openssl > install/slack-desc
 /sbin/makepkg -l y -c n $TMP/${NAME1}.txz
 
 # Make runtime package:
-mkdir -p $PKG2/usr/lib${LIBDIRSUFFIX}
-( cd usr/lib${LIBDIRSUFFIX} ; cp -a lib*.so.*.*.* $PKG2/usr/lib${LIBDIRSUFFIX} )
-( cd $PKG2/usr/lib${LIBDIRSUFFIX} ; ldconfig -l * )
+mkdir -p $PKG2/lib${LIBDIRSUFFIX}
+( cd lib${LIBDIRSUFFIX} ; cp -a lib*.so.* $PKG2/lib${LIBDIRSUFFIX} )
+( cd $PKG2/lib${LIBDIRSUFFIX} ; ldconfig -l * )
 mkdir -p $PKG2/etc
 ( cd $PKG2/etc ; cp -a $PKG1/etc/ssl . )
 mkdir -p $PKG2/usr/doc/openssl-$VERSION
@@ -141,6 +168,15 @@ mkdir -p $PKG2/usr/doc/openssl-$VERSION
   cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
   LICENSE NEWS README README.ENGINE $PKG2/usr/doc/openssl-$VERSION
 )
+
+# If there's a CHANGES file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG2/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 2000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
+
 find $PKG2/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \;
 find $PKG2/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \;
 cd $PKG2

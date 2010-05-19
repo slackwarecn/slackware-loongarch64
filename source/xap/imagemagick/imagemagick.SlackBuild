@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,11 +20,35 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
 BUILD=${BUILD:-1}
 
+# NOTE:  This is to cope with ImageMagick version numbers such as 5.4.7-4,
+# which occur fairly often (but not always).  If these numbers are all the same,
+# then this is not one of those versions.
+
+# This is a bit messy, so we'll explain it well.  :-)
+
+# This is the base version number, which is needed to cd into the source tree
+BASEVER=6.5.9-6
+
+# This is the version number used in the source tarball filename
+FILEVER=6.5.9-6
+
+# This is the version number used in the package, where a version number cannot
+# contain a '-'
+PKGVER=6.5.9_6
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -35,6 +59,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -42,22 +69,6 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-imagemagick
 rm -rf $PKG
 mkdir -p $TMP $PKG
-
-# NOTE:  This is to cope with ImageMagick version numbers such as 5.4.7-4,
-# which occur fairly often (but not always).  If these numbers are all the same,
-# then this is not one of those versions.
-
-# This is a bit messy, so we'll explain it well.  :-)
-
-# This is the base version number, which is needed to cd into the source tree
-BASEVER=6.5.3-3
-
-# This is the version number used in the source tarball filename
-FILEVER=6.5.3-3
-
-# This is the version number used in the package, where a version number cannot
-# contain a '-'
-PKGVER=6.5.3_3
 
 # --with-x or not --with-x, that is the question.  It seems many other
 # distributions don't compile with X support, but it's been traditional
@@ -131,6 +142,14 @@ mv $PKG/usr/share/doc $PKG/usr
 cp -a \
   AUTHORS LICENSE NEWS NOTICE Platforms.txt QuickStart.txt README.txt \
   $PKG/usr/doc/Imag*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,17 @@
 
 
 VERSION=1.2.11
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -38,7 +46,13 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   ARCHOPTS=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  ARCHOPTS=""
 fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -68,7 +82,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --localstatedir=/var/lib \
   --disable-static \
-  --with-ipv6 \
+  --enable-ipv6 \
   $ARCHOPTS \
   --build=$ARCH-slackware-linux
 
@@ -78,6 +92,10 @@ make install DESTDIR=$PKG || exit 1
 # Add a .desktop file for the menus:
 mkdir -p $PKG/usr/share/applications
 cat $CWD/xmms.desktop > $PKG/usr/share/applications/xmms.desktop
+
+# Add an icon for the menus:
+mkdir -p $PKG/usr/share/pixmaps
+cat $CWD/xmms.png > $PKG/usr/share/pixmaps/xmms.png
 
 mkdir -p $PKG/usr/doc/xmms-$VERSION
 cp -a \

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2007-2009  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2007-2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -51,13 +51,21 @@ pkgbase() {
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 
-# A lot of this stuff just controls the package names this time:
-VERSION=${VERSION:-7.4}
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-1}
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
+# A lot of this stuff just controls the package names this time:
+VERSION=${VERSION:-7.5}
+BUILD=${BUILD:-1}
 PKGARCH=$ARCH
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -155,6 +163,10 @@ mkdir -p $SLACK_X_BUILD_DIR
           else
             continue
           fi
+        else
+          echo
+          echo "Building from source ${x_pkg}"
+          echo
         fi
         if grep -wq "^$PKGNAME" ${CWD}/modularize ; then
           # Set $PKG to a private dir for the modular package build:
@@ -194,6 +206,23 @@ mkdir -p $SLACK_X_BUILD_DIR
         fi
 
         make install DESTDIR=$PKG
+
+        mkdir -p $PKG/usr/doc/${PKGNAME}-${MODULAR_PACKAGE_VERSION}
+        cp -a \
+          AUTHORS* COPYING* INSTALL* README* NEWS* TODO* \
+          $PKG/usr/doc/${PKGNAME}-${MODULAR_PACKAGE_VERSION}
+
+        # If there's a ChangeLog, installing at least part of the recent history
+        # is useful, but don't let it get totally out of control:
+        if [ -r ChangeLog ]; then
+          DOCSDIR=$(echo $PKG/usr/doc/${PKGNAME}-$MODULAR_PACKAGE_VERSION)
+          cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+          touch -r ChangeLog $DOCSDIR/ChangeLog
+        fi
+
+        # Get rid of zero-length junk files:
+        find $PKG/usr/doc/${PKGNAME}-$MODULAR_PACKAGE_VERSION -type f -size 0 -exec rm --verbose "{}" \;
+        rmdir --verbose $PKG/usr/doc/${PKGNAME}-$MODULAR_PACKAGE_VERSION 2> /dev/null
    
         # Strip binaries:
         ( cd $PKG

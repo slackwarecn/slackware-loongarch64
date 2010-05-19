@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,10 +22,20 @@
 
 
 PKGNAM=desktop-file-utils
-VERSION=${VERSION:-0.15}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -37,6 +47,8 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 rm -rf $PKG
@@ -45,6 +57,8 @@ cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
+
+zcat $CWD/desktop-file-utils.quiet.warnings.diff.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -99,6 +113,14 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   AUTHORS COPYING* INSTALL NEWS README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

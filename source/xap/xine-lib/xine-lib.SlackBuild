@@ -22,17 +22,26 @@
 
 
 # Version on the tarball
-VERSION=1.1.16.3
+VERSION=1.1.17
 # Version used in the source directory to cd into
-DIRVER=1.1.16.3
+DIRVER=1.1.17
 # Version used for the Slackware package
-PKGVER=1.1.16.3
+PKGVER=1.1.17
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i686 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 # I would use "-march=i486 -mtune=i686" here as usual, but with XINE it's all or nothing.
 # I'd rather have it work well for the i686/Athlon crowd than suck for everyone.
-ARCH=${ARCH:-x86_64}
 TARGET=${TARGET:-$ARCH-pc-linux-gnu}
-BUILD=${BUILD:-6}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -52,6 +61,10 @@ cd $TMP
 rm -rf xine-lib-$VERSION
 tar xvf $CWD/xine-lib-$VERSION.tar.bz2 || exit 1
 cd xine-lib-$DIRVER || exit 1
+
+# revert to xine-lib-1.1.16.3 ffmpeg video decoder...
+# the new one doesn't compile:
+zcat $CWD/xine-lib-1.1.17.ff.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \

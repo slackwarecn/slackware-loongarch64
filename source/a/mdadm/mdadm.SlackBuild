@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,18 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.6.4
-ARCH=${ARCH:-x86_64}
+VERSION=2.6.9
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -33,11 +42,11 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf mdadm-$VERSION
-tar xjvf $CWD/mdadm-$VERSION.tar.bz2
+tar xjvf $CWD/mdadm-$VERSION.tar.bz2 || exit 1
 cd mdadm-$VERSION
 
-# Build this static... it's small enough.
-zcat $CWD/mdadm.static.small.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+# Build this static:
+zcat $CWD/mdadm.static.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 chown -R root:root .
 find . \

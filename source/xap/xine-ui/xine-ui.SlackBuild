@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,12 +21,21 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=0.99.5
+VERSION=${VERSION:-$(echo xine-ui-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # I would use "-march=i486 -mcpu=i686" here as usual, but with XINE it's all or nothing.
 # I'd rather have it work well for the i686/Athlon crowd than suck for everyone.
-ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i686 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 TARGET=${TARGET:-$ARCH-pc-linux-gnu}
-BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -40,6 +49,8 @@ cd $TMP
 rm -rf xine-ui-$VERSION
 tar xvf $CWD/xine-ui-$VERSION.tar.bz2 || exit 1
 cd xine-ui-$VERSION || exit 1
+
+zcat $CWD/xine-ui.png14.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \

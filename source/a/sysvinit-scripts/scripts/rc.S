@@ -7,8 +7,8 @@
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
-# Mount /proc right away:
-/sbin/mount -v proc /proc -n -t proc
+# Try to mount /proc:
+/sbin/mount -v proc /proc -n -t proc 2> /dev/null
 
 # Mount sysfs next, if the kernel supports it:
 if [ -d /sys ]; then
@@ -29,7 +29,7 @@ fi
 # promise to list all of them), and make any additional device nodes that you
 # need in the /dev directory.  Even USB and IEEE1394 devices will need to have
 # the modules loaded by hand if udev is not used with a 2.6 kernel.  So use it.  :-)
-if grep -wq sysfs /proc/mounts && grep -wq tmpfs /proc/filesystems ; then
+if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev ]; then
       /bin/sh /etc/rc.d/rc.udev start
@@ -59,7 +59,7 @@ if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
 fi
 
 # Open any volumes created by cryptsetup:
-if [ -f /etc/crypttab -a -x /sbin/cryptsetup.static ]; then
+if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
   # First, check for device-mapper support.
   if ! grep -wq device-mapper /proc/devices ; then
     # If device-mapper exists as a module, try to load it.
@@ -77,19 +77,19 @@ if [ -f /etc/crypttab -a -x /sbin/cryptsetup.static ]; then
     if echo $OPTS | grep -wq ro ; then LUKSOPTS="${LUKSOPTS} --readonly" ; fi
 
     # Skip LUKS volumes that were already unlocked (in the initrd):
-    /sbin/cryptsetup.static status $LUKS 1>/dev/null 2>/dev/null && continue
-    if /sbin/cryptsetup.static isLuks $DEV 2>/dev/null ; then
+    /sbin/cryptsetup status $LUKS 1>/dev/null 2>/dev/null && continue
+    if /sbin/cryptsetup isLuks $DEV 2>/dev/null ; then
       echo "Unlocking LUKS crypt volume '${LUKS}' on device '$DEV':"
       if [ -n "${PASS}" ]; then
         if [ -f ${PASS} ]; then
-          /sbin/cryptsetup.static ${LUKSOPTS} --key-file=${PASS} luksOpen $DEV $LUKS
+          /sbin/cryptsetup ${LUKSOPTS} --key-file=${PASS} luksOpen $DEV $LUKS
         elif [ "${PASS}" != "none" ]; then
           # A password field of 'none' indicates a line for swap:
-          echo "${PASS}" | /sbin/cryptsetup.static ${LUKSOPTS} luksOpen $DEV $LUKS
+          echo "${PASS}" | /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
         fi
       else
         for i in seq 1 3 ; do
-          /sbin/cryptsetup.static ${LUKSOPTS} luksOpen $DEV $LUKS </dev/tty0 >/dev/tty0 2>&1
+          /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS </dev/tty0 >/dev/tty0 2>&1
           [ $? -eq 0 ] && break
         done
       fi
@@ -97,14 +97,14 @@ if [ -f /etc/crypttab -a -x /sbin/cryptsetup.static ]; then
       # If any of the volumes is to be used as encrypted swap,
       # then encrypt it using a random key and run mkswap:
       echo "Creating encrypted swap on device '$DEV' mapped to '${LUKS}':"
-      /sbin/cryptsetup.static --cipher=aes --key-file=/dev/urandom --key-size=256 create $LUKS $DEV
+      /sbin/cryptsetup --cipher=aes --key-file=/dev/urandom --key-size=256 create $LUKS $DEV
       mkswap /dev/mapper/$LUKS
     fi
   done
 fi
 
 # Enable swapping:
-/sbin/swapon -a
+/sbin/swapon -a 2> /dev/null
 
 # Start FUSE, if requested:
 if [ -x /etc/rc.d/rc.fuse ]; then
@@ -322,7 +322,7 @@ fi
 # Enable swapping again.  This is needed in case a swapfile is used,
 # as it can't be enabled until the filesystem it resides on has been
 # mounted read-write.
-/sbin/swapon -a
+/sbin/swapon -a 2> /dev/null
 
 # Clean up some temporary files:
 rm -f /var/run/* /var/run/*/* /var/run/*/*/* /etc/nologin \

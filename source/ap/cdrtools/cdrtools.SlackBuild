@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,12 +21,21 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.01.01a57
-ZISOFSTOOLS=1.0.8
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo cdrtools-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+BUILD=${BUILD:-1}
 
+ZISOFSTOOLS=1.0.8
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -46,20 +55,28 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-INS_BASE=/usr make -e $NUMJOBS || exit 1
+make -e $NUMJOBS INS_BASE=/usr || exit 1
 # Without this second run, cdda2wav is skipped...
-INS_BASE=/usr make -e || exit 1
-INS_BASE=$PKG/usr make -e install || exit 1
+make -e INS_BASE=/usr || exit 1
+make -e install INS_BASE=/usr DEST_DIR=$PKG || exit 1
+
+# I don't know why this couldn't be "/etc/cdrtools" or something, but since
+# getty uses it already I'm not going to argue the point.
+mv $PKG/etc/default/cdrecord $PKG/etc/default/cdrecord.new
+
+# These don't need to be in the package, IMHO.
+rm -rf $PKG/usr/include \
+       $PKG/usr/lib/profiled \
+       $PKG/usr/lib/*.a \
+       $PKG/usr/man/man5
+
+# Next big hole? ;)   (don't ship rscsi)
+rm -r $PKG/usr/sbin
+rm -f $PKG/etc/default/rscsi $PKG/usr/man/man1/rscsi.1
 
 # Remove dupes:
 rm -rf $PKG/usr/share/doc
 rmdir $PKG/usr/share
-
-# I don't know why this couldn't be "/etc/cdrtools" or something, but since
-# getty uses it already I'm not going to argue the point.
-mkdir -p $PKG/etc/default
-cat cdrecord/cdrecord.dfl > $PKG/etc/default/cdrecord.new
-cat rscsi/rscsi.dfl > $PKG/etc/default/rscsi.new
 
 mkdir -p $PKG/usr/doc/cdrtools-$VERSION
 cp -a \
@@ -68,7 +85,6 @@ cp -a \
   $PKG/usr/doc/cdrtools-$VERSION
 chown -R root:root $PKG/usr/doc/cdrtools-$VERSION/*
 find $PKG/usr/doc/cdrtools-$VERSION -type f -exec chmod 644 {} \;
-
 (
    cd mkisofs
    mkdir -p $PKG/usr/doc/cdrtools-$VERSION/mkisofs
@@ -87,23 +103,11 @@ find $PKG/usr/doc/cdrtools-$VERSION -type f -exec chmod 644 {} \;
    chown root:root $PKG/usr/doc/cdrtools-$VERSION/cdda2wav/*
    chmod 644 $PKG/usr/doc/cdrtools-$VERSION/cdda2wav/*
 )
-
-# These don't need to be in the package, IMHO.
-rm -rf $PKG/usr/include $PKG/usr/man/man5 $PKG/usr/man/man1/cdda2ogg.1 $PKG/usr/lib/profiled $PKG/usr/lib/*.a
-
-# Fix permissions:
-cd $PKG
-find . -type d -exec chmod 755 {} \;
-chown root:root -R $PKG
-find $PKG/usr/man -type f -exec chmod 644 {} \;
-find $PKG/usr/man -type f -exec gzip -9 {} \;
-chmod 755 $PKG/usr/bin/*
-
-( cd $PKG/usr/bin ; ln -sf mkisofs mkhybrid )
-
-# Next big hole? ;)
-rm -r $PKG/usr/sbin
-rm -f $PKG/usr/doc/cdrtools-$VERSION/README.rscsi
+# The entire ChangeLog is excessive for most users:
+cat $PKG/usr/doc/cdrtools-$VERSION/Changelog | head -n 1000 > $PKG/usr/doc/cdrtools-$VERSION/CL
+mv $PKG/usr/doc/cdrtools-$VERSION/CL $PKG/usr/doc/cdrtools-$VERSION/Changelog
+cat $PKG/usr/doc/cdrtools-$VERSION/mkisofs/ChangeLog | head -n 1000 > $PKG/usr/doc/cdrtools-$VERSION/mkisofs/CL
+mv $PKG/usr/doc/cdrtools-$VERSION/mkisofs/CL $PKG/usr/doc/cdrtools-$VERSION/mkisofs/ChangeLog
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
@@ -120,15 +124,24 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-./configure --prefix=/usr
+CFLAGS="-O2" ./configure --prefix=/usr --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
 cat mkzftree > $PKG/usr/bin/mkzftree
-chmod 755 $PKG/usr/bin/mkzftree
+chmod 0755 $PKG/usr/bin/mkzftree
 cat mkzftree.1 | gzip -9c > $PKG/usr/man/man1/mkzftree.1.gz
 mkdir -p $PKG/usr/doc/zisofs-tools-$ZISOFSTOOLS
 cp -a \
   CHANGES COPYING INSTALL README zisofs.magic \
   $PKG/usr/doc/zisofs-tools-$ZISOFSTOOLS
+
+# Fix permissions:
+cd $PKG
+find . -type d -exec chmod 755 {} \;
+chown root:root -R $PKG
+find $PKG/usr/man -type f -exec chmod 644 {} \;
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+find $PKG/usr/doc/cdrtools-$VERSION -type f -exec chmod 0644 {} \;
+chmod 0755 $PKG/usr/bin/*
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

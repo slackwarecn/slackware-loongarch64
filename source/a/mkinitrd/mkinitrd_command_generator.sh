@@ -47,6 +47,7 @@ FSTAB=${FSTAB:-"/etc/fstab"} # so we can test with alternate fstab files
 SOURCE_TREE=${SOURCE_TREE:-"/boot/initrd-tree"}
 CLEAR_TREE=${CLEAR_TREE:-1}
 KEYMAP=${KEYMAP:-"us"}
+UDEV=${UDEV:-0}
 WAIT=${WAIT:-1}
 
 # A basic explanation of the commandline parameters:
@@ -532,6 +533,7 @@ configurations are optional and you can stick to the defaults." 11 72 3 \
 "KEYMAP" "Select keyboard layout (default: US)" \
 			   $([ $USING_LUKS = 1 ] && echo on || echo off) \
 "RESUMEDEV" "Select device for 'suspend-to-disk' feature" off \
+"UDEV" "Use UDEV in the initrd for device configuration" off \
 "WAIT" "Add delay to allow detection of slow disks at boot" off)
   if [ "$?" != "0" ]; then
     exit 1
@@ -702,6 +704,10 @@ through the whole list of choices." \
     [ -n "$KEYMAP" ] && KEYMAP=$(basename $KEYMAP .map)
   fi
 
+  if echo $EXTRA | grep -q UDEV ; then
+    UDEV=1
+  fi
+
   if echo $EXTRA | grep -q RESUMEDEV ; then
     # Print information about swap partitions:
     FREERAM=$(free -k | grep "^Mem:" | tr -s ' ' | cut -d' ' -f2)
@@ -772,6 +778,10 @@ if [ -n "$KEYMAP" -a "$KEYMAP" != "us" ]; then
   # Add non-us keyboard mapping:
   MKINIT="$MKINIT -l $KEYMAP"
 fi
+if [ $UDEV -eq 1 ]; then
+  # Add UDEV support:
+  MKINIT="$MKINIT -u"
+fi
 if [ -n "$WAIT" -a $WAIT -ne 1 ]; then
   # Add non-default wait time:
   MKINIT="$MKINIT -w $WAIT"
@@ -815,6 +825,7 @@ elif [ "$EMIT" = "conf" ]; then
 	RESUMEDEV="$RESUMEDEV"
 	RAID="$USING_RAID"
 	LVM="$USING_LVM"
+	UDEV="$UDEV"
 	WAIT="$WAIT"
 	EOT
 fi

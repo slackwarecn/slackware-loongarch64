@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,10 +22,20 @@
 
 
 VERSION=3.02
-PATCHLEVEL=pl3
-ARCH=${ARCH:-x86_64}
+PATCHLEVEL=pl4
+BUILD=${BUILD:-2}
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=1
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -36,24 +46,22 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-xpdf
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf xpdf-$VERSION
-tar xvf $CWD/xpdf-$VERSION.tar.gz || exit 1
+tar xvf $CWD/xpdf-$VERSION.tar.?z || exit 1
 cd xpdf-$VERSION || exit 1
-
-zcat $CWD/xpdf-resizefix.diff.gz | patch -p1 --verbose || exit 1
-cat $CWD/xpdf-3.02pl1.patch | patch -p1 --verbose || exit 1
-cat $CWD/xpdf-3.02pl2.patch | patch -p1 --verbose || exit 1
-cat $CWD/xpdf-3.02pl3.patch | patch -p1 --verbose || exit 1
-zcat $CWD/xpdf_3.02-1.3.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -62,7 +70,14 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/xpdfrc.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit
+zcat $CWD/patches/xpdf-resizefix.diff.gz | patch -p1 --verbose || exit 1
+cat $CWD/patches/xpdf-3.02pl1.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/xpdf-3.02pl2.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/xpdf-3.02pl3.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/xpdf-3.02pl4.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/xpdf_3.02-1.3.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/xpdfrc.diff.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -71,62 +86,14 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --sysconfdir=/etc \
   --with-gzip \
-  --with-freetype2-includes=/usr/include/freetype2
+  --with-freetype2-includes=/usr/include/freetype2 \
+  --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-mkdir -p $PKG/etc
-cat doc/sample-xpdfrc > $PKG/etc/xpdfrc
-mkdir -p $PKG/usr/share/applications
-cat $CWD/xpdf.desktop > $PKG/usr/share/applications/xpdf.desktop
-mkdir -p $PKG/usr/share/icons
-cat xpdf/xpdfIcon.xpm > $PKG/usr/share/icons/xpdfIcon.xpm
-
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-chmod 755 $PKG/usr/bin/*
+chmod 0755 $PKG/usr/bin/*
 gzip -9 $PKG/usr/man/man?/*
-
-mkdir -p $PKG/usr/doc/xpdf-$VERSION
-cp -a \
-  ANNOUNCE CHANGES COPYING INSTALL README \
-  $PKG/usr/doc/xpdf-$VERSION
-chmod 644 $PKG/usr/doc/xpdf-$VERSION/*
-
-# Add additional language support:
-for language in xpdf-arabic xpdf-chinese-simplified xpdf-chinese-traditional xpdf-cyrillic xpdf-greek xpdf-hebrew xpdf-japanese xpdf-korean xpdf-latin2 xpdf-thai xpdf-turkish ; do
-  rm -rf ${language}
-  tar xf $CWD/${language}.tar.gz
-  ( cd ${language}
-    zcat $CWD/${language}.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-    chown -R root:root .
-    find . -type f -exec chmod 644 {} \;
-    cat add-to-xpdfrc >> $PKG/etc/xpdfrc
-    mkdir -p $PKG/usr/share/xpdf/$(echo ${language} | cut -f2- -d -)
-    cp -a * $PKG/usr/share/xpdf/$(echo ${language} | cut -f2- -d -)
-  )  
-done
-
-mkdir -p $PKG/install
-mv $PKG/etc/xpdfrc $PKG/etc/xpdfrc.new
-cat << EOF > $PKG/install/doinst.sh
-#!/bin/sh
-config() {
-  NEW="\$1"
-  OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"
-  # If there's no config file by that name, mv it over:
-  if [ ! -r \$OLD ]; then
-    mv \$NEW \$OLD
-  elif [ "\$(cat \$OLD | md5sum)" = "\$(cat \$NEW | md5sum)" ]; then # toss the redundant copy
-    rm \$NEW
-  fi
-  # Otherwise, we leave the .new copy for the admin to consider...
-}
-config etc/xpdfrc.new
-EOF
-cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # We'll use the versions of these from the poppler derived work (if they exist here):
 ( cd $PKG/usr/bin
@@ -136,6 +103,51 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
     rm -f ${file}.1.gz
   done
 )
+
+# Don't clobber /etc/xpdfrc
+mkdir -p $PKG/etc
+cat doc/sample-xpdfrc > $PKG/etc/xpdfrc
+mv $PKG/etc/xpdfrc $PKG/etc/xpdfrc.new
+
+# Add desktop menu entry and icon
+mkdir -p $PKG/usr/share/{applications,pixmaps}
+cat $CWD/xpdf.desktop > $PKG/usr/share/applications/xpdf.desktop
+cat xpdf/xpdfIcon.xpm > $PKG/usr/share/pixmaps/xpdfIcon.xpm
+
+# Add additional language support:
+for language in xpdf-arabic xpdf-chinese-simplified xpdf-chinese-traditional xpdf-cyrillic xpdf-greek xpdf-hebrew xpdf-japanese xpdf-korean xpdf-latin2 xpdf-thai xpdf-turkish ; do
+  rm -rf ${language}
+  tar xf $CWD/lang/${language}.tar.gz
+  ( cd ${language}
+    zcat $CWD/lang/${language}.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+    chown -R root:root .
+    find . -type f -exec chmod 644 {} \;
+    cat add-to-xpdfrc >> $PKG/etc/xpdfrc.new
+    mkdir -p $PKG/usr/share/xpdf/$(echo ${language} | cut -f2- -d -)
+    cp -a * $PKG/usr/share/xpdf/$(echo ${language} | cut -f2- -d -)
+  )  
+done
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/usr/doc/xpdf-$VERSION
+cp -a \
+  ANNOUNCE CHANGES COPYING INSTALL README \
+  $PKG/usr/doc/xpdf-$VERSION
+chmod 0644 $PKG/usr/doc/xpdf-$VERSION/*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 # Build the package:
 cd $PKG

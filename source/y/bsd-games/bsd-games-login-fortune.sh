@@ -1,7 +1,11 @@
 #!/bin/sh
 # Print a fortune cookie for interactive shells:
-if [[ $- = *i* ]]; then
+
+case $- in
+*i* )  # We're interactive
   echo
   fortune fortunes fortunes2 linuxcookie
   echo
-fi
+  ;;
+esac
+

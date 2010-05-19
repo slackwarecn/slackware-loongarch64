@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,12 +22,21 @@
 
 
 PKGNAM=pidgin
-VERSION=${VERSION:-2.5.9}
-PIDGINENC=${PIDGINENC:-3.0}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-2.7.0}
+PIDGINENC=${PIDGINENC:-3.1}
 BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:-" -j7 "}
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j6 "}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -38,18 +47,23 @@ mkdir -p $TMP $PKG
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
   LIBDIRSUFFIX=""
+  ARCHQUADLET=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
+  ARCHQUADLET=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+  ARCHQUADLET=""
 elif [ "$ARCH" = "arm" ]; then
-  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+  ARCHQUADLET="-gnueabi"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  ARCHQUADLET=""
 fi
 
 cd $TMP
@@ -80,15 +94,19 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-dbus \
   --enable-gnutls=yes \
   --enable-nss=no \
+  --disable-vv \
   --enable-gtkspell \
   --enable-cyrus-sasl \
-  --with-perl-lib=vendor \
+  --enable-perl \
   --disable-meanwhile \
   --disable-avahi \
   --disable-nm \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+
+# Fix install location:
+grep -lr -- "lib/perl" . | xargs sed -i 's?lib/perl?lib'"$LIBDIRSUFFIX"'/perl?g'
 
 # Build and install:
 make $NUMJOBS || make || exit 1
@@ -99,11 +117,21 @@ eval $(perl '-V:archlib')
 eval $(perl '-V:privlib')
 VENDORPERL="$(echo $archlib | sed -e "s/perl5/perl5\/vendor_perl/")"
 
-find $PKG -type f -name perllocal.pod -exec mv {} $PKG/$VENDORPERL/Pidgin.pod \;
+mkdir -vpm755 $PKG/$VENDORPERL/
+find $PKG -type f -name perllocal.pod -exec mv -fv {} $PKG/$VENDORPERL/Pidgin.pod \;
+# Fix install location for 64bit:
+sed -i 's?/lib/perl?/lib'"$LIBDIRSUFFIX"'/perl?g' $PKG/$VENDORPERL/Pidgin.pod
 mkdir -p $PKG/usr/man/man3
-find $PKG/usr/share/man -type f -name *.3 -exec mv {} $PKG/usr/man/man3 \;
+find $PKG/usr/share/man -type f -name *.3 -exec mv -fv {} $PKG/usr/man/man3 \;
 rm -rf $PKG/usr/share/man
 rm -r $PKG$privlib
+# This is empty:
+rmdir $PKG/usr/lib$LIBDIRSUFFIX/perl[0-9]*/$ARCH-linux-thread-multi/
+
+# In case of unwanted junk dirs on 64-bit...  this may fail, but doesn't hurt:
+rmdir $PKG/usr/lib/perl[0-9]*/$ARCH-linux-thread-multi/
+rmdir $PKG/usr/lib/perl[0-9]*
+rmdir $PKG/usr/lib
 
 # This removes our DESTDIR from the packlist filenames, to keep perl's
 # internal inventories consistent and correct.
@@ -142,7 +170,11 @@ done
   --with-nspr-libs=/usr/lib${LIBDIRSUFFIX}/seamonkey/ \
   --program-prefix="" \
   --program-suffix="" \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+
+  # Fix install location:
+  grep -lr -- "lib/perl" . | xargs sed -i 's?lib/perl?lib'"$LIBDIRSUFFIX"'/perl?g'
+
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 ) || exit 1

@@ -47,6 +47,9 @@ echo "Building kdepim-$VERSION..."
 tar xvf $CWD/../src/kdepim-$VERSION.tar.?z* || exit 1
 cd kdepim-$VERSION
 
+# Install the kleopatra headers, or else kopete-cryptography will not build:
+cat $CWD/kdepim-4.4.0-install-headers.patch | patch -p0 --verbose || exit 1
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -57,6 +60,7 @@ find . \
 mkdir -p build
 cd build
   cmake \
+    $KDE_OPT_ARGS \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -65,7 +69,7 @@ cd build
     -DSYSCONF_INSTALL_DIR=/etc/kde \
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
     ..
-   make $NUMJOBS || exit 1
+   make $NUMJOBS || make || exit 1
    make install DESTDIR=$PKG || exit 1
 cd -
 

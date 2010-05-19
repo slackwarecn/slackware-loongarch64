@@ -20,9 +20,18 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=0.2.3
-ARCH=${ARCH:-x86_64}
+VERSION=0.4.2
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -35,6 +44,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -45,7 +57,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf wv2-$VERSION
-tar xvf $CWD/wv2-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/wv2-$VERSION.tar.?z* || exit 1
 cd wv2-$VERSION
 chown -R root:root .
 find . \
@@ -54,19 +66,21 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --disable-debug \
-  --disable-static \
-  --program-prefix="" \
-  --program-suffix="" \
-  $ARCH-slackware-linux
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+mkdir -p build
+cd build
+  cmake \
+    $KDE_OPT_ARGS \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DSYSCONF_INSTALL_DIR=/etc \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    ..
+   make $NUMJOBS || exit 1
+   make install DESTDIR=$PKG || exit 1
+cd -
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

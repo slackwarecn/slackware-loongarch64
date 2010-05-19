@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,10 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.6.4
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=${VERSION:-$(echo subversion-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -35,6 +45,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -46,7 +59,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf subversion-$VERSION
-tar xvf $CWD/subversion-$VERSION.tar.xz || exit 1
+tar xvf $CWD/subversion-$VERSION.tar.?z* || exit 1
 cd subversion-$VERSION || exit 1
 
 chown -R root:root .
@@ -115,7 +128,7 @@ rm -rf $PKG/usr/build
 
 mkdir -p $PKG/usr/doc/subversion-$VERSION
 cp -a \
-  BUGS CHANGES COMMITTERS COPYING* HACKING INSTALL README TRANSLATING doc \
+  BUGS COMMITTERS COPYING* HACKING INSTALL README TRANSLATING doc \
   $PKG/usr/doc/subversion-$VERSION
 # too big && useless for most || if you think not, can be found in the source tarball
 rm -rf $PKG/usr/doc/subversion-$VERSION/doc/tools
@@ -135,20 +148,20 @@ rm -rf $PKG/usr/doc/subversion-$VERSION/doc/tools
    -exec chmod 644 {} \;
 )
 
+# If there's a CHANGES file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
+
 # This removes our DESTDIR from the packlist filenames, to keep perl's
 # internal inventories consistent and correct.
 find $PKG -name .packlist | while read plist ; do
-  sed -e "s%/share/man%/man%g" \
-      -e "s%$PKG%%g" \
-      -e "s%\.1$%\.1\.gz%g" \
-      -e "s%\.2$%\.2\.gz%g" \
-      -e "s%\.3$%\.3\.gz%g" \
-      -e "s%\.3pm$%\.3pm\.gz%g" \
-      -e "s%\.4$%\.4\.gz%g" \
-      -e "s%\.5$%\.5\.gz%g" \
-      -e "s%\.6$%\.6\.gz%g" \
-      -e "s%\.7$%\.7\.gz%g" \
-      -e "s%\.8$%\.8\.gz%g" \
+  sed  -e "s%$PKG%%g" \
+       -e "s%/share/man%/man%g" \
+      -re "s%\.([1-9]n?|3pm)$%&.gz%g   # extend man filenames for .gz" \
       ${plist} > ${plist}.new
       mv -f ${plist}.new ${plist}
 done

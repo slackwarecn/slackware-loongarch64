@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,18 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=kbd
-VERSION=1.15
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-3}
+VERSION=1.15.2
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:--j4}
 
@@ -40,7 +49,7 @@ cd $TMP
 
 # Extract source:
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/sources/$PKGNAM-$VERSION.tar.bz2
+tar xvf $CWD/sources/$PKGNAM-$VERSION.tar.bz2 || exit 1
 cd $PKGNAM-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -59,12 +68,10 @@ find . -perm 555 -exec chmod 755 {} \;
 
 # Apply patches:
 # These are taken from Fedora's SRPM:
-zcat $CWD/sources/kbd-1.15-po.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15.2-po.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/sources/kbd-1.15-keycodes-man.patch | patch -p1 --verbose || exit 1
-zcat $CWD/sources/kbd-1.15-sparc.patch | patch -p1 --verbose || exit 1
 zcat $CWD/sources/kbd-1.15-unicode_start.patch | patch -p1 --verbose || exit 1
 zcat $CWD/sources/kbd-1.15-resizecon-x86_64.patch | patch -p1 --verbose || exit 1
-zcat $CWD/sources/kbd-1.15-quiet_doc.patch | patch -p1 --verbose || exit 1
 
 # This is from Fedora's spec file:
 # 7-bit maps are obsolete; so are non-euro maps
@@ -122,9 +129,17 @@ install -vpm755 $CWD/setconsolefont $PKG/usr/bin/
 # Copy docs:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  ChangeLog COPYING README doc/* \
+  COPYING* README* doc/* \
   $PKG/usr/doc/$PKGNAM-$VERSION
 rm -f $PKG/usr/doc/$PKGNAM-$VERSION/kbd.FAQ.sgml
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 # Additional keymaps:
 # This is the keymap for Speakup (http://linux-speakup.org) users:
@@ -136,7 +151,9 @@ tar xvf $CWD/sources/speakup-jfw.tar.gz
   cat readme > $PKG/usr/share/kbd/keymaps/i386/qwerty/speakup-jfw.readme )
 
 # Create the default run control script which will set the
-# console font to the default:
+# console font to the "default"...  though this might not be
+# the same state as if setfont were not used at all.
+# For that reason, default the script to non-executable.
 mkdir -pm755 $PKG/etc/rc.d
 cat << EOF > $PKG/etc/rc.d/rc.font.new
 #!/bin/sh
@@ -146,16 +163,38 @@ cat << EOF > $PKG/etc/rc.d/rc.font.new
 #
 setfont -v
 EOF
-chmod 755 $PKG/etc/rc.d/rc.font.new
+chmod 644 $PKG/etc/rc.d/rc.font.new
 
 # Create package post-install script:
 mkdir -p $PKG/install
 cat << EOF > $PKG/install/doinst.sh
-#if [ -r etc/rc.d/rc.font ]; then
-#  rm -f etc/rc.d/rc.font.new
-#else
-#  mv etc/rc.d/rc.font.new etc/rc.d/rc.font
-#fi
+
+config() {
+  NEW="\$1"
+  OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"
+  # If there's no config file by that name, mv it over:
+  if [ ! -r \$OLD ]; then
+    mv \$NEW \$OLD
+  elif [ "\$(cat \$OLD | md5sum)" = "\$(cat \$NEW | md5sum)" ]; then
+    # toss the redundant copy
+    rm \$NEW
+  fi
+  # Otherwise, we leave the .new copy for the admin to consider...
+}
+
+# Leave any new rc.font with the same permissions as the old one:
+# This is a kludge, but it's because there's no --reference option
+# on busybox's 'chmod':
+if [ -e etc/rc.d/rc.font ]; then
+  if [ -x etc/rc.d/rc.font ]; then
+    chmod 755 etc/rc.d/rc.font.new
+  else
+    chmod 644 etc/rc.d/rc.font.new
+  fi
+fi
+# Then config() it:
+config etc/rc.d/rc.font.new
+
 EOF
 
 # Compress man pages:

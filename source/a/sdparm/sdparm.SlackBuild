@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,16 +22,24 @@
 
 
 PKGNAM=sdparm
-VERSION=${VERSION:-1.01}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
+NUMJOBS=${NUMJOBS:-"-j6"}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
-rm -rf $PKG
-mkdir -p $TMP $PKG
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -39,11 +47,15 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2"
+else
+  SLKCFLAGS="-O2"
 fi
 
+rm -rf $PKG
+mkdir -p $TMP $PKG
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xjvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -68,13 +80,15 @@ CFLAGS="$SLKCFLAGS" \
   --build=$ARCH-slackware-linux
 
 # Build and install:
-make -j4 || exit 1
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Strip binaries:
 ( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
+    xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | \
+    xargs strip --strip-unneeded 2> /dev/null
 )
 
 # Compress and link manpages, if any:
@@ -96,12 +110,19 @@ fi
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   AUTHORS COPYING CREDITS INSTALL NEWS README notes.txt \
-  doc/sdparm.html \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
 

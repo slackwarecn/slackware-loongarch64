@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,16 +21,24 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.14.15
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=${VERSION:-$(echo libgsf-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-libgsf
-rm -rf $PKG
-mkdir -p $TMP $PKG
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -41,11 +49,16 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
+rm -rf $PKG
+mkdir -p $TMP $PKG
 cd $TMP
 rm -rf libgsf-$VERSION
-tar xvf $CWD/libgsf-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/libgsf-$VERSION.tar.?z* || exit 1
 cd libgsf-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -64,7 +77,6 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --disable-static \
   --without-gnome-vfs \
-  --without-gio \
   --without-bonobo \
   --build=$ARCH-slackware-linux
 
@@ -92,6 +104,14 @@ mkdir -p $PKG/usr/doc/libgsf-$VERSION
 cp -a \
   AUTHORS BUGS COPYING* HACKING NEWS README TODO \
   $PKG/usr/doc/libgsf-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

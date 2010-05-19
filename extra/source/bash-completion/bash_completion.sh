@@ -3,7 +3,7 @@ if [ "$PS1" ] && [ $bmajor -eq 2 ] && [ $bminor '>' 04 ] \
    && [ -f /etc/bash_completion ]; then # interactive shell
         # Source completion code
         . /etc/bash_completion
-elif [ "$PS1" ] && [ $bmajor -eq 3 ] \
+elif [ "$PS1" ] && [ $bmajor -ge 3 ] \
    && [ -f /etc/bash_completion ]; then # interactive shell
         # Source completion code
         . /etc/bash_completion

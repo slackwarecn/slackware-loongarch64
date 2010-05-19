@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -46,6 +46,11 @@ cd $TMP
 echo "Building kdebindings-$VERSION..."
 tar xvf $CWD/../src/kdebindings-$VERSION.tar.?z* || exit 1
 cd kdebindings-$VERSION
+
+zcat $CWD/kdebindings-len-ptr-rfloat.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/kdebindings-ruby-env.h.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/kdebindings-rubyconfig.h.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -58,6 +63,7 @@ mkdir -p build
 cd build
     #-DCMAKE_BACKWARDS_COMPATIBILITY:STRING="2.2" \
   cmake \
+    $KDE_OPT_ARGS \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -65,17 +71,15 @@ cd build
     -DMAN_INSTALL_DIR=/usr/man \
     -DSYSCONF_INSTALL_DIR=/etc/kde \
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DENABLE_PHONON:BOOL=OFF \
-    -DENABLE_PHONON_SMOKE:BOOL=OFF \
     -DENABLE_QYOTO:BOOL=OFF \
     -DENABLE_QSCINTILLA_SHARP:BOOL=OFF \
     -DENABLE_KIMONO:BOOL=OFF \
     -DBUILD_csharp:BOOL=OFF \
-    -DENABLE_KHTML:BOOL=OFF \
-    -DENABLE_PHONON_RUBY:BOOL=OFF \
     ..
-   # kdebindings has (in the past, on several occasions) barfed on multijobs, so no $NUMJOBS here:
-   make || exit 1
+   # kdebindings has (in the past, on several occasions) barfed on multijobs,
+   # so no $NUMJOBS here. We run make twice because the first time is not
+   # 100% successful either...:
+   make || make || exit 1
    make install DESTDIR=$PKG || exit 1
 cd -
 

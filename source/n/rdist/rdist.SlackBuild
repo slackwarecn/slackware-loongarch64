@@ -1,6 +1,5 @@
 #!/bin/sh
-
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,59 +19,108 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=6.1.5
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+
+PKGNAM=rdist
+VERSION=${VERSION:-6.1.5}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-rdist
-rm -rf $PKG
-mkdir -p $TMP $PKG
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
-# Explode the package framework:
-cd $PKG
-explodepkg $CWD/_rdist.tar.gz
+if [ "$TMP" = "" ]; then
+  TMP=/tmp
+fi
+PKG=$TMP/package-${PKGNAM}
+rm -rf $PKG
+mkdir -p $PKG
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+elif [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2"
+fi
 
 cd $TMP
-rm -rf rdist-$VERSION
-tar xvf $CWD/rdist-$VERSION.tar.gz || exit 1
-cd rdist-$VERSION || exit 1
+
+rm -rf $PKGNAM-$VERSION
+tar xf $CWD/$PKGNAM-$VERSION.tar.gz || exit 1
+
+cd ${PKGNAM}-$VERSION
+
+# Make sure ownerships and permissions are sane:
 chown -R root:root .
-find . \
-  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \; -o \
-  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-  -exec chmod 644 {} \;
+find . -perm 666 -exec chmod 644 {} \;
+find . -perm 664 -exec chmod 644 {} \;
+find . -perm 600 -exec chmod 644 {} \;
+find . -perm 444 -exec chmod 644 {} \;
+find . -perm 400 -exec chmod 644 {} \;
+find . -perm 440 -exec chmod 644 {} \;
+find . -perm 777 -exec chmod 755 {} \;
+find . -perm 775 -exec chmod 755 {} \;
+find . -perm 511 -exec chmod 755 {} \;
+find . -perm 711 -exec chmod 755 {} \;
+find . -perm 555 -exec chmod 755 {} \;
 
-zcat $CWD/rdist-$VERSION.diff.gz | patch -p1 --backup
-# Modern tools require patching:
-zcat $CWD/rdist-6.1.5-bison.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/rdist-6.1.5-cleanup.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/rdist-6.1.5-varargs.diff.gz | patch -p1 --verbose || exit 1
+# Patch:
+for diff in $CWD/*.diff.gz ; do
+  zcat $diff | patch -p1 --verbose || exit 1
+done
 
+# Build:
 make $NUMJOBS || make || exit 1
 
-cd src
-strip rdist rdistd
-cat rdist > $PKG/usr/bin/rdist
-cat rdistd > $PKG/usr/bin/rdistd
+# Install:
+mkdir -p $PKG/usr/bin
+cp -a src/{rdist,rdistd} $PKG/usr/bin
 
-cd ../doc
-cat rdist.man | gzip -9c > $PKG/usr/man/man1/rdist.1.gz
-cat rdistd.man | gzip -9c > $PKG/usr/man/man1/rdistd.1.gz
+mkdir -p $PKG/usr/man/man1
+cat doc/rdist.man | gzip -9c > $PKG/usr/man/man1/rdist.1.gz
+cat doc/rdistd.man | gzip -9c > $PKG/usr/man/man1/rdistd.1.gz
 
-cd ..
-mkdir -p $PKG/usr/doc/rdist-$VERSION
-cp -a README $PKG/usr/doc/rdist-$VERSION
-chmod 644 $PKG/usr/doc/rdist-$VERSION/*
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a \
+  $CWD/rdist-eu-license.txt Copyright README \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+
+# Strip binaries:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
-cd $PKG
-/sbin/makepkg -l y -c n $TMP/rdist-$VERSION-$ARCH-$BUILD.txz
+cd $TMP/package-${PKGNAM}
+makepkg -l y -c n ../${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
 

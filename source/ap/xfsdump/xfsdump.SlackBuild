@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,11 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=3.0.1
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo xfsdump-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -54,7 +63,7 @@ autoconf
 
 ./configure \
   --prefix=/usr \
-  --sbindir=/sbin \
+  --sbindir=/usr/sbin \
   --bindir=/usr/sbin \
   --enable-gettext=yes \
   --mandir=/usr/man \
@@ -98,6 +107,16 @@ mkdir -p $PKG/usr/doc/xfsdump-$VERSION/html
 ( cd doc
   cp -a *.gif *.html $PKG/usr/doc/xfsdump-$VERSION/html
 )
+
+rm -f $PKG/usr/doc/xfsdump-$VERSION/CHANGES.gz
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r doc/CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat doc/CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r doc/CHANGES $DOCSDIR/CHANGES
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

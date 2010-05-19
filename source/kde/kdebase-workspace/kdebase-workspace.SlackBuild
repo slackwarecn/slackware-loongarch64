@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -53,9 +53,15 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+cat $CWD/kcmshell_root_privilege.patch | patch -p1 --verbose || exit 1
+
+# Increase the timeout to accomodate slow-to-initialize video chipset drivers:
+zcat $CWD/kdebase-workspace.kdm.server.timeout.diff.gz | patch -p1 --verbose || exit 1
+
 mkdir -p build
 cd build
   cmake \
+    $KDE_OPT_ARGS \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -72,6 +78,8 @@ if [ -d $PKG/usr/man ]; then
   gzip -9 $PKG/usr/man/man?/*
 fi
 
+# Use ck-launch-session in runlevel 3,
+# to start and attach a ConsoleKit session to the X session:
 mkdir -p $PKG/etc/X11/xinit
 cat $CWD/xinit/xinitrc.kde > $PKG/etc/X11/xinit/xinitrc.kde
 chmod 0755 $PKG/etc/X11/xinit/xinitrc.kde
@@ -95,6 +103,9 @@ mv $PKG/usr/share/config/kdm/backgroundrc $PKG/usr/share/config/kdm/backgroundrc
 mkdir -p $PKG/etc/kde
 mv $PKG/usr/share/config/kdm $PKG/etc/kde
 ( cd $PKG/usr/share/config ; ln -sf ../../../etc/kde/kdm . )
+
+# Move the polkit dbus configuration files to the proper place:
+mv $PKG/etc/kde/dbus-1 $PKG/etc/
 
 # This is fubar:
 rm -f $PKG/usr/share/icons/hicolor/index.theme

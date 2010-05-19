@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,11 +25,20 @@
 # Currently maintained by:  Patrick Volkerding <volkerdi@slackware.com>
 
 
-VERSION=5.0.84
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo mysql-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mysql
@@ -43,6 +52,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -51,6 +63,13 @@ cd $TMP
 rm -rf mysql-$VERSION
 tar xvf $CWD/mysql-$VERSION.tar.?z* || exit 1
 cd mysql-$VERSION
+
+if ls $CWD/*.diff.gz 1> /dev/null 2> /dev/null ; then
+  for patch in $CWD/*.diff.gz ; do
+    zcat $patch | patch -p1 --verbose || exit 1
+  done
+fi
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -70,19 +89,35 @@ CXX=gcc \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --enable-assembler \
-  --with-raid \
   --without-debug \
   --enable-thread-safe-client \
-  --without-bench \
   --with-extra-charsets=complex \
-  --with-vio \
-  --with-openssl \
+  --with-ssl=/usr \
+  --enable-largefile \
+  --with-innodb \
+  --with-readline \
   --build=$ARCH-slackware-linux
 #
 # --without-readline
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG
+
+# install additional headers needed for building external engine plugins
+for i in sql include regex; do
+  for j in $i/*.h; do
+    install -m 644 $j $PKG/usr/include/mysql/
+  done
+done
+
+mkdir -p $PKG/usr/include/mysql/atomic
+for i in include/atomic/*.h; do
+  install -m 644 $i $PKG/usr/include/mysql/atomic/
+done
+
+# The ./configure option to omit this has gone away, so we'll omit it
+# the old-fashioned way.  It's all in the source tarball if you need it.
+rm -rf $PKG/usr/sql-bench
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -94,13 +129,15 @@ cp support-files/my-{huge,large,medium,small}.cnf $PKG/etc
 # Install docs
 mkdir -p $PKG/usr/doc/mysql-$VERSION/Docs
 cp -a \
-  COPYING* MIRRORS README* \
+  COPYING* EXCEPTIONS* INSTALL-SOURCE README* \
   $PKG/usr/doc/mysql-$VERSION
 ( cd Docs
+  # Seems most of the Docs/* are gone, but we'll leave the cp stuff
+  # in case it returns.
   cp -a INSTALL-BINARY *.html *.txt Flags \
      $PKG/usr/doc/mysql-$VERSION/Docs )
-# Too large to justify since the .html version is right there:
-rm $PKG/usr/doc/mysql-$VERSION/Docs/manual.txt
+## Too large to justify since the .html version is right there:
+#rm $PKG/usr/doc/mysql-$VERSION/Docs/manual.txt
 find $PKG/usr/doc/mysql-$VERSION -type f -exec chmod 0644 {} \;
 
 # This is the directory where databases are stored
@@ -127,20 +164,20 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Add some handy library symlinks:
-if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/mysql/libmysqlclient.so.15 ]; then
+if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/mysql/libmysqlclient.so.16 ]; then
   ( cd $PKG/usr/lib${LIBDIRSUFFIX}
-    rm -f libmysqlclient.so libmysqlclient.so.15
+    rm -f libmysqlclient.so libmysqlclient.so.16
     ln -sf mysql/libmysqlclient.so .
-    ln -sf mysql/libmysqlclient.so.15 .
+    ln -sf mysql/libmysqlclient.so.16 .
   )
 else
   exit 1
 fi
-if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/mysql/libmysqlclient_r.so.15 ]; then
+if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/mysql/libmysqlclient_r.so.16 ]; then
   ( cd $PKG/usr/lib${LIBDIRSUFFIX}
-    rm -f libmysqlclient_r.so libmysqlclient_r.so.15
+    rm -f libmysqlclient_r.so libmysqlclient_r.so.16
     ln -sf mysql/libmysqlclient_r.so .
-    ln -sf mysql/libmysqlclient_r.so.15 .
+    ln -sf mysql/libmysqlclient_r.so.16 .
   )
 else
   exit 1
@@ -172,11 +209,15 @@ if [ -d $PKG/usr/info ]; then
   )
 fi
 
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
 # Build package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/mysql-$VERSION-$ARCH-$BUILD.txz
 
-if [ "$1" == "--cleanup" ]; then
-   cd $TMP
-   rm -rf mysql-$VERSION
-fi

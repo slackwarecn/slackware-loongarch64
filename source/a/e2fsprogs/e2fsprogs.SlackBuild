@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,20 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=${VERSION:-1.41.8}
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+VERSION=${VERSION:-$(echo e2fsprogs*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -34,6 +44,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -53,11 +66,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Disable --uuidd builds the same functionality into libuuid.*.
-# It's better that way.
-# Keep the included libblkid and libuuid for now, but we'll be using the 
-# system-wide one from util-linux-ng sooner or later...
-# fsck.* will also be moving to u-l-ng
+# Disable libblkid and libuuid, as we'll be using the ones in u-l-ng
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix= \
@@ -69,8 +78,8 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --docdir=/usr/doc/e2fsprogs-$VERSION \
   --enable-elf-shlibs \
-  --enable-libblkid \
-  --enable-libuuid \
+  --disable-libblkid \
+  --disable-libuuid \
   --disable-uuidd \
   --build=$ARCH-slackware-linux
 
@@ -99,6 +108,7 @@ mv $PKG/lib${LIBDIRSUFFIX}/pkgconfig $PKG/lib${LIBDIRSUFFIX}/*.so \
     ln -sf /lib${LIBDIRSUFFIX}/$(readlink $i) $i ; 
   done
 )
+# findfs is intentionally left out here - we use the one in util-linux-ng
 ( cd $PKG/sbin
   rm -f \
     mkfs.ext2 mkfs.ext3 mkfs.ext4 mkfs.ext4dev \
@@ -108,7 +118,6 @@ mv $PKG/lib${LIBDIRSUFFIX}/pkgconfig $PKG/lib${LIBDIRSUFFIX}/*.so \
   ln -sf mke2fs mkfs.ext4
   ln -sf mke2fs mkfs.ext4dev
   ln -sf tune2fs e2label
-  ln -sf tune2fs findfs
   cat << EOF > fsck.ext2
 #!/bin/sh
 exec /sbin/e2fsck -C 0 \$*

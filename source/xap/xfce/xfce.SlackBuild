@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2003  Slackware Linux, Inc., Concord, CA, USA
-# Copyright 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,19 +22,34 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=4.6.1
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-8}
 
 # A few tarballs have different versions; handle them here
-XDT_VERS=4.6.0		# xfce4-dev-tools version
-EXO_VERS=0.3.101	# exo version
+XDT_VERS=4.7.2		# xfce4-dev-tools version
+# We're going to ship xdt from git (targeting xfce-4.8) since it's not used 
+# for building release tarballs anyway, but it's handy to have around for
+# building from git, and some folks might want to do that later...
+EXO_VERS=0.3.106	# exo version
 THUNAR_VERS=1.0.1	# thunar version
 GXE_VERS=2.6.0		# gtk-xfce-engine version
-TERM_VERS=0.4.0		# terminal version
+TERM_VERS=0.4.4		# terminal version
 MPAD_VERS=0.2.16	# mousepad version
 XFWMTHEME_VERS=4.6.0	# xfwm4-themes version
+SETTINGS_VERS=4.6.4	# xfce4-settings version
+PANEL_VERS=4.6.3	# xfce4-panel version
+XFCEGUI_VERS=4.6.3	# libxfcegui4 version
 
 NUMJOBS=${NUMJOBS:--j6}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp/xfce-build-dir}
@@ -49,6 +64,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -66,12 +84,12 @@ for file in \
  xfce4-dev-tools-$XDT_VERS.tar.$COMPRESSION \
  libxfce4util-$VERSION.tar.$COMPRESSION \
  xfconf-$VERSION.tar.$COMPRESSION \
- libxfcegui4-$VERSION.tar.$COMPRESSION \
+ libxfcegui4-$XFCEGUI_VERS.tar.$COMPRESSION \
  libxfce4menu-$VERSION.tar.$COMPRESSION \
  exo-$EXO_VERS.tar.$COMPRESSION \
- xfce4-panel-$VERSION.tar.$COMPRESSION \
+ xfce4-panel-$PANEL_VERS.tar.$COMPRESSION \
  Thunar-$THUNAR_VERS.tar.$COMPRESSION \
- xfce4-settings-$VERSION.tar.$COMPRESSION \
+ xfce4-settings-$SETTINGS_VERS.tar.$COMPRESSION \
  xfce4-session-$VERSION.tar.$COMPRESSION \
  xfdesktop-$VERSION.tar.$COMPRESSION \
  xfwm4-$VERSION.tar.$COMPRESSION \
@@ -100,23 +118,28 @@ do
       if [ "$file" = "orage-$VERSION.tar.$COMPRESSION" ]; then
         zcat $CWD/patches/xfcalendar.desktop.in.diff.gz | patch -p1 || exit 1
       fi
-      # Fix http://bugzilla.xfce.org/show_bug.cgi?id=5461
-      # and enable python bindings in libexo
-      if [ "$file" = "exo-$EXO_VERS.tar.$COMPRESSION" ]; then
-        zcat $CWD/patches/exo_fix_quoting.diff.gz | patch -p0 || exit 1
-        PACKAGE_SPECIFIC_OPTIONS="--enable-python"
-      fi
-      # Make Terminal respect --docdir
+      # Fix Terminal's title bar and preferences problems with GTK+ 2.18:
       if [ "$file" = "Terminal-$TERM_VERS.tar.$COMPRESSION" ]; then
-        zcat $CWD/patches/terminal-0.4.0-fixup_docdir.diff.gz | patch -p1 || exit 1
+        zcat $CWD/patches/terminal.gtk.2.18.fix.diff.gz | patch -p1 || exit 1
       fi
       # Make Thunar respect --docdir
       if [ "$file" = "Thunar-$THUNAR_VERS.tar.$COMPRESSION" ]; then
         zcat $CWD/patches/thunar-1.0.1-fixup_docdir.diff.gz | patch -p1 || exit 1
+        zcat $CWD/patches/thunar-fix_umask_properly.diff.gz | patch -p1 || exit 1
+        # Port to PNG 1.4.0:
+        zcat $CWD/patches/thunar-1.0.1-png14.diff.gz | patch -p1 || exit 1
       fi
       # Fix the missing education icon in the desktop menu
       if [ "$file" = "xfdesktop-$VERSION.tar.$COMPRESSION" ]; then
         zcat $CWD/patches/xfdesktop-fix_education_icon.diff.gz | patch -p1 || exit 1
+      fi
+      # Port xfce4-settings to libxklavier-5.x:
+      if [ "$file" = "xfce4-settings-$SETTINGS_VERS.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/xfce4-settings.libxklavier5.diff.gz | patch -p1 || exit 1
+      fi
+      # Launch xfce through consolekit so that ck enabled stuff works in xfce:
+      if [ "$file" = "xfce-utils-$VERSION.tar.$COMPRESSION" ]; then
+        zcat $CWD/patches/xfce-utils.xinitrc.consolekit.diff.gz | patch -p1 || exit 1
       fi
     # End patches/package-specific stuff
 
@@ -147,6 +170,14 @@ do
       NEWS NOTES README* THANKS TODO example.gtkrc-2.0 \
      $PKG/usr/doc/xfce-$VERSION/$(basename $file .tar.$COMPRESSION) \
      2> /dev/null || true
+
+    # If there's a ChangeLog, installing at least part of the recent history
+    # is useful, but don't let it get totally out of control:
+    if [ -r ChangeLog ]; then
+      DOCSDIR=$(echo $PKG/usr/doc/xfce-$VERSION/$(basename $file .tar.$COMPRESSION))
+      cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+      touch -r ChangeLog $DOCSDIR/ChangeLog
+    fi
 
   cd - ;
 done

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,17 @@
 
 PKGNAM=transfig
 VERSION=${VERSION:-3.2.4}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -61,8 +70,10 @@ find . \
 zcat $CWD/transfig.diff.gz | sed -e "s#/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" \
   | patch -p1 --verbose || exit 1
 zcat $CWD/transfig.3.2.4-gcc4.patch.gz | patch -p1 --verbose || exit 1
-xmkmf
-make Makefiles
+zcat $CWD/transfig.png14.nodither.diff.gz | patch -p1 --verbose || exit 1
+
+xmkmf || exit 1
+make Makefiles || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1

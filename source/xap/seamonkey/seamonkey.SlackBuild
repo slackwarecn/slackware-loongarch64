@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,27 +20,23 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-VERSION=${VERSION:-1.1.17}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
 BUILD=${BUILD:-1}
-
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "arm" ]; then
-  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "armel" ]; then
-  SLKCFLAGS="-O2 -march=armv4t"
+else
   LIBDIRSUFFIX=""
 fi
 
@@ -51,15 +47,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 
 cd $TMP
-rm -rf mozilla
-tar xvf $CWD/seamonkey-${VERSION}.source.tar.xz || exit 1
-cd mozilla || exit 1
-
-# Add /usr/lib/mozilla/plugins to MOZ_PLUGINS_PATH:
-zcat $CWD/seamonkey.moz_plugin_path.diff.gz \
-  | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
-  | patch -p1 --verbose || exit 1
-rm -f xpfe/bootstrap/mozilla.in.orig
+rm -rf comm-1.9.1
+tar xvf $CWD/seamonkey-${VERSION}.source.tar.?z* || exit 1
+cd comm-1.9.1 || exit 1
 
 # Make sure the perms/ownerships are sane:
 chown -R root:root .
@@ -71,7 +61,7 @@ find . \
 
 # Fix a long standing bug that's prevented staying current on GTK+.
 # Thanks to the BLFS folks.  :-)
-cat >> layout/build/Makefile.in << EOF
+cat >> mozilla/layout/build/Makefile.in << EOF
 
 ifdef MOZ_ENABLE_CANVAS
 EXTRA_DSO_LDOPTS += \$(XLDFLAGS) -lX11 -lXrender
@@ -83,7 +73,7 @@ chown -R root:root .
 BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
 ./configure --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-optimize="$CFLAGS" \
+  --enable-optimize=-O2 \
   --disable-debug \
   --with-default-mozilla-five-home=/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION} \
   --enable-strip \
@@ -99,7 +89,6 @@ BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
   --without-system-nspr \
   --with-system-zlib \
   --with-system-jpeg \
-  --with-system-png \
   --with-system-mng \
   --enable-application=suite \
   --enable-xft \
@@ -107,15 +96,25 @@ BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
   --target=$ARCH-slackware-linux \
   --build=$ARCH-slackware-linux
 
-BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 make $NUMJOBS -s export || exit 1
-BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 make $NUMJOBS -s libs || exit 1
-BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 DESTDIR=$PKG make install || exit 1
+  # --with-system-png
+make $NUMJOBS || exit 1
+DESTDIR=$PKG make install || exit 1
 
-# Install nss headers.
-mkdir -p $PKG/usr/include/seamonkey-${VERSION}/nss
-find security/nss/lib -name "*.h" -type f -exec cp -a {} $PKG/usr/include/seamonkey-${VERSION}/nss \;
-chown -R root:root $PKG/usr/include/seamonkey-${VERSION}/nss
-chmod 644 $PKG/usr/include/seamonkey-${VERSION}/nss/*
+# Install js/nspr/nss headers.
+for includedir in js nspr nspr/obsolete nspr/private nss plugin xpcom ; do
+  mkdir -p $PKG/usr/include/seamonkey-${VERSION}/$includedir
+  cp -aL mozilla/dist/include/${includedir}/*.h $PKG/usr/include/seamonkey-${VERSION}/$includedir
+done
+cp -aL mozilla/dist/include/js/*.tbl mozilla/dist/include/js/*.msg $PKG/usr/include/seamonkey-${VERSION}/js
+cp -aL mozilla/dist/include/*.h $PKG/usr/include/seamonkey-${VERSION}
+cp -aL mozilla/dist/sdk/include/* $PKG/usr/include/seamonkey-${VERSION}
+( cd $PKG/usr/include/seamonkey-${VERSION}/plugin
+  for file in ../j*.h ; do
+    ln -sf $file .
+  done
+)
+chown -R root:root $PKG/usr/include/seamonkey-${VERSION}
+find $PKG/usr/include/seamonkey-${VERSION} -name "*.h" -type f -exec chmod 644 {} \;
 # Create a more generic include files symlink:
 ( cd $PKG/usr/include
   if [ ! -e seamonkey ]; then
@@ -123,23 +122,23 @@ chmod 644 $PKG/usr/include/seamonkey-${VERSION}/nss/*
   fi
 )
 
-# Let the nspr be found by gxine:
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig; ln -s seamonkey-nspr.pc nspr.pc )
+# Install pkgconfig files:
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+for file in $CWD/pkgconfig/* ; do
+cat $file \
+  | sed -e "s/@LIB@/lib${LIBDIRSUFFIX}/" \
+  -e "s/@VERSION@/$VERSION/" \
+  > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/$(basename $file)
+done
 
-# A Better Way to handle the problem below is simply to add /usr/lib/seamonkey
-# to /etc/ld.so.conf.  After all, the various Mozilla offshoots all set an
-# LD_LIBRARY_PATH to make sure *they* use the right libraries anyway, and as
-# far as I know seamonkey has the only set of Mozilla development libraries
-# right now.  Plus, doing it this way doesn't stomp all over efforts by people
-# who would like to use seamonkey-nss-solibs.
-
-## Link some libraries into /usr/lib.  Unless this is done, some things (like gxine)
-## will be unable to load them, even if they linked with them successfully.
-#( cd $PKG/usr/lib${LIBDIRSUFFIX} && ( for somelib in libmozjs.so libnspr4.so libnss3.so libplc4.so libplds4.so libsmime3.so libsoftokn3.so libssl3.so ; do
-#    # Link to it:
-#    ln -sf seamonkey-${VERSION}/$somelib .
-#  done )
-#)
+# Add symlinks for the pkgconfig files:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+  ln -s seamonkey-js.pc js.pc
+  ln -s seamonkey-nspr.pc nspr.pc
+  ln -s seamonkey-nss.pc nss.pc
+  ln -s seamonkey-plugin.pc plugin.pc
+  ln -s seamonkey-xpcom.pc xpcom.pc
+)
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then
@@ -163,7 +162,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # This remains the standard plugin directory for all browsers.
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins
 
-# Some software won't compile without this symlink:
+# This is traditional.
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
   if [ ! -e seamonkey ]; then
     ln -sf seamonkey-${VERSION} seamonkey
@@ -180,9 +179,11 @@ chown -R root:root $PKG/usr/share/pixmaps
 chmod 644 $PKG/usr/share/pixmaps/*
 
 mkdir -p $PKG/usr/doc/seamonkey-$VERSION
-cp -a \
-  LEGAL LICENSE README.txt \
-  $PKG/usr/doc/seamonkey-$VERSION
+( cd mozilla
+  cp -a \
+    LEGAL LICENSE README.txt \
+    $PKG/usr/doc/seamonkey-$VERSION
+)
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
@@ -198,8 +199,8 @@ mkdir -p $TMP/package-seamonkey-solibs/usr/doc
 cp -a $PKG/usr/doc/seamonkey-$VERSION $TMP/package-seamonkey-solibs/usr/doc
 mkdir -p $TMP/package-seamonkey-solibs/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}
 for file in libfreebl3.chk libfreebl3.so libmozjs.so libnspr4.so libnss3.so \
-  libnssckbi.so libplc4.so libplds4.so libsmime3.so libsoftokn3.chk \
-  libsoftokn3.so libssl3.so ; do
+  libnssckbi.so libnssutil3.so libplc4.so libplds4.so libsmime3.so \
+  libsoftokn3.chk libsoftokn3.so libssl3.so ; do
   cp -a $PKG/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}/$file \
   $TMP/package-seamonkey-solibs/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}
 done

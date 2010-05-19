@@ -11,7 +11,7 @@ installation to Logical Volumes.  In Slackware, the installer has never
 supported this, but the gurus usually would find a way to create logical
 volumes and install or migrate their Slackware onto those.  Having your
 Slackware installed fully on LVM was near impossible until Slackware 12.0.
-Slackware 13.0 has improved support for LVM built into the installer.
+Slackware 13.1 has improved support for LVM built into the installer.
 
 
 Preparing Logical Volumes (LV)
@@ -110,9 +110,9 @@ We are going to 'chroot' into our fresh installation:
     Next, while we are in the chroot, create the initrd with LVM support -
 in the example command line I assume that the root filesystem is 'ext3',
 we used the LV '/dev/myvg/root' as the root device, and are running the
-Slackware 13.0 default SMP kernel '2.6.29.6-smp':
+Slackware 13.1 default SMP kernel '2.6.33.4-smp':
 
-  # mkinitrd -c -k 2.6.29.6-smp -m ext3 -f ext3 -r /dev/myvg/root -L
+  # mkinitrd -c -k 2.6.33.4-smp -m ext3 -f ext3 -r /dev/myvg/root -L
 
     The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd, so open the
@@ -124,7 +124,7 @@ filename added by 'liloconfig' is '/boot/vmlinuz' which is a symbolic link to
 the huge SMP kernel.  Remember that we need a 'generic' kernel with the initrd.
 The end result should look somewhat like this:
 
-  image = /boot/vmlinuz-generic-smp-2.6.29.6-smp
+  image = /boot/vmlinuz-generic-smp-2.6.33.4-smp
     initrd = /boot/initrd.gz
     root = /dev/myvg/root
     label = linux

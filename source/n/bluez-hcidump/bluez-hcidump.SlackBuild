@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006-2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,17 +23,32 @@
 
 PKGNAM=bluez-hcidump
 VERSION=${VERSION:-1.42}
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -54,6 +69,9 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Patch to build with bluez+>4.61
+zcat $CWD/hci.c_for_bluez-4.61.patch.gz | patch -p1 || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -98,8 +116,16 @@ fi
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING ChangeLog INSTALL NEWS README \
+  AUTHORS COPYING* INSTALL NEWS README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 #zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

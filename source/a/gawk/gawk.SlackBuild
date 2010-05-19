@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,22 +20,34 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=3.1.6
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+PKGNAM=gawk
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j6}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gawk
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-elif [ "$ARCH" = "i486" ]; then
+if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 rm -rf $PKG
@@ -43,57 +55,82 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf gawk-$VERSION
-tar xjvf $CWD/gawk-$VERSION.tar.bz2
+tar xvf $CWD/gawk-$VERSION.tar.xz
 cd gawk-$VERSION
 
 chown -R root:root .
+
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
-make -j3 || exit 1
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 ( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
+    xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | \
+    xargs strip --strip-unneeded 2> /dev/null
 )
+
 ( cd $PKG/usr/bin
   ln -sf gawk-$VERSION gawk
   ln -sf pgawk-$VERSION pgawk
 )
+
 mkdir -p $PKG/bin
 mv $PKG/usr/bin/gawk* $PKG/bin
 mv $PKG/usr/bin/awk $PKG/bin
+
 ( cd $PKG/usr/bin
   ln -sf ../../bin/awk .
   ln -sf ../../bin/gawk .
   ln -sf ../../bin/gawk-$VERSION .
 )
+
 ( cd $PKG/usr/info
   rm dir
   gzip -9 *
 )
+
 ( cd $PKG/usr/man/man1
   rm -f pgawk.1
   gzip -9 *
   ln -sf gawk.1.gz awk.1.gz
   ln -sf gawk.1.gz pgawk.1.gz
 )
+
 mkdir -p $PKG/usr/doc/gawk-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING FUTURES INSTALL LIMITATIONS NEWS POSIX.STD \
-  PROBLEMS README README_d \
+  ABOUT-NLS AUTHORS COPYING* FUTURES INSTALL LIMITATIONS NEWS POSIX.STD \
+  PROBLEMS README* \
   $PKG/usr/doc/gawk-$VERSION
-find $PKG/usr/doc/gawk-$VERSION -type d -exec chmod 755 {} \;
-find $PKG/usr/doc/gawk-$VERSION -type f -exec chmod 644 {} \;
+
+# We don't need to run the GPL:
+chmod 644 $PKG/usr/doc/gawk-$VERSION/COPYING*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/gawk-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/gawk-$VERSION-$ARCH-$BUILD.txz
 

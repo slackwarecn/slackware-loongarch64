@@ -2,8 +2,8 @@
 
 # Slackware build script for hplip
 
-# Copyright 2006-2009  Robby Workman, Northport, Alabama, USA
-# Copyright 2006-2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006-2010  Robby Workman, Northport, Alabama, USA
+# Copyright 2006-2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,12 +23,21 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PRGNAM=hplip
-VERSION=${VERSION:-3.9.4b}
-ARCH=${ARCH:-x86_64}
+PKGNAM=hplip
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -39,19 +48,22 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
-cd $PRGNAM-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -59,9 +71,6 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
-
-# Fix a segfault bug
-zcat $CWD/hplip.prevent_segfault.diff.gz | patch -p1 || exit 1
 
 # Fix udev rules for current versions of udev
 sed -i 's/SYSFS/ATTR/g' data/rules/*.rules
@@ -81,6 +90,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-docdir=/usr/doc/hplip-$VERSION \
   --with-hpppddir=/usr/share/cups/model/HP \
   --with-drvdir=/usr/share/cups/drv/hp \
+  --enable-hpijs-install \
   --enable-shadow-build \
   --enable-scan-build \
   --enable-gui-build \
@@ -108,5 +118,5 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

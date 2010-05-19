@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,12 +23,22 @@
 
 PKGNAM=alpine
 VERSION=${VERSION:-2.00}
-ARCH=${ARCH:-x86_64}
-ALPINEBUILD=${ALPINEBUILD:-2}
+ALPINEBUILD=${ALPINEBUILD:-3}
 IMAPDBUILD=${IMAPDBUILD:-2}
 PINEPGP=${PINEPGP:-0.18.0}
 
-NUMJOBS=${NUMJOBS:-" -j7 "}
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+# There are reports that > 1 won't work here:
+NUMJOBS=${NUMJOBS:-" -j1 "}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -86,11 +96,6 @@ zcat $CWD/alpine.tech-notes.txt.diff.gz | patch -p1 --verbose || exit 1
 
 # Build and install:
 # Since we build non-compliant to RFC3501 we have to answer 'y' half-way:
-echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix
-echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix
-echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix
-echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix
-echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix
 echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix || exit 1
 
 make install SSLTYPE=unix DESTDIR=$PKG || exit 1

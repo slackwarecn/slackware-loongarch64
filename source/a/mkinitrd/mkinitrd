@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 2004  Slackware Linux, Inc., Concord, CA, USA
 # Copyright 2004  Patrick J. Volkerding, Concord, CA, USA
-# Copyright 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,24 +22,28 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Modified by Robby Workman <rworkman@slackware.com> 26 November 2007
-# to add support for mkinitrd.conf - No additional license terms added
+#   to add support for mkinitrd.conf - No additional license terms added
 # Modified by Alan Hicks <alan@slackware.com> 27 November 2007 to enable
-# passing arguments to kernel modules - No additional license terms added
-# volkerdi - feel free to remove these :)
+#   passing arguments to kernel modules - No additional license terms added
+#   volkerdi - feel free to remove these :)
 # Modified by Eric Hameleers <alien@slackware.com> 3 April 2008
-# to add support custom keymaps - No additional license terms added
+#   to add support custom keymaps - No additional license terms added
 # Modified by Patrick Volkerding <volkerdi@slackware.com> 17 Dec 2008
-# Added support to bail out if kernel modules are requested for a kernel
-# version that is not installed (thanks to Eric Hameleers), be more
-# verbose about showing modules added to the initrd (thanks to
-# Ellington Santos), and if "mount" returns /dev/root as the root device,
-# use readlink to resolve the device pointed to by the /dev/root
-# symlink, changed modprobe to use --ignore-install to avoid catching
-# custom "install" lines and causing /sbin/modprobe to be copied to the
-# initrd (thanks to Ken Milmore).
-# Of course, license terms remain unchanged.
+#   Added support to bail out if kernel modules are requested for a kernel
+#   version that is not installed (thanks to Eric Hameleers), be more
+#   verbose about showing modules added to the initrd (thanks to
+#   Ellington Santos), and if "mount" returns /dev/root as the root device,
+#   use readlink to resolve the device pointed to by the /dev/root
+#   symlink, changed modprobe to use --ignore-install to avoid catching
+#   custom "install" lines and causing /sbin/modprobe to be copied to the
+#   initrd (thanks to Ken Milmore).
+#   Of course, license terms remain unchanged.
+# Modified by Eric Hameleers <alien@slackware.com> 3 March 2010
+#   Add lukskey option (-K). Automatically add kernel modules listed in
+#   load-kernel-modules if that file is executable.
+#   Yada yada yada.
 
-MKINITRD_VERSION=1.3.4
+MKINITRD_VERSION=1.4.5
 
 print_usage() {
   cat << EOF
@@ -70,22 +74,22 @@ initrd, and the script is easy to modify.  Be creative.  :-)
   -o      Output image (default /boot/initrd.gz)
   -r      Root partition device (must be used with -f)
   -s      Initrd source tree (default /boot/initrd-tree/)
+  -u      Include udev in the initrd
   -w      Time to wait until all disks are detected
-  -C      Use cryptsetup to unlock the underlying device of an
-          encrypted root filesystem (must be used with '-r' parameter).
-          Two scenarios are possible. (1) root filesystem was created on the
-          encrypted disk/LVM partition, example:
-            -C /dev/sda2 -r cryptroot
-          where /dev/sda2 is the encrypted partition and
-          the actual root device name in /etc/fstab is:
-            /dev/mapper/cryptroot
-          (2) the encrypted partition contains a LVM volume which holds the
-          root filesystem, example:
-            -C /dev/sda2 -r /dev/vg/root
-          where /dev/sda2 is the encrypted partition and
-          the actual root device name in /etc/fstab is:
-            /dev/vg/root
+  -C      A colon (:) delimited list of luks encrypted block devices to be
+          unlocked by the initrd using cryptsetup. All devices that must
+          be unlocked in order to access the root filesystem must be
+          specified. (Use with '-r' parameter).
   -L      Add support for LVM partitions
+  -K      Use a USB key (fat-formatted) to unlock the root LUKS volume
+          The parameter value is filename of a keyfile, as well as the label
+          (or uuid) of the partition this file is on.  This way, you can unlock
+          your computer automatically if you have a USB stick with your LUKS
+          key inserted at boot. A passphrase will still be asked if the LUKS
+          key can not be found.
+          For example, if your USB thumb drive has a FAT partition with label
+          "TRAVELSTICK" and the actual keyfile is called "/keys/alien.luks",
+          then you need to pass: -K LABEL=TRAVELSTICK:/keys/alien.luks
   -R      Add support for RAID partitions
   -V      Display version number
 
@@ -93,10 +97,10 @@ A simple example:  Build an initrd for a reiserfs root partition:
 
   mkinitrd -c -m reiserfs
 
-Another example:  Build an initrd image using Linux 2.6.29.3-smp kernel
+Another example:  Build an initrd image using Linux 2.6.29.6-smp kernel
 modules for a system with an ext3 root partition on /dev/hdb3:
 
-  mkinitrd -c -k 2.6.29.3-smp -m mbcache:jbd:ext3 -f ext3 -r /dev/hdb3
+  mkinitrd -c -k 2.6.29.6-smp -m mbcache:jbd:ext3 -f ext3 -r /dev/hdb3
 
 Note that if you are already logged in with /dev/hdb3 as your /
 partition, and it is running ext3, this command works just the same:
@@ -151,11 +155,21 @@ build_initrd_image() {
       fi
     fi
   done
+  # Use the output image name written in the initrd-tree if present:
+  if [ ! -z "$(cat $SOURCE_TREE/initrd-name)" ]; then
+    OUTPUT_IMAGE=$(cat $SOURCE_TREE/initrd-name)
+    if [ "$OUTPUT_IMAGE" = "$(basename $OUTPUT_IMAGE)" ]; then
+      OUTPUT_IMAGE=/boot/$OUTPUT_IMAGE
+    fi
+    mkdir -p $(dirname $OUTPUT_IMAGE)
+  fi
   # Wrap the initrd as an initramfs image and move it into place:
   ( cd $SOURCE_TREE
     rm -f $OUTPUT_IMAGE
     find . | cpio -o -H newc | gzip -9c > $OUTPUT_IMAGE
   )
+  echo "$OUTPUT_IMAGE created."
+  echo "Be sure to run lilo again if you use it."
 }
 
 badconf_file() {
@@ -164,6 +178,44 @@ badconf_file() {
   echo "/etc/mkinitrd.conf is bad or does not exist."
   echo "If the file does not exist, do not pass -F to mkinitrd."
   exit 1
+}
+
+
+unify_libs() {
+  awk '/=. \// { print $3 }' | sort -u
+}
+
+copy_libs() {
+  # First copy the essential glibc files:
+  find /lib* -name "ld-*so*" -o -name "libnss_files*so*" -o -name "libnss_compat*so*" | xargs -I'{}' cp -P --parents '{}' $SOURCE_TREE/
+
+  # Then copy all remaining libs our initrd files link against:
+  COUNT=1
+  PRFX=$(tempfile --prefix ldd-)
+  TMPFILE=${PRFX}${COUNT}
+
+  find $SOURCE_TREE -type f -exec ldd {} 2>/dev/null \; | unify_libs > $TMPFILE
+  while [ "$COUNT" != "0" ]; do
+    COUNT=$((COUNT+1))
+    for i in $(cat $TMPFILE) ; do 
+      ldd $i 2>/dev/null
+    done | unify_libs > ${PRFX}${COUNT}
+    TMPFILE=${PRFX}${COUNT}
+    [ $(cat $TMPFILE | wc -l) -eq 0 ] && COUNT=0
+  done
+
+  for i in $(cat ${PRFX}* | sort -u) ; do 
+    cp -P --parents ${i}* $SOURCE_TREE
+  done
+
+  ( 
+    cd $SOURCE_TREE
+    for i in $(find -L . -type l -exec readlink -m /{} \; 2>/dev/null ) ; do
+      cp -P --parents ${i} $SOURCE_TREE
+    done 
+  )
+
+  rm ${PRFX}*
 }
 
 # If --help is given, print_usage and exit:
@@ -181,11 +233,13 @@ fi
 # Default values if these aren't previously set.
 # Might be set from config file or by -s and -o options too.
 SOURCE_TREE=${SOURCE_TREE:-/boot/initrd-tree}
-OUTPUT_IMAGE=${OUTPUT_IMAGE:-/boot/initrd.gz}
+OUTPUT_IMAGE=${OUTPUT_IMAGE:-""}
 KERNEL_VERSION=${KERNEL_VERSION:-"$(uname -r)"}
 
 # Default actions without options:
 if [ -z "$1" ]; then
+  # We need a sensible default for this special case:
+  OUTPUT_IMAGE=${OUTPUT_IMAGE:-/boot/initrd.gz}
   # If the output tree doesn't exist, create it and then exit:
   if [ ! -d $SOURCE_TREE ]; then
     echo "Nothing found at location $SOURCE_TREE, so we will create an"
@@ -204,8 +258,6 @@ if [ -z "$1" ]; then
     # If the source tree does exist, the default is to build the initrd
     # image from it and then exit:
     build_initrd_image
-    echo "$OUTPUT_IMAGE created."
-    echo "Be sure to run lilo again if you use it."
     exit 0
   fi
 fi # default no-option actions
@@ -264,6 +316,10 @@ while [ ! -z "$1" ]; do
       SOURCE_TREE="$2"
       shift 2
       ;;
+    -u)
+      UDEV=1
+      shift
+      ;;
     -w)
       WAIT="$2"
       shift 2
@@ -271,6 +327,10 @@ while [ ! -z "$1" ]; do
     -C)
       CRYPT=1
       LUKSDEV="$2"
+      shift 2
+      ;;
+    -K)
+      LUKSKEY="$2"
       shift 2
       ;;
     -L)
@@ -306,13 +366,13 @@ fi
 # If $ROOTDEV and $ROOTFS are not set, assume we want the
 # values for the currently mounted /
 # (unless we find that values are already set in the initrd-tree):
-if [ -z "$ROOTDEV" -a -z "$(cat $SOURCE_TREE/rootdev 2> /dev/null)" ]; then
+if [ -z "$ROOTDEV" -a -z "$(cat $SOURCE_TREE/rootdev 2>/dev/null)" ]; then
   ROOTDEV=$(mount | grep ' on / ' | cut -f 1 -d ' ')
   if [ "$ROOTDEV" = "/dev/root" ]; then # find real root device
     ROOTDEV="/dev/$(readlink /dev/root)"
   fi
 fi
-if [ -z "$ROOTFS" -a -z "$(cat $SOURCE_TREE/rootfs 2> /dev/null)" ]; then
+if [ -z "$ROOTFS" -a -z "$(cat $SOURCE_TREE/rootfs 2>/dev/null)" ]; then
   ROOTFS=$(mount | grep ' on / ' | cut -f 5 -d ' ')
 fi
 # If needed, write them in the initrd-tree:
@@ -333,9 +393,12 @@ if [ ! -z "$WAIT" ]; then
   echo $WAIT > $SOURCE_TREE/wait-for-root
 fi
 
-# Useful to know which initrd is running:
-INITRD_NAME=$(basename $OUTPUT_IMAGE)
-echo $INITRD_NAME > $SOURCE_TREE/initrd-name
+# If no OUTPUT_IMAGE was specified, read it from the SOURCE_TREE if possible:
+OUTPUT_IMAGE=${OUTPUT_IMAGE:-"$(cat $SOURCE_TREE/initrd-name)"}
+# If we still have no value, apply the default:
+OUTPUT_IMAGE=${OUTPUT_IMAGE:-"/boot/initrd.gz"}
+# Finally, write the image name into the SOURCE_TREE:
+echo "$OUTPUT_IMAGE" > $SOURCE_TREE/initrd-name
 
 # Fill /resumedev with the swap partition holding the hibernation image
 if [ ! -z "$RESUMEDEV" ]; then
@@ -353,49 +416,73 @@ if [ ! -z "$LUKSDEV" ]; then
   CRYPT=1
 fi
 
+# If LUKSKEY was set in the config file, then give it a warm welcome:
+if [ ! -z "$LUKSKEY" ]; then
+  # $SOURCE_TREE/wait-for-root may have been configured earlier in the script,
+  # but we require at least 5 seconds for the USB stick to settle
+  # after insertion :
+  if [ ! -s $SOURCE_TREE/wait-for-root ] || [ $(cat $SOURCE_TREE/wait-for-root) -lt 5 ]; then
+    echo 5 > $SOURCE_TREE/wait-for-root
+  fi
+
+  # Several extra modules are needed to support a vfat formatted USB stick...
+  # assuming here we are using a western codepage.
+  # This possibly adds doublures, but we clean up the MODULE_LIST further down!
+  MODULE_LIST="${MODULE_LIST}:ehci-hcd:uhci-hcd:usb-storage:hid:usbhid:fat:nls_cp437:nls_iso8859-1:msdos:vfat"
+
+  # Finally, write the lukskey to the initrd-tree:
+  echo $LUKSKEY > $SOURCE_TREE/lukskey
+fi
+
 # Include RAID support in initrd
 if [ ! -z "$RAID" ]; then
   if [ -r /sbin/mdadm ]; then
     mkdir -p $SOURCE_TREE/sbin
     cp /sbin/mdadm $SOURCE_TREE/sbin/mdadm
-    chmod 755 $SOURCE_TREE/sbin/mdadm
+    chmod 0755 $SOURCE_TREE/sbin/mdadm
   else
     echo "ERROR:  mdadm binary is missing, RAID support not installed"
   fi
 fi
 
+# Include udev in initrd
+if [ ! -z "$UDEV" ]; then
+  cp /sbin/udev* $SOURCE_TREE/sbin/
+  cp -a /lib/udev $SOURCE_TREE/lib/
+fi
+
 # Include LVM support in initrd
 if [ ! -z "$LVM" ]; then
-  if [ -f /sbin/lvm.static ]; then
+  if [ -f /sbin/lvm ]; then
     mkdir -p $SOURCE_TREE/sbin
-    cp /sbin/lvm.static $SOURCE_TREE/sbin/lvm.static
-    cp /sbin/dmsetup.static $SOURCE_TREE/sbin/dmsetup.static
+    cp /sbin/lvm $SOURCE_TREE/sbin/lvm
+    cp /sbin/dmsetup $SOURCE_TREE/sbin/dmsetup
+    find /lib* -name "libdevmapper*so*" | xargs -I'{}' cp -P --parents '{}' $SOURCE_TREE/
     ( cd $SOURCE_TREE/sbin
-      ln -s lvm.static vgchange 2>/dev/null
-      ln -s lvm.static vgscan 2>/dev/null )
+      ln -s lvm vgchange 2>/dev/null
+      ln -s lvm vgscan 2>/dev/null )
     if [ -z "${MODULE_LIST}" ] ; then
       MODULE_LIST="dm-mod"
     elif ! echo ${MODULE_LIST} | grep -q dm-mod ; then
       MODULE_LIST="$MODULE_LIST:dm-mod"
     fi
   else
-    echo "LVM static binary is missing, LVM support isn't installed"
+    echo "LVM binary is missing, LVM support isn't installed"
   fi
 fi
 
 # Include cryptsetup (LUKS) support in initrd
 if [ ! -z "$CRYPT" ]; then
-  if [ -e /sbin/cryptsetup.static ]; then
+  if [ -e /usr/sbin/cryptsetup ]; then
     mkdir -p $SOURCE_TREE/sbin
-    cp /sbin/cryptsetup.static $SOURCE_TREE/sbin/cryptsetup.static
-    ( cd $SOURCE_TREE/sbin
-      ln -s cryptsetup.static cryptsetup 2>/dev/null
-    )
-    cat << EOF > $SOURCE_TREE/sbin/udevadm
+    cp /usr/sbin/cryptsetup $SOURCE_TREE/sbin/cryptsetup
+    if [ ! -e $SOURCE_TREE/sbin/udevadm ]; then
+      cat << EOF > $SOURCE_TREE/sbin/udevadm
 #!/bin/sh
 sleep 3
 EOF
-    chmod 0755 $SOURCE_TREE/sbin/udevadm
+      chmod 0755 $SOURCE_TREE/sbin/udevadm
+    fi
 
     if [ -z "${MODULE_LIST}" ] ; then
       MODULE_LIST="dm-mod"
@@ -405,7 +492,7 @@ EOF
     # Write the underlying luks device to the initrd-tree:
     echo $LUKSDEV > $SOURCE_TREE/luksdev
   else
-    echo "Cryptsetup static binary is missing, CRYPT support isn't installed"
+    echo "Cryptsetup binary is missing, CRYPT support isn't installed"
   fi
 fi
 
@@ -414,7 +501,14 @@ if [ ! -d $SOURCE_TREE/lib/modules/$KERNEL_VERSION ]; then
   mkdir -p $SOURCE_TREE/lib/modules/$KERNEL_VERSION
 fi
 
-# If a module list was given, copy the modules into place:
+# If an executable $SOURCE_TREE/load_kernel_modules already exists, then
+# we assume you will want to load the kernel modules mentioned in there.
+# This means, you do not have to explicitly add those on the commandline:
+if [ -x $SOURCE_TREE/load_kernel_modules ]; then
+  MODULE_LIST="${MODULE_LIST}:$(cat $SOURCE_TREE/load_kernel_modules |grep  "^insmod" |rev |cut -d/ -f1 |rev |cut -d. -f1)"
+fi
+
+# If the module list is not empty, copy the modules into place:
 if [ ! -z "$MODULE_LIST" ]; then
   if grep -q "#insmod /lib/modules/2.6.18.8-smp/reiserfs.ko" $SOURCE_TREE/load_kernel_modules ; then
     rm -f $SOURCE_TREE/load_kernel_modules
@@ -426,6 +520,12 @@ if [ ! -z "$MODULE_LIST" ]; then
     echo >> $SOURCE_TREE/load_kernel_modules
   fi
 
+  # Sanitize the modules list first, before any further processing.
+  # The awk command eliminates doubles without changing the order:
+  MODULE_LIST=$(echo $MODULE_LIST |tr -s ':' '\n' |awk '!x[$0]++' |tr '\n' ' ')
+  MODULE_LIST=$(echo $MODULE_LIST | tr ' ' ':')
+  MODULE_LIST=$(echo ${MODULE_LIST%:}) # Weed out a trailing ':'
+
   # Count number of modules
   # This INDEX number gives us an easy way to find individual
   # modules and their arguments, as well as tells us how many
@@ -433,6 +533,8 @@ if [ ! -z "$MODULE_LIST" ]; then
   if ! echo $MODULE_LIST | grep ':' > /dev/null ; then  # only 1 module specified
     INDEX=1
   else
+    # Trim excess ':' which will screw this routine:
+    MODULE_LIST=$(echo $MODULE_LIST | tr -s ':')
     INDEX=1
     while [ ! "$(echo "$MODULE_LIST" | cut -f $INDEX -d ':' )" = "" ]; do
       INDEX=$(expr $INDEX + 1)
@@ -458,7 +560,7 @@ while [ $i -ne $INDEX ]; do
   fi
 
   # Get MODULE deps and prepare insmod lines
-  /sbin/modprobe --set-version $KERNEL_VERSION --show-depends --ignore-install $MODULE 2> /dev/null \
+  /sbin/modprobe --set-version $KERNEL_VERSION --show-depends --ignore-install $MODULE 2>/dev/null \
     | grep "^insmod " | cut -f 2 -d ' ' | while read SRCMOD; do
 
     if ! grep -q "$SRCMOD" $SOURCE_TREE/load_kernel_modules 2>/dev/null ; then
@@ -477,10 +579,13 @@ while [ $i -ne $INDEX ]; do
       echo "$LINE" >> $SOURCE_TREE/load_kernel_modules
     fi
 
-    if cp -a --parents $SRCMOD $SOURCE_TREE 2> /dev/null; then
-      echo "OK: $SRCMOD added."
-    else
-      echo "WARNING:  Could not find module \"$SRCMOD\""
+    if [ ! -f ${SOURCE_TREE}${SRCMOD} ]; then
+      # We did not yet copy this module into the initrd-tree
+      if cp -a --parents $SRCMOD $SOURCE_TREE 2>/dev/null; then
+        echo "OK: $SRCMOD added."
+      else
+        echo "WARNING:  Could not find module \"$SRCMOD\""
+      fi
     fi
 
   done
@@ -488,6 +593,9 @@ while [ $i -ne $INDEX ]; do
 done
 
 fi
+
+# Copy needed libraries
+copy_libs
 
 # And finally, build the initrd:
 build_initrd_image

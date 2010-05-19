@@ -48,6 +48,11 @@
 # 23/apr/2008 * Pat Volkerding * Increase sleep time after bringing up an
 #                                interface to 3 seconds.  Some drivers
 #                                need this additional time to initalize.
+# 02/jan/2010 * Pat Volkerding * Look for /sys/class/net/$NETDEV/wireless rather
+#                                than the contents of /proc/net/wireless to find
+#                                if a network device is wireless.  In newer
+#                                kernels devices will not show up in
+#                                /proc/net/wireless until active.
 # ------------------------------------------------------------------------------
 
 LOGGER=${LOGGER:-cat}
@@ -82,7 +87,7 @@ is_wireless_device ()
     #LC_ALL=C $IWPATH/iwconfig $1 2>&1 | \
     #    grep -Eiq "no wireless extensions|no such device" || return 0
     #return 1
-    if ! grep `echo ${1}: | cut -f 1 -d :`: /proc/net/wireless 1> /dev/null ; then
+    if [ ! -d /sys/class/net/${1}/wireless ]; then
       # no wireless interface
       return 1
     else

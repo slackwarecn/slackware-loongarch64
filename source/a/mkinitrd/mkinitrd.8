@@ -7,7 +7,7 @@
 .ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
 .el .TP "\\$1"
 ..
-.TH MKINITRD 8 "04 March 2008" "Slackware Version 12.1"
+.TH MKINITRD 8 "27 March 2010" "Slackware Version 13.1"
 .SH NAME
 mkinitrd \- create or rebuilt an initrd (initial ramdisk) using initramfs (simple cpio+gzip).
 .SH SYNOPSIS
@@ -40,7 +40,16 @@ mkinitrd \- create or rebuilt an initrd (initial ramdisk) using initramfs (simpl
 .B \-s source_tree
 ]
 [
-.B \-C crypt_device
+.B \-u
+]
+[
+.B \-w wait_time
+]
+[
+.B \-C device1:device2:device3...
+]
+[
+.B \-K luks_keyfile
 ]
 [
 .B \-L
@@ -117,29 +126,50 @@ together with the \-f option in order to be beneficial.
 .B \-s source tree
 The directory to use as the source for the initrd.  (default: /boot/initrd-tree/)
 .TP
+.B \-u
+Include udev in the initrd.
+.TP
 .B \-w
 The -w option specifies how long to wait in seconds before assuming that all the
 drives are spun up and ready to go.
 .TP
-.B \-C
-Use cryptsetup to enable the underlying device of an encrypted root partition.
-Requires '-r' parameter.  Two scenarios are possible.
+.B \-C device list
+A colon (:) delimited list of luks encrypted block devices to be unlocked by
+the initrd using cryptsetup.  All devices that must be unlocked in order to
+access the root filesystem must be specified. e.g.
+
+  -C /dev/sda2:/dev/sda3
+
+Each unlocked device will be assigned an automatically generated luks device
+name of the form luks<device> where '<device>' will be the basename of the
+encrypted device.  e.g.
+
+  /dev/mapper/lukssda2
+
+As a convenience to users, where -r specifies one of the device names listed
+on the -C option it will be automatically adjusted to use the correct luks
+device name. i.e.
+
+  "-C /dev/sda2 -r /dev/sda2" and
+  "-C /dev/sda2 -r /dev/mapper/lukssda2"
+
+are equivalent.
 .br
-(1) root filesystem was created on the encrypted disk/LVM partition, example:
+(Use with '-r' option).
+.TP
+.B \-K luks_keyfile
+When using cryptsetup to encrypt your partition, you can use a keyfile instead
+of a passphrase to unlock the LUKS volume.  The LUKSKEY variable holds the
+filename of a keyfile, as well as the label (or uuid) of the partition this
+file is on.  This way, you can unlock your computer automatically if you have a
+USB stick with your LUKS key inserted at boot. A passphrase will still be asked
+if the LUKS key can not be found.
+.br
+For example, if your USB thumb drive has a FAT partition with label
+"TRAVELSTICK" and the actual keyfile is called "/keys/alien.luks", then
+you need to set:
 
-  -C /dev/sda2 -r cryptroot
-
-where /dev/sda2 is the encrypted partition and the actual root device name in /etc/fstab is:
-
-  /dev/mapper/cryptroot
-
-(2) the encrypted partition contains a LVM volume which holds the root filesystem, example:
-
-  -C /dev/sda2 -r /dev/vg/root
-
-where /dev/sda2 is the encrypted partition and the actual root device name in /etc/fstab is:
-
-  /dev/vg/root
+  -K LABEL=TRAVELSTICK:/keys/alien.luks
 .TP
 .B \-L
 This option adds LVM support to the initrd, if the tools are
@@ -156,10 +186,33 @@ A simple example:  Build an initrd for a reiserfs root partition:
 
   mkinitrd -c -m reiserfs
 
-Another example:  Build an initrd image using Linux 2.6.24.5 kernel
-modules for a system with an ext3 root partition on /dev/hdb3:
+Another example:  Build an initrd image using Linux 2.6.33.1 kernel
+modules for a system with an ext3 root partition on /dev/sdb3:
 
-  mkinitrd -c -k 2.6.24.5 -m ext3 -f ext3 -r /dev/hdb3
+  mkinitrd -c -k 2.6.33.1 -m ext3 -f ext3 -r /dev/sdb3
+
+An example of a single encrypted partition setup:
+.br
+As a user convenience, the value for the "-r" option may also be specified as
+"/dev/sda2" in this example:
+
+  mkinitrd -c -k 2.6.33.1 \\
+           -m ext4:ehci-hcd:uhci-hcd:usbhid \\
+           -f ext4 -r /dev/mapper/lukssda2 \\
+           -C /dev/sda2 \\
+           -l uk
+
+Finally, A more complex example:
+.br
+This one is for a LVM Volume Group (rootvg) comprising of two LVM Physical
+Volumes, each of which is on a LUKS encrypted partition that will need to be
+unlocked before the root filesystem (/dev/rootvg/lvroot) can be accessed.
+
+  mkinitrd -c -k 2.6.29.6 \\
+           -m ext4:ehci-hcd:uhci-hcd:usbhid \\
+           -f ext4 -r /dev/rootvg/lvroot \\
+           -L -C /dev/sda2:/dev/sdb2 \\
+           -l uk
 
 If run without options, mkinitrd will rebuild an initrd image using
 the contents of the $SOURCE_TREE directory, or, if that directory
@@ -174,12 +227,15 @@ line to /etc/lilo.conf.  Here's a section of lilo.conf that shows
 how to set this up:
 
  # Linux bootable partition config begins
- image = /boot/vmlinuz-generic-2.6.24.5
+ image = /boot/vmlinuz-generic-2.6.33.1
    initrd = /boot/initrd.gz
-   root = /dev/hda6
-   label = Linux26245
+   root = /dev/sda3
+   label = Linux26331
    read-only
  # Linux bootable partition config ends
+
+Note that the line "root = /dev/sda3" is not needed if the root device
+has been configured in the initrd image.
 
 Once you've created the initrd and editing /etc/lilo.conf, you will
 need to run 'lilo' to write out the changed boot block.  The next

@@ -74,7 +74,7 @@ fi
 
 # If we are returning from single-user mode we will need to restart
 # udevd on systems that use udev:
-if grep -wq sysfs /proc/mounts && grep -wq tmpfs /proc/filesystems ; then
+if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev ]; then
       /bin/sh /etc/rc.d/rc.udev start
@@ -217,7 +217,7 @@ fi
 
 # If we're using udev, make /dev/cdrom and any other optical drive symlinks
 # if some udev rule hasn't made them already:
-if grep -wq sysfs /proc/mounts && grep -wq tmpfs /proc/filesystems; then
+if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /lib/udev/rc.optical-symlinks -a -x /etc/rc.d/rc.udev ]; then
       /bin/sh /lib/udev/rc.optical-symlinks

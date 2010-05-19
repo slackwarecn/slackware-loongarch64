@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,18 +21,33 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.5.8
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(basename $(echo doxygen-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev) .src)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -45,7 +60,6 @@ cd $TMP
 rm -rf doxygen-$VERSION
 tar xvf $CWD/doxygen-${VERSION}.src.tar.?z* || exit 1
 cd doxygen-$VERSION
-zcat $CWD/doxygen.qt4.diff.gz | patch -p1 --verbose || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -53,11 +67,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# We want qt4 to be found, not qt3 if that is available as well:
-unset QTDIR
-
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
+QTDIR=/usr/lib${LIBDIRSUFFIX}/qt \
 ./configure \
   --shared \
   --release \

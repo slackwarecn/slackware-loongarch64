@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008  Robby Workman, Northport, Alabama, USA
+# Copyright 2008, 2010  Robby Workman, Northport, Alabama, USA
 # Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
@@ -22,9 +22,17 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.5
-ARCH=${ARCH:-x86_64}
+VERSION=1.6.1
 BUILD=${BUILD:-1}
+
+# Automatically determine architecture for build & packaging:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *)    export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -36,13 +44,15 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf radeontool-$VERSION
-tar xvf $CWD/radeontool-$VERSION.tar.gz
+tar xvf $CWD/radeontool-$VERSION.tar.bz2
 cd radeontool-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -51,16 +61,25 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Fix a bad include
-zcat $CWD/radeontool.c.diff.gz | patch -p1 || exit 1
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --build=$ARCH-slackware-linux
 
-gcc -Wall $SLKCFLAGS -o radeontool radeontool.c
-strip --strip-unneeded radeontool
-mkdir -p $PKG/usr/sbin
-cp -a radeontool $PKG/usr/sbin
+make
+make install DESTDIR=$PKG
 
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Sometimes CHANGES is present, sometimes it isn't.
+# We don't care about noise on stderr.  Better than missing docs.
+# So, first we try to copy it:
 mkdir -p $PKG/usr/doc/radeontool-$VERSION
 cp -a CHANGES $PKG/usr/doc/radeontool-$VERSION
+# Then we take care of any empty directory in case there was no CHANGES file:
+rmdir $PKG/usr/doc/radeontool-$VERSION
+rmdir $PKG/usr/doc
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

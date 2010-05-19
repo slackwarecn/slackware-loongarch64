@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,11 +26,19 @@
 # This is a source build script. Unfortunately, there is no official
 # binary tarball available for x86_64
 
-VERSION=${VERSION:-3.5.2}
-ARCH=${ARCH:-x86_64}
+VERSION=$(basename $(ls firefox-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 BUILD=${BUILD:-1}
 
-MOZVERS=${MOZVERS:-1.9.1}
+MOZVERS=${MOZVERS:-1.9.2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -61,7 +69,7 @@ mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 
 cd $TMP
 rm -rf mozilla-$MOZVERS
-tar xvf $CWD/firefox-$VERSION-source.tar.bz2 || exit 1
+tar xvf $CWD/firefox-$VERSION.source.tar.bz2 || exit 1
 cd mozilla-$MOZVERS || exit 1
 
 # Fix a long standing bug that's prevented staying current on GTK+.

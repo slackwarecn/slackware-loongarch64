@@ -22,10 +22,18 @@
 
 
 PKGNAM=net-snmp
-VERSION=${VERSION:-5.4.2.1}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-5.5}
 BUILD=${BUILD:-2}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -42,11 +50,14 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -129,12 +140,38 @@ fi
 # Remove perllocal files:
 ( cd $PKG ; find . -name perllocal.pod -exec rm "{}" \; )
 
+# This removes our DESTDIR from the packlist filenames, to keep perl's
+# internal inventories consistent and correct.
+find $PKG -name .packlist | while read plist ; do
+  sed -e "s%/share/man%/man%g" \
+      -e "s%$PKG%%g" \
+      -e "s%\.1$%\.1\.gz%g" \
+      -e "s%\.2$%\.2\.gz%g" \
+      -e "s%\.3$%\.3\.gz%g" \
+      -e "s%\.3pm$%\.3pm\.gz%g" \
+      -e "s%\.4$%\.4\.gz%g" \
+      -e "s%\.5$%\.5\.gz%g" \
+      -e "s%\.6$%\.6\.gz%g" \
+      -e "s%\.7$%\.7\.gz%g" \
+      -e "s%\.8$%\.8\.gz%g" \
+      ${plist} > ${plist}.new
+      mv -f ${plist}.new ${plist}
+done
+
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   AGENT.txt CHANGES COPYING* CodingStyle EXAMPLE* FAQ \
   INSTALL NEWS PORTING README* TODO \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

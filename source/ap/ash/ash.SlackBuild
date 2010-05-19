@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,17 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=0.4.0
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -32,7 +41,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-tar xzvf $CWD/ash-$VERSION.tar.gz
+rm -rf ash-$VERSION
+tar xzvf $CWD/ash-$VERSION.tar.gz || exit 1
 cd ash-$VERSION
 chown -R root:root .
 ( cd $CWD/patches

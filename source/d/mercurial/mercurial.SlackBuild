@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,18 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=1.2.1
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo mercurial-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -33,7 +42,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf mercurial-$VERSION
-tar xvf $CWD/mercurial-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/mercurial-$VERSION.tar.?z* || exit 1
 cd mercurial-$VERSION
 chown -R root.root .
 find . \
@@ -43,6 +52,36 @@ find . \
   -exec chmod 644 {} \;
 
 python setup.py build install --root=$PKG || exit 1
+
+# Ordinarily we will not add stuff that's not installed through the normal
+# default installation method, but we've had a lot of requests, and it appears
+# that installing at least the hgk extension is the ad-hoc standard.
+mkdir -p $PKG/usr/libexec/mercurial
+cp -a contrib/hgk $PKG/usr/libexec/mercurial
+chmod 0755 $PKG/usr/libexec/mercurial/hgk
+
+mkdir -p $PKG/etc/mercurial/hgrc.d
+cat << EOF > $PKG/etc/mercurial/hgrc.d/hgk.rc.new
+[extensions]
+# enable hgk extension ('hg help' shows 'view' as a command)
+hgk =
+[hgk]
+
+path=/usr/libexec/mercurial/hgk
+EOF
+
+# Bash and zsh completion:
+mkdir -p $PKG/etc/bash_completion.d
+cp -a contrib/bash_completion $PKG/etc/bash_completion.d/mercurial.sh
+chmod 644 $PKG/etc/bash_completion.d/mercurial.sh
+mkdir -p $PKG/usr/share/zsh/site-functions
+cp -a contrib/zsh_completion $PKG/usr/share/zsh/site-functions/_mercurial
+chmod 644 $PKG/usr/share/zsh/site-functions/_mercurial
+
+# Emacs Lisp extensions:
+mkdir -p $PKG/usr/share/emacs/site-lisp
+cp -a contrib/mercurial.el contrib/mq.el $PKG/usr/share/emacs/site-lisp
+chmod 644 $PKG/usr/share/emacs/site-lisp/*
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -62,6 +101,7 @@ cp -a \
   $PKG/usr/doc/mercurial-$VERSION
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

@@ -10,19 +10,19 @@ need to do this:
 
 Untar the speakup archive, and cd into the speakup directory:
 
-tar xf speakup-3.0.3_20081026.tar.bz2
-cd speakup-3.0.3_20081026
+tar xf speakup-2009-12-30.tar.xz
+cd speakup-2009-12-30
 
 Patch whatever kernel you happen to want to compile:
-./install /usr/src/linux-2.6.29.6
+./install /usr/src/linux-2.6.33.4
 
 Change to the kernel directory:
-cd /usr/src/linux-2.6.29.6
+cd /usr/src/linux-2.6.33.4
 
 If you want to start with the defaults one of Slackware's kernels, you can do
 that like this:
 
-cat /boot/vmlinuz-huge-2.6.29.6 > .config
+cat /boot/vmlinuz-huge-2.6.33.4 > .config
 
 Or, better yet, if you have access to the Slackware tree use the
 Speakup .config that was used:
@@ -33,11 +33,14 @@ Then do any additional configuation to the kernel that you may require:
 
 make menuconfig
 
+You might want to check in Device Drivers -> Accessibility -> Speakup
+to make sure that Speakup support is configured to your liking.
+
 After that, it's build and install:
 make
 make modules_install
 make bzImage
-cat arch/x86/boot/bzImage > /boot/vmlinuz-huge-2.6.29.6-speakup
+cat arch/x86/boot/bzImage > /boot/vmlinuz-huge-2.6.33.4-speakup
 
 I put the -speakup on the end of the kernel name so that I can remember
 which kernel I've patched, but that part is entirely optional.

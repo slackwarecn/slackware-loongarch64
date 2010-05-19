@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,12 +23,21 @@
 # Originally written by Menno Duursma
 
 
-PRGNAM=libcap
-VERSION=${VERSION:-2.16}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+PKGNAM=libcap
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -49,14 +58,14 @@ fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP 
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
-cd $PRGNAM-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.bz2 || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 zcat $CWD/libcap.capability.h.fix.broken.includes.diff.gz | patch -p1 || exit 1
 
@@ -72,10 +81,16 @@ sed -i.orig "s/^\(DEBUG =\).*/\1$SLKCFLAGS/" Make.Rules
 
 make DYNAMIC=yes $NUMJOBS || make DYNAMIC=yes || exit 1
 make install FAKEROOT=$PKG man_prefix=/usr || exit 1
-chmod 755 $PKG/lib/libcap.so*
+chmod 755 $PKG/lib${LIBDIRSUFFIX}/libcap.so*
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Static libs are better placed under /usr:
+if [ -r $PKG/lib${LIBDIRSUFFIX}/libcap.a ]; then
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+  mv $PKG/lib${LIBDIRSUFFIX}/libcap.a $PKG/usr/lib${LIBDIRSUFFIX}
+fi
 
 # Add included scripts
 ( cd contrib || exit 1
@@ -93,11 +108,11 @@ rm -rf $PKG/usr/man/man2
   for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 )
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   CHANGELOG License README License pgp.keys.asc doc/capability.notes \
   progs/quicktest.sh $CWD/capfaq-0.2.txt $CWD/README.SLACKWARE \
-  $PKG/usr/doc/$PRGNAM-$VERSION
+  $PKG/usr/doc/$PKGNAM-$VERSION
 chown -R root:root $PKG/usr/doc
 find $PKG/usr/doc -type f -exec chmod 644 {} \;
 
@@ -105,5 +120,5 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

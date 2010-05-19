@@ -22,8 +22,17 @@
 
 VERSION=4.0.0
 LIBVER=1.0.0
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -47,6 +56,9 @@ cd $TMP
 rm -rf libpcap-$LIBVER
 tar xvf $CWD/libpcap-$LIBVER.tar.gz || exit 1
 cd libpcap-$LIBVER || exit 1
+
+zcat $CWD/libpcap.20-fix-any-intf.diff.gz | patch -p1 --verbose || exit 1
+
 find . -type d -name CVS -depth -exec rm -rf {} \;
 chown -R root:root .
 find . \
@@ -63,8 +75,16 @@ CFLAGS="$(getconf LFS_CFLAGS)" \
   --enable-ipv6 \
   --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
+make shared $NUMJOBS || make || exit 1
 mkdir -p $PKG/usr/bin  # otherwise it errors out on install
 make install DESTDIR=$PKG || exit 1
+strip --strip-debug libpcap.so.1.?.?
+cp libpcap.so.?.?.? $PKG/usr/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  ln -sf libpcap.so.1.?.? libpcap.so.1
+  ln -sf libpcap.so.1 libpcap.so.0
+  ln -sf libpcap.so.1 libpcap.so
+)
 mkdir -p $PKG/usr/doc/libpcap-$LIBVER
 cp -a \
   CHANGES CREDITS FILES INSTALL.txt LICENSE README README.linux TODO VERSION \

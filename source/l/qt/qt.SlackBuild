@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,13 +23,29 @@
 # Merged some ideas from Alex Sarmardzic's script for qt4 at SlackBuilds.org
 # ^^ Modified by Robby Workman <rworkman@slackware.com> for QT4 & KDE4
 
-# We're using qt-copy instead of a released qt version, as this svn release
-# has at least one bugfix strongly recommended by the kde developers
+# We're using qt-copy instead of a released qt version, as this git release
+# has at least one bugfix strongly recommended by the kde developers.
+
+# Obtained from:
+# git clone git://gitorious.org/+kde-developers/qt/kde-qt.git
+# git checkout origin/4.5.3-patched
+# git checkout origin/4.6.0-stable-patched
+# git checkout origin/4.6.1-patched
+# wget http://qt.gitorious.org/qt/kde-qt/archive-tarball/4.6.2-patched
 
 PKGNAM=qt
-VERSION=$(ls qt-r*.tar.?z* | cut -d - -f 2 | cut -f 1 -d . | tail -1)
-ARCH=${ARCH:-x86_64}
+VERSION=$(ls qt-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -42,6 +58,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -92,25 +111,28 @@ fi
 # Fix path to mysql header
 zcat $CWD/qt.mysql.h.diff.gz | patch -p1 || exit 1
 
-# The "o" selects the Open Source edition of Qt.
-# The "yes" agrees to the GPL, so don't run this script if you don't agree. :-)
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
 export OPENSOURCE_CXXFLAGS="$SLKCFLAGS"
-echo "o
-yes" | ./configure \
+./configure \
+  -confirm-license \
+  -opensource \
   -prefix /usr/lib${LIBDIRSUFFIX}/qt \
   -qt-gif \
   -fast \
   -system-libpng \
   -system-libjpeg \
   -system-zlib \
+  -system-sqlite \
+  -plugin-sql-sqlite \
   -dbus \
   -webkit \
   -no-phonon \
   -nomake examples \
   -nomake demos \
-  -no-separate-debug-info
+  -no-separate-debug-info \
+  -no-pch
+  # No-precompiled-headers is ccache-friendly.
 
 # Sometimes a failure happens when parallelizing make.  Try again if make fails,
 # but make a failure the second time around (single threaded) a fatal error:

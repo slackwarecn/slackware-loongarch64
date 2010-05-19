@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,10 +23,19 @@
 
 PKGNAM=gd
 VERSION=${VERSION:-2.0.35}
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -44,12 +53,17 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION
+
+zcat $CWD/gd.png14.diff.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .

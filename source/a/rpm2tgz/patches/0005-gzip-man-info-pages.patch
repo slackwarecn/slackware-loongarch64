@@ -1,0 +1,47 @@
+From 49c80142bf0f0ead2bcff8b03a39aa98e38f2dd9 Mon Sep 17 00:00:00 2001
+From: Igor Murzov <igor@gplsoft.org>
+Date: Sun, 18 Apr 2010 23:11:55 +0400
+Subject: [PATCH 5/6] gzip man & info pages
+
+we don't want to repack package just to fix not gzipped man pages
+---
+ rpm2tgz |   23 +++++++++++++++++++++++
+ 1 files changed, 23 insertions(+), 0 deletions(-)
+
+diff --git a/rpm2tgz b/rpm2tgz
+index cc25407..32c450b 100755
+--- a/rpm2tgz
++++ b/rpm2tgz
+@@ -206,6 +206,29 @@ for i in $* ; do
+     mkdir -p $TMPDIR/install
+     rpm -qp --qf '%{NAME} (%{SUMMARY})\n\n%{DESCRIPTION}\n\n  %{URL}\n' $i | head -n 11 | sed -r "s/^/$PRGNAM: /" > $TMPDIR/install/slack-desc
+   fi
++  
++  # Compress and link manpages, if any:
++  if [ -d $TMPDIR/usr/man ]; then
++    ( cd $TMPDIR/usr/man
++      for manpagedir in $(find . -type d -name "man*") ; do
++        ( cd $manpagedir
++          for eachpage in $(find . -type l -maxdepth 1) ; do
++            ln -s $( readlink $eachpage ).gz $eachpage.gz
++            rm $eachpage
++          done
++          gzip -9 *.?
++        )
++      done
++    )
++  fi
++
++  # Compress info files, if any:
++  if [ -d $TMPDIR/usr/info ]; then
++    ( cd $TMPDIR/usr/info
++      rm -f dir
++      gzip -9 *
++    )
++  fi
+ 
+   # If this program was called as "rpm2targz", then repack as a plain
+   # tar+gz archive.  If it was called as "rpm2tgz", use Slackware's
+-- 
+1.7.0.2
+

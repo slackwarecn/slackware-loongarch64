@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,8 +22,17 @@
 
 
 VERSION=2.1
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -35,6 +44,8 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 rm -rf $PKG
@@ -43,19 +54,28 @@ mkdir -p $TMP $PKG
 # minicom
 cd $TMP
 rm -rf minicom-$VERSION
-tar xzvf $CWD/minicom-$VERSION.tar.gz
+tar xzvf $CWD/minicom-$VERSION.tar.gz || exit 1
 cd minicom-$VERSION
+
+# The following command renames the internal implementation of getline
+# to g_getline as newer versions of Glibc provide an incompatible version:
+sed -i -e "s/getline/g_&/" $(grep -lr getline *)
+
 chown -R root:root .
 find . -perm 777 -exec chmod 755 {} \;
 find . -perm 664 -exec chmod 644 {} \;
 # Fix re-declaration of BC in termcap.h
 zcat $CWD/wintcap.diff.gz | patch -p1 --verbose || exit 1
+
+## Forget it...  it just doesn't help.
+## Remove the autoconf program for this sorry old turd or abandon all hope.
+#touch configure
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc
-make -j3
-make install DESTDIR=$PKG
+make -j3 || exit 1
+make install DESTDIR=$PKG || exit 1
 mkdir -p $PKG/etc
 zcat $CWD/minicom.users.gz > $PKG/etc/minicom.users.new
 zcat $CWD/minirc.dfl.gz > $PKG/etc/minirc.dfl.new
@@ -70,16 +90,17 @@ cp -a \
 # If autoconf causes failure here (which it probably will),
 # remove it temporarily and the build should work fine...
 cd $TMP
-tar xzvf $CWD/lrzsz_0.12.21.orig.tar.gz
+tar xzvf $CWD/lrzsz_0.12.21.orig.tar.gz || exit 1
 cd lrzsz-990823
 # Make x86_64 a valid machine type (thanks to Fred Emmott)
 zcat $CWD/config.sub-x86_64.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/lrzsz_0.12.21-4.diff.gz | patch -p1 --verbose || exit 1
 chown -R root:root .
+#touch configure
 ./configure \
   --prefix=/usr \
   $ARCH-slackware-linux
-make -j3
+make -j3 || exit 1
 cd src
 cat lrz > $PKG/usr/bin/lrz
 cat lsz > $PKG/usr/bin/lsz

@@ -1,0 +1,431 @@
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/CMakeLists.txt phonon-4.3.1/gstreamer/CMakeLists.txt
+--- phonon-4.3.1.orig/gstreamer/CMakeLists.txt	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/CMakeLists.txt	2009-10-19 13:07:39.000000000 -0500
+@@ -1,4 +1,4 @@
+-# Copyright (C) 2009 Nokia Corporation. All rights reserved.
++# Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+ # Copyright (C) 2008 Matthias Kretz <kretz@kde.org>
+ #
+ # This library is free software: you can redistribute it and/or modify
+@@ -19,7 +19,6 @@
+ if (BUILD_PHONON_GSTREAMER)
+    include_directories(${GSTREAMER_INCLUDE_DIR} ${GLIB2_INCLUDE_DIR}
+       ${LIBXML2_INCLUDE_DIR})
+-   add_definitions(-DPHONON_BACKEND_VERSION_4_2)
+ 
+    set(phonon_gstreamer_SRCS
+       audiooutput.cpp
+@@ -46,17 +45,17 @@
+       )
+ 
+    find_package(Alsa)
+-   macro_ensure_version("0.10.22" ${GSTREAMER_VERSION} GSTREAMER_HAS_NONBLOCKING_ALSASINK)
+-   if(ALSA_FOUND AND NOT GSTREAMER_HAS_NONBLOCKING_ALSASINK)
++   if(ALSA_FOUND)
+       add_definitions(-DUSE_ALSASINK2)
+       include_directories(${ALSA_INCLUDES})
+       set(phonon_gstreamer_SRCS
+          ${phonon_gstreamer_SRCS}
+          alsasink2.c
+          )
+-   endif(ALSA_FOUND AND NOT GSTREAMER_HAS_NONBLOCKING_ALSASINK)
++   endif(ALSA_FOUND)
+ 
+-   automoc4_add_library(phonon_gstreamer SHARED ${phonon_gstreamer_SRCS})
++   automoc4(phonon_gstreamer phonon_gstreamer_SRCS)
++   add_library(phonon_gstreamer SHARED ${phonon_gstreamer_SRCS})
+    set_target_properties(phonon_gstreamer PROPERTIES PREFIX "")
+    target_link_libraries(phonon_gstreamer
+       ${QT_QTOPENGL_LIBRARY}
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/ConfigureChecks.cmake phonon-4.3.1/gstreamer/ConfigureChecks.cmake
+--- phonon-4.3.1.orig/gstreamer/ConfigureChecks.cmake	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/ConfigureChecks.cmake	2009-10-19 13:07:39.000000000 -0500
+@@ -1,4 +1,4 @@
+-# Copyright (C) 2009 Nokia Corporation. All rights reserved.
++# Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+ #
+ # This library is free software: you can redistribute it and/or modify
+ # it under the terms of the GNU Lesser General Public License as published by
+@@ -17,7 +17,6 @@
+ 
+ macro_optional_find_package(GStreamerPlugins)
+ macro_log_feature(GSTREAMER_PLUGIN_VIDEO_LIBRARIES "GStreamer video plugin" "The gstreamer video plugin (part of gstreamer-plugins-base 0.10) is required for the multimedia gstreamer backend" "http://gstreamer.freedesktop.org/modules/" FALSE "0.10")
+-macro_log_feature(GSTREAMER_PLUGIN_AUDIO_LIBRARIES "GStreamer audio plugin" "The gstreamer audio plugin (part of gstreamer-plugins-base 0.10) is required for the multimedia gstreamer backend" "http://gstreamer.freedesktop.org/modules/" FALSE "0.10")
+ 
+ macro_optional_find_package(GLIB2)
+ macro_log_feature(GLIB2_FOUND "GLib2" "GLib 2 is required to compile the gstreamer backend for Phonon" "http://www.gtk.org/download/" FALSE)
+@@ -31,8 +30,8 @@
+ macro_optional_find_package(OpenGL)
+ macro_log_feature(OPENGL_FOUND "OpenGL" "OpenGL support is required to compile the gstreamer backend for Phonon" "" FALSE)
+ 
+-if (GSTREAMER_FOUND AND GSTREAMER_PLUGIN_VIDEO_LIBRARIES AND GSTREAMER_PLUGIN_AUDIO_LIBRARIES AND GLIB2_FOUND AND GOBJECT_FOUND AND LIBXML2_FOUND AND OPENGL_FOUND)
++if (GSTREAMER_FOUND AND GSTREAMER_PLUGIN_VIDEO_LIBRARIES AND GLIB2_FOUND AND GOBJECT_FOUND AND LIBXML2_FOUND AND OPENGL_FOUND)
+    set(BUILD_PHONON_GSTREAMER TRUE)
+-else (GSTREAMER_FOUND AND GSTREAMER_PLUGIN_VIDEO_LIBRARIES AND GSTREAMER_PLUGIN_AUDIO_LIBRARIES AND GLIB2_FOUND AND GOBJECT_FOUND AND LIBXML2_FOUND AND OPENGL_FOUND)
++else (GSTREAMER_FOUND AND GSTREAMER_PLUGIN_VIDEO_LIBRARIES AND GLIB2_FOUND AND GOBJECT_FOUND AND LIBXML2_FOUND AND OPENGL_FOUND)
+    set(BUILD_PHONON_GSTREAMER FALSE)
+-endif (GSTREAMER_FOUND AND GSTREAMER_PLUGIN_VIDEO_LIBRARIES AND GSTREAMER_PLUGIN_AUDIO_LIBRARIES AND GLIB2_FOUND AND GOBJECT_FOUND AND LIBXML2_FOUND AND OPENGL_FOUND)
++endif (GSTREAMER_FOUND AND GSTREAMER_PLUGIN_VIDEO_LIBRARIES AND GLIB2_FOUND AND GOBJECT_FOUND AND LIBXML2_FOUND AND OPENGL_FOUND)
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/audiooutput.cpp phonon-4.3.1/gstreamer/audiooutput.cpp
+--- phonon-4.3.1.orig/gstreamer/audiooutput.cpp	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/audiooutput.cpp	2009-10-19 13:07:39.000000000 -0500
+@@ -42,6 +42,7 @@
+     static int count = 0;
+     m_name = "AudioOutput" + QString::number(count++);
+     if (m_backend->isValid()) {
++        g_set_application_name(qApp->applicationName().toUtf8());
+         m_audioBin = gst_bin_new (NULL);
+         gst_object_ref (GST_OBJECT (m_audioBin));
+         gst_object_sink (GST_OBJECT (m_audioBin));     
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/mediaobject.cpp phonon-4.3.1/gstreamer/mediaobject.cpp
+--- phonon-4.3.1.orig/gstreamer/mediaobject.cpp	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/mediaobject.cpp	2009-10-19 13:19:20.000000000 -0500
+@@ -14,7 +14,6 @@
+     You should have received a copy of the GNU Lesser General Public License
+     along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
+-
+ #include <cmath>
+ #include <gst/interfaces/propertyprobe.h>
+ #include "common.h"
+@@ -24,7 +23,6 @@
+ #include "backend.h"
+ #include "streamreader.h"
+ #include "phononsrc.h"
+-
+ #include <QtCore>
+ #include <QtCore/QTimer>
+ #include <QtCore/QVector>
+@@ -78,6 +76,9 @@
+         , m_videoGraph(0)
+         , m_previousTickTime(-1)
+         , m_resetNeeded(false)
++        , m_autoplayTitles(true)
++        , m_availableTitles(0)
++        , m_currentTitle(1)
+ {
+     qRegisterMetaType<GstCaps*>("GstCaps*");
+     qRegisterMetaType<State>("State");
+@@ -141,9 +142,9 @@
+     if (m_resumeState)
+         return;
+ 
+-    if (m_state == Phonon::PlayingState || m_state == Phonon::PausedState) {
++    if (m_pendingState == Phonon::PlayingState || m_pendingState == Phonon::PausedState) {
+         m_resumeState = true;
+-        m_oldState = m_state;
++        m_oldState = m_pendingState;
+         m_oldPos = getPipelinePos();
+     }
+ }
+@@ -347,11 +348,8 @@
+  *
+  * returns true if successful
+  */
+-bool MediaObject::createPipefromURL(const QString &encodedUrl)
++bool MediaObject::createPipefromURL(const QUrl &url)
+ {
+-    // Convert back to URL
+-    QUrl url(encodedUrl, QUrl::StrictMode);
+-
+     // Remove any existing data source
+     if (m_datasource) {
+         gst_bin_remove(GST_BIN(m_pipeline), m_datasource);
+@@ -361,7 +359,7 @@
+ 
+     // Verify that the uri can be parsed
+     if (!url.isValid()) {
+-        m_backend->logMessage(QString("%1 is not a valid URI").arg(encodedUrl));
++        m_backend->logMessage(QString("%1 is not a valid URI").arg(url.toString()));
+         return false;
+     }
+ 
+@@ -875,8 +873,7 @@
+ 
+     switch (source.type()) {
+     case MediaSource::Url: {            
+-            QString urlString = source.url().toEncoded();
+-            if (createPipefromURL(urlString))
++            if (createPipefromURL(source.url()))
+                 m_loading = true;
+             else
+                 setError(tr("Could not open media source."));
+@@ -884,8 +881,7 @@
+         break;
+ 
+     case MediaSource::LocalFile: {
+-            QString urlString = QUrl::fromLocalFile(source.fileName()).toString();
+-            if (createPipefromURL(urlString))
++            if (createPipefromURL(QUrl::fromLocalFile(source.fileName())))
+                 m_loading = true;
+             else
+                 setError(tr("Could not open media source."));
+@@ -907,8 +903,13 @@
+         break;
+ 
+     case MediaSource::Disc: // CD tracks can be specified by setting the url in the following way uri=cdda:4
+-        m_backend->logMessage("Source type Disc not currently supported", Backend::Warning, this);
+-        setError(tr("Could not open media source."), Phonon::NormalError);
++        {
++            QUrl cdurl(QLatin1String("cdda://"));
++            if (createPipefromURL(cdurl))
++                m_loading = true;
++            else
++                setError(tr("Could not open media source."));
++        }
+         break;
+ 
+     default:
+@@ -959,6 +960,19 @@
+         m_hasVideo = m_videoStreamFound;
+         emit hasVideoChanged(m_hasVideo);
+     }
++
++    m_availableTitles = 1;
++    gint64 titleCount;
++    GstFormat format = gst_format_get_by_nick("track");
++    if (gst_element_query_duration (m_pipeline, &format, &titleCount)) {
++        int oldAvailableTitles = m_availableTitles;
++        m_availableTitles = (int)titleCount;
++        if (m_availableTitles != oldAvailableTitles) {
++            emit availableTitlesChanged(m_availableTitles);
++            m_backend->logMessage(QString("Available titles changed: %0").arg(m_availableTitles), Backend::Info, this);
++        }
++    }
++
+ }
+ 
+ void MediaObject::setPrefinishMark(qint32 newPrefinishMark)
+@@ -1356,6 +1370,13 @@
+     if (!m_seekable)
+         m_atEndOfStream = true;
+ 
++    if (m_autoplayTitles &&
++        m_availableTitles > 1 &&
++        m_currentTitle < m_availableTitles) {
++        _iface_setCurrentTitle(m_currentTitle + 1);
++        return;
++    }
++
+     if (m_nextSource.type() != MediaSource::Invalid
+         && m_nextSource.type() != MediaSource::Empty) {  // We only emit finish when the queue is actually empty
+         QTimer::singleShot (qMax(0, transitionTime()), this, SLOT(beginPlay()));
+@@ -1384,6 +1405,72 @@
+     notify(&event);
+ }
+ 
++#ifndef QT_NO_PHONON_MEDIACONTROLLER
++//interface management
++bool MediaObject::hasInterface(Interface iface) const
++{
++    return iface == AddonInterface::TitleInterface;
++}
++
++QVariant MediaObject::interfaceCall(Interface iface, int command, const QList<QVariant> &params)
++{
++    if (hasInterface(iface)) {
++
++        switch (iface)
++        {
++        case TitleInterface:
++            switch (command)
++            {
++            case availableTitles:
++                return _iface_availableTitles();
++            case title:
++                return _iface_currentTitle();
++            case setTitle:
++                _iface_setCurrentTitle(params.first().toInt());
++                break;
++            case autoplayTitles:
++                return m_autoplayTitles;
++            case setAutoplayTitles:
++                m_autoplayTitles = params.first().toBool();
++                break;
++            }
++            break;
++                default:
++            break;
++        }
++    }
++    return QVariant();
++}
++#endif
++
++int MediaObject::_iface_availableTitles() const
++{
++    return m_availableTitles;
++}
++
++int MediaObject::_iface_currentTitle() const
++{
++    return m_currentTitle;
++}
++
++void MediaObject::_iface_setCurrentTitle(int title)
++{
++    GstFormat trackFormat = gst_format_get_by_nick("track");
++    m_backend->logMessage(QString("setCurrentTitle %0").arg(title), Backend::Info, this);
++    if ((title == m_currentTitle) || (title < 1) || (title > m_availableTitles))
++        return;
++
++    m_currentTitle = title;
++
++    //let's seek to the beginning of the song
++    if (gst_element_seek_simple(m_pipeline, trackFormat, GST_SEEK_FLAG_FLUSH, m_currentTitle - 1)) {
++        updateTotalTime();
++        m_atEndOfStream = false;
++        emit titleChanged(title);
++        emit totalTimeChanged(totalTime());
++    }
++}
++
+ } // ns Gstreamer
+ } // ns Phonon
+ 
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/mediaobject.h phonon-4.3.1/gstreamer/mediaobject.h
+--- phonon-4.3.1.orig/gstreamer/mediaobject.h	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/mediaobject.h	2009-10-19 13:07:39.000000000 -0500
+@@ -21,7 +21,6 @@
+ #include "backend.h"
+ #include "common.h"
+ #include "medianode.h"
+-
+ #include <phonon/mediaobjectinterface.h>
+ #include <phonon/addoninterface.h>
+ 
+@@ -32,7 +31,6 @@
+ #include <QtCore/QDate>
+ #include <QtCore/QEvent>
+ #include <QtCore/QUrl>
+-
+ #include <gst/gst.h>
+ 
+ QT_BEGIN_NAMESPACE
+@@ -50,11 +48,20 @@
+ class VideoPath;
+ class AudioOutput;
+ 
+-class MediaObject : public QObject, public MediaObjectInterface, public AddonInterface, public MediaNode
++class MediaObject : public QObject, public MediaObjectInterface
++#ifndef QT_NO_PHONON_MEDIACONTROLLER
++        , public AddonInterface
++#endif
++        , public MediaNode
+ {
+     friend class Stream;
+     Q_OBJECT
+-    Q_INTERFACES(Phonon::MediaObjectInterface Phonon::AddonInterface Phonon::Gstreamer::MediaNode)
++    Q_INTERFACES(Phonon::MediaObjectInterface
++#ifndef QT_NO_PHONON_MEDIACONTROLLER
++                 Phonon::AddonInterface
++#endif
++                 Phonon::Gstreamer::MediaNode
++    )
+ 
+ public:
+ 
+@@ -93,16 +100,10 @@
+     MediaSource source() const;
+ 
+     // No additional interfaces currently supported
+-    bool hasInterface(Interface) const
+-    {
+-        return false;
+-    }
+-
+-    QVariant interfaceCall(Interface, int, const QList<QVariant> &)
+-    {
+-        return QVariant();
+-    }
+-
++#ifndef QT_NO_PHONON_MEDIACONTROLLER
++    bool hasInterface(Interface) const;
++    QVariant interfaceCall(Interface, int, const QList<QVariant> &);
++#endif
+     bool isLoading()
+     {
+         return m_loading;
+@@ -176,6 +177,19 @@
+     QMultiMap<QString, QString> metaData();
+     void setMetaData(QMultiMap<QString, QString> newData);
+ 
++    // AddonInterface:
++    void titleChanged(int);
++    void availableTitlesChanged(int);
++
++    // Not implemented
++    void chapterChanged(int);
++    void availableChaptersChanged(int);
++    void angleChanged(int);
++    void availableAnglesChanged(int);
++
++    void availableSubtitlesChanged();
++    void availableAudioChannelsChanged();
++
+ protected:
+     void beginLoad();
+     void loadingComplete();
+@@ -185,7 +199,7 @@
+     /*
+      * @param encodedUrl percent-encoded QString for source compat reasons.  Should change to QUrl
+      */
+-    bool createPipefromURL(const QString &encodedUrl);
++    bool createPipefromURL(const QUrl &url);
+     bool createPipefromStream(const MediaSource &);
+ 
+ private Q_SLOTS:
+@@ -219,6 +233,10 @@
+     void updateSeekable();
+     qint64 getPipelinePos() const;
+ 
++    int _iface_availableTitles() const;
++    int _iface_currentTitle() const;
++    void _iface_setCurrentTitle(int title);
++
+     bool m_resumeState;
+     State m_oldState;
+     quint64 m_oldPos;
+@@ -264,6 +282,9 @@
+     bool m_resetNeeded;
+     QStringList m_missingCodecs;
+     QMultiMap<QString, QString> m_metaData;
++    bool m_autoplayTitles;
++    int m_availableTitles;
++    int m_currentTitle;
+ };
+ }
+ } //namespace Phonon::Gstreamer
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/qwidgetvideosink.h phonon-4.3.1/gstreamer/qwidgetvideosink.h
+--- phonon-4.3.1.orig/gstreamer/qwidgetvideosink.h	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/qwidgetvideosink.h	2009-10-19 13:07:39.000000000 -0500
+@@ -19,7 +19,6 @@
+ #define Phonon_GSTREAMER_VIDEOSINK_H
+ 
+ #include "common.h"
+-#include "qwidgetvideosink.h"
+ 
+ #include <QtCore/QByteArray>
+ #include <QtCore/QEvent>
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/videowidget.h phonon-4.3.1/gstreamer/videowidget.h
+--- phonon-4.3.1.orig/gstreamer/videowidget.h	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/videowidget.h	2009-10-19 13:07:39.000000000 -0500
+@@ -25,7 +25,6 @@
+ #include "common.h"
+ #include "medianode.h"
+ #include "abstractrenderer.h"
+-#include "videowidget.h"
+ 
+ #include <gst/gst.h>
+ 
+diff -u -r --new-file phonon-4.3.1.orig/gstreamer/x11renderer.cpp phonon-4.3.1/gstreamer/x11renderer.cpp
+--- phonon-4.3.1.orig/gstreamer/x11renderer.cpp	2009-02-27 04:15:42.000000000 -0600
++++ phonon-4.3.1/gstreamer/x11renderer.cpp	2009-10-19 13:07:39.000000000 -0500
+@@ -138,7 +138,6 @@
+ void X11Renderer::movieSizeChanged(const QSize &movieSize)
+ {
+     Q_UNUSED(movieSize);
+-
+     if (m_renderWidget) {
+         m_renderWidget->setGeometry(m_videoWidget->calculateDrawFrameRect());
+     }

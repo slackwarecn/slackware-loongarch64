@@ -21,8 +21,17 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=3.10a
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-6}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -33,16 +42,18 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf xv-3.10
-tar xvf $CWD/xv-3.10.tar.gz || exit 1
+tar xvf $CWD/xv-3.10.tar.?z* || exit 1
 cd xv-3.10 || exit 1
 chown -R root:root .
-zcat $CWD/xv-3.10a.patch.gz | patch -p0 --verbose --backup --suffix=.orig || exit
-bzcat $CWD/xv-3.10a-jumbo-fix-patch-20050410.txt.bz2 | patch -p1 --verbose --backup --suffix=.orig || exit
-bzcat $CWD/xv-3.10a-jumbo-enh-patch-20050501.txt.bz2 | patch -p1 --verbose --backup --suffix=.orig || exit
-zcat $CWD/xv.prefix.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit
+zcat $CWD/xv-3.10a.patch.gz | patch -p0 --verbose --backup --suffix=.orig || exit 1
+bzcat $CWD/xv-3.10a-jumbo-fix-enh-patch-20070520.txt.bz2 | patch -p1 --verbose --backup --suffix=.orig || exit 1
+bzcat $CWD/xv-3.10a-jumbo-additions.diff.bz2 | patch -p1 --verbose --backup --suffix=.orig || exit 1
+bzcat $CWD/xv-3.10a-enhancements.20070520-20081216.diff.bz2 | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/xv.prefix.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 if [ "$ARCH" = "x86_64" ]; then
-  zcat $CWD/xv.prefix_x86_64.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit
+  zcat $CWD/xv.prefix_x86_64.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 fi
+zcat $CWD/xv.jasper.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 make -f Makefile.std
 strip --strip-unneeded bggen vdcomp xcmap xv xvpictoppm
 mkdir -p $PKG/usr/bin

@@ -21,9 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.4.1
-ARCH=${ARCH:-x86_64}
+VERSION=2.4.2
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j6}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -38,6 +49,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -61,7 +75,7 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --infodir=/usr/info
 
-make -j3 || exit 1
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -73,7 +87,7 @@ gzip -9 $PKG/usr/man/man1/bison.1
 
 mkdir -p $PKG/usr/doc/bison-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING* INSTALL NEWS README REFERENCES THANKS doc/FAQ \
+  AUTHORS COPYING* INSTALL NEWS README REFERENCES THANKS doc/FAQ \
   $PKG/usr/doc/bison-$VERSION
 
 mkdir -p $PKG/install

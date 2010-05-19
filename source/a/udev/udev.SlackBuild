@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2006, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,12 +20,20 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-VERSION=${VERSION:-141}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo udev-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -41,7 +49,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/lib/udev
 cd $TMP
 rm -rf udev-$VERSION
-tar xvf $CWD/udev-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/udev-$VERSION.tar.xz || exit 1
 cd udev-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -50,31 +58,31 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-zcat $CWD/rule_generator.diff.gz | patch -p1 --verbose || exit 1
+# Fixup the rule generator for our use
+zcat $CWD/rule_generator.diff.gz | patch -p1 || exit 1
 
+# static libudev is needed for lvm2
 ./configure \
+  --enable-static \
   --prefix=/usr \
-  --exec-prefix=/ \
   --sysconfdir=/etc \
+  --sbindir=/sbin \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-rootlibdir=/lib${LIBDIRSUFFIX} \
+  --libexecdir=/lib/udev \
+  --disable-introspection \
   --mandir=/usr/man \
-  --with-libdir-name=lib${LIBDIRSUFFIX} \
+  --docdir=/usr/doc/udev-$VERSION \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
-    xargs strip --strip-unneeded 2> /dev/null || true
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | \
-    xargs strip --strip-unneeded 2> /dev/null
-)
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
-# scsi_id and vol_id are needed by multipath
-( cd $PKG/sbin 
-  ln -s ../lib/udev/scsi_id scsi_id
-  ln -s ../lib/udev/vol_id vol_id
-)
+# scsi_id is needed by multipath
+( cd $PKG/sbin ; ln -s ../lib/udev/scsi_id scsi_id )
 
 mkdir -p \
   $PKG/etc/modprobe.d \
@@ -84,15 +92,10 @@ mkdir -p \
 
 # Yes, these will clobber existing config files.
 cp -a $CWD/config/udev.conf $PKG/etc/udev/udev.conf
+
 # Copy Slackware custom rules
 cp -a $CWD/config/rules.d/* $PKG/lib/udev/rules.d/
-# Copy some files from upstream
-cp -a rules/packages/40-alsa.rules $PKG/lib/udev/rules.d/
-cp -a rules/packages/40-isdn.rules $PKG/lib/udev/rules.d/
-cp -a rules/packages/40-zaptel.rules $PKG/lib/udev/rules.d/
-cp -a rules/packages/40-infiniband.rules $PKG/lib/udev/rules.d/
-#cp -a rules/packages/40-pilot-links.rules $PKG/etc/udev/rules.d/
-#cp -a rules/packages/64-md-raid.rules $PKG/etc/udev/rules.d/
+
 # Now the init script and module-init-tools stuff
 cp -a $CWD/config/rc.d/rc.udev.new $PKG/etc/rc.d/rc.udev.new
 cp -a $CWD/config/modprobe.d/* $PKG/etc/modprobe.d
@@ -100,7 +103,7 @@ cp -a $CWD/config/modprobe.d/* $PKG/etc/modprobe.d
 chown -R root:root $PKG/etc
 find $PKG/etc -type f -exec chmod 644 {} \;
 find $PKG/etc -type d -exec chmod 755 {} \;
-chmod 755 $PKG/etc/rc.d/rc.udev.new
+chmod 0755 $PKG/etc/rc.d/rc.udev.new
 
 # Add extra device nodes to the package that udev doesn't make:
 tar xvf $CWD/udev-fixed-devices.tar.gz -C $PKG
@@ -112,10 +115,20 @@ done
 chown -R root:root $PKG/lib/udev
 chmod 755 $PKG/lib/udev/*
 
+# Move the pkgconfig file to where we expect it
+mv $PKG/usr/share/pkgconfig/* $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+rmdir $PKG/usr/share/pkgconfig
+
+# Kill the ConsoleKit stuff
+rm -rf $PKG/usr/lib/ConsoleKit ; rmdir $PKG/usr/lib 2>/dev/null
+
 mkdir -p $PKG/usr/doc/udev-$VERSION
 cp -a \
-  COPYING* FAQ README* TODO RELEASE-NOTES docs \
+  COPYING* README* TODO \
   $PKG/usr/doc/udev-$VERSION
+
+# Don't package the API docs:
+rm -rf $PKG/usr/share/gtk-doc ; rmdir $PKG/usr/share 2>/dev/null
 
 # Compress and fix manpage symlinks:
 if [ -d $PKG/usr/man ]; then

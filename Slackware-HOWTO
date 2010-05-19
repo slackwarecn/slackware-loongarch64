@@ -1,7 +1,7 @@
 
 Slackware Linux CD-ROM Installation HOWTO
 Patrick Volkerding <volkerdi@slackware.com>
-v13.0, 2009-08-25
+v13.1, 2010-05-18
 
 This document covers installation of the Slackware(R) distribution of the
 Linux operating system from the Slackware CD-ROM.
@@ -107,8 +107,8 @@ might still be able to install, but if so don't expect the best possible
 experience.
 
 You also will need some disk space to install Slackware.  For a complete
-installation, you'll probably want to devote a 6GB *or larger* partition
-completely to Slackware (you'll need almost 5GB for a full default
+installation, you'll probably want to devote a 10GB *or larger* partition
+completely to Slackware (you'll need almost 6GB for a full default
 installation, and then you'll want extra space when you're done).
 If you haven't installed Slackware before, you may have to experiment.
 If you've got the drive space, more is going to be better than not enough.
@@ -140,35 +140,35 @@ only has the A series installed.  Here's an overview of the software
 categories available for installation, along with the (approximate) amount
 of drive space needed to install the entire set:
 
-      A  The base Slackware system.  (270 MB)
+      A  The base Slackware system.  (310 MB)
 
-     AP  Linux applications.  (270 MB)
+     AP  Linux applications.  (290 MB)
 
-      D  Program development tools.  (575 MB)
+      D  Program development tools.  (600 MB)
 
-      E  GNU Emacs.  (80 MB)
+      E  GNU Emacs.  (100 MB)
 
       F  FAQs and HOWTOs for common tasks.  (35 MB)
 
-      K  Linux 2.6.29.6 kernel source.  (380 MB)
+      K  Linux 2.6.33.4 kernel source.  (445 MB)
 
-    KDE  The K Desktop Environment and applications.  (800 MB)
+    KDE  The KDE desktop environment and applications.  (925 MB)
 
-   KDEI  Language support for the K Desktop Environment.  (730 MB)
+   KDEI  Language support for KDE.  (800 MB)
 
-      L  System libraries.  (840 MB)
+      L  System libraries.  (950 MB)
 
-      N  Networking applications and utilities.  (275 MB)
+      N  Networking applications and utilities.  (325 MB)
 
       T  TeX typesetting language.  (285 MB)
 
     TCL  Tcl/Tk/TclX scripting languages and tools.  (15 MB)
 
-      X  X Window System graphical user interface.  (290 MB)
+      X  X Window System graphical user interface.  (300 MB)
 
-    XAP  Applications for the X Window System.  (485 MB)
+    XAP  Applications for the X Window System.  (490 MB)
 
-      Y  Classic text-based BSD games.  (5 MB)
+      Y  Classic text-based BSD games.  (6 MB)
 
 If you have the disk space, we encourage you to do a full installation for
 best results.  Otherwise, remember that you must install the A set.  You
@@ -248,24 +248,34 @@ your machine's CD-ROM drive and reboot to load the disc.  You'll get an
 initial information screen and a prompt (called the "boot:" prompt) at the
 bottom of the screen.  This is where you'll enter the name of the kernel
 that you want to boot with.  With most systems you'll want to use the
-default kernel, called huge.s.
+default kernel, called hugesmp.s.  Even on a machine with only a single
+one-core processor, it is recommended to use this kernel if your machine
+can run it.  Otherwise use the huge.s kernel, which should support any
+486 or better.
 
-To boot the huge.s kernel, just enter huge.s on the boot prompt:
+To boot the hugesmp.s kernel, just enter hugesmp.s on the boot prompt:
 
-boot: huge.s
+boot: hugesmp.s
 
-(actually, since the huge.s kernel is the default, you could have just
-hit ENTER and the machine would go ahead and load the huge.s kernel
+(actually, since the hugesmp.s kernel is the default, you could have just
+hit ENTER and the machine would go ahead and load the hugesmp.s kernel
 for you)
+
+If you've got some non-standard hardware in your machine (or if hugesmp.s
+doesn't work, and you're beginning to suspect you need a different
+kernel), then you'll have to try huge.s.  If, for some reason, that still
+will not boot and you know that your hardware should be supported by the
+2.6.33.4 kernel, contact volkerdi at slackware dot com and I will see
+what I can do.
 
 
 These are the kernels shipped in Slackware:
 
-huge.s      This is the default installation kernel.  If possible,
+hugesmp.s   This is the default installation kernel.  If possible,
             you can save a bit of RAM later (and some ugly warnings at
             boot time or when trying to load modules when the driver is
             already built-in) by switching to a generic kernel.  In this
-            case that would be the generic kernel, which is similar but
+            case that would be gensmp.s, which is a similar kernel but
             without filesystems and many of the less common drive
             controllers built in.  To support these (at the very least
             your root filesystem), an initrd (actually an initramfs)
@@ -282,16 +292,31 @@ huge.s      This is the default installation kernel.  If possible,
             purposes.  It's not impossible though -- think tar to/from a
             device such as a USB stick, or leveraging ROMFS.
 
-speakup.s   This is like the huge.s but has support for Speakup and all
-            the SCSI, RAID, LVM, and other features of huge.s.  There is
-            no corresponding generic kernel for speakup.s, but the vanilla
-            linux sources may be patched with the speakup sources in
-            source/k (this will probably work on any recent kernel).
-            After that, whatever customizations are needed should be
-            easily adjusted.  The speakup.s kernel is used to support
-            hardware speech synthesizers as well as software one like
-            festival (though these require additional programs that are
-            not yet shipped with Slackware).
+gensmp.s    The trimmed down, more modular version of hugesmp.s.  This
+            can be switched to, after setting up an initrd and
+            reinstalling LILO.  It is packaged as a .txz, and can be
+            found on the installed system as:
+              /boot/vmlinuz-generic-smp-2.6.33.4-smp
+
+huge.s      This is the 486-compatible single processor version of the
+            hugesmp.s kernel.  Try this if hugesmp.s does not work on
+            your machine.
+
+generic.s   The trimmed down, more modular version of huge.s.  Found on
+            the system as:
+              /boot/vmlinuz-generic-2.6.33.4
+            This also requires using an initrd.
+
+speakup.s   This is like the huge.s (486 compatible loaded kernel), but
+            has support for Speakup and all the SCSI, RAID, LVM, and other
+            features of huge.s.  There is no corresponding generic kernel
+            for speakup.s, but the vanilla linux sources may be patched
+            with the speakup sources in source/k (this will probably work
+            on any recent kernel).  After that, whatever customizations are
+            needed should be easily adjusted.  The speakup.s kernel is
+            used to support hardware speech synthesizers as well as
+            software one like festival (though these require additional
+            programs that are not yet shipped with Slackware).
 
             For more information about speakup and its drivers check out:
               http://www.linux-speakup.org.
@@ -311,6 +336,14 @@ speakup.s   This is like the huge.s but has support for Speakup and all
             Note that speakup serial ports are numbered starting with
             one (1, 2, 3) rather than the more typical 0, 1, 2 numbering
             usually seen on Linux.
+
+
+Note that if you use the huge (non-SMP kernel) and plan to compile any
+third party kernel modules, you may need to apply the kernel patch in
+/extra/linux-2.6...   or, you could just cd to the kernel sources, run
+"make menuconfig", make sure that SMP (and the -smp suffix) are turned
+off, and recompile the kernel with "make".  But, that's for later --
+after the install.
 
 
 Once you've entered your kernel choice and hit ENTER, the kernel and
@@ -337,10 +370,8 @@ use the Linux version of fdisk.
 To need to partition a hard drive, you need to specify the
 name of the device when you start fdisk.  For example:
 
-fdisk /dev/hda          (Repartition the first IDE hard drive)
-fdisk /dev/hdb          (Repartition the second IDE hard drive)
-fdisk /dev/sda          (Repartition the first SCSI hard drive)
-fdisk /dev/sdb          (Repartition the second SCSI hard drive)
+fdisk /dev/sda          (Repartition the first hard drive)
+fdisk /dev/sdb          (Repartition the second hard drive)
 
 NOTE: If you prefer, you may also try a newer menu-driven version
 of Linux fdisk called 'cfdisk'.  Rumor has it that MOST people do
@@ -352,12 +383,12 @@ at your existing partition table with the 'p' command:
 
   Command (m for help): p
 
-Disk /dev/hda: 40.0 GB, 40020664320 bytes
+Disk /dev/sda: 40.0 GB, 40020664320 bytes
 255 heads, 63 sectors/track, 4865 cylinders
 Units = cylinders of 16065 * 512 = 8225280 bytes
 
    Device Boot      Start         End      Blocks   Id  System
-/dev/hda1   *           1        2423    19462716    c  W95 FAT32 (LBA)
+/dev/sda1   *           1        2423    19462716    c  W95 FAT32 (LBA)
 
 
 Here we can see that there is one DOS partition on the drive already,
@@ -434,14 +465,14 @@ you're satisfied with them:
 
   Command (m for help): p 
 
-Disk /dev/hda: 40.0 GB, 40020664320 bytes
+Disk /dev/sda: 40.0 GB, 40020664320 bytes
 255 heads, 63 sectors/track, 4865 cylinders
 Units = cylinders of 16065 * 512 = 8225280 bytes
 
    Device Boot   Start      End     Blocks   Id  System
-/dev/hda1            1     2423   19462716+   c  W95 FAT32 (LBA)
-/dev/hda2         2424     4700   18720732   83  Linux
-/dev/hda3         4701     4865    1317332   82  Linux swap
+/dev/sda1            1     2423   19462716+   c  W95 FAT32 (LBA)
+/dev/sda2         2424     4700   18720732   83  Linux
+/dev/sda3         4701     4865    1317332   82  Linux swap
 
 This looks good, so we'll use the "w" command to write the data out to the
 drive's partition table.  If you want to exit without updating the
@@ -504,14 +535,14 @@ program to list your partitions like this:
 
     # fdisk -l
 
-    Disk /dev/hda: 40.0 GB, 40020664320 bytes
+    Disk /dev/sda: 40.0 GB, 40020664320 bytes
     255 heads, 63 sectors/track, 4865 cylinders
     Units = cylinders of 16065 * 512 = 8225280 bytes
 
        Device Boot   Start      End     Blocks   Id  System
-    /dev/hda1            1     2423   19462716+   c  W95 FAT32 (LBA)
-    /dev/hda2         2424     4700   18720732   83  Linux
-    /dev/hda3         4701     4865    1317332   82  Linux
+    /dev/sda1            1     2423   19462716+   c  W95 FAT32 (LBA)
+    /dev/sda2         2424     4700   18720732   83  Linux
+    /dev/sda3         4701     4865    1317332   82  Linux
 
 In this case, if /dev/sda3 is meant to be a Linux swap partition, you'll
 need to start fdisk on drive /dev/sda:
@@ -581,8 +612,8 @@ you'd like to put the partition in your directory tree.
 
 MS-DOS/Windows assigns a letter such as A:, B:, C:, etc, to each device.
 Unlike DOS, Linux makes your devices visible somewhere under the root
-directory (/).  You might have /dev/hda1 for your root partition (/) and
-put /dev/hda2 somewhere underneath it, such as under your /home directory.  
+directory (/).  You might have /dev/sda1 for your root partition (/) and
+put /dev/sda2 somewhere underneath it, such as under your /home directory.  
 When prompted for a mount location, just enter a directory such as /home,
 and hit enter.  As you format each additional partition and place it in
 the filesystem tree, you'll be returned to the partition selection menu.  
@@ -607,7 +638,7 @@ or pick manually from a list.  (unless you're trying to show off to your
 friends, go ahead and let setup scan for the CD-ROM drive automatically).
 Setup will then try to access the Slackware CD-ROM.  If this is
 successful, setup will tell you that it found and mounted a CD-ROM on a
-Linux device such as /dev/hdc.  If the CD-ROM was successful found, you
+Linux device such as /dev/sr0.  If the CD-ROM was successful found, you
 may skip ahead to the SELECT section below, otherwise read on for some
 CD-ROM troubleshooting tips.
 
@@ -975,12 +1006,12 @@ darkstar login:
 
 Log into the new system as "root".
         
-        Welcome to Linux 2.6.29.6.
+        Welcome to Linux 2.6.33.4.
 
         darkstar login: root
-        Last login: Sun Aug 23 18:33:01 -0500 2009 on tty3.
+        Last login: Tue May 18 15:36:23 2010 on tty3.
 
-        Linux 2.6.29.6.
+        Linux 2.6.33.4.
         You have new mail.
 
         darkstar: ~#

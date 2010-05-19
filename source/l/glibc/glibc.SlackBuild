@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,14 +22,25 @@
 
 ## build glibc-$VERSION for Slackware
 
-
-VERSION=${VERSION:-2.9}
-CHECKOUT=${CHECKOUT:--20090316}
+VERSION=${VERSION:-2.11.1}
+CHECKOUT=${CHECKOUT:-""}
 BUILD=${BUILD:-3}
+
+## Included in glibc now:
+## glibc-libidn version
+#LIBIDNVER=2.10.1
+
 # $ARCH may be preset, otherwise i486 compatibility with i686 binary
 # structuring is the Slackware default, since this is what gcc-3.2+
 # requires for binary compatibility with previous releases.
-ARCH=${ARCH:-x86_64}
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CVSVER=${VERSION}${CHECKOUT}
 
@@ -43,6 +54,8 @@ CWD=$(pwd)
 # path a non-root user could create later...
 TMP=${TMP:-/glibc-tmp-$(mcookie)}
 mkdir -p $TMP
+
+NUMJOBS=${NUMJOBS:--j4}
 
 # Sanity check on the version number in the install scripts:
 if ! grep -vq libutil-$VERSION}.so $CWD/doinst.sh-glibc ; then
@@ -101,14 +114,14 @@ apply_patches() {
   zcat $CWD/glibc.revert.to.fix.build.breakages.diff.gz | patch -p1 --verbose || exit 1
   # Update the timezone information.
   ( cd timezone
-    tar xzf $CWD/tzdata2009d.tar.gz
+    tar xzf $CWD/tzdata?????.tar.gz
     chown root:root *
     mv yearistype.sh yearistype
     chmod 644 *
     chmod 755 yearistype
     mkdir tzcode
     cd tzcode
-    tar xzf $CWD/tzcode2009d.tar.gz
+    tar xzf $CWD/tzcode?????.tar.gz
     chown -R root:root .
     chmod 644 *
     cp -a *.c *.h ..
@@ -187,8 +200,13 @@ mkdir -p $PKG/var/run/nscd
 # Begin extract/compile:
 cd $TMP
 rm -rf glibc-$CVSVER
-tar xjvf $CWD/glibc-$CVSVER.tar.bz2
+tar xvf $CWD/glibc-$CVSVER.tar.xz \
+  || tar xvf $CWD/glibc-$CVSVER.tar.bz2 \
+  || tar xvf $CWD/glibc-$CVSVER.tar.gz
 cd glibc-$CVSVER
+
+#tar xvf $CWD/glibc-libidn-$LIBIDNVER.tar.?z*
+#mv glibc-libidn-$LIBIDNVER libidn
 
 chown -R root:root .
 find . -perm 666 -exec chmod 644 {} \;
@@ -232,7 +250,7 @@ CFLAGS="-g $OPTIMIZ" \
   --without-cvs \
   $TARGET-slackware-linux
 
-make -j4 || exit 1
+make $NUMJOBS || make || exit 1
 make install install_root=$PKG || exit 1
 make localedata/install-locales install_root=$PKG || exit 1
 
@@ -442,7 +460,7 @@ fix_doinst
   mv incoming/libSegFault.so .
 )
 # Build the package:
-makepkg -l y -c n $TMP/glibc-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/glibc-$VERSION-$ARCH-$BUILD.txz
 
 # Done!
 echo

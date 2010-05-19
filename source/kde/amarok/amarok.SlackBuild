@@ -39,47 +39,14 @@ if [ -d /usr/lib${LIBDIRSUFFIX}/qt ]; then
   QTDIR=/usr/lib${LIBDIRSUFFIX}/qt
 fi
 
-# If there's no libmysqld.a, we have to build it:
+# Notify the user if libmysqld.a (embedded mysql) is missing:
 if [ ! -r /usr/lib${LIBDIRSUFFIX}/mysql/libmysqld.a ]; then
-  MYSQL="$CWD/../../ap/mysql/mysql*.tar.?z*"
-  if [ ! -e "$MYSQL" ]; then
-    if [ -e "$CWD/mysql*.tar.?z*" ]; then
-      MYSQL="$CWD/mysql*.tar.?z*"
-    fi
-  fi
-  ( cd $TMP
-    tar xvf $MYSQL
-    MYSQLDIR="mysql-$(basename $(echo $MYSQL | rev | cut -f 1 -d - | rev) .tar.bz2)"
-    if [ -d "$MYSQLDIR" ]; then
-      cd "$MYSQLDIR"
-      CFLAGS=" $SLKCFLAGS -fPIC" CXXFLAGS=" $SLKCFLAGS -fPIC" \
-      ./configure \
-      --prefix=/usr \
-      --with-mysqld-user=mysql \
-      --with-unix-socket-path=/var/run/mysql/mysql.sock \
-      --localstatedir=/var/lib${LIBDIRSUFFIX}/mysql \
-      --enable-assembler \
-      --with-raid \
-      --without-debug \
-      --enable-thread-safe-client \
-      --without-bench \
-      --with-extra-charsets=complex \
-      --with-embedded-server \
-      --with-vio \
-      --with-pic \
-      --with-openssl \
-      --build=$ARCH-slackware-linux
-      make $NUMJOBS || make || exit 1
-      mkdir -p /usr/lib${LIBDIRSUFFIX}/mysql
-      cp libmysqld/libmysqld.a /usr/lib${LIBDIRSUFFIX}/mysql   
-    fi
-  )
-fi
-
-if [ ! -r /usr/lib${LIBDIRSUFFIX}/mysql/libmysqld.a ]; then
-  echo "ERROR:  No libmysqld.a.  Strongly advised to put a MySQL source .tar.bz2 in"
-  echo "this directory and try again..."
-  sleep 10
+  cat << EOF
+ERROR:  missing /usr/lib${LIBDIRSUFFIX}/mysql/libmysqld.a
+        please use mysql-embedded.build in source/ap/mysql/
+        to build and install this, and then try again.
+EOF
+  exit 1
 fi
 
 rm -rf $PKG
@@ -88,9 +55,6 @@ cd $TMP
 echo "Building amarok-$VERSION..."
 tar xvf $CWD/../src/extragear/amarok-$VERSION.tar.?z* || exit 1
 cd amarok-$VERSION
-
-# Make qtscript optional instead of required:
-#zcat $CWD/amarok.qtscript.optional.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -109,6 +73,7 @@ export QTSCRIPTS=/usr/lib${LIBDIRSUFFIX}/qt4/plugins/script
 mkdir -p build
 cd build
   cmake \
+    $KDE_OPT_ARGS \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_BUILD_TYPE=Release \

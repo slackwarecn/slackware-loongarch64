@@ -202,21 +202,21 @@ echo "Remounting root filesystem read-only."
 /bin/sync
 
 # Close any volumes opened by cryptsetup:
-if [ -f /etc/crypttab -a -x /sbin/cryptsetup.static ]; then
+if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
   cat /etc/crypttab | grep -v "^#" | grep -v "^$" | while read line; do
     # NOTE: we only support LUKS formatted volumes (except for swap)!
     LUKS=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f1 -d' ')
     DEV=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f2 -d' ')
     OPTS=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f4 -d' ')
-    if /sbin/cryptsetup.static isLuks $DEV 2>/dev/null ; then
+    if /sbin/cryptsetup isLuks $DEV 2>/dev/null ; then
       echo "Locking LUKS crypt volume '${LUKS}':"
-      /sbin/cryptsetup.static luksClose ${LUKS}
+      /sbin/cryptsetup luksClose ${LUKS}
     elif echo $OPTS | grep -wq swap ; then
       # If any of the volumes was used as encrypted swap,
       # then run mkswap on the underlying device -
       # in case other Linux installations on this computer should use it:
       echo "Erasing encrypted swap '${LUKS}' and restoring normal swap on ${DEV}:"
-      /sbin/cryptsetup.static remove ${LUKS}
+      /sbin/cryptsetup remove ${LUKS}
       mkswap $DEV
     fi
   done

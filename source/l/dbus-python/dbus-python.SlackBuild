@@ -23,12 +23,21 @@
 
 # http://dbus.freedesktop.org/releases/dbus-python/
 
-
 PRGNAM=dbus-python
-VERSION=${VERSION:-0.83.0}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-0.83.1}
+BUILD=${BUILD:-1}
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -43,6 +52,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG

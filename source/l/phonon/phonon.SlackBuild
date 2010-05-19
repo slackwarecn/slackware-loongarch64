@@ -1,7 +1,7 @@
 #!/bin/sh 
 
 # Copyright 2008  Robby Workman, Northport, Alabama, USA
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,11 +22,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=4.3.1
-ARCH=${ARCH:-x86_64}
+VERSION=4.4.1
+SRCVER=4.4.1
 BUILD=${BUILD:-1}
-
 NUMJOBS=${NUMJOBS:--j6}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -41,13 +50,20 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
+rm -r phonon-$SRCVER
 tar xvf $CWD/phonon-$VERSION.tar.bz2 || exit 1
-cd phonon-$VERSION || exit 1
+cd phonon-$SRCVER || exit 1
+
+#zcat $CWD/phonon.gstreamer.qt-4.5.1.diff.gz | patch -p1 || exit 1
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -55,16 +71,21 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-cmake \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-  -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-  -DCMAKE_INSTALL_PREFIX=/usr \
-  -DMAN_INSTALL_DIR=/usr/man \
-  -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-  .
+mkdir build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    ..
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+cd -
+
+# PyQT won't find the header files otherwise:
+sed -i -e 's#{includedir}$#& -I\${includedir}/phonon#' $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/phonon.pc
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then

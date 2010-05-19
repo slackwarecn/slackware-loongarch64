@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,14 +22,23 @@
 
 
 PRGNAM=libspectre
-VERSION=0.2.2
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-0.2.5}
 BUILD=${BUILD:-1}
 NUMJOBS=${NUMJOBS:--j6}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PRGNAM
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -40,13 +49,16 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/$PRGNAM-$VERSION.tar.?z* || exit 1
 cd $PRGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \

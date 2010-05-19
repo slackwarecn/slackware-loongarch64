@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,13 +21,23 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=mesa
-VERSION=${VERSION:-7.5}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo MesaLib-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
+PKG_VERSION=${VERSION}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 # Be sure this list is up-to-date:
-#DRI_DRIVERS="i810,i915,i965,mach64,mga,nouveau,r128,r200,r300,radeon,s3v,savage,sis,tdfx,trident,unichrome,ffb,swrast"
-DRI_DRIVERS="i810,i915,i965,mach64,mga,r128,r200,r300,radeon,s3v,savage,sis,tdfx,trident,unichrome,ffb,swrast"
+DRI_DRIVERS="i810,i915,i965,mach64,mga,r128,r200,r300,r600,radeon,savage,sis,tdfx,unichrome,swrast"
 
 NUMJOBS=${NUMJOBS:--j8}
 
@@ -50,9 +60,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf Mesa-${VERSION}
-tar xvf $CWD/MesaLib-$VERSION.tar.xz || exit 1
-tar xvf $CWD/MesaGLUT-$VERSION.tar.xz || exit 1
-tar xvf $CWD/MesaDemos-$VERSION.tar.xz || exit 1
+tar xvf $CWD/MesaLib-${PKG_VERSION}.tar.?z* || exit 1
+tar xvf $CWD/MesaGLUT-${PKG_VERSION}.tar.?z* || exit 1
+tar xvf $CWD/MesaDemos-${PKG_VERSION}.tar.?z* || exit 1
 cd Mesa-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -77,17 +87,22 @@ CFLAGS="$SLKCFLAGS" \
 # Nobody else is enabling this.  Seems like it's asking for trouble.
 #  --enable-xcb
 
+# This doesn't seem to build - maybe it needs something else...
+#  --enable-gallium-nouveau 
+
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Install gears and glinfo manually, and make symlinks from the names
-# of the deprecated similar programs to reduce confusion:
+# Install gears and glinfo:
 mkdir -p $PKG/usr/bin
 cp -a progs/demos/gears $PKG/usr/bin/gears
 cp -a progs/demos/glinfo $PKG/usr/bin/glinfo
-( cd $PKG/usr/bin
-  ln -sf glinfo glxinfo
-  ln -sf gears glxgears
+
+# Install some "demos":
+( cd progs/xdemos
+  cp glthreads glxcontexts glxdemo glxgears glxgears_fbconfig glxheads \
+    glxinfo glxpbdemo glxpixmap \
+    $PKG/usr/bin
 )
 
 # Strip binaries:
@@ -117,14 +132,14 @@ if [ -d $PKG/usr/info ]; then
   )
 fi
 
-mkdir -p $PKG/usr/doc/Mesa-$VERSION/html
-cp -a COPYING docs/relnotes-$VERSION.html $PKG/usr/doc/Mesa-$VERSION
+mkdir -p $PKG/usr/doc/Mesa-$PKG_VERSION/html
+cp -a COPYING docs/relnotes-$VERSION.html $PKG/usr/doc/Mesa-$PKG_VERSION
 rm -f docs/relnotes*.html docs/RELNOTES*
-cp -a docs/*.html $PKG/usr/doc/Mesa-$VERSION/html
+cp -a docs/*.html $PKG/usr/doc/Mesa-$PKG_VERSION/html
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$PKG_VERSION-$ARCH-$BUILD.txz
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2007-2008  Heinz Wiesinger <pprkut@liwjatan.at>
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,11 +23,19 @@
 
 # Modified by Robby Workman <rworkman at slackware.com>
 
+VERSION=${VERSION:-$(echo libxklavier-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
-VERSION=3.9
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
 NUMJOBS=${NUMJOBS:--j6}
+
+# Automatically determine architecture for build & packaging:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *)    export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -42,13 +50,16 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf libxklavier-$VERSION
-tar xvf $CWD/libxklavier-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/libxklavier-$VERSION.tar.?z* || exit 1
 cd libxklavier-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -65,6 +76,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --disable-static \
+  --with-xkb-base=/etc/X11/xkb \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -75,11 +87,19 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/libxklavier-$VERSION
 cp -a \
-  AUTHORS ChangeLog COPYING* CREDITS INSTALL NEWS README \
+  AUTHORS COPYING* CREDITS INSTALL NEWS README \
   $PKG/usr/doc/libxklavier-$VERSION
 ( cd $PKG/usr/doc/libxklavier-$VERSION
   ln -s /usr/share/gtk-doc/html/libxklavier html
 )
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

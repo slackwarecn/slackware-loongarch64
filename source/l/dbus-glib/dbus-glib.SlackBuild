@@ -23,11 +23,20 @@
 
 
 PRGNAM=dbus-glib
-VERSION=0.80
-ARCH=${ARCH:-x86_64}
+VERSION=0.86
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j7}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -64,6 +73,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --localstatedir=/var \
+  --mandir=/usr/man \
   --enable-shared=yes \
   --enable-static=no \
   --build=$ARCH-slackware-linux
@@ -73,6 +83,8 @@ make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+gzip -9 $PKG/usr/man/man?/*.?
 
 mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
 cp -a \

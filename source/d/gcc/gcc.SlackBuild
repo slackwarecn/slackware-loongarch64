@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -42,13 +42,23 @@
 # I see no reason to continue 386 support in the latest Slackware (and indeed
 # it's no longer easily possible).
 
-VERSION=4.3.3
-ARCH=${ARCH:-x86_64}
-TARGET=$ARCH-slackware-linux
-BUILD=${BUILD:-4}
+VERSION=4.4.4
+BUILD=${BUILD:-1}
 
 # How many jobs to run in parallel:
 NUMJOB=" -j 4 "
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+TARGET=$ARCH-slackware-linux
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
@@ -68,6 +78,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -119,13 +132,24 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
   find . -perm 754 -exec chmod 755 {} \;
   find . -perm 664 -exec chmod 644 {} \;
   mkdir -p $PKG1/usr/doc/gcc-$VERSION
-  # Only the most recent ChangeLog... shouldn't be too big. :)
   cp -a \
-    BUGS COPYING* ChangeLog \
+    BUGS COPYING* \
     ChangeLog.tree-ssa FAQ INSTALL \
-    LAST_UPDATED MAINTAINERS NEWS \
+    LAST_UPDATED MAINTAINERS \
     README* *.html \
   $PKG1/usr/doc/gcc-$VERSION
+
+  # We will keep part of these, but they are really big...
+  if [ -r ChangeLog ]; then
+    DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
+    cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+    touch -r ChangeLog $DOCSDIR/ChangeLog
+  fi
+  if [ -r NEWS ]; then
+    DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
+    cat NEWS | head -n 1000 > $DOCSDIR/NEWS
+    touch -r NEWS $DOCSDIR/NEWS
+  fi
 
   mkdir -p $PKG1/usr/doc/gcc-${VERSION}/gcc
   ( cd gcc
@@ -135,93 +159,123 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
          
     mkdir -p $PKG3/usr/doc/gcc-${VERSION}/gcc/fortran
     ( cd fortran
-      cp -a \
-        ChangeLog \
-      $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
+      if [ -r ChangeLog ]; then
+        cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
+        touch -r ChangeLog $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
+      fi
     )
 
     mkdir -p $PKG4/usr/doc/gcc-${VERSION}/gcc/ada
     ( cd ada
       cp -a \
-        ChangeLog ChangeLog.tree-ssa \
+        ChangeLog.tree-ssa \
       $PKG4/usr/doc/gcc-$VERSION/gcc/ada
+      if [ -r ChangeLog ]; then
+        cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
+        touch -r ChangeLog $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
+      fi
     )
 
     mkdir -p $PKG5/usr/doc/gcc-${VERSION}/gcc/java
     ( cd java
       cp -a \
-        ChangeLog ChangeLog.tree-ssa \
+        ChangeLog.tree-ssa \
       $PKG5/usr/doc/gcc-${VERSION}/gcc/java
+      if [ -r ChangeLog ]; then
+        cat ChangeLog | head -n 1000 > $PKG5/usr/doc/gcc-${VERSION}/gcc/java/ChangeLog
+        touch -r ChangeLog $PKG5/usr/doc/gcc-${VERSION}/gcc/java/ChangeLog
+      fi
     )
   
     mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
     ( cd objc
       cp -a \
-        ChangeLog README \
+        README* \
       $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
+      if [ -r ChangeLog ]; then
+        cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
+        touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
+      fi
     )
   ) || exit 1
 
   mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
   ( cd libgfortran
-    cp -a \
-      ChangeLog \
-    $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+      touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+    fi
   )
 
   mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libada
   ( cd libada
-    cp -a \
-      ChangeLog \
-    $PKG3/usr/doc/gcc-${VERSION}/libada
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libada/ChangeLog
+      touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libada/ChangeLog
+    fi
   )
 
   mkdir -p $PKG5/usr/doc/gcc-${VERSION}/libffi
   ( cd libffi
     cp -a \
-      ChangeLog ChangeLog.libgcj ChangeLog.v1 \
-      LICENSE README \
+      ChangeLog.libgcj ChangeLog.v1 \
+      LICENSE* README* \
     $PKG5/usr/doc/gcc-${VERSION}/libffi
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG5/usr/doc/gcc-${VERSION}/libffi/ChangeLog
+      touch -r ChangeLog $PKG5/usr/doc/gcc-${VERSION}/libffi/ChangeLog
+    fi
   )
 
   mkdir -p $PKG5/usr/doc/gcc-${VERSION}/libjava
   ( cd libjava
     cp -a \
-      COPYING* ChangeLog HACKING LIBGCJ_LICENSE \
-      NEWS README THANKS \
+      COPYING* HACKING LIBGCJ_LICENSE \
+      NEWS README* THANKS \
     $PKG5/usr/doc/gcc-${VERSION}/libjava
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG5/usr/doc/gcc-${VERSION}/libjava/ChangeLog
+      touch -r ChangeLog $PKG5/usr/doc/gcc-${VERSION}/libjava/ChangeLog
+    fi
   )
 
   mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libmudflap
   ( cd libmudflap
-    cp -a \
-      ChangeLog \
-    $PKG1/usr/doc/gcc-${VERSION}/libmudflap
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libmudflap/ChangeLog
+      touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libmudflap/ChangeLog
+    fi
   )
 
   mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libgomp
   ( cd libgomp
-    cp -a \
-      ChangeLog \
-    $PKG1/usr/doc/gcc-${VERSION}/libgomp
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
+      touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
+    fi
   )
   
   mkdir -p $PKG6/usr/doc/gcc-${VERSION}/libobjc
   ( cd libobjc
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
+      touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
+    fi
     cp -a \
-      ChangeLog README README.threads THREADS THREADS.MACH \
+      README* THREADS* \
     $PKG6/usr/doc/gcc-${VERSION}/libobjc
   )
     
   mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
   ( cd libstdc++-v3
     cp -a \
-      ChangeLog README \
-    $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
-    
-    cp -a \
+      README* \
       docs/html/faq \
     $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
+    if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
+      touch -r ChangeLog $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
+    fi
   )
 )
 # build gcc
@@ -253,6 +307,7 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
      --enable-threads=posix \
      --enable-checking=release \
      --with-system-zlib \
+     --with-python-dir=/lib$LIBDIRSUFFIX/python2.6/site-packages \
      --disable-libunwind-exceptions \
      --enable-__cxa_atexit \
      --enable-libssp \
@@ -409,6 +464,7 @@ fi
 # gcc-java:
 ( cd $PKG5
   mkdir -p usr/bin
+  mv $PKG1/usr/bin/aot-compile usr/bin
   mv $PKG1/usr/bin/addr2name.awk usr/bin
   # mv $PKG1/usr/bin/fastjar usr/bin
   mv $PKG1/usr/bin/gappletviewer usr/bin
@@ -430,7 +486,9 @@ fi
   mv $PKG1/usr/bin/jcf-dump usr/bin
   mv $PKG1/usr/bin/jv-* usr/bin
   mv $PKG1/usr/bin/rmi* usr/bin
-  mkdir -p usr/include
+  mkdir -p usr/include/c++/$VERSION
+  # Move some Java only C++ headers from the C++ package:
+  mv $PKG2/usr/include/c++/$VERSION/{gcj,gnu,java,javax,org,sun} usr/include/c++/$VERSION
   mv $PKG1/usr/include/ffi.h usr/include
   mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jawt.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
@@ -441,6 +499,12 @@ fi
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jni_md.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jvmpi.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/libffi usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
+  # aot-compile Python plugins:
+  if [ ! -d $PKG1/usr/lib${LIBDIRSUFFIX}/python2.6 ]; then
+    echo "NO $PKG1/usr/lib${LIBDIRSUFFIX}/python2.6 !"
+    exit 1
+  fi
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/python2.6 usr/lib${LIBDIRSUFFIX}
   mkdir -p usr/info
   mv $PKG1/usr/info/gcj.* usr/info
   # mv $PKG1/usr/info/fastjar.* usr/info
@@ -462,6 +526,7 @@ fi
   mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/gcj usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/aot-compile.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gappletviewer.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gc-analyze.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gcj.1.gz usr/man/man1
@@ -471,6 +536,7 @@ fi
   mv $PKG1/usr/man/man1/gjar.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gjarsigner.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gjavah.1.gz usr/man/man1
+  mv $PKG1/usr/man/man1/gjdoc.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gjnih.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gkeytool.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gnative2ascii.1.gz usr/man/man1
@@ -483,6 +549,7 @@ fi
   mv $PKG1/usr/man/man1/jcf-dump.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/jv-convert.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/jv-scan.1.gz usr/man/man1
+  mv $PKG1/usr/man/man1/rebuild-gcj-db.1.gz usr/man/man1
   mkdir -p usr/share
   mv $PKG1/usr/share/java usr/share
 )

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,11 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.14.7
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-$(echo gtk+-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -40,31 +49,17 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 cd $TMP
 rm -rf gtk+-$VERSION
-tar xvf $CWD/gtk+-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/gtk+-$VERSION.tar.?z* || exit 1
 cd gtk+-$VERSION
-
-# There's been this long standing debate about PNG and -lz
-# and this patch is the workaround.  ;-)
-zcat $CWD/gtk.pnglz.diff.gz | patch -p1 --verbose || exit 1
-# Fix Flash in Konquoror:
-zcat $CWD/gtk.nsplugin.diff.gz | patch -p1 --verbose || exit 1
-
-## Fix for x86_64 (does not hurt the other archs but note that we will start
-## using /etc/gtk-2.0/$host instead of /etc/gtk-2.0/ now):
- sed -i "s/GTK_SYSCONFDIR, \\\"gtk-2\\.0\\\"/GTK_SYSCONFDIR, \\\"gtk-2\\.0\\\", HOST/g" ./gtk/gtkrc.c ./gdk-pixbuf/gdk-pixbuf-io.c
- sed -i 's/sysconfdir)\\"/&      \\\n\t-DHOST=\\\"$(host_triplet)\\\"/g' \
- gdk-pixbuf/Makefile.am \
- gtk/Makefile.am \
- modules/input/Makefile.am
-
-# The original config.{guess,sub} do not work on x86_64
-cp -p /usr/share/libtool/config.{guess,sub} .
 
 chown -R root:root .
 find . \
@@ -73,6 +68,25 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# There's been this long standing debate about PNG and -lz
+# and this patch is the workaround.  ;-)
+zcat $CWD/gtk.pnglz.diff.gz | patch -p1 --verbose || exit 1
+
+# Do not flood the console or .xsession-errors with "trouble ahead"
+# warnings (most noticable when using Firefox and Flash):
+zcat $CWD/gtk.xid.nowarningflood.diff.gz | patch -p1 --verbose || exit 1
+
+# Use /etc/gtk-2.0/$ARCH-slackware-linux instead of /etc/gtk-2.0/
+sed -i "s/GTK_SYSCONFDIR, \\\"gtk-2\\.0\\\"/GTK_SYSCONFDIR, \\\"gtk-2\\.0\\\", HOST/g" ./gtk/gtkrc.c ./gdk-pixbuf/gdk-pixbuf-io.c
+sed -i 's/sysconfdir)\\"/&      \\\n\t-DHOST=\\\"$(host_triplet)\\\"/g' \
+gdk-pixbuf/Makefile.am \
+gtk/Makefile.am \
+modules/input/Makefile.am
+
+# Use libpng-1.4.x:
+zcat $CWD/gtk.png14.diff.gz | patch -p1 --verbose || exit 1
+
+# Regenerate ./configure:
 libtoolize --force
 autoreconf -vif
 
@@ -80,7 +94,7 @@ autoreconf -vif
 # Our host is $ARCH-slackware-linux not $ARCH-slackware-linux-gnu:
 sed -i -e 's#linux|linux-gnu|#linux|linux|#' config.sub
 
-CFLAGS="$SLKCFLAGS" \
+CFLAGS="$SLKCFLAGS -DHOST='"'"${ARCH}-slackware-linux"'"'" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -166,6 +180,14 @@ cp -a \
   ln -s /usr/share/gtk-doc/html/gdk-pixbuf .
   ln -s /usr/share/gtk-doc/html/gtk .
 )
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 # I'm almost inclined to think this stuff is obsolete but I don't know for sure.
 # I do know that leaving it in doesn't hurt (aside from a few wasted bytes, but

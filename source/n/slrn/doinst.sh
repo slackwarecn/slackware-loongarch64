@@ -12,4 +12,5 @@ config() {
 }
 
 config etc/slrn.rc.new
+config var/spool/slrnpull/slrnpull.conf.new
 

@@ -1,17 +1,17 @@
 
-Welcome to Slackware 13.0!  (64-bit x86_64 edition)
+Welcome to Slackware 13.1!  (64-bit x86_64 edition)
 
-Slackware 13.0 is a complete distribution of the Linux operating system.
+Slackware 13.1 is a complete distribution of the Linux operating system.
 
-Here are some versions of major components of Slackware 13.0:
+Here are some versions of major components of Slackware 13.1:
 
-- Linux kernel           2.6.29.6
-- C compiler             gcc-4.3.3
-- Binutils               2.18.50.0.9
-- GNU C Library          glibc-2.9
+- Linux kernel           2.6.33.4
+- C compiler             gcc-4.4.4
+- Binutils               2.20.51.0.8
+- GNU C Library          glibc-2.11.1
 - X Window System        Updated (but not "bleeding edge") packages
                          from X.Org
-- KDE                    4.2.4
+- KDE                    4.4.3
 - Xfce                   4.6.1
 
 For installation instructions, see the file 'Slackware-HOWTO'.
@@ -21,11 +21,11 @@ For important hints about this release, see the file 'CHANGES_AND_HINTS.TXT'.
 These are some of the important files and directories found on the Slackware
 FTP site:
 
-  ftp://ftp.slackware.com/pub/slackware/slackware-13.0/
+  ftp://ftp.slackware.com/pub/slackware/slackware64-13.1/
 
 There is also a newer (and faster) primary FTP site for Slackware here:
 
-  ftp://slackware.osuosl.org/pub/slackware/slackware-13.0/
+  ftp://slackware.osuosl.org/pub/slackware/slackware64-13.1/
 
 Thanks to cwo.com for continuing to help us with hosting for our web site
 and ftp.slackware.com, and to the OSU Open Source Lab for hosting our
@@ -35,13 +35,10 @@ If you're reading this on a CD-ROM, these directories will probably be
 split across several discs.
 
 .
-|-- ANNOUNCE.13_0        Announcement for Slackware 13.0.
+|-- ANNOUNCE.13.1        Announcement for Slackware 13.1.
 |-- BOOTING.TXT          Tips for troubleshooting boot problems.
-|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 12.2
-|                        to 13.0 and common pitfalls.  Slackware 13.0
-|                        x86_64 (Slackware64) is the first release to the
-|                        64-bit x86_64 architecture, but the information
-|                        contained in this file is still useful.
+|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 13.0
+|                        to 13.1 and common pitfalls.
 |-- CHECKSUMS.md5        MD5 format file checksums.
 |-- COPYING              The GNU Public License, version 2.
 |-- COPYING3             The GNU Public License, version 3.
@@ -66,13 +63,11 @@ split across several discs.
 |                        If you're new to Slackware, start with this.
 |
 |-- extra/               Extra packages for Slackware like:
-|   |                    aspell-word-lists, bash-completion, bittorrent,
-|   |                    brltty, the Java(TM) JDK, kde3-compat, mpg123,
+|   |                    aspell-word-lists, bash-completion, bittornado,
+|   |                    brltty, emacspeak, the Java(TM) JDK, kde3-compat,
 |   |                    mplayerplug-in, partitionmanager (GUI partitioning
-|   |                    tool for KDE4), slacktrack, tightvnc, wicd and
-|   |                    xf86-video-intel-alternate (alternate video drivers
-|   |                    that may help cure instabilities on some Intel
-|   |                    chipsets), yasm assembler.
+|   |                    tool for KDE4), slacktrack, tightvnc, wicd,
+|   |                    yasm assembler.
 |   |
 |   `-- source/          Source code for the extra packages.
 |
@@ -86,11 +81,11 @@ split across several discs.
 |   |
 |   `-- initrd.img       Installation initrd (can also be loaded with Loadlin)
 |
-|-- kernels/             Precompiled Linux 2.6.29.6 kernel images.
+|-- kernels/             Precompiled Linux 2.6.33.4 kernel images.
 |   |
 |   |-- huge.s           The default standard install kernel for Slackware.
 |   |                    This supports pretty much everything in the
-|   |                    2.6.29.6 kernel.  This kernel requires an x86_64
+|   |                    2.6.33.4 kernel.  This kernel requires an x86_64
 |   |                    (also known as AMD64, EM64T, or Intel 64) capable
 |   |                    64-bit CPU.
 |   |
@@ -106,7 +101,7 @@ split across several discs.
 |                        This directory is also currently empty.
 |
 |-- slackware/           This directory contains the core software packages
-|   |                    for Slackware 13.0.
+|   |                    for Slackware 13.1.
 |   |
 |   |-- a/               The A (base) package series.
 |   |-- ap/              The AP (applications) package series.
@@ -146,14 +141,9 @@ split across several discs.
 |
 |-- testing/             This directory contains packages being tested
 |   |                    for possible use in future versions of Slackware.
-|   |                    You'll find bash-4.0 and linux kernel 2.6.30.5
-|   |                    packages here. We considered it a little early to
-|   |                    replace the versions in the main tree but these
-|   |                    may be useful if your hardware requires a newer
-|   |                    kernel or you want some of the features of the
-|   |                    next generation bash.  These packages should not
-|   |                    be considered supported or necessarily secure, but
-|   |                    may still useful.
+|   |                    You'll find amarok-2.3.0.90 (a development
+|   |                    release), and btrfs-progs (2010-05-18 repo pull).
+|   |                    These packages should not be considered supported.
 |   |
 |   `--- source/         This directory contains source code for the 
 |                        packages in testing.
@@ -168,10 +158,12 @@ split across several discs.
     |-- README_USB.TXT
     |-- pxelinux.cfg_default
     `-- usbboot.img       The Slackware installer for bootable USB flash.
+    `-- usbimg2disk.sh    Script to make a partitioned USB flash installer
+                          from usbboot.img.
 
 
 If you like Slackware, please consider supporting the project by becoming
-a Slackware subscriber.  The announcement (ANNOUNCE_13.0) in this directory
+a Slackware subscriber.  The announcement (ANNOUNCE_13.1) in this directory
 has information about ordering or subscribing to the Slackware CD-ROM or
 DVD releases.  Note that at this time the x86_64 release is only available
 as part of the DVD -- if there's interest in a CD-ROM version, let us know.

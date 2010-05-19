@@ -21,11 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.0.4
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo netatalk-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -36,6 +45,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -46,7 +58,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf netatalk-$VERSION
-tar xvf $CWD/netatalk-$VERSION.tar.xz || exit 1
+tar xvf $CWD/netatalk-$VERSION.tar.?z* || exit 1
 cd netatalk-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -59,11 +71,11 @@ find . \
 zcat $CWD/netatalk.etc2ps.diff.gz | patch -p1 || exit 1
 
 # Allow building without xfs quota support
-zcat $CWD/netatalk-2.0.4-without_xfs.diff.gz | patch -p1 || exit 1
+zcat $CWD/netatalk.without_xfs.diff.gz | patch -p1 || exit 1
 
 # Disallow transmission of passwords via cleartext and with old version 1 of
 # the Diffie-Hellman protocol
-zcat $CWD/netatalk-2.0.4-afpdconf.diff.gz | patch -p1 || exit 1
+zcat $CWD/netatalk.afpdconf.diff.gz | patch -p1 || exit 1
 
 autoreconf -vif
 CFLAGS="$SLKCFLAGS" \

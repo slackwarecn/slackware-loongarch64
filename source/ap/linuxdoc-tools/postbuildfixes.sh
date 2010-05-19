@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Once altertrack has determined what the contents of the package
+# Once slacktrack has determined what the contents of the package
 # should be, it copies them into $SLACKTRACKFAKEROOT
 # From here we can make modifications to the package's contents
-# immediately prior to the invocation of makepkg: altertrack will
+# immediately prior to the invocation of makepkg: slacktrack will
 # do nothing else with the contents of the package after the execution
 # of this script.
 
@@ -20,8 +20,8 @@ fi
 
 # Incase you had CUPS running:
 rm -rf etc/cups etc/printcap
-# crond:
-rm -rf var/spool/cron
+# crond & mail (just incase you got a delivery!)
+rm -rf var/spool/{cron,mail}
 rmdir var/spool
 
 # perllocal.pod files don't belong in packages.

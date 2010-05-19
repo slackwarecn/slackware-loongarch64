@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,11 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-0.82}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo usbutils-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j7}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -40,6 +49,9 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -88,6 +100,10 @@ mv $PKG/sbin/update-usbids.sh $PKG/usr/sbin/update-usbids.sh
 # upstream name available there too...
 ( cd $PKG/sbin ; ln -sf /usr/sbin/update-usbids.sh . )
 
+# Move the pkgconfig directory to @libdir@ instead of @datadir@
+mkdir $PKG/usr/lib${LIBDIRSUFFIX}
+mv $PKG/usr/share/pkgconfig $PKG/usr/lib${LIBDIRSUFFIX}
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
@@ -108,8 +124,16 @@ fi
 
 mkdir -p $PKG/usr/doc/usbutils-$VERSION
 cp -a \
-  AUTHORS COPYING ChangeLog NEWS README \
+  AUTHORS COPYING NEWS README \
   $PKG/usr/doc/usbutils-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

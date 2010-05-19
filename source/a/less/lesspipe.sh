@@ -45,6 +45,7 @@ lesspipe() {
   *.1.gz|*.2.gz|*.3.gz|*.4.gz|*.5.gz|*.6.gz|*.7.gz|*.8.gz|*.9.gz|*.n.gz|*.man.gz) # compressed *roff src?
     if gzip -dc "$1" | file - | grep roff 1> /dev/null ; then
       gzip -dc "$1" | nroff -S -mandoc -
+    else gzip -dc "$1"  2>/dev/null
     fi ;;
   *.1.bz2|*.2.bz2|*.3.bz2|*.4.bz2|*.5.bz2|*.6.bz2|*.7.bz2|*.8.bz2|*.9.bz2|*.n.bz2|*.man.bz2) # compressed *roff src?
     if bzip2 -dc "$1" | file - | grep roff 1> /dev/null ; then

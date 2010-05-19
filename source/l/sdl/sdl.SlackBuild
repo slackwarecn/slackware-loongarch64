@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,14 +20,23 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+VERSION=${VERSION:-$(echo SDL-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+IMAGE=${IMAGE:-$(echo SDL_image-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+MIXER=${MIXER:-$(echo SDL_mixer-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+NET=${NET:-$(echo SDL_net-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+TTF=${TTF:-$(echo SDL_ttf-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 
-VERSION=1.2.13
-IMAGE=1.2.7
-MIXER=1.2.8
-NET=1.2.7
-TTF=2.0.9
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -40,6 +49,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -50,7 +62,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf sdl-$VERSION
-tar xjf $CWD/SDL-$VERSION.tar.bz2 || exit 1
+tar xf $CWD/SDL-$VERSION.tar.?z* || exit 1
 cd SDL-$VERSION
 chown -R root:root .
 find . \
@@ -92,7 +104,7 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 # Add SDL_image:
 cd $TMP
 rm -rf SDL_image-$IMAGE
-tar xjf $CWD/SDL_image-$IMAGE.tar.bz2 || exit 1
+tar xf $CWD/SDL_image-$IMAGE.tar.?z* || exit 1
 cd SDL_image-$IMAGE
 chown -R root:root .
 find . \
@@ -123,11 +135,24 @@ cp -a \
 # Add SDL_mixer:
 cd $TMP
 rm -rf SDL_mixer-$MIXER
-tar xjf $CWD/SDL_mixer-$MIXER.tar.bz2 || exit 1
+tar xf $CWD/SDL_mixer-$MIXER.tar.?z* || exit 1
 cd SDL_mixer-$MIXER
 
 # Don't look for things in /usr/local, since this is an installed package:
-zcat $CWD/SDL_mixer-1.2.8.usrlocal.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/SDL_mixer.usrlocal.diff.gz | patch -p1 --verbose || exit 1
+
+# Install patched static libmikmod:
+unzip libmikmod-3.1.12.zip
+( cd libmikmod-3.1.12.patched
+  ./configure \
+  --prefix=/usr/local \
+  --libdir=/usr/local/lib${LIBDIRSUFFIX} \
+  --with-pic \
+  --enable-shared=no \
+  --enable-static=yes
+  make $NUMJOBS || make || exit 1
+  make install
+)
 
 chown -R root:root .
 find . \
@@ -141,6 +166,7 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  --enable-music-mod \
   --enable-shared=yes \
   --enable-static=no
 
@@ -155,7 +181,7 @@ cp -a \
 # Add SDL_net:
 cd $TMP
 rm -rf SDL_net-$NET
-tar xjf $CWD/SDL_net-$NET.tar.bz2 || exit 1
+tar xf $CWD/SDL_net-$NET.tar.?z* || exit 1
 cd SDL_net-$NET
 chown -R root:root .
 find . \
@@ -183,7 +209,7 @@ cp -a \
 # Add SDL_ttf:
 cd $TMP
 rm -rf SDL_ttf-$TTF
-tar xjf $CWD/SDL_ttf-$TTF.tar.bz2 || exit 1
+tar xf $CWD/SDL_ttf-$TTF.tar.?z* || exit 1
 cd SDL_ttf-$TTF
 
 #zcat $CWD/SDL_ttf-2.0.8-noftinternals.diff.gz | patch -p1 --verbose || exit 1

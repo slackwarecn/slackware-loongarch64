@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,18 @@
 
 
 PKGNAM=syslinux
-VERSION=${VERSION:-3.52}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-3.84}
+BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -48,18 +57,13 @@ find . \
 # Build:
 make -j4 || exit 1
 
-make install-all INSTALLROOT=/tmp/package-syslinux
-make mkdiskimage
-make libsyslinux.a
-cp -a unix/syslinux-nomtools mkdiskimage $PKG/usr/bin
+# Without -i, the following fails trying to install w32 junk:
+make -i install INSTALLROOT=/tmp/package-syslinux
+
+cp -a linux/syslinux-nomtools $PKG/usr/bin
 chmod 755 $PKG/usr/bin/*
 
-mkdir -p $PKG/usr/lib
-cp -a libsyslinux.a $PKG/usr/lib
-mkdir -p $PKG/usr/include
-cp -a syslinux.h $PKG/usr/include
-
-rm -rf $PKG/usr/lib/syslinux/com32
+rm -rf $PKG/usr/share/syslinux/com32
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -77,14 +81,17 @@ if [ -d $PKG/usr/man ]; then
 fi
 
 # Add a documentation directory:
-mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION/{cmenu,com32}
 cp -a \
   BUGS COPYING NEWS README* TODO \
-  distrib.doc isolinux.doc pxelinux.doc syslinux.doc \
-  com32/LICENSE \
-  memdisk/memdisk.doc \
-  menu \
+  doc \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a com32/LICENCE $PKG/usr/doc/${PKGNAM}-$VERSION/com32
+( cd com32/cmenu
+  cp -a \
+    CHANGES HISTORY MANUAL MENU_FORMAT README TODO \
+    $PKG/usr/doc/${PKGNAM}-$VERSION/cmenu
+)
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

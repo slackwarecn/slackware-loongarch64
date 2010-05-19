@@ -18,8 +18,8 @@ setenv COLOR auto
 # simply setting the LS_OPTIONS variable using the information
 # already given above:
 setenv LS_OPTIONS " $OPTIONS --color=$COLOR "
-unset COLOR
-unset OPTIONS
+unsetenv COLOR
+unsetenv OPTIONS
 
 # Set up aliases to use color ls by default.  A few additional
 # aliases like 'dir', 'vdir', etc, are some ancient artifacts
@@ -30,7 +30,7 @@ alias dir '/bin/ls $LS_OPTIONS --format=vertical';
 alias vdir '/bin/ls $LS_OPTIONS --format=long';
 alias d dir;
 alias v vdir;
-unset noglob;
+unsetenv noglob;
 
 # Set up the LS_COLORS environment:
 [ -f $HOME/.dir_colors ]

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,18 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=4.2.4
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo gmp-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -46,7 +55,7 @@ fi
 
 cd $TMP
 rm -rf gmp-$VERSION
-tar xvf $CWD/gmp-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/gmp-$VERSION.tar.?z* || exit 1
 cd gmp-$VERSION
 chown -R root:root .
 find . \
@@ -59,6 +68,7 @@ CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --infodir=/usr/info \
   --with-gnu-ld \
   --enable-cxx \
   --enable-mpbsd \
@@ -76,8 +86,16 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 
 mkdir -p $PKG/usr/doc/gmp-$VERSION
 cp -a \
-  AUTHORS COPYING COPYING.LIB NEWS README \
+  AUTHORS COPYING* NEWS README \
   $PKG/usr/doc/gmp-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

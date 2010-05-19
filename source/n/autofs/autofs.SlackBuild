@@ -1,6 +1,7 @@
+
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,34 +22,49 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=3.1.7
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+PKGNAM=autofs
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-if [ "$ARCH" = "x86_64" ]; then
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
+  SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-autofs
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
-mkdir -p $TMP $PKG/usr/{sbin,man/man{5,8}}
+mkdir -p $TMP $PKG
 
 cd $TMP
-tar xvf $CWD/autofs-$VERSION.tar.bz2 || exit 1
-cd autofs-$VERSION || exit 1
-zcat $CWD/autofs-$VERSION.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-# Allow x86_64 arch:
-zcat $CWD/autofs.x86_64.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-# Compensate for modern compiler requirements:
-zcat $CWD/autofs.gcc.fix.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-sed -i -e "s/OPEN_MAX/NR_OPEN/" $(grep -lr OPEN_MAX *)
+rm -rf $PKGNAM-$VERSION
+tar xf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
+zcat $CWD/autofs-5.0.5-fix-libxml2-workaround-configure.patch.gz | patch -p1 || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -56,22 +72,54 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# SASL requires krb5:
+
+CFLAGS="$SLKCFLAGS" \
+CPPFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --mandir=/usr/man \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-openldap \
+  --without-sasl \
   --build=$ARCH-slackware-linux
 
-make || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
 
-make install INSTALLROOT=$PKG || exit 1
+mv $PKG/etc/init.d $PKG/etc/rc.d
+mv $PKG/etc/rc.d/autofs $PKG/etc/rc.d/rc.autofs.new
+chmod 644 $PKG/etc/rc.d/rc.autofs.new
 
-strip $PKG/usr/sbin/*
-gzip -9 $PKG/usr/man/man*/*
+# Prep the config files:
+( cd $PKG/etc
+  for file in auto.master auto.misc autofs_ldap_auth.conf default/autofs ; do
+    mv $file ${file}.new
+  done
+)
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress and if needed symlink the man pages:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 mkdir -p $PKG/usr/doc/autofs-$VERSION
 cp -a \
-  COPYING COPYRIGHT NEWS README README.options TODO \
-  multiserver_mount.patch samples \
+  COPYING* COPYRIGHT CREDITS INSTALL README* \
+  samples \
   $PKG/usr/doc/autofs-$VERSION
 ( cd $PKG/usr/doc/autofs-$VERSION
   find . \( -name Makefile -o -name *.in \) -exec rm -f {} \;
@@ -79,10 +127,18 @@ cp -a \
   find . -type f -exec chmod 644 {} \;
 )
 
+# If there's a CHANGELOG, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGELOG ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGELOG | head -n 1000 > $DOCSDIR/CHANGELOG
+  touch -r CHANGELOG $DOCSDIR/CHANGELOG
+fi
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
-# Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/autofs-$VERSION-$ARCH-$BUILD.txz
 

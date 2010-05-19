@@ -1,3 +1,4 @@
+APPENDDEF(`confENVDEF', `-DNETINET6')
 APPENDDEF(`confMAPDEF', `-DNEWDB -DSTARTTLS -DSASL=2 -DTCPWRAPPERS -DNIS -DMAP_REGEX -DSOCKETMAP')
 APPENDDEF(`confLIBS', `-lnsl -lssl -lcrypto -lsasl2 -lwrap -lm -ldb -lresolv')
 APPENDDEF(`conf_libmilter_ENVDEF', `-DMILTER')

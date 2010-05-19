@@ -21,9 +21,18 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=5.38
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo smartmontools-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -40,39 +49,47 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf smartmontools-$VERSION
-tar xvf $CWD/smartmontools-$VERSION.tar.*
+tar xvf $CWD/smartmontools-$VERSION.tar.?z* || exit 1
 cd smartmontools-$VERSION
 chown -R root:root .
+
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --sysconfdir=/etc \
-  $ARCH-slackware-linux
-make
-make install DESTDIR=$PKG
+  --build=$ARCH-slackware-linux
+
+make || exit 1
+make install DESTDIR=$PKG || exit 1
+
 # Not used on Slackware:
 rm -rf $PKG/etc/rc.d
+
 mv $PKG/etc/smartd.conf $PKG/etc/smartd.conf.new
 gzip -9 $PKG/usr/man/man?/*.?
 mv $PKG/usr/share/doc $PKG/usr
 rmdir $PKG/usr/share
-rm -f $PKG/usr/doc/smartmontools-$VERSION/CHANGELOG \
-      $PKG/usr/doc/smartmontools-$VERSION/smartd.conf
+rm -f $PKG/usr/doc/smartmontools-$VERSION/smartd.conf
+
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
+
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
+
+# If there's a CHANGELOG, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGELOG ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGELOG | head -n 1000 > $DOCSDIR/CHANGELOG
+  touch -r CHANGELOG $DOCSDIR/CHANGELOG
+fi
 
 # Build the package:
 cd $PKG
 makepkg -l y -c n $TMP/smartmontools-$VERSION-$ARCH-$BUILD.txz
 
-# Clean up the extra stuff:
-if [ "$1" = "--cleanup" ]; then
-  rm -rf $TMP/smartmontools-$VERSION
-  rm -rf $PKG
-fi

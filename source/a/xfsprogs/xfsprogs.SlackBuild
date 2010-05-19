@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,11 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=3.0.1
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo xfsprogs-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -40,6 +49,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -85,11 +97,28 @@ mv $PKG/usr/doc/xfsprogs $PKG/usr/doc/xfsprogs-$VERSION
 cp -a README doc/COPYING doc/CREDITS doc/PORTING \
   $PKG/usr/doc/xfsprogs-$VERSION
 
+rm -f $PKG/usr/doc/xfsprogs-$VERSION/CHANGES.gz
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r doc/CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat doc/CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r doc/CHANGES $DOCSDIR/CHANGES
+fi
+
+# The install location for many binaries changed with the update to 3.1.1,
+# but it seems like the wrong place to put most of this stuff:
+mkdir -p $PKG/usr/sbin
+mv $PKG/sbin/xfs_* $PKG/usr/sbin
+mv $PKG/usr/sbin/xfs_repair $PKG/sbin
+
 # Remove bogus files:
 rm -f $PKG/lib${LIBDIRSUFFIX}/*.a $PKG/lib${LIBDIRSUFFIX}/*.so \
   $PKG/lib${LIBDIRSUFFIX}/*.la $PKG/usr/lib${LIBDIRSUFFIX}/*.la
 # Make /usr/lib/libhandle.so a symlink to /lib/libhandle.so.1:
 if [ -f $PKG/lib${LIBDIRSUFFIX}/libhandle.so.1 ]; then
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
   ( cd $PKG/usr/lib${LIBDIRSUFFIX}
     rm -f libhandle.so
     ln -sf /lib${LIBDIRSUFFIX}/libhandle.so.1 libhandle.so

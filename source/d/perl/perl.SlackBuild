@@ -24,22 +24,24 @@
 # originally by:  David Cantrell <david@slackware.com>
 # maintained by:  <volkerdi@slackware.com>
 
-VERSION=5.10.0
+VERSION=5.10.1
 # IMPORTANT: also update -Dinc_version_list in ./configure below!
 
 ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j6}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-perl
 
 # Additional required modules:
-DBI=1.607
-DBDMYSQL=4.008
+DBDMYSQL=4.013
+DBI=1.609
+URI=1.40
 XMLPARSER=2.36
 XMLSIMPLE=2.18
-URI=1.37
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
@@ -70,7 +72,7 @@ mkdir -p $PKG
 # Extract the source code:
 cd $TMP
 rm -rf perl-$VERSION
-tar xvf $CWD/perl-$VERSION.tar.bz2
+tar xvf $CWD/perl-$VERSION.tar.?z* || exit 1
 
 # Change into the source directory:
 cd perl-$VERSION
@@ -115,7 +117,7 @@ fi
   -Doptimize="$SLKCFLAGS" \
   $USE_THREADS \
   -Dpager='/usr/bin/less -isr' \
-  -Dinc_version_list='5.8.8 5.8.7 5.8.6 5.8.5 5.8.4 5.8.3 5.8.2 5.8.1 5.8.0' \
+  -Dinc_version_list='5.10.0 5.8.8 5.8.7 5.8.6 5.8.5 5.8.4 5.8.3 5.8.2 5.8.1 5.8.0' \
   -Darchname=$ARCH-linux
 
 # Kludge for gcc-4.2.4's needlessly changed output:
@@ -125,7 +127,7 @@ cat x2p/makefile | grep -v '\<command-line\>' > foo
 mv foo x2p/makefile
 
 # Build perl
-make -j6 || exit 1
+make $NUMJOBS || exit 1
 make test
 
 # Install perl (needed to build modules):
@@ -257,11 +259,26 @@ fi
 # Insert the slack-desc:
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
-zcat $CWD/doinst.sh.gz | \
-  sed -e "s#/lib/#/lib${LIBDIRSUFFIX}/#" | sed -e "s#i486#$ARCH#" \
+
+
+cat << EOF | sed -e "s#/lib/#/lib${LIBDIRSUFFIX}/#" | sed -e "s#i486#$ARCH#" \
   > $PKG/install/doinst.sh
+#!/bin/sh
+config() {
+  NEW="\$1"
+  OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"
+  # If there's no config file by that name, mv it over:
+  if [ ! -r \$OLD ]; then
+    mv \$NEW \$OLD
+  elif [ "\$(cat \$OLD | md5sum)" = "\$(cat \$NEW | md5sum)" ]; then # toss the redundant copy
+    rm \$NEW
+  fi
+  # Otherwise, we leave the .new copy for the admin to consider...
+}
+config usr/lib/perl5/${VERSION}/i486-linux-thread-multi/perllocal.pod.new
+EOF
 
 # Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/perl-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/perl-$VERSION-$ARCH-$BUILD.txz
 

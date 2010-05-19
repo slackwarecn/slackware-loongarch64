@@ -14,22 +14,22 @@
 ###############################################################################
 
 # Version of LDT (which is also the .t?z package version)
-LINUXDOCTOOLSVER=0.9.56
+LINUXDOCTOOLSVER=$PKGVERSION
 
 # Bundled package versions:
 SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
-XSLSTYLESHEETSVER=1.75.1
+XSLSTYLESHEETSVER=1.75.2
 DSSSLSTYLESHEETSVER=1.79
 SGMLCOMMONVER=0.6.3
 OPENJADEVER=1.3.3-pre1
 OPENSPVER=1.5.2
-GNOMEDOCUTILSVER=0.17.2
-GTKDOCVER=1.11
+GNOMEDOCUTILSVER=0.19.1
+GTKDOCVER=1.13
 SGMLSPLVER=1.03ii
-XMLTOVER=0.0.22
-ASCIIDOCVER=8.4.5
+XMLTOVER=0.0.23
+ASCIIDOCVER=8.5.2
 DOCBOOKUTILSVER=0.6.14
 
 # Determine the general CFLAGS for the known architectures:
@@ -61,8 +61,8 @@ esac
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/asciidoc-$ASCIIDOCVER.tar.gz || exit 1
-cd asciidoc-$ASCIIDOCVER
+tar xvf $CWD/sources/asciidoc-$ASCIIDOCVER.tar.*z*
+cd asciidoc-$ASCIIDOCVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -92,12 +92,12 @@ cp -fav \
 # Extract source.  We're using a source RPM since it contains a number of
 # patches that we need:
 cd $TMP
+mkdir sgml-common && cd sgml-common
 rpm2tgz $CWD/sources/sgml-common-${SGMLCOMMONVER}*.src.rpm
-tar xvf sgml-common-*src.tgz 
-cd sgml-common-$SGMLCOMMONVER-* || exit 1
+tar xvf sgml-common-*src.tgz || exit 1
 # The real source archive is stored inside the source RPM, you see:
-tar xvf sgml-common-$SGMLCOMMONVER.tgz || exit 1
-cd sgml-common-$SGMLCOMMONVER
+tar xvf sgml-common-$SGMLCOMMONVER.tgz 
+cd sgml-common-$SGMLCOMMONVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -138,7 +138,7 @@ install-catalog --add /etc/sgml/sgml-docbook.cat \
 # Copy docs:
 mkdir -vpm755 /usr/doc/sgml-common-$SGMLCOMMONVER
 cp -fav \
-  COPYING AUTHORS INSTALL NEWS README ChangeLog ../sgml-common-CHANGES \
+  COPYING AUTHORS INSTALL NEWS README ChangeLog \
   /usr/doc/sgml-common-$SGMLCOMMONVER
 
 ####################### Install docbooks ############################
@@ -151,12 +151,7 @@ cd sgml-dtd
 # but they version number the archive with the latest version.
 tar xvf $CWD/sources/docbook_*orig*.tar.gz 
 cd docbook* || exit 1
-zcat $CWD/sources/docbook_*.diff.gz | patch -p1 || exit 1
-# Don't apply the patches because whilst I know that the problem we have
-# on Slackware does not exist on Debian, I want to keep the Slackware 
-# build in line with Linux From Scratch, since their documentation is
-# excellent.
-#for i in debian/patches/*.dpatch ; do patch --verbose -p1 < $i ; done
+chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \; -o \
@@ -169,6 +164,7 @@ find . \
 ###############
 
 ( cd docbook-$SGMLDTD3VER
+  pwd 
 
  # Remove the ENT definitions from the catalog file:
   sed -i -e '/ISO 8879/d' docbook.cat
@@ -213,6 +209,7 @@ EOF
 
 
 ( cd docbook-$SGMLDTD4VER
+  pwd
 
   # Remove the ENT definitions from the catalog file:
   sed -i -e '/ISO 8879/d' -e '/gml/d' docbook.cat
@@ -246,7 +243,7 @@ EOF
   # Copy docs:
   mkdir -vpm755 /usr/doc/sgml-dtd4-$SGMLDTD4VER
   cp -fav \
-    ChangeLog README \
+    README \
     /usr/doc/sgml-dtd4-$SGMLDTD4VER/
 
 )
@@ -255,11 +252,11 @@ EOF
 
 # Extract source:
 cd $TMP
+mkdir opensp && cd opensp
 rpm2tgz $CWD/sources/opensp-${OPENSPVER}*.src.rpm 
 tar xvf opensp*src.tgz 
-cd opensp-${OPENSPVER}* || exit 1
-tar xvf OpenSP-$OPENSPVER.tar.gz || exit 1
-cd OpenSP-$OPENSPVER
+tar xvf OpenSP-$OPENSPVER.tar.gz 
+cd OpenSP-$OPENSPVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -275,7 +272,8 @@ patch --verbose -p1 < ../opensp-sigsegv.patch || exit 1
 
 # Configure without optimisation.  OpenSP & OpenJade
 # are sensitive to optimisations, resulting in segfaults,
-# particularly on the ARM platform.
+# particularly on the ARM platform.  Apparently -O1 will work but
+# let's just leave it as is.
 #
 # This is configured not to build the documentation.  If anybody really needs
 # it, let me know and I'll adjust the build script - it's just a PITA to
@@ -306,24 +304,31 @@ make install DESTDIR=/ || exit 1
 # Rename sx to sgml2xml & create symlinks:
 mv -f /usr/bin/osx /usr/bin/osgml2xml
 ( cd /usr/bin ; ln -vfs osgml2xml osx )
-mv -f /usr/man/man1/osx.1 /usr/man/man1/osgml2xml.1
-( cd /usr/man/man1 ; ln -vfs osgml2xml.1 osx.1 )
 
 # Create symlinks to binaries:
 ( cd /usr/bin
   for file in nsgmls sgmlnorm spam spent sgml2xml ; do
-     rm -f $file
+     rm -fv $file
      ln -vfs o$file $file
   done
 )
 
 # Fix man pages:
-( cd /usr/man/man1
-  for file in nsgmls sgmlnorm spam spent sgml2xml ; do
-     rm -f ${file}.1*
-     ln -vfs o${file}.1 ${file}.1 
-  done
-)
+# Sorry, but OpenSP needs xmlto installed to create its man pages and documentation.
+# Due to build dependency order, we build xmlto later on.  I did try and move xmlto earlier
+# in the build but didn't get the build order correct. If anybody REALLY misses this documentation,
+# email mozes@slackware.com and I'll have another go at adjusting the build order.
+#
+# Building man pages has been disabled with ./configure --disable-doc-build.
+#
+#( cd /usr/man/man1
+#  mv -fv osx.1 osgml2xml.1
+#  ln -vfs osgml2xml.1 osx.1 
+#  for file in nsgmls sgmlnorm spam spent sgml2xml ; do
+#     rm -f ${file}.1*
+#     ln -vfs o${file}.1 ${file}.1 
+#  done
+#)
 
 # Rename docs directory:
 mv -fv /usr/doc/OpenSP /usr/doc/OpenSP-$OPENSPVER
@@ -334,7 +339,7 @@ mv -fv /usr/doc/OpenSP /usr/doc/OpenSP-$OPENSPVER
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/openjade-${OPENJADEVER}.tar.gz
+tar xvf $CWD/sources/openjade-${OPENJADEVER}.tar.*z* 
 cd openjade-${OPENJADEVER} || exit 1
 chown -R root:root .
 find . \
@@ -394,12 +399,8 @@ echo "SYSTEM \"http://www.oasis-open.org/docbook/xml/${XMLDTDVER}/docbookx.dtd\"
 mkdir -vpm755 /usr/doc/openjade-$OPENJADEVER
 cp -fav \
   COPYING NEWS README VERSION \
-  doc/* dsssl/README.jadetex pubtext jadedoc unicode \
+  doc/* dsssl/README.jadetex pubtext jadedoc \
   /usr/doc/openjade-$OPENJADEVER
-
-# The original package has this file, but it has most of the world's
-# documentation too; we'll leave it in for the time being but I don't like it.
-#rm -f /usr/doc/openjade-$OPENJADEVER/doc/Makefile
 
 ####################### Build dsssl-stylesheets ####################
 
@@ -409,7 +410,7 @@ mkdir docbook-dsssl-$DSSSLSTYLESHEETSVER
 cd docbook-dsssl-$DSSSLSTYLESHEETSVER
 tar xvf $CWD/sources/docbook-dsssl-$DSSSLSTYLESHEETSVER.tar.bz2 || exit 1
 tar xvf $CWD/sources/docbook-dsssl-doc-$DSSSLSTYLESHEETSVER.tar.bz2 || exit 1
-cd docbook-dsssl-$DSSSLSTYLESHEETSVER
+cd docbook-dsssl-$DSSSLSTYLESHEETSVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -448,11 +449,11 @@ cp -fav \
 
 # Extract source:
 cd $TMP
+mkdir docbook-utils && cd docbook-utils
 rpm2tgz $CWD/sources/docbook-utils-${DOCBOOKUTILSVER}*.src.rpm
 tar xvf docbook-utils-*src.tgz 
-cd docbook-utils-${DOCBOOKUTILSVER}* || exit 1
-tar xvf docbook-utils-$DOCBOOKUTILSVER.tar.gz || exit 1
-cd docbook-utils-$DOCBOOKUTILSVER
+tar xvf docbook-utils-$DOCBOOKUTILSVER.tar.gz 
+cd docbook-utils-$DOCBOOKUTILSVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -462,6 +463,8 @@ find . \
 
 # Apply patches:
 for i in \
+  docbook-utils-rtfmanpage.patch \
+  docbook-utils-sgmlinclude.patch \
   docbook-utils-2ndspaces.patch \
   docbook-utils-grepnocolors.patch \
   docbook-utils-spaces.patch \
@@ -657,17 +660,15 @@ cp -favv \
 
 # Extract source:
 cd $TMP
-mkdir docbook-xsl-$XSLSTYLESHEETSVER
-cd docbook-xsl-$XSLSTYLESHEETSVER
+mkdir docbook-style-xsl && cd docbook-style-xsl
 rpm2tgz $CWD/sources/docbook-style-xsl-${XSLSTYLESHEETSVER}*.src.rpm 
 tar xvf docbook-style-xsl*.tgz
-cd docbook-style-xsl-$XSLSTYLESHEETSVER* || exit 1
 tar xvf docbook-xsl-$XSLSTYLESHEETSVER.tar.bz2
 # This unpacks atop of the main tree:
 tar xvf docbook-xsl-doc-$XSLSTYLESHEETSVER.tar.bz2
 
 # Enter unpacked sources:
-cd docbook-xsl-$XSLSTYLESHEETSVER
+cd docbook-xsl-$XSLSTYLESHEETSVER || exit 1
 
 chown -R root:root .
 find . \
@@ -730,8 +731,8 @@ cp -fav doc/* README* RELEASE-NOTES* NEWS* \
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.bz2 || exit 1
-cd xmlto-$XMLTOVER
+tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
+cd xmlto-$XMLTOVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -796,11 +797,10 @@ cp -fav \
 
 # Extract source:
 cd $TMP
-#rpm2tgz $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm
-#tar xvf linuxdoc-tools-$LINUXDOCTOOLSVER*.tgz
-#cd linuxdoc-tools-$LINUXDOCTOOLSVER* || exit 1
-#tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
-tar xvf $CWD/sources/linuxdoc-tools_$LINUXDOCTOOLSVER*.tar.gz 
+mkdir linuxdoc-tools && cd linuxdoc-tools
+rpm2tgz $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm
+tar xvf linuxdoc-tools*.src.tgz
+tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
 cd linuxdoc-tools-$LINUXDOCTOOLSVER || exit 1
 
 chown -R root:root .
@@ -810,14 +810,18 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Remove Tex from the $PATH so that we don't build formats of the linuxdoc-tools
+# guide which don't work with tetex-3.  These do work with texlive, but Slackware doesn't
+# ship that, and just how many alternate versions of the documentation do we need anyway? :-)
+OPATH=$PATH
+export PATH=$( echo $PATH | sed -e 's?:/usr/share/texmf/bin??g' -e 's?/usr/share/texmf/bin:??g' )
+
 # Apply patches (these are included in the source rpm):
-#for i in \
-#  linuxdoc-tools-0.9.13-letter.patch \
-#  linuxdoc-tools-0.9.20-lib64.patch ; do
-#   patch --verbose -p1 < ../$i
-#done || exit 1
-# Add lib64 in Perl's path on a 64bit machine:
-patch --verbose -p1 < $CWD/sources/linuxdoc-tools.lib64.diff || exit 1
+for i in \
+  linuxdoc-tools-0.9.13-letter.patch \
+  linuxdoc-tools-0.9.20-lib64.patch ; do
+   patch --verbose -p1 < ../$i
+done || exit 1
 
 # Find out what our Vendor perl directory is:
 eval $(perl '-V:installvendorlib')
@@ -835,9 +839,9 @@ mkdir -p $PKG/$installvendorlib
 #  --with-texdir=/usr/share/texmf/tex/latex/ \
 
 # Adjust doc dir location:
-sed -i 's?share/doc/linuxdoc-tools?doc/linuxdoc-tools-'"$$LINUXDOCTOOLSVER"'?g' Makefile
+sed -i 's?share/doc/linuxdoc-tools?doc/linuxdoc-tools-'"$LINUXDOCTOOLSVER"'?g' Makefile
 
-#( cd entity-map && autoconf && ./configure )
+( cd entity-map && autoconf && ./configure --prefix=/usr )
 
 # Build serial.  This does build in parallel but
 # I find linuxdoc-tools to be fragile between versions:
@@ -857,8 +861,8 @@ make install \
 
 # Install shell scripts for sgml2{txt,latex,info}
 for i in txt latex info; do \
-    install -vpm755 debian/addition/sgml2$$i \
-    /usr/bin/sgml2$$i; \
+    install -vpm755 debian/addition/sgml2$i \
+    /usr/bin/sgml2$i; \
 done
 
 # Install info page:
@@ -869,12 +873,15 @@ cat debian/linuxdoc-tools.info-base doc/guide.info > /usr/info/linuxdoc-sgml.inf
 # 'linuxdoc-tools', let's put our changelog into here:
 install -vpm644 $CWD/ChangeLog.txt /usr/doc/linuxdoc-tools-$LINUXDOCTOOLSVER/Slackware-ChangeLog.txt
 
+# Restore $PATH:
+export PATH=$OPATH
+
 ####################### Build gnome-doc-utils #######################
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/gnome-doc-utils-$GNOMEDOCUTILSVER.tar.bz2 
-cd gnome-doc-utils-*
+tar xvf $CWD/sources/gnome-doc-utils-$GNOMEDOCUTILSVER.tar.*z*
+cd gnome-doc-utils-* || exit 1
 
 chown -R root:root .
 find . \
@@ -892,6 +899,7 @@ CFLAGS="$SLKCFLAGS" \
   --localstatedir=/var \
   --mandir=/usr/man \
   --disable-scrollkeeper \
+  --enable-build-utils \
   --build=$ARCH-slackware-linux$HOSTTARGET || exit 1
 
 # No parallel build here because it doesn't work:
@@ -919,6 +927,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Apply an upstreamed fix for gtk-doc-1.13:
+bzcat $CWD/sources/gtkdoc-1.13-fixref.patch.bz2 | patch --verbose -p1 || exit 1
+
 # Configure:
 ./configure \
   --prefix=/usr \
@@ -944,3 +955,4 @@ cp -fav \
 rm -rf /install
 mkdir -vpm755 /install
 install -vpm644 $CWD/slack-desc /install
+#EOF

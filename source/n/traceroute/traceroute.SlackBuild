@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,19 +21,28 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.4a12
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+PKGNAM=traceroute
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX=64
+else
+  LIBDIRSUFFIX=
 fi
+
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -53,25 +62,26 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/traceroute_$VERSION-5.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/traceroute.no.domain.strip.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+make $NUMJOBS VPATH=/usr/lib${LIBDIRSUFFIX} || make VPATH=/usr/lib${LIBDIRSUFFIX} || exit 1
 
-CFLAGS="$SLKCFLAGS  -Ilinux-include" ./configure --prefix=/usr
-make $NUMJOBS || make || exit 1
-
-strip traceroute
 mkdir -p $PKG/usr/bin
-cat traceroute > $PKG/usr/bin/traceroute
-chmod 4711 $PKG/usr/bin/traceroute
+cat traceroute/traceroute > $PKG/usr/bin/traceroute
+chmod 755 $PKG/usr/bin/traceroute
+
+# Strip binaries:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
 
 mkdir -p $PKG/usr/man/man8
-gzip -9c traceroute.8 > $PKG/usr/man/man8/traceroute.8.gz
+cat traceroute/traceroute.8 | gzip -9c > $PKG/usr/man/man8/traceroute.8.gz
 
 mkdir -p $PKG/usr/doc/traceroute-$VERSION
 cp -a \
-  CHANGES FILES INSTALL README VERSION \
+  COPYING* CREDITS ChangeLog README* TODO VERSION \
+  wrappers \
   $PKG/usr/doc/traceroute-$VERSION
-chmod 644 $PKG/usr/doc/traceroute-$VERSION/*
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

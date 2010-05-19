@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,21 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=1.1.6
-ARCH=${ARCH:-x86_64}
+
+PKGNAM=pil
+ARCNAM=Imaging
+VERSION=${VERSION:-$(echo $ARCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "${ARCH}" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -40,15 +52,15 @@ fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-pil
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf Imaging-$VERSION
-tar xvf $CWD/Imaging-$VERSION.tar.*z* || exit 1
-cd Imaging-$VERSION
+rm -rf $ARCNAM-$VERSION
+tar xvf $CWD/$ARCNAM-$VERSION.tar.*z* || exit 1
+cd $ARCNAM-$VERSION
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -67,15 +79,23 @@ python setup.py install --root=$PKG || exit 1
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mkdir -p $PKG/usr/doc/pil-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  BUILDME CHANGES CONTENTS MANIFEST README \
-  $PKG/usr/doc/pil-$VERSION
-cp -a Sane/README $PKG/usr/doc/pil-$VERSION/README.Sane
+  BUILDME CONTENTS MANIFEST README \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a Sane/README $PKG/usr/doc/$PKGNAM-$VERSION/README.Sane
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/pil-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

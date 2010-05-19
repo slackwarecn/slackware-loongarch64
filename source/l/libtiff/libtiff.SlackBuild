@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,20 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=3.8.2
-ARCH=${ARCH:-x86_64}
-BUILD=3
+VERSION=${VERSION:-$(echo tiff-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=1
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
@@ -36,6 +47,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -46,7 +60,7 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf tiff-$VERSION
-tar xjvf $CWD/tiff-$VERSION.tar.bz2
+tar xvf $CWD/tiff-$VERSION.tar.?z* || exit 1
 cd tiff-$VERSION
 
 chown -R root:root .
@@ -56,19 +70,18 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/tiff-3.8.2.goo-sec.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/tiff-3.8.2.tiffsplit.commandline.overflow.diff.gz | patch -p1 --verbose || exit 1
-
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
   --program-prefix="" \
   --program-suffix="" \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
-make -j3 || exit 1
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+( cd man ; make install-man DESTDIR=$PKG || exit 1 ) || exit 1
 rm -r $PKG/usr/share
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -80,6 +93,14 @@ mkdir -p $PKG/usr/doc/libtiff-$VERSION
 cp -a \
   COPYRIGHT README RELEASE-DATE TODO VERSION \
   $PKG/usr/doc/libtiff-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mv $PKG/usr/local/man $PKG/usr
 rmdir $PKG/usr/local

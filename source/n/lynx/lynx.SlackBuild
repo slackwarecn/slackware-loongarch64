@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,16 +21,33 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-SRCVER=2.8.6rel.5
-PKGVER=2.8.6rel.5
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+SRCVER=2.8.7
+PKGVER=2.8.7
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "x86_64" ]; then
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
+  SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
@@ -39,24 +56,13 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-lynx
 
 rm -rf $PKG
-mkdir -p $PKG
-# Add libdir to package:
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/lynx
-
+mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}/lynx
 cd $TMP
-rm -rf lynx2-8-6
-tar xvf $CWD/lynx${SRCVER}.tar.bz2 || exit 1
-cd lynx2-8-6
-# Fix /usr/local paths:
-zcat $CWD/lynx.path.diff.gz | sed -e "s#usr/lib/#usr/lib${LIBDIRSUFFIX}/#g" | patch -p1 --verbose || exit 1
-# Apply recolorizing patch:
-zcat $CWD/lynx.cfg.diff.gz | patch -p1 --verbose --backup || exit 1
+rm -rf lynx2-8-7
+tar xvf $CWD/lynx${SRCVER}.tar.?z* || exit 1
+cd lynx2-8-7
 
-## Apply official patches:
-#zcat $CWD/2.8.5rel.4.patch.gz | patch -p1 --verbose || exit
-#zcat $CWD/2.8.5rel.5.patch.gz | patch -p1 --verbose || exit
-
-find . -name "*~" | xargs rm
+find . -name "*~" -exec rm -f {} \;
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -64,6 +70,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Fix /usr/local paths and libdir paths
+zcat $CWD/lynx.path.diff.gz | \
+  sed -e "s#@SLACK_LIBDIR@#/usr/lib${LIBDIRSUFFIX}/#g" | \
+  patch -p1 --verbose || exit 1
+
+# Apply recolorizing patch:
+zcat $CWD/lynx.cfg.diff.gz | patch -p1 --verbose --backup || exit 1
+
+CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
@@ -120,6 +135,14 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   ln -sf /usr/share/lynx/lynx_doc .
   ln -sf /usr/share/lynx/lynx_help .
 )
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
 
 gzip -9 $PKG/usr/man/man?/*.?
 

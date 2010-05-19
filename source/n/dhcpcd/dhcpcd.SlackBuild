@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,20 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-3.2.3}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo dhcpcd-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -31,17 +42,23 @@ PKG=$TMP/package-dhcpcd
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf dhcpcd-$VERSION
-tar xvf $CWD/dhcpcd-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/dhcpcd-$VERSION.tar.?z* || exit 1
 cd dhcpcd-$VERSION
 chown -R root:root .
 find . \
@@ -50,57 +67,41 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# This changes the default locations where *.pid and other files are
-# written - instead of various locations, use /etc/dhcpc
-# The latter directory was long traditional, and (more importantly) 
-# you can't be sure that /var is mounted yet when dhcpcd is invoked.
-zcat $CWD/patches/config.h.diff.gz | patch -p1 || exit 1
+# At this point, it should be safe to assume that /var will be mounted by the
+# time dhcpcd is called, as all non-root local filesystems are mounted from
+# /etc/rc.d/rc.S, and /var should not be on a network filesystem.  As such,
+# we'll use the FHS layout instead of putting things in /etc/dhcpc 
 
-# Fixup the sample dhcpcd.sh script to reflect our changes
-zcat $CWD/patches/dhcpcd.sh.diff.gz | patch -p1 || exit 1
+# Fixup the 50-ntp.conf hook with our init script location
+zcat $CWD/50-ntp.conf.diff.gz | patch -p1 || exit 1
 
-# Fix a typo in the manpage
-zcat $CWD/patches/dhcpcd.8.in.diff.gz | patch -p1 || exit 1
-
-# Disable zeroconf support
-# I'm not sure if this is necessary, to be honest.  If we do this though,
-# I think we'll want to edit the man page to remove references to it.
-#sed -i 's%#define ENABLE_IPV4LL%#undef ENABLE_IPV4LL%' config.h
-
-# Fix segfaulting on x86_64. Apparently i?86 is more forgiving
-#zcat $CWD/dhcpcd.vararg.diff.gz | patch -p1 --verbose || exit 1
-
+# Yes, /lib/dhcpcd is correct, even on x86_64.
 CFLAGS="$SLKCFLAGS" \
-  make INFODIR=/etc/dhcpc || exit 1
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sbindir=/sbin \
+  --sysconfdir=/etc \
+  --dbdir=/var/lib/dhcpcd \
+  --libexecdir=/lib/dhcpcd \
+  --mandir=/usr/man \
+  --with-hooks="50-ntp.conf 50-yp.conf" \
+  --build=$ARCH-slackware-linux
 
-# We'll install this manually, as the only thing "make install" actually
-# installs is the executable and the man page, and the man page goes to
-# the wrong place :-)
-mkdir -p $PKG/sbin
-cp -a dhcpcd $PKG/sbin
-
-mkdir -p $PKG/usr/man/man8
-gzip -9c dhcpcd.8 > $PKG/usr/man/man8/dhcpcd.8.gz
-
-# This script (or its equivalent) has been installed non-executable for 
-# several dhcpcd releases leading me to believe this is intentional on the 
-# part of the developers.  Indeed, the script is called a "sample" in the 
-# included comments, and there's been at least one security issue related 
-# to its use in the past, so it's probably a safer bet to not install it so 
-# that it works "out of the box".  However, making it non-executable is not 
-# the best solution for this as it leads to error messages in the system 
-# logs which I hear about from time to time.  Instead, we'll make it 
-# executable, but will give it a suffix of -sample so that dhcpcd won't 
-# attempt to run it unless the admin specifically configure it to do so.
-# As far as I can tell it does nothing more than add some extra verbosity 
-# to the logs anyway, and rc.inet1 already does that.  There's really no
-# need that I can see to enable the script.
-mkdir -p $PKG/etc/dhcpc
-cp -a dhcpcd.sh $PKG/etc/dhcpc/dhcpcd.sh-sample
-chmod 755 $PKG/etc/dhcpc/dhcpcd.sh-sample
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG HOOKSCRIPTS="50-ntp.conf 50-yp.conf" || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Let's not clobber the config file
+mv $PKG/etc/dhcpcd.conf $PKG/etc/dhcpcd.conf.new
+
+# Compress manpages
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
 
 mkdir -p $PKG/usr/doc/dhcpcd-$VERSION
 cp -a README $PKG/usr/doc/dhcpcd-$VERSION
@@ -108,7 +109,7 @@ zcat $CWD/COPYRIGHT.gz > $PKG/usr/doc/dhcpcd-$VERSION/COPYRIGHT
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/dhcpcd-$VERSION-$ARCH-$BUILD.txz
-

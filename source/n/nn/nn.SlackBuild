@@ -21,18 +21,30 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=6.7.3
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
   LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
+  MFILE="m-i80386.h"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+  MFILE="m-x86_64.h"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  MFILE="m-i80386.h"
 fi
 
 CWD=$(pwd)
@@ -53,14 +65,19 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/nn.diff.gz | sed -e "s#/usr/lib/nn#/usr/lib${LIBDIRSUFFIX}/nn#" \
-  | patch -p1 --verbose || exit 1
+zcat $CWD/nn.diff.gz \
+    | sed -e "s#m-sparc.h#${MFILE}#" \
+    | sed -e "s#/usr/lib/nn#/usr/lib${LIBDIRSUFFIX}/nn#" \
+    | patch -p0 --verbose || exit 1
+if [ $ARCH = "x86_64" ]; then
+	zcat $CWD/m-x86_64.h.gz > conf/m-x86_64.h
+fi
 zcat $CWD/nn.badnntphost.diff.gz | patch -p1 --verbose || exit 1
 # Taken from slamd64 (who adapted an old Ubuntu patch);
 # Besides adding DESTDIR support, it gets rid of the hardlinks that are created:
 zcat $CWD/nn.destdir.diff.gz | patch -p1 --verbose  || exit 1
 
-cp config.h-dist config.h
+cat config.h-dist | sed -e "s#m-sparc.h#${MFILE}#" > config.h
 make all
 
 echo "*** USE install option 's'"

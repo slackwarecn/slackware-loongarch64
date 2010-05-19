@@ -12,11 +12,13 @@ ntpd_start() {
 # Stop ntpd:
 ntpd_stop() {
   echo -n "Stopping NTP daemon..."
-  kill $(cat /var/run/ntpd.pid)
+  if [ -r /var/run/ntpd.pid ]; then
+    kill -HUP $(cat /var/run/ntpd.pid)
+    rm -f /var/run/ntpd.pid
+  else
+    killall -HUP -q ntpd
+  fi
   echo
-  sleep 1
-  rm -f /var/run/ntpd.pid
-  killall ntpd 2> /dev/null
 }
 
 # Restart ntpd:
@@ -32,6 +34,7 @@ ntpd_status() {
     echo "ntpd is running."
   else 
     echo "ntpd is stopped."
+    exit 1
   fi
 }
 

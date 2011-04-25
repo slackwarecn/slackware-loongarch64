@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,18 @@
 
 
 PKGNAM=mm
-VERSION=${VERSION:-1.4.2}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -43,12 +52,15 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
-cd ${PKGNAM}-$VERSION
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+cd ${PKGNAM}-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -66,7 +78,7 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-static \
   --enable-shared \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
 # Build and install:
 make $NUMJOBS || make || exit 1
@@ -109,8 +121,16 @@ fi
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  ChangeLog INSTALL LICENSE PORTING README THANKS \
+  INSTALL LICENSE PORTING README* THANKS \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

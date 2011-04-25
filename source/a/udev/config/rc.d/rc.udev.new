@@ -35,8 +35,8 @@ case "$1" in
 
         # Sanity check #2, make sure that a 2.6.x kernel is new enough:
         if [ "$(uname -r | cut -f 1,2 -d .)" = "2.6" ]; then
-          if [ "$(uname -r | cut -f 3 -d . | sed 's/[^[:digit:]].*//')" -lt "27" ]; then
-            echo "Sorry, but you need a 2.6.27+ kernel to use udev."
+          if [ "$(uname -r | cut -f 3 -d . | sed 's/[^[:digit:]].*//')" -lt "32" ]; then
+            echo "Sorry, but you need a 2.6.32+ kernel to use this udev."
             echo "Your kernel version is only $(uname -r)."
             echo
             echo "FATAL:  Refusing to run /etc/rc.d/rc.udev."
@@ -48,7 +48,7 @@ case "$1" in
         # is not there, this will also shut off this script to prevent further
         # problems:
         if [ ! -x /sbin/udevd ]; then
-          chmod 644 /etc/rc.d/rc.udev
+          chmod 0644 /etc/rc.d/rc.udev
           echo "No udevd daemon found."
           echo "Turning off udev:  chmod 644 /etc/rc.d/rc.udev"
           echo "FATAL:  Refusing to run /etc/rc.d/rc.udev."
@@ -104,29 +104,21 @@ case "$1" in
           )
 	else	# udev is just now being started, so we'll do some initial setup:
 
-          # Set STARTUP=1 in the environment
-          /sbin/udevadm control --property=STARTUP=1
-
-	  # Set OPT="--action=add" to generate add events on coldplug
-	  OPT="--action=add"
-
-	  # Add the static nodes to $UDEV_ROOT:
-	  cp --preserve=all --recursive --remove-destination /lib/udev/devices/* $UDEV_ROOT
-	  
 	  # Create rootdev rules
 	  DEVICENUMBER=$( /bin/stat -c %d / )
 	  MAJORNUMBER=$(($DEVICENUMBER / 256))
 	  MINORNUMBER=$(($DEVICENUMBER % 256))
 
-	  echo 'ACTION=="add|change", SUBSYSTEM=="block", ENV{MAJOR}=="'$MAJORNUMBER'", ENV{MINOR}=="'$MINORNUMBER'", SYMLINK+="root"' > /dev/.udev/rules.d/61-dev-root-link.rules
+	  echo 'ACTION!="remove", SUBSYSTEM=="block", ENV{MAJOR}=="'$MAJORNUMBER'", ENV{MINOR}=="'$MINORNUMBER'", SYMLINK+="root"' > /dev/.udev/rules.d/61-dev-root-link.rules
+
+	  # Set OPT="--action=add" to generate add events on coldplug
+	  OPT="--action=add"
 
 	fi
 
 	echo "Triggering udev events:  /sbin/udevadm trigger $OPT"	
 	# Call udevtrigger and udevsettle to do the device configuration:
 	/sbin/udevadm trigger $OPT && /sbin/udevadm settle --timeout=120
-        # Unset STARTUP=1 in the environment
-        /sbin/udevadm control --property=STARTUP=
 
 	;;
     stop)

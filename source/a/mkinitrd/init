@@ -56,12 +56,7 @@
 # Optional:
 #
 # /load_kernel_modules
-#                 A script that uses insmod to load the desired
-#                 modules.  If this file is not present, all the modules
-#                 in /lib/modules/$(uname -r)/ will be loaded in the usual
-#                 sorted order.  If you need to load the modules in a
-#                 certain order, or if the modules need extra options,
-#                 then use a load_kernel_modules script.
+#                 A script that uses modprobe to load the desired modules.
 #
 #                 There's an example in here.  To actually use it, you'll
 #                 need to make it executable:  
@@ -138,7 +133,7 @@ else # load modules (if any) in order:
   if ls /lib/modules/$(uname -r)/*.*o 1> /dev/null 2> /dev/null ; then
     echo "${INITRD}:  Loading kernel modules from initrd image:"
     for module in /lib/modules/$(uname -r)/*.*o ; do
-      /sbin/insmod $module
+      /sbin/modprobe $module
     done
     unset module
   fi
@@ -151,11 +146,9 @@ sleep $WAIT
 # If udevd is available, use it to generate block devices
 # else use mdev to read sysfs and generate the needed devices 
 if [ -x /sbin/udevd -a -x /sbin/udevadm ]; then
-  /sbin/udevd --daemon
-  /sbin/udevadm control --property=STARTUP=1
+  /sbin/udevd --daemon --resolve-names=never
   /sbin/udevadm trigger --subsystem-match=block --action=add
   /sbin/udevadm settle --timeout=10
-  /sbin/udevadm control --property=STARTUP=
 else
   [ "$DEVTMPFS" != "1" ] && mdev -s
 fi
@@ -170,7 +163,10 @@ if [ "$RESCUE" = "" ]; then
   # Initialize RAID:
   if [ -x /sbin/mdadm ]; then
     /sbin/mdadm -E -s >/etc/mdadm.conf
+    /sbin/mdadm -S -s
     /sbin/mdadm -A -s
+    # This seems to make the kernel see partitions more reliably:
+    fdisk -l /dev/md* 1> /dev/null 2> /dev/null
   fi
 
   # Unlock any encrypted partitions necessary to access the
@@ -301,6 +297,7 @@ else
 fi
 
 if pgrep udevd >/dev/null ; then
+  /sbin/udevadm settle --timeout=30
   pkill udevd
 fi
 

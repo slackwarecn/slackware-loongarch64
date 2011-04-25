@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.2.2
-BUILD=${BUILD:-1}
+VERSION=1.2.3
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -64,7 +64,7 @@ chmod 644 $PKG/etc/rc.d/rc.nfsd.new
 
 cd $TMP
 rm -rf nfs-utils-$VERSION
-tar xvf $CWD/nfs-utils-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/nfs-utils-$VERSION.tar.xz || exit 1
 cd nfs-utils-$VERSION || exit 1
 
 zcat $CWD/nfs-utils.lwrap.needs.lnsl.diff.gz | patch -p1 --verbose || exit 1
@@ -84,6 +84,7 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --with-statedir=/var/lib/nfs \
   --enable-nfsv3 \
+  --enable-mountconfig \
   --enable-nfsv4=no \
   --enable-gss=no \
   --enable-tirpc=no \
@@ -93,6 +94,13 @@ CFLAGS="$SLKCFLAGS" \
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Add nfsmount.conf and man page:
+cat ./utils/mount/nfsmount.conf > $PKG/etc/nfsmount.conf.new
+mkdir -p $PKG/usr/man/man5
+cat ./utils/mount/nfsmount.conf.man > $PKG/usr/man/man5/nfsmount.conf.5
+# Set default protocol version 3:
+sed -i "s/# Defaultvers=4/Defaultvers=3/g" $PKG/etc/nfsmount.conf.new
 
 # These might be in use:
 ( cd $PKG/var/lib/nfs
@@ -114,12 +122,20 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/nfs-utils-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL NEWS README \
+  AUTHORS COPYING* INSTALL NEWS README* \
   $PKG/usr/doc/nfs-utils-$VERSION
 mkdir -p $PKG/usr/doc/nfs-utils-$VERSION/statd
 cp -a \
   utils/statd/COPYING utils/statd/COPYRIGHT utils/statd/TODO \
   $PKG/usr/doc/nfs-utils-$VERSION/statd
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then
@@ -138,38 +154,7 @@ fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
-cat << EOF > $PKG/install/doinst.sh
-#!/bin/sh
-config() {
-  NEW="\$1"
-  OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"
-  # If there's no config file by that name, mv it over:
-  if [ ! -r \$OLD ]; then
-    mv \$NEW \$OLD
-  elif [ "\$(cat \$OLD | md5sum)" = "\$(cat \$NEW | md5sum)" ]; then # toss the redundant copy
-    rm \$NEW
-  fi
-  # Otherwise, we leave the .new copy for the admin to consider...
-}
-EOF
-( cd $PKG/var/lib/nfs
-  for config_file in etab.new rmtab.new state.new xtab.new ; do
-    if [ -r ${config_file} ]; then
-      echo "config var/lib/nfs/${config_file}" >> $PKG/install/doinst.sh
-    fi
-  done
-)
-# If these aren't moved into place, they're junk:
-echo "rm -f var/lib/nfs/*.new" >> $PKG/install/doinst.sh
-cat << EOF >> $PKG/install/doinst.sh
-if [ -x etc/rc.d/rc.nfsd ]; then
-  chmod 755 etc/rc.d/rc.nfsd.new
-else
-  chmod 644 etc/rc.d/rc.nfsd.new
-fi
-config etc/rc.d/rc.nfsd.new
-config etc/exports.new
-EOF
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 # Build the package:
 cd $PKG

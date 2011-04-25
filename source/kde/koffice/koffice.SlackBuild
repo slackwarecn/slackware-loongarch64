@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -47,8 +47,6 @@ echo "Building koffice-$VERSION..."
 tar xvf $CWD/../src/koffice-$VERSION.tar.?z* || exit 1
 cd koffice-$VERSION
 
-zcat $CWD/koffice.krita.png14.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -62,18 +60,30 @@ cd build
     $KDE_OPT_ARGS \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DMAN_INSTALL_DIR=/usr/man \
     -DSYSCONF_INSTALL_DIR=/etc/kde \
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
     ..
-   make $NUMJOBS || exit 1
+   make $NUMJOBS || make || exit 1
    make install DESTDIR=$PKG || exit 1
 cd -
 
 if [ -d $PKG/usr/man ]; then
   gzip -9 $PKG/usr/man/man?/*
+fi
+
+if [ ! -r $PKG/usr/bin/kformula ]; then # wtf??
+  echo "Kludging KFormula installation..."
+  cp -a build/kformula/kformula $PKG/usr/bin/kformula || exit 1
+  cp -a build/lib/kformulapart.so $PKG/usr/lib${LIBDIRSUFFIX}/kde4/kformulapart.so || exit 1
+  cp -a build/lib/libkdeinit_kformula.so $PKG/usr/lib${LIBDIRSUFFIX}/libkdeinit_kformula.so || exit 1
+  cp -a kformula/kformula.desktop $PKG/usr/share/applications/kde4/kformula.desktop || exit 1
+  mkdir -p $PKG/usr/share/apps/kformula || exit 1
+  cp -a kformula/kformula.rc $PKG/usr/share/apps/kformula/kformula.rc || exit 1
+  cp -a kformula/kformula_readonly.rc $PKG/usr/share/apps/kformula/kformula_readonly.rc || exit 1
+  cp -a kformula/tips $PKG/usr/share/apps/kformula/tips || exit 1
+  cp -a kformula/kformulapart.desktop $PKG/usr/share/kde4/services/kformulapart.desktop || exit 1
 fi
 
 mkdir -p $PKG/usr/doc/koffice-$VERSION

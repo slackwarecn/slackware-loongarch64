@@ -25,16 +25,15 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PRGNAM=ConsoleKit
-VERSION=${VERSION:-20100129}
+VERSION=${VERSION:-0.4.3}
 BUILD=${BUILD:-1}
+
 NUMJOBS=${NUMJOBS:--j6}
 
-# Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i486 ;;
     arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
@@ -61,10 +60,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/$PRGNAM-$VERSION.tar.?z* || exit 1
 cd $PRGNAM-$VERSION || exit 1
 
-# Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -72,20 +70,23 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-## Not sure what of these we need now - no time to look yet
-# Thanks to the GSB project for the patch hints :-)
-# http://bugs.freedesktop.org/show_bug.cgi?id=19020
-# http://bugs.freedesktop.org/show_bug.cgi?id=20471
-#zcat $CWD/patches/consolekit-dbus-permissions.patch.gz | patch -p1 || exit 1
-# Prevent make install from erroring out on docbook validation
-#zcat $CWD/patches/consolekit-skipvalidation.patch.gz | patch -p1 || exit 1
 # Clean up at_console compat files, bug #257761
-zcat $CWD/patches/consolekit-0.2.10-cleanup_console_tags.patch.gz | patch -p1 || exit 1
+zcat $CWD/consolekit-0.2.10-cleanup_console_tags.patch.gz | patch -p1 || exit 1
 
-# Configure:
+# Revert "Only set sessions to be is-local=true if set by a trusted party"
+#   http://cgit.freedesktop.org/ConsoleKit/commit/?id=4f88228f31a63c026c424a92827f26ad7535275c
+# Here are the bug reports:
+#   http://bugs.gentoo.org/show_bug.cgi?id=336634
+#   http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=597937
+#   http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=598150
+#   https://bugs.freedesktop.org/show_bug.cgi?id=28377
+# This is neither ideal nor maintainable long-term, but I don't know what else
+# we can reasonably do right now...  --rworkman 
+zcat $CWD/consolekit-0.4.2-revert.patch.gz | patch -p1 || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
-./autogen.sh \
+./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
@@ -98,7 +99,6 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-static \
   --build=$ARCH-slackware-linux
 
-# Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG
 
@@ -110,27 +110,22 @@ chmod 0755 $PKG/usr/lib/ConsoleKit/run-session.d/pam-foreground-compat.ck
 # Let's not clobber config files
 mv $PKG/etc/ConsoleKit/seats.d/00-primary.seat \
   $PKG/etc/ConsoleKit/seats.d/00-primary.seat.new
-mv $PKG/etc/dbus-1/system.d/ConsoleKit.conf \
-  $PKG/etc/dbus-1/system.d/ConsoleKit.conf.new
 
-# Strip binaries:
+# Add an init script
+mkdir -p $PKG/etc/rc.d
+cat $CWD/rc.consolekit > $PKG/etc/rc.d/rc.consolekit.new
+chmod 0755 $PKG/etc/rc.d/rc.consolekit.new
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Compress and link manpages, if any:
-( cd $PKG/usr/man || exit 1
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $(find $PKG/usr/man -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 
-# Add a documentation directory:
 mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
 cp -a \
   AUTHORS COPYING ChangeLog HACKING INSTALL NEWS README TODO \
   $PKG/usr/doc/$PRGNAM-$VERSION
-(
-  cd $PKG/usr/doc/$PRGNAM-$VERSION ; ln -s /usr/share/gtk-doc/html/polkit-1 html
-)
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

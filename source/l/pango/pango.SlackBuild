@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+PKGNAM=pango
 VERSION=${VERSION:-$(echo pango-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
-
-NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -49,6 +48,8 @@ else
   LIBDIRSUFFIX=""
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-pango
@@ -61,16 +62,16 @@ tar xvf $CWD/pango-$VERSION.tar.?z* || exit 1
 
 cd pango-$VERSION
 
-# Fix for x86_64 (does not hurt the other archs but note that we will start
-# using /etc/pango/$host instead of /etc/pango/ now):
-zcat $CWD/pango.etc.host.location.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Fix for x86_64 (does not hurt the other archs but note that we will start
+# using /etc/pango/$host instead of /etc/pango/ now):
+zcat $CWD/pango.etc.host.location.diff.gz | patch -p1 --verbose || exit 1
 
 # Autoconf changes linux to linux-gnu.
 # Our host is $ARCH-slackware-linux not $ARCH-slackware-linux-gnu:
@@ -133,14 +134,12 @@ EOF
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $(find $PKG/usr/man -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 
 mkdir -p $PKG/usr/doc/pango-$VERSION
 cp -a \
-  AUTHORS COPYING* NEWS README TODO \
+  AUTHORS COPYING* NEWS README* TODO \
   $PKG/usr/doc/pango-$VERSION
 ln -s /usr/share/gtk-doc/html/pango $PKG/usr/doc/pango-$VERSION/html
 

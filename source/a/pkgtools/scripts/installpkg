@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 1994, 1998, 2000  Patrick Volkerding, Concord, CA, USA 
 # Copyright 2001, 2003  Slackware Linux, Inc., Concord, CA, USA
-# Copyright 2007, 2009  Patrick Volkerding, Sebeka, MN, USA 
+# Copyright 2007, 2009, 2011  Patrick Volkerding, Sebeka, MN, USA 
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,6 +20,20 @@
 #  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Fri Apr 22 20:45:45 UTC 2011
+# A stronger formula is needed to regularize output that will be parsed.
+unset LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY \
+  LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT \
+  LC_IDENTIFICATION LC_ALL
+LANG=C
+export LANG
+#
+# Thu Apr 21 17:31:29 UTC 2011
+# Set LC_MESSAGES=C to avoid output parsing issues.
+# Might as well do that right now.
+#LC_MESSAGES=C
+#export LC_MESSAGES
 #
 # Sat Apr 25 21:18:53 UTC 2009
 # Converted to use new pkgbase() function to remove pathname and
@@ -120,6 +134,7 @@ Installpkg is used to install a .t{gz,bz,lz,xz} package like this:
 options:      --warn (warn if files will be overwritten, but do not install)
               --root /mnt (install someplace else, like /mnt)
               --infobox (use dialog to draw an info box)
+              --terse (display a one-line short description for install)
               --menu (confirm package installation with a menu, unless
                     the priority is [required] or ADD)
               --ask (used with menu mode: always ask if a package should be
@@ -182,6 +197,9 @@ while [ 0 ]; do
     shift 1
   elif [ "$1" = "-infobox" -o "$1" = "--infobox" ]; then
     MODE=infobox
+    shift 1
+  elif [ "$1" = "-terse" -o "$1" = "--terse" ]; then
+    MODE=terse
     shift 1
   elif [ "$1" = "-menu" -o "$1" = "--menu" ]; then
     MODE=menu
@@ -247,7 +265,6 @@ fi
 # If -warn mode was requested, produce the output and then exit:
 if [ "$MODE" = "warn" ]; then
   while [ -f "$1" ]; do
-    echo "#### Scanning the contents of $1..."
     mkdir -p $TMP/scan$$
     # Determine extension:
     packageext="$( echo $1 | rev | cut -f 1 -d . | rev)"
@@ -270,21 +287,24 @@ if [ "$MODE" = "warn" ]; then
     if [ -r $TMP/scan$$/install/doinst.sh ]; then
       if cat $TMP/scan$$/install/doinst.sh | grep ' rm -rf ' 1>/dev/null 2>/dev/null ; then
         cat $TMP/scan$$/install/doinst.sh | grep ' rm -rf ' > $TMP/scan$$/install/delete
-        echo "The following locations will be completely WIPED OUT to allow symbolic"
-        echo "links to be made. (We're talking 'rm -rf') These locations may be files,"
-        echo "or entire directories.  Be sure you've backed up anything at these"
-        echo "locations that you want to save before you install this package:"
-        cat $TMP/scan$$/install/delete | cut -f 3,7 -d ' ' | tr ' ' '/'
+	for f in `cat $TMP/scan$$/install/delete | cut -f 3,7 -d ' ' | tr ' ' '/'`; do
+	  f="/$f"
+	  if [ -f "$f" -o -L "$f" ]; then
+	    echo "$f"
+	  fi
+	done
       fi
       if [ -d $TMP/scan$$ ]; then
         ( cd $TMP/scan$$ ; rm -rf install ) 2> /dev/null
         ( cd $TMP ; rmdir scan$$ ) 2> /dev/null
       fi
     fi
-    echo "The following files will be overwritten when installing this package."
-    echo "Be sure they aren't important before you install this package:"
-    ( $packagecompression -dc | $TAR tvvf - ) < $1 | grep -v 'drwx'
-    echo
+    for f in `( $packagecompression -dc | $TAR tf - ) < $1 | grep -v 'drwx'`; do
+      f="/$f"
+      if [ -f "$f" -o -L "$f" ]; then
+        echo "$f"
+      fi
+    done
     shift 1
   done
   exit
@@ -385,7 +405,7 @@ for package in $* ; do
 
   # Figure out some package information, like the compressed and uncompressed
   # sizes, and where to find the package description:
-  COMPRESSED="$(du -s $package | cut -f 1)K"
+  COMPRESSED="$(/bin/du -sh "$(readlink -f $package)" | cut -f 1)"
   DESCRIPTION=""
   # First check for .txt file next to the package, since this is faster:
   if grep "^$packagebase:" "$packagedir/$shortname.txt" 1> /dev/null 2> /dev/null ; then
@@ -408,7 +428,14 @@ for package in $* ; do
     rm -f $TMP/tmplist$$ $TMP/tmpsize$$
     continue
   fi
-  UNCOMPRESSED="$(expr $(cat $TMP/tmpsize$$ | head -n 1 | cut -f 1 -d +) / 2)K"
+  UNCOMPRESSED="$(expr $(cat $TMP/tmpsize$$ | head -n 1 | cut -f 1 -d +) / 2)"
+  if [ $UNCOMPRESSED -lt 1024 ]; then
+    UNCOMPRESSED="${UNCOMPRESSED}K"
+  elif [ $UNCOMPRESSED -lt 10239 ]; then
+    UNCOMPRESSED="$(expr $UNCOMPRESSED \* 1000 / 1024 | cut -b1).$(expr $UNCOMPRESSED \* 1000 / 1024 | cut -b2)M"
+  else
+    UNCOMPRESSED="$(expr $UNCOMPRESSED / 1024)M"
+  fi
   rm -f $TMP/tmpsize$$
 
   # If we still don't have a package description, look inside the package.
@@ -472,6 +499,8 @@ EOF
     if [ "$shortname" != "$packagebase" ]; then
       cat $DESCRIPTION | grep "^$shortname:" | uniq | sed "s/^$shortname:/#/g"
     fi
+  elif [ "$MODE" = "terse" ]; then # emit a single description line
+    printf "%-72s %-6s\n" "$(echo $shortname: $(cat $DESCRIPTION | grep "^$packagebase:" | sed "s/^$packagebase: //g" | head -n 1 | tr -d '()' | sed "s/^$packagebase //g" ) | cut -b1-72)" "[${UNCOMPRESSED}]" | cut -b1-80
   elif [ "$MODE" = "infobox" ]; then # install infobox package
     dialog --title "Installing package $shortname $PMSG" --infobox "$(cat $TMP/tmpmsg$$)" 0 0
   elif [ "$MODE" = "menu" -a "$PRIORITY" = "ADD" -a ! "$ALWAYSASK" = "yes" ]; then # ADD overrides menu mode unless -ask was used

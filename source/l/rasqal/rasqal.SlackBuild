@@ -26,9 +26,8 @@
 # No added terms or copyright claims
 
 PKGNAM=rasqal
-VERSION=${VERSION:-0.9.19}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
-NUMJOBS=${NUMJOBS:--j6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -39,6 +38,8 @@ if [ -z "$ARCH" ]; then
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
+
+NUMJOBS=${NUMJOBS:--j6}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -100,6 +101,14 @@ cp -a \
 ( cd $PKG/usr/doc/$PKGNAM-$VERSION
   ln -s /usr/share/gtk-doc/html/$PKGNAM html
 )
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

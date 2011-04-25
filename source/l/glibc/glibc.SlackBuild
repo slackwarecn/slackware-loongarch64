@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,9 @@
 
 ## build glibc-$VERSION for Slackware
 
-VERSION=${VERSION:-2.11.1}
+VERSION=${VERSION:-2.13}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 ## Included in glibc now:
 ## glibc-libidn version
@@ -41,92 +41,6 @@ if [ -z "$ARCH" ]; then
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
-
-CVSVER=${VERSION}${CHECKOUT}
-
-# NOTE!!!  glibc needs to be built against the sanitized kernel headers,
-# which will be installed under /usr/include by the kernel-headers package.
-# Be sure the correct version of the headers package is installed BEFORE
-# building glibc!
-
-CWD=$(pwd)
-# Temporary build location.  This should not be a directory
-# path a non-root user could create later...
-TMP=${TMP:-/glibc-tmp-$(mcookie)}
-mkdir -p $TMP
-
-NUMJOBS=${NUMJOBS:--j4}
-
-# Sanity check on the version number in the install scripts:
-if ! grep -vq libutil-$VERSION}.so $CWD/doinst.sh-glibc ; then
-  echo "FATAL:  doinst.sh scripts have wrong version numbers."
-  exit 1
-fi
-
-case $ARCH in
-  x86_64)
-    TARGET=${TARGET:-x86_64}
-    ;;
-  i486)
-    # This should be i486 for all 32-bit x86 arch:
-    TARGET=${TARGET:-i486}
-    ;;
-esac
-
-# This function fixes a doinst.sh file for x86_64.
-# With thanks to Fred Emmott.
-fix_doinst() {
-  if [ "x$LIBDIRSUFFIX" = "x" ]; then
-    return;
-  fi;
-  # Fix "( cd usr/lib ;" occurrences
-  sed -i "s#lib ;#lib${LIBDIRSUFFIX} ;#" install/doinst.sh
-  # Fix "lib/" occurrences
-  sed -i "s#lib/#lib${LIBDIRSUFFIX}/#g" install/doinst.sh
-  # Fix "( cd lib" occurrences
-  sed -i "s#( cd lib\$#( cd lib${LIBDIRSUFFIX}#" install/doinst.sh
-
-  if [ "$ARCH" = "x86_64" ]; then
-    sed -i 's#ld-linux.so.2#ld-linux-x86-64.so.2#' install/doinst.sh
-  fi
-}
-
-# This is a patch function to put all glibc patches in the build script
-# up near the top.
-apply_patches() {
-  # Use old-style locale directories rather than a single (and strangely
-  # formatted) /usr/lib/locale/locale-archive file:
-  zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
-  # The is_IS locale is causing a strange error about the "echn" command
-  # not existing.  This patch reverts is_IS to the version shipped in
-  # glibc-2.5:
-  zcat $CWD/is_IS.diff.gz | patch -p1 --verbose || exit 1
-  # Fix NIS netgroups:
-  zcat $CWD/glibc.nis-netgroups.diff.gz | patch -p1 --verbose || exit 1
-  # Support ru_RU.CP1251 locale:
-  zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
-  # Fix missing MAX macro in getcwd.c:
-  zcat $CWD/glibc.getcwd.max.macro.diff.gz | patch -p1 --verbose || exit 1
-  # Fix resolver problem with glibc-2.9:
-  zcat $CWD/glibc-2.10-dns-no-gethostbyname4.diff.gz | patch -p0 --verbose || exit 1
-  # This reverts a patch that was made to glibc to fix "namespace leakage",
-  # which seems to cause some build failures (e.g. with conntrack):
-  zcat $CWD/glibc.revert.to.fix.build.breakages.diff.gz | patch -p1 --verbose || exit 1
-  # Update the timezone information.
-  ( cd timezone
-    tar xzf $CWD/tzdata?????.tar.gz
-    chown root:root *
-    mv yearistype.sh yearistype
-    chmod 644 *
-    chmod 755 yearistype
-    mkdir tzcode
-    cd tzcode
-    tar xzf $CWD/tzcode?????.tar.gz
-    chown -R root:root .
-    chmod 644 *
-    cp -a *.c *.h ..
-  )
-}
 
 # I'll break this out as an option for fun  :-)
 case $ARCH  in
@@ -163,6 +77,109 @@ case $ARCH  in
     LIBDIRSUFFIX=""
     ;;
 esac
+
+case $ARCH in
+  x86_64)
+    TARGET=${TARGET:-x86_64}
+    ;;
+  i486)
+    # This should be i486 for all 32-bit x86 arch:
+    TARGET=${TARGET:-i486}
+    ;;
+esac
+
+# Hand off the $ARCH variable to $SLACKWARE_ARCH to avoid confusing glibc:
+SLACKWARE_ARCH=$ARCH
+unset ARCH
+
+CVSVER=${VERSION}${CHECKOUT}
+
+# NOTE!!!  glibc needs to be built against the sanitized kernel headers,
+# which will be installed under /usr/include by the kernel-headers package.
+# Be sure the correct version of the headers package is installed BEFORE
+# building glibc!
+
+CWD=$(pwd)
+# Temporary build location.  This should not be a directory
+# path a non-root user could create later...
+TMP=${TMP:-/glibc-tmp-$(mcookie)}
+mkdir -p $TMP
+
+NUMJOBS=${NUMJOBS:--j4}
+
+# Sanity check on the version number in the install scripts:
+if ! grep -vq libutil-${VERSION}.so $CWD/doinst.sh-glibc ; then
+  echo "FATAL:  doinst.sh scripts have wrong version numbers."
+  exit 1
+fi
+
+# This function fixes a doinst.sh file for x86_64.
+# With thanks to Fred Emmott.
+fix_doinst() {
+  if [ "x$LIBDIRSUFFIX" = "x" ]; then
+    return;
+  fi;
+  # Fix "( cd usr/lib ;" occurrences
+  sed -i "s#lib ;#lib${LIBDIRSUFFIX} ;#" install/doinst.sh
+  # Fix "lib/" occurrences
+  sed -i "s#lib/#lib${LIBDIRSUFFIX}/#g" install/doinst.sh
+  # Fix "( cd lib" occurrences
+  sed -i "s#( cd lib\$#( cd lib${LIBDIRSUFFIX}#" install/doinst.sh
+
+  if [ "$SLACKWARE_ARCH" = "x86_64" ]; then
+    sed -i 's#ld-linux.so.2#ld-linux-x86-64.so.2#' install/doinst.sh
+  fi
+}
+
+# This is a patch function to put all glibc patches in the build script
+# up near the top.
+apply_patches() {
+  # Use old-style locale directories rather than a single (and strangely
+  # formatted) /usr/lib/locale/locale-archive file:
+  zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
+  # The is_IS locale is causing a strange error about the "echn" command
+  # not existing.  This patch reverts is_IS to the version shipped in
+  # glibc-2.5:
+  zcat $CWD/is_IS.diff.gz | patch -p1 --verbose || exit 1
+  # Fix NIS netgroups:
+  zcat $CWD/glibc.nis-netgroups.diff.gz | patch -p1 --verbose || exit 1
+  # Support ru_RU.CP1251 locale:
+  zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
+  # Fix missing MAX macro in getcwd.c:
+  zcat $CWD/glibc.getcwd.max.macro.diff.gz | patch -p1 --verbose || exit 1
+  # Fix resolver problem with glibc-2.9:
+  zcat $CWD/glibc-2.10-dns-no-gethostbyname4.diff.gz | patch -p0 --verbose || exit 1
+  # This reverts a patch that was made to glibc to fix "namespace leakage",
+  # which seems to cause some build failures (e.g. with conntrack):
+  zcat $CWD/glibc.revert.to.fix.build.breakages.diff.gz | patch -p1 --verbose || exit 1
+  # This partial security patch still applies and might be needed:
+  zcat $CWD/glibc.git-96611391ad8823ba58405325d78cefeae5cdf699-CVE-2010-3847b.patch.gz | patch -p1 --verbose || exit 1
+  # Make it harder for people to trick ldd into running code:
+  zcat $CWD/glibc.ldd.trace.through.dynamic.linker.diff.gz | patch -p1 --verbose || exit 1
+  # Make glibc compile with binutils using --enable-initfini-array.
+  # At this time, we do not recommend this due to probable ABI breakage.
+  # The also patch needs work before it would apply.
+  # ***NOT READY***
+  #zcat $CWD/glibc.git-4a531bb0b3b582cb693de9f76d2d97d970f9a5d5.patch.gz | patch -p1 --verbose || exit 1
+  #
+  # Avoid the Intel optimized asm routines for now because they break
+  # the flash player.  We'll phase this in when it's safer to do so.
+  zcat $CWD/glibc.disable.broken.optimized.memcpy.diff.gz | patch -p1 --verbose || exit 1
+  # Update the timezone information.
+  ( cd timezone
+    tar xzf $CWD/tzdata?????.tar.gz
+    chown root:root *
+    mv yearistype.sh yearistype
+    chmod 644 *
+    chmod 755 yearistype
+    mkdir tzcode
+    cd tzcode
+    tar xzf $CWD/tzcode?????.tar.gz
+    chown -R root:root .
+    chmod 644 *
+    cp -a *.c *.h ..
+  )
+}
 
 # This is going to be the initial $DESTDIR:
 export PKG=$TMP/package-glibc-incoming-tree
@@ -232,7 +249,7 @@ fi
 
 # Make build directory:
 mkdir build-glibc-$VERSION
-cd build-glibc-$VERSION
+cd build-glibc-$VERSION || exit 1
 
 echo "BUILDING DAS NPTL GLIBC"
 CFLAGS="-g $OPTIMIZ" \
@@ -373,7 +390,7 @@ mv $PKG/usr/lib${LIBDIRSUFFIX}/lib*_p.a usr/lib${LIBDIRSUFFIX}
 ( cd usr/lib${LIBDIRSUFFIX} ; strip -g *.a )
 mkdir install
 cp -a $CWD/slack-desc.glibc-profile install/slack-desc
-makepkg -l y -c n $TMP/glibc-profile-$VERSION-$ARCH-$BUILD.txz
+makepkg -l y -c n $TMP/glibc-profile-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 
 # THIS IS NO LONGER PACKAGED (or is it?  might be better to let it be made, and then ship it or not...)
 # glibc-debug:
@@ -383,7 +400,7 @@ mkdir -p usr/lib${LIBDIRSUFFIX}
 mv $PKG/usr/lib${LIBDIRSUFFIX}/debug usr/lib${LIBDIRSUFFIX}
 mkdir install
 cp -a $CWD/slack-desc.glibc-debug install/slack-desc
-makepkg -l y -c n $TMP/glibc-debug-$VERSION-$ARCH-$BUILD.txz
+makepkg -l y -c n $TMP/glibc-debug-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 ## INSTEAD, NUKE THESE LIBS
 #rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/debug
 
@@ -397,7 +414,7 @@ cp -a $PKG/usr/share/i18n usr/share
 cp -a $PKG/usr/share/locale usr/share
 mkdir install
 cp -a $CWD/slack-desc.glibc-i18n install/slack-desc
-makepkg -l y -c n $TMP/glibc-i18n-$VERSION-$ARCH-$BUILD.txz
+makepkg -l y -c n $TMP/glibc-i18n-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 
 # glibc-solibs:
 cd $PSOLIBS
@@ -438,7 +455,7 @@ fix_doinst
 # Ditch links:
 find . -type l -exec rm {} \;
 # Build the package:
-makepkg -l y -c n $TMP/glibc-solibs-$VERSION-$ARCH-$BUILD.txz
+makepkg -l y -c n $TMP/glibc-solibs-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 
 # And finally, the complete "all-in-one" glibc package is created
 # from whatever was leftover:
@@ -460,7 +477,7 @@ fix_doinst
   mv incoming/libSegFault.so .
 )
 # Build the package:
-/sbin/makepkg -l y -c n $TMP/glibc-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/glibc-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 
 # Done!
 echo

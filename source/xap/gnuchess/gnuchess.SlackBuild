@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,11 +21,11 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERGNUCHESS=5.07
+VERGNUCHESS=5.08
 VERSJENG=11.2
 VEREBOARD=1.1.1
-VERXBOARD=4.4.2
-BUILD=${BUILD:-5}
+VERXBOARD=4.5.1
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -59,11 +59,8 @@ mkdir -p $TMP $PKG
 ### gnuchess
 cd $TMP
 rm -rf gnuchess-$VERGNUCHESS
-tar xvf $CWD/gnuchess-$VERGNUCHESS.tar.bz2 || exit 1
+tar xvf $CWD/gnuchess-$VERGNUCHESS.tar.?z* || exit 1
 cd gnuchess-$VERGNUCHESS || exit 1
-# make gnuchess compile with gcc4
-zcat $CWD/gnuchess.gcc4_fix.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/gnuchess.getline.glibc.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -80,8 +77,8 @@ make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/gnuchess-$VERGNUCHESS
 cp -a \
-  doc/README \
-  AUTHORS COPYING INSTALL NEWS TODO \
+  doc/README* \
+  AUTHORS COPYING* INSTALL NEWS TODO \
   $PKG/usr/doc/gnuchess-$VERGNUCHESS
 
 ### Sjeng
@@ -105,7 +102,7 @@ make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/Sjeng-Free-$VERSJENG
 cp -a \
-  AUTHORS BUGS COPYING NEWS README THANKS TODO \
+  AUTHORS BUGS COPYING* NEWS README* THANKS TODO \
   $PKG/usr/doc/Sjeng-Free-$VERSJENG
 
 ### eboard
@@ -129,7 +126,7 @@ make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/eboard-$VEREBOARD
 cp -a \
-  AUTHORS COPYING README TODO Documentation/*.txt \
+  AUTHORS COPYING* README* TODO Documentation/*.txt \
   $PKG/usr/doc/eboard-$VEREBOARD
 
 ### XBoard
@@ -146,9 +143,6 @@ find . \
 
 # --infodir is fubar.
 #zcat $CWD/xboard.infodir.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-# Taken from Debian to fix CVE-2004-2552
-# FOR WHICH THERE IS NO ATTACK VECTOR!!!
-#zcat $CWD/xboard.buffer_overflow_fix.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 CFLAGS="$SLKCFLAGS" \
 ./configure \
    --prefix=/usr \

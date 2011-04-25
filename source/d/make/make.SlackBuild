@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,19 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=3.81
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+PKGNAM=make
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -31,12 +41,19 @@ PKG=$TMP/package-make
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -44,8 +61,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf make-$VERSION
-tar xjvf $CWD/make-$VERSION.tar.bz2
-cd make-$VERSION
+tar xvf $CWD/make-$VERSION.tar.bz2 || exit 1
+cd make-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -56,9 +73,13 @@ find . \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
-  $ARCH-slackware-linux
-make
-make install DESTDIR=$PKG
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --build=$ARCH-slackware-linux
+
+make -j6 || make || exit 1
+make install DESTDIR=$PKG || exit 1
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -73,7 +94,7 @@ gzip -9 $PKG/usr/info/*
   ln -sf make gmake )
 mkdir -p $PKG/usr/doc/make-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING NEWS README* \
+  ABOUT-NLS AUTHORS COPYING* NEWS README* \
   $PKG/usr/doc/make-$VERSION/
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,10 +22,9 @@
 
 # required: package "python" version 2.2 or higher installed
 
-VERSION=2.1.1
+VERSION=2.2
 BUILD=1
 
-# Note that the package will be created as 'noarch' !
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -61,34 +60,38 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-for binary in bin/* ; do
-  # Fix an error from the author
-  sed -r "s|basedir\)|basedir + \"/lib${LIBDIRSUFFIX}\")|" \
-    < $binary > $binary.tmp
-  cp $binary.tmp $binary
-  rm -f $binary.tmp
-done
-
-mkdir -p $PKG/$PREFIX/bin
-cp -a bin/* $PKG/$PREFIX/bin/.
-
 for library in psshlib/* ; do
   # This will force removepkg to remove all runtime-compiled *.pyc files
   touch ${library}c
 done
 
-mkdir -p $PKG/$PREFIX/lib${LIBDIRSUFFIX}
-cp -a psshlib $PKG/$PREFIX/lib${LIBDIRSUFFIX}/.
+# Install:
+python setup.py build install --root=$PKG
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/$PREFIX/doc/pssh-$VERSION
 cp -a \
-  AUTHORS BUGS COPYING ChangeLog INSTALL PKG-INFO TODO \
+  AUTHORS BUGS COPYING* INSTALL PKG-INFO README* TODO \
   doc/pssh*html $PKG/$PREFIX/doc/pssh-$VERSION/.
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/pssh-$VERSION-noarch-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/pssh-$VERSION-$ARCH-$BUILD.txz
 

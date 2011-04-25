@@ -37,8 +37,27 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
+# Uncomment this to include the experimental gold linker:
+GOLD=" --enable-gold=yes --enable-ld=default "
+
+# Set to ld.gold or ld.bfd:
+DEFAULT_LD=ld.bfd
+
+# The --enable-initfini-array option was added in binutils-2.21.51.0.3.
+# This option currently causes a world of hurt trying to compile glibc,
+# and might break static libraries or cause other ill effects.  There
+# is an upstream patch for glibc but it does not avoid all of the known
+# problems (and there may be some unknown ones, too), so we will avoid
+# introducing this feature for now.
+# References:
+# http://sourceware.org/bugzilla/show_bug.cgi?id=12343
+# http://gcc.gnu.org/bugzilla/show_bug.cgi?id=46770
+NO_INITFINI=" --disable-initfini-array "
+
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  # The config option below is currently needed to compile on x86:
+  WERROR="--enable-werror=no"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -78,7 +97,12 @@ CFLAGS="$SLKCFLAGS" \
   --enable-shared \
   --enable-multilib \
   --enable-64-bit-bfd \
+  --enable-plugins \
+  --enable-threads \
   --enable-targets=$ARCH-slackware-linux \
+  $GOLD \
+  $NO_INITFINI \
+  $WERROR \
   --build=$ARCH-slackware-linux \
   || exit 1
 
@@ -97,13 +121,19 @@ cp -a include/libiberty.h $PKG/usr/include/libiberty.h
 mv $PKG/usr/${ARCH}-slackware-linux/lib/ldscripts $PKG/usr/lib${LIBDIRSUFFIX}
 ( cd $PKG/usr/${ARCH}-slackware-linux
   ln -s /usr/lib${LIBDIRSUFFIX}/ldscripts lib/ldscripts
-  for FILE in ar as ld nm objcopy objdump ranlib strip ; do
+  for FILE in ar as ld ld.bfd ld.gold nm objcopy objdump ranlib strip ; do
     if [ -r "/usr/bin/$FILE" ]; then
       rm -f bin/$FILE
       ln -s /usr/bin/$FILE bin/$FILE
     fi
   done
 )
+
+# If the requested default linker is present, make it the default:
+# Set the link differently on the system to change the default at runtime.
+if [ -r $PKG/usr/bin/$DEFAULT_LD ]; then
+  ( cd $PKG/usr/bin ; rm -f ld ; ln -sf $DEFAULT_LD ld )
+fi
       
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

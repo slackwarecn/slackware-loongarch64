@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,21 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=1.6.3
-ARCH=${ARCH:-x86_64}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+PKGNAM=enscript
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -31,6 +42,8 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 CWD=$(pwd)
@@ -42,7 +55,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf enscript-$VERSION
-tar xvf $CWD/enscript-$VERSION.tar.gz || exit 1
+tar xvf $CWD/enscript-$VERSION.tar.?z* || exit 1
 cd enscript-$VERSION
 chown -R root:root .
 find . \
@@ -54,40 +67,60 @@ find . \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
   --with-media=Letter \
   --sysconfdir=/etc \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
-make install prefix=$PKG/usr sysconfdir=$PKG/etc || exit 1
+make install DESTDIR=$PKG || exit 1
+make -i install-man DESTDIR=$PKG
+make -i install-info DESTDIR=$PKG
 
 # Strip binaries:
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-( cd $PKG/usr/man
-  for manpagedir in $(find . -type d -name "man*") ; do
-    ( cd $manpagedir
-      for eachpage in $( find . -type l -maxdepth 1) ; do
-        ln -s $( readlink $eachpage ).gz $eachpage.gz
-        rm $eachpage
-      done
-      gzip -9 *.*
-    )
-  done
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-( cd $PKG/usr/info
-  rm -f dir
-  gzip -9 *
-)
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
 
 mkdir -p $PKG/usr/doc/enscript-$VERSION
 cp -a \
-  *.txt ABOUT-NLS AUTHORS COPYING ChangeLog docs/FAQ.html INSTALL NEWS \
+  *.txt ABOUT-NLS AUTHORS COPYING* docs/FAQ.html INSTALL NEWS \
   README* THANKS TODO \
   $PKG/usr/doc/enscript-$VERSION
 chmod 644 $PKG/usr/doc/enscript-$VERSION/*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

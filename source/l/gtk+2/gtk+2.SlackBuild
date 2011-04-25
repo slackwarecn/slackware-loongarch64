@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -68,23 +68,20 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# There's been this long standing debate about PNG and -lz
-# and this patch is the workaround.  ;-)
-zcat $CWD/gtk.pnglz.diff.gz | patch -p1 --verbose || exit 1
+# Fix build errors
+zcat $CWD/fix_build_issues_on_tutorial_and_faq.diff.gz | patch -p1 --verbose || exit 1
 
 # Do not flood the console or .xsession-errors with "trouble ahead"
 # warnings (most noticable when using Firefox and Flash):
 zcat $CWD/gtk.xid.nowarningflood.diff.gz | patch -p1 --verbose || exit 1
 
-# Use /etc/gtk-2.0/$ARCH-slackware-linux instead of /etc/gtk-2.0/
-sed -i "s/GTK_SYSCONFDIR, \\\"gtk-2\\.0\\\"/GTK_SYSCONFDIR, \\\"gtk-2\\.0\\\", HOST/g" ./gtk/gtkrc.c ./gdk-pixbuf/gdk-pixbuf-io.c
-sed -i 's/sysconfdir)\\"/&      \\\n\t-DHOST=\\\"$(host_triplet)\\\"/g' \
-gdk-pixbuf/Makefile.am \
-gtk/Makefile.am \
-modules/input/Makefile.am
+# Use /etc/gtk-2.0/$ARCH-slackware-linux instead of /etc/gtk-2.0/ for gtk.immodules
+zcat $CWD/use_host_triplet_for_gtk_immodules.diff.gz | patch -p1 --verbose || exit 1
 
-# Use libpng-1.4.x:
-zcat $CWD/gtk.png14.diff.gz | patch -p1 --verbose || exit 1
+# Patch to restore commonly used icon names, otherwise everything breaks.
+# I fail to see the point of this "cleanup"
+zcat $CWD/gtk+-2.24.x.icon-compat.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gtk+-2.24.x.icon-compat.am.diff.gz | patch -p1 --verbose || exit 1
 
 # Regenerate ./configure:
 libtoolize --force
@@ -101,6 +98,8 @@ CFLAGS="$SLKCFLAGS -DHOST='"'"${ARCH}-slackware-linux"'"'" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --with-xinput=yes \
+  --enable-xkb \
+  --disable-introspection \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -112,18 +111,26 @@ if [ "x$compile_host" != "x$host" ]; then
   echo "Host mismatch: compile='$compile_host', SlackBuild='$host'" && exit 1
 fi
 
-make install DESTDIR=$PKG \
+make install \
   RUN_QUERY_IMMODULES_TEST=false RUN_QUERY_LOADER_TEST=false \
+  DESTDIR=$PKG \
   || exit 1
 
-# I'm spamming your root partition because /etc/gtk-2.0 won't install to $DESTDIR
-make install || exit 1
+# You'll probably need to install the newly made package right away to
+# fix the result of this next line, but we had to clear this.  Sorry.
+rm -rf /etc/gtk-2.0
+# I'm spamming your root partition because /etc/gtk-2.0 won't install to $DESTDIR...
+make install 
 cp -a /etc/gtk-2.0/* $PKG/etc/gtk-2.0/ || exit 1
 rm -rf $PKG/etc/gtk-2.0/$host
 mkdir -p $PKG/etc/gtk-2.0/$host
-mv $PKG/etc/gtk-2.0/* $PKG/etc/gtk-2.0/$host/
+mv $PKG/etc/gtk-2.0/gtk.immodules $PKG/etc/gtk-2.0/$host/
 
-mv $PKG/etc/gtk-2.0/$host/im-multipress.conf $PKG/etc/gtk-2.0/$host/im-multipress.conf.new || exit 1
+# Don't clobber im-multipress.conf
+mv $PKG/etc/gtk-2.0/im-multipress.conf $PKG/etc/gtk-2.0/im-multipress.conf.new || exit 1
+
+# Install a "starter" gtkrc
+echo 'gtk-theme-name="GTK+"' > $PKG/etc/gtk-2.0/gtkrc.new
 
 # We need to have separate 32-bit and 64-bit binaries
 # for places where we have two copies of the GTK+ package installed.
@@ -131,29 +138,33 @@ mv $PKG/etc/gtk-2.0/$host/im-multipress.conf $PKG/etc/gtk-2.0/$host/im-multipres
 case "$host" in
   s390x*|x86_64*)
    mv $PKG/usr/bin/gtk-query-immodules-2.0{,-64}
-   mv $PKG/usr/bin/gdk-pixbuf-query-loaders{,-64}
    ( cd $PKG/usr/bin
      ln -sf gtk-query-immodules-2.0-64 gtk-query-immodules-2.0
-     ln -sf gdk-pixbuf-query-loaders-64 gdk-pixbuf-query-loaders
    )
    ;;
   *)
    mv $PKG/usr/bin/gtk-query-immodules-2.0{,-32}
-   mv $PKG/usr/bin/gdk-pixbuf-query-loaders{,-32}
    ( cd $PKG/usr/bin
      ln -sf gtk-query-immodules-2.0-32 gtk-query-immodules-2.0
-     ln -sf gdk-pixbuf-query-loaders-32 gdk-pixbuf-query-loaders
    )
    ;;
 esac
 
 # Install wrappers for the binaries:
-cp $CWD/update-gdk-pixbuf-loaders $PKG/usr/bin/update-gdk-pixbuf-loaders
-cp $CWD/update-gtk-immodules $PKG/usr/bin/update-gtk-immodules
+cp -a $CWD/update-gtk-immodules* $PKG/usr/bin
+chown root:root $PKG/usr/bin/update-*
 chmod 0755 $PKG/usr/bin/update-*
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Add profile scripts to set up GTK+ environment:
+mkdir -p $PKG/etc/profile.d
+cp -a $CWD/profile.d/* $PKG/etc/profile.d
+chmod 0755 $PKG/etc/profile.d/*
+
+# Strip binaries:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then
@@ -172,13 +183,12 @@ fi
 
 mkdir -p $PKG/usr/doc/gtk+-$VERSION
 cp -a \
-  AUTHORS COPYING NEWS README TODO \
+  AUTHORS COPYING* NEWS README* TODO \
   $PKG/usr/doc/gtk+-$VERSION
 ( cd $PKG/usr/doc/gtk+-$VERSION
-  ln -s /usr/share/gtk-doc/html/gail-libgail-util .
-  ln -s /usr/share/gtk-doc/html/gdk .
-  ln -s /usr/share/gtk-doc/html/gdk-pixbuf .
-  ln -s /usr/share/gtk-doc/html/gtk .
+  ln -s ../../share/gtk-doc/html/gail-libgail-util .
+  ln -s ../../share/gtk-doc/html/gdk .
+  ln -s ../../share/gtk-doc/html/gtk .
 )
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -188,13 +198,6 @@ if [ -r ChangeLog ]; then
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
-
-# I'm almost inclined to think this stuff is obsolete but I don't know for sure.
-# I do know that leaving it in doesn't hurt (aside from a few wasted bytes, but
-# probably less than the comments here waste ;-)
-mkdir -p $PKG/etc/profile.d
-cp -a $CWD/profile.d/* $PKG/etc/profile.d
-chmod 755 $PKG/etc/profile.d/*
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

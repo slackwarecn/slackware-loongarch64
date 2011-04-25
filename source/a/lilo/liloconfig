@@ -2,7 +2,7 @@
 #
 # Copyright 1994, 1998, 1999 Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2002, 2003  Slackware Linux, Inc, Concord, CA
-# Copyright 2007, 2008  Patrick Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007, 2008, 2011  Patrick Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -46,10 +46,16 @@ if [ ! -d "$T_PX" ]; then
     elif [ -r /usr/lib/setup/setup ]; then
       T_PX=/mnt
     else
-      # We will have to assume we've on an installed and running system.
+      # We will have to assume we're on an installed and running system.
       T_PX=/
     fi
   fi
+fi
+
+# Determine LILO documentation directory:
+LILODOCDIR="$(ls -d /usr/doc/lilo-* | tail -n 1)"
+if [ ! -d "$LILODOCDIR" ]; then
+  LILODOCDIR="/usr/doc/lilo/"
 fi
 
 # If there's no boot_message.txt, start the header for one now:
@@ -132,24 +138,26 @@ EO_BMP
 use_framebuffer() {
 if cat /proc/devices | grep "29 fb" 1> /dev/null ; then
   dialog --title "CONFIGURE LILO TO USE FRAME BUFFER CONSOLE?" \
-  --default-item 1024x768x256 \
+  --default-item standard \
   --menu "Looking at /proc/devices, it seems your kernel has support for \
-the Linux frame buffer console.  If we enable this in /etc/lilo.conf, it \
+the VESA frame buffer console.  If we enable this in /etc/lilo.conf, it \
 will allow more rows and columns of text on the screen and give you a cool \
 penguin logo at boot time.  However, the frame buffer text console is \
 slower than a standard text console.  In addition, not every video card \
-or monitor supports all of these video modes.  Would you like to use the \
-frame buffer console, or the standard Linux console?" 0 0 0 \
+or monitor supports all of these video modes, and some X drivers could be \
+confused by them.  Would you like to use the frame buffer console, \
+or the standard Linux console?" 0 0 0 \
   "standard" "Use the standard Linux console (the safe choice)" \
-  "640x480x256" "Frame buffer console, 640x480x256" \
-  "800x600x256" "Frame buffer console, 800x600x256" \
-  "1024x768x256" "Frame buffer console, 1024x768x256" \
-  "640x480x32k" "Frame buffer console, 640x480x32k" \
-  "800x600x32k" "Frame buffer console, 800x600x32k" \
-  "1024x768x32k" "Frame buffer console, 1024x768x32k" \
+  "ask" "Ask about using VESA modes at boot; time out to standard" \
   "640x480x64k" "Frame buffer console, 640x480x64k" \
   "800x600x64k" "Frame buffer console, 800x600x64k" \
   "1024x768x64k" "Frame buffer console, 1024x768x64k" \
+  "640x480x32k" "Frame buffer console, 640x480x32k" \
+  "800x600x32k" "Frame buffer console, 800x600x32k" \
+  "1024x768x32k" "Frame buffer console, 1024x768x32k" \
+  "640x480x256" "Frame buffer console, 640x480x256" \
+  "800x600x256" "Frame buffer console, 800x600x256" \
+  "1024x768x256" "Frame buffer console, 1024x768x256" \
   2> $TMP/reply
   if [ $? = 1 -o $? = 255 ]; then
     exit
@@ -289,14 +297,28 @@ EOF
 boot = $ROOT_DEVICE
 #delay = 5
 EOF
-   if [ "$CONSOLETYPE" = "standard" ]; then
+   if [ $CONSOLETYPE = standard ]; then
      cat << EOF >> $T_PX/etc/lilo.conf
+# Normal VGA console
 vga = normal
+# Ask for video mode at boot (time out to normal in 30s)
+#vga = ask
+EOF
+   elif [ $CONSOLETYPE = ask ]; then
+     cat << EOF >> $T_PX/etc/lilo.conf
+# Ask for video mode at boot (time out to normal in 30s)
+vga = ask
+# Normal VGA console
+#vga = normal
 EOF
    else
      cat << EOF >> $T_PX/etc/lilo.conf
 # VESA framebuffer at $CONSOLETYPE
 vga = $CONSOLENUM
+# Ask for video mode at boot (time out to normal in 30s)
+#vga = ask
+# Normal VGA console
+#vga = normal
 EOF
    fi
    cat << EOF >> $T_PX/etc/lilo.conf
@@ -406,55 +428,50 @@ timeout = 1200
 change-rules
   reset
 EOF
- if [ "$CONSOLETYPE" = "standard" ]; then
+ if [ $CONSOLETYPE = standard ]; then
    cat << EOF >> $T_PX/etc/lilo.conf
 # Normal VGA console
 vga = normal
-# VESA framebuffer console @ 1024x768x64k
-# vga=791
-# VESA framebuffer console @ 1024x768x32k
-# vga=790
-# VESA framebuffer console @ 1024x768x256
-# vga=773
-# VESA framebuffer console @ 800x600x64k
-# vga=788
-# VESA framebuffer console @ 800x600x32k
-# vga=787
-# VESA framebuffer console @ 800x600x256
-# vga=771
-# VESA framebuffer console @ 640x480x64k
-# vga=785
-# VESA framebuffer console @ 640x480x32k
-# vga=784
-# VESA framebuffer console @ 640x480x256
-# vga=769
+# Ask for video mode at boot (time out to normal in 30s)
+#vga = ask
+EOF
+ elif [ $CONSOLETYPE = ask ]; then
+   cat << EOF >> $T_PX/etc/lilo.conf
+# Ask for video mode at boot (time out to normal in 30s)
+vga = ask
+# Normal VGA console
+#vga = normal
 EOF
  else
    cat << EOF >> $T_PX/etc/lilo.conf
 # VESA framebuffer console @ $CONSOLETYPE
 vga = $CONSOLENUM
 # Normal VGA console
-# vga = normal
-# VESA framebuffer console @ 1024x768x64k
-# vga=791
-# VESA framebuffer console @ 1024x768x32k
-# vga=790
-# VESA framebuffer console @ 1024x768x256
-# vga=773
-# VESA framebuffer console @ 800x600x64k
-# vga=788
-# VESA framebuffer console @ 800x600x32k
-# vga=787
-# VESA framebuffer console @ 800x600x256
-# vga=771
-# VESA framebuffer console @ 640x480x64k
-# vga=785
-# VESA framebuffer console @ 640x480x32k
-# vga=784
-# VESA framebuffer console @ 640x480x256
-# vga=769
+#vga = normal
+# Ask for video mode at boot (time out to normal in 30s)
+#vga = ask
 EOF
  fi
+cat << EOF >> $T_PX/etc/lilo.conf
+# VESA framebuffer console @ 1024x768x64k
+#vga=791
+# VESA framebuffer console @ 1024x768x32k
+#vga=790
+# VESA framebuffer console @ 1024x768x256
+#vga=773
+# VESA framebuffer console @ 800x600x64k
+#vga=788
+# VESA framebuffer console @ 800x600x32k
+#vga=787
+# VESA framebuffer console @ 800x600x256
+#vga=771
+# VESA framebuffer console @ 640x480x64k
+#vga=785
+# VESA framebuffer console @ 640x480x32k
+#vga=784
+# VESA framebuffer console @ 640x480x256
+#vga=769
+EOF
 cat << EOF >> $T_PX/etc/lilo.conf
 # End LILO global section
 EOF
@@ -551,8 +568,35 @@ name?" 7 60
  fi
 }
 
+checkbootsplash()
+{
+ if [ "$(uname -m)" = "x86_64" ]; then
+  if [ -r $LILODOCDIR/sample/slack64.bmp ]; then
+   cp -a $LILODOCDIR/sample/slack64.bmp /boot/slack.bmp
+  fi
+ else
+  if [ -r $LILODOCDIR/sample/slack.bmp ]; then
+   cp -a $LILODOCDIR/sample/slack.bmp /boot/slack.bmp
+  fi
+ fi
+ if [ -r $HOME/1337 ]; then
+  if [ -r $LILODOCDIR/sample/sl1337.bmp ]; then
+   cp -a $LILODOCDIR/sample/sl1337.bmp /boot/slack.bmp
+  fi
+ fi
+ # Thanks to amrit@slackware.com:
+ if grep -wq 13.37.0 /etc/slackware-version ; then
+  if ls -l /etc/lilo.conf | grep -q 13:37 ; then
+   if [ -r $LILODOCDIR/sample/sl1337.bmp ]; then
+    cp -a $LILODOCDIR/sample/sl1337.bmp /boot/slack.bmp
+   fi
+  fi
+ fi
+}
+
 installcolor()
 {
+ checkbootsplash;
  dialog --infobox "\nInstalling the Linux Loader..." 5 40
  if [ "$T_PX" = "/" ]; then
   lilo 1> /dev/null 2> /etc/lilo-error.$$
@@ -586,7 +630,7 @@ has not been correctly installed.  You'll have to use a bootdisk \
 to start your \
 machine instead.  It should still be possible to get LILO working by \
 editing the /etc/lilo.conf and reinstalling LILO manually.  See the \
-LILO man page and documentation in /usr/doc/lilo/ for more help.  \
+LILO man page and documentation in $LILODOCDIR for more help.  \
 The error message may be seen above.
 EOF
   dialog --msgbox "$(cat /etc/lilo-error.$$)" 0 0
@@ -595,6 +639,7 @@ EOF
 
 installtext()
 {
+ checkbootsplash;
  echo "Installing the Linux Loader..."
  if [ "$T_PX" = "/" ]; then
   lilo
@@ -629,7 +674,7 @@ Sorry, but the attempt to install LILO has returned an error, so LILO
 has not been correctly installed.  You'll have to use a bootdisk to
 start your machine instead.  It should still be possible to get LILO
 working by editing the /etc/lilo.conf and reinstalling LILO manually.
-See the LILO man page and documentation in /usr/doc/lilo/ for more
+See the LILO man page and documentation in $LILODOCDIR for more
 help.
 
 EOF
@@ -888,31 +933,27 @@ EOF
      cat << EOF >> $TMP/lilo.conf
 # Normal VGA console
 vga = normal
-# VESA framebuffer console @ 1024x768x64k
-# vga=791
-# VESA framebuffer console @ 1024x768x32k
-# vga=790
-# VESA framebuffer console @ 1024x768x256
-# vga=773
-# VESA framebuffer console @ 800x600x64k
-# vga=788
-# VESA framebuffer console @ 800x600x32k
-# vga=787
-# VESA framebuffer console @ 800x600x256
-# vga=771
-# VESA framebuffer console @ 640x480x64k
-# vga=785
-# VESA framebuffer console @ 640x480x32k
-# vga=784
-# VESA framebuffer console @ 640x480x256
-# vga=769
+# Ask for video mode at boot (time out to normal in 30s)
+#vga = ask
+EOF
+   elif [ "$CONSOLETYPE" = "ask" ]; then
+     cat << EOF >> $TMP/lilo.conf
+# Ask for video mode at boot (time out to normal in 30s)
+vga = ask
+# Normal VGA console
+#vga = normal
 EOF
    else
      cat << EOF >> $TMP/lilo.conf
 # VESA framebuffer console @ $CONSOLETYPE
 vga = $CONSOLENUM
 # Normal VGA console
-# vga = normal
+#vga = normal
+# Ask for video mode at boot (time out to normal in 30s)
+#vga = ask
+EOF
+   fi
+   cat << EOF >> $TMP/lilo.conf
 # VESA framebuffer console @ 1024x768x64k
 # vga=791
 # VESA framebuffer console @ 1024x768x32k
@@ -932,7 +973,6 @@ vga = $CONSOLENUM
 # VESA framebuffer console @ 640x480x256
 # vga=769
 EOF
-   fi
    cat << EOF >> $TMP/lilo.conf
 # ramdisk = 0     # paranoia setting
 # End LILO global section
@@ -940,14 +980,20 @@ EOF
     HDR="yes"
   elif [ "$REPLY" = "Linux" ]; then
    if [ "$HDR" = "yes" ]; then
-    echo "These are your Linux partitions:" > $TMP/tmpmsg
-    echo >> $TMP/tmpmsg
-    echo "   Device Boot      Start         End      Blocks   Id  System" >> $TMP/tmpmsg
-    PROBE -l | grep "Linux$" | sort >> $TMP/tmpmsg
-    echo >> $TMP/tmpmsg
-    echo "Which one would you like LILO to boot?" >> $TMP/tmpmsg
-    dialog --title "SELECT LINUX PARTITION" --no-collapse --inputbox \
-"`cat $TMP/tmpmsg`" 21 74 2> $TMP/reply
+    if [ "$ROOT_DEVICE" != "" ]; then
+     DEFROOT="--default-item $ROOT_DEVICE"
+    fi
+    echo "dialog --title \"SELECT LINUX PARTITION\" $DEFROOT --menu \\" > $TMP/tmpmsg
+    echo "\"Which Linux partition would you like LILO to boot?\n\
+\n\
+   Partition             Start         End     Sectors   ID\" 22 74 13 \\" >> $TMP/tmpmsg
+    PROBE -l 2> /dev/null | grep "Linux$" | sort | while read STR; do
+     STR1="$(echo -n "$STR" | cut -f 1 -d ' ')"
+     STR2="$(echo -n "$STR" | cut -f 2- -d ' ')"
+     echo "\"$STR1\" \"$STR2\" \\" >> $TMP/tmpmsg
+    done
+    echo "2> $TMP/reply" >> $TMP/tmpmsg
+    . $TMP/tmpmsg
     if [ $? = 1 -o $? = 255 ]; then
      rm $TMP/tmpmsg
      continue
@@ -958,7 +1004,7 @@ EOF
     if [ ! $? = 0 ]; then
      continue;
     fi
-    dialog --title "SELECT PARTITION NAME" --inputbox \
+    dialog --title "SELECT PARTITION NAME FOR $LINUX_PART" --inputbox \
 "Now you must select a short, unique name for this partition. \
 You'll use this name if you specify a partition to boot at the \
 LILO prompt. 'Linux' might not be a bad choice. THIS MUST BE A \

@@ -1,0 +1,993 @@
+diff -p -up xxgdb-1.12/command.c.orig xxgdb-1.12/command.c
+--- xxgdb-1.12/command.c.orig	2010-05-06 21:43:37.932032547 -0300
++++ xxgdb-1.12/command.c	2010-05-06 21:43:56.618036569 -0300
+@@ -74,7 +74,7 @@
+  *
+  *    forwardSearch() :		forward string search
+  *    reverseSearch() :		reverse string search
+- *    Search() :		call either forwardSearch() or reverseSearch()
++ *    search() :		call either forwardSearch() or reverseSearch()
+  *    PopupSearch() :		command callback for search button
+  *    DoneSearch() :		command callback for DONE button in search panel
+  *    CreateSearchPopup() :	create search panel
+@@ -657,10 +657,8 @@ void PopupSearch(w, client_data, call_da
+  *  If no text has been entered, the contents of the cut buffer are used
+  *  for searching.
+  */ 
+-static void Search(w, direction, call_data)
+-    Widget w;
+-    XtPointer direction;
+-    XtPointer call_data;
++static void
++search(Widget w, XtPointer direction, XtPointer call_data)
+ {
+     XawTextBlock    	textblock;
+     XawTextPosition	pos, left, right;
+@@ -716,7 +714,7 @@ static void Activate(w, event, params, n
+     String *params;
+     Cardinal *num_params;
+ {
+-    Search(w, (XtPointer)FORWARD, NULL);
++    search(w, (XtPointer)FORWARD, NULL);
+     DoneSearch(w, (XtPointer)searchPopupShell, NULL);
+ }
+ 
+@@ -747,8 +745,8 @@ static void CreateSearchPopup()
+     searchPopup = XtCreateManagedWidget("searchPopup", dialogWidgetClass, 
+ 	searchPopupShell, args, n);
+     
+-    AddButton(searchPopup, "<<", Search, (XtPointer) REVERSE);
+-    AddButton(searchPopup, ">>", Search, (XtPointer) FORWARD);
++    AddButton(searchPopup, "<<", search, (XtPointer) REVERSE);
++    AddButton(searchPopup, ">>", search, (XtPointer) FORWARD);
+     AddButton(searchPopup, "DONE", DoneSearch, (XtPointer)searchPopupShell);
+ 
+     dialogValue = XtNameToWidget(searchPopup, "value");
+diff -p -up xxgdb-1.12/dialog.c.orig xxgdb-1.12/dialog.c
+--- xxgdb-1.12/dialog.c.orig	2010-05-06 21:43:37.934032296 -0300
++++ xxgdb-1.12/dialog.c	2010-05-06 21:44:28.258027728 -0300
+@@ -86,6 +86,12 @@ Boolean FalseSignal = FALSE;		/* set to
+ static char DialogText[DIALOGSIZE];	/* text buffer for widget */
+ static XawTextPosition  StartPos;      	/* starting position of input text */
+ 
++static XawTextEditType
++BeginDelete(Widget w);
++
++static void
++EndDelete(Widget w, XawTextEditType type);
++
+ 
+ /*  This procedure prevents the user from deleting past the prompt, or
+  *  any text appended by AppendDialogText() to the dialog window.
+@@ -94,11 +100,8 @@ static XawTextPosition  StartPos;
+  *  character() can only delete the space character.
+  */
+ /* ARGSUSED */
+-static void InsertSpace(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++InsertSpace(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     XawTextBlock    textblock;
+     XawTextPosition lastPos;
+@@ -115,16 +118,70 @@ static void InsertSpace(w, event, params
+     }
+ }
+ 
++static XawTextEditType
++BeginDelete(Widget w)
++{
++    Widget		src;
++    XawTextEditType	type;
++    Arg			args[1];
++
++    src = XawTextGetSource(w);
++    XtSetArg(args[0], XtNeditType, &type);
++    XtGetValues(src, args, 1);
++    if (type != XawtextEdit) {
++	XtSetArg(args[0], XtNeditType, XawtextEdit);
++	XtSetValues(src, args, 1);
++    }
++
++    return (type);
++}
++
++static void
++EndDelete(Widget w, XawTextEditType type)
++{
++    Widget		src;
++    Arg			args[1];
++
++    if (type != XawtextEdit) {
++	src = XawTextGetSource(w);
++	XtSetArg(args[0], XtNeditType, type);
++	XtSetValues(src, args, 1);
++    }
++}
++
++/*
++ * Previous logic of calling actions:
++ *	InsertSpace() delete-previous-char()
++ * is not going to work because it must create a text in append only
++ * mode, so, hack it here to actually delete a character...
++ */
++void
++DeleteChar(Widget w, XEvent *event, String *params, Cardinal *num_params)
++{
++    XawTextEditType	type;
++    XawTextBlock	block;
++    XawTextPosition	point;
++
++    if (StartPos < (point = XawTextGetInsertionPoint(w))) {
++	type = BeginDelete(w);
++	block.firstPos = 0;
++	block.length = 0;
++	block.ptr = "";
++	block.format = 8;
++	XawTextReplace(w, point - 1, point, &block);
++	XawTextSetInsertionPoint(w, point - 1);
++	EndDelete(w, type);
++    }
++}
++
+ /*  Erases the preceding word.
+  *  Simulates the action of the WERASE character (ctrl-W).
+  */
+ /* ARGSUSED */
+-void DeleteWord(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++DeleteWord(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
++    XawTextEditType	type;
+     XawTextBlock    	textblock;
+     XawTextPosition	pos;
+     Cardinal	 	i;
+@@ -138,8 +195,10 @@ void DeleteWord(w, event, params, num_pa
+         pos = TextGetLastPos(w); 
+     for (i=pos; i > StartPos && DialogText[i-1] == ' '; i--);
+     for (; i > StartPos && DialogText[i-1] != ' '; i--);
++    type = BeginDelete(w);
+     XawTextReplace(w, i, pos, &textblock);
+     XawTextSetInsertionPoint(w, i);
++    EndDelete(w, type);
+ }
+ 
+ 
+@@ -147,12 +206,10 @@ void DeleteWord(w, event, params, num_pa
+  *  simulates the action of the KILL character (ctrl-U).
+  */
+ /* ARGSUSED */
+-void DeleteLine(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++DeleteLine(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
++    XawTextEditType	type;
+     XawTextBlock    	textblock;
+     XawTextPosition 	pos, beginPos;
+     Cardinal	 	i;
+@@ -172,8 +229,10 @@ void DeleteLine(w, event, params, num_pa
+ 		return;
+ 	}
+     for (i=pos; i > beginPos && s[i-1] != '\n'; i--);
++    type = BeginDelete(w);
+     XawTextReplace(w, i, pos, &textblock);
+     XawTextSetInsertionPoint(w, i);
++    EndDelete(w, type);
+ }
+ 
+ 
+@@ -183,11 +242,8 @@ void DeleteLine(w, event, params, num_pa
+  *  it is stored in the global variable, Command.
+  */
+ /* ARGSUSED */
+-static void Dispatch(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params; 
++void
++Dispatch(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+ #ifdef GDB
+ 	/* 
+@@ -249,22 +305,16 @@ void signal_interrupt_dbx()
+  *  Simulates the action of the INTR character (ctrl-C).
+  */
+ /* ARGSUSED */
+-static void SigInt(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++SigInt(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+   signal_interrupt_dbx ();
+ }
+ 
+ /*  Sends an EOF signal to dbx. (ctrl-D) */
+ /* ARGSUSED */
+-static void SigEof(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++SigEof(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     write_dbx("\04");
+ }
+@@ -274,11 +324,8 @@ static void SigEof(w, event, params, num
+  *  Simulates the action of the QUIT character (ctrl-\) 
+  */
+ /* ARGSUSED */
+-static void SigQuit(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++SigQuit(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     FalseSignal = TRUE;
+ 
+@@ -301,29 +348,8 @@ Widget parent;
+     Arg 	args[MAXARGS];
+     Cardinal 	n;
+ 
+-    static XtActionsRec dialog_actions[] = {
+-	{"SigInt", 	(XtActionProc) SigInt},
+-	{"SigEof", 	(XtActionProc) SigEof},
+-	{"SigQuit", 	(XtActionProc) SigQuit},
+-	{"InsertSpace", (XtActionProc) InsertSpace},
+-	{"Dispatch", 	(XtActionProc) Dispatch},
+-        {NULL, NULL}
+-    };
+-
+-    static String translations = "#override\n\
+- 	Ctrl<Key>C:	SigInt()\n\
+- 	Ctrl<Key>D:	SigEof()\n\
+- 	Ctrl<Key>|:	SigQuit()\n\
+- 	Ctrl<Key>W:	DeleteWord()\n\
+- 	Ctrl<Key>U:	DeleteLine()\n\
+- 	Ctrl<Key>H:	InsertSpace() delete-previous-character()\n\
+- 	<Key>Delete:	InsertSpace() delete-previous-character()\n\
+- 	<Key>BackSpace:	InsertSpace() delete-previous-character()\n\
+- 	<Key>Return:	newline() Dispatch()\n\
+-    ";
+-
+     n = 0;
+-    XtSetArg(args[n], XtNuseStringInPlace, True);                       n++;
++    XtSetArg(args[n], XtNuseStringInPlace, True);			n++;
+     XtSetArg(args[n], XtNstring, (XtArgVal) DialogText);		n++;
+     XtSetArg(args[n], XtNlength, (XtArgVal) DIALOGSIZE);		n++;
+     XtSetArg(args[n], XtNeditType, (XtArgVal) XawtextAppend);		n++;
+@@ -331,8 +357,6 @@ Widget parent;
+     XtSetArg(args[n], XtNwrap, XawtextWrapWord);			n++;
+     dialogWindow = XtCreateManagedWidget("dialogWindow", asciiTextWidgetClass,
+ 					 parent, args, n );
+-    XtOverrideTranslations(dialogWindow, XtParseTranslationTable(translations));
+-    XtAppAddActions(app_context, dialog_actions, XtNumber(dialog_actions));
+ }
+ 
+ #if 0 /* never used */
+diff -p -up xxgdb-1.12/gdb_parser.c.orig xxgdb-1.12/gdb_parser.c
+--- xxgdb-1.12/gdb_parser.c.orig	2010-05-06 21:43:37.936032292 -0300
++++ xxgdb-1.12/gdb_parser.c	2010-05-06 21:44:36.001027757 -0300
+@@ -1053,7 +1053,6 @@ FILE *f;
+ 			if(errno == EAGAIN || errno == EWOULDBLOCK) {
+ 				break;
+ 			}
+-			perror("read from gdb");
+ 			exit(1);
+ 			/*NOTREACHED*/
+ 		}
+diff -p -up xxgdb-1.12/global.h.orig xxgdb-1.12/global.h
+--- xxgdb-1.12/global.h.orig	2010-05-06 21:43:37.938031470 -0300
++++ xxgdb-1.12/global.h	2010-05-06 21:44:48.480028375 -0300
+@@ -111,10 +111,34 @@ extern void 		read_dbx();		/* get data f
+ extern void 		write_dbx();		/* send data to dbx */
+ extern void		query_dbx();		/* ask dbx for info */
+ 
++extern void
++PopupSearch(Widget w, XtPointer client_data, XtPointer call_data);
++
+ /* dialog.c */
++extern void
++DeleteChar(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++DeleteLine(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++DeleteWord(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++Dispatch(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++InsertSpace(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++SigInt(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++SigEof(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++SigQuit(Widget w, XEvent *event, String *params, Cardinal *num_params);
+ 
+-extern void		DeleteLine();		/* delete line action proc */
+-extern void		DeleteWord();		/* delete word action proc */
+ extern void		CreateDialogWindow();
+ extern void 		AppendDialogText();	/* append text to buffer */
+ 
+@@ -163,18 +187,53 @@ extern void 		UpdateUpdown();		/* update
+ extern void 		UpdateBomb();		/* update position of bomb */
+ 
+ /* source.c */
++extern void
++CreateSourceWindow(Widget parent);
++
++extern char *
++GetPathname(char *filename);
++
++extern int
++LoadCurrentFile(void);
++
++extern int
++LoadFile(char *filename);
++
++extern void
++MakeDirList(char *output);
++
++extern void
++NotifyResize(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++PrintSelection(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++Search(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++SelectEnd(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++SelectStart(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++SelectWord(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++source_init(void);
++
++extern void
++Update(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++#ifdef EDIT_BUTTON
++extern void
++EdAction(Widget w, XEvent *event, String *params, Cardinal *num_params);
++
++extern void
++StartEditor(void);
++#endif
+ 
+-extern void		SelectStart();		/* modified select-start */
+-extern void		SelectEnd();		/* modified select-end */
+-extern void		SelectWord();		/* my select word */
+-extern void		PrintSelection();	/* select variable and print */
+-extern void		Update();		/* update line label */
+-extern void		source_init();		/* init routine */
+-extern void 		CreateSourceWindow();
+-extern int 		LoadFile();		/* display source file */
+-extern int 		LoadCurrentFile();	/* display source file */
+-extern char		*GetPathname();		/* get full path name of file */
+-extern void		MakeDirList();		/* maintain list of dirs */
+ 
+ /* utils.c */
+ 
+diff -p -up xxgdb-1.12/source.c.orig xxgdb-1.12/source.c
+--- xxgdb-1.12/source.c.orig	2010-05-06 21:43:37.940032123 -0300
++++ xxgdb-1.12/source.c	2010-05-06 21:43:56.626028358 -0300
+@@ -106,7 +106,8 @@ static FileRec	**fileTable;		/* table of
+ static int	fileTableSize;		/* size of file table */
+ static char 	*dirList[MAXDIRS];	/* list of dirs for searching files */
+ 
+-void source_init()
++void
++source_init(void)
+ {
+     dirList[0] = NULL;
+ }
+@@ -116,11 +117,8 @@ void source_init()
+  *  line label.
+  */
+ /* ARGSUSED */
+-void Update(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++extern void
++Update(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     XawTextPosition     pos;
+     int			topline;
+@@ -171,11 +169,8 @@ void Update(w, event, params, num_params
+  *  Invoked by ConfigureNotify event.
+  */
+ /* ARGSUSED */
+-static void NotifyResize(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++NotifyResize(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     XawTextPosition pos;
+     TextWidget  ctx = (TextWidget) sourceWindow;
+@@ -216,11 +211,8 @@ void UpdateLine(w, event, params, num_pa
+  *  near the bottom of an Athena text widget window.
+  */
+ /*  ARGSUSED */
+-void SelectStart(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++SelectStart(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     XawTextPosition topPosition;
+ 
+@@ -241,11 +233,8 @@ void SelectStart(w, event, params, num_p
+  *  selection and cut buffer 0. 
+  */
+ /*  ARGSUSED */
+-void SelectEnd(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++extern void
++SelectEnd(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     XawTextPosition begin, end, start;
+     Widget textsrc;
+@@ -274,11 +263,8 @@ void SelectEnd(w, event, params, num_par
+  *  It selects a word delimited by DELIMITERS, not whitespace.
+  */
+ /* ARGSUSED */
+-void SelectWord(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++SelectWord(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     XawTextPosition pos, left, right, start;
+     XawTextBlock buffer;
+@@ -328,11 +314,8 @@ void SelectWord(w, event, params, num_pa
+ 
+ /*  Print the value of the expression  in cut buffer 0. */
+ /*  ARGSUSED */
+-void PrintSelection(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++PrintSelection(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+     char command[LINESIZ];
+     char *string;
+@@ -351,24 +334,16 @@ void PrintSelection(w, event, params, nu
+ 
+ #ifdef EDIT_BUTTON
+ /* allow invocation of favorite editor from within interface */
+-extern void StartEditor();
+-void EdAction(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++EdAction(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+   StartEditor();
+ }
+ #endif /* EDIT_BUTTON */
+ 
+ /* fixes keybindings in source window */
+-extern PopupSearch();
+-void Search(w, event, params, num_params)
+-    Widget w;
+-    XEvent *event;
+-    String *params;
+-    Cardinal *num_params;
++void
++Search(Widget w, XEvent *event, String *params, Cardinal *num_params)
+ {
+   PopupSearch(w, NULL, NULL);
+ }
+@@ -383,134 +358,12 @@ void Search(w, event, params, num_params
+ have operative keys in the editor window for moving around (move stop
+ signs and such around too) */
+ 
+-void CreateSourceWindow(parent)
+-Widget parent;
++void
++CreateSourceWindow(Widget parent)
+ {
+-    TextWidget ctx;
+     Arg args[MAXARGS];
+     Cardinal n;
+ 
+-    static XtActionsRec sbar_actions[] = {
+-        {"NotifyResize",   NotifyResize},
+-        {"Update", 	   Update},
+-        {NULL, NULL}
+-    };
+-
+-    /* fixes keybindings in source window */
+-    static XtActionsRec text_actions[] = {
+-        {"Update", 	   Update},
+-#ifdef EDIT_BUTTON
+-        {"Editor",         EdAction},
+-#endif
+-		{"Search",         Search},
+-        {NULL, NULL}
+-    };
+-
+-#ifdef EDIT_BUTTON
+-
+-    static String eTextTranslations = "#override \n\
+-        Ctrl<Key>V:    next-page() Update(warp) \n\
+-        Meta<Key>V:    previous-page() Update(warp) \n\
+-        Ctrl<Key>N:    next-line() Update() \n\
+-        Ctrl<Key>P:    previous-line() Update() \n\
+-        Ctrl<Key>Z:    scroll-one-line-up() Update(warp) \n\
+-        Meta<Key>Z:    scroll-one-line-down() Update(warp) \n\
+-        Meta<Key>]:    forward-paragraph() Update(warp) \n\
+-        Meta<Key>[:    backward-paragraph() Update(warp) \n\
+-        Meta<Key>F:    forward-word() Update() \n\
+-        Meta<Key>B:    backward-word() Update() \n\
+-        Ctrl<Key>F:    forward-character() Update() \n\
+-        Ctrl<Key>B:    backward-character() Update() \n\
+-        Meta<Key>E:    Editor() \n\
+-        Meta<Key><:   beginning-of-file() Update(warp) \n\
+-        Meta<Key>>:   end-of-file() Update(warp) \n\
+-        <Key>L:        redraw-display() Update() \n\
+-        <Key>S:        Search() Update() \n\
+-        <Key>R:        Search() Update() \n\
+-        <Btn1Down>:             SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:          Update() SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:               Update() SelectEnd() \n\
+-      ";
+-  
+-    static String vTextTranslations = "#override \n\
+-        Ctrl<Key>F:    next-page() Update(warp) \n\
+-        Ctrl<Key>B:    previous-page() Update(warp) \n\
+-        Ctrl<Key>D:    next-page() Update() \n\
+-        Ctrl<Key>U:    previous-page() Update() \n\
+-        <Key>Return:   next-line() Update() \n\
+-        <Key>-:        previous-line() Update() \n\
+-        <Key>j:        next-line() Update() \n\
+-        <Key>k:        previous-line() Update() \n\
+-        <Key>space:    forward-character() Update() \n\
+-        <Key>BackSpace: backward-character() Update() \n\
+-        <Key>1:        beginning-of-file() Update(warp) \n\
+-        <Key>G:        end-of-file() Update(warp) \n\
+-        <Key>E:        Editor() \n\
+-        <Key>L:        redraw-display() Update() \n\
+-        <Key>/:        Search() Update() \n\
+-        <Key>?:        Search() Update() \n\
+-        <Btn1Down>:             SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:          Update() SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:               Update() SelectEnd() \n\
+-    ";
+-
+-#else /* not EDIT_BUTTON */
+-
+-    static String eTextTranslations = "#override \n\
+-        Ctrl<Key>V:    next-page() Update(warp) \n\
+-        Meta<Key>V:    previous-page() Update(warp) \n\
+-        Ctrl<Key>N:    next-line() Update() \n\
+-        Ctrl<Key>P:    previous-line() Update() \n\
+-        Ctrl<Key>Z:    scroll-one-line-up() Update(warp) \n\
+-        Meta<Key>Z:    scroll-one-line-down() Update(warp) \n\
+-        Meta<Key>]:    forward-paragraph() Update(warp) \n\
+-        Meta<Key>[:    backward-paragraph() Update(warp) \n\
+-        Meta<Key>F:    forward-word() Update() \n\
+-        Meta<Key>B:    backward-word() Update() \n\
+-        Ctrl<Key>F:    forward-character() Update() \n\
+-        Ctrl<Key>B:    backward-character() Update() \n\
+-        Meta<Key><:   beginning-of-file() Update(warp) \n\
+-        Meta<Key>>:   end-of-file() Update(warp) \n\
+-        <Key>L:        redraw-display() Update() \n\
+-        <Key>S:        Search() Update() \n\
+-        <Key>R:        Search() Update() \n\
+-        <Btn1Down>:             SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:          Update() SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:               Update() SelectEnd() \n\
+-      ";
+-  
+-    static String vTextTranslations = "#override \n\
+-        Ctrl<Key>F:    next-page() Update(warp) \n\
+-        Ctrl<Key>B:    previous-page() Update(warp) \n\
+-        Ctrl<Key>D:    next-page() Update() \n\
+-        Ctrl<Key>U:    previous-page() Update() \n\
+-        <Key>Return:   next-line() Update() \n\
+-        <Key>-:        previous-line() Update() \n\
+-        <Key>j:        next-line() Update() \n\
+-        <Key>k:        previous-line() Update() \n\
+-        <Key>space:    forward-character() Update() \n\
+-        <Key>BackSpace: backward-character() Update() \n\
+-        <Key>1:        beginning-of-file() Update(warp) \n\
+-        <Key>G:        end-of-file() Update(warp) \n\
+-        <Key>L:        redraw-display() Update() \n\
+-        <Key>/:        Search() Update() \n\
+-        <Key>?:        Search() Update() \n\
+-        <Btn1Down>:             SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:          Update() SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:               Update() SelectEnd() \n\
+-    ";
+-
+-#endif /* EDIT_BUTTON */
+-
+-    /* fixes keybindings in source window */
+-    static String sbarTranslations = "\
+-        <Configure>:    NotifyResize() \n\
+-        <Btn2Down>:     StartScroll(Continuous) MoveThumb() NotifyThumb() \
+-                        Update() \n\
+-        <Btn2Motion>:   MoveThumb() NotifyThumb() Update() \n\
+-        <BtnUp>:        NotifyScroll(Proportional) EndScroll() Update() \n\
+-    ";
+-
+     n = 0;
+     XtSetArg(args[n], XtNdefaultDistance, 0);                           n++;
+     sourceForm = XtCreateManagedWidget("sourceForm", formWidgetClass, 
+@@ -523,27 +376,6 @@ Widget parent;
+     XtSetArg(args[n], XtNscrollVertical, (XtArgVal) XawtextScrollAlways);n++;
+     sourceWindow = XtCreateManagedWidget("sourceWindow", asciiTextWidgetClass,
+ 					  sourceForm, args, n);
+-
+-    ctx = (TextWidget) sourceWindow;
+-    if (ctx->text.vbar)
+-    	XtOverrideTranslations(ctx->text.vbar, 
+-				XtParseTranslationTable(sbarTranslations));
+-    XtAppAddActions(app_context, sbar_actions, XtNumber(sbar_actions));
+-
+-    /* fixes keybindings in source window */
+-    XtAppAddActions(app_context, text_actions, XtNumber(text_actions));
+-    if (app_resources.bindings && strcmp(app_resources.bindings, "vi") == 0)
+-      XtOverrideTranslations((Widget) ctx, XtParseTranslationTable(vTextTranslations));
+-    else
+-      XtOverrideTranslations((Widget) ctx, XtParseTranslationTable(eTextTranslations));
+-
+-	/* setup tabulation */
+-	if (app_resources.tabstop >= 0) {
+-		int tab, tabs[256];
+-		for (n = 0, tab = 0; n < sizeof tabs / sizeof *tabs; n++)
+-			tabs[n] = (tab += app_resources.tabstop);
+-		XawTextSinkSetTabs(ctx->text.sink, sizeof tabs / sizeof *tabs, tabs);
+-	}
+ }
+ 
+ 
+@@ -553,8 +385,8 @@ Widget parent;
+  *  > Starting position of line #1 is 0, and is stored in linepos[1].
+  *  > Search for '\n' till end of buffer.
+  */
+-static void BuildLinePos(file)
+-FileRec *file;
++static void
++BuildLinePos(FileRec *file)
+ {
+     char *p;
+     int	 line, nlines;
+@@ -587,7 +419,8 @@ FileRec *file;
+  * there might be another path to the same files.
+  */
+ 
+-static void CheckLookUpFileTable()
++static void
++CheckLookUpFileTable(void)
+ {
+ 	int i;
+ 	char * newfullname;
+@@ -639,7 +472,8 @@ static void CheckLookUpFileTable()
+  * display if necessary.
+  *
+  */
+-void CleanUpFileTable ()
++void
++CleanUpFileTable(void)
+ {
+ 	CheckLookUpFileTable();
+ 	if (displayedFile == NULL)
+@@ -651,9 +485,8 @@ void CleanUpFileTable ()
+  * If not found, create an entry and initialize proper fields,
+  * else, return pointer to entry found.
+  */
+-static int LookUpFileTable(pathname, filename, file)
+-char *pathname, *filename;
+-FileRec **file;
++static int
++LookUpFileTable(char *pathname, char *filename, FileRec **file)
+ {
+     struct stat fileinfo;
+     int  	fd;
+@@ -754,7 +587,8 @@ FileRec **file;
+ /*  
+  *  Remember file position and current line before closing.
+  */
+-static void SaveDisplayedFileInfo()
++static void
++SaveDisplayedFileInfo(void)
+ {
+     XawTextPosition pos;
+ 
+@@ -771,8 +605,8 @@ static void SaveDisplayedFileInfo()
+  *     must recalculate bottomline because the window size might be
+  *     different.
+  */
+-static void DisplayFile(file)
+-FileRec *file;
++static void
++DisplayFile(FileRec *file)
+ {
+     Arg 	args[MAXARGS];
+     Cardinal 	n;
+@@ -792,8 +626,8 @@ FileRec *file;
+  *  the home directory of that user, or to the login home directory if user
+  *  is not specified.
+  */
+-static char *expand(filename)
+-char *filename;
++static char *
++expand(char *filename)
+ {
+     struct passwd *pwd;
+     char 	  *string, *name, newfile[MAXNAME];
+@@ -821,8 +655,8 @@ char *filename;
+  *
+  *  With fix from Dave Gagne (daveg@fs1.ee.ubc.ca) 7/30/90
+  */
+-void MakeDirList(output)
+-char *output;
++void
++MakeDirList(char *output)
+ {
+     /* fix bug where if text of a directories command is > 1k, crashes.  Now works to 4k */
+     char *s, list[LINESIZ], command[LINESIZ];
+@@ -889,8 +723,8 @@ char *output;
+ /*  Returns the full pathname of a given file.
+  *  It searches for the file from a list of directories.
+  */
+-char *GetPathname(filename)
+-char *filename;
++char *
++GetPathname(char *filename)
+ {
+     char	pathname[LINESIZ];
+     int 	i;
+@@ -949,8 +783,8 @@ char *filename;
+  *   5. update the file label and the various signs on the source window.
+  *  LoadFile returns 0 upon successful completion, -1 otherwise.
+  */
+-int LoadFile(filename)
+-char *filename;
++int
++LoadFile(char *filename)
+ {
+     FileRec 	*file;
+     char	*pathname;
+@@ -980,7 +814,8 @@ char *filename;
+     }
+ }
+ 
+-int LoadCurrentFile()
++int
++LoadCurrentFile(void)
+ {
+ #ifdef GDB
+     query_gdb ("info line\n", PARSE_ON | ECHO_OFF | FILTER_OFF);
+@@ -991,10 +826,11 @@ int LoadCurrentFile()
+ }
+ 
+ #ifdef EDIT_BUTTON
+-/* simply add editor button that calls  $XXGDBWINEDIT, $WINEDIT, xxgdbedit in that order */
++/* simply add editor button that calls  $EDITOR and xedit in that order */
+ /* allow invocation of fav. editor from within interface */
+ /* button and the EdAction action procedure for the source window */
+-void StartEditor ()
++void
++StartEditor(void)
+ {
+   XawTextPosition pos;
+   char* editor;
+@@ -1002,11 +838,9 @@ void StartEditor ()
+   int result;
+   
+   if (displayedFile == NULL) return;
+-  editor = (char *) getenv("XXGDBWINEDIT");
+-  if (editor == NULL)
+-    editor = (char *) getenv("WINEDIT");
++  editor = (char *) getenv("EDITOR");
+   if (editor == NULL)
+-    editor = "xxgdbedit";
++    editor = "xedit";
+   pos = XawTextGetInsertionPoint(sourceWindow);
+   displayedFile->currentline = TextPositionToLine(pos);
+   sprintf(string, "nohup %s +%d %s&\n",
+@@ -1043,8 +877,7 @@ void StartEditor ()
+  *
+  */
+ char *
+-GetSourcePathname (filename)
+-char *filename;
++GetSourcePathname(char *filename)
+ {
+ char *srcpath;
+ char curr_src [MAXPATHLEN];
+diff -p -up xxgdb-1.12/XDbx.ad.orig xxgdb-1.12/XDbx.ad
+--- xxgdb-1.12/XDbx.ad.orig	2010-05-06 21:43:37.942032512 -0300
++++ xxgdb-1.12/XDbx.ad	2010-05-06 21:43:56.626028358 -0300
+@@ -19,31 +19,41 @@
+ *sourceForm.preferredPaneSize:  	320
+ *sourceWindow.leftMargin:       	35
+ *sourceWindow.scrollHorizontal:		whenNeeded
+-*sourceWindow.translations:		#override \n\
+-	<Btn1Down>:     SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:  Update(warp) SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:       Update(warp) SelectEnd() \n\
+-	<Key>Down:      next-line() Update()\n\
+-	<Key>Up:        previous-line() Update() \n\
+-	Ctrl<Key>L:     redraw-display() Update() \n\
+-	Ctrl<Key>N:     next-line() Update() \n\
+-	Ctrl<Key>P:     previous-line() Update() \n\
+-	Ctrl<Key>V:     next-page() Update() \n\
+-	Ctrl<Key>Z:     scroll-one-line-up() Update() \n\
+-	Meta<Key>V:     previous-page() Update() \n\
+-	Meta<Key>Z:     scroll-one-line-down() Update() \n\
+-	:Meta<Key>\>:   end-of-file() Update() \n\
+-	:Meta<Key>]:    forward-paragraph() Update() \n\
+-	:Meta<Key>[:    backward-paragraph() Update()
++*sourceWindow.translations:		#override \
++	<Btn1Down>:	set-keyboard-focus() SelectStart() SelectWord()\n\
++	Shift<Btn1Up>:	Update(warp) SelectEnd() PrintSelection()\n\
++	<Btn1Up>:	Update(warp) SelectEnd()\n\
++	<Key>Down:	next-line() Update()\n\
++	<Key>Up:	previous-line() Update()\n\
++	Ctrl<Key>L:	redraw-display() Update()\n\
++	Ctrl<Key>N:	next-line() Update()\n\
++	Ctrl<Key>P:	previous-line() Update()\n\
++	Ctrl<Key>V:	next-page() Update()\n\
++	Ctrl<Key>Z:	scroll-one-line-up() Update()\n\
++	Meta<Key>V:	previous-page() Update()\n\
++	Meta<Key>Z:	scroll-one-line-down() Update()\n\
++	:Meta<Key>\>:	end-of-file() Update()\n\
++	:Meta<Key>]:	forward-paragraph() Update()\n\
++	:Meta<Key>[:	backward-paragraph() Update()
+ *messageWindow*font:  			variable
+ *messageWindow.min:  			30
+ *messageWindow.max:  			30
+ *dialogWindow.preferredPaneSize:	200
+ *dialogWindow.resizeToPreferred:	True
+-*dialogWindow.translations:		#override \n\
+-	<Btn1Down>:     SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:  SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:       SelectEnd() \n
++*dialogWindow.translations:		#override \
++	<Btn1Down>:	set-keyboard-focus() SelectStart() SelectWord()\n\
++	Shift<Btn1Up>:	SelectEnd() PrintSelection()\n\
++	<Btn1Up>:	SelectEnd()\n\
++	Ctrl<Key>C:	SigInt()\n\
++	Ctrl<Key>D:	SigEof()\n\
++	Ctrl<Key>|:	SigQuit()\n\
++	<Key>Tab:	no-op(r)\n\
++	Ctrl<Key>W:	DeleteWord()\n\
++	Ctrl<Key>U:	DeleteLine()\n\
++	Ctrl<Key>H:	DeleteChar()\n\
++	<Key>Delete:	DeleteChar()\n\
++	<Key>BackSpace:	DeleteChar()\n\
++	<Key>Return:	newline() Dispatch()
+ *commandWindow.preferredPaneSize:	135
+ *commandWindow.skipAdjust:		True
+ !*commandWindow.hSpace:			14
+@@ -55,8 +65,8 @@
+ *displayWindow.skipAdjust:      	True
+ *displayWindow.scrollVertical:		whenNeeded
+ *displayWindow.scrollHorizontal:	whenNeeded
+-*displayWindow.translations:		#override \n\
+-	<Btn1Down>:             SelectStart() SelectWord() \n\
+-	Shift<Btn1Up>:          SelectEnd() PrintSelection() \n\
+-	<Btn1Up>:               SelectEnd() \n
++*displayWindow.translations:		#override \
++	<Btn1Down>:	set-keyboard-focus()  SelectStart() SelectWord()\n\
++	Shift<Btn1Up>:	SelectEnd() PrintSelection()\n\
++	<Btn1Up>:	SelectEnd()
+ *popup*showGrip:			False
+diff -p -up xxgdb-1.12/xdbx.c.orig xxgdb-1.12/xdbx.c
+--- xxgdb-1.12/xdbx.c.orig	2010-05-06 21:43:37.944031595 -0300
++++ xxgdb-1.12/xdbx.c	2010-05-06 21:43:56.628036652 -0300
+@@ -191,19 +191,11 @@ String fallback_resources[] = {
+ #endif
+     "*sourceWindow.leftMargin:          35",
+     "*sourceWindow.scrollHorizontal:	whenNeeded",
+-    "*sourceWindow.translations:	#override \\n\
+-        <Btn1Down>:             SelectStart() SelectWord() \\n\
+-        Shift<Btn1Up>:          Update() SelectEnd() PrintSelection() \\n\
+-        <Btn1Up>:               Update() SelectEnd() \\n",
+     "*messageWindow*font:  		variable",
+     "*messageWindow.min:  		30",
+     "*messageWindow.max:  		30",
+     "*dialogWindow.preferredPaneSize:	240",
+     "*dialogWindow.resizeToPreferred:	True",
+-    "*dialogWindow.translations:	#override \\n\
+-        <Btn1Down>:     SelectStart() SelectWord() \\n\
+-        Shift<Btn1Up>:  SelectEnd() PrintSelection() \\n\
+-        <Btn1Up>:       SelectEnd() \\n",
+ #ifdef NEW_INTERFACE
+     "*commandShell.geometry:            190x370+590+0",
+ #else
+@@ -229,10 +221,6 @@ String fallback_resources[] = {
+ #endif
+     "*displayWindow.scrollVertical:	whenNeeded",
+     "*displayWindow.scrollHorizontal:	whenNeeded",
+-    "*displayWindow.translations:	#override \\n\
+-        <Btn1Down>:             SelectStart() SelectWord() \\n\
+-        Shift<Btn1Up>:          SelectEnd() PrintSelection() \\n\
+-        <Btn1Up>:               SelectEnd() \\n",
+     "*popup*showGrip:  			False",
+     "*bindings:                         emacs",
+     NULL,
+@@ -271,14 +259,25 @@ static XrmOptionDescRec options[] = {
+ };
+ 
+ XtActionsRec xdbx_actions[] = {
+-    {"SelectStart",	(XtActionProc) SelectStart},
+-    {"SelectEnd",	(XtActionProc) SelectEnd},
+-    {"SelectWord",	(XtActionProc) SelectWord},
+-    {"PrintSelection",	(XtActionProc) PrintSelection},
+-    {"Update",		(XtActionProc) Update},
+-    {"DeleteWord",	(XtActionProc) DeleteWord},
+-    {"DeleteLine",	(XtActionProc) DeleteLine},
+-    {NULL, NULL}
++#ifdef EDIT_BUTTON
++    {"Editor",		EdAction},
++#endif
++    {"DeleteChar",	DeleteChar},
++    {"DeleteLine",	DeleteLine},
++    {"DeleteWord",	DeleteWord},
++    {"Dispatch",	Dispatch},
++    {"InsertSpace",	InsertSpace},
++    {"NotifyResize",	NotifyResize},
++    {"PrintSelection",	PrintSelection},
++    {"Search",		Search},
++    {"SelectEnd",	SelectEnd},
++    {"SelectStart",	SelectStart},
++    {"SelectWord",	SelectWord},
++    {"SigEof",		SigEof},
++    {"SigInt",		SigInt},
++    {"SigQuit", 	SigQuit},
++    {"Update",		Update},
++    {NULL,		NULL}
+ };
+ 
+ static void Syntax(call)

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,6 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+PKGNAM=mpfr
 VERSION=${VERSION:-$(echo mpfr-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -67,12 +68,16 @@ rm -rf mpfr-$VERSION
 tar xvf $CWD/mpfr-$VERSION.tar.?z* || exit 1
 cd mpfr-$VERSION
 chown -R root:root .
-for file in $CWD/patches/* ; do
-  ( zcat $file 2> /dev/null | patch -p1 --verbose --batch 2> /dev/null || exit 1 )
-  if [ ! $? = 0 ]; then
-    exit 1
-  fi
-done
+
+if [ ! -z "$(ls $CWD/patches/* 2> /dev/null)" ]; then
+  for file in $CWD/patches/* ; do
+    ( zcat $file 2> /dev/null | patch -p1 --verbose --batch 2> /dev/null || exit 1 )
+    if [ ! $? = 0 ]; then
+      exit 1
+    fi
+  done
+fi
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -81,7 +86,7 @@ CFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/mpfr-$VERSION \
   --enable-static=yes \
   --enable-shared=yes \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -97,9 +102,17 @@ gzip -9 $PKG/usr/info/*
 
 mkdir -p $PKG/usr/doc/mpfr-$VERSION
 cp -a \
-  AUTHORS BUGS COPYING COPYING.LIB FAQ.html INSTALL NEWS README TODO VERSION \
+  AUTHORS BUGS COPYING* FAQ.html INSTALL NEWS README* TODO VERSION \
   examples \
   $PKG/usr/doc/mpfr-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

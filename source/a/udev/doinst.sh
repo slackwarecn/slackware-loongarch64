@@ -37,3 +37,5 @@ config etc/modprobe.d/isapnp.conf.new
 config etc/modprobe.d/psmouse.conf.new
 config etc/modprobe.d/usb-controller.conf.new
 
+/sbin/udevadm info --convert-db 1>/dev/null 2>/dev/null
+

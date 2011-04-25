@@ -2,7 +2,7 @@
 
 # Slackware build script for pcmciautils
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,11 +23,21 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-015}
-ARCH=${ARCH:-x86_64}
+VERSION=${VERSION:-017}
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 # parallel build will cause an error building ccdv:
 NUMJOBS=${NUMJOBS:-" -j1 "}
-BUILD=${BUILD:-2}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -37,7 +47,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf pcmciautils-$VERSION
-tar xvf $CWD/pcmciautils-$VERSION.tar.bz2
+tar xvf $CWD/pcmciautils-$VERSION.tar.bz2 || exit 1
 cd pcmciautils-$VERSION
 chown -R root.root .
 find . \
@@ -58,16 +68,19 @@ make install DESTDIR=$PKG || exit 1
 
 # Add some firmware:
 ( cd $PKG
-  tar xvf $CWD/cis-cs-3.2.8.tar.gz
+  tar xvf $CWD/cis-cs-3.2.8.tar.gz || exit 1
   chown -R root:root lib
-)
+) || exit 1
 
 rm -rf $PKG/etc/*
 mkdir -p $PKG/etc/pcmcia $PKG/etc/rc.d $PKG/lib/udev/rules.d
 
 cp -a $CWD/config/rc.pcmcia $PKG/etc/rc.d/rc.pcmcia.new
 chown root:root $PKG/etc/rc.d/rc.pcmcia.new
-chmod 0755 $PKG/etc/rc.d/rc.pcmcia.new
+# PCMCIA is the exception rather than the rule in 2011.
+# Don't activate /etc/rc.d/rc.pcmcia on a new package install,
+# leave that for the admin.
+chmod 0644 $PKG/etc/rc.d/rc.pcmcia.new
 
 cp -a $CWD/config/config.opts $PKG/etc/pcmcia/config.opts.new
 chown root:root $PKG/etc/pcmcia/config.opts.new
@@ -76,12 +89,6 @@ chmod 0644 $PKG/etc/pcmcia/config.opts.new
 cp -a udev/60-pcmcia.rules $PKG/lib/udev/rules.d/60-pcmcia.rules
 chown root:root $PKG/lib/udev/rules.d/60-pcmcia.rules
 chmod 0644 $PKG/lib/udev/rules.d/60-pcmcia.rules
-
-# Create some symlinks that the udev rules file wants
-( cd $PKG/lib/udev
-  ln -s ../../sbin/pcmcia-check-broken-cis .
-  ln -s ../../sbin/pcmcia-socket-startup .
-)
 
 mv $PKG/usr/share/man $PKG/usr
 rmdir $PKG/usr/share
@@ -102,7 +109,7 @@ if [ -d $PKG/usr/man ]; then
 fi
 
 mkdir -p $PKG/usr/doc/pcmciautils-$VERSION
-cp COPYING* $PKG/usr/doc/pcmciautils-$VERSION
+cp -a COPYING* README* doc/*.txt $PKG/usr/doc/pcmciautils-$VERSION
 
 mkdir $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

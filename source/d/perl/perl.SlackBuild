@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,11 +24,20 @@
 # originally by:  David Cantrell <david@slackware.com>
 # maintained by:  <volkerdi@slackware.com>
 
-VERSION=5.10.1
-# IMPORTANT: also update -Dinc_version_list in ./configure below!
-
-ARCH=${ARCH:-x86_64}
+VERSION=5.12.3
+# IMPORTANT: also update -Dinc_version_list with the previous Slackware
+# perl version in ./configure below!
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:--j6}
 
@@ -37,10 +46,10 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-perl
 
 # Additional required modules:
-DBDMYSQL=4.013
-DBI=1.609
-URI=1.40
-XMLPARSER=2.36
+DBDMYSQL=4.018
+DBI=1.616
+URI=1.58
+XMLPARSER=2.40
 XMLSIMPLE=2.18
 
 if [ "$ARCH" = "i386" ]; then
@@ -117,7 +126,7 @@ fi
   -Doptimize="$SLKCFLAGS" \
   $USE_THREADS \
   -Dpager='/usr/bin/less -isr' \
-  -Dinc_version_list='5.10.0 5.8.8 5.8.7 5.8.6 5.8.5 5.8.4 5.8.3 5.8.2 5.8.1 5.8.0' \
+  -Dinc_version_list='5.12.2 5.12.1 5.12.0 5.10.1 5.10.0 5.8.8 5.8.7 5.8.6 5.8.5 5.8.4 5.8.3 5.8.2 5.8.1 5.8.0' \
   -Darchname=$ARCH-linux
 
 # Kludge for gcc-4.2.4's needlessly changed output:
@@ -228,8 +237,8 @@ mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-
 # Install documentation
 mkdir -p $PKG/usr/doc/perl-$VERSION
 cp -a \
-  AUTHORS Artistic Copying INSTALL MANIFEST README README.Y2K README.cn \
-  README.jp README.ko README.micro README.tw Todo.micro \
+  AUTHORS Artistic Changes Copying INSTALL MANIFEST \
+  README README.{cn,jp,ko,tw} README.linux \
   $PKG/usr/doc/perl-$VERSION
 
 # We follow LSB with symlinks in /usr/share:

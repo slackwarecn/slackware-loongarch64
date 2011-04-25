@@ -20,8 +20,8 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=${VERSION:-$(echo libtool-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo libtool-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j6}
 
@@ -58,7 +58,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf libtool-$VERSION
 
-tar xvf $CWD/libtool-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/libtool-$VERSION.tar.xz || exit 1
 
 cd libtool-$VERSION
 chown -R root:root .
@@ -75,21 +75,24 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --infodir=/usr/info \
+  --mandir=/usr/man \
   --docdir=/usr/doc/libtool-$VERSION \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+gzip -9 $PKG/usr/man/man?/*.?
 
 rm -f $PKG/usr/info/dir
 gzip -9 $PKG/usr/info/*
 
 mkdir -p $PKG/usr/doc/libtool-$VERSION
 cp -a \
-  AUTHORS COPYING NEWS README THANKS TODO \
+  AUTHORS COPYING* NEWS README* THANKS TODO \
     $PKG/usr/doc/libtool-$VERSION
 
 mkdir $PKG/install

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-$(echo udev-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -58,6 +58,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# So this is a major bug.  At least, it triggers one in the kernel.
+# We'll revert it for now.  If left in place, machines using ATA
+# (especially PATA) are liable to randomly crash on reboot.
+# The last little bit of this patch fails to reverse but it won't matter.
+if [ $VERSION = 165 ]; then
+  zcat $CWD/udev.git-560de575148b7efda3b34a7f7073abd483c5f08e.patch.gz | patch -p1 -R
+fi
+
 # Fixup the rule generator for our use
 zcat $CWD/rule_generator.diff.gz | patch -p1 || exit 1
 
@@ -73,7 +81,7 @@ zcat $CWD/rule_generator.diff.gz | patch -p1 || exit 1
   --disable-introspection \
   --mandir=/usr/man \
   --docdir=/usr/doc/udev-$VERSION \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -106,6 +114,8 @@ find $PKG/etc -type d -exec chmod 755 {} \;
 chmod 0755 $PKG/etc/rc.d/rc.udev.new
 
 # Add extra device nodes to the package that udev doesn't make:
+# As of 156, some of these aren't be needed any more:
+# removed core@  fd@  stderr@  stdin@  stdout@ 
 tar xvf $CWD/udev-fixed-devices.tar.gz -C $PKG
 
 # Add various helper scripts:
@@ -113,18 +123,15 @@ for file in $CWD/config/scripts/* ; do
   cp -a $file $PKG/lib/udev/
 done
 chown -R root:root $PKG/lib/udev
-chmod 755 $PKG/lib/udev/*
+chmod 0755 $PKG/lib/udev/*
 
 # Move the pkgconfig file to where we expect it
 mv $PKG/usr/share/pkgconfig/* $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
 rmdir $PKG/usr/share/pkgconfig
 
-# Kill the ConsoleKit stuff
-rm -rf $PKG/usr/lib/ConsoleKit ; rmdir $PKG/usr/lib 2>/dev/null
-
 mkdir -p $PKG/usr/doc/udev-$VERSION
 cp -a \
-  COPYING* README* TODO \
+  COPYING* README* TODO extras/keymap/README.keymap.txt \
   $PKG/usr/doc/udev-$VERSION
 
 # Don't package the API docs:

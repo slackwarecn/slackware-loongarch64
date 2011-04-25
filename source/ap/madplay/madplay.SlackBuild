@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,19 @@
 
 
 VERSION=0.15.2b
-ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-2}
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -32,6 +42,8 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+else
+  SLKCFLAGS="-O2"
 fi
 
 CWD=$(pwd)
@@ -42,8 +54,11 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf madplay-$VERSION
-tar xvf $CWD/madplay-$VERSION.tar.gz || exit 1
+tar xvf $CWD/madplay-$VERSION.tar.?z* || exit 1
 cd madplay-$VERSION || exit 1
+
+zcat $CWD/madplay-0.15.2b-fix-segfault.patch.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -68,7 +83,7 @@ gzip -9 $PKG/usr/man/man1/*
 
 mkdir -p $PKG/usr/doc/madplay-$VERSION
 cp -a \
-  CHANGES COPYING COPYRIGHT CREDITS README TODO VERSION \
+  CHANGES COPYING* COPYRIGHT CREDITS README* TODO VERSION \
   $PKG/usr/doc/madplay-$VERSION
 
 mkdir -p $PKG/install

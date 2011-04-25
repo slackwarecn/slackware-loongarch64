@@ -25,11 +25,11 @@ DSSSLSTYLESHEETSVER=1.79
 SGMLCOMMONVER=0.6.3
 OPENJADEVER=1.3.3-pre1
 OPENSPVER=1.5.2
-GNOMEDOCUTILSVER=0.19.1
-GTKDOCVER=1.13
+GNOMEDOCUTILSVER=0.20.4
+GTKDOCVER=1.15
 SGMLSPLVER=1.03ii
 XMLTOVER=0.0.23
-ASCIIDOCVER=8.5.2
+ASCIIDOCVER=8.6.2
 DOCBOOKUTILSVER=0.6.14
 
 # Determine the general CFLAGS for the known architectures:
@@ -70,6 +70,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Revert a change that breaks processing the git documentation:
+xz -dc $CWD/sources/asciidoc.asciidoc7compatible.revertbrokenchange.diff.xz | patch --verbose -p1 || exit 1
+
 # Configure:
 ./configure \
   --prefix=/usr \
@@ -93,8 +96,7 @@ cp -fav \
 # patches that we need:
 cd $TMP
 mkdir sgml-common && cd sgml-common
-rpm2tgz $CWD/sources/sgml-common-${SGMLCOMMONVER}*.src.rpm
-tar xvf sgml-common-*src.tgz || exit 1
+rpm2cpio $CWD/sources/sgml-common-${SGMLCOMMONVER}*.src.rpm | cpio -div || exit 1
 # The real source archive is stored inside the source RPM, you see:
 tar xvf sgml-common-$SGMLCOMMONVER.tgz 
 cd sgml-common-$SGMLCOMMONVER || exit 1
@@ -106,23 +108,27 @@ find . \
   -exec chmod 644 {} \;
 
 # Apply patches (these are included in the source rpm):
+# Don't include the XML dir patch because we keep our stuff in /usr/share/sgml.
 for i in \
-  sgml-common-0.6.3-docdir.patch \
-  sgml-common-automake.patch \
   sgml-common-quotes.patch \
   sgml-common-umask.patch ; do
     patch --verbose -p1 < ../$i
 done || exit 1
 
 # Configure:
+# autoconf doesn't work anymore..
 #aclocal
 #automake --add-missing --copy
-autoreconf -vif
+#autoreconf -vif
+# but this does..
+for file in COPYING INSTALL install-sh missing mkinstalldirs; do
+   rm -f $file
+   cp -fav /usr/share/automake-*/$file .
+done
 ./configure \
   --prefix=/usr \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --with-docdir=/usr/doc \
   --sysconfdir=/etc \
   || exit 1
 
@@ -149,7 +155,7 @@ mkdir sgml-dtd
 cd sgml-dtd
 # Debian handily package all docbooks past and present in one archive
 # but they version number the archive with the latest version.
-tar xvf $CWD/sources/docbook_*orig*.tar.gz 
+tar xvf $CWD/sources/docbook_*orig*.tar.*z*
 cd docbook* || exit 1
 chown -R root:root .
 find . \
@@ -253,8 +259,7 @@ EOF
 # Extract source:
 cd $TMP
 mkdir opensp && cd opensp
-rpm2tgz $CWD/sources/opensp-${OPENSPVER}*.src.rpm 
-tar xvf opensp*src.tgz 
+rpm2cpio $CWD/sources/opensp-${OPENSPVER}*.src.rpm | cpio -div || exit 1
 tar xvf OpenSP-$OPENSPVER.tar.gz 
 cd OpenSP-$OPENSPVER || exit 1
 chown -R root:root .
@@ -408,8 +413,8 @@ cp -fav \
 cd $TMP
 mkdir docbook-dsssl-$DSSSLSTYLESHEETSVER
 cd docbook-dsssl-$DSSSLSTYLESHEETSVER
-tar xvf $CWD/sources/docbook-dsssl-$DSSSLSTYLESHEETSVER.tar.bz2 || exit 1
-tar xvf $CWD/sources/docbook-dsssl-doc-$DSSSLSTYLESHEETSVER.tar.bz2 || exit 1
+tar xvf $CWD/sources/docbook-dsssl-$DSSSLSTYLESHEETSVER.tar.*z* || exit 1
+tar xvf $CWD/sources/docbook-dsssl-doc-$DSSSLSTYLESHEETSVER.tar.*z* || exit 1
 cd docbook-dsssl-$DSSSLSTYLESHEETSVER || exit 1
 chown -R root:root .
 find . \
@@ -450,8 +455,7 @@ cp -fav \
 # Extract source:
 cd $TMP
 mkdir docbook-utils && cd docbook-utils
-rpm2tgz $CWD/sources/docbook-utils-${DOCBOOKUTILSVER}*.src.rpm
-tar xvf docbook-utils-*src.tgz 
+rpm2cpio $CWD/sources/docbook-utils-${DOCBOOKUTILSVER}*.src.rpm | cpio -div || exit 1
 tar xvf docbook-utils-$DOCBOOKUTILSVER.tar.gz 
 cd docbook-utils-$DOCBOOKUTILSVER || exit 1
 chown -R root:root .
@@ -463,13 +467,15 @@ find . \
 
 # Apply patches:
 for i in \
-  docbook-utils-rtfmanpage.patch \
-  docbook-utils-sgmlinclude.patch \
-  docbook-utils-2ndspaces.patch \
-  docbook-utils-grepnocolors.patch \
   docbook-utils-spaces.patch \
-  docbook-utils-w3mtxtconvert.patch ; do
- patch --verbose -p1 < ../$i
+  docbook-utils-2ndspaces.patch \
+  docbook-utils-w3mtxtconvert.patch \
+  docbook-utils-grepnocolors.patch \
+  docbook-utils-sgmlinclude.patch \
+  docbook-utils-rtfmanpage.patch \
+  docbook-utils-papersize.patch \
+  docbook-utils-nofinalecho.patch ; do
+    patch --verbose -p1 < ../$i
 done || exit 1
 
 # Configure:
@@ -485,6 +491,11 @@ make || exit 1
 
 # Install:
 make install htmldir=/usr/doc/docbook-utils-$DOCBOOKUTILSVER/html || exit 1
+
+# grep-2.7 demands [[:space:]] instead of [:space:]
+if ! fgrep '[[:space:]]' /usr/bin/jw ; then
+  sed -i "s/\[:space:\]/\[\[:space:\]\]/g" /usr/bin/jw
+fi
 
 # db2html is not just a symlink, as it has to create the output directory:
 rm -f /usr/bin/db2html
@@ -661,8 +672,7 @@ cp -favv \
 # Extract source:
 cd $TMP
 mkdir docbook-style-xsl && cd docbook-style-xsl
-rpm2tgz $CWD/sources/docbook-style-xsl-${XSLSTYLESHEETSVER}*.src.rpm 
-tar xvf docbook-style-xsl*.tgz
+rpm2cpio $CWD/sources/docbook-style-xsl-${XSLSTYLESHEETSVER}*.src.rpm | cpio -div || exit 1
 tar xvf docbook-xsl-$XSLSTYLESHEETSVER.tar.bz2
 # This unpacks atop of the main tree:
 tar xvf docbook-xsl-doc-$XSLSTYLESHEETSVER.tar.bz2
@@ -731,7 +741,10 @@ cp -fav doc/* README* RELEASE-NOTES* NEWS* \
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
+mkdir xmlto && cd xmlto
+#tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
+rpm2cpio $CWD/sources/xmlto-${XMLTOVER}*.src.rpm | cpio -div || exit 1
+tar xvvf xmlto-$XMLTOVER.tar.*z*
 cd xmlto-$XMLTOVER || exit 1
 chown -R root:root .
 find . \
@@ -739,6 +752,9 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Apply patches:
+patch --verbose -p1 < ../xmlto-0.0.23-Lchapterpassivetex.patch || exit 1
 
 # Configure:
 ./configure \
@@ -763,7 +779,7 @@ cp -fav \
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/libsgmls-perl_$SGMLSPLVER.orig.tar.gz || exit 1
+tar xvf $CWD/sources/libsgmls-perl_$SGMLSPLVER.orig.tar.*z* || exit 1
 cd libsgmls-perl-$SGMLSPLVER.orig
 chown -R root:root .
 find . \
@@ -771,7 +787,7 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-zcat $CWD/sources/libsgmls-perl_$SGMLSPLVER-*.diff.gz | patch -p1 || exit 1
+xz -dc $CWD/sources/libsgmls-perl_$SGMLSPLVER-*.diff.xz | patch -p1 || exit 1
 
 # Configure:
 perl Makefile.PL INSTALLDIRS=vendor || exit 1
@@ -798,8 +814,7 @@ cp -fav \
 # Extract source:
 cd $TMP
 mkdir linuxdoc-tools && cd linuxdoc-tools
-rpm2tgz $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm
-tar xvf linuxdoc-tools*.src.tgz
+rpm2cpio $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm | cpio -div || exit 1
 tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
 cd linuxdoc-tools-$LINUXDOCTOOLSVER || exit 1
 
@@ -918,8 +933,8 @@ cp -fav \
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/gtk-doc-$GTKDOCVER.tar.bz2 || exit 1
-cd gtk-doc-$GTKDOCVER
+tar xvf $CWD/sources/gtk-doc-$GTKDOCVER.tar.*z* 
+cd gtk-doc-$GTKDOCVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -927,8 +942,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Apply an upstreamed fix for gtk-doc-1.13:
-bzcat $CWD/sources/gtkdoc-1.13-fixref.patch.bz2 | patch --verbose -p1 || exit 1
+# Apply patch to fix problem with vim:
+xz -dc $CWD/sources/gtk-doc.patch.xz | patch --verbose -p1 || exit 1
 
 # Configure:
 ./configure \

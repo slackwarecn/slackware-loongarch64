@@ -20,8 +20,8 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-VERSION=4.2.6
+PKGNAM=gnuplot
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -113,11 +113,19 @@ fi
 
 mkdir -p $PKG/usr/doc/gnuplot-$VERSION
 cp -a \
-  BUGS CodeStyle Copyright FAQ INSTALL NEWS PATCHLEVEL PGPKEYS PORTING \
+  BUGS CodeStyle Copyright FAQ.bloat INSTALL NEWS PATCHLEVEL PGPKEYS PORTING \
   README* TODO VERSION \
   $PKG/usr/doc/gnuplot-$VERSION
 cp -a demo $PKG/usr/doc/gnuplot-$VERSION
 rm -f $PKG/usr/doc/gnuplot-$VERSION/demo/Make*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

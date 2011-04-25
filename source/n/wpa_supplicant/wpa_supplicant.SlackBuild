@@ -23,7 +23,7 @@
 
 PKGNAM=wpa_supplicant
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -95,6 +95,8 @@ find . \
 #  "s/^#define VERSION_STR \"\(.*\)\"/#define VERSION_STR \"\1_$VERSION\"/" \
 #  src/common/version.h
 
+zcat $CWD/hostap-07.git-b80b5639935d37b95d00f86b57f2844a9c775f57.patch.gz | patch -p1 --verbose || exit 1
+
 # The source code has been re-organized:
 cd wpa_supplicant
 
@@ -146,8 +148,16 @@ cp wpa_gui-qt4/wpa_gui $PKG/usr/bin/
 
 # Install dbus configuration file:
 mkdir -p $PKG/etc/dbus-1/system.d/
-cp dbus-wpa_supplicant.conf \
-  $PKG/etc/dbus-1/system.d/dbus-wpa_supplicant.conf.new
+cp dbus/dbus-wpa_supplicant.conf \
+  $PKG/etc/dbus-1/system.d/dbus-wpa_supplicant.conf
+
+# This file should actually be shipped with Slackware's wpa_supplicant
+# package, but since we missed it there (just kidding), we'll do it here:
+mkdir -p $PKG/usr/share/dbus-1/system-services
+install -m644 dbus/{fi.epitest.hostap.WPASupplicant.service,fi.w1.wpa_supplicant1.service} \
+  $PKG/usr/share/dbus-1/system-services/
+sed -e 's#Exec=/sbin/wpa_supplicant#Exec=/usr/sbin/wpa_supplicant#g' \
+  -i $PKG/usr/share/dbus-1/system-services/*.service
 
 # Install a .desktop file for wpa_gui:
 mkdir -p $PKG/usr/share/applications
@@ -226,7 +236,6 @@ config() {
   done
 }
 config etc/wpa_supplicant.conf.new
-config etc/dbus-1/system.d/dbus-wpa_supplicant.conf.new
 
 EOINS
 

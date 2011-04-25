@@ -22,9 +22,9 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-2.4.3}
-BUILD=${BUILD:-1}
-NUMJOBS=${NUMJOBS:--j6}
+PKGNAM=soprano
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -35,6 +35,8 @@ if [ -z "$ARCH" ]; then
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
+
+NUMJOBS=${NUMJOBS:--j6}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -57,6 +59,16 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
+
+# Detect JDK, needed for libsoprano_sesame2backend.so:
+if ! ls /var/log/packages/jdk-* 1> /dev/null 2> /dev/null ; then
+  echo
+  echo "JDK package not found in /var/log/packages."
+  echo "This is needed to compile libsoprano_sesame2backend.so."
+  echo
+  exit 1
+fi
+
 rm -rf soprano-$VERSION
 tar xvf $CWD/soprano-$VERSION.tar.bz2 || exit 1
 cd soprano-$VERSION || exit 1

@@ -1,7 +1,9 @@
 #!/bin/sh
-# $Id: mkinitrd_command_generator.sh,v 1.40 2008/12/18 23:32:56 eha Exp eha $
-# Copyright 2008, 2009 by Eric Hameleers <alien@slackware.com>, Eindhoven, Netherlands
-# Copyright 2008, 2009 by PiterPUNK <piterpunk@slackware.com>, Sao Paulo, SP, Brazil
+# $Id: mkinitrd_command_generator.sh,v 1.45 2011/02/17 09:27:05 eha Exp eha $
+# Copyright 2008, 2009, 2010, 2011  Eric Hameleers, Eindhoven, Netherlands
+#                                   Contact: <alien@slackware.com>
+# Copyright 2008, 2009  PiterPUNK, Sao Paulo, SP, Brazil
+#                       Contact: <piterpunk@slackware.com>
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -31,7 +33,7 @@
 # -----------------------------------------------------------------------------
 
 # The script's revision number will be displayed in the help text:
-REV=$( echo "$Revision: 1.40 $" | cut -d' '  -f2 )
+REV=$( echo "$Revision: 1.45 $" | cut -d' '  -f2 )
 
 # Define some essential parameter values:
 USING_LVM=""
@@ -47,7 +49,7 @@ FSTAB=${FSTAB:-"/etc/fstab"} # so we can test with alternate fstab files
 SOURCE_TREE=${SOURCE_TREE:-"/boot/initrd-tree"}
 CLEAR_TREE=${CLEAR_TREE:-1}
 KEYMAP=${KEYMAP:-"us"}
-UDEV=${UDEV:-0}
+UDEV=${UDEV:-1}
 WAIT=${WAIT:-1}
 
 # A basic explanation of the commandline parameters:
@@ -117,7 +119,7 @@ extended_usage() {
 	
 	EOT
 
-  echo "  \$($(basename $0) --run /boot/vmlinuz-generic-smp-2.6.24.5-smp)"
+  echo "  \$($(basename $0) --run /boot/vmlinuz-generic-smp-2.6.35.11-smp)"
 
   cat <<-EOT
 	
@@ -130,7 +132,7 @@ extended_usage() {
 	
 	EOT
 
-  echo "  $(basename $0) --lilo /boot/vmlinuz-generic-smp-2.6.24.5-smp >>/etc/lilo.conf"
+  echo "  $(basename $0) --lilo /boot/vmlinuz-generic-smp-2.6.35.11-smp >>/etc/lilo.conf"
 
   cat <<-EOT
 	
@@ -138,11 +140,11 @@ extended_usage() {
 	'/etc/lilo.conf' file (example for my hardware):
 	
 	  # Linux bootable partition config begins
-	  # initrd created with 'mkinitrd -c -k 2.6.24.5-smp -m ata_generic:pata_amd:mbcache:jbd:ext3 -f ext3 -r /dev/hda7'
-	  image = /boot/vmlinuz-generic-smp-2.6.24.5-smp
+	  # initrd created with 'mkinitrd -c -k 2.6.35.11-smp -m ata_generic:pata_amd:mbcache:jbd:ext3 -f ext3 -r /dev/hda7'
+	  image = /boot/vmlinuz-generic-smp-2.6.35.11-smp
 	    initrd = /boot/initrd.gz
 	    root = /dev/hda7
-	    label = 2.6.24.5-smp
+	    label = 2.6.35.11-smp
 	    read-only
 	  # Linux bootable partition config ends
 	
@@ -156,7 +158,7 @@ extended_usage() {
 # Find the device that holds the root partition:
 get_root_device() {
   if [ -e $FSTAB ]; then
-    RD=$(cat $FSTAB | tr '\t' ' ' | tr -s ' ' | grep ' / ' | cut -f1 -d' ')
+    RD=$(cat $FSTAB |tr '\t' ' ' |grep -v '^ *#' |tr -s ' ' |grep ' / ' |cut -f1 -d' ')
     if [ "$(echo $RD | cut -f1 -d=)" = "LABEL" -o "$(echo $RD | cut -f1 -d=)" = "UUID" ]; then
       DKEY=$(echo $RD | cut -f1 -d=)
       # The value can be LABEL=foo or LABEL='foo' or LABEL="foo"
@@ -171,11 +173,13 @@ get_root_device() {
 
 # Get the root fs information:
 get_rootfs_type() {
-  if $(type vol_id 1>/dev/null 2>&1) ; then
-    vol_id $ROOTDEV | grep ID_FS_TYPE | cut -f2 -d=
+  if $(type blkid 1>/dev/null 2>&1) ; then
+   blkid -s TYPE -o value $ROOTDEV
+  elif $(type vol_id 1>/dev/null 2>&1) ; then
+   vol_id $ROOTDEV | grep ID_FS_TYPE | cut -f2 -d=
   else
-    # Alternatively, use:
-    cat $FSTAB | tr '\t' ' ' | tr -s ' ' | grep ' / ' | cut -f3 -d' ' 
+   # As a fallback, use:
+   cat $FSTAB |tr '\t' ' ' |grep -v '^ *#' |tr -s ' ' |grep ' / ' |cut -f3 -d' '
   fi
 }
 
@@ -195,14 +199,16 @@ add_rootfs_module() {
 determine_blockdev_drivers() {
   # Walk the /sys tree to find kernel modules that are
   # required for our storage devices.
-  # Thanks to PiterPUNK for this piece of code.
+  # Thanks to PiterPUNK for help with this code.
   local MLIST
-  MLIST=$(for i in $(find /sys/block -name "device" -exec ls -l {} \; | sed -ne 's:.*/\(devices.*\)/[a-zA-Z]\+[.0-9]\+/.*:/sys/\1:p' | sort -u); do
-    for j in $(find $i -name "modalias"); do
-      /sbin/modprobe --set-version $KVER --show-depends $(cat $j) 2>/dev/null | while read LINE ; do
+  MLIST=$(for i in $(find /sys/block/*/ -name "device" -print0 | xargs -0 -i'{}' readlink -f '{}' | sort -u); do
+    /sbin/udevadm info --query=all --path=$i --attribute-walk | \
+      sed -ne 's/^[[:blank:]]\+DRIVER[S]*=="\([^"]\+\)"$/\1/p' | \
+      xargs -I@ /sbin/modprobe --set-version $KVER --show-depends @ \
+      2>/dev/null | grep -v "builtin " | \
+      while read LINE ; do 
         echo $(basename $(echo $LINE | cut -d' ' -f2) .ko )
       done
-    done
   done)
   MLIST=$( echo $MLIST | tr ' ' ':' )
   echo $MLIST
@@ -223,7 +229,7 @@ function add_usb_keyboard() {
 # Determine what USB Host Controller is in use
 function add_usb_hcd() {
   local USBMOD
-  for i in `ls -Ld /sys/module/*_hcd/drivers/*`; do 
+  for i in $(ls -Ld /sys/module/*_hcd/drivers/*); do 
     if ls -L $i | grep -q "[0-9a-f]*:" ; then
       USBMOD=$( echo $i | cut -f4 -d/ | tr "_" "-")
       [ -n "$MLIST" ] && MLIST="$MLIST:$USBMOD" \
@@ -239,7 +245,7 @@ check_luks_lvm_raid() {
     # Our root partition is on a LV:
     USING_LVM=1
     # Search the Physical Volume of our Logical Volume:
-    MYVG=$( echo $(lvdisplay -c $ROOTDEV) | cut -d: -f2 )
+    MYVG=$( echo $(lvdisplay -c $ROOTDEV 2>/dev/null) | cut -d: -f2 )
     for LINE in $(pvdisplay -c) ; do
       VG=$(echo $LINE | cut -d: -f2)
       [ "$VG" = "$MYVG" ] && break
@@ -260,7 +266,7 @@ check_luks_lvm_raid() {
     REALDEV=$( cryptsetup status $ROOTDEV | grep 'device: ' | tr -d ' ' | cut -d: -f2 )
     ROOTDEV=$(basename $ROOTDEV)
     # Check for LVM:
-    for LV in $(lvdisplay -c | tr -d ' ' | cut -f1 -d:) ; do
+    for LV in $(lvdisplay -c 2>/dev/null | tr -d ' ' | cut -f1 -d:) ; do
       # Note: cryptsetup shows the real device, whereas 
       # lvdisplay requires the /dev/<myvg>/... symlink to the real device.
       if [ "$(readlink $LV)" = "$REALDEV" ]; then
@@ -272,7 +278,7 @@ check_luks_lvm_raid() {
       # Our root partition's LUKS device is on a LV:
       USING_LVM=1
       # Search the Physical Volume of our Logical Volume:
-      MYVG=$( echo $(lvdisplay -c $REALDEV) | cut -d: -f2 )
+      MYVG=$( echo $(lvdisplay -c $REALDEV 2>/dev/null) | cut -d: -f2 )
       for LINE in $(pvdisplay -c) ; do
         VG=$(echo $LINE | cut -d: -f2)
         [ "$VG" = "$MYVG" ] && break
@@ -312,7 +318,7 @@ while [ ! -z "$1" ]; do
       exit 0
       ;;
     -a)
-      MKINIT_PARAMS=$2
+      MKINIT_PARAMS="$2"
       shift 2
       ;;
     -c|--conf)
@@ -427,6 +433,12 @@ ROOTFS=$(get_rootfs_type)
 # Determine the list of kernel modules needed to support the root device:
 MLIST=$(determine_blockdev_drivers)
 
+# Check if we are running in a kvm guest with virtio block device driver
+# (add all virtio modules, we sort out the doubles later):
+if echo $MLIST | grep -q "virtio"; then
+  MLIST="$MLIST:virtio:virtio_balloon:virtio_blk:virtio_ring:virtio_pci:virtio_net"
+fi
+
 # Determine if a USB keyboard is in use and include usbhid to module list
 MLIST=$(add_usb_keyboard)
 
@@ -533,8 +545,8 @@ configurations are optional and you can stick to the defaults." 11 72 3 \
 "KEYMAP" "Select keyboard layout (default: US)" \
 			   $([ $USING_LUKS = 1 ] && echo on || echo off) \
 "RESUMEDEV" "Select device for 'suspend-to-disk' feature" off \
-"UDEV" "Use UDEV in the initrd for device configuration" off \
-"WAIT" "Add delay to allow detection of slow disks at boot" off)
+"UDEV" "Use UDEV in the initrd for device configuration" $(test $UDEV -eq 1 && echo on || echo off) \
+"WAIT" "Add delay to allow detection of slow disks at boot" $(test WAIT -gt 1 && echo on || echo off) )
   if [ "$?" != "0" ]; then
     exit 1
   fi
@@ -786,8 +798,8 @@ if [ -n "$WAIT" -a $WAIT -ne 1 ]; then
   # Add non-default wait time:
   MKINIT="$MKINIT -w $WAIT"
 fi
-if ! echo "$MKINIT_PARAMS" | grep -q ' -o ' ; then
-  # Add non-default output filename:
+if ! echo "$MKINIT_PARAMS" | grep -q -- '-o ' ; then
+  # Add default output filename:
   MKINIT="$MKINIT -o $IMGFILE"
 fi
 if [ -n "$MKINIT_PARAMS" ]; then

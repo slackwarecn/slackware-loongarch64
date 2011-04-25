@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,18 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.6f
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+VERSION=1.6g
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -38,13 +47,16 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 cd $TMP
 rm -rf $PKG
 mkdir -p $TMP $PKG
 rm -rf man-$VERSION
-tar xvf $CWD/man-$VERSION.tar.bz2
+tar xvf $CWD/man-$VERSION.tar.xz
 cd man-$VERSION
 
 # In man.conf, set NROFF to "/usr/bin/nroff -mandoc" rather
@@ -59,9 +71,9 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
+# configure doesn't care about CFLAGS
 ./configure +lang all +traditional -confdir /usr/lib${LIBDIRSUFFIX}
-make
+make CFLAGS="$SLKCFLAGS"
 make install PREFIX=$PKG
 mv $PKG/usr/lib${LIBDIRSUFFIX}/man.conf $PKG/usr/lib${LIBDIRSUFFIX}/man.conf.new
 

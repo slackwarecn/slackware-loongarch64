@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009-2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -19,11 +19,11 @@
 #  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 
 PKGNAM=xxgdb
 VERSION=${VERSION:-1.12}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -31,6 +31,17 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+# Set compile flags:
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-march=i486 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
@@ -39,12 +50,18 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
 fi
 
+# Extract source:
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.gz || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
-zcat $CWD/xxgdb.fix_glibc_and_gcc.diff.gz | patch -p1 --verbose --backup --suffix=.orig
+# Apply patches:
+# The patches were taken from Mandriva's SRPM and address build issues
+# and run-time issues on x86_64. 
+for pf in $CWD/*patch.xz ; do
+  { xz -dc $pf | patch -p1 ;} || exit 1
+done
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -89,7 +106,7 @@ fi
 # Add a documentation directory:
 mkdir -p ${PKG}/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  README README.NEW_INTERFACE XDBX_README XDbx.NEW_INTERFACE XXGDB_README \
+  *README* XDbx.NEW_INTERFACE \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install

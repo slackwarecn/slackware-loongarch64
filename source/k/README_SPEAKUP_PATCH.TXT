@@ -1,28 +1,34 @@
 
+Now that Speakup is included in the mainline kernel it has been built
+into the huge kernel and added as modules to the generic kernel, so there
+is no longer a need to use a special kernel for Speakup.
+
 This is an archive of the speakup project's GIT HEAD snapped on the given
 day, and was used to build the speakup.s kernel.  Grabbing Speakup's GIT
 repo (if you want the very latest) is done like this, by the way:
 
-git-clone http://www.linux-speakup.org/speakup.git
+git clone http://www.linux-speakup.org/speakup.git
+
+Then use "./makedist" to make the speakup-3.1.6.tar.bz2 tarball.
 
 To build the same kernel as Slackware included as speakup.s, you'll
 need to do this:
 
 Untar the speakup archive, and cd into the speakup directory:
 
-tar xf speakup-2009-12-30.tar.xz
-cd speakup-2009-12-30
+tar xf speakup-3.1.6.tar.bz2
+cd speakup-3.1.6
 
 Patch whatever kernel you happen to want to compile:
-./install /usr/src/linux-2.6.33.4
+./install /usr/src/linux-2.6.35.11
 
 Change to the kernel directory:
-cd /usr/src/linux-2.6.33.4
+cd /usr/src/linux-2.6.35.11
 
 If you want to start with the defaults one of Slackware's kernels, you can do
 that like this:
 
-cat /boot/vmlinuz-huge-2.6.33.4 > .config
+cat /boot/vmlinuz-huge-2.6.35.11 > .config
 
 Or, better yet, if you have access to the Slackware tree use the
 Speakup .config that was used:
@@ -40,7 +46,7 @@ After that, it's build and install:
 make
 make modules_install
 make bzImage
-cat arch/x86/boot/bzImage > /boot/vmlinuz-huge-2.6.33.4-speakup
+cat arch/x86/boot/bzImage > /boot/vmlinuz-huge-2.6.35.11-speakup
 
 I put the -speakup on the end of the kernel name so that I can remember
 which kernel I've patched, but that part is entirely optional.

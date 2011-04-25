@@ -1,0 +1,70 @@
+From 7664b10014e4ca5b0f498d5c774653a44fdaf0e1 Mon Sep 17 00:00:00 2001
+From: Igor Murzov <igor@gplsoft.org>
+Date: Fri, 6 Aug 2010 01:05:41 +0400
+Subject: [PATCH 09/09] Add -c option (just as makepkg -c y)
+
+---
+ rpm2targz |   17 ++++++++++++++---
+ 1 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/rpm2targz b/rpm2targz
+index d9d6a8b..f3e51d6 100644
+--- a/rpm2targz
++++ b/rpm2targz
+@@ -49,6 +49,7 @@ usage() {
+     echo "  -r    extract what the rpm's \"requires\" (dependencies)"
+     echo "          as documention to /usr/doc/\$PRGNAM-\$VERSION/"
+     echo "  -d    attempt a wellformed slack-desc from the rpm meta data"
++    echo "  -c    reset all directory permissions to 755 and ownership to root:root."
+     echo
+   else
+     echo "Usage:      $0 <file.rpm>"
+@@ -98,7 +99,7 @@ if [ "$1" = "" ]; then
+   usage
+ fi
+ 
+-ARGS=$(getopt "hsSndr" $* )
++ARGS=$(getopt "hsSndrc" $* )
+ set -- ${ARGS}
+ for i; do
+   case "$1" in
+@@ -122,6 +123,10 @@ for i; do
+       META_NAME="true"
+       shift
+       ;;
++    -c)
++      CHOWN="true"
++      shift
++      ;;
+     --)
+       shift
+       break
+@@ -223,6 +228,12 @@ for i in $* ; do
+     sed -ri "s/^/$PRGNAM: /;11q" $TMPDIR/install/slack-desc
+   fi
+ 
++  # Supply -c y to makepkg if asked
++  COPT="n"
++  if [ "$CHOWN" = "true" ]; then
++    COPT="y"
++  fi
++
+   # If this program was called as "rpm2targz", then repack as a plain
+   # tar+gz archive.  If it was called as "rpm2tgz", use Slackware's
+   # makepkg to produce the .tgz:
+@@ -236,10 +247,10 @@ for i in $* ; do
+       if [ "$META_NAME" = "true" ]; then
+         get_meta_data $i
+         cd $TMPDIR
+-        /sbin/makepkg -l y -c n $CWD/$PRGNAM-$VERSION-$ARCH-${BUILD}.$EXT
++        /sbin/makepkg -l y -c $COPT $CWD/$PRGNAM-$VERSION-$ARCH-${BUILD}.$EXT
+       else
+         cd $TMPDIR
+-        /sbin/makepkg -l y -c n $CWD/$(basename $i .rpm).$EXT
++        /sbin/makepkg -l y -c $COPT $CWD/$(basename $i .rpm).$EXT
+       fi
+     )
+   else
+-- 
+1.7.1
+

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2000-2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2000-2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,19 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+PKGNAM=ncurses
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
-VERSION=5.7
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -39,6 +48,9 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   X86_64OPTS=" --with-chtype=long --with-mmask-t=long "
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 ncurses_configure() {
@@ -58,7 +70,7 @@ CFLAGS="$SLKCFLAGS" \
   --program-suffix="" \
   --program-prefix="" \
   $WIDEC \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 }
 
 rm -rf $PKG
@@ -66,17 +78,24 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf ncurses-$VERSION
-tar xvf $CWD/ncurses-$VERSION.tar.gz || exit 1
+tar xvf $CWD/ncurses-$VERSION.tar.?z || exit 1
 cd ncurses-$VERSION || exit 1
 chown -R root:root .
-if [ ! -z "$(ls $CWD/patches/ncurses*bz2)" ]; then
+
+# This allows some other patches to come first by making them bz2...  gz next
+if [ ! -z "$(ls $CWD/patches/ncurses*bz2 2> /dev/null)" ]; then
   bzcat $CWD/patches/ncurses*bz2 > tmp-patch.sh
   bash tmp-patch.sh || exit 1
 fi
-for file in $CWD/patches/ncurses-$VERSION-2*.patch.gz ; do
-  zcat $file | patch -p1 --verbose || exit 1
-done
+# Apply official upstream patches.
+if [ ! -z "$(ls $CWD/patches/ncurses-$VERSION-2*.patch.gz 2> /dev/null)" ]; then
+  for file in $CWD/patches/ncurses-$VERSION-2*.patch.gz ; do
+    zcat $file | patch -p1 --verbose || exit 1
+  done
+fi
+
 zcat $CWD/ncurses.mkhashsize.diff.gz | patch -p1 --verbose || exit 1
+
 ncurses_configure
 make -j4 || exit 1
 # Spamming the partition.
@@ -154,6 +173,20 @@ cp -a \
   $PKG/usr/doc/ncurses-$VERSION/c++
 if [ -r $PKG/usr/man/man1/tack.1 ]; then
   gzip -9 --force $PKG/usr/man/man1/tack.1
+fi
+
+# We don't need the log of every change here, but we'll take some.
+# If you need the whole thing probably you already extracted the
+# sources...
+if [ -r NEWS ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat NEWS | head -n 1000 > $DOCSDIR/NEWS
+  echo >> $DOCSDIR/NEWS
+  echo "        +++  SNIP  +++  " >> $DOCSDIR/NEWS
+  echo >> $DOCSDIR/NEWS
+  echo "  see source code for full file  " >> $DOCSDIR/NEWS
+  echo >> $DOCSDIR/NEWS
+  touch -r NEWS $DOCSDIR/NEWS
 fi
 
 # desc file:

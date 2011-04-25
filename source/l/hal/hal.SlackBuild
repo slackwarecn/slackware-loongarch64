@@ -23,7 +23,7 @@
 
 PKGNAM=hal
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -90,6 +90,17 @@ zcat $CWD/patches/fix_ioperm_arguments.patch.gz | patch -p1 --verbose || exit 1
 # Fix segfaults from not calling dbus_error_init() early enough
 zcat $CWD/patches/fix_segfault-dbus_error_init.patch.gz | patch -p1 --verbose || exit 1
 
+# Ignore internal DM devices with new DM udev rules
+# https://bugzilla.redhat.com/show_bug.cgi?id=613909
+# http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=586286 
+zcat $CWD/patches/ignore_internal_dm_devices.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix build with automake 1.11.1
+zcat $CWD/patches/fix-build-with-automake-1.11.1.patch | patch -p1 --verbose || exit 1
+
+# Fix segfault in hald/linux/device.c
+zcat $CWD/patches/fix-hal-segfault.patch | patch -p1 --verbose || exit 1
+
 autoconf
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -107,7 +118,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-pid-file=/var/run/hald/pid \
   --enable-parted \
   --disable-policy-kit \
-  --disable-console-kit \
+  --enable-console-kit \
   --disable-acl-management \
   --enable-umount-helper \
   --enable-sonypic \

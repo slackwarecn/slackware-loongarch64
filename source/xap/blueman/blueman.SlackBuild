@@ -26,7 +26,6 @@
 PKGNAM=blueman
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
-POLKIT_OPTION=" --disable-polkit "
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -71,17 +70,13 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Address a couple of bugs that have been fixed in the bzr repo
-zcat $CWD/no_hide_applet.diff.gz | patch -p0 --verbose || exit 1
-zcat $CWD/fix_on_off_loop.diff.gz | patch -p0 --verbose || exit 1
-
 # Use blueman-open, a modified version of this, to browse obexfs shares:
 # http://www.kde-apps.org/content/show.php/kde4+bluetooth+files+open?content=108869
 zcat $CWD/blueman-use_blueman-open_for_obexfs.diff.gz | patch -p1 || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
-./configure \
+./autogen.sh \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
@@ -90,17 +85,12 @@ CXXFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
   --with-dhcp-config=/etc/dhcpd.conf \
-  --enable-hal \
-  $POLKIT_OPTION \
+  --disable-hal \
+  --enable-polkit \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-if echo $POLKIT_OPTION | grep -q '\--disable-polkit' ; then
-  # Remove unneeded junk
-  rm -rf $PKG/usr/share/polkit-1
-fi
 
 # Add the blueman-open script to /usr/libexec for browsing obexfs shares
 # I don't want to put this in PATH and have someone accidentally run it

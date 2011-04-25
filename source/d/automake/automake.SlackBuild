@@ -23,7 +23,7 @@
 
 VERSION=1.11.1
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Note: the package is _built_ as 'noarch'
 # Automatically determine architecture for build & packaging:
@@ -78,6 +78,13 @@ SHORTNAME=$(echo $VERSION | cut -f1,2 -d .)
 # Create local aclocal dir:
 mkdir -p $PKG/usr/share/aclocal
 touch $PKG/usr/share/aclocal
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/usr/doc/automake-$VERSION
 mv $PKG/usr/share/doc/automake/* $PKG/usr/doc/automake-$VERSION

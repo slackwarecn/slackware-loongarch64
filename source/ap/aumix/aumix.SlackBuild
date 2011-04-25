@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,19 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=2.8
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-2}
+PKGNAM=aumix
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 if [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
@@ -39,24 +49,31 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf aumix-$VERSION
-tar xjvf $CWD/aumix-$VERSION.tar.bz2
+tar xvf $CWD/aumix-$VERSION.tar.?z* || exit 1
 cd aumix-$VERSION
-zcat $CWD/aumix.alsa.diff.gz | patch -p1 --verbose --backup --suffix=.orig
 chown -R root:root .
+
 CFLAGS="$SLKCFLAGS" \
-./configure --prefix=/usr \
-            --without-gtk1
+./configure \
+  --prefix=/usr \
+  --mandir=/usr/man \
+  --without-gtk1 \
+  --build=$ARCH-slackware-linux
+
 make || exit 1
 make install DESTDIR=$PKG
 strip $PKG/usr/bin/*
 mkdir -p $PKG/usr/doc/aumix-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS BUGS COPYING INSTALL NEWS README TODO \
+  ABOUT-NLS AUTHORS BUGS COPYING* INSTALL NEWS README* TODO \
   $PKG/usr/doc/aumix-$VERSION
 # This is obsolete (besides being broken)
 rm -f $PKG/usr/bin/xaumix $PKG/usr/man/man1/xaumix.1
+
 # More fluff, doesn't deserve mainsteam placement
 mv $PKG/usr/bin/mute $PKG/usr/doc/aumix-$VERSION/mute.sh
+mv $PKG/usr/man/man1/mute* $PKG/usr/doc/aumix-$VERSION
+
 gzip -9 $PKG/usr/man/man1/*
 mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

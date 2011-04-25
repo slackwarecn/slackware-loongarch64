@@ -33,6 +33,17 @@ else
   /bin/hostname darkstar
 fi
 
+# Set the permissions on /var/log/dmesg according to whether the kernel
+# permits non-root users to access kernel dmesg information:
+if [ -r /proc/sys/kernel/dmesg_restrict ]; then
+  if [ $(cat /proc/sys/kernel/dmesg_restrict) = 1 ]; then
+    touch /var/log/dmesg
+    chmod 640 /var/log/dmesg
+  fi
+else
+  touch /var/log/dmesg
+  chmod 644 /var/log/dmesg
+fi
 # Save the contents of 'dmesg':
 /bin/dmesg -s 65536 > /var/log/dmesg
 
@@ -100,6 +111,11 @@ fi
 # Mount any additional filesystem types that haven't already been mounted:
 mount -a -v 2> /dev/null | grep -v "already mounted"
 
+# Start the Control Script for automounter:
+if [ -x /etc/rc.d/rc.autofs ]; then
+  sh /etc/rc.d/rc.autofs start
+fi
+
 # Start the Network Time Protocol daemon:
 if [ -x /etc/rc.d/rc.ntpd ]; then
   sh /etc/rc.d/rc.ntpd start
@@ -154,6 +170,11 @@ fi
 # Start D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
   sh /etc/rc.d/rc.messagebus start
+fi
+
+# Start console-kit-daemon:
+if [ -x /etc/rc.d/rc.consolekit ]; then
+  sh /etc/rc.d/rc.consolekit start
 fi
 
 # Start HAL:
@@ -249,9 +270,9 @@ fi
 
 # Start crond (Dillon's crond):
 # If you want cron to actually log activity to /var/log/cron, then change
-# -l10 to -l8 to increase the logging level.
+# -l notice to -l info to increase the logging level.
 if [ -x /usr/sbin/crond ]; then
-  /usr/sbin/crond -l10 >>/var/log/cron 2>&1
+  /usr/sbin/crond -l notice
 fi
 
 # Start atd (manages jobs scheduled with 'at'):

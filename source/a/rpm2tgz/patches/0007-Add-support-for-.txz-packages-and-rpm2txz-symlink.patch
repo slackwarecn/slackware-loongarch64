@@ -1,0 +1,62 @@
+From 9399788e2b36fc5e345d679f650f8387376987af Mon Sep 17 00:00:00 2001
+From: Igor Murzov <igor@gplsoft.org>
+Date: Thu, 5 Aug 2010 02:09:56 +0400
+Subject: [PATCH 07/09] Add support for .txz packages and rpm2txz symlink
+
+---
+ rpm2targz          |   20 +++++++++++++++-----
+ rpm2tgz.SlackBuild |    1 +
+ 2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/rpm2targz b/rpm2targz
+index cc25407..45ac1d7 100644
+--- a/rpm2targz
++++ b/rpm2targz
+@@ -23,6 +23,7 @@
+ #
+ 
+ CWD=$(pwd)
++NAME="$(basename $0)"
+ 
+ # Breaking the help out into it's own deal
+ usage() {
+@@ -31,9 +32,13 @@ usage() {
+   echo "            with \"installpkg\", \"removepkg\", \"pkgtool\", or manually"
+   echo "            with \"tar\")"
+   echo
+-  if [ "$(basename $0)" = "rpm2tgz" ]; then
++  if [ "$NAME" = "rpm2tgz" -o "$NAME" = "rpm2txz" ]; then
+     echo "Usage:      $0 [OPTION] <file.rpm>"
+-    echo "            (Outputs \"file.tgz\")"
++    if [ "$NAME" = "rpm2tgz" ]; then
++      echo "            (Outputs \"file.tgz\")"
++    else
++      echo "            (Outputs \"file.txz\")"
++    fi
+     echo
+     echo "  -s    extract the install scripts to /usr/doc/\$PRGNAM-\$VERSION/"
+     echo "          for review."
+@@ -210,15 +215,20 @@ for i in $* ; do
+   # If this program was called as "rpm2targz", then repack as a plain
+   # tar+gz archive.  If it was called as "rpm2tgz", use Slackware's
+   # makepkg to produce the .tgz:
+-  if [ "$(basename $0)" = "rpm2tgz" ]; then
++  if [ "$NAME" = "rpm2tgz" -o "$NAME" = "rpm2txz" ]; then
++    if [ "$NAME" = "rpm2tgz" ]; then
++      EXT=tgz
++    else
++      EXT=txz
++    fi
+     ( 
+       if [ "$META_NAME" = "true" ]; then
+         get_meta_data $i
+         cd $TMPDIR
+-        /sbin/makepkg -l y -c n $CWD/$PRGNAM-$VERSION-$ARCH-${BUILD}.tgz
++        /sbin/makepkg -l y -c n $CWD/$PRGNAM-$VERSION-$ARCH-${BUILD}.$EXT
+       else
+         cd $TMPDIR
+-        /sbin/makepkg -l y -c n $CWD/$(basename $i .rpm).tgz
++        /sbin/makepkg -l y -c n $CWD/$(basename $i .rpm).$EXT
+       fi
+     )
+   else

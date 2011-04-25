@@ -22,9 +22,19 @@
 
 
 VERSION=7.16
-ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-2}
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -47,9 +57,9 @@ mv $PKG/usr/lib $PKG/usr/lib${LIBDIRSUFFIX}
 cd $TMP
 tar xvf $CWD/sc-$VERSION.tar.gz || exit 1
 cd sc-$VERSION || exit 1
+
 # Old software, modern compiler:
-zcat $CWD/sc-gcc34.diff.gz | patch -p0 --verbose || exit 1
-zcat $CWD/sc-malloc.diff.gz | patch -p0 --verbose || exit 1
+zcat $CWD/sc-7.16-3.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \

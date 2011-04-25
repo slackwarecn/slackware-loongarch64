@@ -47,6 +47,12 @@ echo "Building kdelibs-$VERSION..."
 tar xvf $CWD/../src/kdelibs-$VERSION.tar.?z* || exit 1
 cd kdelibs-$VERSION
 
+# Slackware ships a different version of XML DTDs:
+zcat $CWD/kdelibs.docbook.patch.gz | patch -p1 --verbose || exit 1
+
+# Security fix:
+zcat $CWD/kdelibs.khtml.CVE-2011-1168.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -67,7 +73,7 @@ cd build
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
     -DKDE_DISTRIBUTION_TEXT="volkerdi@slackware.com" \
     ..
-   make $NUMJOBS || exit 1
+   make $NUMJOBS || make || exit 1
    make install DESTDIR=$PKG || exit 1
 cd -
 

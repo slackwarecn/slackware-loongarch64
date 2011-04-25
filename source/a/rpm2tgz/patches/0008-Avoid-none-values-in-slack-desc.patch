@@ -1,0 +1,36 @@
+From 31205a87c10659e5e4534825e8aece34c5b6dba8 Mon Sep 17 00:00:00 2001
+From: Igor Murzov <igor@gplsoft.org>
+Date: Thu, 5 Aug 2010 11:22:31 +0400
+Subject: [PATCH 08/09] Avoid (none) values in slack-desc
+
+---
+ rpm2targz |   13 ++++++++++++-
+ 1 files changed, 12 insertions(+), 1 deletions(-)
+
+diff --git a/rpm2targz b/rpm2targz
+index 45ac1d7..d9d6a8b 100644
+--- a/rpm2targz
++++ b/rpm2targz
+@@ -209,7 +209,18 @@ for i in $* ; do
+   if [ "$DESC" = "true" ]; then
+     get_meta_data $i
+     mkdir -p $TMPDIR/install
+-    rpm -qp --qf '%{NAME} (%{SUMMARY})\n\n%{DESCRIPTION}\n\n  %{URL}\n' $i | head -n 11 | sed -r "s/^/$PRGNAM: /" > $TMPDIR/install/slack-desc
++    if [ "$(rpm -qp --qf %{SUMMARY} $i )" != '(none)' ] ; then
++      rpm -qp --qf "$PRGNAM (%{SUMMARY})\n\n" $i > $TMPDIR/install/slack-desc
++    else
++      echo -en "$PRGNAM\n\n" > $TMPDIR/install/slack-desc
++    fi
++    if [ "$(rpm -qp --qf %{DESCRIPTION} $i )" != '(none)' ] ; then
++      rpm -qp --qf "%{DESCRIPTION}\n\n" $i >> $TMPDIR/install/slack-desc
++    fi
++    if [ "$(rpm -qp --qf %{URL} $i )" != '(none)' ] ; then
++      rpm -qp --qf "  %{URL}\n" $i >> $TMPDIR/install/slack-desc
++    fi
++    sed -ri "s/^/$PRGNAM: /;11q" $TMPDIR/install/slack-desc
+   fi
+ 
+   # If this program was called as "rpm2targz", then repack as a plain
+-- 
+1.7.1
+

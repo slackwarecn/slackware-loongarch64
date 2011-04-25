@@ -23,24 +23,21 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PRGNAM=libnotify
-VERSION=0.4.5
-BUILD=${BUILD:-2}
+PKGNAM=libnotify
+VERSION=0.5.2
+BUILD=${BUILD:-1}
 
-# Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i486 ;;
     arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
-OUTPUT=${OUTPUT:-/tmp}
+PKG=$TMP/package-$PKGNAM
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -59,11 +56,11 @@ fi
 set -eu
 
 rm -rf $PKG
-mkdir -p $TMP $PKG $OUTPUT
+mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.?z*
-cd $PRGNAM-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z*
+cd $PKGNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
@@ -78,15 +75,18 @@ CFLAGS="$SLKCFLAGS" \
   --build=$ARCH-slackware-linux
 
 make
-make install-strip DESTDIR=$PKG
+make install DESTDIR=$PKG
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
-cp -a AUTHORS ChangeLog COPYING README $PKG/usr/doc/$PRGNAM-$VERSION
-( cd $PKG/usr/doc/$PRGNAM-$VERSION ; ln -s ../../share/gtk-doc/html/libnotify html )
-cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a AUTHORS ChangeLog COPYING README $PKG/usr/doc/$PKGNAM-$VERSION
+( cd $PKG/usr/doc/$PKGNAM-$VERSION ; ln -s ../../share/gtk-doc/html/libnotify html )
+cat $CWD/$PKGNAM.SlackBuild > $PKG/usr/doc/$PKGNAM-$VERSION/$PKGNAM.SlackBuild
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

@@ -1,7 +1,7 @@
 Slackware RAID HOWTO
 
-Version 1.00
-2008/04/29
+Version 1.01
+2011/03/15
 
 by Amritpal Bath <amrit@slackware.com>
 
@@ -10,6 +10,7 @@ by Amritpal Bath <amrit@slackware.com>
 Contents
 ===============================================================================
 
+- Changelog
 - Introduction
 - Warnings
 - Planning
@@ -18,6 +19,17 @@ Contents
 - Troubleshooting
 - Appendices
 - Acknowledgements/References
+
+
+
+
+Changelog
+===============================================================================
+
+1.01 (2011/03/15):
+  - Added Robby Workman's --metadata edits per James Davies' tip.
+1.00 (2008/04/09):
+  - Intitial release.
 
 
 
@@ -222,6 +234,10 @@ The parameters for each of these RAID commands specifies, in order:
  - the RAID level to use for this array (--level X)
  - how many devices (partitions) to use in the array (--raid-devices X)
  - the actual list of devices (/dev/sdaX /dev/sdbX /dev/sdcX)
+ - this is not present on all of them, but "--metadata=0.90" tells mdadm
+   to use the older version 0.90 metadata instead of the newer version;
+   you must use this for any array from which LILO will be loading a 
+   kernel image, or else LILO won't be able to read from it.
 
 Start by creating the RAID array for your root filesystem.
 
@@ -231,7 +247,7 @@ Start by creating the RAID array for your root filesystem.
 
  - RAID 1:
      mdadm --create /dev/md0 --level 1 --raid-devices 2 \
-       /dev/sda1 /dev/sdb1
+       /dev/sda1 /dev/sdb1 --metadata=0.90
 
  - RAID 5:
      mdadm --create /dev/md0 --level 5 --raid-devices 3 \
@@ -260,11 +276,11 @@ RAID 1 users do not need to do this.
 
  - RAID 0:
      mdadm --create /dev/md2 --level 1 --raid-devices 2 \
-       /dev/sda1 /dev/sdb1
+       /dev/sda1 /dev/sdb1 --metadata=0.90
 
  - RAID 5:
      mdadm --create /dev/md2 --level 1 --raid-devices 3 \
-       /dev/sda1 /dev/sdb1 /dev/sdc1
+       /dev/sda1 /dev/sdb1 /dev/sdc1 --metadata=0.90
 
 
 We're all done creating our arrays!  Yay!

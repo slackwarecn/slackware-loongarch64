@@ -127,8 +127,28 @@ raw device, it did not create partitions at all.  Fdisk reads the information
 in the first sector and incorrectly interprets that as a messed-up device.
 
 
-Restoring a USB stick to its original state
--------------------------------------------
+Create a bootable USB stick non-destructively
+---------------------------------------------
+
+    If you do not want to sacrifice a USB thumb drive for this (note that
+dumping the image file on the USB stick will destroy all data already
+present on the stick), there is a solution: Slackware also ships with a
+script usbimg2disk.sh since the 13.0 release (actually, it is the file
+/usb-and-pxe-installers/usbimg2disk.sh ).  This script extracts the content
+from the 'usbboot.img' image file and uses this to transform a regular USB
+thumb drive into a bootable Slackware installer non-destructively (i.e. any
+existing files on the stick will not be touched).  The only requirement is,
+that there is at least 30 MB of available free space on the stick.
+
+    The usbimg2disk.sh script is also convenient if your computer refuses to
+boot from a USB stick loaded with the usbboot.img file. The BIOS of some
+computers will not understand the format of the default Slackware USB
+image. Using the usbimg2disk.sh script, you create an alternative bootable
+USB stick that will be recognized by your computers BIOS.
+
+
+Restoring a USB stick to its original state (empty VFAT partition)
+------------------------------------------------------------------
 
     When you have used the small 25 MB image to create a USB installer, 
 your USB stick is no longer useful for anything else.  Any remaining 
@@ -171,6 +191,7 @@ mkdosfs -F32 /dev/sdx1
     and create a partition interactively :-)
 
 ==========================================================
-Author:   Eric Hameleers <alien@slackware.com> 22-jul-2009
+Author:   Eric Hameleers <alien@slackware.com> 17-feb-2011
+Blog post: http://alien.slackbook.org/blog/installing-slackware-using-usb-thumb-drive/
 Wiki URL: http://www.slackware.com/~alien/dokuwiki/doku.php?id=slackware:usbboot
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2008, 2009  Eric Hameleers, Eindhoven, NL
+# Copyright 2008, 2009, 2010  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -26,7 +26,7 @@
 # By:           Eric Hameleers <alien@slackware.com>
 # For:          flashplayer-plugin
 # Descr:        Adobe flash player plugin for mozilla
-# URL:          http://labs.adobe.com/
+# URL:          http://labs.adobe.com/technologies/flashplayer10/
 # Needs:        
 # Changelog:    
 # 10.0.d20.7-1: 16/Dec/2008 by Eric Hameleers <alien@slackware.com>
@@ -39,6 +39,14 @@
 #               * Update (plugs vulnerability).
 # 10.0.42.34-1: 14/dec/2009 by Patrick J. Volkerding <volkerdi@slackware.com>
 #               * Update (plugs vulnerability).
+# 10.091510-1:  15/sep/2010 by Eric Hameleers <alien@slackware.com>
+#               * Preview1 of "flash player square".
+# 10.092710-1:  28/sep/2010 by Eric Hameleers <alien@slackware.com>
+#               * Preview2 of "flash player square".
+# 10_2.111710-1:28/sep/2010 by Eric Hameleers <alien@slackware.com>
+#               * New preview of "flash player square" for 64-bit Linux; there
+#                 is no more 32-bit "square" version, because new developments
+#                 are being folded into regular flashplayer10.
 # 
 # Run 'sh flashplayer-plugin.SlackBuild' to build a Slackware package.
 # The package (.txz) and .txt file as well as build logs are created in /tmp .
@@ -49,15 +57,10 @@
 # Set initial variables:
 
 PRGNAM=flashplayer-plugin
-VERSION=${VERSION:-10.0.42.34}
-ARCH=${ARCH:-x86_64}
+SRCVER=${SRCVER:-10_2}
+BLDVER=${BLDVER:-111710}
+VERSION=$SRCVER.$BLDVER
 BUILD=${BUILD:-1}
-
-if [ "$ARCH" = "x86_64" ]; then
-  LIBDIRSUFFIX="64"
-else
-  LIBDIRSUFFIX=""
-fi
 
 # Where do we look for sources?
 SRCDIR=$(cd $(dirname $0); pwd)
@@ -67,8 +70,34 @@ TMP=${TMP:-/tmp/build}
 PKG=$TMP/package-$PRGNAM
 OUTPUT=${OUTPUT:-/tmp}
 
-SOURCE="$SRCDIR/libflashplayer-${VERSION}.linux-${ARCH}.so.tar.gz"
-SRCURL="http://download.macromedia.com/pub/labs/flashplayer10/libflashplayer-${VERSION}.linux-${ARCH}.so.tar.gz"
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+case "$ARCH" in
+  x86_64)
+    PREVER=${PREVER:-3}
+    LIBDIRSUFFIX="64"
+    ARCHBITS="64"
+    ;;
+  i?86)
+    PREVER=${PREVER:-2}
+    LIBDIRSUFFIX=""
+    ARCHBITS="32"
+    ;;
+  *)
+    echo "Unsupported architecture '$ARCH'"
+    exit 1
+    ;;
+esac
+
+SOURCE="$SRCDIR/flashplayer${SRCVER}_p${PREVER}_${ARCHBITS}bit_linux_${BLDVER}.tar.gz"
+SRCURL="http://download.macromedia.com/pub/labs/flashplayer10/flashplayer${SRCVER}_p${PREVER}_${ARCHBITS}bit_linux_${BLDVER}.tar.gz"
 
 ##
 ## --- with a little luck, you won't have to edit below this point --- ##
@@ -124,17 +153,20 @@ cd $TMP/tmp-$PRGNAM
 echo "Extracting the source archive(s) for $PRGNAM..."
 tar -xvf ${SOURCE}
 chown -R root:root *
-chmod -R u+w,go+r-w,a-s .
+chmod -R u+w,go+r-w,a+X-s .
 
-if [ "$ARCH" = "x86_64" ]; then
-  if ! file libflashplayer.so | grep -q "ELF 64-bit" ; then
-    echo "The downloaded plugin is not for the '$ARCH' architecture!"; exit 1
-  fi
-elif [[ "$ARCH" =~ "i?86" ]]; then
-  if ! file libflashplayer.so | grep -q "ELF 32-bit" ; then
-    echo "The downloaded plugin is not for the '$ARCH' architecture!"; exit 1
-  fi
-fi
+case "$ARCH" in
+  x86_64)
+    if ! file libflashplayer.so | grep -q "ELF 64-bit" ; then
+      echo "The downloaded plugin is not for the '$ARCH' architecture!"; exit 1
+    fi
+    ;;
+  i?86)
+    if ! file libflashplayer.so | grep -q "ELF 32-bit" ; then
+      echo "The downloaded plugin is not for the '$ARCH' architecture!"; exit 1
+    fi
+    ;;
+esac
 
 # Install the plugin to the package dir:
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins

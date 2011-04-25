@@ -50,6 +50,8 @@ cd kdebindings-$VERSION
 zcat $CWD/kdebindings-len-ptr-rfloat.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/kdebindings-ruby-env.h.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/kdebindings-rubyconfig.h.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/kdebindings.1170602.sip_4_11_x.diff.gz | patch -p0 --verbose || exit 1
+( cd python/pykde4/tools/pykdeuic4 ; zcat $CWD/pykdeuic4.patch.gz | patch -p0 --verbose || exit 1 ) || exit 1
 
 chown -R root:root .
 find . \
@@ -57,6 +59,10 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
+
+# Set 'vendorarch' (install location for vendor shipped
+# architecture dependent perl modules):
+eval $(perl '-V:vendorarch')
 
 #    -DENABLE_PYKDE4:BOOL=OFF \
 mkdir -p build
@@ -69,6 +75,7 @@ cd build
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DMAN_INSTALL_DIR=/usr/man \
+    -DCUSTOM_PERL_SITE_ARCH_DIR=$vendorarch \
     -DSYSCONF_INSTALL_DIR=/etc/kde \
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
     -DENABLE_QYOTO:BOOL=OFF \

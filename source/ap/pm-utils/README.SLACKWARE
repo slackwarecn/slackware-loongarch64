@@ -1,5 +1,5 @@
 README.SLACKWARE
-20100319 - rworkman@slackware.com
+20101229 - rworkman@slackware.com
 
 ===============================================================================
 PLEASE READ THIS ENTIRE FILE BEFORE REPORTING PROBLEMS OR ASKING FOR HELP!
@@ -29,7 +29,7 @@ it works at all.
 Here's the short version of using suspend to disk:
 
 Stanza in /etc/lilo.conf should look something like this:
-  image = /boot/vmlinuz-generic-smp-2.6.33.1-smp
+  image = /boot/vmlinuz-generic-smp-2.6.35.10-smp
     initrd = /boot/initrd.gz
     append = "resume=/dev/sda2"
     root = /dev/sda1
@@ -37,13 +37,13 @@ Stanza in /etc/lilo.conf should look something like this:
     read-only
 
 /etc/mkinitrd.conf should look something like this:
-  MODULE_LIST="jfs"
+  MODULE_LIST="ext4"
   ROOTDEV="/dev/sda1"
-  ROOTFS="jfs"
+  ROOTFS="ext4"
   RESUMEDEV="/dev/sda2"
 
 mkinitrd command invocation would be this:
-  mkinitrd -c -k 2.6.33.1-smp -F
+  mkinitrd -c -k 2.6.35.10-smp -F
 
 All of the above assumes at least a cursory understanding of what those
 commands and parameters do. If it's not clear, don't attempt it on a
@@ -92,6 +92,24 @@ hook executes successfully, be sure to return an exit code of 0 (success) if
 you don't want the suspend operation to fail.  Some other exit codes are 
 also available; none of these will cause the suspend to fail:
   $NA (not applicable), $NX (hook not executable), and $DX (hook disabled)
+
+==============================================================================
+
+The default powersave hooks are in /usr/lib(64)/pm-utils/power.d/ -- if you
+need to override any parameters set in those, you can do so with same-named
+files in /etc/pm/power.d/ (populated with only the parameters you wish to
+change).  As an example, if you wanted to change the hdparm setting for 
+your hard drive's power management setting: rather than copying the entire
+contents of /usr/lib(64)/pm-utils/power.d/harddrive to /etc/pm/power.d/ and
+editing the copy, you could place only these two lines:
+
+  DRIVE_POWER_MGMT_BAT=128	# edit value as desired
+  DRIVE_POWER_MGMT_AC=128	# edit value as desired
+
+Also note that any files in the /etc/pm/ hierarchy must be executable (use 
+chmod +x) in order to be used by pm-utils; otherwise, they will be ignored.
+
+==============================================================================
 
 One way to contribute to pm-utils indirectly is by writing and sending any
 needed hooks scripts to upstream projects; as an example, the hook that 

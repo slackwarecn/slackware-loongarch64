@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,8 +22,8 @@
 
 
 PKGNAM=net-snmp
-VERSION=${VERSION:-5.5}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -60,6 +60,8 @@ rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION
 
+zcat $CWD/net-snmp.net-snmp-create-v3-user.etc.snmpd.conf.diff.gz | patch -p1 --verbose || exit 1
+
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
@@ -89,6 +91,10 @@ CFLAGS="$SLKCFLAGS" \
   --program-suffix= \
   --program-prefix= \
   --build=$ARCH-slackware-linux
+
+# This appears to require additional third-party python modules?
+# Maybe something for later.
+# --with-python-modules 
 
 # Build and install:
 # This seems to not play well with "-j N"...
@@ -143,17 +149,9 @@ fi
 # This removes our DESTDIR from the packlist filenames, to keep perl's
 # internal inventories consistent and correct.
 find $PKG -name .packlist | while read plist ; do
-  sed -e "s%/share/man%/man%g" \
-      -e "s%$PKG%%g" \
-      -e "s%\.1$%\.1\.gz%g" \
-      -e "s%\.2$%\.2\.gz%g" \
-      -e "s%\.3$%\.3\.gz%g" \
-      -e "s%\.3pm$%\.3pm\.gz%g" \
-      -e "s%\.4$%\.4\.gz%g" \
-      -e "s%\.5$%\.5\.gz%g" \
-      -e "s%\.6$%\.6\.gz%g" \
-      -e "s%\.7$%\.7\.gz%g" \
-      -e "s%\.8$%\.8\.gz%g" \
+  sed -e "s%$PKG%%g" \
+      -e "s%/share/man%/man%g" \
+      -re "s%\.([1-9]n?|3pm)$%&.gz%g   # extend man filenames for .gz" \
       ${plist} > ${plist}.new
       mv -f ${plist}.new ${plist}
 done

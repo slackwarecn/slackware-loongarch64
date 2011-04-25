@@ -23,7 +23,7 @@
 
 
 VERSION=${VERSION:-$(echo gegl-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -59,7 +59,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf gegl-$VERSION
-tar xvf $CWD/gegl-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/gegl-$VERSION.tar.?z* || exit 1
 cd gegl-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -78,17 +78,17 @@ CFLAGS="$SLKCFLAGS" \
   --disable-docs \
   --enable-mmx \
   --disable-sse \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/gegl-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README TODO \
+  AUTHORS COPYING* INSTALL NEWS README* TODO \
   $PKG/usr/doc/gegl-$VERSION
 #( cd $PKG/usr/doc/gegl-$VERSION ; ln -s /usr/share/gtk-doc/html/gegl/ html )
 

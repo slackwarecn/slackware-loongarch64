@@ -18,6 +18,7 @@ config etc/rc.d/rc.K.new
 config etc/rc.d/rc.M.new
 config etc/rc.d/rc.S.new
 config etc/rc.d/rc.local.new
+config etc/rc.d/rc.loop.new
 config etc/rc.d/rc.sysvinit.new
 
 ( cd etc/rc.d ; rm -rf rc.0 )

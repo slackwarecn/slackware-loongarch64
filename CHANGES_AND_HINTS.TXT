@@ -1,153 +1,88 @@
-This file documents the instructions for upgrading to Slackware 13.1, the 
-packages added, removed, renamed, and/or split  during the development cycle 
-from Slackware 13.0 through 13.1, and some potential "gotchas" that users 
+This file documents the instructions for upgrading to Slackware 13.37, the 
+packages added, removed, renamed, and/or split during the development cycle 
+from Slackware 13.1 through 13.37, and some potential "gotchas" that users 
 can avoid by arming themselves with a little knowledge.
 
 
-*** INSTRUCTIONS FOR UPGRADING FROM 13.0 ***
+*** INSTRUCTIONS FOR UPGRADING FROM 13.1 ***
 
 Follow the instructions detailed in the UPGRADE.TXT located in this
-  directory.  You will also need to read the "LIBATA SWITCHOVER" section
-  later in this document.
+  directory.  
 
-Note that upgrading from a Slackware version earlier than 13.0 is NOT 
+Note that upgrading from a Slackware version earlier than 13.1 is NOT 
   supported at all and will most likely not work.
 
 
-*** PACKAGE ADDITIONS SINCE 13.0 ***
+*** PACKAGE ADDITIONS SINCE 13.1 ***
 
-a/cpufrequtils
-a/usb_modeswitch
-ap/mpg123 (moved from /extra)
-ap/powertop
-kde/kdepim-runtime
-kde/kopete-cryptography
-kde/oxygen-icons
-kde/polkit-kde-1
-kde/polkit-qt-1
-l/ConsoleKit
-l/QScintilla
-l/attica
-l/ebook-tools
+a/btrfs-progs
+a/gdisk
+a/libcgroup
+a/lrzip
+a/mcelog
+a/util-linux (renamed from util-linux-ng)
+ap/ddrescue
+ap/lxc
+ap/moc
+d/slacktrack (moved from /extra)
+d/yasm (moved from /extra)
+kde/libktorrent
+l/gdk-pixbuf2
+l/libdbusmenu-qt
+l/libelf
+l/libmpc
+l/liboggz
+l/libpcap (split from tcpdump package)
+l/libplist
+l/libsndfile
+l/phonon-mplayer
+n/ca-certificates
+n/idnkit
+n/iptraf-ng (replaced iptraf)
+n/iwlwifi-100-ucode
+n/iwlwifi-6xxx-ucode
+n/rfkill
+x/radeon_ucode
+x/xdg-user-dirs
+x/xf86-video-nouveau
+xap/xaos
+
+extra/google-chrome/*
+/testing/ includes the following:
+  2.6.38.4 kernel
+  mesa-7.10.2
+  libdrm-2.4.25
+  xf86-video-nouveau-git_20110417_8378443
+
+
+*** PACKAGE REMOVALS SINCE 13.1 ***
+
+a/util-linux-ng (renamed to util-linux)
+kde/guidance-power-manager
 l/eggdbus
-l/fftw
-l/giflib
-l/gst-plugins-good
-l/hunspell
-l/libdiscid
-l/libiodbc
-l/liblastfm
-l/libnotify
-l/libsamplerate
-l/v4l-utils
-l/loudmouth
-l/notify-python
-l/polkit
-l/polkit-gnome
-l/shared-desktop-ontologies
-l/system-config-printer
-l/virtuoso-ose
-n/epic5 (replaces epic4)
-n/iwlwifi-1000-ucode
-n/iwlwifi-6000-ucode
-n/bluez
-n/obex-data-server
-n/obexfs
-n/rt2860-firmware
-n/rt2870-firmware
-x/xf86-input-wacom
-x/xf86-video-nouveau-blacklist
-xap/blueman
-xap/geeqie
-xap/xfce4-notifyd
-/testing/btrfs-progs
-
-
-*** PACKAGE REMOVALS SINCE 13.0 ***
-
-a/device-mapper (part of lvm2 now)
-a/loadlin (mostly unneeded now)
-ap/cupsddk (part of cups now)
-ap/mpg321 (replaced by mpg123)
-l/libgtkhtml (obsolete)
-l/libungif (replaced by giflib)
-n/bluez-libs (part of bluez now)
-n/bluez-utils (part of bluez now)
-n/epic4 (replaced by epic5)
-x/lbxproxy (obsolete)
-x/liblbxutil (obsolete)
-x/proxymngr (obsolete)
-x/xf86-input-citron (does not compile)
-x/xf86-input-elographics (does not compile)
-x/xf86-input-fpit (does not compile)
-x/xf86-input-hyperpen (does not compile)
-x/xf86-input-mutouch (does not compile)
-x/xf86-video-newport (unneeded)
-x/xf86-video-xgixp (at least partially breaks X)
-xap/gqview (replaced with geeqie)
-kde/mplayerthumbs (part of kdemultimedia now)
-extra/mpg123 (moved to AP series)
-
-
-*** LIBATA SWITCHOVER ***
-
-The "old" ide subsystem in the the linux kernel is now deprecated in favor
-  of the newer libata subsystem, and this affects the naming of device nodes
-  for almost all types of disk drives -- hard drives in particular will now
-  have an "sd" named node.  The following information should allow you to
-  handle that changeover gracefully.
-
-  1. Upgrade the kernel and kernel-modules packages normally.
-     
-  2. Edit /etc/fstab to reflect the change from hd* to sd*.
-    
-     If you have multiple SATA devices, and especially if you have some of
-     both hd* and sd* devices present already, then you're basically going
-     to be playing a guessing game right now, and you probably want to
-     consider using some of the persistent symlinks in the /dev/disk/by-*/
-     directories instead of raw device nodes -- for example, the links in
-     /dev/disk/by-id/ should always point to the same device, even if its
-     raw device node changes from e.g. sda1 to sdc1 or some such across
-     reboots.
- 
-     * If you are using one of the generic kernels (requiring an initrd),
-       then use the sd* name for the root device when creating the image.
-     
-     * You will almost surely want to remove the udev rules file for cdrom
-       devices (it will be regenerated on the next boot with correct
-       information reflecting the new libata stuff):  
-         # rm -f /etc/udev/rules.d/70-persistent-cd.rules 
-
-     * Speaking of optical devices, if you have multiple disk drives and an
-       optical drive using the old ide subsystem, then be aware that the
-       optical drive will get a /dev/sr* name instead of /dev/sd* -- this is
-       relevant because you might see something like this (if your optical
-       drive is currently /dev/hdb):
- 
-         Old Name --> New Name 
-         /dev/hda     /dev/sda
-         /dev/hdb     /dev/sr0
-         /dev/hdc     /dev/sdb
- 
-  3. Run lilo.  Note that you have made no edits at all to it yet, unless
-     you needed to edit it for the new kernel.  Specifically, do not make
-     any changes with respect to hd* --> sd*.
- 
-  4. Reboot.  At the lilo prompt, press <TAB> and add an append for the
-     real root device (which will no longer be /dev/hd*).  For example, if
-     the old root device was /dev/hda1, and it will now be /dev/sda1, and
-     the name of your kernel image is "Linux" then you would do this:
-
-       Linux root=/dev/sda1
-
-  5. Once the system comes back up, then fix /etc/lilo.conf, run lilo, and 
-     reboot again to be sure everything is correct.
+n/iptraf (replaced by iptraf-ng)
+x/libXTrap
+x/libXprintAppUtil
+x/libXprintUtil
+x/libxkbui
+x/rstart
+x/trapproto
+x/xf86rushproto
+x/xfindproxy
+x/xfwp
+x/xplsprinters
+x/xprehashprinterlist
+x/xproxymanagementprotocol
+x/xsetmode
+x/xsetpointer
+x/xtrap
+extra/kde3-compat/
 
 
 *** OTHER NOTABLE CHANGES AND HINTS ***
 
-The Slackware installer now uses udev to initialize your hardware, including 
-  the network interface card(s).  This has positive consequences for network 
+The Slackware installer uses udev to initialize your hardware, including the
+  network interface card(s).  This has positive consequences for network 
   installations (using NFS, FTP, HTTP or SMB).  You no longer have to run the 
   'pcmcia' and 'network' scripts prior to running 'setup' - the network 
   interface will be created and intialized by udev.  If a DHCP server is 
@@ -182,22 +117,21 @@ Use one of the provided generic kernels for daily use.  Do not report
   ATI proprietary drivers) if you use the SMP kernel.
 
   If you decide to use one of the non-SMP kernels, you will need to follow the
-  instructions in /extra/linux-2.6.33.4-nosmp-sdk/README.TXT to modify your
+  instructions in /extra/linux-2.6.37.6-nosmp-sdk/README.TXT to modify your
   kernel sources for non-SMP usage.  Note that this only applies if you are
   using the Slackware-provided non-SMP kernel - if you build a custom kernel,
   the symlinks at /lib/modules/$(uname -r)/{build,source} will point to the
   correct kernel source so long as you don't (re)move it.
 
-As usual, there are changes in udev packaging that need mentioning...
-  As with 13.0, the system udev rules now reside in /lib/udev/rules.d/ 
-  instead of /etc/udev/rules.d/ in older versions.  There should never be 
-  a reason to edit anything in /lib/udev/rules.d/, so if you think you have 
-  a case where this is required, either you're wrong or it needs to be 
-  addressed in the upstream source.  However, you can override default rules 
-  by placing one with an identical name inside /etc/udev/rules.d/  The rules 
-  files in /etc/udev/rules.d/ are still intended to (maybe) be edited as 
-  needed by local system administrators, and as such, the rules for optical 
-  and network devices will still be placed there.
+As with 13.1, the system udev rules now reside in /lib/udev/rules.d/ instead
+  of /etc/udev/rules.d/ in older versions.  There should never be a reason 
+  to edit anything in /lib/udev/rules.d/, so if you think you have a case 
+  where this is required, either you're wrong or it needs to be addressed in 
+  the upstream source.  However, you can override default rules by placing 
+  one with an identical name inside /etc/udev/rules.d/  The rules files in 
+  /etc/udev/rules.d/ are still intended to (maybe) be edited as needed by 
+  local system administrators, and as such, the rules for optical and network 
+  devices will still be placed there.
 
 Speaking of udev, pay particular attention to 70-persistent-net.rules and
   70-persistent-cd.rules in /etc/udev/rules.d/ -- these two are automatically
@@ -216,70 +150,77 @@ HAL is not new anymore, but here are a few notes related to it:
   2. User accounts with permission to do power-management tasks, such as 
      suspend, hibernate, reboot, and shutdown, via HAL methods should be in
      the "power" group.
-  3. HAL will honor settings in /etc/fstab if a device is present there, so
+  3. User accounts with permission to use network devices, such as with the
+     wicd package in /extra, should be in the "netdev" group.
+  4. User accounts with permission to use devices that "dial out" or connect
+     over a serial port (serial console connections to plug computers, sync
+     with a palm device, etcetera) will need to be in the "dialout" group.
+  5. HAL will honor settings in /etc/fstab if a device is present there, so
      you could technically have removable devices defined in /etc/fstab, but 
      if the fstab settings do not allow normal users to mount them (with the
      "user" or "users" option), then HAL/dbus will not allow them to be 
      mounted either.  In other words, for example, if your fstab line for the
      cdrom/dvd drive includes the "owner" option, you will not be able to 
      mount it as a normal user.
-  4. If you find a need for modified fdi files, those should be placed in the
+  6. If you find a need for modified fdi files, those should be placed in the
      relevant directories in /etc/hal/fdi/ instead of /usr/share/hal/fdi/
 
-If you notice Xfce's Terminal and perhaps some other applications being drawn
-  very slowly in X, then you should try explicitly disabling the Composite
-  extension in /etc/X11/xorg.conf, or set XLIB_SKIP_ARGB_VISUALS=1 in your
-  environment prior to starting X.  For more information on this, see:
-    http://bugzilla.xfce.org/show_bug.cgi?id=2792
-  We've also gotten a report of some other things (such as VirtualBox) that
-  might benefit from this.
+The version of Xorg in Slackware 13.37 will not (in most cases) require an 
+  /etc/X11/xorg.conf file.  Input hotplugging is no longer done using hal; 
+  instead, it now uses udev for input device detection and keyboard mapping.
 
-Speaking of Xorg, the version of Xorg shipped with Slackware 13.1 will not
-  (in most cases) require an /etc/X11/xorg.conf file at all.  Configuration of
-  input devices and such is handled by HAL, and the X server autoconfigures 
-  everything else.  You can still create an xorg.conf file if you wish, or you
-  can create a minimal xorg.conf with only the specific contents that you wish
-  to override (as an example, to use a binary-only video driver). 
-  Due to removed drivers and other such changes, it's quite possible that your
-  old xorg.conf will not work correctly with this version of Xorg.
+  /usr/share/X11/xorg.conf.d/ is the "packaged" configuration directory; all
+  files ending with ".conf" in this directory are used by the X server 
+  unless there is an identically-named file in the local sysadmin directory.
+  The local sysadmin config directory is /etc/X11/xorg.conf.d/ - all files
+  ending with ".conf" in this directory are parsed.  
 
-If you need to use a non-US keyboard layout, then copy the file located at
-  /usr/share/hal/fdi/policy/10osvendor/10-keymap.fdi to /etc/hal/fdi/policy
-  and edit it to suit your needs.  Have a look at the contents of that file
-  for an example and more information.  If you prefer to do this the "old" way
-  using /etc/X11/xorg.conf, then you can use "X -configure" or "xorgsetup" to
-  generate an xorg.conf, then add the following lines to the "ServerFlags"
-  section to disable input device hotplugging via HAL:
-    Option   "AllowEmptyInput"     "false"
-    Option   "AutoAddDevices"      "false"
-    Option   "AutoEnableDevices"   "false"
-  This is also relevant if you prefer to disable HAL completely for whatever
-  reason.
+  There are several default config files in /usr/share/X11/xorg.conf.d/:
+    * 10-evdev.conf
+        a "catchall" file for input devices using the evdev driver; this 
+        should work for most hardware in the absence of a better driver
+    * 50-synaptics.conf
+        overrides the earlier 10-evdev.conf file and uses the synaptics 
+        driver for all touchpads
+    * 50-wacom.conf
+        overrides the earlier 10-evdev.conf file and uses the wacom driver 
+        for Wacom tablets
+    * 90-keyboard-layout.conf
+        this sample ("normal" en layout) keeps the "old" default of 
+        allowing Zap'ing the Xserver.
+  If you need to modify any of these defaults, then copy the relevant file
+  from /usr/share/X11/xorg.conf.d/ to /etc/X11/xorg.conf.d/ and edit the
+  copy.
+ 
+  You can still create an xorg.conf file if you wish, or you can create some
+  minimal xorg.conf snippets with only the specific contents that you wish
+  to override (as an example, to use a binary-only video driver) as separate
+  files in the /etc/X11/xorg.conf.d/ directory.
 
-If you are using input hotplugging via HAL and a synaptics touchpad, then you 
-  might need to copy /usr/share/hal/fdi/policy/10osvendor/11-x11-synaptics.fdi
-  to /etc/hal/fdi/policy/ and edit it to suit your needs.  You can also use
-  synclient(1) to make changes "on the fly."  
-Also note that any touchpads that include actual buttons as part of the 
-  touchpad hardware will not have tap-to-click enabled by default.
+  Regardless of your chipset (though it seems more common with intel), if KDE
+  crashes on startup, try disabling the Composite extension (which will also
+  disable all of the fancy desktop effects).  Place the following content in
+  a file at /etc/X11/xorg.conf.d/disable-composite.conf:
+    Section "Extensions"
+      Option "Composite" "Disable"
+    EndSection
 
-In KDE, you can access the "System Settings" menu in Administrator mode by 
-  running "kdesu systemsettings" as your normal user.
+Now that KMS (Kernel Mode Setting) for graphics cards has (mostly) stabilized,
+  it is enabled by default for intel, ati, and nvidia graphics chipsets.  It
+  is possible to disable it use "nomodeset" as a kernel append in lilo.conf,
+  but Xorg will not work at all on intel and ati chips if you do that.
+  
+  If you want to change the resolution of the KMS console, that can be done
+  with something like this as a kernel append in lilo.conf:
+    append="video=1024x768"
 
-If you see errors like this related to alsa during boot:
-    Loading ALSA mixer settings:  /usr/sbin/alsactl restore
-    Unknown hardware: "HDA-Intel" ...
-    Hardware is initialized using a guess method
-    /usr/sbin/alsactl: set_control:1256: failed to obtain info for control #31
-    /usr/sbin/alsactl: set_control:1256: failed to obtain info for control #32
- then you will need to remove /etc/asound.state, reboot (so that it is 
- regenerated with correct information), and reset the volume and such.
+  Speaking of lilo.conf and KMS, make sure you use either vga=normal or 
+  vga=extended -- some of the framebuffers don't like KMS very much...
 
-If you see warnings like this when logging in:
-    configuration error - unknown item 'DIALUPS_CHECK_ENAB' (notify administrator)
-    configuration error - unknown item 'NOLOGIN_STR' (notify administrator)
-  then you need to move/merge /etc/login.defs.new with /etc/login.defs (and
-  also move/merge the other .new files that you have obviously neglected).
+The (formerly) patented bytecode interpreter is now enabled in the freetype
+  package, so your fonts might look a bit different.  If this is undesirable,
+  you can restore the previous default with this line:
+   # ln -s ../conf.avail/10-autohint.conf /etc/fonts/conf.d/
 
 If you are using a KVM switch, you might experience problems with the mouse
   when switching from one system to another.  If so, you probably need to be
@@ -312,14 +253,6 @@ If you have permission errors when attempting to burn a cdrom or dvd image,
   recommended by k3b), use it instead of 'cdrom' in the line above, and add
   to it only the users you wish to have access to cdrecord and cdrdao.
 
-If you have compilation errors that look something like this:
-  /usr/include/asm-generic/fcntl.h:117: error: redefinition of 'struct flock'
-  /usr/include/bits/fcntl.h:142: error: previous definition of 'struct flock'
-  /usr/include/asm-generic/fcntl.h:140: error: redefinition of 'struct flock64'
-  /usr/include/bits/fcntl.h:157: error: previous definition of 'struct flock64'
-  See the following link for some pointers on fixing it:
-    http://www.mail-archive.com/blfs-dev@linuxfromscratch.org/msg08942.html
-
 Input methods for complex characters (CJK, which is shorthand for Chinese,
   Japanese, Korean) and other non-latin character sets have been added. These
   input methods use the SCIM (Smart Common Input Method) platform.
@@ -351,13 +284,11 @@ Input methods for complex characters (CJK, which is shorthand for Chinese,
   an overview of applicable character glyphs (if you are inputting complex
   characters like Japanese).
 
-If you are using the pinentry-gtk2 interface (for entering passphrases with
-  gpg-agent), be aware that there is a bug in the way scim-bridge and the
-  pinentry-gtk2 interact.  The result is that keyboard input does not register
-  with pinentry-gtk2.  For the time being, either change the /usr/bin/pinentry
-  symlink to use the qt or curses frontend, or don't use scim.
-
 If you have an older machine (with a BIOS released prior to 2001) and it will
   not power off on shutdown, try adding this to your kernel's lilo stanza:
     append = "acpi=force"
+
+If you have a Thinkpad T400 or T500, you probably want to append "pci=reboot" 
+  to the kernel boot parameters.  For more information about this issue, see
+  https://encrypted.google.com/search?hl=&q=t400+%22pci%3Dreboot%22
 

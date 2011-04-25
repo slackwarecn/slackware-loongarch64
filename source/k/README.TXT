@@ -13,7 +13,7 @@ For a 2.6.x kernel (much easier):
    Install a suitable .config, or use make menuconfig, etc.
 
    An example would be to use one of the config files here:
-   # cat config-generic-2.6.33.4 > /usr/src/linux-2.6.33.4/.config
+   # cat config-generic-2.6.37.6 > /usr/src/linux-2.6.37.6/.config
 
    Then run the build programs:
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,8 @@
 
 
 PKGNAM=bind
-VERSION=${VERSION:-9.4.3-P4}
-NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-9.7.3}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -36,11 +35,13 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 CWD=$(pwd)
 TMP=/bind-$(mcookie)
 PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
-mkdir -p $TMP $PKG
+mkdir -p $TMP $PKG/etc/default
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -58,18 +59,10 @@ rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.gz || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
-# Remove use of SO_BSDCOMPAT which has been obsolete since the 2.2.x kernel series,
-# and generates warnings under 2.6.x kernels:
+# Remove use of SO_BSDCOMPAT which has been obsolete since the 2.2.x kernel
+# series, and generates warnings under 2.6.x kernels.  This _might_ be fixed
+# upstream already, but an explicit #undef SO_BSDCOMPAT does not hurt:
 zcat $CWD/bind.so_bsdcompat.diff.gz | patch -p1 --verbose || exit
-
-# We want to use /var/run/named/, not just /var/run/.
-# This allows changing the ownership of that directory if we want to run
-# named as a non-root user.
-zcat $CWD/bind.var.run.named.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-# Threads break '-u' on Linux (for now)
-
-# The man pages should reflect /var/run/named:
-zcat $CWD/bind.man.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -87,6 +80,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --with-libtool \
+  --with-idn=/usr \
   --mandir=/usr/man \
   --enable-shared \
   --disable-static \

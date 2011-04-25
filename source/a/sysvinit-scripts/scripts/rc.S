@@ -19,6 +19,11 @@ if [ -d /sys ]; then
   fi
 fi
 
+# Load the loop device kernel module:
+if [ -x /etc/rc.d/rc.loop ]; then
+  . /etc/rc.d/rc.loop start
+fi
+
 # Initialize udev to manage /dev entries and hotplugging for 2.6.x kernels.
 # You may turn off udev by making the /etc/rc.d/rc.udev file non-executable
 # or giving the "nohotplug" option at boot, but in the 2.6.x+ kernels udev
@@ -34,6 +39,16 @@ if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems ; then
     if [ -x /etc/rc.d/rc.udev ]; then
       /bin/sh /etc/rc.d/rc.udev start
     fi
+  fi
+fi
+
+# Mount Control Groups filesystem interface:
+if grep -wq cgroup /proc/filesystems ; then
+  if [ -d /sys/fs/cgroup ]; then
+    mount -t cgroup cgroup /sys/fs/cgroup
+  else
+    mkdir -p /dev/cgroup
+    mount -t cgroup cgroup /dev/cgroup
   fi
 fi
 
@@ -77,7 +92,7 @@ if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
     if echo $OPTS | grep -wq ro ; then LUKSOPTS="${LUKSOPTS} --readonly" ; fi
 
     # Skip LUKS volumes that were already unlocked (in the initrd):
-    /sbin/cryptsetup status $LUKS 1>/dev/null 2>/dev/null && continue
+    /sbin/cryptsetup status $LUKS 2>/dev/null | head -n 1 | grep -q "is active" && continue
     if /sbin/cryptsetup isLuks $DEV 2>/dev/null ; then
       echo "Unlocking LUKS crypt volume '${LUKS}' on device '$DEV':"
       if [ -n "${PASS}" ]; then
@@ -293,12 +308,10 @@ if [ ! -r /etc/fastboot ]; then
   /sbin/fsck $FORCEFSCK -C -R -A -a
 fi
 
-# Mount usbfs:
+# Mount usbfs only if it is found in /etc/fstab:
 if grep -wq usbfs /proc/filesystems; then
   if ! grep -wq usbfs /proc/mounts ; then
-    if ! grep -wq usbfs /etc/fstab; then
-      /sbin/mount -v usbfs /proc/bus/usb -t usbfs
-    else
+    if grep -wq usbfs /etc/fstab; then
       /sbin/mount -v /proc/bus/usb
     fi
   fi

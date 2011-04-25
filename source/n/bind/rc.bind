@@ -1,34 +1,34 @@
 #!/bin/sh
 # Start/stop/restart the BIND name server daemon (named).
 
-# Start bind.  In the past it was more secure to run BIND
-# as a non-root user (for example, with '-u daemon'), but
-# the modern version of BIND knows how to use the kernel's
-# capability mechanism to drop all root privileges except
-# the ability to bind() to a privileged port and set process
-# resource limits, so -u should not be needed.  If you wish
-# to use it anyway, chown the /var/run/named directory to
-# the non-root user.
-#
+
+# Start bind. In the past it was more secure to run BIND as a non-root
+# user (for example, with '-u daemon'), but the modern version of BIND
+# knows how to use the kernel's capability mechanism to drop all root
+# privileges except the ability to bind() to a privileged port and set
+# process resource limits, so -u should not be needed.  If you wish to
+# use it anyway, chown the /var/run/named and /var/named directories to
+# the non-root user. The command options can be set like this in
+# /etc/default/named :
+#       NAMED_OPTIONS="-u daemon"
+# So you will not have to edit this script.
 
 # You might also consider running BIND in a "chroot jail",
 # a discussion of which may be found in
 # /usr/doc/Linux-HOWTOs/Chroot-BIND-HOWTO.
  
-# One last note:  rndc has a lot of other nice features that
-# it is not within the scope of this start/stop/restart script
-# to support.  For more details, see "man rndc" or just type
-# "rndc" to see the options.
+# One last note:  rndc has a lot of other nice features that it is not
+# within the scope of this start/stop/restart script to support.
+# For more details, see "man rndc" or just type "rndc" to see the options.
 
+# Load command defaults:
+if [ -f /etc/default/named ] ; then . /etc/default/named ; fi
+if [ -f /etc/default/rndc ] ; then . /etc/default/rndc ; fi
 
-# Sanity check.  If either /usr/sbin/named or /etc/named.conf
-# aren't ready, it doesn't make much sense to try to run this
-# script:
+# Sanity check.  If /usr/sbin/named is missing then it
+# doesn't make much sense to try to run this script:
 if [ ! -x /usr/sbin/named ]; then
   echo "/etc/rc.d/rc.bind:  no /usr/sbin/named found (or not executable); cannot start."
-  exit 1
-elif [ ! -f /etc/named.conf ]; then
-  echo "/etc/rc.d/rc.bind:  no /etc/named.conf found; cannot start /usr/sbin/named."
   exit 1
 fi
 
@@ -37,14 +37,14 @@ fi
 # running or you'll get more than one copy running.
 bind_start() {
   if [ -x /usr/sbin/named ]; then
-    echo "Starting BIND:  /usr/sbin/named"
-    /usr/sbin/named
+    echo "Starting BIND:  /usr/sbin/named $NAMED_OPTIONS"
+    /usr/sbin/named $NAMED_OPTIONS
     sleep 1
   fi
   if ! ps axc | grep -q named ; then
     echo "WARNING:  named did not start."
-    echo "Attempting to start named again:  /usr/sbin/named"
-    /usr/sbin/named
+    echo "Attempting to start named again:  /usr/sbin/named $NAMED_OPTIONS"
+    /usr/sbin/named $NAMED_OPTIONS
     sleep 1
     if ps axc | grep -q named ; then
       echo "SUCCESS:  named started."
@@ -57,8 +57,8 @@ bind_start() {
 
 # Stop all running copies of BIND (/usr/sbin/named):
 bind_stop() {
-  echo "Stopping BIND:  /usr/sbin/rndc stop"
-  /usr/sbin/rndc stop
+  echo "Stopping BIND:  /usr/sbin/rndc $RDNC_OPTIONS stop"
+  /usr/sbin/rndc $RDNC_OPTIONS stop
   # A problem with using "/usr/sbin/rndc stop" is that if you
   # managed to get multiple copies of named running it will
   # only stop one of them and then can't stop the others even
@@ -76,7 +76,7 @@ bind_stop() {
 
 # Reload BIND:
 bind_reload() {
-  /usr/sbin/rndc reload
+  /usr/sbin/rndc $RDNC_OPTIONS reload
 }
 
 # Restart BIND:
@@ -87,7 +87,7 @@ bind_restart() {
 
 # Get BIND status:
 bind_status() {
-  /usr/sbin/rndc status
+  /usr/sbin/rndc $RDNC_OPTIONS status
 }
 
 case "$1" in

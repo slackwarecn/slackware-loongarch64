@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,19 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-3.2.2}
-ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-2}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -84,6 +94,10 @@ mkdir -p $PKG/usr/man/man8
 cat apmd.8 | gzip -9c > $PKG/usr/man/man8/apmd.8.gz
 mkdir -p $PKG/usr/man/fr/man1
 cat apmsleep.fr.1 | gzip -9c > $PKG/usr/man/fr/man1/apmsleep.1.gz
+
+# Remove this version since the one in pm-utils is better:
+rm -f $PKG/usr/bin/on_ac_power
+rm -f $PKG/usr/man/man1/on_ac_power.1.gz
 
 mkdir -p $PKG/usr/doc/apmd-$VERSION
 cp -a \

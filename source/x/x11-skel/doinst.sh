@@ -15,7 +15,7 @@
 # your /usr/X11R6 directory will be moved to /usr/X11R6.bak.
 # Anything you really want want to keep will need to be merged back
 # by hand.
-if [ ! -L /usr/X11R6/bin ]; then
+if [ ! -L usr/X11R6/bin ]; then
   if [ -d usr/X11R6 ]; then
     mv usr/X11R6 usr/X11R6.bak
   fi

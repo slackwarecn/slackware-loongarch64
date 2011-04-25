@@ -13,9 +13,9 @@ config() {
 
 config etc/dhcpd.conf.new
 config etc/dhclient.conf.new
-#config var/state/dhcp/dhcpd.leases.new
-#config var/state/dhcp/dhcpd6.leases.new
-#config var/state/dhcp/dhclient.leases.new
-#config var/state/dhcp/dhclient6.leases.new
-#rm -f var/state/dhcp/*.leases.new
+config var/state/dhcp/dhcpd.leases.new
+config var/state/dhcp/dhcpd6.leases.new
+config var/state/dhcp/dhclient.leases.new
+config var/state/dhcp/dhclient6.leases.new
+rm -f var/state/dhcp/*.leases.new
 

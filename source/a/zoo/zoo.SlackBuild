@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,18 @@
 
 
 VERSION=2.10
-DEBPATCH=18
-ARCH=${ARCH:-x86_64}
+DEBPATCH=22
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -45,10 +54,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/zoo_${VERSION}-${DEBPATCH}.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
-for diff in debian/patches/*.dpatch ; do
+tar xf $CWD/zoo_${VERSION}-${DEBPATCH}.debian.tar.gz
+for diff in debian/patches/*patch ; do
   cat $diff | patch -p1 --verbose --backup --suffix=.orig || exit 1
 done
+
 make linux || exit 1
 mkdir -p $PKG/usr/bin
 cat fiz > $PKG/usr/bin/fiz
@@ -74,5 +84,5 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/zoo-$VERSION-$ARCH-$BUILD.txz
+makepkg -l y -c n $TMP/zoo-${VERSION}_${DEBPATCH}-$ARCH-$BUILD.txz
 

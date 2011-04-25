@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 
 #   Permission to use, copy, modify, and distribute this software for
@@ -21,8 +21,8 @@
 #   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #   SUCH DAMAGE.
 
-PRGNAM=xz
-VERSION=${VERSION:-4.999.9beta}
+PKGNAM=xz
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -57,21 +57,23 @@ case "$ARCH" in
   armel)     SLKCFLAGS="-O2 -march=armv4t"
              LIBDIRSUFFIX=""
              ;;
-
+  *)         SLKCFLAGS="-O2"
+             LIBDIRSUFFIX=""
+             ;;
 esac
 
 CWD=$(pwd)
 # Temporary build location.  This should *NOT* be a directory
 # path a non-root user could create later...
 TMP=${TMP:-/xz-tmp-$(mcookie)}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
-cd $PRGNAM-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.bz2 || exit 1
+cd $PKGNAM-$VERSION
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -133,15 +135,22 @@ if [ -d $PKG/usr/man ]; then
   )
 fi
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING* ChangeLog INSTALL NEWS README* THANKS doc/* \
-  $PKG/usr/doc/$PRGNAM-$VERSION
-find $PKG/usr/doc -type f -exec chmod 644 {} \;
+  ABOUT-NLS AUTHORS COPYING* INSTALL* NEWS PACKAGERS README* THANKS \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/${PRGNAM}-${VERSION}-${ARCH}-${BUILD}.tgz
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}.tgz
 

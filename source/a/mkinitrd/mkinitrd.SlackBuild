@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,10 +21,9 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-1.4.5}
-BB=1.15.3
-NUMJOBS=${NUMJOBS:--j7}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-1.4.6}
+BB=1.18.4
+BUILD=${BUILD:-11}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -36,6 +35,7 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+NUMJOBS=${NUMJOBS:--j7}
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mkinitrd
@@ -51,13 +51,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf busybox-$BB
-tar xvf $CWD/busybox-$BB.tar.bz2 || exit 1
+tar xvf $CWD/busybox-$BB.tar.?z* || exit 1
 cd busybox-$BB
-
-#zcat $CWD/busybox-${BB}.remove_warning.diff.gz | patch -p1 --verbose || exit 1
-#zcat $CWD/busybox-${BB}.no-gc-sections.diff.gz | patch -p1 --verbose || exit 1
-# Needed with 2.6.27 kernel:
-#zcat $CWD/busybox-1.12.1_inotify.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 sed -e \
@@ -71,9 +66,12 @@ make install || exit 1
 rm -f $PKG/usr/share/mkinitrd/initrd-tree/linuxrc
 
 # Copying additional files:
-cp $CWD/mkinitrd_command_generator.sh $PKG/usr/share/mkinitrd
+cp -a $CWD/mkinitrd_command_generator.sh $PKG/usr/share/mkinitrd
+chown root:root $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh
 chmod 755 $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh
-cp $CWD/keymaps.tar.gz $PKG/usr/share/mkinitrd
+cp -a $CWD/keymaps.tar.gz $PKG/usr/share/mkinitrd
+chown root:root $PKG/usr/share/mkinitrd/keymaps.tar.gz
+chmod 644 $PKG/usr/share/mkinitrd/keymaps.tar.gz
 
 # Zip up the initrd-tree:
 ( cd $PKG/usr/share/mkinitrd/initrd-tree
@@ -85,11 +83,16 @@ rm -rf $PKG/usr/share/mkinitrd/initrd-tree
 
 # Add busybox docs:
 mkdir -p $PKG/usr/doc/busybox-$BB
-cp -a AUTHORS INSTALL LICENSE README \
+cp -a AUTHORS COPYING* INSTALL LICENSE README* \
   $PKG/usr/doc/busybox-$BB
+cp -a e2fsprogs/README $PKG/usr/doc/busybox-$BB/README.e2fsprogs
+cp -a libbb/README $PKG/usr/doc/busybox-$BB/README.libbb
+cp -a shell/README $PKG/usr/doc/busybox-$BB/README.shell
+cp -a testsuite/README $PKG/usr/doc/busybox-$BB/README.testsuite
 
 mkdir -p $PKG/sbin
-cat $CWD/mkinitrd > $PKG/sbin/mkinitrd
+cp -a $CWD/mkinitrd $PKG/sbin/mkinitrd
+chown root:root $PKG/sbin/mkinitrd
 chmod 755 $PKG/sbin/mkinitrd
 
 mkdir -p $PKG/usr/man/man{5,8}
@@ -97,7 +100,9 @@ cat $CWD/mkinitrd.8 | gzip -9c > $PKG/usr/man/man8/mkinitrd.8.gz
 cat $CWD/mkinitrd.conf.5 | gzip -9c > $PKG/usr/man/man5/mkinitrd.conf.5.gz
 
 mkdir -p $PKG/etc
-cat $CWD/mkinitrd.conf.sample > $PKG/etc/mkinitrd.conf.sample
+cp -a $CWD/mkinitrd.conf.sample $PKG/etc/mkinitrd.conf.sample
+chown root:root $PKG/etc/mkinitrd.conf.sample
+chmod 644 $PKG/etc/mkinitrd.conf.sample
 
 mkdir -p $PKG/usr/doc/mkinitrd-$VERSION
 cp -a $CWD/README.initrd $PKG/usr/doc/mkinitrd-$VERSION

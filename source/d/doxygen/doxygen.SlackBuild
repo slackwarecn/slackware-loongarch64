@@ -87,11 +87,20 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # If there are misplaced man pages, fix that:
 mv $PKG/usr/*.1 $PKG/usr/man/man1
 
-# Compress man pages
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+# Compress and if needed symlink the man pages:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 mkdir -p $PKG/usr/doc/doxygen-$VERSION
 cp -a \

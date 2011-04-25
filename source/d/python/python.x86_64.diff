@@ -1,68 +1,10 @@
-diff -uar Python-2.6.2.orig/Lib/distutils/command/install.py Python-2.6.2/Lib/distutils/command/install.py
---- Python-2.6.2.orig/Lib/distutils/command/install.py	2008-05-07 00:41:46.000000000 +0200
-+++ Python-2.6.2/Lib/distutils/command/install.py	2009-04-29 22:05:43.000000000 +0200
-@@ -42,14 +42,14 @@
- INSTALL_SCHEMES = {
-     'unix_prefix': {
-         'purelib': '$base/lib/python$py_version_short/site-packages',
--        'platlib': '$platbase/lib/python$py_version_short/site-packages',
-+        'platlib': '$platbase/lib64/python$py_version_short/site-packages',
-         'headers': '$base/include/python$py_version_short/$dist_name',
-         'scripts': '$base/bin',
-         'data'   : '$base',
-         },
-     'unix_home': {
-         'purelib': '$base/lib/python',
--        'platlib': '$base/lib/python',
-+        'platlib': '$base/lib64/python',
-         'headers': '$base/include/python/$dist_name',
-         'scripts': '$base/bin',
-         'data'   : '$base',
-diff -uar Python-2.6.2.orig/Lib/distutils/sysconfig.py Python-2.6.2/Lib/distutils/sysconfig.py
---- Python-2.6.2.orig/Lib/distutils/sysconfig.py	2009-02-10 13:33:42.000000000 +0100
-+++ Python-2.6.2/Lib/distutils/sysconfig.py	2009-04-29 22:05:43.000000000 +0200
-@@ -115,8 +115,12 @@
-         prefix = plat_specific and EXEC_PREFIX or PREFIX
- 
-     if os.name == "posix":
-+        if plat_specific or standard_lib:
-+            lib = "lib64"
-+        else:
-+            lib = "lib"
-         libpython = os.path.join(prefix,
--                                 "lib", "python" + get_python_version())
-+                                 lib, "python" + get_python_version())
-         if standard_lib:
-             return libpython
-         else:
-diff -uar Python-2.6.2.orig/Lib/site.py Python-2.6.2/Lib/site.py
---- Python-2.6.2.orig/Lib/site.py	2008-05-10 19:36:24.000000000 +0200
-+++ Python-2.6.2/Lib/site.py	2009-04-29 22:05:43.000000000 +0200
-@@ -265,12 +265,16 @@
-         if sys.platform in ('os2emx', 'riscos'):
-             sitedirs.append(os.path.join(prefix, "Lib", "site-packages"))
-         elif os.sep == '/':
-+            sitedirs.append(os.path.join(prefix, "lib64",
-+                                        "python" + sys.version[:3],
-+                                        "site-packages"))
-             sitedirs.append(os.path.join(prefix, "lib",
-                                         "python" + sys.version[:3],
-                                         "site-packages"))
-             sitedirs.append(os.path.join(prefix, "lib", "site-python"))
-         else:
-             sitedirs.append(prefix)
-+            sitedirs.append(os.path.join(prefix, "lib64", "site-packages"))
-             sitedirs.append(os.path.join(prefix, "lib", "site-packages"))
- 
-         if sys.platform == "darwin":
-diff -uar Python-2.6.2.orig/Makefile.pre.in Python-2.6.2/Makefile.pre.in
---- Python-2.6.2.orig/Makefile.pre.in	2009-02-24 12:07:44.000000000 +0100
-+++ Python-2.6.2/Makefile.pre.in	2009-04-29 22:05:43.000000000 +0200
+--- ./Makefile.pre.in.orig	2010-08-01 17:05:31.000000000 -0500
++++ ./Makefile.pre.in	2010-11-27 17:22:05.000000000 -0600
 @@ -87,11 +87,11 @@
  
  # Expanded directories
- BINDIR=		$(exec_prefix)/bin
--LIBDIR=		$(exec_prefix)/lib
+ BINDIR=		@bindir@
+-LIBDIR=		@libdir@
 +LIBDIR=		$(exec_prefix)/lib64
  MANDIR=		@mandir@
  INCLUDEDIR=	@includedir@
@@ -72,30 +14,8 @@ diff -uar Python-2.6.2.orig/Makefile.pre.in Python-2.6.2/Makefile.pre.in
  
  # Detailed destination directories
  BINLIBDEST=	$(LIBDIR)/python$(VERSION)
-diff -uar Python-2.6.2.orig/Modules/Setup.dist Python-2.6.2/Modules/Setup.dist
---- Python-2.6.2.orig/Modules/Setup.dist	2008-11-27 11:15:12.000000000 +0100
-+++ Python-2.6.2/Modules/Setup.dist	2009-04-29 22:10:31.000000000 +0200
-@@ -414,7 +414,7 @@
- #DB=/usr/local/BerkeleyDB.4.0
- #DBLIBVER=4.0
- #DBINC=$(DB)/include
--#DBLIB=$(DB)/lib
-+#DBLIB=$(DB)/lib64
- #_bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
- 
- # Historical Berkeley DB 1.85
-@@ -460,7 +460,7 @@
- # Andrew Kuchling's zlib module.
- # This require zlib 1.1.3 (or later).
- # See http://www.gzip.org/zlib/
--#zlib zlibmodule.c -I$(prefix)/include -L$(exec_prefix)/lib -lz
-+#zlib zlibmodule.c -I$(prefix)/include -L$(exec_prefix)/lib64 -lz
- 
- # Interface to the Expat XML parser
- #
-diff -uar Python-2.6.2.orig/Modules/getpath.c Python-2.6.2/Modules/getpath.c
---- Python-2.6.2.orig/Modules/getpath.c	2007-03-10 08:38:14.000000000 +0100
-+++ Python-2.6.2/Modules/getpath.c	2009-04-29 22:05:43.000000000 +0200
+--- ./Modules/getpath.c.orig	2010-07-24 05:09:36.000000000 -0500
++++ ./Modules/getpath.c	2010-11-27 17:23:13.000000000 -0600
 @@ -117,8 +117,8 @@
  #endif
  
@@ -122,7 +42,7 @@ diff -uar Python-2.6.2.orig/Modules/getpath.c Python-2.6.2/Modules/getpath.c
          strncpy(zip_path, PREFIX, MAXPATHLEN);
 -    joinpath(zip_path, "lib/python00.zip");
 +    joinpath(zip_path, "lib64/python00.zip");
-     bufsz = strlen(zip_path);	/* Replace "00" with version */
+     bufsz = strlen(zip_path);   /* Replace "00" with version */
      zip_path[bufsz - 6] = VERSION[0];
      zip_path[bufsz - 5] = VERSION[2];
 @@ -534,7 +534,7 @@
@@ -134,10 +54,29 @@ diff -uar Python-2.6.2.orig/Modules/getpath.c Python-2.6.2/Modules/getpath.c
      }
      /* If we found EXEC_PREFIX do *not* reduce it!  (Yet.) */
  
-diff -uar Python-2.6.2.orig/setup.py Python-2.6.2/setup.py
---- Python-2.6.2.orig/setup.py	2009-03-31 20:20:48.000000000 +0200
-+++ Python-2.6.2/setup.py	2009-04-29 22:05:43.000000000 +0200
-@@ -310,7 +310,7 @@
+--- ./Modules/Setup.dist.orig	2008-11-27 04:15:12.000000000 -0600
++++ ./Modules/Setup.dist	2010-11-27 17:21:23.000000000 -0600
+@@ -414,7 +414,7 @@
+ #DB=/usr/local/BerkeleyDB.4.0
+ #DBLIBVER=4.0
+ #DBINC=$(DB)/include
+-#DBLIB=$(DB)/lib
++#DBLIB=$(DB)/lib64
+ #_bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
+ 
+ # Historical Berkeley DB 1.85
+@@ -460,7 +460,7 @@
+ # Andrew Kuchling's zlib module.
+ # This require zlib 1.1.3 (or later).
+ # See http://www.gzip.org/zlib/
+-#zlib zlibmodule.c -I$(prefix)/include -L$(exec_prefix)/lib -lz
++#zlib zlibmodule.c -I$(prefix)/include -L$(exec_prefix)/lib64 -lz
+ 
+ # Interface to the Expat XML parser
+ #
+--- ./setup.py.orig	2010-07-17 07:31:09.000000000 -0500
++++ ./setup.py	2010-11-27 17:21:23.000000000 -0600
+@@ -356,7 +356,7 @@
  
      def detect_modules(self):
          # Ensure that /usr/local is always used
@@ -146,9 +85,9 @@ diff -uar Python-2.6.2.orig/setup.py Python-2.6.2/setup.py
          add_dir_to_list(self.compiler.include_dirs, '/usr/local/include')
  
          # Add paths specified in the environment variables LDFLAGS and
-@@ -585,11 +585,11 @@
-             elif self.compiler.find_library_file(lib_dirs, 'curses'):
-                 readline_libs.append('curses')
+@@ -662,11 +662,11 @@
+             elif curses_library:
+                 readline_libs.append(curses_library)
              elif self.compiler.find_library_file(lib_dirs +
 -                                               ['/usr/lib/termcap'],
 +                                               ['/usr/lib64/termcap'],
@@ -160,7 +99,7 @@ diff -uar Python-2.6.2.orig/setup.py Python-2.6.2/setup.py
                                     extra_link_args=readline_extra_link_args,
                                     libraries=readline_libs) )
          else:
-@@ -626,8 +626,8 @@
+@@ -703,8 +703,8 @@
              if krb5_h:
                  ssl_incs += krb5_h
          ssl_libs = find_library_file(self.compiler, 'ssl',lib_dirs,
@@ -171,3 +110,57 @@ diff -uar Python-2.6.2.orig/setup.py Python-2.6.2/setup.py
                                       ] )
  
          if (ssl_incs is not None and
+--- ./Lib/distutils/command/install.py.orig	2008-05-06 17:41:46.000000000 -0500
++++ ./Lib/distutils/command/install.py	2010-11-27 17:21:23.000000000 -0600
+@@ -42,14 +42,14 @@
+ INSTALL_SCHEMES = {
+     'unix_prefix': {
+         'purelib': '$base/lib/python$py_version_short/site-packages',
+-        'platlib': '$platbase/lib/python$py_version_short/site-packages',
++        'platlib': '$platbase/lib64/python$py_version_short/site-packages',
+         'headers': '$base/include/python$py_version_short/$dist_name',
+         'scripts': '$base/bin',
+         'data'   : '$base',
+         },
+     'unix_home': {
+         'purelib': '$base/lib/python',
+-        'platlib': '$base/lib/python',
++        'platlib': '$base/lib64/python',
+         'headers': '$base/include/python/$dist_name',
+         'scripts': '$base/bin',
+         'data'   : '$base',
+--- ./Lib/distutils/sysconfig.py.orig	2010-08-03 16:18:06.000000000 -0500
++++ ./Lib/distutils/sysconfig.py	2010-11-27 17:21:23.000000000 -0600
+@@ -119,8 +119,12 @@
+         prefix = plat_specific and EXEC_PREFIX or PREFIX
+ 
+     if os.name == "posix":
++        if plat_specific or standard_lib:
++            lib = "lib64"
++        else:
++            lib = "lib"
+         libpython = os.path.join(prefix,
+-                                 "lib", "python" + get_python_version())
++                                 lib, "python" + get_python_version())
+         if standard_lib:
+             return libpython
+         else:
+--- ./Lib/site.py.orig	2010-03-21 09:02:32.000000000 -0500
++++ ./Lib/site.py	2010-11-27 17:21:23.000000000 -0600
+@@ -265,12 +265,16 @@
+         if sys.platform in ('os2emx', 'riscos'):
+             sitedirs.append(os.path.join(prefix, "Lib", "site-packages"))
+         elif os.sep == '/':
++            sitedirs.append(os.path.join(prefix, "lib64",
++                                        "python" + sys.version[:3],
++                                        "site-packages"))
+             sitedirs.append(os.path.join(prefix, "lib",
+                                         "python" + sys.version[:3],
+                                         "site-packages"))
+             sitedirs.append(os.path.join(prefix, "lib", "site-python"))
+         else:
+             sitedirs.append(prefix)
++            sitedirs.append(os.path.join(prefix, "lib64", "site-packages"))
+             sitedirs.append(os.path.join(prefix, "lib", "site-packages"))
+ 
+         if sys.platform == "darwin":

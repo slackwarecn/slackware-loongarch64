@@ -106,12 +106,13 @@ The stages of a Slackware PXE install
     PXE firmware has done its job and is no longer in the picture.  So:
 
 (5) We need to load a kernel driver for our network card and locate a network 
-    server that holds the Slackware package tree.  Currently, you can choose
-    between installing from a NFS server, a Samba server or a HTTP/FTP
-    server.  Before starting cfdisk and setup, we need to run the ('pcmcia'
-    and/or) 'network' command to probe the network card and load a suitable
-    driver.  If your network card is not supported by any of the available
-    drivers, you are out of luck and will have to rethink your options.
+    server that holds the Slackware package tree (called the "SOURCE").
+    Currently, you can choose between installing from a NFS server, a Samba
+    server or a HTTP/FTP server.  By starting setup and selecting one of
+    these network package SOURCEs, you will get the opportunity to configure
+    the network card.  If your network card is not supported by any of the
+    available drivers, you are out of luck and will have to rethink your
+    options.
 
 (6) From here on, installation proceeds as usual, under the condition that 
     you select 'Install from NFS (Network File System)', 'Install from
@@ -146,11 +147,12 @@ components.  We need:
     broadcast on the network its desire to find a suitable server to download 
     the bootstrap code from.  The DHCP Server packages that are part of
     Slackware fulfill this requirement, since they talk BOOTP as well as DHCP.
-    The packages are dhcpd and dnsmasq; pick the one you like most.
+    These packages are 'dhcpd' and 'dnsmasq'; pick the one you like most.
 
 (2) A download service for the bootstrap code.  A TFTP (trivial file 
-    transfer protocol) server is needed for this.  Slackware ships with an 
-    implementation of a TFTP server called tftpd-hpa which does what we need.
+    transfer protocol) server is needed for this.  Slackware ships with
+    an implementation of a TFTP server called 'tftpd-hpa' which does what
+    we need.
 
 (3) And for the Slackware installer, a NFS, HTTP, FTP or Samba server is
     required because we must perform a network install.  We can use
@@ -166,8 +168,8 @@ an excercise for the user to find out how to configure Apache (HTTP) or
 proftpd (FTP) in case installation over HTTP or FTP is preferred.  In later
 examples, I will assume that the following URL's are valid for your HTTP/FTP
 server:
-        http://192.168.0.1/mirror/slackware/slackware-13.0
-        ftp://192.168.0.1/pub/mirror/slackware/slackware-13.0
+        http://192.168.0.1/mirror/slackware/slackware-13.37
+        ftp://192.168.0.1/pub/mirror/slackware/slackware-13.37
 
     The server will run all required services, i.e. acts as the LANs 
 DNS, DHCP, TFTP and NFS (or HTTP/FTP/Samba) server.  If you decide to
@@ -198,12 +200,12 @@ that apply to your own network.
 (*) The DNS domain will be "my.lan".
 
 (*) Directories are used as follows:
-    Top level of the complete Slackware 13.0 directory tree (excluding the 
-    source code if you're short on disk space) is 
-    "/mirror/slackware/slackware-13.0"
+    Top level of the complete Slackware 13.37 directory tree (excluding
+    the source code if you're short on disk space) is 
+    "/mirror/slackware/slackware-13.37"
 
 (*) The directory where we store the boot files for the TFTP server is 
-    "/tftpboot/slackware-13.0"
+    "/tftpboot/slackware-13.37"
 
 
 DHCP
@@ -255,7 +257,7 @@ group {
   next-server 192.168.0.1;
   use-host-decl-names on;
   if substring (option vendor-class-identifier, 0, 9) = "PXEClient" {
-    filename "/slackware-13.0/pxelinux.0";
+    filename "/slackware-13.37/pxelinux.0";
   }
 
   host ABC {
@@ -269,7 +271,7 @@ group {
 
     This enables the DHCP server to detect network boot clients that use PXE 
 and serves them the PXElinux boot loader we make available at
-"/slackware-13.0/pxelinux.0".  What this boot loader does will be explained
+"/slackware-13.37/pxelinux.0".  What this boot loader does will be explained
 further down the article.
 
     The 'next-server' parameter contains the IP address of the TFTP server.  
@@ -297,11 +299,11 @@ will stall at the point of looking for a TFTP server.
 above instructions for the ISC DHCP server are not applicable to your 
 setup. Instead, you have to configure dnsmasq with this equivalent parameter:
 
-  dnsmasq --dhcp-boot=/slackware-13.0/pxelinux.0,"192.168.0.1",192.168.0.1
+  dnsmasq --dhcp-boot=/slackware-13.37/pxelinux.0,"192.168.0.1",192.168.0.1
 
 or add this line to your /etc/dnsmasq.conf:
 
-  dhcp-boot=/slackware-13.0/pxelinux.0,"192.168.0.1",192.168.0.1
+  dhcp-boot=/slackware-13.37/pxelinux.0,"192.168.0.1",192.168.0.1
 
 The IP address "192.168.0.1" occurs twice; they should always be identical,
 and be the address of your TFTP server.
@@ -371,7 +373,7 @@ that are used here apply to our example network - adjust as needed):
 
 (*) The directory mentioned in /etc/exports is the target where
     you copy (or move) your Slackware files to: The directory
-    "/mirror/slackware/slackware-13.0" should be the root of the Slackware
+    "/mirror/slackware/slackware-13.37" should be the root of the Slackware
     tree, containing such files as ChangeLog.txt and subdirectories like
     "slackware" (or "slackware64" if you are working with the 64bit port)
     and "kernels".
@@ -402,36 +404,36 @@ The tftp directory structure:
 
     As you can see in the DHCP section, the DHCP server has been configured
 to offer any interested PXE client (i.e. your computers network card) the
-file "/slackware-13.0/pxelinux.0" - this file contains the bootable code
+file "/slackware-13.37/pxelinux.0" - this file contains the bootable code
 that first downloads and starts a Linux kernel, and then downloads and
 extracts the root filesystem containing the setup program and everything
-else that we need.  This filename "/slackware-13.0/pxelinux.0" indicates
+else that we need.  This filename "/slackware-13.37/pxelinux.0" indicates
 a pathname relative to the root of the TFTP server.  The PXE client will
 use the tftp protocol to fetch this bootloader.  So this is what we do:
-create this directory "slackware-13.0" and copy the required files into it.
+create this directory "slackware-13.37" and copy the required files into it.
 First, the pxelinux bootloader itself:
 
-  mkdir /tftpboot/slackware-13.0
-  mkdir /tftpboot/slackware-13.0/pxelinux.cfg
-  cp /usr/lib/syslinux/pxelinux.0 /tftpboot/slackware-13.0/
+  mkdir /tftpboot/slackware-13.37
+  mkdir /tftpboot/slackware-13.37/pxelinux.cfg
+  cp /usr/share/syslinux/pxelinux.0 /tftpboot/slackware-13.37/
 
 Also, we need the files from the Slackware CDROM that show the 
 informative messages in the beginning.  Assuming your local copy of the 
-Slackware release can be found in "/mirror/slackware/slackware-13.0"
+Slackware release can be found in "/mirror/slackware/slackware-13.37"
 (change paths in the below commands if your location is different) :
 
-  cp /mirror/slackware/slackware-13.0/isolinux/message.txt /tftpboot/slackware-13.0/
-  cp /mirror/slackware/slackware-13.0/isolinux/f2.txt /tftpboot/slackware-13.0/
+  cp /mirror/slackware/slackware-13.37/isolinux/message.txt /tftpboot/slackware-13.37/
+  cp /mirror/slackware/slackware-13.37/isolinux/f2.txt /tftpboot/slackware-13.37/
 
 Very important: we need the initial ramdisk image (initrd.img) and the pxelinux configuration file that contains the instructions for the PXE clients:
 
-  cp /mirror/slackware/slackware-13.0/isolinux/initrd.img /tftpboot/slackware-13.0/
-  cp /mirror/slackware/slackware-13.0/usb-and-pxe-installers/pxelinux.cfg_default /tftpboot/slackware-13.0/pxelinux.cfg/default
+  cp /mirror/slackware/slackware-13.37/isolinux/initrd.img /tftpboot/slackware-13.37/
+  cp /mirror/slackware/slackware-13.37/usb-and-pxe-installers/pxelinux.cfg_default /tftpboot/slackware-13.37/pxelinux.cfg/default
 
 And lastly, we need all the kernels that the Slackware installer lets you
 choose from:
 
-  cp -a /mirror/slackware/slackware-13.0/kernels /tftpboot/slackware-13.0/
+  cp -a /mirror/slackware/slackware-13.37/kernels /tftpboot/slackware-13.37/
 
 
 Trying it out
@@ -482,7 +484,7 @@ Your IP Address (pick any unused): 192.168.0.111
 Your netmask:                      255.255.255.0
 The gateway:                       192.168.0.10
 NFS server address:                192.168.0.1
-Slackware directory on NFS server: /mirror/slackware/slackware-13.0/slackware
+Slackware directory on NFS server: /mirror/slackware/slackware-13.37/slackware
 
 Next, some values to use with a FTP server (for our example network):
 
@@ -490,7 +492,7 @@ Your IP Address (pick any unused): 192.168.0.111
 Your netmask:                      255.255.255.0
 The gateway:                       192.168.0.10
 FTP server address:                ftp://192.168.0.1
-Slackware directory on ftpserver:  /pub/mirror/slackware/slackware-13.0
+Slackware directory on ftpserver:  /pub/mirror/slackware/slackware-13.37
 
 Next, example values to use with a HTTP server (for our example network):
 
@@ -498,7 +500,7 @@ Your IP Address (pick any unused): 192.168.0.111
 Your netmask:                      255.255.255.0
 The gateway:                       192.168.0.10
 HTTP server address:               http://192.168.0.1
-Slackware directory on webserver:  /mirror/slackware/slackware-13.0
+Slackware directory on webserver:  /mirror/slackware/slackware-13.37
 
 Finally, example values to use with a Samba share (for our example network):
 
@@ -506,7 +508,7 @@ Your IP Address (pick any unused): 192.168.0.111
 Your netmask:                      255.255.255.0
 The gateway:                       192.168.0.10
 Samba share:                       //192.168.0.1/mirror
-Slackware directory on webserver:  /slackware/slackware-13.0
+Slackware directory on webserver:  /slackware/slackware-13.37
 
     Note #1 - if you chose automatic network configuration using DHCP in an
 earlier step, you can probably use actual hostnames instead of IP addresses.
@@ -517,7 +519,7 @@ IP address.
     Note #2 - in the case of the NFS server, you will have to supply the
 path to the Slackware package tree _including_ the '/slackware' subdirectory.
 For HTTP and FTP servers, it is sufficient to supply the root of the
-slackware-13.0 tree and leave the 'slackware' subdirectory out. The installer
+slackware-13.37 tree and leave the 'slackware' subdirectory out. The installer
 will figure out where the packages are.
 
     From this point onwards, the installation proceeds just as when the 
@@ -566,7 +568,7 @@ subnet 192.168.0.0 netmask 255.255.255.0 {
     range dynamic-bootp 192.168.0.50 192.168.0.100;
     use-host-decl-names on;
     if substring (option vendor-class-identifier, 0, 9) = "PXEClient" {
-      filename "/slackware-13.0/pxelinux.0";
+      filename "/slackware-13.37/pxelinux.0";
     }
 }
 
@@ -673,10 +675,10 @@ group {
   use-host-decl-names on;
 
   if substring (option vendor-class-identifier, 0, 9) = "PXEClient" {
-    filename "/slackware-13.0/pxelinux.0";
+    filename "/slackware-13.37/pxelinux.0";
   }
   else if substring (option vendor-class-identifier, 0, 9) = "Etherboot" {
-    filename "/slackware-13.0/kernels/hugesmp.s/bzImage";
+    filename "/slackware-13.37/kernels/hugesmp.s/bzImage";
   }
 
   host t43 {
@@ -771,6 +773,6 @@ exit 0
 
 ========================================================
 Author:
-  Eric Hameleers <alien@slackware.com> 22-jul-2009
+  Eric Hameleers <alien@slackware.com> 21-mar-2011
 Wiki URLs:
   http://www.slackware.com/~alien/dokuwiki/doku.php?id=slackware:pxe

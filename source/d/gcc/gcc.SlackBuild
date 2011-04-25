@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -42,11 +42,12 @@
 # I see no reason to continue 386 support in the latest Slackware (and indeed
 # it's no longer easily possible).
 
-VERSION=4.4.4
-BUILD=${BUILD:-1}
+PKGNAM=gcc
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # How many jobs to run in parallel:
-NUMJOB=" -j 4 "
+NUMJOBS=" -j 7 "
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -119,7 +120,7 @@ tar xvf $CWD/gcc-$VERSION.tar.?z*
 
 # Copy ecj.jar into the TLD of the source. Needed for java compiler.
 # This can be retrieved from ftp://sourceware.org/pub/java
-cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
+cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
 
 # install docs
 ( cd gcc-$VERSION
@@ -154,7 +155,7 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
   mkdir -p $PKG1/usr/doc/gcc-${VERSION}/gcc
   ( cd gcc
     cp -a \
-      ABOUT* COPYING* LANG* ONEWS README* SERVICE \
+      ABOUT* COPYING* DATESTAMP DEV-PHASE LANG* ONEWS README* SERVICE \
     $PKG1/usr/doc/gcc-$VERSION/gcc
          
     mkdir -p $PKG3/usr/doc/gcc-${VERSION}/gcc/fortran
@@ -207,11 +208,11 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
     fi
   )
 
-  mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libada
+  mkdir -p $PKG4/usr/doc/gcc-${VERSION}/libada
   ( cd libada
     if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libada/ChangeLog
-      touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libada/ChangeLog
+      cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
+      touch -r ChangeLog $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
     fi
   )
 
@@ -270,7 +271,7 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
   ( cd libstdc++-v3
     cp -a \
       README* \
-      docs/html/faq \
+      doc/html/faq.html \
     $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
     if [ -r ChangeLog ]; then
       cat ChangeLog | head -n 1000 > $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
@@ -278,6 +279,72 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
     fi
   )
 )
+
+# Add fastjar to the gcc-java package:
+( cd $TMP
+  FASTJARVER=$(echo $CWD/fastjar-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+  echo
+  echo "Building fastjar-$FASTJARVER first"
+  echo
+  rm -rf fastjar-$FASTJARVER
+  tar xvf $CWD/fastjar-$FASTJARVER.tar.xz || exit 1
+  cd fastjar-$FASTJARVER || exit
+  chown -R root:root .
+  find . \
+    \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+    -exec chmod 755 {} \; -o \
+    \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+    -exec chmod 644 {} \;
+  for patch in $CWD/fastjar-patches/*.gz ; do
+    zcat $patch | patch -p1 --verbose || exit 1
+  done
+  CFLAGS="$SLKCFLAGS" \
+  CXXFLAGS="$SLKCFLAGS" \
+  ./configure \
+     --prefix=/usr \
+     --libdir=/usr/lib$LIBDIRSUFFIX \
+     --mandir=/usr/man \
+     --infodir=/usr/info \
+     --build=$ARCH-slackware-linux
+  make $NUMJOBS || exit 1
+  make install DESTDIR=$PKG5 || exit 1
+  mkdir -p $PKG5/usr/doc/fastjar-$FASTJARVER
+  cp -a \
+    AUTHORS CHANGES COPYING* INSTALL NEWS README* TODO \
+    $PKG5/usr/doc/fastjar-$FASTJARVER
+  # If there's a ChangeLog, installing at least part of the recent history
+  # is useful, but don't let it get totally out of control:
+  if [ -r ChangeLog ]; then
+    DOCSDIR=$(echo $PKG5/usr/doc/fastjar-$FASTJARVER)
+    cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+    touch -r ChangeLog $DOCSDIR/ChangeLog
+  fi
+  find $PKG5 | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+    | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  # Compress and if needed symlink the man pages:
+  if [ -d $PKG5/usr/man ]; then
+    ( cd $PKG5/usr/man
+      for manpagedir in $(find . -type d -name "man*") ; do
+        ( cd $manpagedir
+          for eachpage in $( find . -type l -maxdepth 1) ; do
+            ln -s $( readlink $eachpage ).gz $eachpage.gz
+            rm $eachpage
+          done
+          gzip -9 *.?
+        )
+      done
+    )
+  fi
+  # Compress info files, if any:
+  if [ -d $PKG5/usr/info ]; then
+    ( cd $PKG5/usr/info
+      rm -f dir
+      gzip -9 *
+    )
+  fi
+  echo
+) || exit 1
+
 # build gcc
 ( mkdir gcc.build.lnx;
   cd gcc.build.lnx;
@@ -301,9 +368,11 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
   CXXFLAGS="$SLKCFLAGS" \
   ../gcc-$VERSION/configure --prefix=/usr \
      --libdir=/usr/lib$LIBDIRSUFFIX \
+     --mandir=/usr/man \
+     --infodir=/usr/info \
      --enable-shared \
      --enable-bootstrap \
-     --enable-languages=ada,c,c++,fortran,java,objc \
+     --enable-languages=ada,c,c++,fortran,java,objc,lto \
      --enable-threads=posix \
      --enable-checking=release \
      --with-system-zlib \
@@ -311,6 +380,7 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
      --disable-libunwind-exceptions \
      --enable-__cxa_atexit \
      --enable-libssp \
+     --enable-lto \
      --with-gnu-ld \
      --verbose \
      $GCC_ARCHOPTS \
@@ -321,25 +391,31 @@ cp $CWD/ecj-4.3.jar gcc-$VERSION/ecj.jar
   # Start the build:
 
   # Include all debugging info (for now):
-  make $NUMJOB bootstrap;
+  make $NUMJOBS bootstrap;
 
   ( cd gcc
-    make $NUMJOB gnatlib GNATLIBCFLAGS="$SLKCFLAGS"
+    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS"
     # This wants a shared -ladd2line?
     #make gnatlib-shared
     
     CFLAGS="$SLKCFLAGS" \
     CXXFLAGS="$SLKCFLAGS" \
-    make $NUMJOB gnattools
+    make $NUMJOBS gnattools
   )
   make info
 
   # Set GCCCHECK=something to run the tests
   if [ ! -z $GCCCHECK ]; then
-    make $NUMJOB check
+    make $NUMJOBS check
   fi
 
   make install DESTDIR=$PKG1
+
+# KLUDGE ALERT
+# These *gdb.py files are causing ldconfig to complain, so they are going
+# to be REMOVED for now...  at some point, they might be moved somewhere
+# else, in which case things should Just Work(tm).  Keep an eye on it.
+rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/*gdb.py
 
 # Be sure the "specs" file is installed.
 if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${ARCH}-slackware-linux/${VERSION}/specs ]; then
@@ -354,58 +430,65 @@ fi
 
 #  make ada.install-common DESTDIR=$PKG1
 #  make install-gnatlib DESTDIR=$PKG1
-  make -i install-info DESTDIR=$PKG1
+make -i install-info DESTDIR=$PKG1
 
-  chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
+chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
 
-  # This is provided by binutils, so delete it here:
-  rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libiberty.a
-  rm -f $PKG1/usr/lib/libiberty.a # catch-all
+# The (huge) static GNU java libraries are not packaged.  In nearly all
+# cases one or more dependencies will not be available as static anyway.
+rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj.a
+rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj-tools.a
 
-  # Fix stuff up:
-  ( cd $PKG1/usr/info ; rm dir ; gzip -9 * )
-  ( cd $PKG1
-    # *not* ${LIBDIRSUFFIX}
-    mkdir -p lib
-    cd lib
-    ln -sf /usr/bin/cpp .
-  )
-  ( cd $PKG1/usr/bin
-    mv g++ g++-gcc-$VERSION
-    mv gcc gcc-$VERSION
-    mv ${TARGET}-gfortran gfortran-gcc-$VERSION
-    ln -sf g++-gcc-$VERSION g++
-    ln -sf gcc-$VERSION gcc
-    ln -sf g++ c++
-    ln -sf gcc cc
-    ln -sf gcc-$VERSION ${TARGET}-gcc
-    ln -sf gcc-$VERSION ${TARGET}-gcc-$VERSION
-    ln -sf gcj ${TARGET}-gcj
-    ln -sf gcjh ${TARGET}-gcjh
-    ln -sf g++-gcc-$VERSION ${TARGET}-c++
-    ln -sf g++-gcc-$VERSION ${TARGET}-g++
-    ln -sf gfortran-gcc-$VERSION gfortran
-    ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran
-    ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran-$VERSION
-    ln -sf gfortran-gcc-$VERSION ${TARGET}-g95
-    ln -sf gfortran g95
-    ln -sf gfortran f95
-    ln -sf gfortran-gcc-$VERSION ${TARGET}-g77
-    ln -sf gfortran g77
-    ln -sf gfortran f77
-  )
-  ( cd $PKG1/usr/man
-    gzip -9 */*
-    cd man1
-    ln -sf g++.1.gz c++.1.gz
-    ln -sf gcc.1.gz cc.1.gz
-  )  
+# This is provided by binutils, so delete it here:
+rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libiberty.a
+rm -f $PKG1/usr/lib/libiberty.a # catch-all
 
-  ## build the txz package
-  #(
-  #  cd $PKG1;
-  #  makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz
-  #)
+# Fix stuff up:
+( cd $PKG1/usr/info ; rm dir ; gzip -9 * )
+( cd $PKG1
+  # *not* ${LIBDIRSUFFIX}
+  mkdir -p lib
+  cd lib
+  ln -sf /usr/bin/cpp .
+)
+
+( cd $PKG1/usr/bin
+  mv g++ g++-gcc-$VERSION
+  mv gcc gcc-$VERSION
+  mv ${TARGET}-gfortran gfortran-gcc-$VERSION
+  ln -sf g++-gcc-$VERSION g++
+  ln -sf gcc-$VERSION gcc
+  ln -sf g++ c++
+  ln -sf gcc cc
+  ln -sf gcc-$VERSION ${TARGET}-gcc
+  ln -sf gcc-$VERSION ${TARGET}-gcc-$VERSION
+  ln -sf gcj ${TARGET}-gcj
+  ln -sf gcjh ${TARGET}-gcjh
+  ln -sf g++-gcc-$VERSION ${TARGET}-c++
+  ln -sf g++-gcc-$VERSION ${TARGET}-g++
+  ln -sf gfortran-gcc-$VERSION gfortran
+  ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran
+  ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran-$VERSION
+  ln -sf gfortran-gcc-$VERSION ${TARGET}-g95
+  ln -sf gfortran g95
+  ln -sf gfortran f95
+  ln -sf gfortran-gcc-$VERSION ${TARGET}-g77
+  ln -sf gfortran g77
+  ln -sf gfortran f77
+)
+
+( cd $PKG1/usr/man
+  gzip -9 */*
+  cd man1
+  ln -sf g++.1.gz c++.1.gz
+  ln -sf gcc.1.gz cc.1.gz
+)  
+
+## build the txz package
+#(
+#  cd $PKG1;
+#  makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz
+#)
 # keep a log
 ) 2>&1 | tee $TMP/gcc.build.log
 

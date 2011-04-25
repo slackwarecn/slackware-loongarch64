@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 # Build this against 2.6.x kernel source and headers...
 
-VERSION=2.6.33
+VERSION=2.6.37
 BUILD=${BUILD:-1}
 
 #NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -70,7 +70,7 @@ find . \
   -exec chmod 644 {} \;
 
 # Fix up path to bdb and iptables libs
-zcat $CWD/iproute2-2.6.33-fixup_dbpath_and_iptablespath.diff.gz | sed \
+zcat $CWD/iproute2.fixup_dbpath_and_iptablespath.diff.gz | sed \
   -e "s,@LIBDIR@,/usr/lib${LIBDIRSUFFIX},g" \
   -e "s,@VERSION@,$VERSION,g" | patch -p1 || exit 1
 
@@ -133,6 +133,14 @@ fi
 mkdir -p $PKG/usr/doc/iproute2-$VERSION
 cp -a COPYING RE* \
   $PKG/usr/doc/iproute2-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

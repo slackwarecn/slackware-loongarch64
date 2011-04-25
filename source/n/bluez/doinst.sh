@@ -17,8 +17,8 @@ if [ -e etc/rc.d/rc.bluetooth ]; then
   mv etc/rc.d/rc.bluetooth.new.incoming etc/rc.d/rc.bluetooth.new
 fi
 
-config etc/alsa/bluetooth.conf.new
 config etc/rc.d/rc.bluetooth.new
+config etc/alsa/bluetooth.conf.new
 config etc/bluetooth/audio.conf.new
 config etc/bluetooth/input.conf.new
 config etc/bluetooth/main.conf.new

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,9 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.1.1
-BUILD=${BUILD:-2}
+PKGNAM=fluxbox
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -76,7 +77,6 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-xinerama \
   --enable-shape \
   --enable-slit \
-  --enable-interlace \
   --enable-nls \
   --enable-timed-cache \
   --build=$ARCH-slackware-linux
@@ -91,12 +91,20 @@ gzip -9 $PKG/usr/man/man?/*
 
 mkdir -p $PKG/etc/X11/xinit
 zcat $CWD/xinitrc.fluxbox.gz > $PKG/etc/X11/xinit/xinitrc.fluxbox
-chmod 755 $PKG/etc/X11/xinit/xinitrc.fluxbox
+chmod 0755 $PKG/etc/X11/xinit/xinitrc.fluxbox
 
 mkdir -p $PKG/usr/doc/fluxbox-$VERSION
 cp -a AUTHORS COPYING* INSTALL NEWS README* TODO \
   $PKG/usr/doc/fluxbox-$VERSION
-chmod 644 $PKG/usr/doc/fluxbox-$VERSION/*
+chmod 0644 $PKG/usr/doc/fluxbox-$VERSION/*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

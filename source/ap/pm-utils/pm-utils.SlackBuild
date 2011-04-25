@@ -25,9 +25,9 @@
 
 PKGNAM=pm-utils
 VERSION=$(echo ${PKGNAM}-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
-QUIRKS=20100316	# Version of the quirks database
+QUIRKS=20100619	# Version of the quirks database
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -63,7 +63,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.gz || exit 1
 cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -71,6 +71,9 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
+
+zcat $CWD/use_more_sane_harddrive_defaults.patch.gz | patch -p1 || exit 1
+zcat $CWD/fix-wrong-path-in-intel-audio-powersave.patch.gz | patch -p1 || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -86,9 +89,21 @@ make install DESTDIR=$PKG || exit 1
 
 # Now let's add the video quirks
 PM_UTILS_LIBDIR="/usr/lib${LIBDIRSUFFIX}/pm-utils"
-mkdir -p $PKG/$PM_UTILS_LIBDIR/video-quirks
-tar xf $CWD/pm-quirks-$QUIRKS.tar.xz -C $PKG/$PM_UTILS_LIBDIR/video-quirks
+mkdir -p $PKG/$PM_UTILS_LIBDIR
+tar xf $CWD/pm-quirks-$QUIRKS.tar.gz -C $PKG/$PM_UTILS_LIBDIR
 chown -R root:root $PKG/$PM_UTILS_LIBDIR/video-quirks
+
+# Probably this shouldn't be needed, but some bluetooth hardware isn't
+# properly handled during the sleep/wake process
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/sleep.d
+  mv 49bluetooth 49bluetooth-ibm
+  cat $CWD/49bluetooth-generic > 49bluetooth-generic
+  chmod 0755 49bluetooth-generic
+)
+
+# Remove the NetworkManager hook since we don't ship it; 
+# it should be included with NetworkManager
+rm -f $PKG/usr/lib64/pm-utils/sleep.d/55NetworkManager
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

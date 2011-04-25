@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -31,11 +31,14 @@
 # git checkout origin/4.5.3-patched
 # git checkout origin/4.6.0-stable-patched
 # git checkout origin/4.6.1-patched
+# git checkout origin/4.7.0-patched
+#
+# Alternate method (we don't use this):
 # wget http://qt.gitorious.org/qt/kde-qt/archive-tarball/4.6.2-patched
 
 PKGNAM=qt
 VERSION=$(ls qt-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -109,7 +112,14 @@ if [ $ARCH = "i486" ]; then
 fi
 
 # Fix path to mysql header
-zcat $CWD/qt.mysql.h.diff.gz | patch -p1 || exit 1
+zcat $CWD/qt.mysql.h.diff.gz | patch -p1 --verbose || exit 1
+
+# Upstream patch required for upcoming kdepim-4.6.x:
+zcat $CWD/qt.QSortFilterProxyModel.reformatted.diff.gz | patch -p1 --verbose || exit 1
+
+# Blacklist compromised certificates:
+zcat $CWD/qt.blacklist.bad.certs.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/qt.blacklist.bad.certs.patch02.diff.gz | patch -p1 --verbose || exit 1
 
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
@@ -141,6 +151,10 @@ make install INSTALL_ROOT=$PKG || exit 1
 
 # The infamous qt -> qt-${VERSION} link that keeps the full path out of .la files:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf qt qt-${VERSION} )
+
+# libjscore is used internally.  Prevent a false dependency on this in the .la files:
+sed -i "s,-ljscore,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
+sed -i "s,-L../JavaScriptCore/release,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
 
 # Link the shared libraries into /usr/lib:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}

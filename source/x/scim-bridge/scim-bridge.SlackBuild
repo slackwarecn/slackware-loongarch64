@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2008, 2009  Eric Hameleers, Eindhoven, NL
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN  USA
+# Copyright 2008, 2009, 2011  Patrick J. Volkerding, Sebeka, MN  USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -35,8 +35,17 @@
 
 PRGNAM=scim-bridge
 VERSION=${VERSION:-0.4.16}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -68,6 +77,14 @@ rm -rf ${PRGNAM}-${VERSION}
 tar -xvf $CWD/${PRGNAM}-${VERSION}.tar.gz || exit 1
 cd ${PRGNAM}-${VERSION} || exit 1
 #sed -i -e "s/ -doxygen / doxygen /" $( grep -lr ' -doxygen ' * )
+
+zcat $CWD/patches/scim-bridge-0.4.16-scim-bridge-agent-application.cpp.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/scim-bridge-0.4.16-scim-bridge-agent-imcontext.cpp.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/scim-bridge-0.4.16-scim-bridge-agent-imcontext.h.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/scim-bridge-0.4.16-scim-bridge-agent.cpp.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/scim-bridge-0.4.16-scim-bridge-client-imcontext-gtk.c.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/scim-bridge-0.4.16-scim-bridge-client-imcontext-qt.cpp.patch.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -114,7 +131,7 @@ EOINS
 # Add documentation:
 mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING ChangeLog INSTALL NEWS README doc/LICENSE.* \
+  AUTHORS COPYING* ChangeLog INSTALL NEWS README* doc/LICENSE.* \
   $PKG/usr/doc/$PRGNAM-$VERSION
 find $PKG/usr/doc -type f -exec chmod 644 {} \;
 

@@ -25,3 +25,7 @@ for file in etc/profile.d/libglib2.csh.new etc/profile.d/libglib2.sh.new ; do
   fi
   config $file
 done
+
+# Try to run this.  If it fails, no biggie.
+chroot . /usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas/ 1> /dev/null 2> /dev/null
+

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -42,13 +42,21 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-ruby
 
 if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  # -O3 works around a compile failure due to a miniruby segfault
+  # when trying to build ruby with gcc-4.4 or newer.  Evidently
+  # -O0 also works, but...
+  # other distributions also use -fno-strict-aliasing which helps stability
+  SLKCFLAGS="-march=i486 -mtune=i686 -O3 -fno-strict-aliasing"
+  OPTFLAGS=-O3
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+  # Unknown if s390 is needs -O3.  Check to see if it compiles with -O2.
+  SLKCFLAGS="-O3 -fno-strict-aliasing"
+  OPTFLAGS=-O3
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O3 -fPIC -fno-strict-aliasing"
+  OPTFLAGS=-O3
   LIBDIRSUFFIX="64"
 fi
 
@@ -70,6 +78,7 @@ find . \
 # Seems suboptimal to me... 
 
 CFLAGS="$SLKCFLAGS" \
+optflags=$OPTFLAGS \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \

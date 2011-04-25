@@ -57,9 +57,23 @@ if [ -x /etc/rc.d/rc.nfsd ]; then
   /etc/rc.d/rc.nfsd stop
 fi
 
+# Kill any processes (typically gam) that would otherwise prevent
+# unmounting NFS volumes:
+unset FUSER_DELAY
+for dir in $(/bin/mount | grep 'type nfs' | cut -d ' ' -f 3 ) ; do
+  echo "Killing processes holding NFS mount $dir open..."
+  # Background this to prevent fuser from also blocking shutdown:
+  /usr/bin/fuser -k -m $dir &
+  FUSER_DELAY=5
+done
+# If fuser was run, let it have some delay:
+if [ ! -z "$FUSER_DELAY" ]; then
+  sleep $FUSER_DELAY
+fi
+
 # Unmount any NFS, SMB, or CIFS filesystems:
 echo "Unmounting remote filesystems."
-umount -a -r -t nfs,smbfs,cifs
+/bin/umount -v -a -l -f -r -t nfs,smbfs,cifs
 
 # Shut down PCMCIA devices:
 if [ -x /etc/rc.d/rc.pcmcia ] ; then

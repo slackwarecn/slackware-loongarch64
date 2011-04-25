@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,19 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=${VERSION:-0.23}
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-3}
+PKGNAM=pkg-config
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -47,11 +57,14 @@ elif [ "$ARCH" = "arm" ]; then
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 cd $TMP
 rm -rf pkg-config-$VERSION
-tar xvf $CWD/pkg-config-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/pkg-config-$VERSION.tar.?z* || exit 1
 cd pkg-config-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -65,6 +78,7 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  --docdir=/usr/doc/pkg-config-$VERSION \
   --build=${ARCH}-slackware-linux
 
 make $NUMJOBS || make || exit 1

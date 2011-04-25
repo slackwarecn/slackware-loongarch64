@@ -11,7 +11,7 @@ installation to Logical Volumes.  In Slackware, the installer has never
 supported this, but the gurus usually would find a way to create logical
 volumes and install or migrate their Slackware onto those.  Having your
 Slackware installed fully on LVM was near impossible until Slackware 12.0.
-Slackware 13.1 has improved support for LVM built into the installer.
+Slackware 13.37 has improved support for LVM built into the installer.
 
 
 Preparing Logical Volumes (LV)
@@ -40,14 +40,14 @@ LV's called 'root' and 'home'.  The first is going to contain the root partition
 
     After booting your computer from the Slackware CD/DVD/USB, and logging in
 as root, you run the following sequence of commands to create the Physical
-Volume (PV), the Volume Group (VG) within that PV and two LV's of size 5GB
+Volume (PV), the Volume Group (VG) within that PV and two LV's of size 6GB
 (root) and 3GB (home) inside the VG:
 
   # pvcreate /dev/sda1
 
   # vgcreate myvg /dev/sda1
 
-  # lvcreate -L 5G -n root myvg
+  # lvcreate -L 6G -n root myvg
 
   # lvcreate -L 3G -n home myvg
 
@@ -60,13 +60,8 @@ Volume (PV), the Volume Group (VG) within that PV and two LV's of size 5GB
             # lvcreate -l 100%FREE -n home myvg
     ========================================================================
 
-    Next, we create the device nodes needed before activating the volumes, and
-finally we activate the volumes (the last command is not really needed because
-'setup' will run it anyway):
-
-  # vgscan --mknodes
-
-  # vgchange -ay
+    The device nodes for the logical volumes are created, and the volumes
+will be activated automatically when running lvcreate.
 
 This is all we need to do before running 'setup'.
 
@@ -110,9 +105,9 @@ We are going to 'chroot' into our fresh installation:
     Next, while we are in the chroot, create the initrd with LVM support -
 in the example command line I assume that the root filesystem is 'ext3',
 we used the LV '/dev/myvg/root' as the root device, and are running the
-Slackware 13.1 default SMP kernel '2.6.33.4-smp':
+Slackware 13.37 default SMP kernel '2.6.37.6-smp':
 
-  # mkinitrd -c -k 2.6.33.4-smp -m ext3 -f ext3 -r /dev/myvg/root -L
+  # mkinitrd -c -k 2.6.37.6-smp -m ext3 -f ext3 -r /dev/myvg/root -L
 
     The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd, so open the
@@ -124,7 +119,7 @@ filename added by 'liloconfig' is '/boot/vmlinuz' which is a symbolic link to
 the huge SMP kernel.  Remember that we need a 'generic' kernel with the initrd.
 The end result should look somewhat like this:
 
-  image = /boot/vmlinuz-generic-smp-2.6.33.4-smp
+  image = /boot/vmlinuz-generic-smp-2.6.37.6-smp
     initrd = /boot/initrd.gz
     root = /dev/myvg/root
     label = linux
@@ -139,9 +134,9 @@ but it is safe to ignore these.
 
     =====================================================================
     An alternative method of creating the commandline for mkinitrd is
-    to use the '/usr/share/mkinitrd_command_generator.sh' script that is
-    part of the mkinitrd package. This script will analyze your Slackware
-    installation and show you a useable 'mkinitrd' commandline:
+    to use the '/usr/share/mkinitrd/mkinitrd_command_generator.sh' script
+    which is part of the mkinitrd package.  This script will analyze your
+    Slackware installation and show you a useable 'mkinitrd' commandline:
 
     # /usr/share/mkinitrd/mkinitrd_command_generator.sh -r
 
@@ -188,7 +183,7 @@ This is enough to get it recognized by the setup program.  Have fun!
 
 ========================================================
 Author:
-  Eric Hameleers <alien@slackware.com> 25-jul-2009
+  Eric Hameleers <alien@slackware.com> 08-apr-2011
 Wiki URLs:
   http://www.slackware.com/~alien/dokuwiki/doku.php?id=slackware:setup
 Documentation:

@@ -98,9 +98,23 @@ if [ -x /etc/rc.d/rc.messagebus ]; then
   sh /etc/rc.d/rc.messagebus stop
 fi
 
+# Kill any processes (typically gam) that would otherwise prevent
+# unmounting NFS volumes:
+unset FUSER_DELAY
+for dir in $(/bin/mount | grep 'type nfs' | cut -d ' ' -f 3 ) ; do
+  echo "Killing processes holding NFS mount $dir open..."
+  # Background this to prevent fuser from also blocking shutdown:
+  /usr/bin/fuser -k -m $dir &
+  FUSER_DELAY=5
+done
+# If fuser was run, let it have some delay:
+if [ ! -z "$FUSER_DELAY" ]; then
+  sleep $FUSER_DELAY
+fi
+
 # Unmount any NFS, SMB, or CIFS filesystems:
 echo "Unmounting remote filesystems."
-/bin/umount -v -a -r -t nfs,smbfs,cifs
+/bin/umount -v -a -l -f -r -t nfs,smbfs,cifs
 
 # Try to shut down pppd:
 PS="$(ps ax)"
@@ -185,12 +199,6 @@ fi
 echo "Turning off swap."
 /sbin/swapoff -a
 /bin/sync
-
-# Umount any LVM volumes:
-if /bin/mount | /bin/grep -q '^/dev/mapper/' ; then
-  echo "Unmounting LVM volumes."
-  /bin/umount -v $(/bin/mount | /bin/grep '^/dev/mapper/' | /bin/cut -d ' ' -f 3 | /bin/tac)
-fi
 
 echo "Unmounting local file systems."
 /bin/umount -v -a -t no,proc,sysfs

@@ -22,9 +22,19 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=2.7
-ARCH=${ARCH:-x86_64}
+BUILD=${BUILD:-5}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-4}
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -41,6 +51,9 @@ elif [ "$ARCH" = "arm" ]; then
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -54,8 +67,9 @@ rm -rf metamail-$VERSION
 xz -dc $CWD/metamail-$VERSION.tar.xz | tar xvf - || exit 1
 cd metamail-$VERSION
 
-xz -dc $CWD/metamail_2.7-52.diff.xz | patch -p1 || exit 1
+xz -dc $CWD/metamail_2.7-54.diff.xz | patch -p1 || exit 1
 xz -dc $CWD/metamail.automake.diff.xz | patch -p1 || exit 1
+zcat $CWD/metamail.uue.getline.diff.gz | patch -p1 || exit 1
 
 chmod 755 configure
 
@@ -73,7 +87,7 @@ CFLAGS="$SLKCFLAGS" \
   --disable-static \
   --program-prefix="" \
   --program-suffix="" \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
 ( cd bin
   cat showexternal | perl -pi -e 's|sensible-pager|more|' > se

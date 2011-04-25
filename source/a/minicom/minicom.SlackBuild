@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,10 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.1
-BUILD=${BUILD:-4}
+VERSION=2.5
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -59,97 +61,99 @@ cd minicom-$VERSION
 
 # The following command renames the internal implementation of getline
 # to g_getline as newer versions of Glibc provide an incompatible version:
-sed -i -e "s/getline/g_&/" $(grep -lr getline *)
+#sed -i -e "s/getline/g_&/" $(grep -lr getline *)
 
 chown -R root:root .
 find . -perm 777 -exec chmod 755 {} \;
 find . -perm 664 -exec chmod 644 {} \;
-# Fix re-declaration of BC in termcap.h
-zcat $CWD/wintcap.diff.gz | patch -p1 --verbose || exit 1
 
-## Forget it...  it just doesn't help.
-## Remove the autoconf program for this sorry old turd or abandon all hope.
-#touch configure
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
-  --sysconfdir=/etc
-make -j3 || exit 1
+  --sysconfdir=/etc \
+  --mandir=/usr/man \
+  --build=$ARCH-slackware-linux
+
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
 mkdir -p $PKG/etc
 zcat $CWD/minicom.users.gz > $PKG/etc/minicom.users.new
-zcat $CWD/minirc.dfl.gz > $PKG/etc/minirc.dfl.new
-gzip -9 $PKG/usr/man/man?/*.?
+printf "# Machine-generated file - use "minicom -s" to change parameters.\n" \
+       > $PKG/etc/minirc.dfl.new
+
 mkdir -p $PKG/usr/doc/minicom-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING ChangeLog FILE_ID.DIZ INSTALL NEWS README TODO \
-  doc \
+  AUTHORS COPYING* ChangeLog FILE_ID.DIZ INSTALL NEWS README* TODO doc \
   $PKG/usr/doc/minicom-$VERSION
+rm -f $PKG/usr/doc/minicom-$VERSION/doc/{ChangeLog.old,Makefile*}
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 # lzrz
-# If autoconf causes failure here (which it probably will),
-# remove it temporarily and the build should work fine...
+# If autotools causes failure here (which it probably will), temporarily 
+# move /usr/bin/auto{conf,header,make} out of the way and it should work... 
+
 cd $TMP
-tar xzvf $CWD/lrzsz_0.12.21.orig.tar.gz || exit 1
+rm -rf lrzsz-990823
+tar xvf $CWD/lrzsz_0.12.21.orig.tar.gz || exit 1
 cd lrzsz-990823
+chown -R root:root .
+
 # Make x86_64 a valid machine type (thanks to Fred Emmott)
 zcat $CWD/config.sub-x86_64.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/lrzsz_0.12.21-4.diff.gz | patch -p1 --verbose || exit 1
-chown -R root:root .
-#touch configure
+
+# Apply some of the debian patches
+zcat $CWD/lrzsz_0.12.21-5.diff.gz | patch -p1 --verbose || exit 1
+rm -f debian/patches/{206499_ymodemg.diff.unchecked,206648_dszlog.diff.unchecked}
+for i in debian/patches/* ; do patch -p1 < $i || exit 1 ; done
+
 ./configure \
   --prefix=/usr \
-  $ARCH-slackware-linux
-make -j3 || exit 1
-cd src
-cat lrz > $PKG/usr/bin/lrz
-cat lsz > $PKG/usr/bin/lsz
-chmod 755 $PKG/usr/bin/l*z
-cd ../man
-for page in lrz.1 lsz.1 ; do
-  cat $page | gzip -9c > $PKG/usr/man/man1/$page.gz
-done
-echo '.so man1/lrz.1' | gzip -9c > $PKG/usr/man/man1/rz.1.gz
-echo '.so man1/lsz.1' | gzip -9c > $PKG/usr/man/man1/sz.1.gz
-cd ../po
-mkdir -p $PKG/usr/share/locale/de/LC_MESSAGES
-cat de.gmo > $PKG/usr/share/locale/de/LC_MESSAGES/lrzsz.mo
-cd ..
-mkdir -p $PKG/usr/doc/lrzsz-0.12.21
-cp -a ABOUT-NLS AUTHORS COMPATABILITY COPYING INSTALL NEWS README-alpha \
-  README.cvs README.gettext README.isdn4linux README.systems \
-  README.tests THANKS TODO $PKG/usr/doc/lrzsz-0.12.21
+  --mandir=/usr/man \
+  --build=$ARCH-slackware-linux
 
+make $NUMJOBS || make || exit 1
+
+cp src/lrz src/lsz $PKG/usr/bin
+chmod 0755 $PKG/usr/bin/{lrz,lsz}
+
+cp man/{lrz,lsz}.1 $PKG/usr/man/man1
+echo '.so man1/lrz.1' > $PKG/usr/man/man1/rz.1
+echo '.so man1/lsz.1' > $PKG/usr/man/man1/sz.1
+
+mkdir -p $PKG/usr/share/locale/de/LC_MESSAGES
+cat po/de.gmo > $PKG/usr/share/locale/de/LC_MESSAGES/lrzsz.mo
+
+mkdir -p $PKG/usr/doc/lrzsz-0.12.21
+cp -a \
+  AUTHORS COMPATABILITY COPYING* INSTALL NEWS README* THANKS TODO \
+  $PKG/usr/doc/lrzsz-0.12.21
+
+( cd $PKG/usr/bin
+  for i in lrb lrx rz ; do ln -s lrz $i ; done
+  for i in lsb lsx sz ; do ln -s lsz $i ; done
+  for i in rx rb ; do ln -s rz $i ; done
+  for i in sb sx ; do ln -s sz $i ; done
+)
 
 ( cd $PKG
-  ( cd usr/bin ; rm -rf rx )
-  ( cd usr/bin ; ln -sf  rz rx )
-  ( cd usr/bin ; rm -rf rb )
-  ( cd usr/bin ; ln -sf  rz rb )
-  ( cd usr/bin ; rm -rf sb )
-  ( cd usr/bin ; ln -sf  sz sb )
-  ( cd usr/bin ; rm -rf sx )
-  ( cd usr/bin ; ln -sf  sz sx )
-  ( cd usr/bin ; rm -rf rz )
-  ( cd usr/bin ; ln -sf lrz rz )
-  ( cd usr/bin ; rm -rf lrb )
-  ( cd usr/bin ; ln -sf lrz lrb )
-  ( cd usr/bin ; rm -rf lrx )
-  ( cd usr/bin ; ln -sf lrz lrx )
-  ( cd usr/bin ; rm -rf sz )
-  ( cd usr/bin ; ln -sf lsz sz )
-  ( cd usr/bin ; rm -rf lsb )
-  ( cd usr/bin ; ln -sf lsz lsb )
-  ( cd usr/bin ; rm -rf lrx )
-  ( cd usr/bin ; ln -sf lsz lrx )
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
+
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
-
 cd $PKG
-makepkg -l y -c n $TMP/minicom-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/minicom-$VERSION-$ARCH-$BUILD.txz
 

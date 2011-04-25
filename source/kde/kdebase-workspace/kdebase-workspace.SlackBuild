@@ -53,8 +53,6 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-cat $CWD/kcmshell_root_privilege.patch | patch -p1 --verbose || exit 1
-
 # Increase the timeout to accomodate slow-to-initialize video chipset drivers:
 zcat $CWD/kdebase-workspace.kdm.server.timeout.diff.gz | patch -p1 --verbose || exit 1
 
@@ -91,6 +89,9 @@ $PKG/usr/bin/genkdmconf --no-old --no-old-scripts --no-backup --in $PKG/usr/shar
 # have physical access to the machine, what's the point of trying to stop 
 # this?  Even the kdmrc file says this is supposed to be the default.
 sed -i 's/AllowRootLogin=false/AllowRootLogin=true/' \
+  $PKG/usr/share/config/kdm/kdmrc 
+# We are also not ready to create a separate 'kdm' non-root user:
+sed -i 's/GreeterUID=kdm/#&/' \
   $PKG/usr/share/config/kdm/kdmrc 
 mv $PKG/usr/share/config/kdm/kdmrc $PKG/usr/share/config/kdm/kdmrc.new
 

@@ -1,0 +1,99 @@
+Index: tmp/kdebase-4.5.5/apps/konsole/src/MainWindow.cpp
+===================================================================
+--- tmp.orig/kdebase-4.5.5/apps/konsole/src/MainWindow.cpp
++++ tmp/kdebase-4.5.5/apps/konsole/src/MainWindow.cpp
+@@ -86,6 +86,8 @@ MainWindow::MainWindow()
+     connect( _viewManager , SIGNAL(empty()) , this , SLOT(close()) );
+     connect( _viewManager , SIGNAL(activeViewChanged(SessionController*)) , this ,
+             SLOT(activeViewChanged(SessionController*)) );
++    connect( _viewManager , SIGNAL(unplugController(SessionController*)) , this ,
++            SLOT(disconnectController(SessionController*)) );
+     connect( _viewManager , SIGNAL(viewPropertiesChanged(const QList<ViewProperties*>&)) ,
+            bookmarkHandler() , SLOT(setViews(const QList<ViewProperties*>&)) );
+ 
+Index: tmp/kdebase-4.5.5/apps/konsole/src/MainWindow.h
+===================================================================
+--- tmp.orig/kdebase-4.5.5/apps/konsole/src/MainWindow.h
++++ tmp/kdebase-4.5.5/apps/konsole/src/MainWindow.h
+@@ -161,6 +161,7 @@ class MainWindow : public KXmlGuiWindow
+         void showShortcutsDialog();
+         void newFromProfile(Profile::Ptr profile);
+         void activeViewChanged(SessionController* controller);
++        void disconnectController(SessionController* controller);
+         void activeViewTitleChanged(ViewProperties*);
+ 
+         void sessionListChanged(const QList<QAction*>& actions);
+@@ -179,7 +180,6 @@ class MainWindow : public KXmlGuiWindow
+         void setupActions();
+         void setupWidgets();
+         QString activeSessionDir() const;
+-        void disconnectController(SessionController* controller);
+ 
+         // sets the active shortcuts of actions in 'dest' to the shortcuts of actions
+         // with the same name in 'source' (see KAction::ActiveShortcut)
+Index: tmp/kdebase-4.5.5/apps/konsole/src/ViewManager.cpp
+===================================================================
+--- tmp.orig/kdebase-4.5.5/apps/konsole/src/ViewManager.cpp
++++ tmp/kdebase-4.5.5/apps/konsole/src/ViewManager.cpp
+@@ -376,6 +376,10 @@ void ViewManager::sessionFinished()
+         }
+     }
+ 
++    // This is needed to remove this controller from factory() in
++    // order to prevent BUG: 185466 - disappearing menu popup
++    if (_pluggedController)
++        emit unplugController(_pluggedController);
+ }
+ 
+ void ViewManager::focusActiveView()
+@@ -744,6 +748,9 @@ void ViewManager::viewCloseRequest(QWidg
+         focusActiveView();
+         updateDetachViewState();
+     }
++    if (_pluggedController)
++        emit unplugController(_pluggedController);
++
+ }
+ 
+ TerminalDisplay* ViewManager::createTerminalDisplay(Session* session)
+Index: tmp/kdebase-4.5.5/apps/konsole/src/ViewManager.h
+===================================================================
+--- tmp.orig/kdebase-4.5.5/apps/konsole/src/ViewManager.h
++++ tmp/kdebase-4.5.5/apps/konsole/src/ViewManager.h
+@@ -175,6 +175,12 @@ signals:
+     void activeViewChanged(SessionController* controller);
+ 
+     /**
++     * Emitted when the current session needs to be unplugged from factory().
++     * @param controller The controller associated with the view
++     */
++    void unplugController(SessionController* controller);
++
++    /**
+      * Emitted when the list of view properties ( as returned by viewProperties() ) changes.
+      * This occurs when views are added to or removed from the active container, or 
+      * if the active container is changed.
+Index: tmp/kdebase-4.5.5/apps/konsole/src/ViewContainer.cpp
+===================================================================
+--- tmp.orig/kdebase-4.5.5/apps/konsole/src/ViewContainer.cpp
++++ tmp/kdebase-4.5.5/apps/konsole/src/ViewContainer.cpp
+@@ -448,6 +448,7 @@ TabbedViewContainer::TabbedViewContainer
+     _closeTabButton->setIcon(KIcon("tab-close"));
+     _closeTabButton->adjustSize();
+     _closeTabButton->setHidden(true);
++    _closeTabButton->setEnabled(false);
+ 
+     connect( _tabBar , SIGNAL(currentChanged(int)) , this , SLOT(currentTabChanged(int)) );
+     connect( _tabBar , SIGNAL(tabDoubleClicked(int)) , this , SLOT(tabDoubleClicked(int)) );
+@@ -500,9 +501,11 @@ TabbedViewContainer::TabbedViewContainer
+         i18nc("@action:inmenu", "&Rename Tab..."), this,
+         SLOT(tabContextMenuRenameTab()));
+ 
++/* bug 185466
+     _contextPopupMenu->addAction(KIcon("tab-close"),
+         i18nc("@action:inmenu", "&Close Tab"), this,
+         SLOT(tabContextMenuCloseTab()));
++*/
+ 
+ }
+ void TabbedViewContainer::setNewViewMenu(QMenu* menu)

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=4.0.0
-LIBVER=1.0.0
-BUILD=${BUILD:-2}
+PKGNAM=tcpdump
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -49,50 +49,6 @@ PKG=$TMP/package-tcpdump
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-echo "+================+"
-echo "| libpcap-$LIBVER |"
-echo "+================+"
-cd $TMP
-rm -rf libpcap-$LIBVER
-tar xvf $CWD/libpcap-$LIBVER.tar.gz || exit 1
-cd libpcap-$LIBVER || exit 1
-
-zcat $CWD/libpcap.20-fix-any-intf.diff.gz | patch -p1 --verbose || exit 1
-
-find . -type d -name CVS -depth -exec rm -rf {} \;
-chown -R root:root .
-find . \
-  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \; -o \
-  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-  -exec chmod 644 {} \;
-CFLAGS="$(getconf LFS_CFLAGS)" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --docdir=/usr/doc/libpcap-$LIBVER \
-  --enable-ipv6 \
-  --build=$ARCH-slackware-linux
-make $NUMJOBS || make || exit 1
-make shared $NUMJOBS || make || exit 1
-mkdir -p $PKG/usr/bin  # otherwise it errors out on install
-make install DESTDIR=$PKG || exit 1
-strip --strip-debug libpcap.so.1.?.?
-cp libpcap.so.?.?.? $PKG/usr/lib${LIBDIRSUFFIX}
-( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  ln -sf libpcap.so.1.?.? libpcap.so.1
-  ln -sf libpcap.so.1 libpcap.so.0
-  ln -sf libpcap.so.1 libpcap.so
-)
-mkdir -p $PKG/usr/doc/libpcap-$LIBVER
-cp -a \
-  CHANGES CREDITS FILES INSTALL.txt LICENSE README README.linux TODO VERSION \
-  $PKG/usr/doc/libpcap-$LIBVER
-
-echo "+================+"
-echo "| tcpdump-$VERSION |"
-echo "+================+"
 cd $TMP
 rm -rf tcpdump-$VERSION
 tar xvf $CWD/tcpdump-$VERSION.tar.gz || exit 1
@@ -104,6 +60,7 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -113,14 +70,16 @@ find . \
   --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
 # Strange, two identical files:
 ( cd $PKG/usr/sbin
   rm -f tcpdump
   ln -s tcpdump.$VERSION tcpdump
 ) || exit 1
+
 mkdir -p $PKG/usr/doc/tcpdump-$VERSION
 cp -a \
-  CHANGES FILES INSTALL README \
+  CHANGES CREDITS FILES INSTALL.txt LICENSE README* VERSION \
   $PKG/usr/doc/tcpdump-$VERSION
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

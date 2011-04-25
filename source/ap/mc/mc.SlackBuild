@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -63,6 +63,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Use geeqie instead of gqview as an external image viewer:
+zcat $CWD/mc.ext.in.geeqie.diff.gz | patch -p1 --verbose || exit 1
+
 if [ ! -x ./configure ]; then
   ./autogen.sh
 fi
@@ -82,10 +85,10 @@ CFLAGS="$SLKCFLAGS" \
   --with-ext2undel \
   --with-x=yes \
   --with-vfs \
-  --with-samba \
-  --with-configdir=/etc/samba \
-  --with-codepagedir=/etc/codepages \
-  --build=$ARCH-slackware-linux
+  --enable-vfs-smb \
+  --with-smb-configdir=/etc/samba \
+  --with-smb-codepagedir=/etc/codepages \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make DESTDIR=$PKG install || exit 1
@@ -97,15 +100,14 @@ mkdir -p $PKG/usr/share/mc/bin
 cp -a $CWD/profile.d/mc-wrapper.* $PKG/usr/share/mc/bin
 chown root:root $PKG/usr/share/mc/bin/*
 chmod 755 $PKG/usr/share/mc/bin/*
+
 mkdir -p $PKG/etc/profile.d
 cp -a $CWD/profile.d/mc.* $PKG/etc/profile.d
 chown root:root $PKG/etc/profile.d/*
 chmod 755 $PKG/etc/profile.d/*
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $(find $PKG/usr/man -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 
 mkdir -p $PKG/usr/doc/mc-$VERSION
 cp -a \
@@ -115,7 +117,6 @@ cp -a \
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/mc-$VERSION-$ARCH-$BUILD.txz
 

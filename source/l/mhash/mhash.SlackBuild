@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,19 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=0.9.9
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+PKGNAM=mhash
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-3}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -36,6 +46,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -46,7 +59,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf mhash-$VERSION
-tar xvf $CWD/mhash-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/mhash-$VERSION.tar.?z* || exit 1
 cd mhash-$VERSION
 chown -R root:root .
 find . \
@@ -62,18 +75,33 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --program-prefix="" \
   --program-suffix="" \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# This caused problems.  Leaving it here to serve as a warning.  ;-)
+#
+## Fix mhash.h so that it does not include its own config.h from
+## autoconf, because this will duplicate macros and mess up anything
+## that tries to use autoconf to include mhash.h...
+#sed -i "s,^#define MUTILS_USE_MHASH_CONFIG,/* #define MUTILS_USE_MHASH_CONFIG */,g" $PKG/usr/include/mhash.h
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/mhash-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL NEWS README THANKS TODO \
+  AUTHORS COPYING* INSTALL NEWS README* THANKS TODO \
   $PKG/usr/doc/mhash-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 gzip -9 $PKG/usr/man/man?/*.?
 

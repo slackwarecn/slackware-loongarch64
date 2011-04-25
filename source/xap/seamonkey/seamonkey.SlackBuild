@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
-BUILD=${BUILD:-1}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+COMM=${COMM:-central}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -40,6 +40,8 @@ else
   LIBDIRSUFFIX=""
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-seamonkey
@@ -47,9 +49,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 
 cd $TMP
-rm -rf comm-1.9.1
+rm -rf comm-$COMM
 tar xvf $CWD/seamonkey-${VERSION}.source.tar.?z* || exit 1
-cd comm-1.9.1 || exit 1
+cd comm-$COMM || exit 1
 
 # Make sure the perms/ownerships are sane:
 chown -R root:root .
@@ -79,12 +81,13 @@ BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
   --enable-strip \
   --disable-tests \
   --enable-svg \
-  --enable-system-cairo \
   --enable-canvas \
   --disable-short-wchar \
   --enable-nspr-autoconf \
   --enable-extensions=default,irc \
   --enable-crypto \
+  --enable-shared-js \
+  --enable-libxul \
   --disable-xprint \
   --without-system-nspr \
   --with-system-zlib \
@@ -101,18 +104,25 @@ make $NUMJOBS || exit 1
 DESTDIR=$PKG make install || exit 1
 
 # Install js/nspr/nss headers.
-for includedir in js nspr nspr/obsolete nspr/private nss plugin xpcom ; do
+for includedir in nspr nspr/obsolete nspr/private ; do
   mkdir -p $PKG/usr/include/seamonkey-${VERSION}/$includedir
   cp -aL mozilla/dist/include/${includedir}/*.h $PKG/usr/include/seamonkey-${VERSION}/$includedir
 done
-cp -aL mozilla/dist/include/js/*.tbl mozilla/dist/include/js/*.msg $PKG/usr/include/seamonkey-${VERSION}/js
+cp -aL mozilla/dist/include/*.tbl mozilla/dist/include/*.msg $PKG/usr/include/seamonkey-${VERSION}
 cp -aL mozilla/dist/include/*.h $PKG/usr/include/seamonkey-${VERSION}
 cp -aL mozilla/dist/sdk/include/* $PKG/usr/include/seamonkey-${VERSION}
-( cd $PKG/usr/include/seamonkey-${VERSION}/plugin
-  for file in ../j*.h ; do
-    ln -sf $file .
-  done
+# compat symlinks
+( cd $PKG/usr/include/seamonkey-${VERSION}
+  ln -sf . js
+  ln -sf . nss
+  ln -sf . plugin
+  ln -sf . xpcom
 )
+#( cd $PKG/usr/include/seamonkey-${VERSION}/plugin
+#  for file in ../j*.h ; do
+#    ln -sf $file .
+#  done
+#)
 chown -R root:root $PKG/usr/include/seamonkey-${VERSION}
 find $PKG/usr/include/seamonkey-${VERSION} -name "*.h" -type f -exec chmod 644 {} \;
 # Create a more generic include files symlink:
@@ -198,9 +208,9 @@ rm -r $TMP/package-seamonkey-solibs
 mkdir -p $TMP/package-seamonkey-solibs/usr/doc
 cp -a $PKG/usr/doc/seamonkey-$VERSION $TMP/package-seamonkey-solibs/usr/doc
 mkdir -p $TMP/package-seamonkey-solibs/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}
-for file in libfreebl3.chk libfreebl3.so libmozjs.so libnspr4.so libnss3.so \
-  libnssckbi.so libnssutil3.so libplc4.so libplds4.so libsmime3.so \
-  libsoftokn3.chk libsoftokn3.so libssl3.so ; do
+for file in libfreebl3.chk libfreebl3.so libmozjs.so libmozsqlite3.so \
+  libnspr4.so libnss* libplc4.so libplds4.so libsmime3.so libsoftokn3.chk \
+  libsoftokn3.so libssl3.so ; do
   cp -a $PKG/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}/$file \
   $TMP/package-seamonkey-solibs/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}
 done

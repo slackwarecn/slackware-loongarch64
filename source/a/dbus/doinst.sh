@@ -18,7 +18,5 @@ if [ -e etc/rc.d/rc.messagebus ]; then
   mv etc/rc.d/rc.messagebus.new.incoming etc/rc.d/rc.messagebus.new
 fi
 
-config etc/dbus-1/session.conf.new
-config etc/dbus-1/system.conf.new
 config etc/rc.d/rc.messagebus.new
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=$(echo LVM2.*.tar.?z* | cut -f 2- -d . | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+VERSION=$(echo LVM2.*.tar.xz | cut -f 2- -d . | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -58,7 +58,7 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf LVM2.$VERSION
-tar xvf $CWD/LVM2.$VERSION.tar.xz
+tar xvf $CWD/LVM2.$VERSION.tar.xz || exit 1
 cd LVM2.$VERSION || exit 1
 
 chown -R root:root .
@@ -68,6 +68,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Fix linking of librt until upstream does it correctly :)
+zcat $CWD/build_with_udev_165_and_later.diff.gz | patch -p1 --verbose || exit 1
+
 # uid 0 = root
 # gid 6 = disk
 CFLAGS="$SLKCFLAGS" \
@@ -75,10 +78,12 @@ CFLAGS="$SLKCFLAGS" \
   --disable-readline \
   --enable-cmdlib \
   --enable-dmeventd \
+  --enable-applib \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --with-usrlibdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --enable-static_link \
+  --enable-realtime \
   --with-lvm1=internal \
   --enable-pkgconfig \
   --enable-udev_sync \
@@ -86,13 +91,16 @@ CFLAGS="$SLKCFLAGS" \
   --with-udev-prefix="" \
   --with-device-uid=0 \
   --with-device-gid=6 \
-  --with-device-mode=0664 \
+  --with-device-mode=0660 \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 mv $PKG/etc/lvm/lvm.conf $PKG/etc/lvm/lvm.conf.new
+
+# Create default rundir
+mkdir -p $PKG/var/run/lvm
 
 if [ -d $PKG/usr/share/man ]; then # --mandir was ignored
   mv $PKG/usr/share/man $PKG/usr
@@ -106,42 +114,29 @@ mkdir -p $PKG/lib${LIBDIRSUFFIX}
     mv $file ../../lib${LIBDIRSUFFIX}
     ln -sf ../../lib${LIBDIRSUFFIX}/$file .
   done
-  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
 )
+
 # The Makefile is DIW.
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
   find . -name "*.so" -type l | cut -b3- | while read file ; do
-    rm -f $file
-    ln -sf ${file}.?.* $file
+    # These two excluded files are in ./device-mapper/ subdir
+    if [ "$file" != "libdevmapper-event-lvm2mirror.so" -a "$file" != "libdevmapper-event-lvm2snapshot.so" ]; then
+      rm -f $file
+      ln -sf $(basename ../../lib${LIBDIRSUFFIX}/${file}.?.*) $file
+    fi
   done
 )
 
-( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
-    xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | \
-    xargs strip --strip-unneeded 2> /dev/null
-)
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/LVM2.$VERSION
 cp -a \
   COPYING* INSTALL README* VERSION WHATS_NEW \
   $PKG/usr/doc/LVM2.$VERSION
 
-# Compress and if needed symlink the man pages:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

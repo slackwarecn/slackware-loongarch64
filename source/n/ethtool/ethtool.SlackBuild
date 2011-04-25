@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2011  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=2.6.33
+PKGNAM=ethtool
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -43,7 +44,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf ethtool-$VERSION
-tar xzf $CWD/ethtool-$VERSION.tar.gz || exit 1
+tar xvf $CWD/ethtool-$VERSION.tar.?z* || exit 1
 cd ethtool-$VERSION || exit 1
 chown -R root:root .
 ./configure \
@@ -55,9 +56,17 @@ strip $PKG/usr/sbin/ethtool
 gzip -9 $PKG/usr/man/man8/ethtool.8
 mkdir -p $PKG/usr/doc/ethtool-$VERSION
 cp -a \
-  AUTHORS COPYING* ChangeLog LICENSE NEWS README* \
+  AUTHORS COPYING* LICENSE NEWS README* \
   $PKG/usr/doc/ethtool-$VERSION
 chmod 644 $PKG/usr/doc/ethtool-$VERSION/*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 # Finish up the package:
 mkdir -p $PKG/install

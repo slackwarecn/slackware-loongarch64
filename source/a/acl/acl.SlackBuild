@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,19 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=2.2.47-1
-ARCH=${ARCH:-x86_64}
+PKGNAM=acl
+VERSION=2.2.50
 BUILD=${BUILD:-1}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i486 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -40,8 +50,8 @@ mkdir -p $TMP $PKG
 cd $TMP
 
 rm -rf acl-$(echo $VERSION | cut -f 1 -d '-')
-tar xzvf $CWD/acl_$VERSION.tar.gz
-cd acl-$(echo $VERSION | cut -f 1 -d '-')
+tar xzvf $CWD/acl-$VERSION.src.tar.gz || exit 1
+cd acl-$(echo $VERSION | cut -f 1 -d '-') || exit 1
 
 chown -R root:root .
 find . \
@@ -77,7 +87,7 @@ mv $PKG/usr/share/doc $PKG/usr
 ( cd $PKG/usr/doc ; mv acl acl-$VERSION )
 #It would be nice to keep the same timestamps that the files have in the source:
 cp -a \
-  README doc/COPYING doc/PORTING \
+  README doc/COPYING* doc/PORTING \
   $PKG/usr/doc/acl-$VERSION
 
 ( cd $PKG

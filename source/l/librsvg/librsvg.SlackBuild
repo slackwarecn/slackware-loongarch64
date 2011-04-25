@@ -20,11 +20,10 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Slackware build script for librsvg
 
-
+PKGNAM=librsvg
 VERSION=${VERSION:-$(echo librsvg-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -70,9 +69,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Patch configure to detect seamonkey-config or mozilla-config
-zcat $CWD/librsvg_seamonkey-config.diff.gz | patch -p1 --verbose || exit 1
-
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -83,6 +79,7 @@ CFLAGS="$SLKCFLAGS" \
   --enable-static=no \
   --with-svgz \
   --build=$ARCH-slackware-linux
+#  --with-croco \
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -90,10 +87,8 @@ make install DESTDIR=$PKG || exit 1
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $(find $PKG/usr/man -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 
 mkdir -p $PKG/usr/doc/librsvg-$VERSION
 cp -a \

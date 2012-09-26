@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-$(echo usbutils-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo usbutils-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j7}
@@ -58,7 +58,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf usbutils-$VERSION
-tar xvf $CWD/usbutils-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/usbutils-$VERSION.tar.xz || exit 1
 cd usbutils-$VERSION || exit 1
 
 chown -R root:root .
@@ -72,19 +72,27 @@ find . \
 rm -f usb.ids*
 wget $(grep 'SRC=' update-usbids.sh.in | cut -d= -f2- | tr -d \")
 
+# Use --datadir=/usr/share/hwdata so usb.ids is expected to be there 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sbindir=/sbin \
   --mandir=/usr/man \
+  --datadir=/usr/share/hwdata \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Get rid of this redundant file:
-rm -f $PKG/usr/share/usb.ids.gz
+rm -f $PKG/usr/share/hwdata/usb.ids.gz
+
+## Use the usb.ids file shipped with the hwdata package
+#rm -f $PKG/usr/share/hwdata/usb.ids*
+
+# Put a compat symlink in place for stuff that doesn't know about pkgconfig
+ln -s hwdata/usb.ids $PKG/usr/share/usb.ids
 
 # The usbids are kept under /usr, so it makes no sense at all to have
 # this util in /sbin rather than /usr/sbin:
@@ -99,10 +107,6 @@ mv $PKG/sbin/update-usbids.sh $PKG/usr/sbin/update-usbids.sh
 # And, since they put the util in /sbin, we'd better at least make the
 # upstream name available there too...
 ( cd $PKG/sbin ; ln -sf /usr/sbin/update-usbids.sh . )
-
-# Move the pkgconfig directory to @libdir@ instead of @datadir@
-mkdir $PKG/usr/lib${LIBDIRSUFFIX}
-mv $PKG/usr/share/pkgconfig $PKG/usr/lib${LIBDIRSUFFIX}
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

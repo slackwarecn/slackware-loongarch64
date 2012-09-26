@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 # Package version number:
 VERSION=2.12
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 YPTOOLS=$VERSION
 YPBINDMT=1.32
@@ -208,7 +208,7 @@ make CFLAGS="$SLKCFLAGS" || exit 1
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/yp
 ( cd scripts
   for file in create_printcap match_printcap pwupdate ypinit ypxfr_1perday ypxfr_1perhour ypxfr_2perday ; do
-    cat $file > $PKG/usr/lib${LIBDIRSUFFIX}/yp/$file
+    cat $file | sed -e "s#/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" > $PKG/usr/lib${LIBDIRSUFFIX}/yp/$file
     chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/yp/$file
   done 
   for file in pwupdate.8 ypinit.8 ; do
@@ -246,7 +246,7 @@ chown root:root $PKG/usr/doc/ypserv-$YPSERV/*
 
 mkdir -p $PKG/etc/rc.d
 zcat $CWD/rc.yp.gz > $PKG/etc/rc.d/rc.yp.new
-chmod 755 $PKG/etc/rc.d/rc.yp.new
+chmod 644 $PKG/etc/rc.d/rc.yp.new
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -265,6 +265,13 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
+
+# Keep same perms on rc.yp.new:
+if [ -e etc/rc.d/rc.yp ]; then
+  cp -a etc/rc.d/rc.yp etc/rc.d/rc.yp.new.incoming
+  cat etc/rc.d/rc.yp.new > etc/rc.d/rc.yp.new.incoming
+  mv etc/rc.d/rc.yp.new.incoming etc/rc.d/rc.yp.new
+fi
 
 config etc/nsswitch.conf-nis.new
 config etc/netgroup.new

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,8 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Build this against 2.6.x kernel source and headers...
-
-VERSION=2.6.37
-BUILD=${BUILD:-1}
+VERSION=3.4.0
+BUILD=${BUILD:-2}
 
 #NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -59,7 +57,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf iproute2-$VERSION
-tar xvf $CWD/iproute2-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/iproute2-$VERSION.tar.xz || exit 1
 cd iproute2-$VERSION
 
 chown -R root:root .
@@ -69,23 +67,30 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Fix up path to bdb and iptables libs
-zcat $CWD/iproute2.fixup_dbpath_and_iptablespath.diff.gz | sed \
-  -e "s,@LIBDIR@,/usr/lib${LIBDIRSUFFIX},g" \
-  -e "s,@VERSION@,$VERSION,g" | patch -p1 || exit 1
-
-# Use our custom SLKCFLAGS
-sed -i "s/-O2 /-O2 -fPIC /" Makefile
+# Fix up path iptables libs
+zcat $CWD/fixup-for-x86_64.diff.gz | patch -p1 || exit 1
 
 ./configure  # This is okay, really :-)
-make $NUMJOBS || exit 1
+
+make \
+  CCOPTS="$SLKCFLAGS" \
+  LIBDIR=/usr/lib${LIBDIRSUFFIX} \
+  CONFDIR=/etc/iproute2 \
+  DOCDIR=/usr/doc/iproute2-$VERSION \
+  MANDIR=/usr/man \
+  DBM_INCLUDE=/usr/include/db44 \
+  $NUMJOBS || exit 1
+
+make install \
+  LIBDIR=/usr/lib${LIBDIRSUFFIX} \
+  CONFDIR=/etc/iproute2 \
+  DOCDIR=/usr/doc/iproute2-$VERSION \
+  MANDIR=/usr/man \
+  DBM_INCLUDE=/usr/include/db44 \
+  DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr
 make install LIBDIR=/usr/lib${LIBDIRSUFFIX} DESTDIR=$PKG/usr/ || exit 1
-
-# I can't seem to make this go to the right place on x86_64, but all the
-# relevant stuff looks correct :/
-[ "$ARCH" = "x86_64" ] && mv $PKG/usr/lib $PKG/usr/lib${LIBDIRSUFFIX} 
 
 # This stuff has always been installed under /sbin rather than
 # /usr/sbin, as the latter could possibly be network-mounted, and
@@ -100,7 +105,6 @@ mv $PKG/usr/sbin/* $PKG/sbin
   done
 )
 
-mv $PKG/usr/etc $PKG
 # Don't clobber existing config files
 for file in $PKG/etc/iproute2/* ; do
   mv $file ${file}.new
@@ -109,8 +113,7 @@ done
 # Remove junk:
 [ -d $PKG/usr/usr ] && rm -r $PKG/usr/usr
 [ -d $PKG/usr/var ] && rm -r $PKG/usr/var
-
-mkdir -p $PKG/var/lib/arpd
+[ -d $PKG/usr/etc ] && rm -r $PKG/usr/etc
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

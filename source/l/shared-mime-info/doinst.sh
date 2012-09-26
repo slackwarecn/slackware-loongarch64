@@ -6,7 +6,7 @@ if [ -x /usr/bin/update-mime-database ]; then
     if [ -d $homedir/.local/share/mime ]; then
       username=$(echo $passwdline | cut -f 1 -d :)
       # Sorry about the long command line, alienBOB  ;-)
-      su $username -c "/usr/bin/update-mime-database $homemimedir 1>/dev/null 2>/dev/null" 2> /dev/null
+      su $username -c "/usr/bin/update-mime-database $homedir/.local/share/mime 1>/dev/null 2>/dev/null" 2> /dev/null
     fi
   done
   # This is just "cleanup" in case something might be missed in /home/*/

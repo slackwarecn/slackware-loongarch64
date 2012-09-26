@@ -13,5 +13,7 @@ config() {
 
 config etc/ca-certificates.conf.new
 
-chroot . usr/sbin/update-ca-certificates --fresh 1>/dev/null 2>/dev/null
+if [ -x /usr/sbin/update-ca-certificates ]; then
+  /usr/sbin/update-ca-certificates --fresh 1> /dev/null 2> /dev/null
+fi
 

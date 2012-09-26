@@ -1,5 +1,6 @@
 #!/bin/sh
 # Copyright 2009 Eric Hameleers, Eindhoven, NL
+# Copyright 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -23,7 +24,7 @@
 
 PKGNAM=loudmouth
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:" -j4 "}
 
@@ -71,6 +72,7 @@ zcat $CWD/loudmouth.gnutls.configure.ac.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/loudmouth.async_assertion.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/loudmouth.sasl-md5-digest-uri.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/loudmouth.stanzadrop.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/loudmouth-1.4.3-glib-compile-fix.patch.gz | patch -p1 --verbose || exit 1
 
 # needed after the configure.ac gnutls patch
 autoreconf
@@ -94,12 +96,17 @@ LDFLAGS="$SLKLDFLAGS" \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --with-ssl=gnutls \
-  --enable-debug=no \
+  --enable-debug=yes \
   --enable-static=no \
   --program-prefix= \
   --program-suffix= \
   --build=$ARCH-slackware-linux \
   --host=$ARCH-slackware-linux
+
+##
+## NOTE: For some reason --enable-debug=yes actually _disables_ verbose debug
+## messages to the console.  Don't mess with it!
+##
 
 # this generates a broken libtool, so use the system version:
 cp /usr/bin/libtool .

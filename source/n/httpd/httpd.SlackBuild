@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@
 
 PKGNAM=httpd
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -73,29 +73,49 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# "prefork" is the default, safe, mpm type.  If you *are not* using PHP, and you
-# like to live on the bleeding edge, you may wish to change the --with-mpm option
-# to "worker", which is the new way of doing things, but is multithreaded and
-# many scripts (especially PHP ones) are not multithread safe.
+# A brief note about mpms:
 #
-# I'd leave this option the way is it on any production box that's keeping up
-# with HTTP requests.  No reason to chance it, IMHO.
+# "prefork" is the legacy forked mpm, used with mod_php. Starting with httpd 
+# 2.4.0, new threaded mpms are available, and previously experimental mpms are
+# now stable
+#
+# Non-threaded mpms are no longer required, since php applications can now be
+# deployed with the help of mod_fcgid, essentially a set of fixed dedicated cgi
+# processes spawned for the whole purpose of executing dynamic applications
+#
+# Threaded mpms, by their very nature, are far more scalable than the
+# traditional preforking solution. They consume less memory for the same
+# workload, when serving the same amount of clients. httpd 2.4 ships with two
+# options, "event" and "worker", where the former is the default mpm used if
+# none is specified at the ./configure line
+#
+# Lastly, the "prefork" mpm can be used with mod_php as of version 5.4.0,
+# which yields a much improved stability, even with most mod_php extensions
+# loaded.
+#
+# The running mpm can be changed by simply loading the module. Here is a sample:
+# LoadModule mpm_event_module lib(64)/httpd/modules/mod_mpm_event.so
+#
+# When upgrading from 2.2, please make sure to stop the deamon first, or your
+# new instance may segfault.
 
-zcat $CWD/config.layout.diff.gz | sed -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" | patch --verbose -p1 || exit 1
+# Fix config.layout to use lib${LIBDIRSUFFIX}:
+sed -i -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" config.layout
 
-# Patch to fix aliasing issue exposed by gcc-4.5.1:
-zcat $CWD/httpd.brigade_move.__noinline__.gcc451.diff.gz | patch --verbose -p1 || exit 1
+# If /var/run becomes a tmpfs or a link to /run, subdirectories could be a problem.
+# Just use /var/run rather than /var/run/httpd.
+sed -i -e "s#/run/httpd#/run#" config.layout
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --enable-layout=Slackware-FHS \
-  --with-mpm=prefork \
   --with-apr=/usr \
   --with-apr-util=/usr \
   --enable-mods-shared=all \
   --enable-so \
+  --enable-mpms-shared=all \
   --enable-pie \
   --enable-cgi \
   --with-pcre \
@@ -105,12 +125,10 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-proxy \
   --enable-proxy-http \
   --enable-proxy-ftp \
-  --enable-proxy-balancer \
   --enable-cache \
   --enable-mem-cache \
   --enable-file-cache \
   --enable-disk-cache \
-  --disable-speling \
   --enable-dav \
   --enable-ldap \
   --enable-authnz-ldap \
@@ -126,8 +144,12 @@ rmdir $PKG/usr/bin
 
 # Tweak default apache configuration
 ( cd $PKG
-  zcat $CWD/httpd.nossldefault.diff.gz | sed -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" | patch -p1 --verbose || exit 1
   zcat $CWD/httpd.runasapache.diff.gz | patch -p1 --verbose || exit 1
+  # mod_proxy_balancer should be commented out, as otherwise httpd
+  # will not start without additional configuration:
+  sed -i "s/^LoadModule proxy_balancer_module/#LoadModule proxy_balancer_module/g" $PKG/etc/httpd/httpd.conf
+  # This module issues a warning unless some non-default modules are loaded:
+  sed -i "s/^LoadModule lbmethod_heartbeat_module/#LoadModule lbmethod_heartbeat_module/g" $PKG/etc/httpd/httpd.conf
   rm -f $PKG/etc/httpd/httpd.conf~ $PKG/etc/httpd/httpd.conf.orig
 ) || exit 1
 # Change config files to .new:
@@ -144,7 +166,7 @@ cat << EOF >> $PKG/etc/httpd/httpd.conf.new
 #
 #Include /etc/httpd/mod_php.conf
 
-# Uncomment the following lines to enable svn support:
+# Uncomment the following lines (and mod_dav above) to enable svn support:
 #
 #LoadModule dav_svn_module lib${LIBDIRSUFFIX}/httpd/modules/mod_dav_svn.so
 #LoadModule authz_svn_module lib${LIBDIRSUFFIX}/httpd/modules/mod_authz_svn.so

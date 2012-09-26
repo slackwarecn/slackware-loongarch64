@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,18 +20,22 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Modified 2011 by Eric Hameleers <alien at slackware.com> for ARM port.
+
 
 PKGNAM=binutils
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *)       export ARCH=$MARCH ;;
   esac
 fi
 
@@ -59,13 +63,29 @@ if [ "$ARCH" = "i486" ]; then
   # The config option below is currently needed to compile on x86:
   WERROR="--enable-werror=no"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  # The config option below is currently needed to compile on x86:
+  WERROR="--enable-werror=no"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -76,7 +96,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf binutils-$VERSION
-tar xvf $CWD/binutils-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/binutils-$VERSION.tar.xz || \
+  tar xvf $CWD/binutils-$VERSION.tar.bz2 || exit 1
 cd binutils-$VERSION
 
 chown -R root:root .
@@ -85,6 +106,11 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# End of preparations
+if echo "$*" | grep -qw -- --prep ; then
+  exit 0
+fi
 
 # Build for an x86 glibc2-based Linux system:
 CFLAGS="$SLKCFLAGS" \
@@ -99,11 +125,11 @@ CFLAGS="$SLKCFLAGS" \
   --enable-64-bit-bfd \
   --enable-plugins \
   --enable-threads \
-  --enable-targets=$ARCH-slackware-linux \
+  --enable-targets=i386-efi-pe,${TARGET} \
   $GOLD \
   $NO_INITFINI \
   $WERROR \
-  --build=$ARCH-slackware-linux \
+  --build=$TARGET \
   || exit 1
 
 make clean || exit 1
@@ -118,8 +144,8 @@ cp -a include/libiberty.h $PKG/usr/include/libiberty.h
 ( cd $PKG/usr/man/man1 ; mv strings.1 strings-GNU.1 )
 
 # Move ldscripts to /usr/lib${LIBDIRSUFFIX}, and then put symlinks in place
-mv $PKG/usr/${ARCH}-slackware-linux/lib/ldscripts $PKG/usr/lib${LIBDIRSUFFIX}
-( cd $PKG/usr/${ARCH}-slackware-linux
+mv $PKG/usr/${TARGET}/lib/ldscripts $PKG/usr/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/${TARGET}
   ln -s /usr/lib${LIBDIRSUFFIX}/ldscripts lib/ldscripts
   for FILE in ar as ld ld.bfd ld.gold nm objcopy objdump ranlib strip ; do
     if [ -r "/usr/bin/$FILE" ]; then

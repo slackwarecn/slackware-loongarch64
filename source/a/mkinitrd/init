@@ -78,6 +78,7 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin"
 # Mount /proc and /sys:
 mount -n proc /proc -t proc
 mount -n sysfs /sys -t sysfs
+mount -n tmpfs /run -t tmpfs -o mode=0755
 
 if grep devtmpfs /proc/filesystems 1>/dev/null 2>/dev/null ; then
   DEVTMPFS=1
@@ -123,7 +124,17 @@ for ARG in $(cat /proc/cmdline); do
   esac
 done
 
-# Load kernel modules:
+# If udevd is available, use it to generate block devices
+# else use mdev to read sysfs and generate the needed devices 
+if [ -x /sbin/udevd -a -x /sbin/udevadm ]; then
+  /sbin/udevd --daemon --resolve-names=never
+  /sbin/udevadm trigger --subsystem-match=block --action=add
+  /sbin/udevadm settle --timeout=10
+else
+  [ "$DEVTMPFS" != "1" ] && mdev -s
+fi
+
+# Load kernel modules (ideally this was already done by udev):
 if [ ! -d /lib/modules/$(uname -r) ]; then
   echo "No kernel modules found for Linux $(uname -r)."
 elif [ -x ./load_kernel_modules ]; then # use load_kernel_modules script:
@@ -142,16 +153,6 @@ fi
 # Sometimes the devices need extra time to be available.
 # A root filesystem on USB is a good example of that.
 sleep $WAIT
-
-# If udevd is available, use it to generate block devices
-# else use mdev to read sysfs and generate the needed devices 
-if [ -x /sbin/udevd -a -x /sbin/udevadm ]; then
-  /sbin/udevd --daemon --resolve-names=never
-  /sbin/udevadm trigger --subsystem-match=block --action=add
-  /sbin/udevadm settle --timeout=10
-else
-  [ "$DEVTMPFS" != "1" ] && mdev -s
-fi
 
 # Load a custom keyboard mapping:
 if [ -n "$KEYMAP" ]; then
@@ -222,7 +223,9 @@ if [ "$RESCUE" = "" ]; then
 
   # Initialize LVM:
   if [ -x /sbin/vgchange ]; then
-    /sbin/vgchange -ay --ignorelockingfailure
+    mkdir -p /var/lock/lvm	# this avoids useless warnings
+    /sbin/vgchange -ay --ignorelockingfailure 2>/dev/null
+    /sbin/udevadm settle --timeout=10
   fi
   
   # Unlock any LUKS encrypted devices that were deferred above but have now
@@ -247,8 +250,14 @@ if [ "$RESCUE" = "" ]; then
         echo "LUKS device '${LUKSDEV}' unavailable for unlocking!"
       fi
     done
+    /sbin/udevadm settle --timeout=10
   fi
 
+  # Scan for btrfs multi-device filesystems:
+  if [ -x /sbin/btrfs ]; then
+    /sbin/btrfs device scan
+  fi
+  
   # Find root device if a label or UUID was given:
   if echo $ROOTDEV | grep -q "LABEL=" || \
      echo $ROOTDEV | grep -q "UUID=" ; then
@@ -264,14 +273,16 @@ if [ "$RESCUE" = "" ]; then
   # Resume state from swap
   if [ "$RESUMEDEV" != "" ]; then
     if ls -l $RESUMEDEV | grep -q "^l" ; then
-      RESUMEDEV=$(ls -l $RESUMEDEV | awk '{ print $NF }')
+      #RESUMEDEV=$(ls -l $RESUMEDEV | awk '{ print $NF }')
+      RESUMEDEV=$(readlink -f $RESUMEDEV)
     fi
     echo "Trying to resume from $RESUMEDEV"
     RESMAJMIN=$(ls -l $RESUMEDEV | tr , : | awk '{ print $5$6 }')
     echo $RESMAJMIN > /sys/power/resume
   fi
-  
+
   # Switch to real root partition:
+  /sbin/udevadm settle --timeout=10
   echo 0x0100 > /proc/sys/kernel/real-root-dev
   mount -o ro -t $ROOTFS $ROOTDEV /mnt
   
@@ -296,14 +307,16 @@ else
   /bin/sh
 fi
 
-if pgrep udevd >/dev/null ; then
-  /sbin/udevadm settle --timeout=30
-  pkill udevd
-fi
+# Need to make sure OPTIONS+="db_persist" exists for all dm devices
+# That should be handled in /sbin/mkinitrd now
+/sbin/udevadm info --cleanup-db
+/sbin/udevadm control --exit
 
 unset ERR
 mount -o move /proc /mnt/proc
 mount -o move /sys /mnt/sys
+mount -o move /run /mnt/run
+
 [ "$DEVTMPFS" = "1" ] && mount -o move /dev /mnt/dev
 echo "${INITRD}:  exiting"
 exec switch_root /mnt $INIT $RUNLEVEL

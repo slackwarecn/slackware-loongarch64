@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,9 @@
 
 # Slackware build script for bash-completion
 
-VERSION=1.3
+VERSION=2.0
 ARCH=noarch
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-2}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -46,6 +46,9 @@ find . \
 # Fixup sh completion for us
 zcat $CWD/fixup-sh-script-completions.diff.gz | patch -p1 --verbose || exit 1
 
+# Support the XFCE package set
+zcat $CWD/slackpkg-slapt-get-Update-the-list-of-package-sets.patch.gz | patch -p1 --verbose || exit 1
+
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
@@ -56,18 +59,7 @@ zcat $CWD/fixup-sh-script-completions.diff.gz | patch -p1 --verbose || exit 1
 make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-mkdir -p $PKG/etc/profile.d
-zcat $CWD/bash_completion.sh.gz > $PKG/etc/profile.d/bash_completion.sh
 chmod 0755 $PKG/etc/profile.d/bash_completion.sh
-
-# Sorry, but these contrib scripts have been causing a lot of problems.
-# If these are merged with upstream (and hopefully debugged) then we
-# will have them, but adding them at this level is IMHO a mistake.
-## https://github.com/GArik/bash-completion
-## GArik has a 'slackware' branch with quite a few enhancements
-#for i in pkgtools rpm2tgz sbopkg slackpkg slapt ; do
-#  cat $CWD/contrib/$i > $PKG/etc/bash_completion.d/$i ;
-#done
 
 mkdir -p $PKG/usr/doc/bash-completion-$VERSION
 cp -a \

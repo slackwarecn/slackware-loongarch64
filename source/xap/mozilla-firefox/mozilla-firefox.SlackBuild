@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,6 +24,24 @@
 # distribute this, and for all the great work!  :-)
 
 VERSION=$(basename $(ls firefox-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
+RELEASEVER=$(echo $VERSION | cut -f 1 -d r | cut -f 1 -d b)
+BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-mozilla-firefox
+
+# Figure out if this is a beta, or a release:
+if echo $VERSION | grep -q b ; then # we think it is a beta
+  if bzgrep -q mozilla-beta/ $CWD/firefox-$VERSION.source.tar.bz2 ; then
+    MOZVERS=${MOZVERS:-beta}
+  else # blindly assume it is a release
+    MOZVERS=${MOZVERS:-release}
+  fi
+else # release, no "b" in the tarball version:
+  MOZVERS=${MOZVERS:-release}
+fi
+
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -33,12 +51,6 @@ if [ -z "$ARCH" ]; then
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
-BUILD=${BUILD:-2}
-
-MOZVERS=${MOZVERS:-2.0}
-RELEASEVER=$(echo $VERSION | cut -f 1 -d r)
-
-NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Try to be gentle to the compiler, no optimizations:
 if [ "$ARCH" = "i486" ]; then
@@ -58,9 +70,7 @@ elif [ "$ARCH" = "armel" ]; then
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-mozilla-firefox
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
@@ -92,12 +102,27 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+if gcc --version | grep -q "gcc (GCC) 4.7.0" ; then 
+ # Enable compiling with gcc-4.7.0:
+ sed -i '/fcntl.h/a#include <unistd.h>' \
+   ipc/chromium/src/base/{file_util_linux,message_pump_libevent,process_util_posix}.cc &&
+ sed -i '/sys\/time\.h/a#include <unistd.h>' ipc/chromium/src/base/time_posix.cc &&
+ sed -i 's#\"PRIxPTR#\" PRIxPTR#' layout/base/tests/TestPoisonArea.cpp &&
+ sed -i 's# ""##' browser/base/Makefile.in
+fi
+
+# Mozilla devs enforce using an objdir for building
+# and launching configure with the absolute path
+# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
+mkdir obj
+cd obj
 export MOZILLA_OFFICIAL="1" &&
 export BUILD_OFFICIAL="1" &&
 export MOZ_PHOENIX="1" &&
 export CFLAGS="$SLKCFLAGS" &&
 export CXXFLAGS="$SLKCFLAGS" &&
-./configure \
+export MOZ_MAKE_FLAGS="$NUMJOBS" &&
+$TMP/mozilla-$MOZVERS/configure \
   --enable-official-branding \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -105,7 +130,6 @@ export CXXFLAGS="$SLKCFLAGS" &&
   --with-system-zlib \
   --enable-application=browser \
   --enable-default-toolkit=cairo-gtk2 \
-  --enable-system-cairo \
   --enable-startup-notification \
   --enable-crypto \
   --enable-svg \
@@ -121,6 +145,7 @@ export CXXFLAGS="$SLKCFLAGS" &&
   --enable-single-profile \
   --disable-ldap \
   --disable-accessibility \
+  --disable-crashreporter \
   --disable-debug \
   --disable-tests \
   --disable-pedantic \
@@ -131,9 +156,16 @@ export CXXFLAGS="$SLKCFLAGS" &&
   # Complains about missing APNG support in Slackware's libpng:
   #--with-system-png \
 
+# This option breaks mozilla-12.0:
+# --enable-system-cairo \
+#
+
 #make -f client.mk build MOZ_MAKE_FLAGS="$NUMJOBS" || exit 1
-make MOZ_MAKE_FLAGS="$NUMJOBS" || exit 1
+make MOZ_MAKE_FLAGS="$NUMJOBS" $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Exit obj directory:
+cd ..
 
 # We don't need these (just symlinks anyway):
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/firefox-devel-$RELEASEVER
@@ -146,11 +178,13 @@ rm -rf $PKG/usr/include
   if [ -d defaults/profile ]; then
     zcat $CWD/mimeTypes.rdf > defaults/profile/mimeTypes.rdf || exit 1
   fi
-  zcat $CWD/firefox.moz_plugin_path.diff.gz \
-    | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
-    | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  # OK, this patch is useless on 7.x.  We'll float without it and see what happens.
+  # Perhaps it won't make a difference or should be worked around elsewhere.
+  #zcat $CWD/firefox.moz_plugin_path.diff.gz \
+  #  | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
+  #  | patch -p1 --verbose --backup --suffix=.orig || exit 1
   # Clean up if the above patch was successful:
-  rm -f firefox.orig
+  #rm -f firefox.orig
 ) || exit
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins

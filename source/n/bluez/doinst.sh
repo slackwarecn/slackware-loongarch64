@@ -25,5 +25,4 @@ config etc/bluetooth/main.conf.new
 config etc/bluetooth/network.conf.new
 config etc/bluetooth/serial.conf.new
 config etc/bluetooth/rfcomm.conf.new
-config etc/modprobe.d/bluetooth.conf.new
 

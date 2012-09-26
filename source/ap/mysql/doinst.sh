@@ -19,4 +19,5 @@ if [ -e etc/rc.d/rc.mysqld ]; then
 fi
 
 config etc/rc.d/rc.mysqld.new
+config etc/mysqlaccess.conf.new
 

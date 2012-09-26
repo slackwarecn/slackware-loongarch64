@@ -22,7 +22,7 @@
 
 PKGNAM=cyrus-sasl
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -58,6 +58,10 @@ cd $TMP
 rm -rf cyrus-sasl-$VERSION
 tar xvf $CWD/cyrus-sasl-$VERSION.tar.?z* || exit 1
 cd cyrus-sasl-$VERSION || exit 1
+
+# Fix compiling:
+zcat $CWD/cyrus-sasl.bad_elif.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . -perm 777 -exec chmod 755 {} \;
 find . -perm 664 -exec chmod 644 {} \;
@@ -69,6 +73,7 @@ CFLAGS="$SLKCFLAGS" \
   --with-configdir=/etc/sasl2 \
   --sysconfdir=/etc \
   --localstatedir=/var \
+  --mandir=/usr/man \
   --disable-static \
   --enable-login \
   --disable-anon \
@@ -81,6 +86,16 @@ CFLAGS="$SLKCFLAGS" \
 # will look for them in /usr/lib64/sasl2" and advised to create a symlink...
 make sasldir=/usr/lib${LIBDIRSUFFIX}/sasl2 || exit 1
 make sasldir=/usr/lib${LIBDIRSUFFIX}/sasl2 install DESTDIR=$PKG || exit 1
+
+# NOTE:  I'd _like_ to get rid of these, but they are already tangled into
+# other .la files, and then those packages would need to be recompiled.  And
+# likely I'd want to get rid of those .la files, which would lead to more
+# fallout, etc, etc.  So we'll put these back and plan a giant .la eradication
+# effort early in a future development cycle.
+#
+# Don't ship .la files.
+#rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la $PKG/usr/lib${LIBDIRSUFFIX}/sasl2/*.la
+
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

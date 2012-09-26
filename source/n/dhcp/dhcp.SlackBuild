@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -77,6 +77,15 @@ find . \
 # Add PATH setting to /sbin/dhclient-script
 zcat $CWD/dhclient-script.PATH.diff.gz | patch -p1 || exit 1
 
+# Fix paths in manual pages
+sed -i \
+    -e "s,ETCDIR,/etc,g" \
+    -e "s,DBDIR,/var/state/dhcp,g" \
+    -e "s,RUNDIR,/var/run,g" \
+    client/*.{5,8} \
+    server/*.{5,8} \
+    doc/*/*.{5,8}
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -152,6 +161,14 @@ cp -a \
   $PKG/usr/doc/dhcp-$VERSION
 mv $PKG/etc/dhcpd.conf $PKG/etc/dhclient.conf \
   $PKG/usr/doc/dhcp-$VERSION/examples
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

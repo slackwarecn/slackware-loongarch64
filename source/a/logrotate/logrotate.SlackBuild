@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +20,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=${VERSION:-3.7.8}
+VERSION=${VERSION:-3.8.2}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -68,7 +68,7 @@ find . \
 zcat $CWD/logrotate.slackware.diff.gz | patch -p1 || exit 1
 
 make clean
-make EXTRA_CFLAGS="$SLKCFLAGS" || exit 1
+make RPM_OPT_FLAGS="$SLKCFLAGS" || exit 1
 strip logrotate
 
 mkdir -p $PKG/usr/sbin
@@ -87,13 +87,18 @@ mkdir -p $PKG/etc/cron.daily
 zcat $CWD/logrotate.cron.gz > $PKG/etc/cron.daily/logrotate
 chmod 0755 $PKG/etc/cron.daily/logrotate
 
-# Create the state directory
-mkdir -p $PKG/var/lib/logrotate
-
 mkdir -p $PKG/usr/doc/logrotate-$VERSION
 cp -a \
   CHANGES COPYING READM* \
     $PKG/usr/doc/logrotate-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

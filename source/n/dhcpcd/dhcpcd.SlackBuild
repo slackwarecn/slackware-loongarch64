@@ -72,8 +72,7 @@ find . \
 # /etc/rc.d/rc.S, and /var should not be on a network filesystem.  As such,
 # we'll use the FHS layout instead of putting things in /etc/dhcpc 
 
-# Fixup the 50-ntp.conf hook with our init script location
-zcat $CWD/50-ntp.conf.diff.gz | patch -p1 || exit 1
+zcat $CWD/define-SERVICEstuff-for-Slackware.patch.gz | patch -p1 || exit 1
 
 # Yes, /lib/dhcpcd is correct, even on x86_64.
 CFLAGS="$SLKCFLAGS" \
@@ -85,7 +84,6 @@ CFLAGS="$SLKCFLAGS" \
   --dbdir=/var/lib/dhcpcd \
   --libexecdir=/lib/dhcpcd \
   --mandir=/usr/man \
-  --with-hooks="50-ntp.conf 50-yp.conf" \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -97,15 +95,32 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 # Let's not clobber the config file
 mv $PKG/etc/dhcpcd.conf $PKG/etc/dhcpcd.conf.new
 
-# Compress manpages
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 mkdir -p $PKG/usr/doc/dhcpcd-$VERSION
 cp -a README* $PKG/usr/doc/dhcpcd-$VERSION
 zcat $CWD/COPYRIGHT.gz > $PKG/usr/doc/dhcpcd-$VERSION/COPYRIGHT
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

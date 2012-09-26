@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Copyright 2010  Eric Hameleers, Eindhoven, NL
-# Copyright 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 
 PKGNAM=hunspell
-VERSION=${VERSION:-1.2.9}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -35,12 +35,14 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 # Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *)       export ARCH=$MARCH ;;
   esac
 fi
 
@@ -53,10 +55,18 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
@@ -83,7 +93,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-static \
   --with-ui \
   --with-readline \
-  --build=$ARCH-slackware-linux \
+  --build=$TARGET
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

@@ -25,17 +25,12 @@ fi
 # This should catch *all* files in /etc/modprobe.d/ and move them over to
 # have .conf extensions
 for modfile in $(ls etc/modprobe.d/ | grep -v "\.\(conf\|bak\|orig\|new\)"); do
-  if [ -e etc/modprobe.d/$modfile -a ! -e etc/modprobe.d/$modfile.conf ]; then
+  if [ "$modfile" = README ]; then
+    true # do nothing
+  elif [ -e etc/modprobe.d/$modfile -a ! -e etc/modprobe.d/$modfile.conf ]; then
     mv etc/modprobe.d/$modfile etc/modprobe.d/$modfile.conf
   elif [ -e etc/modprobe.d/$modfile -a -e etc/modprobe.d/$modfile.conf ]; then
     mv etc/modprobe.d/$modfile etc/modprobe.d/$modfile.bak
   fi
 done
-
-config etc/modprobe.d/blacklist.conf.new
-config etc/modprobe.d/isapnp.conf.new
-config etc/modprobe.d/psmouse.conf.new
-config etc/modprobe.d/usb-controller.conf.new
-
-/sbin/udevadm info --convert-db 1>/dev/null 2>/dev/null
 

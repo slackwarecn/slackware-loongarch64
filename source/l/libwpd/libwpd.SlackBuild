@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=0.8.14
+VERSION=${VERSION:-$(echo libwpd-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -58,7 +58,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf libwpd-$VERSION
-tar xvf $CWD/libwpd-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/libwpd-$VERSION.tar.?z* || exit 1
 cd libwpd-$VERSION
 chown -R root:root .
 find . \
@@ -72,6 +72,7 @@ CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --without-docs \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -85,9 +86,8 @@ cp -a \
   CHANGES COPYING CREDITS HACKING INSTALL README TODO \
   $PKG/usr/doc/libwpd-$VERSION
 
-# Developers may find these docs in the source interesting, but most users won't:
-rm -rf $PKG/usr/share/doc
-rmdir $PKG/usr/share
+# Remove empty folder:
+rm -rf $PKG/usr/share
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

@@ -83,8 +83,9 @@ if [ -x /usr/bin/fc-cache ]; then
   /usr/bin/fc-cache -f &
 fi
 
-# If we are returning from single-user mode we will need to restart
-# udevd on systems that use udev:
+# Run rc.udev again.  This will start udev if it is not already running
+# (for example, upon return from runlevel 1), otherwise it will trigger it
+# to look for device changes and to generate persistent rules if needed.
 if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev ]; then
@@ -187,9 +188,11 @@ if [ -x /etc/rc.d/rc.bluetooth ]; then
   sh /etc/rc.d/rc.bluetooth start
 fi
 
-# Start wicd:
-if [ -x /etc/rc.d/rc.wicd ]; then
+# Start wicd or networkmanager:
+if [ -x /etc/rc.d/rc.wicd -a -x /usr/sbin/wicd ]; then
   sh /etc/rc.d/rc.wicd start
+elif [ -x /etc/rc.d/rc.networkmanager ]; then
+  sh /etc/rc.d/rc.networkmanager start
 fi
 
 # These GTK+/pango files need to be kept up to date for
@@ -225,7 +228,7 @@ fi
 
 # Start netatalk. (a file/print server for Macs using Appletalk)
 if [ -x /etc/rc.d/rc.atalk ]; then
-  /etc/rc.d/rc.atalk
+  /etc/rc.d/rc.atalk start
 fi
 
 # Start smartd, which monitors the status of S.M.A.R.T. compatible

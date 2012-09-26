@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 
 PKGNAM=cryptsetup
-VERSION=${VERSION:-1.2.0}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -121,7 +121,20 @@ if [ -r ChangeLog ]; then
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
-find $PKG/usr/man -type f -name "*.?" -exec gzip -9f {} \; || true
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

@@ -80,7 +80,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-gtk-doc \
   --disable-static \
-  --disable-introspection \
+  --enable-introspection \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -97,6 +97,14 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a AUTHORS COPYING HACKING NEWS README TODO \
   $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

@@ -25,12 +25,14 @@ VERSION=${VERSION:-$(echo acpid-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d -
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *)       export ARCH=$MARCH ;;
   esac
 fi
 
@@ -40,9 +42,22 @@ PKG=$TMP/package-acpid
 
 NUMJOBS=${NUMJOBS:--j8}
 
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
-
 cd $TMP
 rm -rf acpid-$VERSION
 tar xvf $CWD/acpid-$VERSION.tar.?z* || exit 1
@@ -54,15 +69,29 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-make install \
-  OPT="-O2" \
-  PREFIX=/usr \
-  MANDIR=/usr/man \
-  DOCDIR=/usr/doc/acpid-$VERSION \
-  DESTDIR=$PKG \
-  || exit 1
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/acpid-$VERSION \
+  --build=$ARCH-slackware-linux
 
-strip --strip-unneeded $PKG/usr/bin/acpi_listen $PKG/usr/sbin/acpid
+make
+make install DESTDIR=$PKG
+
+find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | \
+  grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

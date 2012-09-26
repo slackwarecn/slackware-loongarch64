@@ -1,8 +1,14 @@
 # Pull a stable branch + patches
 BRANCH=master
 
-rm -rf xf86-video-nouveau
-git clone git://anongit.freedesktop.org/git/nouveau/xf86-video-nouveau/
+#rm -rf xf86-video-nouveau
+if [ -d xf86-video-nouveau ]; then
+  cd xf86-video-nouveau
+  git pull -f
+  cd ..
+else
+  git clone git://anongit.freedesktop.org/git/nouveau/xf86-video-nouveau/
+fi
 
 # use master branch
 #( cd xf86-video-nouveau 

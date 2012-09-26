@@ -1,7 +1,7 @@
 #!/bin/bash
-# $Id: usbimg2disk.sh,v 1.20 2011/04/16 19:11:27 eha Exp eha $
+# $Id: usbimg2disk.sh,v 1.23 2012/09/03 20:52:31 eha Exp eha $
 #
-# Copyright 2009, 2010, 2011  Eric Hameleers, Eindhoven, NL
+# Copyright 2009, 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -38,7 +38,7 @@ cleanup() {
   [ ! -z "${MNTDIR2}" ] && ( umount -f ${MNTDIR2} ; rmdir $MNTDIR2 )
   [ ! -z "${MNTDIR3}" ] && rm -rf ${MNTDIR3} || true
 }
-trap "echo \"*** $0 FAILED at line $LINENO ***\"; cleanup; exit 1" ERR INT TERM
+trap 'echo "*** $0 FAILED at line $LINENO ***"; cleanup; exit 1' ERR INT TERM
 
 showhelp() {
   echo "# "
@@ -234,7 +234,7 @@ else
 fi
 
 # Prepare the environment:
-MININSFREE=2000               # minimum in MB required for a Slackware tree
+MININSFREE=2200               # minimum in MB required for a Slackware tree
 UNATTENDED=${UNATTENDED:-0}   # unattended means: never ask questions.
 REFORMAT=${REFORMAT:-0}       # do not try to reformat by default
 LOGFILE=${LOGFILE:-/dev/null} # silence by default
@@ -286,18 +286,32 @@ if mount | grep -q $TARGETPART ; then
   exit 1
 fi
 
-# Check for prerequisites:
+# Do not croak if we have a Slackware tree without sources:
+if [ ! $(readlink -f ${REPOSROOT}/extra/java ) ]; then
+   EXCLUDES="${EXCLUDES} --exclude=extra/java"
+fi
+
+# Check for prerequisites which may not always be installed:
+MISSBIN=0
 MBRBIN="/usr/lib/syslinux/mbr.bin"
 if [ ! -r $MBRBIN ]; then MBRBIN="/usr/share/syslinux/mbr.bin"; fi
 if [ ! -r $MBRBIN -o ! -x /usr/bin/syslinux ]; then
   echo "*** This script requires that the 'syslinux' package is installed!"
-  exit 1
+  MISSBIN=1
 fi
-
 if [ ! -x /usr/bin/mtools ]; then
   echo "*** This script requires that the 'floppy' (mtools) package is installed!"
-  exit 1
+  MISSBIN=1
 fi
+if [ ! -x /sbin/mkdosfs ]; then
+  echo "*** This script requires that the 'dosfstools' package is installed!"
+  MISSBIN=1
+fi
+if [ ! -x /bin/cpio ]; then
+  echo "*** This script requires that the 'cpio' package is installed!"
+  MISSBIN=1
+fi
+if [ $MISSBIN -eq 1 ]; then exit 1 ; fi
 
 # Show the USB device's information to the user:
 if [ $UNATTENDED -eq 0 ]; then
@@ -338,6 +352,7 @@ else
   # Prepare for using mlabel to change the FAT label:
   MTOOLSRCFILE=$(mktemp -p /tmp -t mtoolsrc.XXXXXX)
   echo "drive s: file=\"$TARGETPART\"" > $MTOOLSRCFILE
+  echo "mtools_skip_check=1" >> $MTOOLSRCFILE
 
   if [ -n "$CUSTOMLABEL" ]; then
     # User gave us a FAT label to use, so we will force that upon the drive:

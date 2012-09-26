@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,11 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-2.6.6}
-BUILD=${BUILD:-1}
+PKGNAM=python
+SRCNAM=Python
+VERSION=$(echo $SRCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+BRANCH_VERSION=$(echo $VERSION | cut -f 1,2 -d . )
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -38,7 +41,7 @@ fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-python
+PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
@@ -57,22 +60,23 @@ elif [ "$ARCH" = "armel" ]; then
 fi
 
 # Location for Python site-packages:
-SITEPK=$PKG/usr/lib${LIBDIRSUFFIX}/python2.6/site-packages
+SITEPK=$PKG/usr/lib${LIBDIRSUFFIX}/${PKGNAM}${BRANCH_VERSION}/site-packages
 # same as above without $PKG
-TOOLSDIR=/usr/lib${LIBDIRSUFFIX}/python2.6/site-packages
+TOOLSDIR=/usr/lib${LIBDIRSUFFIX}/${PKGNAM}${BRANCH_VERSION}/site-packages
 
 cd $TMP
-rm -rf Python-$VERSION
-tar xf $CWD/Python-$VERSION.tar.?z* || exit 1
-cd Python-$VERSION
+rm -rf $SRCNAM-$VERSION
+tar xf $CWD/$SRCNAM-$VERSION.tar.?z* || exit 1
+cd $SRCNAM-$VERSION
 
 zcat $CWD/python.readline.set_pre_input_hook.diff.gz | patch -p1 --verbose || exit 1
+# We don't want a large libpython*.a:
+zcat $CWD/python.no-static-library.diff.gz | patch -p1 --verbose || exit 1
 
 if [ "$ARCH" = "x86_64" ]; then
-  # Install to lib64 instead of lib:
-  zcat $CWD/python.x86_64.diff.gz |  patch -p1 --verbose || exit 1
-  # Python must report /usr/lib64/python2.6/site-packages as python_lib_dir:
-  zcat $CWD/python.pure64.diff.gz |  patch -p1 --verbose || exit 1
+  # Install to lib64 instead of lib and 
+  # Python must report /usr/lib64/python2.7/site-packages as python_lib_dir:
+  zcat $CWD/python.x86_64.diff.gz | patch -p1 --verbose || exit 1
 fi
 
 chown -R root:root .
@@ -87,7 +91,6 @@ find . \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --docdir=/usr/doc/python-$VERSION \
-  --with-ncurses \
   --with-threads \
   --enable-ipv6 \
   --enable-shared \
@@ -112,7 +115,6 @@ mv $SITEPK/README $PKG/usr/doc/python-$VERSION/README.python-tools
 # Make a few useful symlinks:
 mkdir -p $PKG/usr/bin
 ( cd $PKG/usr/bin
-  ln -sf $TOOLSDIR/modulator/modulator.py modulator
   ln -sf $TOOLSDIR/pynche/pynche pynche
   ln -sf $TOOLSDIR/i18n/msgfmt.py .
   ln -sf $TOOLSDIR/i18n/pygettext.py .
@@ -126,9 +128,17 @@ tar xf $CWD/python-$VERSION-docs-text.tar.?z*
 mv python-${VERSION}-docs-text/* $PKG/usr/doc/python-$VERSION/Documentation
 chown -R root:root $PKG/usr/doc/python-$VERSION
 
+# Fix possible incorrect permissions:
+( cd $PKG
+  find . -type d -exec chmod 755 "{}" \;
+  find . -perm 640 -exec chmod 644 "{}" \;
+  find . -perm 750 -exec chmod 755 "{}" \;
+)
+
+
 ( cd $PKG/usr/bin
   rm -f python
-  ln -sf python2.6 python
+  ln -sf python${BRANCH_VERSION} python
 )
 
 ( cd $PKG
@@ -141,6 +151,12 @@ chown -R root:root $PKG/usr/doc/python-$VERSION
 ( cd $PKG/usr/man
   find . -type f -exec gzip -9 {} \;
   for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
+
+( cd $PKG/usr/man
+  if [ -r python${BRANCH_VERSION}.1.gz ] ; then
+	  ln -sf python${BRANCH_VERSION}.1.gz python.1.gz
+  fi
 )
 
 mkdir -p $PKG/install

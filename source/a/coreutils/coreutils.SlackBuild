@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -90,12 +90,13 @@ zcat $CWD/$PKGNAM.uname.diff.gz | patch -p1 --verbose --backup --suffix=.orig ||
 
 # Compilation with glibc version later than 2.3.2 needs the environment
 # variable DEFAULT_POSIX2_VERSION set to 199209.
-# Without the next line, the coreutils will start complaining about 'obsolete'
+# Without that line, the coreutils will start complaining about 'obsolete'
 # command switches, like "tail -20" will be considered obsolete.
 # This behaviour breaks many other packages... the 'obsolete' parameters are
 # too commonly used to disregard them.  Better to stick with the older more
 # widely accepted standards until things begin to demand the new way.
 
+FORCE_UNSAFE_CONFIGURE=1 \
 CFLAGS="$SLKCFLAGS" \
 DEFAULT_POSIX2_VERSION=199209 \
 ./configure \
@@ -164,10 +165,20 @@ done
 ( cd $PKG/usr/bin ; ln -sf ../../bin/ginstall ginstall )
 ( cd $PKG/usr/man/man1 ; ln -sf install.1 ginstall.1 )
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 rm -f $PKG/usr/info/dir
 gzip -9 $PKG/usr/info/*

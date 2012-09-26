@@ -16,7 +16,8 @@
 PIDFILE=/var/run/dbus/dbus.pid
 
 start() {
-  if ! ps axc | grep -w dbus-daemon ; then
+  mkdir -p $(dirname $PIDFILE)
+  if ! ps -u messagebus -c | grep -wq dbus-daemon; then
     rm -f $(dirname $PIDFILE)/*
     if [ -x /usr/bin/dbus-uuidgen -a -x /usr/bin/dbus-daemon ] ; then
       echo "Starting system message bus:  /usr/bin/dbus-uuidgen --ensure ; /usr/bin/dbus-daemon --system"
@@ -48,10 +49,10 @@ reload() {
 }
 
 status() {
-  if ps axc | grep -wq dbus-daemon 2>/dev/null ; then
-    echo "dbus-daemon is running."
+  if ps -u messagebus -c | grep -wq dbus-daemon; then
+    echo "System dbus-daemon is running."
   else
-    echo "dbus is stopped."
+    echo "System dbus-daemon is stopped."
   fi
 }
 
@@ -66,6 +67,7 @@ case "$1" in
   restart)
     stop
     start
+    echo "You may need to restart your Window Manager to reconnect to the system dbus."
     ;;
   reload)
     reload

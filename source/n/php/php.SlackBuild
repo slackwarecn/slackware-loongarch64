@@ -3,7 +3,7 @@
 # Build and package mod_php on Slackware.
 # by:  David Cantrell <david@slackware.com>
 # Modified for PHP 4-5 by volkerdi@slackware.com
-# Copyright 2007, 2008, 2009, 2010, 2011  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,9 +24,9 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=5.3.6
-ALPINE=2.00
-BUILD=${BUILD:-6}
+VERSION=5.4.7
+ALPINE=2.02
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -71,7 +71,7 @@ if [ -r $IMAPLIBDIR/lib${LIBDIRSUFFIX}/c-client.a ]; then
   sleep 5
 else
   ( cd $CWD/../alpine ; ./alpine.SlackBuild || exit 1 ) || exit 1
-  ( cd $TMP/alpine-${ALPINE}/imap/c-client
+  ( cd $TMP/re-alpine-${ALPINE}/imap/c-client
     strip -g c-client.a
     mkdir -p $IMAPLIBDIR/lib${LIBDIRSUFFIX}
     cp c-client.a $IMAPLIBDIR/lib${LIBDIRSUFFIX}
@@ -126,32 +126,45 @@ find . -name "*.orig" -exec rm {} \;
 # Patch ini files:
 zcat $CWD/php.ini-development.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/php.ini-development.diff.gz | patch -p1 --verbose php.ini-production || exit 1
-zcat $CWD/php.session.save_path.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/php-fpm.conf.diff.gz | patch -p1 --verbose || exit 1
+
+# Install the build folder into /usr/lib$LIBDIRSUFFIX/php/build
+# and adapt phpize accordingly:
+sed -i "s|build$|php/build|" scripts/Makefile.frag
+sed -i "s|build\"$|php/build\"|" scripts/phpize.in
 
 # Generic "kitchen sink" configure function, with as many things as possible (and
 # maybe then some ;-) compiled as shared extensions:
-php_configure() {
 EXTENSION_DIR=/usr/lib${LIBDIRSUFFIX}/php/extensions \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
-  $* \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --with-libdir=lib${LIBDIRSUFFIX} \
+  --localstatedir=/var \
   --sysconfdir=/etc \
-  --disable-safe-mode \
-  --disable-magic-quotes \
-  --enable-zend-multibyte \
+  --datarootdir=/usr/share \
+  --datadir=/usr/share \
+  --infodir=/usr/info \
+  --mandir=/usr/man \
+  --with-apxs2=/usr/bin/apxs \
+  --enable-fpm \
+  --with-fpm-user=apache \
+  --with-fpm-group=apache \
+  --enable-maintainer-zts \
+  --enable-pcntl \
   --enable-mbregex \
   --enable-tokenizer=shared \
   --with-config-file-scan-dir=/etc/php \
   --with-config-file-path=/etc/httpd \
   --enable-mod_charset \
   --with-layout=PHP \
-  --enable-sigchild \
+  --disable-sigchild \
   --enable-xml \
   --with-libxml-dir=/usr \
   --enable-simplexml \
+  --enable-xmlreader=shared \
+  --enable-dom=shared \
   --enable-filter \
   --disable-debug \
   --with-openssl=shared \
@@ -177,7 +190,6 @@ CFLAGS="$SLKCFLAGS" \
   --with-freetype-dir=/usr \
   --with-t1lib=/usr \
   --enable-gd-native-ttf \
-  --enable-gd-jis-conv \
   --with-gettext=shared,/usr \
   --with-gmp=shared,/usr \
   --with-iconv=shared \
@@ -194,14 +206,11 @@ CFLAGS="$SLKCFLAGS" \
   --with-pdo-sqlite=shared,/usr \
   --with-pspell=shared,/usr \
   --with-enchant=shared,/usr \
-  --with-mm=/usr \
   --enable-shmop=shared \
   --with-snmp=shared,/usr \
   --enable-soap=shared \
   --enable-sockets \
-  --with-sqlite=shared \
   --with-sqlite3=shared \
-  --enable-sqlite-utf8 \
   --with-regex=php \
   --enable-sysvmsg \
   --enable-sysvsem \
@@ -210,12 +219,12 @@ CFLAGS="$SLKCFLAGS" \
   --with-xsl=shared,/usr \
   --enable-zip=shared \
   --with-tsrm-pthreads \
+  --enable-intl=shared \
   --enable-shared=yes \
   --enable-static=no \
   --with-gnu-ld \
   --with-pic \
   --build=$ARCH-slackware-linux
-}
 
 # I am told this option is worse than nothing.  :-)
 #  --enable-safe-mode
@@ -223,23 +232,12 @@ CFLAGS="$SLKCFLAGS" \
 # I would recommend *against* and will take no responbility for turning on
 # "safe" mode.
 
-# Make the Apache2 module version of PHP:
-php_configure \
-  --with-apxs2=/usr/sbin/apxs
 make $NUMJOBS || make || exit 1
 make install INSTALL_ROOT=$PKG || exit 1
 
-# Make the CLI/CGI version of PHP:
-make distclean
-php_configure \
-  --enable-pcntl \
-  --enable-sigchild
-make $NUMJOBS || make || exit 1
-mkdir -p $PKG/usr/bin
-cat ./sapi/cli/php > $PKG/usr/bin/php
-cat ./sapi/cgi/php-cgi > $PKG/usr/bin/php-cgi
-chmod 755 $PKG/usr/bin/php
-chmod 755 $PKG/usr/bin/php-cgi
+mkdir -p $PKG/etc/{rc.d,php-fpm}
+cp sapi/fpm/init.d.php-fpm $PKG/etc/rc.d/rc.php-fpm.new
+chmod 644 $PKG/etc/rc.d/rc.php-fpm.new
 
 # PHP (used to) install Pear with some strange permissions.
 chmod 755 $PKG/usr/bin/pear
@@ -248,6 +246,9 @@ chmod 755 $PKG/usr/bin/pear
 ( cd $PKG
   rm -rf .channels .depdb .depdblock .filemap .lock .registry
 )
+
+# We do not package static extension libraries:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/php/extensions/*.a
 
 # Fix $PKG/usr/lib/php perms:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}/php

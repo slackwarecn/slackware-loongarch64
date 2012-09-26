@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Copyright 2010  Eric Hameleers, Eindhoven, The Netherlands
-# Copyright 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010, 2011, 2012  Eric Hameleers, Eindhoven, The Netherlands
+# Copyright 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 
 # Redistribution and use of this script, with or without modification, is
@@ -31,23 +31,21 @@
 
 PKGNAM=libdbusmenu-qt
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
+
+NUMJOBS=${NUMJOBS:--j7}
 
 # Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *)       export ARCH=$MARCH ;;
   esac
 fi
-
-NUMJOBS=${NUMJOBS:--j6}
-
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PKGNAM
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -62,6 +60,10 @@ else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -98,6 +100,10 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   COPYING NEWS README \
   $PKG/usr/doc/$PKGNAM-$VERSION
+
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/doc
+mv $PKG/usr/share/doc/dbusmenu-qt/* $PKG/usr/doc/$PKGNAM-$VERSION/doc
+rm -rf $PKG/usr/share/doc
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

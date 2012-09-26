@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Copyright 2007, 2008 Eric Hameleers, Eindhoven, NL
-# Copyright 2007-2008 Heinz Wiesinger
+# Copyright 2007, 2008, 2012 Eric Hameleers, Eindhoven, NL
+# Copyright 2007-2008, 2012 Heinz Wiesinger, Amsterdam, NL
 # Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
@@ -24,27 +24,28 @@
 
 # bjam-build system mostly taken from SlackBuild by Eric Hameleers
 # Script modified by Robby Workman - no copyright claims or added terms
+# Modified 2012 by Eric Hameleers <alien at slackware.com> for ARM port.
+
 
 PKGNAM=boost
 VERSION=${VERSION:-$(echo $PKGNAM_*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d _)}
-BUILD=${BUILD:-1}
-
-# Automatically determine the architecture we're building on:
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
-fi
-
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-boost
+BUILD=${BUILD:-3}
 
 ICU=${ICU:-no}
 PKG_VERSION=$(echo $VERSION | tr _ .)	# Leave this alone
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
+if [ -z "$ARCH" ]; then
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *)       export ARCH=$MARCH ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -55,10 +56,17 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-boost
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -84,28 +92,19 @@ PYTHON_VERSION=$(python -c 'import sys; print sys.version[:3]')
 PYTHON_FLAGS="-sPYTHON_ROOT=/usr -sPYTHON_VERSION=$PYTHON_VERSION"
 
 # First build bjam, the boost build system:
-cd tools/build/v2/engine/src
+cd tools/build/v2/engine
   CFLAGS="$SLKCFLAGS -fno-strict-aliasing" CC=gcc ./build.sh cc
 cd -
 
-BJAM=$(find tools/build/v2/engine/src/ -name bjam -a -type f)
+BJAM=$(find tools/build/v2/engine/ -name bjam -a -type f)
 
 # Create build subdirectory
 mkdir obj
 
-# Change the build options from 'minimal' to what we want, since adding
-# "-sBUILD=<optimization>speed <inlining>full <threading>single/multi
-# <link>shared <runtime-link>shared" to $BJAM command no longer seems to work.
-FLAGS="<threading>multi <threading>single <optimization>speed <inlining>full"
-sed -i "s/    <threading>multi/    $FLAGS/" Jamroot
-# Disable static libraries ( the only software that *requires* the static libs,
-# is Microsoft's CW compiler (CW or Comega is an experimental language which
-# extends C# )
-sed -i "s/<link>shared <link>static/<link>shared/" Jamroot
-
 # Next, we build boost using bjam
 $BJAM \
   release \
+  $NUMJOBS \
   "-sNO_COMPRESSION=0" \
   "-sZLIB_INCLUDE=/usr/include" \
   "-sZLIB_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
@@ -113,12 +112,16 @@ $BJAM \
   "-sBZIP2_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
   "-sEXPAT_INCLUDE=/usr/include" \
   "-sEXPAT_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
-  --toolset=gcc \
   --layout=system \
   --builddir=obj \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --build-type=minimal \
+  toolset=gcc \
+  variant=release \
+  link=shared \
+  threading=multi \
+  runtime-link=shared \
   $PYTHON_FLAGS \
   stage
 
@@ -129,12 +132,16 @@ $BJAM \
   release \
   "-sEXPAT_INCLUDE=/usr/include" \
   "-sEXPAT_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
-  --toolset=gcc \
   --layout=system \
   --builddir=obj \
   --prefix=$PKG/usr \
   --libdir=$PKG/usr/lib${LIBDIRSUFFIX} \
   --build-type=minimal \
+  toolset=gcc \
+  variant=release \
+  link=shared \
+  threading=multi \
+  runtime-link=shared \
   $PYTHON_FLAGS \
   install
 

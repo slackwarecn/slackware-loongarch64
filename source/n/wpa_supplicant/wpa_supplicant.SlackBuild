@@ -22,8 +22,10 @@
 # -----------------------------------------------------------------------------
 
 PKGNAM=wpa_supplicant
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+VERSION=1.0
+BUILD=${BUILD:-1}
+
+SRCVERSION=$(printf $VERSION | tr _ -)
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -36,8 +38,6 @@ if [ -z "$ARCH" ]; then
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
-
-DOCS="ChangeLog ../COPYING README README-WPS *.txt examples wpa_supplicant.conf.sample"
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -59,31 +59,16 @@ else
   LIBDIRSUFFIX=""
 fi
 
-# Support for some of the wireless drivers needs the header files of those
-# drivers.
-# Change these *_INCLUDES variables to where _your_ driver include directory
-# is located. If any of these directories is found, support for the driver
-# will be added to wpa_supplicant.
-# My madwifi package for Slackware installs the headers here:
-MADWIFI_INCLUDES="/usr/include/madwifi"
-HERMES_INCLUDES=""
-BROADCOM_INCLUDES=""
-
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
-
-if ! [ -f $CWD/${PKGNAM}.defconfig ]; then
-  echo "Could not find ${PKGNAM}.defconfig!"
-  exit 1
-fi
-
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-${VERSION}.tar.?z* || exit 1
-cd ${PKGNAM}-${VERSION}
+rm -rf ${PKGNAM}-${SRCVERSION}
+tar xvf $CWD/${PKGNAM}-${SRCVERSION}.tar.?z* || exit 1
+cd ${PKGNAM}-${SRCVERSION}
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -91,179 +76,91 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-#sed -i -e \
-#  "s/^#define VERSION_STR \"\(.*\)\"/#define VERSION_STR \"\1_$VERSION\"/" \
-#  src/common/version.h
+# Fixup various paths in the dbus service file
+patch -p1 < $CWD/patches/dbus-service-file-args.diff
 
-zcat $CWD/hostap-07.git-b80b5639935d37b95d00f86b57f2844a9c775f57.patch.gz | patch -p1 --verbose || exit 1
+# Include unistd.h 
+patch -p1 < $CWD/patches/include-unistd_h.diff
 
-# The source code has been re-organized:
+# Add libnl3 includes
+patch -p1 < $CWD/patches/libnl3-includes.diff
+
+# Eliminate some logspam
+patch -p1 < $CWD/patches/quiet-scan-results-message.diff
+patch -p1 < $CWD/patches/squelch-driver-disconnect-spam.diff
+
 cd wpa_supplicant
 
 # Create the configuration file for building wpa_supplicant:
-cat $CWD/${PKGNAM}.defconfig > .config
-if [ ! -z $MADWIFI_INCLUDES -a -d $MADWIFI_INCLUDES ]; then
-  echo "Adding madwifi driver (Atheros) support"
-  cat <<-EOT >> .config
-	CONFIG_DRIVER_MADWIFI=y
-	CFLAGS += -I${MADWIFI_INCLUDES}
-	EOT
-fi
-if [ ! -z $HERMES_INCLUDES -a -d $HERMES_INCLUDES ]; then
-  echo "Adding hermes driver (Agere) support"
-  cat <<-EOT >> .config
-	CONFIG_DRIVER_HERMES=y
-	CFLAGS += -I${HERMES_INCLUDES}
-	EOT
-fi
-if [ ! -z $BROADCOM_INCLUDES -a -d $BROADCOM_INCLUDES ]; then
-  echo "Adding broadcom driver support"
-  cat <<-EOT >> .config
-	CONFIG_DRIVER_BROADCOM=y
-	CFLAGS += -I${BROADCOM_INCLUDES}
-	EOT
-fi
-make $NUMJOBS || make || exit 1
+cat $CWD/config/dot.config > .config
+
+# Build the usual binaries
+CFLAGS="$SLKCFLAGS" \
+make $NUMJOBS \
+  BINDIR=/usr/sbin \
+  LIBDIR=/usr/lib${LIBDIRSUFFIX} || exit 1
 
 # Build the Qt4 GUI client
-make wpa_gui-qt4 || exit 1
+CFLAGS="$SLKCFLAGS" \
+make $NUMJOBS \
+  wpa_gui-qt4 \
+  BINDIR=/usr/sbin \
+  LIBDIR=/usr/lib${LIBDIRSUFFIX} || exit 1
 
-# Make man pages if needed
-( cd doc/docbook
-  if ! ls *.? >/dev/null 2>&1 ; then
-    make man
-  fi
-)
-
-# Do not build the developer docs:
-#PATH=".:$PATH" make docs
+# Make sure man pages are built
+make -C doc/docbook man
 
 # This goes into the doc directory later on:
-cp wpa_supplicant.conf wpa_supplicant.conf.sample
+mv wpa_supplicant.conf wpa_supplicant.conf.sample
 
 # Install binaries:
 mkdir -p $PKG/usr/sbin $PKG/usr/bin
 cp wpa_supplicant wpa_passphrase wpa_cli $PKG/usr/sbin/
 cp wpa_gui-qt4/wpa_gui $PKG/usr/bin/
 
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
 # Install dbus configuration file:
 mkdir -p $PKG/etc/dbus-1/system.d/
 cp dbus/dbus-wpa_supplicant.conf \
   $PKG/etc/dbus-1/system.d/dbus-wpa_supplicant.conf
 
-# This file should actually be shipped with Slackware's wpa_supplicant
-# package, but since we missed it there (just kidding), we'll do it here:
 mkdir -p $PKG/usr/share/dbus-1/system-services
-install -m644 dbus/{fi.epitest.hostap.WPASupplicant.service,fi.w1.wpa_supplicant1.service} \
-  $PKG/usr/share/dbus-1/system-services/
-sed -e 's#Exec=/sbin/wpa_supplicant#Exec=/usr/sbin/wpa_supplicant#g' \
-  -i $PKG/usr/share/dbus-1/system-services/*.service
+install -m644 dbus/*.service $PKG/usr/share/dbus-1/system-services/
 
-# Install a .desktop file for wpa_gui:
-mkdir -p $PKG/usr/share/applications
-cat <<EOT > $PKG/usr/share/applications/wpa_gui.desktop
-[Desktop Entry]
-Name=wpa_gui
-Comment[en]=Wpa_supplicant management
-Exec=kdesu wpa_gui
-Icon=wpa_gui
-Type=Application
-Categories=Qt;Network;
-EOT
+# Install a .desktop file and icon for wpa_gui:
+# (converted from the wpa_gui.svg in the source)
+mkdir -p $PKG/usr/share/{applications,pixmaps}
+cat $CWD/config/wpa_gui.desktop > $PKG/usr/share/applications/wpa_gui.desktop
+cat $CWD/config/wpa_gui.png > $PKG/usr/share/pixmaps/wpa_gui.png
 
-# The icon used for the menu (converted from the wpa_gui.svg in the source)
-mkdir -p $PKG/usr/share/pixmaps
-cp -a $CWD/wpa_gui.png $PKG/usr/share/pixmaps/
+# Install a logrotate config
+mkdir -p $PKG/etc/logrotate.d
+cat $CWD/config/wpa_supplicant.logrotate > $PKG/etc/logrotate.d/wpa_supplicant.new
 
 # Install man pages:
 for m in 5 8; do
   mkdir -p $PKG/usr/man/man${m}
   cp doc/docbook/*.${m} $PKG/usr/man/man${m}/
 done
-
-# Install a default configuration file:
-mkdir -p $PKG/etc
-cat <<-_EOT_ > $PKG/etc/wpa_supplicant.conf.new
-	# See /usr/doc/${PKGNAM}-${VERSION}/wpa_supplicant.conf.sample
-	# for many more options that you can use in this file.
-	
-	# This line enables the use of wpa_cli which is used by rc.wireless
-	# if possible (to check for successful association)
-	ctrl_interface=/var/run/wpa_supplicant
-	# By default, only root (group 0) may use wpa_cli
-	ctrl_interface_group=0
-	eapol_version=1
-	ap_scan=1
-	fast_reauth=1
-	#country=US
-	
-	# WPA protected network, supply your own ESSID and WPAPSK here:
-	network={
-	  scan_ssid=0
-	  ssid="your_essid_here"
-	  proto=WPA RSN
-	  key_mgmt=WPA-PSK
-	  pairwise=CCMP TKIP
-	  group=CCMP TKIP WEP104 WEP40
-	  psk=your_64_char_psk_here
-	  priority=10
-	}
-	
-	# Plaintext connection (no WPA, no IEEE 802.1X),
-	# nice for hotel/airport types of WiFi network.
-	network={
-	  key_mgmt=NONE
-	  priority=0
-	}
-	_EOT_
-
-# Create the 'doinst.sh' script:
-mkdir -p $PKG/install 2>/dev/null
-cat <<EOINS > $PKG/install/doinst.sh
-# Handle the incoming configuration files:
-config() {
-  for infile in \$1; do
-    NEW="\$infile"
-    OLD="\`dirname \$NEW\`/\`basename \$NEW .new\`"
-    # If there's no config file by that name, mv it over:
-    if [ ! -r \$OLD ]; then
-      mv \$NEW \$OLD
-    elif [ "\`cat \$OLD | md5sum\`" = "\`cat \$NEW | md5sum\`" ]; then
-      # toss the redundant copy
-      rm \$NEW
-    fi
-    # Otherwise, we leave the .new copy for the admin to consider...
-  done
-}
-config etc/wpa_supplicant.conf.new
-
-EOINS
-
-# Add the documentation:
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a $DOCS $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a $CWD/README.slackware $PKG/usr/doc/${PKGNAM}-${VERSION}/
-chmod -R a-w $PKG/usr/doc/$PKGNAM-$VERSION/*
-chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION/*
-
-# This should only be read/write by root:
-chmod 600 $PKG/etc/wpa_supplicant.conf.new
-
-# Compress the man page(s):
 find $PKG/usr/man -type f -name "*.?" -exec gzip -9f {} \;
 
-# Strip binaries:
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Install a default configuration file (only readable by root):
+mkdir -p $PKG/etc
+cat $CWD/config/wpa_supplicant.conf > $PKG/etc/wpa_supplicant.conf.new
+chmod 600 $PKG/etc/wpa_supplicant.conf.new
 
-# Add a package description:
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a \
+  ChangeLog ../COPYING README README-{P2P,WPS} examples *.txt *.sample $CWD/README.slackware \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION/*
+chmod -R a-w $PKG/usr/doc/$PKGNAM-$VERSION/*
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
-if [ -f $CWD/doinst.sh ]; then
-  cat $CWD/doinst.sh >> $PKG/install/doinst.sh
-fi
+zcat $CWD/doinst.sh.gz >> $PKG/install/doinst.sh
 
-# Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}.txz
-

@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-22.8}
-BUILD=${BUILD:-16}
+VERSION=${VERSION:-23.2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -43,15 +43,18 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf lilo-$VERSION
-tar xvf $CWD/lilo-$VERSION.src.tar.gz || exit 1
+tar xvf $CWD/lilo-$VERSION.tar.gz || exit 1
 cd lilo-$VERSION
 chown -R root:root .
 
-# This is needed for LVM+udev+devtmpfs
-zcat $CWD/lilo.use_major_minor_instead_lvm_name.diff.gz | patch -p1 --verbose || exit 1
+# Obsolete patch?
+## This is needed for LVM+udev+devtmpfs
+#( cd src
+#  zcat $CWD/lilo.use_major_minor_instead_lvm_name.diff.gz | patch -p1 --verbose || exit 1
+#)
 
 make || exit 1
-make install ROOT=$PKG
+make -i install DESTDIR=$PKG || exit 1
 
 # Add a Slackware logo boot menu (sorry, couldn't resist):
 if [ "$ARCH" = "x86_64" -a -f $CWD/slack64.bmp ]; then
@@ -61,13 +64,18 @@ else
 fi
 chmod 644 $PKG/boot/slack.bmp
 
-# We don't need to add this empty directory:
-rmdir $PKG/etc
+# Remove non-Slackware litter:
+( cd $PKG/boot
+  rm -f coffee.bmp *debian*
+)
+rm -r $PKG/etc/{initramfs,kernel}
 
 # Add Slackware's 'liloconfig' utility:
 mkdir -p $PKG/sbin
 cp -a $CWD/liloconfig $PKG/sbin/liloconfig
 chmod 755 $PKG/sbin/liloconfig
+# Hey, you're stomping on our name!  Plus, it doesn't work.
+rm -f $PKG/usr/sbin/liloconfig
 mkdir -p $PKG/var/log/setup
 cp -a $CWD/setup.liloconfig $PKG/var/log/setup/setup.liloconfig
 cp -a $CWD/text.lilohelp $PKG/var/log/setup/text.lilohelp

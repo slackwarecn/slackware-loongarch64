@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-4.0.3}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -51,9 +51,12 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf screen-$VERSION
-tar xjvf $CWD/screen-$VERSION.tar.bz2
+tar xvf $CWD/screen-$VERSION.tar.?z* || exit 1
 
 cd screen-$VERSION || exit 1
+
+# Increase the size of the termname buffer from 20 to 63:
+zcat $CWD/screen.d_termname.envterm.buffersizeincrease.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -72,7 +75,7 @@ CFLAGS="$SLKCFLAGS" \
   --enable-locale \
   --enable-colors256 \
   --enable-rxvt_osc \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 
 # Substitutions:
 perl -pi -e 's|.*#undef HAVE_BRAILLE.*|#define HAVE_BRAILLE 1|' config.h

@@ -22,8 +22,8 @@
 
 
 PKGNAM=curl
-VERSION=${VERSION:-$(echo curl-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo curl-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -62,8 +62,10 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf curl-$VERSION
-tar xvf $CWD/curl-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/curl-$VERSION.tar.?z* || exit 1
 cd curl-$VERSION
+
+zcat $CWD/curl-7.27.0_curl-config_syntax_fix.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -91,6 +93,9 @@ cp -a $CWD/cacert.pem.bz2 $PKG/usr/share/curl
   chown root:root ca-bundle.crt
   chmod 644 ca-bundle.crt
 )
+
+# We don't ship the related perl script (yet):
+rm -f $PKG/usr/man/man1/mk-ca-bundle.1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

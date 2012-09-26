@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 PKGNAM=vte
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -69,6 +69,12 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# https://bugzilla.gnome.org/show_bug.cgi?id=663779
+zcat $CWD/fix_meta_alt_keybinding.patch.gz | patch -p1 || exit 1
+
+# Escape sequences can cause high CPU usage (CVE-2012-2738):
+zcat $CWD/vte.escape.cpu.usage.diff.gz | patch -p1 || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -66,8 +66,6 @@ rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
-zcat $CWD/audacious-plugins.alsa.noise.is.not.helpful.diff.gz | patch -p1 --verbose || exit 1
-
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
@@ -84,9 +82,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --mandir=/usr/man \
-  --enable-chardet \
   --enable-amidiplug \
-  --disable-altivec \
   --program-prefix= \
   --program-suffix= \
   ${ARCHOPTS} \
@@ -128,6 +124,14 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   AUTHORS COPYING INSTALL Mercurial-Access README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

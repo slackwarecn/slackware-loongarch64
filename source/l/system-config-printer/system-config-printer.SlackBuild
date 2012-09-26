@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Copyright 2010  Eric Hameleers, Eindhoven, NL
-# Copyright 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -23,26 +23,24 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-# Set initial variables:
 
 PKGNAM=system-config-printer
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
-NUMJOBS=${NUMJOBS:" -j4 "}
+
+NUMJOBS=${NUMJOBS:" -j7 "}
 
 # Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *)       export ARCH=$MARCH ;;
   esac
 fi
-
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PKGNAM
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -53,10 +51,22 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -87,19 +97,23 @@ CFLAGS="$SLKCFLAGS" \
   --with-udev-rules \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux
+  --build=$TARGET
 
 # Build and install:
-make $NUMJOBS udevrulesdir=/lib/udev/rules.d udevhelperdir=/lib/udev || make || exit 1
-make install DESTDIR=$PKG udevrulesdir=/lib/udev/rules.d udevhelperdir=/lib/udev || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG
+
+# Move the udev files to the usual Slackware location:
+mkdir -p $PKG/lib
+mv $PKG/etc/udev $PKG/lib/
 
 # Slackware does not use PAM.  Instead, your user must be in group 'lp'.
 sed -i -e 's/at_console="true"/group="lp"/g' \
   $PKG/etc/dbus-1/system.d/newprinternotification.conf
 
 # Don't clobber the configuration file:
-mv $PKG/etc/dbus-1/system.d/newprinternotification.conf{,.new}
-mv $PKG/etc/dbus-1/system.d/printerdriversinstaller.conf{,.new}
+mv $PKG/etc/dbus-1/system.d/com.redhat.NewPrinterNotification.conf{,.new}
+mv $PKG/etc/dbus-1/system.d/com.redhat.PrinterDriversInstaller.conf{,.new}
 
 # Add documentation:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION

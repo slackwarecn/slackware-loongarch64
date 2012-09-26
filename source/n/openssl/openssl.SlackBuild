@@ -2,7 +2,7 @@
 
 # Copyright 2000 BSDi, Inc. Concord, CA, USA
 # Copyright 2001, 2002 Slackware Linux, Inc.  Concord, CA, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 
-VERSION=${VERSION:-$(echo openssl-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo openssl-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
@@ -45,17 +45,19 @@ PKG2=$TMP/package-ossllibs
 NAME1=openssl-$VERSION-$ARCH-$BUILD
 NAME2=openssl-solibs-$VERSION-$ARCH-$BUILD
 
-NUMJOBS=${NUMJOBS:--j6}
+# Parallel build doesn't link properly.
+#NUMJOBS=${NUMJOBS:--j6}
 
 # So that ls has the right field counts for parsing...
 export LC_ALL=C
 
 cd $TMP
 rm -rf $PKG1 $PKG2 openssl-$VERSION
-tar xvf $CWD/openssl-$VERSION.tar.?z* || exit 1
+
+tar xvf $CWD/openssl-$VERSION.tar.gz || exit 1
 cd openssl-$VERSION
 
-# Use .so.0, not .so.0.9.8:
+# Use .so.1, not .so.1.0.0:
 zcat $CWD/openssl.soname.diff.gz | patch -p1 --backup --verbose --suffix=.orig || exit 1
 if [ "$ARCH" = "i486" ]; then
   # Build with -march=i486 -mtune=i686:
@@ -70,9 +72,9 @@ fi
 # paranoid that they won't run against a different OpenSSL version than
 # what they were compiled against, whether or not the ABI has changed.
 #
-# So, we will use the OPENSSL_VERSION_NUMBER from openssl-0.9.8o unless ABI
+# So, we will use the OPENSSL_VERSION_NUMBER from openssl-1.0.1c unless ABI
 # breakage forces it to change.  Yes, we're finally using this old trick.  :)
-sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x009080efL (0.9.8o) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x009080efL/g" crypto/opensslv.h || exit 1
+sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1000103fL (1.0.1c) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1000103fL/g" crypto/opensslv.h || exit 1
 
 chown -R root:root .
 mkdir -p $PKG1/usr/doc/openssl-$VERSION
@@ -103,14 +105,11 @@ fi
  no-sse2 \
  shared
 
-make depend || exit 1
+make $NUMJOBS depend || make depend || exit 1
 
 make $NUMJOBS || make || exit 1
 
 make install INSTALL_PREFIX=$PKG1 || exit 1
-
-# Use proper libdir:
-( cd $PKG1/usr; mv lib lib${LIBDIRSUFFIX} )
 
 # Make the .so.? library symlinks:
 ( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.* )
@@ -156,6 +155,21 @@ if [ -d $PKG1/usr/man ]; then
       )
     done
   )
+fi
+
+# If there's an openssl0 directory, then build openssl-0 shared libraries for
+# compatibility with programs linked to those:
+if [ -d $CWD/openssl0 ]; then
+  ( cd $CWD/openssl0
+    ./openssl0.build || exit 1
+  ) || exit 1
+  # Don't put these in the openssl package...  openssl-solibs is enough.
+  #mkdir -p $PKG1/lib${LIBDIRSUFFIX}
+  #cp -a $TMP/package-openssl0/usr/lib/lib*.so.?.?.? $PKG1/lib${LIBDIRSUFFIX}
+  #( cd $PKG1/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.?.?.? )
+  mkdir -p $PKG2/lib${LIBDIRSUFFIX}
+  cp -a $TMP/package-openssl0/usr/lib/lib*.so.?.?.? $PKG2/lib${LIBDIRSUFFIX}
+  ( cd $PKG2/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.?.?.? )
 fi
 
 cd $PKG1

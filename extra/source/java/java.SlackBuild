@@ -1,0 +1,167 @@
+#!/bin/sh
+
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-java
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# If a Java archive was given as an argument to this script, use it.
+# Otherwise, we'll use an archive found in the current directory if
+# there is exactly one such archive.
+if [ ! "$1" = "" ]; then
+  if [ -r "$(readlink -f $1)" ]; then
+    SOURCETGZ="$(readlink -f $1)"
+  else
+    echo "Java source archive $1 was not found."
+    exit 1
+  fi
+else
+  SOURCETGZ="$CWD/j??-*.tar.gz"
+  if [ ! -r $SOURCETGZ ]; then
+    echo "No (or multiple) jdk-*.tar.gz found!"
+    echo "Please make sure there is exactly one JDK or JRE archive in this"
+    echo "directory and then run this script again, or else specify a Java"
+    echo "archive on the command line like this:"
+    echo "  ./java.SlackBuild /tmp/jdk-7u5-linux-x64.tar.gz"
+    exit 1
+  fi
+fi
+
+PKGNAM=$(basename $SOURCETGZ | cut -f 1 -d -)
+VERSION=$(basename $SOURCETGZ | cut -f 2 -d -)
+DVER=$(tar tf $SOURCETGZ | head -n 1 | cut -f 2 -d $(echo $PKGNAM | cut -b 3) | cut -f 1 -d /)
+JAVA_ARCH=$(basename $SOURCETGZ | cut -f 4 -d - | cut -f 1 -d .)
+if [ "$JAVA_ARCH" = "x64" ]; then
+  LIB_ARCH=amd64
+  ARCH=x86_64
+  LIBDIRSUFFIX="64"
+else
+  LIB_ARCH=i386
+  ARCH=i586
+  LIBDIRSUFFIX=""
+fi
+BUILD=${BUILD:-1}
+
+cd $PKG
+mkdir -p usr/lib${LIBDIRSUFFIX}
+cd usr/lib${LIBDIRSUFFIX}
+tar xf $SOURCETGZ || exit 1
+mkdir -p $PKG/etc/profile.d
+for file in $(ls $CWD/profile.d/${PKGNAM}*) ; do
+  cat $file | sed -e "s#lib/java#lib${LIBDIRSUFFIX}/java#" \
+    > $PKG/etc/profile.d/$(basename $file)
+done
+chown -R root.root $PKG
+find $PKG \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+chmod 755 $PKG/etc/profile.d/*
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  mv ${PKGNAM}${DVER} java || exit 1
+  ln -sf java ${PKGNAM}${DVER}
+) || exit 1
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins
+  if [ "$PKGNAM" = "jdk" ]; then
+    ln -sf /usr/lib${LIBDIRSUFFIX}/java/jre/lib/${LIB_ARCH}/libnpjp2.so libnpjp2.so
+  else
+    ln -sf /usr/lib${LIBDIRSUFFIX}/java/lib/${LIB_ARCH}/libnpjp2.so libnpjp2.so
+  fi
+)
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  if [ "$PKGNAM" = "jdk" ]; then
+    ln -sf ./java/jre/lib/${LIB_ARCH}/server/libjvm.so .
+  else
+    ln -sf ./java/lib/${LIB_ARCH}/server/libjvm.so .
+  fi
+)
+mkdir -p $PKG/install
+cat $CWD/slack-desc.${PKGNAM} > $PKG/install/slack-desc
+cat << EOF > $PKG/install/doinst.sh
+# Clean up a potential upgrade mess caused by changing the
+# installation directory to /usr/lib${LIBDIRSUFFIX}/java/:
+if [ -L usr/lib${LIBDIRSUFFIX}/java ]; then
+  rm -rf usr/lib${LIBDIRSUFFIX}/java
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/man
+EOF
+if [ "$PKGNAM" = "jdk" ]; then
+cat << EOF >> $PKG/install/doinst.sh
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/jre/lib/${LIB_ARCH}/server
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/jre/lib/${LIB_ARCH}/client
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/jre/javaws
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/jre/bin
+EOF
+else
+cat << EOF >> $PKG/install/doinst.sh
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/lib/${LIB_ARCH}/server
+  mkdir -p usr/lib/java/lib${LIBDIRSUFFIX}/${LIB_ARCH}/client
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/javaws
+EOF
+fi
+cat << EOF >> $PKG/install/doinst.sh
+  mkdir -p usr/lib${LIBDIRSUFFIX}/java/bin
+  mkdir -p usr/lib${LIBDIRSUFFIX}/mozilla/plugins
+fi
+if [ -L ControlPanel ]; then
+  rm -f ControlPanel
+fi
+if [ -L ja ]; then
+  rm -f ja
+fi
+if [ -L javaws ]; then
+  rm -f javaws
+fi
+if [ -L libjsig.so ]; then
+  rm -f libjsig.so
+fi
+# End cleanup.
+
+EOF
+
+# Install the desktop/mime files:
+mkdir -p $PKG/usr/share/{applications,icons,mime}
+if [ "$PKGNAM" = "jdk" ]; then
+  cp -a $PKG/usr/lib${LIBDIRSUFFIX}/java/jre/lib/desktop/applications/* \
+    $PKG/usr/share/applications/
+  cp -a $PKG/usr/lib${LIBDIRSUFFIX}/java/jre/lib/desktop/icons/hicolor \
+    $PKG/usr/share/icons/
+  cp -a $PKG/usr/lib${LIBDIRSUFFIX}/java/jre/lib/desktop/mime/packages \
+    $PKG/usr/share/mime/
+else
+  cp -a $PKG/usr/lib${LIBDIRSUFFIX}/java/lib/desktop/applications/* \
+    $PKG/usr/share/applications/
+  cp -a $PKG/usr/lib${LIBDIRSUFFIX}/java/lib/desktop/icons/hicolor \
+    $PKG/usr/share/icons/
+  cp -a $PKG/usr/lib${LIBDIRSUFFIX}/java/lib/desktop/mime/packages \
+    $PKG/usr/share/mime/
+fi
+
+# Java may not expect compressed manpages, so don't compress them.
+
+cd $PKG
+rm -f $TMP/${PKGNAM}-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
+

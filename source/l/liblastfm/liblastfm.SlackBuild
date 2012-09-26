@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 
 # Slackware build script for liblastfm
 
@@ -50,6 +50,7 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
+rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
 cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
@@ -59,20 +60,15 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Fix for Ruby 1.9.1:
-sed -i "s/require 'ftools'//g" admin/*
-
-./configure \
-  --prefix /usr \
-  --release
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+cmake \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_LIBDIR="lib${LIBDIRSUFFIX}" \
+  -DBUILD_FINGERPRINT="ON"
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# For 64-bit, make sure that the libraries are in the proper directory:
-if [ "$LIBDIRSUFFIX" = "64" ]; then
-  mv $PKG/usr/lib $PKG/usr/lib64
-fi
 
 if [ -d $PKG/usr/man ]; then
   gzip -9 $PKG/usr/man/man?/*

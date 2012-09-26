@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,9 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-1.4.6}
-BB=1.18.4
-BUILD=${BUILD:-11}
+VERSION=${VERSION:-1.4.7}
+BB=1.20.1
+BUILD=${BUILD:-6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -53,6 +53,12 @@ cd $TMP
 rm -rf busybox-$BB
 tar xvf $CWD/busybox-$BB.tar.?z* || exit 1
 cd busybox-$BB
+
+if [ -d $CWD/fixes-$BB ]; then
+  for pfile in $CWD/fixes-$BB/*.patch ; do 
+    patch -p1 < $pfile || exit 1 
+  done
+fi
 
 chown -R root:root .
 sed -e \
@@ -105,29 +111,18 @@ chown root:root $PKG/etc/mkinitrd.conf.sample
 chmod 644 $PKG/etc/mkinitrd.conf.sample
 
 mkdir -p $PKG/usr/doc/mkinitrd-$VERSION
-cp -a $CWD/README.initrd $PKG/usr/doc/mkinitrd-$VERSION
-
-( cd $PKG/usr/doc/mkinitrd-$VERSION
-  DATE="$(date)"
-  KERNEL_VERSION="$(uname -r)"
-  PACKAGE_VERSION="$(uname -r | tr - _)"
-  LILO_KERNEL_NAME="$(echo $(uname -r) | tr -d . | tr -d - )"
-  cat README.initrd | sed -e s/@DATE@/"$DATE"/ > README.initrd1
-  cat README.initrd1 | sed -e s/@KERNEL_VERSION@/"$KERNEL_VERSION"/ > README.initrd2
-  cat README.initrd2 | sed -e s/@PACKAGE_VERSION@/"$PACKAGE_VERSION"/ > README.initrd3
-  cat README.initrd3 | sed -e s/@LILO_KERNEL_NAME@/"$LILO_KERNEL_NAME"/ > README.initrd4
-  cat README.initrd4 | sed -e s/@MKINITRD_VERSION@/"$VERSION"/ > README.initrd5
-  cat README.initrd5 | sed -e s/@ARCH@/"$ARCH"/ > README.initrd6
-  cat README.initrd6 | sed -e s/@BUILD@/"$BUILD"/ > README.initrd
-  rm -f README.initrd{1,2,3,4,5,6}
-)
-chmod 644 $PKG/usr/doc/mkinitrd-$VERSION/*
-chown root:root $PKG/usr/doc/mkinitrd-$VERSION/*
+sed $CWD/README.initrd \
+  -e "s,@DATE@,$(date),g" \
+  -e "s,@KERNEL_VERSION@,$(uname -r),g" \
+  -e "s,@PACKAGE_VERSION@,$(uname -r | tr - _),g" \
+  -e "s,@LILO_KERNEL_NAME@,$(echo $(uname -r) | tr -d . | tr -d - ),g" \
+  -e "s,@MKINITRD_VERSION@,$VERSION,g" \
+  -e "s,@ARCH@,$ARCH,g" \
+  -e "s,@BUILD@,$BUILD,g" \
+  > $PKG/usr/doc/mkinitrd-$VERSION/README.initrd
 
 mkdir $PKG/boot
-( cd $PKG/boot
-  ln -sf /usr/doc/mkinitrd-$VERSION/README.initrd .
-)
+ln -sf /usr/doc/mkinitrd-$VERSION/README.initrd $PKG/boot/README.initrd
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

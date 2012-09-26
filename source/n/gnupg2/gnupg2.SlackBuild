@@ -93,17 +93,27 @@ mkdir -p $PKG/etc/gnupg
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 rm -f $PKG/usr/info/dir
 gzip -9 $PKG/usr/info/*
 
 mkdir -p $PKG/usr/doc/gnupg2-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS COPYING* INSTALL NEWS README* THANKS TODO VERSION \
+  AUTHORS COPYING* INSTALL NEWS README* THANKS TODO VERSION \
   $PKG/usr/doc/gnupg2-$VERSION
 # Build html docs
 ( cd doc
@@ -131,6 +141,8 @@ mv Agent-GET_005fPASSPHRASE.html Agent-GET_PASSPHRASE.html
 mv option-_002d_002dhomedir.html option-homedir.html
 mv PKCS_002315-Card.html PKCS-15-Card.html
 mv option-_002d_002dexport_002downertrust.html option-export_ownertrust.html
+mv option-_002d_002dlog_002dfile.html option-logfile.html
+mv option-watchgnupg-_002d_002dtcp.html option-watchgnupg-tcp.html
 )
 # Move html doc to the proper location
 mv $PKG/usr/doc/gnupg2-$VERSION/faq.html $PKG/usr/doc/gnupg2-$VERSION/html/

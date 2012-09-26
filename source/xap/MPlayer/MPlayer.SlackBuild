@@ -1,7 +1,6 @@
 #!/bin/sh
-
-# Copyright 2006, 2007, 2008, 2009  Eric Hameleers, Eindhoven, NL
-# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# $Id: MPlayer.SlackBuild,v 1.27 2012/07/01 13:07:08 root Exp root $
+# Copyright 2006, 2007, 2008, 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -29,31 +28,106 @@
 # For:       MPlayer
 # Descr:     a movie player for LINUX
 # URL:       http://www.mplayerhq.hu/
+# Needs:     
+# Changelog:
+# 1.0rc1-1:   05/Nov/2006 by Eric Hameleers <alien@slackware.com>
+#            * Initial build.
+# 1.0rc1-2:   07/Nov/2006 by Eric Hameleers <alien@slackware.com>
+#            * Removed MPlayer's internal libdvdcss code from the build, so
+#              that MPlayer no longer plays encrypted DVD's by default (and the
+#              package is now safe to upload to public repositories).
+#              If it is allowed in your country, you can either install
+#              libdvdcss (which is picked up automatically by MPlayer), or
+#              rebuild MPlayer yourself using this SlackBuild - and set the
+#              variable REMOVECSS="no" first (see further down).
+#              Use this commandline if you can't or won't modify the script:
+#                REMOVECSS="no" ./MPlayer.SlackBuild
+# 1.0rc1-3:   08/Nov/2006 by Eric Hameleers <alien@slackware.com>
+#             * Install the mplayer.conf into correct location '/etc/mplayer/'
+# 1.0rc1-4:   15/mar/2007 by Eric Hameleers <alien@slackware.com>
+#             * Differentiate between versions of X11 (modular X has another
+#               install-prefix); update default skin; enable mplayer menu;
+#               add security fix
+# 1.0rc1-5:   07/jun/2007 by Eric Hameleers <alien@slackware.com>
+#             * Add security fix.
+# 1.0rc2-1:   09/oct/2007 by Eric Hameleers <alien@slackware.com>
+#             * New version.
+# 1.0rc2-2:   01/feb/2008 by Eric Hameleers <alien@slackware.com>
+#             * Apply 4 security fixes.
+# 1.0rc2-3:   10/mar/2008 by Eric Hameleers <alien@slackware.com>
+#             * Apply a patch that allows compilation against the ivtv driver
+#               in the 2.6.24.x kernels.
+# r28148-1:   14/dec/2008 by Eric Hameleers <alien@slackware.com>
+#             * Build SVN snapshot - remove support for *all* patented or
+#               questionable software if "USE_PATENTS" is set to "NO" - think
+#               of DECSS dvd decryption code, and mp3/aac/amr audio encoders.
+# r28929-1:   10/mar/2009 by Eric Hameleers <alien@slackware.com>
+#             * Update.
+# r29301-1:   12/may/2009 by Eric Hameleers <alien@slackware.com>
+#             * Update.
+# r29301-1:   12/may/2009 by Eric Hameleers <alien@slackware.com>
+#             * Update.
+# 20100926-1: 26/sep/2010 by Eric Hameleers <alien@slackware.com>
+#             * Slackware has MPlayer now of course, but it does not hurt
+#               to have a full-featured binary package available. The 1.0rc3
+#               was released recently but I prefer to build a snapshot.
+# 20110624-1: 24/jun/2011 by Eric Hameleers <alien@slackware.com>
+#             * Provide an up-to-date snapshot to be used in conjunction
+#               with UMPlayer (a MPlayer GUI). New MPlayer source requires
+#               a separate ffmpeg download.
+# 20120514-1: 14/may/2012 by volkerdi@slackware.com
+#             * Update.
+# 1.1_20120701-1: 28/jun/2012 by alien@slackware.com
+#             * Update to the 1.1 branch (essentially this is MPlayer-1.1 but
+#               I like to check it out of SVN).
+# 
+# Run 'sh MPlayer.SlackBuild' to build a Slackware package.
+# The package (.txz) plus descriptive .txt file are created in /tmp .
+# Install using 'installpkg'. 
+#
 # -----------------------------------------------------------------------------
 
+# Set initial variables:
+
 PRGNAM=MPlayer
-VERSION=${VERSION:-20101218}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-20120701}
+BRANCH=${BRANCH:-1.1}        # leave empty if you want to build MPlayer trunk
+FFMPEG=${FFMPEG:-20120514}
+BUILD=${BUILD:-2}
 TAG=${TAG:-}
 
-# Automatically determine the architecture we're building on:
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
+# Show the branch version in the package name if we build from a branch:
+[ -n "$BRANCH" ] && PKGVERSION=${BRANCH}_${VERSION} || PKGVERSION=${VERSION}
+
+DOCS="AUTHORS Changelog Copyright LICENSE README VERSION DOCS/HTML DOCS/tech"
+
+# MPlayer repository characteristics:
+MPURI="svn://svn.mplayerhq.hu/mplayer/"
+if [ -n "$BRANCH" ]; then
+  MPBRANCH="branches/$BRANCH"
+else
+  MPBRANCH="trunk"
 fi
 
-DOCS="AUTHORS Changelog Copyright LICENSE README DOCS/HTML DOCS/tech"
+FFURI=git://git.videolan.org/ffmpeg.git
 
 DEFSKIN=${DEFSKIN:-"Blue"}  # Download more skins at the following url:
-SKINVER=${SKINVER:-"1.7"}   # http://www.mplayerhq.hu/design7/dload.html
+SKINVER=${SKINVER:-"1.8"}   # http://www.mplayerhq.hu/design7/dload.html
 
-# Available languages: all bg cs de dk el en es fr hu it ja
-# ko mk nb nl pl ro ru sk sv tr uk pt_BR zh_CN zh_TW
-LANGUAGES="en nl fr de es"  # The default is to just add "en" documentation
+# Available languages: all cs de en es fr hu it pl ru zh_CN
+LANGUAGES="en,de,es,fr"
+
+# Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
+if [ -z "$ARCH" ]; then
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *)       export ARCH=$MARCH ;;
+  esac
+fi
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -69,7 +143,8 @@ else
   EXTRACONFIGUREOPTIONS=""
 fi
 
-CODECSDIR=/usr/lib${LIBDIRSUFFIX}/codecs   # Where the WIN32 codecs are expected for instance
+# Where the WIN32 codecs are expectedfor instance
+CODECSDIR=/usr/lib${LIBDIRSUFFIX}/codecs
 
 # ---------------------------------------------------------------------------
 # -- PATENT ALERT! --
@@ -79,7 +154,12 @@ CODECSDIR=/usr/lib${LIBDIRSUFFIX}/codecs   # Where the WIN32 codecs are expected
 # (needed for FLV and .3GP videos) but these libraries are 'contaminated'
 # with patents from Fraunhofer and GGP.
 # Also, the AAC encoder has patent issues.
-# The Slackware package is built with "USE_PATENTS=NO" i.e. without using
+# You can build these patended algorithms into ffmpeg, and if you are an
+# ordinary end user, no one will bother you for using them.
+# For the binaries based on this SlackBuild that I distribute, it is a
+# different story. I am not allowed to distribute binary packages that
+# incorporate patented code. So here you go. My Slackware package was
+# built with "USE_PATENTS=NO" i.e. without using
 # the lame mp3, faac, AMR and dvdcss libraries.
 # This also means that this creates a version of MPlayer that is unable
 # to play encrypted DVD's (which is most DVD's on the market). If it is
@@ -87,11 +167,6 @@ CODECSDIR=/usr/lib${LIBDIRSUFFIX}/codecs   # Where the WIN32 codecs are expected
 # Install a libdvdcss package and it will be picked up automatically by
 # MPlayer's internal libdvdread library, so that MPlayer will again be able
 # to play encrypted DVD's.
-#
-# If you have licenses to use the code, and/or the patents do not apply in
-# your region, and you take all legal responsibility, you may wish to build
-# MPlayer with the option USE_PATENTS=YES which will include potentially
-# patent-encumbered code.
 # ---------------------------------------------------------------------------
 USE_PATENTS=${USE_PATENTS:-"NO"}
 
@@ -120,6 +195,10 @@ SRCURL[0]=""
 SOURCE[1]="$SRCDIR/${DEFSKIN}-${SKINVER}.tar.bz2"
 SRCURL[1]="http://www.mplayerhq.hu/MPlayer/skins/${DEFSKIN}-${SKINVER}.tar.bz2"
 
+# Ffmpeg needs to be checked out separately now:
+SOURCE[2]="$SRCDIR/ffmpeg-${FFMPEG}.tar.xz"
+SRCURL[2]=""
+
 # Use the src_checkout() function if no downloadable tarball exists.
 # This function checks out sources from SVN/CVS and creates a tarball of them.
 src_checkout() {
@@ -137,13 +216,13 @@ src_checkout() {
   case ${1} in
   0) # mplayer
      if [ "$(echo ${VERSION}|cut -c1)" == 'r' ]; then # revision instead of date
-       REV=$(echo ${VERSION} | cut -c2-)
+       echo "Only supported VERSION is a date - yyyymmdd - or 'HEAD'"
      else
        REV="{${VERSION}}"
      fi
      mkdir MPlayer-${VERSION} \
        && cd MPlayer-${VERSION} \
-       && svn checkout  --revision $REV svn://svn.mplayerhq.hu/mplayer/trunk . \
+       && svn checkout --revision $REV ${MPURI}/${MPBRANCH} . \
        && svn propget svn:externals | sed -e 's/[[:space:]].*$//g' | xargs svn up --revision $REV \
        && find . -type d -name '.svn' -depth | xargs rm -rf \
        && ([ "$USE_PATENTS" != "YES" ] && rm -rf libdvdcss || true) \
@@ -151,6 +230,28 @@ src_checkout() {
        && cd .. \
        && tar -${TARCOMP}cf ${2} MPlayer-${VERSION}
      rm -rf MPlayer-${VERSION}
+     ;;
+  2) # ffmpeg-${FFMPEG}
+     mkdir ffmpeg_temp_checkout_$$ \
+       && cd ffmpeg_temp_checkout_$$
+       if [ "$FFMPEG" = "HEAD" ]; then
+         # Checkout without downloading version history (fast!):
+         echo "Checking out HEAD from '$FFURI':"
+         git clone --depth=1 ${FFURI} ffmpeg
+       else
+         # Checkout code from a certain branch and/or date; this will take a
+         # long time because we have to clone the complete git-repository first:
+         echo "Checking out branch 'master' at date $FFMPEG from '$FFURI':"
+         git clone ${FFURI} ffmpeg \
+         && cd ffmpeg \
+         && git checkout master \
+         && git checkout $(git rev-list -n 1 --before="`date -d $FFMPEG`" master) \
+         && cd ..
+       fi
+       chown -R root:root . \
+       && tar --exclude .git -${TARCOMP}cf ${2} ffmpeg
+     cd ..
+     rm -rf ffmpeg_temp_checkout_$$
      ;;
   *) # Do nothing
      ;;
@@ -221,31 +322,35 @@ echo "++"
 if [ "$USE_PATENTS" != "YES" ]; then
   cat <<"EOT"
 **
-** Removing internal DeCSS library.
+** Removing internal DECSS library.
 ** If you want to play encrypted DVD's you need to install libdvdcss separately.
-** You take full legal responsibility for any use of DeCSS.  We neither supply
-** DeCSS code nor endorse any illegal use of it.
 **
-** If you are unaffected by patent concerns because you hold the required
-** licenses and permission to use the patented code, or reside in a
-** location where this is not a concern, and wish to include the patented
-** and restricted code (you take all legal responsibility for doing so),
-** then edit this SlackBuild script and change the line:
+** If you do not want to remove libdvdcss, then
+** edit this SlackBuild script and change the line:
 ** USE_PATENTS=${USE_PATENTS:-"NO"}
 ** to:
 ** USE_PATENTS="YES"
 **
 EOT
-  sleep 5
+  sleep 2
 fi
 
 cd $TMP/tmp-$PRGNAM
 echo "Extracting the source archive(s) for $PRGNAM..."
 tar -xvf ${SOURCE[0]}
-[ "$USE_PATENTS" != "YES" ] && rm -rf libdvdcss
+# Extract the ffmpeg source inside the MPlayer directory:
+( cd ${PRGNAM}-${VERSION} && tar -xvf ${SOURCE[2]} )
+
 chown -R root:root *
-chmod -R u+w,go+r-w,a-s *
+chmod -R u+w,go+r-w,a+X-s *
 cd ${PRGNAM}-${VERSION}
+
+# Prevent a compilation error:
+# "libm.h:54:74: error: expected identifier or '(' before 'sizeof'"
+# See also:
+# http://lists.mplayerhq.hu/pipermail/mplayer-users/2012-June/084871.html
+cat $SRCDIR/MPlayer_ffmpeg.patch | patch -p0 --verbose \
+  2>&1 | tee $OUTPUT/patch-${PRGNAM}.log
 
 # Determine what X we're running (the modular X returns the prefix
 # in the next command, while older versions stay silent):
@@ -256,7 +361,6 @@ XPREF=$(pkg-config --variable=prefix x11) || true
 if [ "$USE_PATENTS" != "YES" ]; then
   DO_PATENTED="--disable-libdvdcss-internal \
                --disable-mp3lame --disable-mp3lame-lavc \
-               --disable-faac --disable-faac-lavc \
                --disable-libopencore_amrnb \
                --disable-libopencore_amrwb"
 else
@@ -265,30 +369,37 @@ fi
 
 echo Building ...
 # MPlayer wants to automatically determine compiler flags,
-# so we don't provide CFLAGS:
-./configure --prefix=/usr \
-            --mandir=/usr/man \
-            --confdir=/etc/mplayer \
-            --enable-gui \
-            --enable-menu \
-            --enable-largefiles \
-            --disable-arts \
-            --codecsdir=${CODECSDIR} \
-            --language="${LANGUAGES}" \
-            ${EXTRACONFIGUREOPTIONS} \
-            ${DO_PATENTED} \
-            2>&1 | tee $OUTPUT/configure-${PRGNAM}.log
+# so we don't provide CFLAGS.
+./configure \
+  --prefix=/usr \
+  --mandir=/usr/man \
+  --confdir=/etc/mplayer \
+  --enable-gui \
+  --enable-menu \
+  --disable-arts \
+  --disable-bitmap-font \
+  --codecsdir=${CODECSDIR} \
+  --language="${LANGUAGES}" \
+  ${EXTRACONFIGUREOPTIONS} \
+  ${DO_PATENTED} \
+  2>&1 | tee $OUTPUT/configure-${PRGNAM}.log
 # So that MPlayer does not report "UNKNOWN" as it's version:
-echo $VERSION > VERSION
+if [ ! -f VERSION ]; then
+  echo $VERSION > VERSION
+fi
 make 2>&1 | tee $OUTPUT/make-${PRGNAM}.log
 make DESTDIR=$PKG install 2>&1 |tee $OUTPUT/install-${PRGNAM}.log
 
 # Build the html documentation (not all languages are available):
-( cd DOCS/xml
+if [ "$LANGUAGES" = "all" ]; then
+  # make html-chunked
+  make html-single
+else
   for i in $(echo $LANGUAGES | tr , ' ') ; do 
-    [ -d $i ] && make html-single-$i ;
+    # make html-chunked-$i ;
+    make html-single-$i ;
   done
-)
+fi
 
 # Prepare the configfile:
 mkdir -p $PKG/etc/mplayer
@@ -298,12 +409,12 @@ cp etc/example.conf $PKG/etc/mplayer/mplayer.conf.new
 cd $PKG/usr/share/mplayer/skins
 tar -xvf ${SOURCE[1]}
 chown -R root:root *
-chmod -R u+w,go+r-w,a-s *
+chmod -R u+w,go+r-w,a+X-s *
 ln -s ${DEFSKIN} default
 cd -
 
 # Add this to the doinst.sh:
-! [ -d $PKG/install ] && mkdir -p $PKG/install
+mkdir -p $PKG/install
 cat <<EOINS >> $PKG/install/doinst.sh
 # Handle the incoming configuration files:
 config() {
@@ -338,32 +449,39 @@ fi
 # Prepare the new configuration file
 config etc/mplayer/mplayer.conf.new
 
-if [ -x /usr/bin/update-desktop-database ]; then
-  chroot . /usr/bin/update-desktop-database -q usr/share/applications
+# Update the desktop database:
+if [ -x usr/bin/update-desktop-database ]; then
+  chroot . /usr/bin/update-desktop-database usr/share/applications 1> /dev/null 2> /dev/null
 fi
 
+# Update hicolor theme cache:
 if [ -e usr/share/icons/hicolor/icon-theme.cache ]; then
   if [ -x usr/bin/gtk-update-icon-cache ]; then
-    chroot . /usr/bin/gtk-update-icon-cache usr/share/icons/hicolor >/dev/null 2>&1
+    chroot . /usr/bin/gtk-update-icon-cache /usr/share/icons/hicolor >/dev/null 2>&1
   fi
+fi
+
+# Update the mime database:
+if [ -x usr/bin/update-mime-database ]; then
+  chroot . /usr/bin/update-mime-database usr/share/mime >/dev/null 2>&1
 fi
 
 EOINS
 
 # Add documentation:
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
-cp -a $DOCS $PKG/usr/doc/$PRGNAM-$VERSION || true
-cp -a $SRCDIR/$(basename $0) $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
-#mv $PKG/usr/doc/$PRGNAM-$VERSION/HTML-single $PKG/usr/doc/$PRGNAM-$VERSION/html
+mkdir -p $PKG/usr/doc/$PRGNAM-$PKGVERSION
+cp -a $DOCS $PKG/usr/doc/$PRGNAM-$PKGVERSION || true
+cp -a $SRCDIR/$(basename $0) $PKG/usr/doc/$PRGNAM-$PKGVERSION/$PRGNAM.SlackBuild
+mv $PKG/usr/doc/$PRGNAM-$PKGVERSION/HTML $PKG/usr/doc/$PRGNAM-$PKGVERSION/html
 # Save a sample of all configuration files:
 for i in etc/*.conf ; do
-  cp $i $PKG/usr/doc/$PRGNAM-$VERSION/$(basename $i)-sample
+  cp $i $PKG/usr/doc/$PRGNAM-$PKGVERSION/$(basename $i)-sample
 done
 # Save a transcript of all configured options for this specific build:
 if [ -n $OUTPUT/configure-${PRGNAM}.log ]; then
   cat $OUTPUT/configure-${PRGNAM}.log \
     | sed -n "/^Config files successfully generated/,/^'config.h' and 'config.mak' contain your configuration options./p" \
-    > $PKG/usr/doc/$PRGNAM-$VERSION/${PRGNAM}.configuration
+    > $PKG/usr/doc/$PRGNAM-$PKGVERSION/${PRGNAM}.configuration
 fi
 find $PKG/usr/doc -type f -exec chmod 644 {} \;
 
@@ -386,11 +504,11 @@ fi
 
 # Build the package:
 cd $PKG
-makepkg --linkadd y --chown n $OUTPUT/${PRGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz 2>&1 | tee $OUTPUT/makepkg-${PRGNAM}.log
+makepkg --linkadd y --chown n $OUTPUT/${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz 2>&1 | tee $OUTPUT/makepkg-${PRGNAM}.log
 cd $OUTPUT
-md5sum ${PRGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz > ${PRGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz.md5
+md5sum ${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz > ${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz.md5
 cd -
-cat $PKG/install/slack-desc | grep "^${PRGNAM}" > $OUTPUT/${PRGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txt
+cat $PKG/install/slack-desc | grep "^${PRGNAM}" > $OUTPUT/${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txt
 
 # Warn about libdvdcss requirement (again):
 if [ "$USE_PATENTS" != "YES" ]; then
@@ -398,14 +516,10 @@ if [ "$USE_PATENTS" != "YES" ]; then
 **
 ** Internal DECSS library was not built.
 ** If you want to play encrypted DVD's you need to install libdvdcss separately.
-** You take full legal responsibility for any use of DeCSS.  We neither supply
-** DeCSS code nor endorse any illegal use of it.
 **
-** If you are unaffected by patent concerns because you hold the required
-** licenses and permission to use the patented code, or reside in a
-** location where this is not a concern, and wish to include the patented
-** and restricted code (you take all legal responsibility for doing so),
-** then edit this SlackBuild script and change the line:
+** If you do not care about patent issues,
+** and want to keep support for internal libdvdcss, then
+** edit this SlackBuild script and change the line:
 ** USE_PATENTS=${USE_PATENTS:-"NO"}
 ** to:
 ** USE_PATENTS="YES"

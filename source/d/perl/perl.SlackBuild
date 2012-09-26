@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,9 +24,7 @@
 # originally by:  David Cantrell <david@slackware.com>
 # maintained by:  <volkerdi@slackware.com>
 
-VERSION=5.12.3
-# IMPORTANT: also update -Dinc_version_list with the previous Slackware
-# perl version in ./configure below!
+VERSION=5.16.1
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -46,11 +44,11 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-perl
 
 # Additional required modules:
-DBDMYSQL=4.018
-DBI=1.616
-URI=1.58
-XMLPARSER=2.40
-XMLSIMPLE=2.18
+DBDMYSQL=4.021
+DBI=1.622
+URI=1.60
+XMLPARSER=2.41
+XMLSIMPLE=2.20
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
@@ -119,15 +117,28 @@ fi
 # Configure perl:
 ./Configure -de \
   -Dprefix=/usr \
+  -Dsiteprefix=/usr/local \
+  -Dsitelib="/usr/local/share/perl5" \
+  -Dsitearch="/usr/local/lib${LIBDIRSUFFIX}/perl5" \
+  -Darchlib="/usr/lib${LIBDIRSUFFIX}/perl5" \
   -Dvendorprefix=/usr \
+  -Dprivlib="/usr/share/perl5" \
+  -Dvendorlib="/usr/share/perl5/vendor_perl" \
+  -Dvendorarch="/usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl" \
+  -Dscriptdir='/usr/bin' \
   -Dcccdlflags='-fPIC' \
   -Dinstallprefix=/usr \
   -Dlibpth="/usr/local/lib${LIBDIRSUFFIX} /usr/lib${LIBDIRSUFFIX} /lib${LIBDIRSUFFIX}" \
   -Doptimize="$SLKCFLAGS" \
   $USE_THREADS \
+  -Duseshrplib \
+  -Ubincompat5005 \
+  -Uversiononly \
   -Dpager='/usr/bin/less -isr' \
-  -Dinc_version_list='5.12.2 5.12.1 5.12.0 5.10.1 5.10.0 5.8.8 5.8.7 5.8.6 5.8.5 5.8.4 5.8.3 5.8.2 5.8.1 5.8.0' \
   -Darchname=$ARCH-linux
+
+# -Duseshrplib creates libperl.so
+# -Ubincompat5005 helps create DSO -> libperl.so
 
 # Kludge for gcc-4.2.4's needlessly changed output:
 cat makefile | grep -v '\<command-line\>' > foo
@@ -146,11 +157,11 @@ make install
   ln -sf c2ph pstruct
   ln -sf s2p psed
 )
-mkdir -p /usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
+#mkdir -p /usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
 
 # Install perl package:
 make install DESTDIR=$PKG
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
+#mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
 
 # Add additional modules:
 ( cd ext
@@ -237,8 +248,9 @@ mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-
 # Install documentation
 mkdir -p $PKG/usr/doc/perl-$VERSION
 cp -a \
-  AUTHORS Artistic Changes Copying INSTALL MANIFEST \
-  README README.{cn,jp,ko,tw} README.linux \
+  AUTHORS Artistic Changes Copying INSTALL \
+  README* \
+  README.{cn,jp,ko,tw} README.linux \
   $PKG/usr/doc/perl-$VERSION
 
 # We follow LSB with symlinks in /usr/share:
@@ -258,11 +270,10 @@ cp -a \
 
 chmod 755 $PKG/usr/bin/*
 chmod 644 $PKG/usr/man/man?/*
-rmdir $PKG/usr/share
 
 # This file shouldn't get clobbered:
-if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/perl5/${VERSION}/${ARCH}-linux-thread-multi/perllocal.pod ]; then
-  mv $PKG/usr/lib${LIBDIRSUFFIX}/perl5/${VERSION}/${ARCH}-linux-thread-multi/perllocal.pod $PKG/usr/lib${LIBDIRSUFFIX}/perl5/${VERSION}/${ARCH}-linux-thread-multi/perllocal.pod.new
+if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/perl5/perllocal.pod ]; then
+  mv $PKG/usr/lib${LIBDIRSUFFIX}/perl5/perllocal.pod $PKG/usr/lib${LIBDIRSUFFIX}/perl5/perllocal.pod.new
 fi
 
 # Insert the slack-desc:
@@ -284,7 +295,7 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config usr/lib/perl5/${VERSION}/i486-linux-thread-multi/perllocal.pod.new
+config usr/lib/perl5/perllocal.pod.new
 EOF
 
 # Build the package:

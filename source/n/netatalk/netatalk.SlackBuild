@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 
 VERSION=${VERSION:-$(echo netatalk-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-4}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -70,13 +70,6 @@ find . \
 # Fixup some paths in etc2ps.sh
 zcat $CWD/netatalk.etc2ps.diff.gz | patch -p1 || exit 1
 
-# Allow building without xfs quota support
-zcat $CWD/netatalk.without_xfs.diff.gz | patch -p1 || exit 1
-
-# Disallow transmission of passwords via cleartext and with old version 1 of
-# the Diffie-Hellman protocol
-zcat $CWD/netatalk.afpdconf.diff.gz | patch -p1 || exit 1
-
 autoreconf -vif
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -88,7 +81,7 @@ CFLAGS="$SLKCFLAGS" \
   --localstatedir=/var \
   --disable-static \
   --with-shadow \
-  --without-xfs \
+  --enable-ddp \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -117,12 +110,10 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 ( cd $PKG/etc/netatalk
-  for file in AppleVolumes.default AppleVolumes.system afpd.conf afppasswd atalkd.conf netatalk.conf papd.conf ; do
+  for file in AppleVolumes.default AppleVolumes.system afpd.conf afp_ldap.conf afppasswd atalkd.conf netatalk.conf papd.conf ; do
     mv $file ${file}.new
-    echo "config etc/netatalk/${file}.new" >> $PKG/install/doinst.sh
   done
 )
-echo "rm -f etc/netatalk/afppasswd.new" >> $PKG/install/doinst.sh
 
 mkdir -p $PKG/usr/doc/netatalk-$VERSION
 cp -a \

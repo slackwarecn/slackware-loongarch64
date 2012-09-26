@@ -10,6 +10,7 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 config etc/iproute2/ematch_map.new
+config etc/iproute2/group.new
 config etc/iproute2/rt_dsfield.new
 config etc/iproute2/rt_protos.new
 config etc/iproute2/rt_realms.new

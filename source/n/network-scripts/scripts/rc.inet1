@@ -72,6 +72,29 @@ lo_down() {
 # INTERFACE FUNCTIONS #
 #######################
 
+# Function to assemble a bridge interface.
+br_open() {
+  # argument is 'i' - the position of this interface in the IFNAME array.
+  /sbin/brctl addbr ${IFNAME[$1]}
+  for BRIF in $(echo ${BRNICS[$1]}); do
+    /sbin/ifconfig $BRIF down
+    /sbin/ifconfig $BRIF 0.0.0.0 promisc up
+    /sbin/brctl addif ${IFNAME[$1]} $BRIF
+  done
+}
+
+# Function to disassemble a bridge interface.
+br_close() {
+  # argument is 'i' - the position of this interface in the IFNAME array.
+  #for BRIF in $(echo ${BRNICS[$1]}); do
+  for BRIF in $(ls --indicator-style=none /sys/class/net/${IFNAME[$1]}/brif/)
+  do
+    /sbin/brctl delif ${IFNAME[$1]} $BRIF
+  done
+  /sbin/ifconfig ${IFNAME[$1]} down
+  /sbin/brctl delbr ${IFNAME[$1]}
+}
+
 # Function to bring up a network interface.  If the interface is
 # already up or does not yet exist (perhaps because the kernel driver
 # is not loaded yet), do nothing.
@@ -82,6 +105,8 @@ if_up() {
     [ "${IFNAME[$i]}" = "${1}" ] && break
     i=$(($i+1))
   done
+  # If the interface is a bridge, then create it first:
+  [ -n "${BRNICS[$i]}" ] && br_open $i
   # If the interface isn't in the kernel yet (but there's an alias for it in
   # modules.conf), then it should be loaded first:
   if ! grep `echo ${1}: | cut -f 1 -d :`: /proc/net/dev 1> /dev/null ; then # no interface yet
@@ -92,7 +117,7 @@ if_up() {
   fi
   if grep `echo ${1}: | cut -f 1 -d :`: /proc/net/dev 1> /dev/null ; then # interface exists
     if ! /sbin/ifconfig | grep -w "${1}" 1>/dev/null || \
-      ! /sbin/ifconfig ${1} | grep "inet addr" 1> /dev/null ; then # interface not up or not configured
+      ! /sbin/ifconfig ${1} | grep -w inet 1> /dev/null ; then # interface not up or not configured
       if [ ! "${HWADDR[$i]}" = "" ]; then # Set hardware address _before_ the interface goes up:
         echo "/etc/rc.d/rc.inet1:  /sbin/ifconfig ${1} hw ether ${HWADDR[$i]}" | $LOGGER
         /sbin/ifconfig ${1} hw ether ${HWADDR[$i]}
@@ -105,6 +130,9 @@ if_up() {
         . /etc/rc.d/rc.wireless ${1} start # Initialize any wireless parameters
       fi
       if [ "${USE_DHCP[$i]}" = "yes" ]; then # use DHCP to bring interface up
+        # Clear DHCP_OPTIONS before adding new options to it:
+        unset DHCP_OPTIONS
+        # Set DHCP_OPTIONS for this interface:
         [ ${DHCP_HOSTNAME[$i]} ] && DHCP_OPTIONS="-h ${DHCP_HOSTNAME[$i]}"
         [ "${DHCP_KEEPRESOLV[$i]}" = "yes" ] && DHCP_OPTIONS="$DHCP_OPTIONS -C resolv.conf"
         [ "${DHCP_KEEPNTP[$i]}" = "yes" ] && DHCP_OPTIONS="$DHCP_OPTIONS -C ntp.conf"
@@ -179,6 +207,8 @@ if_down() {
     if [ -x /etc/rc.d/rc.wireless ]; then
       . /etc/rc.d/rc.wireless ${1} stop # Kill wireless daemons if any.
     fi
+    # If the interface is a bridge, then destroy it now:
+    [ -n "${BRNICS[$i]}" ] && br_close $i
   fi
 }
 

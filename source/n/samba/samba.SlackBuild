@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -101,8 +101,6 @@ CFLAGS="$SLKCFLAGS" \
   --enable-shared=yes \
   --with-acl-support=yes \
   --with-automount \
-  --with-cifsmount \
-  --with-cifsumount \
   --with-quotas \
   --with-syslog \
   --with-utmp \
@@ -137,36 +135,12 @@ cp -a ../nsswitch/libnss_wins.so $PKG/lib${LIBDIRSUFFIX}/libnss_wins.so.2
   ln -sf libnss_wins.so.2 libnss_wins.so
 )
 
-# Install a pkgconfig file for libtalloc:
+# Install pkgconfig files:
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+cp -a pkgconfig/*.pc $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
 if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/talloc.pc ]; then
   cat $CWD/talloc.pc | sed -e "s/\/lib/\/lib${LIBDIRSUFFIX}/" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/talloc.pc
 fi
-
-## Make sure that other programs can link against libsmbclient:
-#( cd $PKG/usr/lib${LIBDIRSUFFIX}
-#  for FILE in samba/libsmbclient.so* ; do
-#    ln -sf $FILE
-#  done
-#)
-
-# Add some (u)mount links:
-mkdir -p $PKG/sbin
-( cd $PKG/sbin
-  # SMBFS is obsolete in the kernel now -- use mount.cifs
-  #rm -f mount.smbfs ; ln -sf /usr/bin/smbmount mount.smbfs
-  # Add a wrapper script from Debian that's included in the upstream Samba
-  # sources to help out people (like me ;-) who don't read every speck of
-  # documentation:
-  cat $TMP/samba-$VERSION/examples/scripts/mount/mount.smbfs > mount.smbfs
-  chmod 755 $PKG/sbin/mount.smbfs
-  # I suppose this wouldn't be the worst idea in the world, either:
-  ( cd $PKG/usr/bin ; ln -sf /sbin/mount.smbfs smbmount )
-  rm -f mount.cifs ; ln -sf /usr/sbin/mount.cifs mount.cifs
-  # smbumount was giving me problems so it seems wise to play it safe
-  #rm -f umount.smbfs ; ln -sf /usr/bin/smbumount umount.smbfs
-  #rm -f umount.cifs ; ln -sf /usr/sbin/umount.cifs umount.cifs
-)
 
 # Add a sample config file:
 cat $CWD/smb.conf.default > $PKG/etc/samba/smb.conf-sample

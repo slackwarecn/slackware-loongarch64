@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2007-2010  Robby Workman, Northport, Alabama, USA
-# Copyright 2007-2010  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2007-2012  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 PKGNAM=dbus
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -69,6 +69,7 @@ find . \
  -exec chmod 644 {} \;
 
 zcat $CWD/dbus-1.4.x-allow_root_globally.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/dbus.set.home.diff.gz | patch -p1 --verbose || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -80,9 +81,11 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --disable-doxygen-docs \
   --enable-shared=yes \
   --enable-static=no \
   --enable-inotify \
+  --enable-x11-autolaunch \
   --with-system-pid-file=/var/run/dbus/dbus.pid \
   --with-system-socket=/var/run/dbus/system_bus_socket \
   --with-init-scripts=slackware \
@@ -94,8 +97,20 @@ make install DESTDIR=$PKG
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-find $PKG/usr/man -type f -exec gzip -9 {} \;
-for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 # Install a custom init script for dbus - the included one is not good for us
 rm $PKG/etc/rc.d/*
@@ -111,6 +126,14 @@ cp -a \
   AUTHORS COPYING* HACKING INSTALL NEWS README* doc/*.{txt,html,dtd} \
   $PKG/usr/doc/$PKGNAM-$VERSION
 find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 0644 {} \;
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

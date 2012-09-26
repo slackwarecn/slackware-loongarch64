@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-2.86}
-BUILD=${BUILD:-6}
+VERSION=${VERSION:-2.88dsf}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -43,29 +43,23 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf sysvinit-$VERSION
-tar xzvf $CWD/sysvinit-$VERSION.tar.gz || exit 1
+tar xvf $CWD/sysvinit-$VERSION.tar.xz || exit 1
 cd sysvinit-$VERSION
 chown -R root:root .
-zcat $CWD/sysvinit.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/sysvinit.pidof.rhforkseverything.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
-if [ "$ARCH" = "x86_64" ]; then
-  # Don't overwrite ut_addr_v6 in utmp records on 64-bit platforms
-  zcat $CWD/sysvinit-2.86-timeval.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
-fi
+
+# Fix paths for /etc/forcefsck and /etc/fastboot:
+zcat $CWD/sysvinit.paths.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
 
 cd doc
 mkdir -p $PKG/usr/doc/sysvinit-$VERSION
-cp -a Install Propaganda sysvinit-$VERSION.lsm \
+cp -a Install Propaganda sysvinit-2.86.lsm \
+  ../COPYING* ../COPYRIGHT ../README* \
   $PKG/usr/doc/sysvinit-$VERSION
 chmod -R 644 $PKG/usr/doc/sysvinit-$VERSION/*
 chmod 755 $PKG/usr/doc/sysvinit-$VERSION
 
 cd ../src
-if [ "$ARCH" = "x86_64" ]; then
-  # static 'init' segfaults, so your computer never reaches command prompt:
-  sed -i -e "s/-static//" Makefile
-fi
-make clobber
+make clobber || exit 1
 make || exit 1
 
 mkdir -p $PKG/sbin

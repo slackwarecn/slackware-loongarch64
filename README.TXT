@@ -1,18 +1,17 @@
 
-Welcome to Slackware 13.37!  (64-bit x86_64 edition)
+Welcome to Slackware 14.0!  (64-bit x86_64 edition)
 
-Slackware 13.37 is a complete distribution of the Linux operating system.
+Slackware 14.0 is a complete distribution of the Linux operating system.
 
-Here are some versions of major components of Slackware 13.37:
+Here are some versions of major components of Slackware 14.0:
 
-- Linux kernel           2.6.37.6
-                         2.6.38.4
-- C compiler             gcc-4.5.2
-- Binutils               2.21.51.0.6
-- GNU C Library          glibc-2.13
-- X Window System        X11R7.6 + updates
-- KDE                    4.5.5
-- Xfce                   4.6.2
+- Linux kernel           3.2.29
+- C compiler             gcc-4.7.1
+- Binutils               2.22.52.0.2
+- GNU C Library          glibc-2.15
+- X Window System        X11R7.7
+- KDE                    4.8.5
+- Xfce                   4.10.0
 
 For installation instructions, see the file 'Slackware-HOWTO'.
 
@@ -21,24 +20,20 @@ For important hints about this release, see the file 'CHANGES_AND_HINTS.TXT'.
 These are some of the important files and directories found on the Slackware
 FTP site:
 
-  ftp://ftp.slackware.com/pub/slackware/slackware64-13.37/
+  ftp://ftp.slackware.com/pub/slackware/slackware64-14.0/
 
-There is also a newer (and faster) primary FTP site for Slackware here:
-
-  ftp://slackware.osuosl.org/pub/slackware/slackware64-13.37/
-
-Thanks to cwo.com for continuing to help us with hosting for our web site
-and ftp.slackware.com, and to the OSU Open Source Lab for hosting our
-archives at slackware.osuosl.org.
+Thanks to cwo.com for continuing to help us with hosting for our web site,
+and to the OSU Open Source Lab for hosting our archives at ftp.slackware.com
+(aka ftp.osuosl.org).
 
 If you're reading this on a CD-ROM, these directories will probably be
 split across several discs.
 
 .
-|-- ANNOUNCE.13.37        Announcement for Slackware 13.37.
+|-- ANNOUNCE.14.0        Announcement for Slackware 14.0.
 |-- BOOTING.TXT          Tips for troubleshooting boot problems.
-|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 13.1
-|                        to 13.37 and common pitfalls.
+|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 13.37
+|                        to 14.0 and common pitfalls.
 |-- CHECKSUMS.md5        MD5 format file checksums.
 |-- COPYING              The GNU Public License, version 2.
 |-- COPYING3             The GNU Public License, version 3.
@@ -64,9 +59,12 @@ split across several discs.
 |
 |-- extra/               Extra packages for Slackware like:
 |   |                    aspell-word-lists, bash-completion, bittornado,
-|   |                    brltty, emacspeak, the Java(TM) JDK,
-|   |                    mplayerplug-in, partitionmanager (GUI partitioning
-|   |                    tool for KDE4), slacktrack, tightvnc, and wicd.
+|   |                    bittorrent, brltty, emacspeak, mplayerplug-in,
+|   |                    partitionmanager, recordmydesktop, tightvnc, wicd,
+|   |                    and xf86-video-fbdev.  Scripts are also included to
+|   |                    repackage some non-redistributable binaries into
+|   |                    Slackware packages:  google-chrome, java, and
+|   |                    flashplayer-plugin.
 |   |
 |   `-- source/          Source code for the extra packages.
 |
@@ -80,25 +78,16 @@ split across several discs.
 |   |
 |   `-- initrd.img       Installation initrd (can also be loaded with Loadlin)
 |
-|-- kernels/             Precompiled Linux 2.6.37.6 kernel images.
+|-- kernels/             Precompiled Linux 3.2.29 kernel images.
 |   |
 |   `-- huge.s           The default standard install kernel for Slackware.
 |                        This supports pretty much everything in the
-|                        2.6.37.6 kernel, including Speakup.  This kernel
+|                        3.2.29 kernel, including Speakup.  This kernel
 |                        requires an x86_64 (also known as AMD64, EM64T, or
 |                        Intel 64) capable 64-bit CPU.
 |    
-|-- pasture/             These are packages that have been removed
-|   |                    from Slackware, but are useful enough to
-|   |                    keep around.  Might not be secure.
-|   |
-|   |                    Packages currently found here include
-|   |                    gxine-0.5.905, mesa-7.8.2, and xf86-video-ati-6.13.2.
-|   |
-|   `-- source/          Source code directory for the pasture packages.
-|
-|-- slackware/           This directory contains the core software packages
-|   |                    for Slackware 13.37.
+|-- slackware64/         This directory contains the core software packages
+|   |                    for Slackware 14.0.
 |   |
 |   |-- a/               The A (base) package series.
 |   |-- ap/              The AP (applications) package series.
@@ -114,6 +103,7 @@ split across several discs.
 |   |-- tcl/             The TCL (Tcl/Tk and related) package series.
 |   |-- x/               The X (X Window System) package series.
 |   |-- xap/             The XAP (X applications) package series.
+|   |-- xfce/            The XFCE (Xfce desktop) package series.
 |   `-- y/               The Y (BSD games) package series.
 |
 |-- source/              This directory contains source code for the core
@@ -134,13 +124,23 @@ split across several discs.
 |   |-- tcl/             Source for the TCL (Tcl/Tk and related) series.
 |   |-- x/               Source for the X (X Window System) series.
 |   |-- xap/             Source for the XAP (X applications) series.
+|   |-- xfce/            Source for the XFCE (Xfce desktop) series.
 |   `-- y/               Source for the Y (BSD games) series.
 |
 |-- testing/             This directory contains packages being tested
 |   |                    for possible use in future versions of Slackware.
-|   |                    You'll find mesa-7.10.1, which might be a better
-|   |                    option for some hardware.  This package should
-|   |                    not be considered supported.
+|   |                    Here you'll find rp-pppoe-3.11, a user-space PPPoE
+|   |                    client, which came in just a bit too late to be
+|   |                    tested for inclusion in the main tree.
+|   |                    Also included are config files for more recent
+|   |                    branches of the Linux kernel.
+|   |                    Finally, there are newer versions of libdrm and
+|   |                    the X video drivers nouveau, ati, and intel.
+|   |                    These alternate drivers require the libdrm
+|   |                    update, so be sure to install that if you try
+|   |                    them.  These weren't included in the main tree
+|   |                    because Mesa is not yet compile-ready for this
+|   |                    version of libdrm.
 |   |
 |   `--- source/         This directory contains source code for the 
 |                        packages in testing.
@@ -160,12 +160,11 @@ split across several discs.
 
 
 If you like Slackware, please consider supporting the project by becoming
-a Slackware subscriber.  The announcement (ANNOUNCE_13.37) in this directory
+a Slackware subscriber.  The announcement (ANNOUNCE_14.0) in this directory
 has information about ordering or subscribing to the Slackware CD-ROM or
-DVD releases.  Note that at this time the x86_64 release is only available
-as part of the DVD -- if there's interest in a CD-ROM version, let us know.
-You can find out about ordering Slackware on media, or read more about it
-(and check out other Slackware-related items for sale) by visiting the
+DVD releases.  Note that the x86_64 release is only available as part of the
+DVD.  You can find out about ordering Slackware on media, or read more about
+it (and check out other Slackware-related items for sale) by visiting the
 Slackware store.  We also gratefully accept financial contributions under
 the "All" section of the store site menu.
 

@@ -3,6 +3,7 @@
 # Slackware build script for ntfs-3g
 
 # Copyright 2008  Antonio Hernandez Blas <hba.nihilismus@gmail.com>
+# Copyright 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,9 +27,10 @@
 # Modified by Eric Hameleers <alien@slackware.com>
 
 PKGNAM=ntfs-3g
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+VERSION=2012.1.15
+BUILD=${BUILD:-2}
 
+SRCNAM=ntfs-3g_ntfsprogs
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
@@ -62,9 +64,9 @@ PKG=$TMP/package-$PKGNAM
 rm -rf $PKG 
 mkdir -p $TMP $PKG
 cd $TMP || exit 1
-rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
-cd $PKGNAM-$VERSION || exit 1
+rm -rf $SRCNAM-$VERSION
+tar xvf $CWD/$SRCNAM-$VERSION.tar.?z* || exit 1
+cd $SRCNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -90,17 +92,45 @@ CXXFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# I hate to do this (it worked without it before), but recently /bin/ntfs-3g
+# ceased to work for non-root users unless it is setuid root.  If anyone has
+# any better ideas, I'd like to hear them.
+chmod 4711 $PKG/bin/ntfs-3g
+
 # Add the HAL fdi file so that automount uses ntfs-3g for mounting
 # This should work with the "volume.fstype.alternative.*" in hal-0.5.12+
 mkdir -p $PKG/usr/share/hal/fdi/policy/10osvendor
 cat $CWD/10-ntfs-3g-policy.fdi \
   > $PKG/usr/share/hal/fdi/policy/10osvendor/10-ntfs-3g-policy.fdi
 
+# Create a mount.ntfs -> mount.ntfs-3g symlink.
+# This causes ntfs-3g to always be used when mounting NTFS filesystems.
+# NOTE:  This also seems to make mounting with the old ntfs filesystem
+# impossible.  But does anyone care?
+( cd $PKG/sbin ; ln -s mount.ntfs-3g mount.ntfs )
+
+## Add a udev rule to use ntfs-3g instead of ntfs:
+## (This is not needed if the mount.ntfs symlink is made)
+#mkdir -p $PKG/lib/udev/rules.d
+#cat $CWD/99-ntfs-3g.rules > $PKG/lib/udev/rules.d/99-ntfs-3g.rules
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-find $PKG/usr/man -type f -exec gzip -9 {} \;
-for i in $(find $PKG/usr/man -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 rm -rf $PKG/usr/share/doc
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION

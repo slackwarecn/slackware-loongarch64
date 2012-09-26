@@ -10,4 +10,5 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config etc/X11/fvwm2/system.fvwm2rc.new
+# Might need this later
+#config etc/X11/fvwm2/system.fvwm2rc.new

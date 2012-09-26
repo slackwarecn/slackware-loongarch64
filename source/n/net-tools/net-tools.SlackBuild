@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,8 +22,8 @@
 
 
 PKGNAM=net-tools
-VERSION=${VERSION:-1.60}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-1.60.20120726git}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -54,8 +54,11 @@ else
 fi
 
 cd $TMP
-tar xjvf $CWD/net-tools-1.60.tar.bz2 || exit 1
-cd net-tools-1.60
+rm -rf net-tools-$VERSION
+tar xvf $CWD/net-tools-$VERSION.tar.xz || exit 1
+cd net-tools-$VERSION || exit 1
+
+zcat $CWD/net-tools.config.h.gz > config.h
 
 chown -R root:root .
 find . \
@@ -64,18 +67,12 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/net-tools_1.60-23.diff.gz | patch -p1 --backup --verbose || exit 1
-zcat $CWD/net-tools.diff.gz | patch -p1 --backup --verbose || exit 1
-zcat $CWD/net-tools.struct.x25_address.gcc4.diff.gz | patch -p1 --backup --verbose || exit 1
-zcat $CWD/net-tools.switch.default.gcc4.diff.gz | patch -p1 --backup --verbose || exit 1
-zcat $CWD/net-tools.mii-tool.string.diff.gz | patch -p1 --backup --verbose || exit 1
-
-mkdir -p $PKG/usr/doc/net-tools-1.60
-cp -a README README.ipv6 $PKG/usr/doc/net-tools-1.60
-chmod 644 $PKG/usr/doc/net-tools-1.60/*
-chown root:root $PKG/usr/doc/net-tools-1.60/*
-HAVE_IP_TOOLS=1 HAVE_MII=1 make
-HAVE_IP_TOOLS=1 HAVE_MII=1 make hostname
+mkdir -p $PKG/usr/doc/net-tools-$VERSION
+cp -a COPYING* README* $PKG/usr/doc/net-tools-$VERSION
+chmod 644 $PKG/usr/doc/net-tools-$VERSION/*
+chown root:root $PKG/usr/doc/net-tools-$VERSION/*
+HAVE_IP_TOOLS=1 HAVE_MII=1 make || exit 1
+HAVE_IP_TOOLS=1 HAVE_MII=1 make hostname || exit 1
 strip --strip-unneeded ipmaddr iptunnel hostname arp ifconfig nameif rarp route netstat plipconfig slattach mii-tool
 mkdir -p $PKG/sbin $PKG/bin $PKG/usr/sbin
 cat arp > $PKG/sbin/arp

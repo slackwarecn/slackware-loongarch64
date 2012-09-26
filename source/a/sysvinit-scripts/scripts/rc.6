@@ -124,6 +124,13 @@ if echo "$PS" | /bin/grep -q -w pppd ; then
   fi
 fi
 
+# Shut down YP services:
+if [ -x /etc/rc.d/rc.yp ]; then
+  if grep -wq stop /etc/rc.d/rc.yp ; then
+    /etc/rc.d/rc.yp stop
+  fi
+fi
+
 # Bring down the networking system, but first make sure that this
 # isn't a diskless client with the / partition mounted via NFS:
 if ! /bin/mount | /bin/grep -q 'on / type nfs' ; then
@@ -158,14 +165,17 @@ if [ -x /etc/rc.d/rc.acpid -a -r /var/run/acpid.pid ]; then # quit
   . /etc/rc.d/rc.acpid stop
 fi
 
-# Kill all processes.
-# INIT is supposed to handle this entirely now, but this didn't always
-# work correctly without this second pass at killing off the processes.
-# Since INIT already notified the user that processes were being killed,
-# we'll avoid echoing this info this time around.
-if [ ! "$1" = "fast" ]; then # shutdown did not already kill all processes
+# Stop udev:
+if [ -x /etc/rc.d/rc.udev ]; then
+  sh /etc/rc.d/rc.udev force-stop
+fi
+
+# Kill all remaining processes.
+if [ ! "$1" = "fast" ]; then
+  echo "Sending all processes the SIGTERM signal."
   /sbin/killall5 -15 
   /bin/sleep 5
+  echo "Sending all processes the SIGKILL signal."
   /sbin/killall5 -9
 fi
 

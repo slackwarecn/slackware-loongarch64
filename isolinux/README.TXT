@@ -13,7 +13,7 @@ mkisofs -o /tmp/slackware-dvd.iso \
   -sort isolinux/iso.sort \
   -b isolinux/isolinux.bin \
   -c isolinux/isolinux.boot \
-  -m 'kde-l10n-*.tar.bz2' \
+  -m 'source' \
   -V "SlackDVD" .
 
 On my system, here's the command I'd use to burn the resulting DVD ISO:
@@ -39,15 +39,14 @@ growisofs \
   -sort isolinux/iso.sort \
   -b isolinux/isolinux.bin \
   -c isolinux/isolinux.boot \
-  -m 'kde-l10n-*.tar.bz2' \
+  -m 'source' \
   -dvd-compat \
   -V "SlackDVD" .
 
-Note that the source files for the KDE language translations will not be
-included on these DVD images in order to keep them under the limit for
-a single-layer disc.  If you are using double layer DVD media and want to
-burn the complete tree to your disc, remove the -m option line from the
-command.
+Note that the source code directory will not be included on these DVD
+images in order to keep them under the limit for a single-layer disc.
+If you are using double layer DVD media and want to burn the complete
+tree to your disc, remove the -m option line from the command.
 
 
 HOW TO MAKE A SET OF BOOTABLE / INSTALLABLE CDROMS

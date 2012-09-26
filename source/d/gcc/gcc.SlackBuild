@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,6 +22,8 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
+# Modified 2011 by Eric Hameleers <alien at slackware.com> for OpenJDK.
 
 # Some notes, Fri May 16 12:31:32 PDT 2003:
 #
@@ -44,50 +46,65 @@
 
 PKGNAM=gcc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # How many jobs to run in parallel:
 NUMJOBS=" -j 7 "
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i486 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7lh ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
-
-TARGET=$ARCH-slackware-linux
 
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
   LIBDIRSUFFIX=""
+  LIB_ARCH=i386
 elif [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
   LIBDIRSUFFIX=""
+  LIB_ARCH=i386
 elif [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
+  LIB_ARCH=i386
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686"
   LIBDIRSUFFIX=""
+  LIB_ARCH=i386
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
+  LIB_ARCH=s390
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+  LIB_ARCH=amd64
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=armv7hl
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
+  LIB_ARCH=$ARCH
 fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
 
 CWD=$(pwd)
 # Temporary build location.  This should *NOT* be a directory
 # path a non-root user could create later...
-TMP=/gcc-$(mcookie)
+TMP=${TMP:-"/gcc-$(mcookie)"}
 
 # This is the main DESTDIR target:
 PKG1=$TMP/package-gcc
@@ -98,15 +115,16 @@ PKG4=$TMP/package-gcc-gnat
 PKG5=$TMP/package-gcc-java
 PKG6=$TMP/package-gcc-objc
 PKG7=$TMP/package-gcc-g++-gch
+PKG8=$TMP/package-gcc-go
 
 # Clear the build locations:
 if [ -d $TMP ]; then
   rm -rf $TMP
 fi
-mkdir -p $PKG{1,2,3,4,5,6,7}/usr/doc/gcc-$VERSION
+mkdir -p $PKG{1,2,3,4,5,6,7,8}/usr/doc/gcc-$VERSION
 
 # Insert package descriptions:
-mkdir -p $PKG{1,2,3,4,5,6,7}/install
+mkdir -p $PKG{1,2,3,4,5,6,7,8}/install
 cat $CWD/slack-desc.gcc > $PKG1/install/slack-desc
 cat $CWD/slack-desc.gcc-g++ > $PKG2/install/slack-desc
 cat $CWD/slack-desc.gcc-gfortran > $PKG3/install/slack-desc
@@ -114,6 +132,7 @@ cat $CWD/slack-desc.gcc-gnat > $PKG4/install/slack-desc
 cat $CWD/slack-desc.gcc-java > $PKG5/install/slack-desc
 cat $CWD/slack-desc.gcc-objc > $PKG6/install/slack-desc
 # cat $CWD/slack-desc.gcc-g++-gch > $PKG7/install/slack-desc
+cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
 
 cd $TMP
 tar xvf $CWD/gcc-$VERSION.tar.?z*
@@ -121,6 +140,16 @@ tar xvf $CWD/gcc-$VERSION.tar.?z*
 # Copy ecj.jar into the TLD of the source. Needed for java compiler.
 # This can be retrieved from ftp://sourceware.org/pub/java
 cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
+
+# Use an antlr runtime to compile javadoc.
+# The runtime can be obtained from:
+#https://oss.sonatype.org/content/repositories/releases/org/antlr/antlr-runtime/
+ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
+
+# Upstream -fPIC fix for gnat build:
+cd gcc-$VERSION
+  zcat $CWD/gcc-4.7.1.adalib.pic.diff.gz | patch -p1 --verbose || exit 1
+cd ..
 
 # install docs
 ( cd gcc-$VERSION
@@ -134,9 +163,8 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
   find . -perm 664 -exec chmod 644 {} \;
   mkdir -p $PKG1/usr/doc/gcc-$VERSION
   cp -a \
-    BUGS COPYING* \
-    ChangeLog.tree-ssa FAQ INSTALL \
-    LAST_UPDATED MAINTAINERS \
+    COPYING* ChangeLog* FAQ INSTALL \
+    LAST_UPDATED MAINTAINERS NEWS \
     README* *.html \
   $PKG1/usr/doc/gcc-$VERSION
 
@@ -198,6 +226,19 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
         touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
       fi
     )
+
+    mkdir -p $PKG8/usr/doc/gcc-${VERSION}/gcc/go
+    ( cd go
+      if [ -r ChangeLog ]; then
+        cat ChangeLog | head -n 1000 > $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
+        touch -r ChangeLog $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
+      fi
+      cp -a \
+        README* THREADS* \
+        gofrontend/{LICENSE,PATENTS,README} \
+      $PKG8/usr/doc/gcc-${VERSION}/gcc/go
+    )
+
   ) || exit 1
 
   mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
@@ -278,6 +319,7 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
       touch -r ChangeLog $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
     fi
   )
+
 )
 
 # Add fastjar to the gcc-java package:
@@ -305,7 +347,7 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
      --libdir=/usr/lib$LIBDIRSUFFIX \
      --mandir=/usr/man \
      --infodir=/usr/info \
-     --build=$ARCH-slackware-linux
+     --build=$TARGET
   make $NUMJOBS || exit 1
   make install DESTDIR=$PKG5 || exit 1
   mkdir -p $PKG5/usr/doc/fastjar-$FASTJARVER
@@ -372,17 +414,26 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
      --infodir=/usr/info \
      --enable-shared \
      --enable-bootstrap \
-     --enable-languages=ada,c,c++,fortran,java,objc,lto \
+     --enable-languages=ada,c,c++,fortran,go,java,lto,objc \
      --enable-threads=posix \
      --enable-checking=release \
+     --enable-objc-gc \
      --with-system-zlib \
-     --with-python-dir=/lib$LIBDIRSUFFIX/python2.6/site-packages \
+     --with-python-dir=/lib$LIBDIRSUFFIX/python2.7/site-packages \
      --disable-libunwind-exceptions \
      --enable-__cxa_atexit \
      --enable-libssp \
      --enable-lto \
      --with-gnu-ld \
      --verbose \
+     --enable-java-home \
+     --with-java-home=/usr/lib$LIBDIRSUFFIX/jvm/jre \
+     --with-jvm-root-dir=/usr/lib$LIBDIRSUFFIX/jvm \
+     --with-jvm-jar-dir=/usr/lib$LIBDIRSUFFIX/jvm/jvm-exports \
+     --with-arch-directory=$LIB_ARCH \
+     --with-antlr-jar=$ANTLJAR \
+     --enable-java-awt=gtk \
+     --disable-gtktest \
      $GCC_ARCHOPTS \
      --target=${TARGET} \
      --build=${TARGET} \
@@ -418,14 +469,14 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
 rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/*gdb.py
 
 # Be sure the "specs" file is installed.
-if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${ARCH}-slackware-linux/${VERSION}/specs ]; then
-  cat stage1-gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${ARCH}-slackware-linux/${VERSION}/specs
+if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
+  cat stage1-gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
 fi
 
 # Make our 64bit gcc look for 32bit gcc binaries in ./32 subdirectory:
 if [ "$ARCH" = "x86_64" ]; then
   sed -i 's#;.\(:../lib !m64 m32;\)$#;32\1#' \
-    $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${ARCH}-slackware-linux/${VERSION}/specs
+    $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
 fi
 
 #  make ada.install-common DESTDIR=$PKG1
@@ -462,6 +513,9 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
   ln -sf gcc cc
   ln -sf gcc-$VERSION ${TARGET}-gcc
   ln -sf gcc-$VERSION ${TARGET}-gcc-$VERSION
+  ln -sf gcc-ar ${TARGET}-gcc-ar
+  ln -sf gcc-nm ${TARGET}-gcc-nm
+  ln -sf gcc-ranlib ${TARGET}-gcc-ranlib
   ln -sf gcj ${TARGET}-gcj
   ln -sf gcjh ${TARGET}-gcjh
   ln -sf g++-gcc-$VERSION ${TARGET}-c++
@@ -531,6 +585,11 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
 )
 
 # gcc-gnat:
+# First, relocate usr/bin/gnative2ascii to the gcc-java package so it
+# isn't matched and accidentally put in gcc-gnat:
+mkdir -p $PKG5/usr/bin
+mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
+# Now make the gcc-gnat package tree:
 ( cd $PKG4
   mkdir -p usr/bin
   mv $PKG1/usr/bin/gnat* usr/bin
@@ -583,11 +642,11 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jvmpi.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/libffi usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   # aot-compile Python plugins:
-  if [ ! -d $PKG1/usr/lib${LIBDIRSUFFIX}/python2.6 ]; then
-    echo "NO $PKG1/usr/lib${LIBDIRSUFFIX}/python2.6 !"
+  if [ ! -d $PKG1/usr/lib${LIBDIRSUFFIX}/python2.7 ]; then
+    echo "NO $PKG1/usr/lib${LIBDIRSUFFIX}/python2.7 !"
     exit 1
   fi
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/python2.6 usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/python2.7 usr/lib${LIBDIRSUFFIX}
   mkdir -p usr/info
   mv $PKG1/usr/info/gcj.* usr/info
   # mv $PKG1/usr/info/fastjar.* usr/info
@@ -633,8 +692,24 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
   mv $PKG1/usr/man/man1/jv-convert.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/jv-scan.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/rebuild-gcj-db.1.gz usr/man/man1
+  mkdir -p usr/man/man3
+  mv $PKG1/usr/man/man3/ffi* usr/man/man3
   mkdir -p usr/share
   mv $PKG1/usr/share/java usr/share
+  # The ecj wrapper script:
+  cat $CWD/ecj.sh | sed -e "s,@JAVADIR@,/usr/share/java," > usr/bin/ecj
+  chmod 755 usr/bin/ecj
+  # The JAVA_HOME compatibility links.
+  # Caution: non-multilib arch-independent stuff! No lib64 here.
+  mkdir -p usr/lib$LIBDIRSUFFIX
+  mv $PKG1/usr/lib$LIBDIRSUFFIX/jvm* usr/lib$LIBDIRSUFFIX
+  # And add the missing javac symlink:
+  ln -s ../../../bin/ecj usr/lib$LIBDIRSUFFIX/jvm/bin/javac
+  # Don't package libffi stuff anymore.  GCC will link the internal version
+  # statically, and we'll need a newer one elsewhere.
+  find . -name "ffi*.h" | xargs rm
+  find . -name "libffi*" | xargs rm
+  rm usr/man/man3/ffi*
 )
 
 # gcc-objc:
@@ -655,6 +730,25 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
 #  mv $PKG2/usr/include/c++/$VERSION/$TARGET/bits/stdc++.h.gch usr/include/c++/$VERSION/$TARGET/bits
 #)
 
+# gcc-go:
+( cd $PKG8
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/*gccgo* usr/bin
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/go1 usr/libexec/gcc/$TARGET/$VERSION/go1
+  mkdir -p usr/info
+  mv $PKG1/usr/info/gccgo.info.gz usr/info
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.la,libgo.so.0.*,libgobegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
+  # Ordinarily Slackware doesn't package static libraries, but in this case
+  # it is useful for deploying compiled binaries on machines that do not yet
+  # have libgo.so.0.0.0.
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a usr/lib${LIBDIRSUFFIX}
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gccgo.1.gz usr/man/man1
+) || exit 1
+
 # Filter all .la files (thanks much to Mark Post for the sed script):
 ( cd $TMP
   for file in $(find . -type f -name "*.la") ; do
@@ -665,7 +759,7 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
 )
 
 ## Strip bloated binaries and libraries:
-for dir in $PKG{1,2,3,4,5,6}; do
+for dir in $PKG{1,2,3,4,5,6,8}; do
   ( cd $dir
     find . -name "lib*so*" -exec strip --strip-unneeded "{}" \;
     find . -name "lib*a" -exec strip -g "{}" \;
@@ -689,6 +783,8 @@ done
   makepkg -l y -c n $TMP/gcc-objc-$VERSION-$ARCH-$BUILD.txz )
 #( cd $PKG7
 #  makepkg -l y -c n $TMP/gcc-g++-gch-$VERSION-$ARCH-$BUILD.txz )
+( cd $PKG8
+  makepkg -l y -c n $TMP/gcc-go-$VERSION-$ARCH-$BUILD.txz )
 
 echo
 echo "Slackware GCC package build complete!"

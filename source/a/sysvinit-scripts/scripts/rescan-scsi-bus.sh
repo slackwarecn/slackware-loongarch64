@@ -1,9 +1,11 @@
 #!/bin/bash
 # Skript to rescan SCSI bus, using the 
 # scsi add-single-device mechanism
-# (c) 1998--2008 Kurt Garloff <kurt@garloff.de>, GNU GPL v2 or later
+# (c) 1998--2010 Kurt Garloff <kurt@garloff.de>, GNU GPL v2 or v3
 # (c) 2006--2008 Hannes Reinecke, GNU GPL v2 or later
-# $Id: rescan-scsi-bus.sh,v 1.48 2010/08/10 19:32:22 garloff Exp $
+# $Id: rescan-scsi-bus.sh,v 1.56 2012/01/14 22:23:53 garloff Exp $
+
+SCAN_WILD_CARD=4294967295
 
 setcolor ()
 {
@@ -47,8 +49,9 @@ white_out ()
 # Return hosts. sysfs must be mounted
 findhosts_26 ()
 {
-  hosts=
-  for hostdir in /sys/class/scsi_host/host*; do
+  hosts=`find /sys/class/scsi_host/host* -maxdepth 4 -type d -o -type l 2> /dev/null | awk -F'/' '{print $5}' | sed -e 's~host~~' | sort -nu` 
+  scsi_host_data=`echo "$hosts" | sed -e 's~^~/sys/class/scsi_host/host~'` 
+  for hostdir in $scsi_host_data; do 
     hostno=${hostdir#/sys/class/scsi_host/host}
     if [ -f $hostdir/isp_name ] ; then
       hostname="qla2xxx"
@@ -57,14 +60,15 @@ findhosts_26 ()
     else
       hostname=`cat $hostdir/proc_name`
     fi
-    hosts="$hosts $hostno"
+    #hosts="$hosts $hostno"
     echo "Host adapter $hostno ($hostname) found."
   done  
   if [ -z "$hosts" ] ; then
     echo "No SCSI host adapters found in sysfs"
     exit 1;
   fi
-  hosts=`echo $hosts | sed 's/ /\n/g' | sort -n`
+  # Not necessary just use double quotes around variable to preserve new lines
+  #hosts=`echo $hosts | tr ' ' '\n'`
 }
 
 # Return hosts. /proc/scsi/HOSTADAPTER/? must exist
@@ -337,11 +341,22 @@ idlist ()
 getluns()
 {
   sgdevice
-  if test -z "$SGDEV"; then return; fi
-  if test ! -x /usr/bin/sg_luns; then echo 0; return; fi
-  LLUN=`sg_luns -d /dev/$SGDEV 2>/dev/null`
-  if test $? != 0; then echo 0; return; fi
-  echo "$LLUN" | sed -n 's/.*lun=\(.*\)/\1/p'
+  if test -z "$SGDEV"; then return 1; fi
+  if test ! -x /usr/bin/sg_luns; then echo 0; return 1; fi
+  LLUN=`sg_luns /dev/$SGDEV 2>/dev/null | sed -n 's/    \(.*\)/\1/p'`
+  if test $? != 0; then echo 0; return 1; fi
+  #echo "$LLUN" | sed -n 's/.*lun=\(.*\)/\1/p'
+  for lun in $LLUN ; do
+      # Swap LUN number
+      l0=$(printf '%u' 0x$lun)
+      l1=$(( ($l0 >> 48) & 0xffff ))
+      l2=$(( ($l0 >> 32) & 0xffff )) 
+      l3=$(( ($l0 >> 16) & 0xffff ))
+      l4=$(( $l0 & 0xffff ))
+      l0=$(( ( ( ($l4 * 0xffff) + $l3 ) * 0xffff + $l2 ) * 0xffff + $l1 ))
+      printf "%u\n" $l0
+  done
+  return 0
 }
 
 # Wait for udev to settle (create device nodes etc.)
@@ -350,6 +365,10 @@ udevadm_settle()
   if test -x /sbin/udevadm; then 
     print_and_scroll_back " Calling udevadm settle (can take a while) "
     /sbin/udevadm settle
+    white_out
+  elif test -x /sbin/udevsettle; then
+    print_and_scroll_back " Calling udevsettle (can take a while) "
+    /sbin/udevsettle
     white_out
   else
     usleep 20000
@@ -361,7 +380,7 @@ dolunscan()
 {
   SCSISTR=
   devnr="$host $channel $id $lun"
-  echo "Scanning for device $devnr ... "
+  echo -e " Scanning for device $devnr ... "
   printf "${yellow}OLD: $norm"
   testexist
   # Special case: lun 0 just got added (for reportlunscan),
@@ -382,10 +401,6 @@ dolunscan()
       echo -e "${norm}\e[B\e[B"
       if test -e /sys/class/scsi_device/${host}:${channel}:${id}:${lun}/device; then
         echo 1 > /sys/class/scsi_device/${host}:${channel}:${id}:${lun}/device/delete
-	if test $RC -eq 1 -o $lun -eq 0 ; then
-          # Try readding, should fail if device is gone
-          echo "$channel $id $lun" > /sys/class/scsi_host/host${host}/scan
-	fi
 	# FIXME: Can we skip udevadm settle for removal?
 	#udevadm_settle
 	usleep 20000
@@ -440,7 +455,7 @@ doreportlun()
   lun=0
   SCSISTR=
   devnr="$host $channel $id $lun"
-  echo -en "Scanning for device $devnr ...\r"
+  echo -en " Scanning for device $devnr ...\r"
   lun0added=
   #printf "${yellow}OLD: $norm"
   # Phase one: If LUN0 does not exist, try to add
@@ -470,10 +485,31 @@ doreportlun()
     fi
   fi
   targetluns=`getluns`
+  REPLUNSTAT=$?
   lunremove=
   #echo "getluns reports " $targetluns
+  olddev=`find /sys/class/scsi_device/ -name $host:$channel:$id:* 2>/dev/null`
+  oldluns=`echo "$olddev" | awk -F'/' '{print $5}' | awk -F':' '{print $4}'`
+  oldtargets="$targetluns"
+  # OK -- if we don't have a LUN to send a REPORT_LUNS to, we could
+  # fall back to wildcard scanning. Same thing if the device does not
+  # support REPORT_LUNS
+  # TODO: We might be better off to ALWAYS use wildcard scanning if 
+  # it works
+  if test "$REPLUNSTAT" = "1"; then
+    if test -e /sys/class/scsi_host/host${host}/scan; then
+      echo "$channel $id -" > /sys/class/scsi_host/host${host}/scan 2> /dev/null
+      udevadm_settle
+    else
+      echo "scsi add-single-device $host $channel $id $SCAN_WILD_CARD" > /proc/scsi/scsi
+    fi
+    targetluns=`find /sys/class/scsi_device/ -name $host:$channel:$id:* 2>/dev/null | awk -F'/' '{print $5}' | awk -F':' '{print $4}' | sort -n`
+    let found+=`echo "$targetluns" | wc -l`
+    let found-=`echo "$olddev" | wc -l`
+  fi
+  if test -z "$targetluns"; then targetluns="$oldtargets"; fi
   # Check existing luns
-  for dev in /sys/class/scsi_device/${host}:${channel}:${id}:*; do
+  for dev in $olddev; do
     [ -d "$dev" ] || continue
     lun=${dev##*:}
     newsearch=
@@ -589,11 +625,14 @@ if test -x /usr/bin/sg_inq; then
     sg_version=$(sg_inq -V 2>&1 | cut -d " " -f 3)
     sg_version=${sg_version##0.}
     #echo "\"$sg_version\""
-    if [ -z "$sg_version" -o "$sg_version" -lt 70 ] ; then
-        sg_len_arg="-36"
-    else
+    #if [ -z "$sg_version" -o "$sg_version" -lt 70 ] ; then
+        #sg_len_arg="-36"
+    #else
         sg_len_arg="--len=36"
-    fi
+    #fi
+else
+    echo "WARN: /usr/bin/sg_inq not present -- please install sg3_utils"
+    echo " or rescan-scsi-bus.sh might not fully work."     
 fi    
 
 # defaults
@@ -677,12 +716,15 @@ for host in $hosts; do
     # It's pointless to do a target scan on FC
     if test -n "$lipreset" ; then
       echo 1 > /sys/class/fc_host/host$host/issue_lip 2> /dev/null;
+      udevadm_settle
     fi
-    # Always trigger a rescan for FC to update channels and targets
-    echo "- - -" > /sys/class/scsi_host/host$host/scan 2> /dev/null;
+    # We used to always trigger a rescan for FC to update channels and targets
+    # Commented out -- as discussed with Hannes we should rely
+    # on the main loop doing the scan, no need to do it here.
+    #echo "- - -" > /sys/class/scsi_host/host$host/scan 2> /dev/null;
+    #udevadm_settle
     channelsearch=
     idsearch=
-    udevadm_settle
   else
     channelsearch=$opt_channelsearch
     idsearch=$opt_idsearch
@@ -706,4 +748,8 @@ if test -n "$OLD_SCANFLAGS"; then
 fi
 echo "$found new device(s) found.               "
 echo "$rmvd device(s) removed.                 "
+
+# Local Variables:
+# sh-basic-offset: 2
+# End:
 

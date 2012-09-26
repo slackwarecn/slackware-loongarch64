@@ -22,7 +22,7 @@
 
 
 VERSION=${VERSION:-$(echo mc-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -56,6 +56,7 @@ cd $TMP
 rm -rf mc-$VERSION
 tar xvf $CWD/mc-$VERSION.tar.xz || exit 1
 cd mc-$VERSION || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -63,8 +64,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Fix tmp path for saving files:
+zcat $CWD/mc.save.file.diff.gz | patch -p1 --verbose || exit 1
+
 # Use geeqie instead of gqview as an external image viewer:
-zcat $CWD/mc.ext.in.geeqie.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/mc.image.sh.geeqie.diff.gz | patch -p1 --verbose || exit 1
 
 if [ ! -x ./configure ]; then
   ./autogen.sh
@@ -106,8 +110,20 @@ cp -a $CWD/profile.d/mc.* $PKG/etc/profile.d
 chown root:root $PKG/etc/profile.d/*
 chmod 755 $PKG/etc/profile.d/*
 
-find $PKG/usr/man -type f -exec gzip -9 {} \;
-for i in $(find $PKG/usr/man -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 mkdir -p $PKG/usr/doc/mc-$VERSION
 cp -a \

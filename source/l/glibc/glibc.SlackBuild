@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,9 @@
 
 ## build glibc-$VERSION for Slackware
 
-VERSION=${VERSION:-2.13}
+VERSION=${VERSION:-2.15}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-7}
 
 ## Included in glibc now:
 ## glibc-libidn version
@@ -134,6 +134,13 @@ fix_doinst() {
 # This is a patch function to put all glibc patches in the build script
 # up near the top.
 apply_patches() {
+  # Reexport the RPC interfaces that were removed in glibc-2.14.
+  # Sure, it's crufy code, but stuff needs it, so rather than pull the
+  # rug out from under you, we'll just humbly recommend that you consider
+  # transitioning away from it...  :-)
+  zcat $CWD/glibc-2.14-reexport-rpc-interface.patch.gz | patch -p1 --verbose || exit 1
+  # Add back the NIS and RPC headers:
+  zcat $CWD/glibc-2.14-reinstall-nis-rpc-headers.patch.gz | patch -p1 --verbose || exit 1
   # Use old-style locale directories rather than a single (and strangely
   # formatted) /usr/lib/locale/locale-archive file:
   zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
@@ -165,7 +172,17 @@ apply_patches() {
   # Avoid the Intel optimized asm routines for now because they break
   # the flash player.  We'll phase this in when it's safer to do so.
   zcat $CWD/glibc.disable.broken.optimized.memcpy.diff.gz | patch -p1 --verbose || exit 1
-  # Update the timezone information.
+  # Upstream fixes to avert Firefox crashes:  (still applies to 2.15...   probably better not to drop it)
+  zcat $CWD/glibc-2.14.1-fixes-1.patch.gz | patch -p1 --verbose || exit 1
+  # Upstream patch to fix relocation sorting related crashes:
+  zcat $CWD/glibc.git-6ee65ed6ddbf04402fad0bec6aa9c73b9d982ae4.diff.gz | patch -p1 --verbose || exit 1
+  # Upstream patch to fix crashes when nscd is not running:
+  zcat $CWD/glibc-2.15.nscd-race-fix.diff.gz | patch -p1 --verbose || exit 1
+  # Revert a patch that went into 2.15 that causes NPTL related crashes:
+  zcat $CWD/glibc-2.15-revert-c5a0802a.diff.gz | patch -p1 --verbose || exit 1
+  # Patch integer overflows in strtod*() functions:
+  zcat $CWD/glibc.strtod.CVE-2012-3480.diff.gz | patch -p1 --verbose || exit 1
+  # Update the timezone information:
   ( cd timezone
     tar xzf $CWD/tzdata?????.tar.gz
     chown root:root *
@@ -175,6 +192,8 @@ apply_patches() {
     mkdir tzcode
     cd tzcode
     tar xzf $CWD/tzcode?????.tar.gz
+    # A partial build is needed here to update TZVERSION in version.h:
+    make -i
     chown -R root:root .
     chmod 644 *
     cp -a *.c *.h ..
@@ -256,7 +275,7 @@ CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-kernel=2.6.18 \
+  --enable-kernel=2.6.32 \
   --with-headers=/usr/include \
   --enable-add-ons=libidn,nptl \
   --enable-profile \
@@ -358,6 +377,9 @@ rm $PKG/etc/ld.so.cache
 ##################################
 
 # glibc-zoneinfo.  We will start with an easy one to avoid breaking a sweat.  ;-)
+cd $CWD
+ZONE_VERSIONS="$(echo tzcode* | cut -f1 -d . | cut -b7-11)_$(echo tzdata* | cut -f1 -d . | cut -b7-11)"
+echo $ZONE_VERSIONS
 cd $PZONE
 # Install some scripts to help select a timezone:
 mkdir -p $PZONE/var/log/setup
@@ -379,7 +401,7 @@ mkdir -p $PZONE/etc
 # This is already hard-coded into doinst.sh (like it'll be there anyway ;-):
 rm -f etc/localtime
 # Wrap it up:
-makepkg -l y -c n $TMP/glibc-zoneinfo-$VERSION-noarch-$BUILD.txz
+makepkg -l y -c n $TMP/glibc-zoneinfo-$ZONE_VERSIONS-noarch-$BUILD.txz
 
 # glibc-profile:
 cd $PPROFILE

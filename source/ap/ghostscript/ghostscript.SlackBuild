@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 PKGNAM=ghostscript
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -60,10 +60,7 @@ rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
 cd ${PKGNAM}-$VERSION
 
-# Bugfix:
-zcat $CWD/ghostscript.rev11948.diff.gz | patch -p1 --verbose || exit 1
-
-## Regenerate ./configure:
+## Regenerate ./configure (if patched):
 #sh autogen.sh
 
 # Make sure ownerships and permissions are sane:
@@ -104,6 +101,8 @@ CFLAGS="$SLKCFLAGS" \
   --with-ijs \
   --disable-compile-inits \
   --enable-dynamic \
+  --enable-cups \
+  --with-install-cups \
   --enable-cairo=no \
   --program-prefix= \
   --program-suffix= \
@@ -123,6 +122,13 @@ if [ -r $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap ]; then
   mv $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap.default.ghostscript-${VERSION}
   zcat $CWD/cidfmap.gz > $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap.new
 fi
+
+# Many programs expect to find this filter with the old name:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/cups/filter
+  if [ ! -e pstoraster ]; then
+    ln -sf gstoraster pstoraster
+  fi
+)
 
 # Strip binaries:
 ( cd $PKG
@@ -162,6 +168,17 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 )
 ( cd $PKG/usr/doc/${PKGNAM}-$VERSION
   ln -sf /usr/share/ghostscript/$VERSION/doc doc
+)
+
+# Version 9.02 fails to install History9.htm, but also the full unabridged
+# history of Ghostscript is not required here.  See the source for that.
+( cd doc
+  cp -a \
+    History*.htm \
+    $PKG/usr/share/ghostscript/$VERSION/doc
+  rm -f $PKG/usr/share/ghostscript/$VERSION/doc/History{1,2,3,4,5,6,7,8}.htm
+  chown root:root $PKG/usr/share/ghostscript/$VERSION/doc/History*htm
+  chmod 644 $PKG/usr/share/ghostscript/$VERSION/doc/History*htm
 )
 
 cd $TMP

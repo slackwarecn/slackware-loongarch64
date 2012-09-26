@@ -33,4 +33,5 @@ fi
 config etc/dbus-1/system.d/wicd.conf.new
 config etc/rc.d/rc.wicd.new
 config etc/wicd/manager-settings.conf.new
+config etc/logrotate.d/wicd.logrotate.new
 

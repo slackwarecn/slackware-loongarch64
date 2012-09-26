@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -35,22 +35,27 @@
 #
 # Alternate method (we don't use this):
 # wget http://qt.gitorious.org/qt/kde-qt/archive-tarball/4.6.2-patched
+#
+# Modifications 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
+# qt 4.7.3, 4.7.4, 4.8.0, 4.8.1, 4.8.2 are built from original nokia sources.
 
 PKGNAM=qt
-VERSION=$(ls qt-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)
-BUILD=${BUILD:-3}
-
-# Automatically determine the architecture we're building on:
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
-fi
+VERSION=$(ls qt-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+BUILD=${BUILD:-4}
 
 NUMJOBS=${NUMJOBS:--j7}
+
+# Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
+if [ -z "$ARCH" ]; then
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *)       export ARCH=$MARCH ;;
+  esac
+fi
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -61,10 +66,21 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  # To prevent "qatomic_armv6.h error: output number 2 not directly addressable"
+  # More permanent solution is to patch gcc:
+  # http://bazaar.launchpad.net/~linaro-toolchain-dev/gcc-linaro/4.6/revision/106731
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16 -fno-strict-volatile-bitfields"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -73,23 +89,9 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-#rm -rf qt-x11-opensource-src-$VERSION
-#tar xvf $CWD/qt-x11-opensource-src-$VERSION.tar.gz     # For qt releases
-#cd qt-x11-opensource-src-$VERSION || exit 1
-
-rm -rf qt-$VERSION
-if [ -r $CWD/qt-$VERSION.tar.gz ]; then
-  tar xvf $CWD/qt-$VERSION.tar.gz || exit 1
-elif [ -r $CWD/qt-$VERSION.tar.bz2 ]; then
-  tar xvf $CWD/qt-$VERSION.tar.bz2 || exit 1
-elif [ -r $CWD/qt-$VERSION.tar.xz ]; then
-  tar xvf $CWD/qt-$VERSION.tar.xz || exit 1
-elif [ -r $CWD/qt-$VERSION.tar.lzma ]; then
-  tar xvf $CWD/qt-$VERSION.tar.lzma || exit 1
-else
-  exit 1
-fi
-cd qt-$VERSION || exit 1
+rm -rf qt-everywhere-opensource-src-$VERSION
+tar xvf $CWD/qt-everywhere-opensource-src-$VERSION.tar.xz     # For qt releases
+cd qt-everywhere-opensource-src-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -98,28 +100,32 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# apply_patches looks for a ".svn" directory, which doesn't exist in the used snapshot.
-# removing the check from apply_patches to not try to apply already applied patches
-sed -i "s| test -d .svn &&||" apply_patches
-
-# This is only needed/wanted for qt-copy (the r###### version) that we're
-# building right now. It might require manual intervention, so don't walk
-# away during the build
-./apply_patches
-
 if [ $ARCH = "i486" ]; then
-  zcat $CWD/qt.x86.cflags.diff.gz | patch -p1 || exit 1
+  sed -i -e "s/QMAKE_CFLAGS_RELEASE        += -O2/QMAKE_CFLAGS_RELEASE        += $SLKCFLAGS/" mkspecs/common/gcc-base.conf || exit 1
 fi
 
 # Fix path to mysql header
 zcat $CWD/qt.mysql.h.diff.gz | patch -p1 --verbose || exit 1
 
-# Upstream patch required for upcoming kdepim-4.6.x:
-zcat $CWD/qt.QSortFilterProxyModel.reformatted.diff.gz | patch -p1 --verbose || exit 1
+# gcc doesn't support flag "-fuse-ld=gold":
+zcat $CWD/qt.ld-gold.patch.gz | patch -p1 --verbose || exit 1
 
-# Blacklist compromised certificates:
-zcat $CWD/qt.blacklist.bad.certs.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/qt.blacklist.bad.certs.patch02.diff.gz | patch -p1 --verbose || exit 1
+# Stupid idea - remove it:
+zcat $CWD/qt.webkit-no_Werror.patch.gz | patch -p1 --verbose || exit 1
+
+# Fix cursor position bug within tables:
+zcat $CWD/qt.ca89c49.cursor.position.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix assistant crash:
+zcat $CWD/qt.assistant.memcpy-crash.diff.gz | patch -p0 --verbose || exit 1
+
+# Fix webkit compiling with recent glib:
+zcat $CWD/qt.webkit.glib.diff.gz | patch -p1 --verbose || exit 1
+
+# Some patches from upstream:
+zcat $CWD/QElfParser-fix-type-of-sh_size.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/QTBUG-14724_close_orphaned_file_descriptors_after_printing.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/QTBUG-21900_Buttons_in_Qt_applications_not_clickable_when_run_under_gnome-shell.patch.gz | patch -p1 --verbose || exit 1
 
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
@@ -128,7 +134,6 @@ export OPENSOURCE_CXXFLAGS="$SLKCFLAGS"
   -confirm-license \
   -opensource \
   -prefix /usr/lib${LIBDIRSUFFIX}/qt \
-  -qt-gif \
   -fast \
   -system-libpng \
   -system-libjpeg \
@@ -152,9 +157,33 @@ make install INSTALL_ROOT=$PKG || exit 1
 # The infamous qt -> qt-${VERSION} link that keeps the full path out of .la files:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf qt qt-${VERSION} )
 
-# libjscore is used internally.  Prevent a false dependency on this in the .la files:
+# Add a missing Qt.pc which is needed by KDE applications:
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig
+cat <<EOF > $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/Qt.pc
+prefix=/usr/lib${LIBDIRSUFFIX}/qt
+bindir=\${prefix}/bin
+datadir=\${prefix}
+docdir=\${prefix}/doc
+headerdir=\${prefix}/include
+importdir=\${prefix}/imports
+libdir=\${prefix}/lib
+moc=\${bindir}/moc
+plugindir=\${prefix}/plugins
+qmake=\${bindir}/qmake
+sysconfdir=\${prefix}/etc/settings
+translationdir=\${prefix}/translations
+
+Name: Qt
+Description: Qt Configuration
+Version: $VERSION
+EOF
+
+# libjscore is used internally.  Prevent a false dependency on this in the .la and .pc files:
 sed -i "s,-ljscore,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
 sed -i "s,-L../JavaScriptCore/release,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
+
+# libwebcore is used internally.  Prevent a false dependency on this in the .la and .pc files:
+sed -i "s#-L/usr/lib${LIBDIRSUFFIX}/qt/lib -L../../WebCore/release -L../../JavaScriptCore/release -L/usr/X11R6/lib$LIBDIRSUFFIX  -lwebcore##g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/libQtWebKit.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/QtWebKit.pc
 
 # Link the shared libraries into /usr/lib:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
@@ -162,11 +191,6 @@ sed -i "s,-L../JavaScriptCore/release,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.l
     ln -sf $file .
   done
 )
-
-if [ $ARCH = "i486" ]; then
-  # Put this back as shipped:
-   zcat $CWD/qt.x86.cflags.diff.gz | patch -p1 -R
-fi
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -194,6 +218,71 @@ mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
     ( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig ; ln -sf /usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/$file . )
   done
 )
+
+# Add menu entries for all those hidden but great Qt applications:
+# Qt logo:
+convert $PKG/usr/lib$LIBDIRSUFFIX/qt/doc/src/images/qt-logo.png  -resize 48x48 $PKG/usr/share/icons/hicolor/48x48/apps/qt-logo.png
+convert $PKG/usr/lib$LIBDIRSUFFIX/qt/doc/src/images/qt-logo.png  -resize 48x48 $PKG/usr/share/icons/hicolor/48x48/apps/qt-logo.png
+# Assistant icons
+install -p -m644 -D tools/assistant/tools/assistant/images/assistant.png $PKG/usr/share/icons/hicolor/32x32/apps/assistant.png
+install -p -m644 -D tools/assistant/tools/assistant/images/assistant-128.png $PKG/usr/share/icons/hicolor/128x128/apps/assistant.png
+# Designer icon
+install -p -m644 -D tools/designer/src/designer/images/designer.png $PKG/usr/share/icons/hicolor/128x128/apps/designer.png
+# Linguist icons
+for icon in tools/linguist/linguist/images/icons/linguist-*-32.png ; do
+  size=$(echo $(basename ${icon}) | cut -d- -f2)
+  install -p -m644 -D ${icon} $PKG/usr/share/icons/hicolor/${size}x${size}/apps/linguist.png
+done
+
+# And the .desktop files
+mkdir -p $PKG/usr/share/applications
+cat <<EOF > $PKG/usr/share/applications/designer.desktop
+[Desktop Entry]
+Name=Qt4 Designer
+GenericName=Interface Designer
+Comment=Design GUIs for Qt4 applications
+Exec=designer
+Icon=designer
+MimeType=application/x-designer;
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Development;
+EOF
+cat <<EOF > $PKG/usr/share/applications/assistant.desktop
+[Desktop Entry]
+Name=Qt4 Assistant 
+Comment=Shows Qt4 documentation and examples
+Exec=assistant
+Icon=assistant
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Development;Documentation;
+EOF
+cat <<EOF > $PKG/usr/share/applications/linguist.desktop
+[Desktop Entry]
+Name=Qt4 Linguist 
+Comment=Add translations to Qt4 applications
+Exec=linguist
+Icon=linguist
+MimeType=text/vnd.trolltech.linguist;application/x-linguist;
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Development;
+EOF
+cat <<EOF > $PKG/usr/share/applications/qtconfig.desktop
+[Desktop Entry]
+Name=Qt4 Config 
+Comment=Configure Qt4 behavior, styles, fonts
+Exec=qtconfig
+Icon=qt-logo
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Settings;
+EOF
 
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION

@@ -1,1 +1,1 @@
-lftpget http://us2.php.net/distributions/php-5.3.6.tar.bz2 
+lftpget http://us.php.net/distributions/php-5.4.7.tar.bz2 

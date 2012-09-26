@@ -1,4 +1,29 @@
 #!/bin/sh
+
+config() {
+  NEW="$1"
+  OLD="`dirname $NEW`/`basename $NEW .new`"
+  # If there's no config file by that name, mv it over:
+  if [ ! -r $OLD ]; then
+    mv $NEW $OLD
+  elif [ "`cat $OLD | md5sum`" = "`cat $NEW | md5sum`" ]; then # toss the redundant copy
+    rm $NEW
+  fi
+  # Otherwise, we leave the .new copy for the admin to consider...
+}
+
+preserve_perms() {
+  NEW="$1"
+  OLD="$(dirname ${NEW})/$(basename ${NEW} .new)"
+  if [ -e ${OLD} ]; then
+    cp -a ${OLD} ${NEW}.incoming
+    cat ${NEW} > ${NEW}.incoming
+    mv ${NEW}.incoming ${NEW}
+  fi
+  # Don't use config() -- we always want to install this, changed or unchanged.
+  #config ${NEW}
+}
+
 if [ ! -e var/log/httpd ]; then
   mkdir -p var/log/httpd
   chmod 755 var/log/httpd
@@ -26,27 +51,19 @@ if [ -r var/www/htdocs/index.html ]; then
   fi
 fi
 
-config() {
-  NEW="$1"
-  OLD="`dirname $NEW`/`basename $NEW .new`"
-  # If there's no config file by that name, mv it over:
-  if [ ! -r $OLD ]; then
-    mv $NEW $OLD
-  elif [ "`cat $OLD | md5sum`" = "`cat $NEW | md5sum`" ]; then # toss the redundant copy
-    rm $NEW
-  fi
-  # Otherwise, we leave the .new copy for the admin to consider...
-}
-# Keep same perms on rc.httpd.new:
-if [ -e etc/rc.d/rc.httpd ]; then
-  cp -a etc/rc.d/rc.httpd etc/rc.d/rc.httpd.new.incoming
-  cat etc/rc.d/rc.httpd.new > etc/rc.d/rc.httpd.new.incoming
-  mv etc/rc.d/rc.httpd.new.incoming etc/rc.d/rc.httpd.new
-fi
-config etc/rc.d/rc.httpd.new
+# Keep same perms when installing rc.httpd.new:
+preserve_perms etc/rc.d/rc.httpd.new
+# Always install the new rc.httpd:
+mv etc/rc.d/rc.httpd.new etc/rc.d/rc.httpd
+
+# Handle config files.  Unless this is a fresh installation, the
+# admin will have to move the .new files into place to complete
+# the package installation, as we don't want to clobber files that
+# may contain local customizations.
 config etc/httpd/httpd.conf.new
 config etc/logrotate.d/httpd.new
 for conf_file in etc/httpd/extra/*.new; do
   config $conf_file
 done
 config var/www/htdocs/index.html.new
+

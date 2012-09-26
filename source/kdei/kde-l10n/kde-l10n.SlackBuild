@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2008  Robby Workman  Northport, AL, USA
-# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -30,14 +30,14 @@
 # language packs.
 
 if [ ! -r ./languages ]; then
-  for file in kde-l10n*bz2 ; do
+  for file in kde-l10n*xz ; do
     echo $file | cut -f 3 -d - >> ./languages
   done
 fi
 
-[ -z $VERSION ] && export VERSION=4.5.5
+[ -z $VERSION ] && export VERSION=4.8.5
 [ -z $ARCH ] && export ARCH=noarch
-[ -z $BUILD ] && export BUILD=3
+[ -z $BUILD ] && export BUILD=1
 
 # Use this as CFLAGS and CXXFLAGS:
 if [ -z "$SLKCFLAGS" ]; then
@@ -47,6 +47,8 @@ if [ -z "$SLKCFLAGS" ]; then
     export SLKCFLAGS="-O2"
   elif [ "$ARCH" = "x86_64" ]; then
     export SLKCFLAGS="-O2 -fPIC"
+  elif [ "$ARCH" = "armv7hl" ]; then
+    export SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
   else
     export SLKCFLAGS="-O2"
   fi
@@ -63,8 +65,8 @@ TMP=${TMP:-/tmp}
 
 # This function will insert missing kdepim translations from kde-l10n-4.4.5:
 insert_kdepim() {
-  if [ -r $CWD/kdepim-l10n/kdepim-l10n-$(echo $PKGNAM | cut -f 3 -d -)-4.4.5.tar.bz2 ]; then
-    tar xvf $CWD/kdepim-l10n/kdepim-l10n-$(echo $PKGNAM | cut -f 3 -d -)-4.4.5.tar.bz2
+  if [ -r $CWD/kdepim-l10n/kdepim-l10n-$(echo $PKGNAM | cut -f 3 -d -)-4.4.5.tar.xz ]; then
+    tar xvf $CWD/kdepim-l10n/kdepim-l10n-$(echo $PKGNAM | cut -f 3 -d -)-4.4.5.tar.xz
   fi
   for dir in $(find . -type d -name messages) $(find . -type d -name docs) ; do
     ( cd $dir
@@ -95,7 +97,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION 
-tar xvf $CWD/$PKGNAM-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
 cd $PKGNAM-$VERSION || exit 1
 insert_kdepim;
 chown -R root:root .

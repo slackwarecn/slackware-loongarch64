@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,9 @@
 
 
 PKGNAM=alpine
-VERSION=${VERSION:-2.00}
-ALPINEBUILD=${ALPINEBUILD:-3}
-IMAPDBUILD=${IMAPDBUILD:-2}
+VERSION=${VERSION:-2.02}
+ALPINEBUILD=${ALPINEBUILD:-1}
+IMAPDBUILD=${IMAPDBUILD:-1}
 PINEPGP=${PINEPGP:-0.18.0}
 
 # Automatically determine the architecture we're building on:
@@ -37,8 +37,8 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-# There are reports that > 1 won't work here:
-NUMJOBS=${NUMJOBS:-" -j1 "}
+# We don't use this below as it breaks the build.
+NUMJOBS=${NUMJOBS:-" -j6 "}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -55,9 +55,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 fi
 
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
-cd ${PKGNAM}-$VERSION
+rm -rf re-alpine-${VERSION}
+tar xvf $CWD/re-alpine-$VERSION.tar.?z* || exit 1
+cd re-alpine-$VERSION
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -86,17 +86,12 @@ CFLAGS="$SLKCFLAGS" \
   --program-suffix= \
   --build=$ARCH-slackware-linux
 
-# This seems to ignore sysconfdir and libdir, so it's pretty useless to try them.
-# Brute-force it.
-# Eric says: no! Use configure parameters.
-#zcat $CWD/alpine.config.h.diff.gz | patch -p1 --verbose || exit 1
-
 # Correct paths and programs in tech-notes.txt:
 zcat $CWD/alpine.tech-notes.txt.diff.gz | patch -p1 --verbose || exit 1
 
 # Build and install:
 # Since we build non-compliant to RFC3501 we have to answer 'y' half-way:
-echo y | make $NUMJOBS EXTRACFLAGS="-fPIC" SSLTYPE=unix || exit 1
+echo y | make EXTRACFLAGS="-fPIC" SSLTYPE=unix || exit 1
 
 make install SSLTYPE=unix DESTDIR=$PKG || exit 1
 
@@ -171,11 +166,10 @@ PKG2=/tmp/package-imapd
 cd $TMP
 rm -rf $PKG2
 mkdir -p $PKG2
-cd ${PKGNAM}-$VERSION/imap
+cd re-alpine-$VERSION/imap
 mkdir -p $PKG2/usr/doc/imapd-$VERSION
 cp -a \
   CONTENTS LICENSE.txt NOTICE SUPPORT \
-  imap/docs/md5.txt \
   $PKG2/usr/doc/imapd-$VERSION
 cat << EOF > $PKG2/usr/doc/imapd-$VERSION/additional-imap-documentation
 Additional documentation for imapd may be found in the alpine

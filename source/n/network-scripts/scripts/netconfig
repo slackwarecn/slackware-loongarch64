@@ -69,6 +69,16 @@ GATEWAY="$GATEWAY"
 # when rc.inet1 is called directly.
 DEBUG_ETH_UP="no"
 
+# Example of how to configure a bridge:
+# Note the added "BRNICS" variable which contains a space-separated list
+# of the physical network interfaces you want to add to the bridge.
+#IFNAME[0]="br0"
+#BRNICS[0]="eth0"
+#IPADDR[0]="192.168.0.1"
+#NETMASK[0]="255.255.255.0"
+#USE_DHCP[0]=""
+#DHCP_HOSTNAME[0]=""
+
 ## Example config information for wlan0.  Uncomment the lines you need and fill
 ## in your info.  (You may not need all of these for your wireless network)
 #IFNAME[4]="wlan0"
@@ -309,9 +319,14 @@ EOF
  fi
 done
 
+# Write the hostname with domain to /etc/HOSTNAME:
 echo $HOSTNM.$DOMAIN > etc/HOSTNAME
+# Also make sure the hostname is written to /etc/NetworkManager/NetworkManager.conf:
+if [ -w etc/NetworkManager/NetworkManager.conf ]; then
+  sed -i "s/^hostname=.*$/hostname=$HOSTNM/g" etc/NetworkManager/NetworkManager.conf
+fi
 
-dialog --title "SETUP IP ADDRESS FOR '$HOSTNM.$DOMAIN'" \
+dialog --title "CONFIGUATION TYPE FOR '$HOSTNM.$DOMAIN'" \
 --default-item DHCP \
 --menu \
 "Now we need to know how your machine connects to the network.\n\
@@ -319,14 +334,14 @@ If you have an internal network card and an assigned IP address, gateway, \
 and DNS, use the 'static IP' choice to enter these values.  If your IP \
 address is assigned by a DHCP server (commonly used by cable modem and DSL \
 services), select 'DHCP'.  If you do not have a network card, select \
-the 'loopback' choice.  'loopback' is also the correct choice if your \
-only connection to the network will be through a serial modem \
-(with SLIP or PPP), or if you are using a laptop network card (these \
-are configured in /etc/pcmcia/). What type of network connection \
-best describes your machine?" 20 70 3 \
+the 'loopback' choice.  You may also select 'NetworkManager' if you would \
+like to have the NetworkManager daemon automatically handle your wired and \
+wireless network interfaces (this is simple and usually works). \
+Which type of network setup would you like?"  20 70 4 \
 "static IP" "Use a static IP address to configure ethernet" \
 "DHCP" "Use a DHCP server to configure ethernet" \
-"loopback" "Set up a loopback connection (modem or no net)" 2> $TMP/reply
+"loopback" "Set up a loopback connection (modem or no net)" \
+"NetworkManager" "Autoconfigure network using NetworkManager" 2> $TMP/reply
 if [ $? = 1 -o $? = 255 ]; then
   rm -f $TMP/reply
   exit
@@ -348,6 +363,9 @@ below.  If you do not have a DHCP hostname, just hit ENTER or Cancel." 13 62 \
   DHCP_HOSTNAME="$NEW_DHCPHOST"
 elif [ "$REPLY" = "loopback" ]; then
   LOOPBACK="yes"
+elif [ "$REPLY" = "NetworkManager" ]; then
+  LOOPBACK="yes"
+  NETWORKMANAGER="yes"
 else
   LOOPBACK="no"
 fi
@@ -554,7 +572,7 @@ You'll have to try to configure the card later by editing \
   fi
 fi
 
-if [ "$LOOPBACK" = "yes" ]; then
+if [ "$LOOPBACK" = "yes" -a ! "$NETWORKMANAGER" = "yes" ]; then
   dialog --title "NETWORK SETUP COMPLETE" --yesno "Your networking \
 system is now configured to use loopback:
 
@@ -562,6 +580,15 @@ IP address: 127.0.0.1
 Netmask: 255.255.255.0
 
 Is this correct?  Press 'Yes' to continue, or 'No' to reconfigure." 0 0
+  RETVAL=$?
+elif [ "$LOOPBACK" = "yes" -a "$NETWORKMANAGER" = "yes" ]; then
+  dialog --title "NETWORK SETUP COMPLETE" --yesno "Your networking \
+system is now configured to use NetworkManager for
+wired and wireless network management.  To set up wireless networks
+and view status, add the Network Management control panel widget to
+your KDE desktop.
+
+Is this correct?  Press 'Yes' to confirm, or 'No' to reconfigure." 0 0
   RETVAL=$?
 elif [ "$USE_DHCP" = "" ]; then
   while [ 0 ]; do
@@ -617,8 +644,16 @@ Is this correct?  Press 'Yes' to continue, or 'No' to reconfigure." 0 0
 fi
 
 if [ "$RETVAL" = "0" ]; then
+  # Write the hostname with domain to /etc/HOSTNAME:
   echo $HOSTNM.$DOMAIN > etc/HOSTNAME
+  # Also make sure the hostname is written to /etc/NetworkManager/NetworkManager.conf:
+  if [ -w etc/NetworkManager/NetworkManager.conf ]; then
+    sed -i "s/^hostname=.*$/hostname=$HOSTNM/g" etc/NetworkManager/NetworkManager.conf
+  fi
   write_config_files
+  if [ "$NETWORKMANAGER" = "yes" -a -r etc/rc.d/rc.networkmanager ]; then
+    chmod 755 etc/rc.d/rc.networkmanager
+  fi
   if [ "$1" = "" ]; then
     dialog --msgbox "Settings accepted.  Basic network configuration is complete." 6 40
   fi

@@ -1,5 +1,5 @@
 #!/bin/sh
-# This script was used to extract the kdepim part from the last kde-l10n
+# This script was used to extract the kdepim parts from the last kde-l10n
 # release that contained them.  The resulting kdepim-l10n sources will be
 # merged into our language packages.
 

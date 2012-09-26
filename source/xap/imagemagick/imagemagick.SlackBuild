@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,14 +29,14 @@ BUILD=${BUILD:-1}
 # This is a bit messy, so we'll explain it well.  :-)
 
 # This is the base version number, which is needed to cd into the source tree
-BASEVER=6.6.6-10
+BASEVER=6.7.7-10
 
 # This is the version number used in the source tarball filename
-FILEVER=6.6.6-10
+FILEVER=6.7.7-10
 
 # This is the version number used in the package, where a version number cannot
 # contain a '-'
-PKGVER=6.6.6_10
+PKGVER=6.7.7_10
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -100,6 +100,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  --sysconfdir=/etc \
   --program-prefix= \
   --with-x \
   --with-frozenpaths=no \
@@ -111,10 +112,25 @@ CXXFLAGS="$SLKCFLAGS" \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS INSTALLDIRS=vendor || make INSTALLDIRS=vendor || exit 1
+# First, spam the running development system, as ImageMagick is unable to
+# properly link the utilities against a new shared library major version
+# otherwise which has led to several broken packages over the years:
+make install INSTALLDIRS=vendor || exit 1
+/sbin/ldconfig
+
+# Now build again against the new libraries and headers:
+make clean
+make $NUMJOBS INSTALLDIRS=vendor || make INSTALLDIRS=vendor || exit 1
 make install INSTALLDIRS=vendor DESTDIR=$PKG || exit 1
 
-# Lately ImageMagick has been smoking crack:
+# This should certainly not be included.
+# It stomps on the libtool package.
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libltdl.*
+
+# .la files in /usr/lib${LIBDIRSUFFIX}/ should be removed.
+# Other .la files should be left alone, as ImageMagick uses them internally
+# to locate modules.
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
 
 ( cd $PKG
   # Nothing but a perl upgrade should replace this (and maybe not even that)

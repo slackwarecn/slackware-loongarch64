@@ -79,9 +79,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Allow certificates signed with rsa-md5:
-zcat $CWD/purple-allow-sign-rsa-md5.patch.gz | patch -p0 --verbose || exit 1
-
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -92,8 +89,12 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-dot=no \
   --disable-schemas-install \
   --enable-dbus \
-  --enable-gnutls=yes \
-  --enable-nss=no \
+  --enable-gnutls=no \
+  --enable-nss=yes \
+  --with-nss-includes="$(pkg-config --variable=includedir nss)" \
+  --with-nss-libs=/usr/lib${LIBDIRSUFFIX}/ \
+  --with-nspr-includes="$(pkg-config --variable=includedir nspr)" \
+  --with-nspr-libs=/usr/lib${LIBDIRSUFFIX}/ \
   --disable-vv \
   --enable-gtkspell \
   --enable-cyrus-sasl \
@@ -113,9 +114,9 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Fix misplaced items:
-eval $(perl '-V:archlib')
+eval $(perl '-V:installvendorlib')
 eval $(perl '-V:privlib')
-VENDORPERL="$(echo $archlib | sed -e "s/perl5/perl5\/vendor_perl/")"
+VENDORPERL="$(echo $installvendorlib)"
 
 mkdir -vpm755 $PKG/$VENDORPERL/
 find $PKG -type f -name perllocal.pod -exec mv -fv {} $PKG/$VENDORPERL/Pidgin.pod \;
@@ -156,6 +157,7 @@ done
   rm -rf pidgin-encryption-$PIDGINENC
   tar xvf $CWD/pidgin-encryption-$PIDGINENC.tar.gz || exit 1
   cd pidgin-encryption-$PIDGINENC
+  zcat $CWD/fix-gmain_h-compile-error.diff.gz | patch -p1 --verbose || exit 1
   PIDGIN_CFLAGS="-I${PKG}/usr/include/pidgin" \
   PIDGIN_LIBS="-L${PKG}/usr/lib${LIBDIRSUFFIX}" \
   PURPLE_CFLAGS="-I${PKG}/usr/include/libpurple" \
@@ -164,10 +166,10 @@ done
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --disable-static \
-  --with-nss-includes=/usr/include/seamonkey/nss \
-  --with-nspr-includes=/usr/include/seamonkey/nspr \
-  --with-nss-libs=/usr/lib${LIBDIRSUFFIX}/seamonkey/ \
-  --with-nspr-libs=/usr/lib${LIBDIRSUFFIX}/seamonkey/ \
+  --with-nss-includes="$(pkg-config --variable=includedir nss)" \
+  --with-nss-libs=/usr/lib${LIBDIRSUFFIX}/ \
+  --with-nspr-includes="$(pkg-config --variable=includedir nspr)" \
+  --with-nspr-libs=/usr/lib${LIBDIRSUFFIX}/ \
   --program-prefix="" \
   --program-suffix="" \
   --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1

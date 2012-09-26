@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006-2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 PKGNAM=audacious
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -87,22 +87,22 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --docdir=/usr/doc/${PKGNAM}-$VERSION \
-  --disable-altivec \
   --program-prefix= \
   --program-suffix= \
   ${ARCHOPTS} \
-  --build=$ARCH-slackware-linux
+  --with-buildstamp=$ARCH-slackware-linux \
+  --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Fix broken symlinks pointing into the build directory
-( cd $PKG/usr/bin
-  rm -f audacious audtool
-  ln -s audacious2 audacious
-  ln -s audtool2 audtool
-)
+#( cd $PKG/usr/bin
+#  rm -f audacious audtool
+#  ln -s audacious2 audacious
+#  ln -s audtool2 audtool
+#)
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -136,6 +136,14 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   AUTHORS COPYING INSTALL Mercurial-Access NEWS README doc/* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

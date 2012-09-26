@@ -2,7 +2,7 @@
 
 # Slackware build script for bluez - http://www.bluez.org
 
-# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@
 
 PKGNAM=bluez
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -70,16 +70,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Fixup the dbus config file for our usage:
-zcat $CWD/patches/bluez-dbus-config.patch.gz | patch -p1 --verbose || exit 1
-
-# Use a wrapper to check rc.bluetooth mode before starting bluetoothd
-zcat $CWD/patches/bluez-run_udev_helper.patch.gz | patch -p1 --verbose || exit 1
-
-# Unbreak a Dell USB mouse
-# https://bugzilla.novell.com/show_bug.cgi?id=522287
-# https://bugzilla.redhat.com/show_bug.cgi?id=517088
-zcat $CWD/patches/bluez-unbreak_dell_mouse.patch.gz | patch -p1 --verbose || exit 1
+# Enable the audio socket in audio.conf:
+zcat $CWD/bluez.enable.audio.socket.diff.gz | patch -p1 --verbose || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -89,10 +81,13 @@ CXXFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --localstatedir=/var \
+  --enable-datafiles \
+  --enable-audio \
   --enable-gstreamer \
   --enable-alsa \
   --enable-usb \
   --enable-tools\
+  --enable-input \
   --enable-bccmd \
   --enable-hid2hci \
   --enable-dfutool \
@@ -101,38 +96,30 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-dund \
   --enable-cups \
   --enable-service \
-  --enable-udevrules \
-  --enable-configfiles \
+  --enable-network \
+  --enable-serial \
+  --enable-health \
+  --enable-pnat \
+  --enable-maemo6 \
+  --enable-wiimote \
+  --enable-test \
+  --enable-dbusoob \
+  --with-ouifile=/usr/share/hwdata/oui.txt \
   --disable-silent-rules \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# I'm don't think we need this, but I'll leave it commented just in case:
-# http://bugs.archlinux.org/task/4930
-# The dbus-1 and bluetooth linkages are obvious, but I had to get the rt and
-# pthread ones from the old bluez-utils (VERSION=3.36) tests/Makefile
-#gcc $SLKCFLAGS $(pkg-config --cflags dbus-1) -DVERSION=3.36 \
-#  -L$(pwd)/lib/.libs -ldbus-1 -lbluetooth -lpthread -lrt \
-#  $CWD/passkey-agent.c -o $PKG/usr/bin/passkey-agent || exit 1
-
+cp scripts/bluetooth-serial.rules $PKG/lib/udev/rules.d/97-bluetooth-serial.rules || exit 1
 cp -a scripts/bluetooth_serial $PKG/lib/udev/bluetooth_serial || exit 1
 chmod 0755 $PKG/lib/udev/bluetooth_serial
-
-cat $CWD/config/bluetooth.sh > $PKG/lib/udev/bluetooth.sh
-chmod 0755 $PKG/lib/udev/bluetooth.sh
-
-# SuSE says this is safe... :-)
-mkdir -p $PKG/etc/modprobe.d
-cat $CWD/config/bluetooth.modprobe > $PKG/etc/modprobe.d/bluetooth.conf
 
 mkdir -p $PKG/etc/bluetooth
 cp -a audio/audio.conf $PKG/etc/bluetooth
 cp -a input/input.conf $PKG/etc/bluetooth
 cp -a network/network.conf $PKG/etc/bluetooth
 cp -a serial/serial.conf $PKG/etc/bluetooth
-cp -a tools/rfcomm.conf $PKG/etc/bluetooth
 chmod 644 $PKG/etc/bluetooth/*.conf
 
 mkdir -p $PKG/etc/alsa

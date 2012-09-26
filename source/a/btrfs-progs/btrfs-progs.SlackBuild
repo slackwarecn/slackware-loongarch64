@@ -27,13 +27,13 @@ BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-# Download the btrfs-progs-unstable Git head if there's no tarball:
+# Download the btrfs-progs Git head if there's no tarball:
 if ! /bin/ls $CWD/btrfs-progs*tar* 1> /dev/null 2> /dev/null ; then
-  git clone git://git.kernel.org/pub/scm/linux/kernel/git/mason/btrfs-progs-unstable.git
-  rm -r btrfs-progs-unstable/.git
-  tar cf btrfs-progs-$(date +%Y%m%d).tar btrfs-progs-unstable
+  git clone git://git.kernel.org/pub/scm/linux/kernel/git/mason/btrfs-progs.git
+  rm -r btrfs-progs/.git
+  tar cf btrfs-progs-$(date +%Y%m%d).tar btrfs-progs
   xz -9 btrfs-progs-$(date +%Y%m%d).tar
-  rm -r $CWD/btrfs-progs-unstable
+  rm -r $CWD/btrfs-progs
 fi
 
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -f 3 -d - | cut -f 1 -d .)}
@@ -56,9 +56,9 @@ rm -rf $PKG
 mkdir -p $PKG
 
 cd $TMP
-rm -rf btrfs-progs-unstable
+rm -rf btrfs-progs
 tar xf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
-cd btrfs-progs-unstable
+cd btrfs-progs
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -76,9 +76,6 @@ find . -perm 555 -exec chmod 755 {} \;
 
 # Build:
 make $NUMJOBS || make || exit 1
-
-# Build ext* conversion utility:
-make $NUMJOBS convert || make convert || exit 1
 
 # Install:
 make install DESTDIR=$PKG || exit 1

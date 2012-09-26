@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=20060427cvs
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-0.95.3}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -59,14 +59,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf WindowMaker-$VERSION
-tar xvf $CWD/WindowMaker-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/WindowMaker-$VERSION.tar.xz || exit 1
 cd WindowMaker-$VERSION || exit 1
-
-zcat $CWD/windowmaker.no-mmx.diff.gz | patch -p1 --verbose -F 3 || exit 1
-
-zcat $CWD/windowmaker.png.1.4.0.diff.gz | patch -p1 --verbose || exit 1
-
-sh autogen.sh
 
 chown -R root:root .
 find . \
@@ -76,7 +70,10 @@ find . \
   -exec chmod 644 {} \;
 
 # This should be non-interactive where possible.
-zcat $CWD/wmaker.inst.diff.gz | patch -p1 --verbose || exit
+zcat $CWD/wmaker.inst.diff.gz | patch -p1 --verbose || exit 1
+
+# Get rid of OpenSUSE menu:
+zcat $CWD/WindowMaker.noopensusemenu.diff.gz | patch -p1 --verbose || exit 1
 
 LINGUAS="$(cd po ; /bin/ls *.po | sed 's/.po//g')" \
 GNUSTEP_LOCAL_ROOT=/usr/lib${LIBDIRSUFFIX}/GNUstep \
@@ -87,10 +84,11 @@ NLSDIR=/usr/share/locale \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --sysconfdir=/etc/X11 \
-  --enable-gnome \
-  --enable-kde \
+  --docdir=/usr/doc/WindowMaker-$VERSION \
   --enable-usermenu \
-  --with-appspath=/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications \
+  --enable-xrandr \
+  --enable-xinerama \
+  --disable-static \
   --build=$ARCH-slackware-linux
 
 # NLS bugs like -i
@@ -100,10 +98,18 @@ make $NUMJOBS || make -i || exit 1
 sed -i -e "s#/usr/local/GNUstep/Applications/WPrefs.app/#/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications/WPrefs.app/#" \
   $(grep -lr '/usr/local/GNUstep/Applications/WPrefs.app/' *)
 
+# Fix hard coded paths in util/wmgenmenu.c for
+#  "Configure Window Maker" root menu entry
+#  Appearance/{Themes, Styles, Icons} entries.
+
+sed -i -e "s#WMCreatePLString(\"WPrefs\")#WMCreatePLString(\"/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications/WPrefs.app/WPrefs\")#" \
+       -e "s#/usr/local/share#/usr/share/#" util/wmgenmenu.c
+
+
 make -i install DESTDIR=$PKG 
 mkdir -p $PKG/usr/doc/WindowMaker-$VERSION
 cp -a \
-  AUTHORS BUGFORM BUGS COPYING COPYING.WTFPL FAQ FAQ.I18N FAQ.I18N.cs FAQ.I18N.sk INSTALL INSTALL.cs INSTALL.es INSTALL.fr INSTALL.pt INSTALL.sk MIRRORS NEWS README README.definable-cursor README.pt TODO \
+  AUTHORS BUGFORM BUGS COPYING* FAQ* INSTALL* MIRRORS NEWS README* TODO \ 
    $PKG/usr/doc/WindowMaker-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -116,7 +122,7 @@ fi
 
 cd $TMP
 rm -rf WindowMaker-extra-0.1
-tar xvf $CWD/WindowMaker-extra-0.1.tar.gz || exit 1
+tar xvf $CWD/WindowMaker-extra-0.1.tar.xz || exit 1
 cd WindowMaker-extra-0.1 || exit 1
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -135,7 +141,20 @@ mkdir -p $PKG/etc/X11/xinit
 zcat $CWD/xinitrc.wmaker.gz > $PKG/etc/X11/xinit/xinitrc.wmaker
 chmod 0755 $PKG/etc/X11/xinit/xinitrc.wmaker
 
-gzip -9 $PKG/usr/man/man1/* $PKG/usr/man/sk/man1/*
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

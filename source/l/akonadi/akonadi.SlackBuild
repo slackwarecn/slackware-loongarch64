@@ -26,23 +26,21 @@
 
 PKGNAM=akonadi
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j7}
 
 # Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *)       export ARCH=$MARCH ;;
   esac
 fi
-
-NUMJOBS=${NUMJOBS:--j6}
-
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PKGNAM
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -53,16 +51,23 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
 cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -71,6 +76,8 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# If we do not specify the correct QT_PLUGINS_DIR, then the application
+# decides on using $QT4DIR/qt4/plugins instead.
 mkdir -p build
 cd build
   cmake \
@@ -80,7 +87,9 @@ cd build
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DMAN_INSTALL_DIR=/usr/man \
-    -DINSTALL_QSQLITE_IN_QT_PREFIX=ON \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DINSTALL_QSQLITE_IN_QT_PREFIX:BOOL=ON \
+    -DQT_PLUGINS_DIR=/usr/lib$LIBDIRSUFFIX/qt/plugins \
     ..
    make $NUMJOBS || make || exit 1
    make install DESTDIR=$PKG || exit 1

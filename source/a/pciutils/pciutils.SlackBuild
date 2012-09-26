@@ -24,7 +24,7 @@
 VERSION=${VERSION:-$(echo pciutils-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:--j6}
+NUMJOBS=${NUMJOBS:--j3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -65,21 +65,19 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Fetch the latest pci.ids:
-rm -f pci.ids
-sh update-pciids.sh
-# Now fix the update-pciids script and preinstall it before 'make install' 
-# decides that it knows best
-zcat $CWD/pciutils.ids.dest.diff.gz | patch -p1 --verbose || exit 1
-mkdir -p $PKG/usr/sbin
-cat update-pciids.sh > $PKG/usr/sbin/update-pciids
-chmod 0755 $PKG/usr/sbin/update-pciids
+zcat $CWD/pciutils.dontcompress.diff.gz | patch -p1 || exit 1
+zcat $CWD/pciutils.update.pci.ids.url.diff.gz | patch -p1 || exit 1
 
+# Make and install the shared library
 make \
   PREFIX=/usr \
   SBINDIR=/sbin \
   LIBDIR=/usr/lib${LIBDIRSUFFIX} \
   MANDIR=/usr/man \
+  IDSDIR=/usr/share/hwdata \
+  PCI_IDS=pci.ids \
+  PCI_COMPRESSED_IDS=0 \
+  SHARED=no \
   OPT="$SLKCFLAGS" \
   $NUMJOBS || exit 1
 
@@ -88,25 +86,51 @@ make install install-lib \
   SBINDIR=/sbin \
   LIBDIR=/usr/lib${LIBDIRSUFFIX} \
   MANDIR=/usr/man \
+  IDSDIR=/usr/share/hwdata \
+  PCI_IDS=pci.ids \
+  PCI_COMPRESSED_IDS=0 \
+  SHARED=no \
   DESTDIR=$PKG
 
-# Do not compress pci.ids - hal needs it uncompressed
-( cd $PKG/usr/share ; gzip -d pci.ids.gz )
-# Remove the update-pciids script that 'make install' placed
-rm -f $PKG/sbin/update-pciids
+mkdir -p $PKG/usr/sbin
+mv $PKG/sbin/update-pciids $PKG/usr/sbin/update-pciids
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in $( find . -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
-)
+# Do not compress pci.ids
+( cd $PKG/usr/share ; gzip -d pci.ids.gz )
+
+# Put a compat symlink in place 
+ln -s hwdata/pci.ids $PKG/usr/share/pci.ids
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/pciutils-$VERSION
 cp -a \
-  ChangeLog README TODO \
+  COPYING* README TODO \
   $PKG/usr/doc/pciutils-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

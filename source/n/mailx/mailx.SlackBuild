@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=12.4
+VERSION=12.5
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -54,7 +54,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf mailx-$VERSION
-tar xvf $CWD/mailx-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/mailx-$VERSION.tar.?z* || exit 1
 cd mailx-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -94,7 +94,21 @@ mkdir -p $PKG/bin
 mv $PKG/etc/nail.rc $PKG/etc/nail.rc.new
 strip $PKG/usr/bin/mailx
 
-gzip -9 $PKG/usr/man/man1/*
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
 # Manpage links:
 ( cd $PKG/usr/man/man1
   ln -sf mailx.1.gz mail.1.gz
@@ -104,8 +118,16 @@ gzip -9 $PKG/usr/man/man1/*
 
 mkdir -p $PKG/usr/doc/mailx-$VERSION
 cp -a \
-  AUTHORS COPYING* ChangeLog INSTALL README TODO \
+  AUTHORS COPYING* INSTALL README TODO \
   $PKG/usr/doc/mailx-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

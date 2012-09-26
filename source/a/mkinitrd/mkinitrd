@@ -42,13 +42,15 @@
 #   Add lukskey option (-K). Automatically add kernel modules listed in
 #   load-kernel-modules if that file is executable.
 #   Yada yada yada.
+# Modified by Patrick Volkerding <volkerdi@slackware.com> 21 August 2012
+#   Add Btrfs multi-device filesystem support option (-B).
 
-MKINITRD_VERSION=1.4.6
+MKINITRD_VERSION=1.4.7
 
 # Don't include these things from /lib/udev/ in the initrd image
 LIBUDEV_BLACKLIST="\
   ipod-set-info \
-  check-mtp-camera \
+  check-mtp-device \
   check-ptp-camera \
   udev-configure-printer"
 
@@ -97,6 +99,8 @@ initrd, and the script is easy to modify.  Be creative.  :-)
           For example, if your USB thumb drive has a FAT partition with label
           "TRAVELSTICK" and the actual keyfile is called "/keys/alien.luks",
           then you need to pass: -K LABEL=TRAVELSTICK:/keys/alien.luks
+  -B      Add /sbin/btrfs to enable scanning for a root filesystem that is
+          part of a Btrfs multi-device filesystem.
   -M      Add the files in /etc/modprobe.d/ to the initrd
   -R      Add support for RAID partitions
   -V      Display version number
@@ -234,8 +238,9 @@ copy_libs() {
 }
 
 copy_modconf() {
-  mkdir -p $SOURCE_TREE/etc
+  mkdir -p $SOURCE_TREE/etc $SOURCE_TREE/lib
   cp -a /etc/modprobe.d $SOURCE_TREE/etc
+  cp -a /lib/modprobe.d $SOURCE_TREE/lib/
 }
      
 # If --help is given, print_usage and exit:
@@ -255,6 +260,8 @@ fi
 SOURCE_TREE=${SOURCE_TREE:-/boot/initrd-tree}
 OUTPUT_IMAGE=${OUTPUT_IMAGE:-""}
 KERNEL_VERSION=${KERNEL_VERSION:-"$(uname -r)"}
+# The initrd requires udev to function correctly:
+UDEV=1
 
 # Default actions without options:
 if [ -z "$1" ]; then
@@ -354,6 +361,10 @@ while [ ! -z "$1" ]; do
       ;;
     -L)
       LVM=1
+      shift
+      ;;
+    -B)
+      BTRFS=1
       shift
       ;;
     -M)
@@ -459,12 +470,28 @@ fi
 
 # Include RAID support in initrd
 if [ ! -z "$RAID" ]; then
-  if [ -r /sbin/mdadm ]; then
+  if [ -r /sbin/mdadm -a -r /sbin/mdmon ]; then
     mkdir -p $SOURCE_TREE/sbin
     cp /sbin/mdadm $SOURCE_TREE/sbin/mdadm
+    cp /sbin/mdmon $SOURCE_TREE/sbin/mdmon
     chmod 0755 $SOURCE_TREE/sbin/mdadm
+    chmod 0755 $SOURCE_TREE/sbin/mdmon
+    mkdir -p $SOURCE_TREE/lib/udev/rules.d
+    echo 'KERNEL=="dm-[0-9]*", OPTIONS+="db_persist"' > \
+      $SOURCE_TREE/lib/udev/rules.d/95-dm-initrd.rules
   else
-    echo "ERROR:  mdadm binary is missing, RAID support not installed"
+    echo "ERROR:  mdadm and/or mdmon binary is missing, RAID support not installed"
+  fi
+fi
+
+# Include Btrfs support in initrd
+if [ ! -z "$BTRFS" ]; then
+  if [ -r /sbin/btrfs ]; then
+    mkdir -p $SOURCE_TREE/sbin
+    cp /sbin/btrfs $SOURCE_TREE/sbin/btrfs
+    chmod 0755 $SOURCE_TREE/sbin/btrfs
+  else
+    echo "ERROR:  btrfs binary is missing, Btrfs support not installed"
   fi
 fi
 
@@ -474,7 +501,11 @@ if [ ! -z "$UDEV" ]; then
   cp -a /lib/udev $SOURCE_TREE/lib/
   # But we don't want all of /lib/udev
   for file in $(echo $LIBUDEV_BLACKLIST) ; do
-    rm -f $SOURCE_TREE/lib/udev/$file ;
+    # Replace with a null script (avoids error spew):
+    cat << EOF > $SOURCE_TREE/lib/udev/$file
+#!/bin/ash
+# This space is intentionally left blank
+EOF
   done
 fi
 
@@ -493,6 +524,9 @@ if [ ! -z "$LVM" ]; then
     elif ! echo ${MODULE_LIST} | grep -q dm-mod ; then
       MODULE_LIST="$MODULE_LIST:dm-mod"
     fi
+    mkdir -p $SOURCE_TREE/lib/udev/rules.d
+    echo 'KERNEL=="dm-[0-9]*", OPTIONS+="db_persist"' > \
+      $SOURCE_TREE/lib/udev/rules.d/95-dm-initrd.rules
   else
     echo "LVM binary is missing, LVM support isn't installed"
   fi
@@ -527,6 +561,16 @@ fi
 if [ ! -d $SOURCE_TREE/lib/modules/$KERNEL_VERSION ]; then
   mkdir -p $SOURCE_TREE/lib/modules/$KERNEL_VERSION
 fi
+
+# Copy kmod/modprobe stuff to initrd:
+for i in kmod depmod insmod lsmod modinfo modprobe rmmod ; do
+  rm -f $SOURCE_TREE/sbin/$i ;
+  cp -a /sbin/$i $SOURCE_TREE/sbin ;
+done
+
+# Make sure modules.builtin and modules.order are there (for kmod):
+cp /lib/modules/$KERNEL_VERSION/modules.{builtin,order} \
+   $SOURCE_TREE/lib/modules/$KERNEL_VERSION
 
 # If an executable $SOURCE_TREE/load_kernel_modules already exists, then
 # we assume you will want to load the kernel modules mentioned in there.
@@ -589,8 +633,8 @@ if [ ! -z "$MODULE_LIST" ]; then
   /sbin/modprobe --set-version $KERNEL_VERSION --show-depends --ignore-install $MODULE 2>/dev/null \
     | grep "^insmod " | cut -f 2 -d ' ' | while read SRCMOD; do
 
-      if ! grep -q "$(basename $SRCMOD .ko)" $SOURCE_TREE/load_kernel_modules 2>/dev/null ; then
-        LINE="$(echo "modprobe -v $(basename $SRCMOD .ko)" )"
+      if ! grep -Eq " $(basename $SRCMOD .ko)(\.| |$)" $SOURCE_TREE/load_kernel_modules 2>/dev/null ; then
+        LINE="$(echo "modprobe -v $(basename ${SRCMOD%%.gz} .ko)" )"
 
         # Test to see if arguments should be passed
         # Over-ride the previously defined LINE variable if so
@@ -611,6 +655,15 @@ if [ ! -z "$MODULE_LIST" ]; then
       # replacement.
       if cp -a --parents $SRCMOD $SOURCE_TREE 2>/dev/null; then
         echo "OK: $SRCMOD added."
+        # If a module needs firmware, copy that too
+        /sbin/modinfo -F firmware "$SRCMOD" | sed 's/^/\/lib\/firmware\//' |
+        while read SRCFW; do
+          if cp -a --parents "$SRCFW" $SOURCE_TREE 2>/dev/null; then
+            echo "OK: $SRCFW added."
+          else
+            echo "WARNING:  Could not find firmware \"$SRCFW\""
+          fi
+        done
       else
         echo "WARNING:  Could not find module \"$SRCMOD\""
       fi
@@ -630,6 +683,11 @@ fi
 
 # Copy needed libraries
 copy_libs
+
+# Make sure all libraries have symlinks:
+/sbin/ldconfig $(readlink -f $SOURCE_TREE)/lib/ 2> /dev/null
+/sbin/ldconfig $(readlink -f $SOURCE_TREE)/lib64/ 2> /dev/null
+/sbin/ldconfig
 
 # And finally, build the initrd:
 build_initrd_image

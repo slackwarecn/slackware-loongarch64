@@ -1,0 +1,173 @@
+#!/bin/sh
+
+# Slackware build script for llvm
+
+# Copyright 2008-2011 Heinz Wiesinger, Amsterdam, The Netherlands
+# Copyright 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PKGNAM=llvm
+VERSION=3.0
+BUILD=${BUILD:-2}
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i486 ;;
+    arm*) ARCH=arm ;;
+       *) ARCH=$( uname -m ) ;;
+  esac
+fi
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
+CLANG=${CLANG:-yes}
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf $PKGNAM-${VERSION}.src
+tar xvf $CWD/$PKGNAM-$VERSION.tar.xz
+
+if [ "$CLANG" = "no" ]; then
+  cd $PKGNAM-${VERSION}.src
+else
+  cd $PKGNAM-${VERSION}.src/tools
+  rm -rf clang clang-${VERSION}.src
+  tar xvf $CWD/clang-$VERSION.tar.xz
+  mv clang-${VERSION}.src clang
+  cd ../
+
+  # clang fixes for slackware
+  # No longer needed as of llvm/clang 3.0?
+  #patch -p1 -d tools/clang -i $CWD/clang-slackware.diff
+fi
+
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+CINC="/usr/include/"
+GCCDIR=/usr/lib$LIBDIRSUFFIX/gcc/$ARCH-slackware-linux*/*/
+CINC="$CINC:$(echo ${GCCDIR})/include/"
+CINC="$CINC:$(echo ${GCCDIR})/include-fixed/"
+
+# --mandir doesn't work currently
+# need to disable assertions to make llvm thread-safe
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib$LIBDIRSUFFIX \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --mandir=/usr/man \
+  --enable-optimized \
+  --disable-assertions \
+  --enable-pic \
+  --with-c-include-dirs=$CINC \
+  --build=$ARCH-slackware-linux \
+  --host=$ARCH-slackware-linux || exit 1
+
+# Correct libdir setting
+sed -i "s|\$(PROJ_prefix)/lib|\$(PROJ_prefix)/lib$LIBDIRSUFFIX|" \
+  Makefile.config
+
+if [ "$CLANG" != "no" ]; then
+  sed -i "s|\$(PROJ_prefix)/lib|\$(PROJ_prefix)/lib$LIBDIRSUFFIX|" \
+    tools/clang/lib/Headers/Makefile
+fi
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+if [ "$CLANG" != "no" ]; then
+  # install clang-static-analyzer
+  mkdir -p $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer
+  cp -pr tools/clang/tools/scan-{build,view} \
+    $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/ || exit 1
+  for i in scan-{build,view}; do
+    ln -s /usr/lib$LIBDIRSUFFIX/clang-analyzer/$i/$i \
+      $PKG/usr/bin/$i || exit 1
+  done
+  for i in ccc c++; do
+    ln -s /usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/$i-analyzer \
+      $PKG/usr/bin/$i-analyzer || exit 1
+  done
+fi
+
+# Remove example libraries
+rm -f $PKG/usr/lib$LIBDIRSUFFIX/LLVMHello*
+
+# Fix wrong libdir
+sed -i -e "s|ABS_RUN_DIR/lib\"|ABS_RUN_DIR/lib$LIBDIRSUFFIX\"|" \
+  $PKG/usr/bin/llvm-config
+
+# Move man page directory:
+mv $PKG/usr/share/man $PKG/usr/
+# Try to remove /usr/share, which should be empty now.  If it's not, fine.
+rmdir $PKG/usr/share
+
+# Strip binaries:
+( cd $PKG
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a CREDITS* LICENSE* README* $PKG/usr/doc/$PKGNAM-$VERSION
+mv $PKG/usr/docs/llvm/* $PKG/usr/doc/$PKGNAM-$VERSION
+rm -rf $PKG/usr/docs
+
+if [ "$CLANG" != "no" ]; then
+  mkdir $PKG/usr/doc/$PKGNAM-$VERSION/clang
+  cp -a tools/clang/{INSTALL,NOTES,README,TODO}* \
+    $PKG/usr/doc/$PKGNAM-$VERSION/clang
+fi
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+

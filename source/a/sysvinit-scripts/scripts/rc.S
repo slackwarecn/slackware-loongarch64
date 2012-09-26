@@ -19,21 +19,27 @@ if [ -d /sys ]; then
   fi
 fi
 
+# If /run exists, mount a tmpfs on it (unless the
+# initrd has already done so):
+if [ -d /run ]; then
+  if ! grep -wq "tmpfs /run tmpfs" /proc/mounts ; then
+    /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755
+  fi
+fi
+
 # Load the loop device kernel module:
 if [ -x /etc/rc.d/rc.loop ]; then
   . /etc/rc.d/rc.loop start
 fi
 
-# Initialize udev to manage /dev entries and hotplugging for 2.6.x kernels.
+# Initialize udev to manage /dev entries and hotplugging for 3.x kernels.
 # You may turn off udev by making the /etc/rc.d/rc.udev file non-executable
-# or giving the "nohotplug" option at boot, but in the 2.6.x+ kernels udev
-# has taken over the job of hotplug (finding hardware and loading the kernel
-# modules for it, as well as creating device nodes in /dev).  Realize that
-# if you turn off udev that you will have to load all the kernel modules
-# that you need yourself (possibly in /etc/rc.d/rc.modules, which does not
-# promise to list all of them), and make any additional device nodes that you
-# need in the /dev directory.  Even USB and IEEE1394 devices will need to have
-# the modules loaded by hand if udev is not used with a 2.6 kernel.  So use it.  :-)
+# or giving the "nohotplug" option at boot, but realize that if you turn off
+# udev that you will have to load all the kernel modules that you need
+# yourself (possibly in /etc/rc.d/rc.modules, which does not promise to list
+# all of them), and make any additional device nodes that you need in the
+# /dev directory.  Even USB and IEEE1394 devices will need to have the
+# modules loaded by hand if udev is not used.  So use it.  :-)
 if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev ]; then
@@ -103,10 +109,7 @@ if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
           echo "${PASS}" | /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
         fi
       else
-        for i in seq 1 3 ; do
-          /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS </dev/tty0 >/dev/tty0 2>&1
-          [ $? -eq 0 ] && break
-        done
+        /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS </dev/tty0 >/dev/tty0 2>&1
       fi
     elif echo $OPTS | grep -wq swap ; then
       # If any of the volumes is to be used as encrypted swap,
@@ -134,12 +137,13 @@ if [ -x /sbin/hwclock ]; then
     CLOCK_OPT="--directisa"
   fi
   if grep -wq "^UTC" /etc/hardwareclock ; then
-    echo "Setting system time from the hardware clock (UTC)."
+    echo -n "Setting system time from the hardware clock (UTC): "
     /sbin/hwclock $CLOCK_OPT --utc --hctosys
   else
-    echo "Setting system time from the hardware clock (localtime)."
+    echo -n "Setting system time from the hardware clock (localtime): "
     /sbin/hwclock $CLOCK_OPT --localtime --hctosys
   fi
+  date
 fi
 
 # Test to see if the root partition is read-only, like it ought to be.
@@ -250,18 +254,14 @@ else
   read junk;
 fi # Done checking root filesystem
 
-# Any /etc/mtab that exists here is old, so we delete it to start over:
-/bin/rm -f /etc/mtab*
-# Remounting the / partition will initialize the new /etc/mtab:
-/sbin/mount -w -o remount /
 
-# Read in the correct / filesystem complete with arguments so mount will
-# show them correctly. This does not stop those arguments from functioning
-# but does prevent a small bug with /etc/mtab.
-/bin/grep ' / ' /proc/mounts | grep -v "^rootfs" > /etc/mtab
+# Any /etc/mtab that exists here is old, so we start with a new one:
+/bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
 
-# Fix /etc/mtab to list sys and proc if they were not yet entered in
-# /etc/mtab because / was still mounted read-only:
+# Add entry for / to /etc/mtab:
+/sbin/mount -f -w /
+
+# Add /proc and /sys mounts to /etc/mtab:
 if [ -d /proc/sys ]; then
   /sbin/mount -f proc /proc -t proc
 fi

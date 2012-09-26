@@ -20,21 +20,21 @@ LINUXDOCTOOLSVER=$PKGVERSION
 SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
-XSLSTYLESHEETSVER=1.75.2
+XSLSTYLESHEETSVER=1.76.1
 DSSSLSTYLESHEETSVER=1.79
 SGMLCOMMONVER=0.6.3
 OPENJADEVER=1.3.3-pre1
 OPENSPVER=1.5.2
-GNOMEDOCUTILSVER=0.20.4
-GTKDOCVER=1.15
+GNOMEDOCUTILSVER=0.20.10
+GTKDOCVER=1.18
 SGMLSPLVER=1.03ii
-XMLTOVER=0.0.23
-ASCIIDOCVER=8.6.2
+XMLTOVER=0.0.25
+ASCIIDOCVER=8.6.7
 DOCBOOKUTILSVER=0.6.14
 
 # Determine the general CFLAGS for the known architectures:
 case $ARCH in
-  arm)     export SLKCFLAGS="-O2 -march=armv4t"
+  arm)     export SLKCFLAGS="-O2 -march=armv5te"
            export LIBDIRSUFFIX=""
            export HOSTTARGET="-gnueabi"
            ;;
@@ -71,7 +71,7 @@ find . \
   -exec chmod 644 {} \;
 
 # Revert a change that breaks processing the git documentation:
-xz -dc $CWD/sources/asciidoc.asciidoc7compatible.revertbrokenchange.diff.xz | patch --verbose -p1 || exit 1
+# xz -dc $CWD/sources/asciidoc.asciidoc7compatible.revertbrokenchange.diff.xz | patch --verbose -p1 || exit 1
 
 # Configure:
 ./configure \
@@ -356,6 +356,15 @@ find . \
 # Apply patches:
 sed -i "s/iostream.h/iostream/g" style/MultiLineInlineNote.cxx
 
+# GCC 4.6 patch:
+xz -dc $CWD/sources/openjade-1.3.2-gcc46.patch.xz | patch --verbose -p1 || exit 1
+
+# Install the old Perl 4 'getopts' function.  This has been deprecated in Perl 5.16
+# and since it seems that OpenJade isn't being actively released by upstream, we'll
+# work around by supplying it to OpenJade directly.  It's only a build-time fix anyway
+# so it's ok to have a dirty work-around:
+xz -dc $CWD/sources/openjade-1.3-getopts.pl.xz > getopts.pl
+
 # Configure without optimisation.
 # OpenSP & OpenJade are sensitive to optimisations and can result
 # in segfaults with anything other than O2 - particularly on the ARM
@@ -374,8 +383,8 @@ sed -i "s/iostream.h/iostream/g" style/MultiLineInlineNote.cxx
   --datadir=/usr/share/sgml/openjade-$OPENJADEVER \
   || exit 1
 
-# Build:
-make || exit 1
+# Build (setting the perl library to be the PWD so it finds the old 'getopts.pl'):
+make PERL5LIB=$PWD || exit 1
 
 # Install:
 mkdir -p /etc/sgml
@@ -689,6 +698,7 @@ find . \
 
 # Apply patches:
 for i in \
+  docbook-xsl-mandir.patch \
   docbook-xsl-list-item-body.patch \
   docbook-xsl-marginleft.patch \
   docbook-xsl-newmethods.patch \
@@ -704,6 +714,12 @@ cp -fav \
  htmlhelp images javahelp lib manpages params profiling \
  slides template tools website wordml xhtml             \
  /usr/share/xml/docbook/xsl-stylesheets-$XSLSTYLESHEETSVER
+# Some Linux distributions have this here, so we install a compatibility symlink:
+# (this convoluted way of doing it is for makepkg's benefit)
+mkdir -vpm755 /usr/share/xml/docbook/stylesheet
+( cd /usr/share/xml/docbook/stylesheet
+  rm -fv docbook-xsl
+  ln -vfs ../xsl-stylesheets-$XSLSTYLESHEETSVER docbook-xsl )
 
 # Create config files:
 if [ ! -d /etc/xml ]; then install -v -m755 -d /etc/xml; fi
@@ -742,9 +758,9 @@ cp -fav doc/* README* RELEASE-NOTES* NEWS* \
 # Extract source:
 cd $TMP
 mkdir xmlto && cd xmlto
-#tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
-rpm2cpio $CWD/sources/xmlto-${XMLTOVER}*.src.rpm | cpio -div || exit 1
-tar xvvf xmlto-$XMLTOVER.tar.*z*
+tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
+#rpm2cpio $CWD/sources/xmlto-${XMLTOVER}*.src.rpm | cpio -div || exit 1
+#tar xvvf xmlto-$XMLTOVER.tar.*z*
 cd xmlto-$XMLTOVER || exit 1
 chown -R root:root .
 find . \
@@ -752,9 +768,6 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-
-# Apply patches:
-patch --verbose -p1 < ../xmlto-0.0.23-Lchapterpassivetex.patch || exit 1
 
 # Configure:
 ./configure \
@@ -942,13 +955,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Apply patch to fix problem with vim:
-xz -dc $CWD/sources/gtk-doc.patch.xz | patch --verbose -p1 || exit 1
-
 # Configure:
 ./configure \
   --prefix=/usr \
-  --enable-public-id \
   --disable-scrollkeeper \
   || exit 1
 

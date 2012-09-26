@@ -36,6 +36,8 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
@@ -63,11 +65,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-make CFLAGS="$SLKCFLAGS"
+make clean
+# Providing external CFLAGS breaks building if libnl > 1 is installed
+#make CFLAGS="$SLKCFLAGS" || exit 1
+make $NUMJOBS || make || exit 1
 make install \
   BINDIR=/usr/sbin \
   MANDIR=/usr/man \
-  DESTDIR=$PKG
+  DESTDIR=$PKG || exit 1
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
@@ -80,6 +85,14 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   COPYING* README* \
     $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

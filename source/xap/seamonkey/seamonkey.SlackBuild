@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
-COMM=${COMM:-central}
-BUILD=${BUILD:-2}
+TARBALLVER=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
+# Strip the end from beta versions:
+VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
+COMM=${COMM:-release}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -50,7 +52,7 @@ mkdir -p $TMP $PKG/usr
 
 cd $TMP
 rm -rf comm-$COMM
-tar xvf $CWD/seamonkey-${VERSION}.source.tar.?z* || exit 1
+tar xvf $CWD/seamonkey-${TARBALLVER}.source.tar.?z* || exit 1
 cd comm-$COMM || exit 1
 
 # Make sure the perms/ownerships are sane:
@@ -71,15 +73,45 @@ endif
 
 EOF
 
+if gcc --version | grep -q "gcc (GCC) 4.7.0" ; then
+ # Enable compiling with gcc-4.7.0:
+ sed -i '/fcntl.h/a#include <unistd.h>' \
+   mozilla/ipc/chromium/src/base/{file_util_linux,message_pump_libevent,process_util_posix}.cc &&
+ sed -i '/sys\/time\.h/a#include <unistd.h>' mozilla/ipc/chromium/src/base/time_posix.cc &&
+ sed -i 's#\"PRIxPTR#\" PRIxPTR#g' mozilla/layout/base/tests/TestPoisonArea.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/search/src/nsMsgSearchAdapter.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/compose/src/nsSmtpProtocol.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapMailFolder.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapProtocol.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapServerResponseParser.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/local/src/nsPop3Protocol.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/mime/src/mimedrft.cpp &&
+ sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/mime/src/mimemult.cpp &&
+ sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
+ sed -i 's# ""##' mozilla/browser/base/Makefile.in
+fi
+
 chown -R root:root .
+
+# Mozilla devs enforce using an objdir for building
+# and launching configure with the absolute path
+# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
+mkdir obj
+cd obj
 BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
-./configure --prefix=/usr \
+$TMP/comm-$COMM/configure \
+  --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-optimize=-O2 \
+  --enable-cpp-rtti \
+  --enable-default-toolkit=cairo-gtk2 \
+  --enable-startup-notification \
   --disable-debug \
   --with-default-mozilla-five-home=/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION} \
   --enable-strip \
   --disable-tests \
+  --disable-crashreporter \
   --enable-svg \
   --enable-canvas \
   --disable-short-wchar \
@@ -99,6 +131,7 @@ BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
   --target=$ARCH-slackware-linux \
   --build=$ARCH-slackware-linux
 
+  # --enable-system-cairo \
   # --with-system-png
 make $NUMJOBS || exit 1
 DESTDIR=$PKG make install || exit 1
@@ -113,16 +146,25 @@ cp -aL mozilla/dist/include/*.h $PKG/usr/include/seamonkey-${VERSION}
 cp -aL mozilla/dist/sdk/include/* $PKG/usr/include/seamonkey-${VERSION}
 # compat symlinks
 ( cd $PKG/usr/include/seamonkey-${VERSION}
-  ln -sf . js
+  # make install seems to install js headers into a directory now, so don't make a symlink:
+  #ln -sf . js
+  # Relocate anything that might be in the nss directory, and replace the directory with a symlink.
+  # make install was putting an empty directory here, which was breaking other compiles.
+  if [ -d nss ]; then
+    mv nss/* .
+    rmdir nss
+  fi 
   ln -sf . nss
   ln -sf . plugin
   ln -sf . xpcom
 )
-#( cd $PKG/usr/include/seamonkey-${VERSION}/plugin
-#  for file in ../j*.h ; do
-#    ln -sf $file .
-#  done
-#)
+
+# Exit obj directory:
+cd ..
+
+# We don't need this stuff in the package:
+rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/seamonkey-devel-$VERSION
+
 chown -R root:root $PKG/usr/include/seamonkey-${VERSION}
 find $PKG/usr/include/seamonkey-${VERSION} -name "*.h" -type f -exec chmod 644 {} \;
 # Create a more generic include files symlink:
@@ -144,10 +186,12 @@ done
 # Add symlinks for the pkgconfig files:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
   ln -s seamonkey-js.pc js.pc
-  ln -s seamonkey-nspr.pc nspr.pc
-  ln -s seamonkey-nss.pc nss.pc
+  ln -s seamonkey-libxul.pc libxul.pc
   ln -s seamonkey-plugin.pc plugin.pc
   ln -s seamonkey-xpcom.pc xpcom.pc
+  # These are now provided by the mozilla-nss package:
+  #ln -s seamonkey-nspr.pc nspr.pc
+  #ln -s seamonkey-nss.pc nss.pc
 )
 
 # Compress and if needed symlink the man pages:
@@ -201,7 +245,7 @@ zcat $CWD/doinst.sh.gz | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
   > $PKG/install/doinst.sh
 
 cd $TMP/package-seamonkey
-/sbin/makepkg -l y -c n -p $TMP/seamonkey-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n -p $TMP/seamonkey-$TARBALLVER-$ARCH-$BUILD.txz
 
 # Create a standalone seamonkey-solibs package for RPM, gxine, etc.
 rm -r $TMP/package-seamonkey-solibs
@@ -231,14 +275,14 @@ seamonkey-solibs: seamonkey-solibs (Shared libraries from Seamonkey)
 seamonkey-solibs:
 seamonkey-solibs: This package contains a subset of the shared libraries from Seamonkey
 seamonkey-solibs: to provide runtime support for programs that require nss, nspr, and
-seamonkey-solibs: js.  These libraries are used in programs like RPM and gxine, and can
-seamonkey-solibs: be used in others.  This package is built from the Seamonkey sources
-seamonkey-solibs: and is provided as a standalone runtime package for people who do not
-seamonkey-solibs: want to install the entire seamonkey package (as for server use).
+seamonkey-solibs: js.  This package is built from the Seamonkey sources and is provided
+seamonkey-solibs: as a standalone runtime package for people who do not want to install
+seamonkey-solibs: the entire seamonkey package (as for server use).
 seamonkey-solibs:
 seamonkey-solibs: This package is runtime only.  The include files and other files for
 seamonkey-solibs: development can be found in the seamonkey package.
+seamonkey-solibs:
 EOF
 cd $TMP/package-seamonkey-solibs
-/sbin/makepkg -l y -c n -p $TMP/seamonkey-solibs-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n -p $TMP/seamonkey-solibs-$TARBALLVER-$ARCH-$BUILD.txz
 

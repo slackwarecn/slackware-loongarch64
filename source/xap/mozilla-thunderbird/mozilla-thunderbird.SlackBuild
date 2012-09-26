@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,25 +20,42 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Modified 2012 by Eric Hameleers <alien at slackware.com> for ARM port.
+
 # Thanks to the folks at the Mozilla Foundation for permission to
 # distribute this, and for all the great work!  :-)
 
-VERSION=$(basename $(ls thunderbird-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
-BUILD=${BUILD:-2}
+TARBALLVER=$(basename $(ls thunderbird-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
+# Strip the end from beta versions:
+VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
+BUILD=${BUILD:-1}
 
-# Automatically determine the architecture we're building on:
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-mozilla-thunderbird
+
+# Figure out if this is a beta, or a release:
+if echo $TARBALLVER | grep -q b ; then # we think it is a beta
+  if bzgrep -q comm-beta/ $CWD/thunderbird-$TARBALLVER.source.tar.bz2 ; then
+    MOZVERS=${MOZVERS:-beta}
+  else # blindly assume it is a release
+    MOZVERS=${MOZVERS:-release}
+  fi
+else # release, no "b" in the tarball version:
+  MOZVERS=${MOZVERS:-release}
 fi
 
-MOZVERS=${MOZVERS:-1.9.2}
-
-NUMJOBS=${NUMJOBS:-" -j7 "}
+# Automatically determine the architecture we're building on:
+MARCH=$( uname -m )
+if [ -z "$ARCH" ]; then
+  case "$MARCH" in
+    i?86)    export ARCH=i486 ;;
+    armv7hl) export ARCH=$MARCH ;;
+    arm*)    export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *)       export ARCH=$MARCH ;;
+  esac
+fi
 
 # Try to be gentle to the compiler, no optimizations:
 if [ "$ARCH" = "i486" ]; then
@@ -56,18 +73,19 @@ elif [ "$ARCH" = "arm" ]; then
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-mozilla-thunderbird
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 
 cd $TMP
 rm -rf comm-$MOZVERS
-tar xvf $CWD/thunderbird-$VERSION.source.tar.bz2 || exit 1
+tar xvf $CWD/thunderbird-$TARBALLVER.source.tar.bz2 || exit 1
 cd comm-$MOZVERS || exit 1
 
 # Fix a long standing bug that's prevented staying current on GTK+.
@@ -80,6 +98,16 @@ endif
 
 EOF
 
+# Arch-dependent patches:
+case "$ARCH" in
+    armv7hl) ARCH_CONFIG="--with-arch=armv7-a --with-float-abi=hard --with-fpu=vfpv3-d16 --disable-elf-hack"
+             # Make firefox compile on ARM platforms lacking neon support:
+             zcat $CWD/mozilla-firefox.xpcom_arm.patch.gz | patch -p1 --verbose || exit 1
+             ;;
+    *)       ARCH_CONFIG=" "
+             ;;
+esac
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -87,12 +115,38 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+if gcc --version | grep -q "gcc (GCC) 4.7.0" ; then
+ # Enable compiling with gcc-4.7.0:
+ sed -i '/fcntl.h/a#include <unistd.h>' \
+   mozilla/ipc/chromium/src/base/{file_util_linux,message_pump_libevent,process_util_posix}.cc &&
+ sed -i '/sys\/time\.h/a#include <unistd.h>' mozilla/ipc/chromium/src/base/time_posix.cc &&
+ sed -i 's#\"PRIxPTR#\" PRIxPTR#g' mozilla/layout/base/tests/TestPoisonArea.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/search/src/nsMsgSearchAdapter.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/compose/src/nsSmtpProtocol.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapMailFolder.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapProtocol.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapServerResponseParser.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/local/src/nsPop3Protocol.cpp &&
+ sed -i 's#\"CRLF#\" CRLF#g' mailnews/mime/src/mimedrft.cpp &&
+ sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/mime/src/mimemult.cpp &&
+ sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
+ sed -i 's# ""##' mozilla/browser/base/Makefile.in
+fi
+
+# Mozilla devs enforce using an objdir for building
+# and launching configure with the absolute path
+# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
+mkdir obj
+cd obj
+export MOZILLA_DIR=$TMP/comm-$MOZVERS/mozilla &&
 export MOZILLA_OFFICIAL="1" &&
 export BUILD_OFFICIAL="1" &&
 export MOZ_PHOENIX="1" &&
 export CFLAGS="$SLKCFLAGS" &&
 export CXXFLAGS="$SLKCFLAGS" &&
-./configure \
+export MOZ_MAKE_FLAGS="$NUMJOBS" &&
+$TMP/comm-$MOZVERS/configure \
   --enable-official-branding \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -102,19 +156,19 @@ export CXXFLAGS="$SLKCFLAGS" &&
   --enable-default-toolkit=cairo-gtk2 \
   --enable-startup-notification \
   --enable-crypto \
+  --enable-ldap \
+  --enable-libxul \
   --enable-svg \
   --enable-canvas \
   --enable-xft \
   --enable-xinerama \
-  --enable-ldap \
   --enable-optimize \
   --enable-reorder \
-  --enable-static \
   --enable-strip \
-  --enable-system-cairo \
   --enable-cpp-rtti \
   --enable-single-profile \
   --disable-accessibility \
+  --disable-crashreporter \
   --disable-debug \
   --disable-tests \
   --disable-logging \
@@ -123,10 +177,15 @@ export CXXFLAGS="$SLKCFLAGS" &&
   --disable-profilesharing
   # Complains about missing APNG support in Slackware's libpng:
   #--with-system-png \
+  # Broken with 12.0:
+  #--enable-system-cairo \
 
 #make -f client.mk build MOZ_MAKE_FLAGS="$NUMJOBS" || exit 1
-make MOZ_MAKE_FLAGS="$NUMJOBS" || exit 1
+make $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Exit obj directory:
+cd ..
 
 # We don't need these (just symlinks anyway):
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$VERSION
@@ -134,10 +193,12 @@ rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$VERSION
 # Nor these:
 rm -rf $PKG/usr/include
 
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
-  cp -a defaults/profile/mimeTypes.rdf defaults/profile/mimeTypes.rdf.orig
-  zcat $CWD/mimeTypes.rdf > defaults/profile/mimeTypes.rdf || exit 1
-) || exit 1
+# Thunderbird 3.x cruft?
+# If we still need something like this (and you know what we need :), let me know.
+#( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
+#  cp -a defaults/profile/mimeTypes.rdf defaults/profile/mimeTypes.rdf.orig
+#  zcat $CWD/mimeTypes.rdf > defaults/profile/mimeTypes.rdf || exit 1
+#) || exit 1
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins
 mkdir -p $PKG/usr/share/applications
@@ -176,5 +237,5 @@ mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/mozilla-thunderbird-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/mozilla-thunderbird-$TARBALLVER-$ARCH-$BUILD.txz
 

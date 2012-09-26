@@ -1,0 +1,44 @@
+From 57f4ebb843195bdd29c0d58e1659eeb0e9700081 Mon Sep 17 00:00:00 2001
+From: "Wulf C. Krueger" <philantrop@exherbo.org>
+Date: Sun, 27 May 2012 00:34:55 +0200
+Subject: [PATCH] lvm2: Fix build with systemd/udev-183.
+
+---
+ lib/misc/lvm-wrappers.c |    2 +-
+ tools/dmsetup.c         |    3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/lib/misc/lvm-wrappers.c b/lib/misc/lvm-wrappers.c
+index 84f61a6..d4fcea6 100644
+--- a/lib/misc/lvm-wrappers.c
++++ b/lib/misc/lvm-wrappers.c
+@@ -72,7 +72,7 @@ const char *udev_get_dev_dir(void)
+ 		return NULL;
+ 	}
+ 
+-	return udev_get_dev_path(_udev);
++	return "/dev";
+ }
+ 
+ struct udev* udev_get_library_context(void)
+diff --git a/tools/dmsetup.c b/tools/dmsetup.c
+index 6934de8..e09b56c 100644
+--- a/tools/dmsetup.c
++++ b/tools/dmsetup.c
+@@ -1009,7 +1009,7 @@ static int _udevcookies(CMD_ARGS)
+ static int _set_up_udev_support(const char *dev_dir)
+ {
+ 	struct udev *udev;
+-	const char *udev_dev_dir;
++	const char *udev_dev_dir = "/dev";
+ 	size_t udev_dev_dir_len;
+ 	int dirs_diff;
+ 	const char *env;
+@@ -1031,7 +1031,6 @@ static int _set_up_udev_support(const char *dev_dir)
+ 			  _udev_cookie);
+ 
+ 	if (!(udev = udev_new()) ||
+-	    !(udev_dev_dir = udev_get_dev_path(udev)) ||
+ 	    !*udev_dev_dir) {
+ 		log_error("Could not get udev dev path.");
+ 		return 0;

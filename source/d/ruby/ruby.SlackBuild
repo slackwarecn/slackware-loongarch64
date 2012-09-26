@@ -23,7 +23,7 @@
 
 PKGNAM=ruby
 VERSION=$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1,2 -d - | rev)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -87,25 +87,11 @@ optflags=$OPTFLAGS \
   --docdir=/usr/doc/ruby-$VERSION \
   --enable-shared \
   --enable-pthread \
-  --enable-install-doc \
+  --disable-install-doc \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# This symlink is needed by things that include ruby/config.h.
-( cd $PKG/usr/include/
-  if [ ! -e ruby -a -d ruby-*/*-*/ruby ]; then
-    ln -s ruby-*/*-*/ruby .
-  fi
-)
-
-# These include files are no longer installed as of ruby-1.9.1, but
-# kdebindings will not compile without them.  Try to remove these
-# from the package later if the situation changes.
-mkdir -p $PKG/usr/include/ruby-$(echo $VERSION | cut -f 1 -d -)/ruby
-cp -a node.h version.h revision.h \
-  $PKG/usr/include/ruby-$(echo $VERSION | cut -f 1 -d -)/ruby
 
 mkdir -p $PKG/usr/doc/ruby-$VERSION
 cp -a \

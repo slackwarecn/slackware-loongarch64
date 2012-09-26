@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -84,13 +84,13 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Add udev rules:
-mkdir -p $PKG/lib/udev/rules.d
-sed -e 's/MODE="666"/GROUP="audio", MODE="0660"/' libmtp.rules \
-  > $PKG/lib/udev/rules.d/90-libmtp.rules
-# Add device information for HAL:
-mkdir -p $PKG/usr/share/hal/fdi/information/20thirdparty/
-cat libmtp.fdi > $PKG/usr/share/hal/fdi/information/20thirdparty/10-libmtp.fdi
+# Commented out, since the rules are added by the Makefile, and since
+# there's no longer any match for MODE=
+#
+## Add udev rules:
+#mkdir -p $PKG/lib/udev/rules.d
+#sed -e 's/MODE="666"/GROUP="audio", MODE="0660"/' libmtp.rules \
+#  > $PKG/lib/udev/rules.d/90-libmtp.rules
 
 # Guess someone didn't have enough to drink:
 ( cd $PKG/usr/bin
@@ -129,13 +129,18 @@ if [ -d $PKG/usr/info ]; then
   )
 fi
 
-# Why even bother to support --docdir if you can't make it work?
-mkdir -p $PKG/usr/doc
-mv $PKG/usr/share/doc/${PKGNAM}-$VERSION $PKG/usr/doc
-rmdir $PKG/usr/share/doc
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  AUTHORS COPYING ChangeLog INSTALL README* TODO \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
 
-# We don't need these here
-rm -f $PKG/usr/doc/${PKGNAM}-$VERSION/libmtp.{rules,sh,usermap}
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

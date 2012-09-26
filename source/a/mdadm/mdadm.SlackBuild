@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=3.1.5
+VERSION=${VERSION:-$(echo mdadm-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -34,21 +34,32 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mdadm
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf mdadm-$VERSION
-tar xjvf $CWD/mdadm-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/mdadm-$VERSION.tar.?z || exit 1
 cd mdadm-$VERSION
-
-# With glibc on the initrd and installer, there is no longer a
-# good reason to compile this statically.  Commented out.
-## Build this static:
-##zcat $CWD/mdadm.static.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 chown -R root:root .
 find . \
@@ -57,28 +68,51 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Treating all warnings as errors causes the build to fail.
+sed -i "s,-Werror,," Makefile
+
 make clean || exit 1
-make || exit 1
-#make mdadm.static
-make install DESTDIR=$PKG || exit 1
-#cat mdadm.static > $PKG/sbin/mdadm
-mv $PKG/usr/share/man $PKG/usr
-rmdir $PKG/usr/share
+make CXFLAGS="$SLKCFLAGS" MANDIR=/usr/man || exit 1
+make install MANDIR=/usr/man DESTDIR=$PKG || exit 1
+
+find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | \
+  grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
+
 mkdir -p $PKG/etc
 cat mdadm.conf-example > $PKG/etc/mdadm.conf.new
-gzip -9 $PKG/usr/man/man?/*.?
+
 mkdir -p $PKG/usr/doc/mdadm-$VERSION
 cp -a \
-  ANNOUNCE-$VERSION COPYING* ChangeLog INSTALL TODO \
+  ANNOUNCE-$VERSION COPYING* INSTALL TODO \
   $PKG/usr/doc/mdadm-$VERSION
-( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-)
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-makepkg -l y -c n $TMP/mdadm-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/mdadm-$VERSION-$ARCH-$BUILD.txz
 

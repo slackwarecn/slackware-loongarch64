@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=kbd
-VERSION=1.15.2
-BUILD=${BUILD:-1}
+VERSION=1.15.3
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,7 +34,7 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-NUMJOBS=${NUMJOBS:--j4}
+NUMJOBS=${NUMJOBS:--j6}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -49,7 +49,7 @@ cd $TMP
 
 # Extract source:
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/sources/$PKGNAM-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/sources/$PKGNAM-$VERSION.tar.?z* || exit 1
 cd $PKGNAM-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -69,9 +69,12 @@ find . -perm 555 -exec chmod 755 {} \;
 # Apply patches:
 # These are taken from Fedora's SRPM:
 zcat $CWD/sources/kbd-1.15.2-po.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/sources/kbd-1.15-keycodes-man.patch | patch -p1 --verbose || exit 1
-zcat $CWD/sources/kbd-1.15-unicode_start.patch | patch -p1 --verbose || exit 1
-zcat $CWD/sources/kbd-1.15-resizecon-x86_64.patch | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-keycodes-man.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-unicode_start.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/sources/kbd-1.15-resizecon-x86_64.patch.gz | patch -p1 --verbose || exit 1
+
+# This is from Mandriva's SRPM:
+zcat $CWD/sources/kbd-1.15.3-fix-es-translation.patch.gz | patch -p1 --verbose || exit 1
 
 # This is from Fedora's spec file:
 # 7-bit maps are obsolete; so are non-euro maps
@@ -113,6 +116,12 @@ make install DESTDIR=$PKG || exit 1
   mkdir -vpm755 bin
   mv -fv usr/bin/loadkeys bin/
   cd usr/bin ; ln -vsf ../../bin/loadkeys . )
+
+# Build/install resizecons:
+( cd src
+  make resizecons
+  cp resizecons $PKG/usr/bin
+)
 
 # ro_win.map.gz is useless
 rm -fv $PKG/usr/share/kbd/keymaps/i386/qwerty/ro_win.map.gz
@@ -197,10 +206,20 @@ config etc/rc.d/rc.font.new
 
 EOF
 
-# Compress man pages:
-( cd $PKG/usr/man
-  find . -name "*.?" -type f | xargs gzip -9
-)
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1) ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 # Install package description:
 install -vpm644 $CWD/slack-desc $PKG/install/
@@ -212,5 +231,5 @@ install -vpm644 $CWD/slack-desc $PKG/install/
 )
 
 cd $PKG
-makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-#EOF
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+

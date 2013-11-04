@@ -89,12 +89,14 @@ make install DESTDIR=$PKG || exit 1
 # Move stuff out of /usr/local:
 mv $PKG/usr/local/bin $PKG/sbin
 mv $PKG/usr/local/man $PKG/usr/man
-rmdir $PKG/usr/local
 
-# Add an fsck.btrfs script.  For now this serves to eat options such as -a
-# that would otherwise cause issues for btrfs at boot time.
-cat $CWD/fsck.btrfs > $PKG/sbin/fsck.btrfs
-chmod 755 $PKG/sbin/fsck.btrfs
+# Do not ship libraries/include files.
+# If there becomes a use for these outside of btrfs-progs, let me know.
+rm -rf $PKG/usr/local
+
+# According to https://btrfs.wiki.kernel.org/index.php/FAQ#When_will_Btrfs_have_a_fsck_like_tool.3F
+# it is not recommended to make fsck.btrfs a no-op by linking it to /bin/true:
+ln -sf /bin/true $PKG/sbin/fsck.btrfs
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then

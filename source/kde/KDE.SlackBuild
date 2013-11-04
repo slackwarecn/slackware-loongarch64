@@ -245,6 +245,8 @@ build_mod_pkg () {
       # Run cmake, using custom cmake script if needed:
       if [ -r $CWD/cmake/${PKGNAME} ]; then
         . $CWD/cmake/${PKGNAME}
+      elif [ -r $CWD/cmake/${kde_module} ]; then
+        . $CWD/cmake/${kde_module}
       else
         # This is the default configure script:
         . $CWD/cmake/cmake
@@ -328,13 +330,54 @@ build_mod_pkg () {
 
     done
 
-    # Nothing here?  Must have been fully modular. :-)
+    # At this point, we have left the loop to build modular packages.
+    # We might need to build a package for the "<kde_module>", but to
+    # avoid needlessly repacking if there happens to be a package with
+    # the same name as "<kde_module>", we'll do some checks first.
+
+    # If every package listed in modules/"<kde_module>" is also listed
+    # in the modularize file, then there's no need to make a package
+    # for "<kde_module>":
+    echo
+    echo "Searching for packages in ${kde_module} that were not built modular:"
+    cat $CWD/modules/${kde_module} | grep -v "^#" | grep -v -w "^" | while read checkpackage ; do
+      if ! grep -wq "^$checkpackage" ${CWD}/modularize ; then
+        # Non-modular package found, so we'll have to build the package below.
+        # It might already have been built once, but in that case it is likely
+        # that more things have been added to the package directory since then.
+        echo "Found non-modular package $checkpackage."
+        exit 99
+      fi
+    done
+
+    # Exit if everything in "<kde_module>" was built modular:
+    if [ ! $? = 99 ]; then
+      echo "No non-modular components found in ${kde_module}."
+      echo "Not building catch-all package for ${kde_module}."
+      echo
+      return
+    fi
+
+    # If there's no /usr directory in the "<kde_module>" package directory,
+    # then skip it.  There's nothing present worth packing up.
     if [ ! -d ${SLACK_KDE_BUILD_DIR}/${kde_module}/package-${kde_module}/usr ]; then
+      echo "No /usr directory found in package-${kde_module}."
+      echo "Not building catch-all package for ${kde_module}."
+      echo
       return
     fi
 
     # Build a "<kde_module>" package for anything that wasn't built modular:
     # It's safer to consider these to have binaries in them. ;-)
+
+    # Put up a bit of a black-box warning, in case this was a mistake where
+    # something was meant to be listed in the modularize file and wasn't:
+    echo
+    echo "**************************************************************************"
+    echo "* Building combined package for non-modular parts of ${kde_module}"
+    echo "**************************************************************************"
+    echo
+
     PKGARCH=$ARCH
     cd $PKG
 
@@ -417,8 +460,11 @@ mkdir -p $SLACK_KDE_BUILD_DIR
 # Same goes for kdelibs (at least during KDE 4.8.x) kdeutils:ksecrets needs
 #   kdelibs and then kdelibs needs a rebuild to pick up ksecretservice
 #   (this will no longer be required in KDE 4.9).
+# And kde-baseapps is rebuilt after kdewebdev because it can then pickup
+#   libtidy and enable the Konqueror validators plugin to validate HTML.
 KDEMODS=" \
   kdelibs \
+  kdebase:nepomuk-core \
   kdepimlibs \
   kdebase \
   kdesdk \
@@ -440,6 +486,7 @@ KDEMODS=" \
   kdepim-runtime \
   kdeedu \
   kdewebdev \
+  kdebase:kde-baseapps \
   kdeplasma-addons \
   polkit-kde \
   extragear \

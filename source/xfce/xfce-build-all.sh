@@ -44,7 +44,7 @@ for package in \
   xfce4-appfinder \
   gtk-xfce-engine \
   xfwm4-themes \
-  Terminal \
+  xfce4-terminal \
   orage \
   xfce4-mixer \
   thunar-volman \

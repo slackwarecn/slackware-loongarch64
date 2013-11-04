@@ -1,0 +1,30 @@
+Submitted By: Alexander E. Patrakov
+Date: 2006-02-10
+Initial Package Version: 1.20.1
+Upstream Status: Dead
+Origin: Alexander E. Patrakov
+Description: Fixes lockups when signals arrive.
+Details: the return value of -1 from select() that propagates into flag means 
+that it was interrupted by a signal. In this case, at least with glibc 
+from trunk (2.3.90), the return value from FD_ISSET is undefined. Thus, 
+GET(win) can be called when there's no actual input. This results in the 
+lockup until a key is pressed.
+
+--- gpm-1.20.1/src/lib/libcurses.c	2002-12-25 03:57:16.000000000 +0500
++++ gpm-1.20.1/src/lib/libcurses.c	2006-02-10 09:45:11.000000000 +0500
+@@ -71,12 +71,12 @@
+ 	}
+       while (!flag);
+ 
+-      if (FD_ISSET(fd,&selSet))
+-	return GET(win);
+-      
+       if (flag==-1)
+ 	continue;
+       
++      if (FD_ISSET(fd,&selSet))
++	return GET(win);
++      
+       if (Gpm_GetEvent(&ev) && gpm_handler
+ 	  && (result=(*gpm_handler)(&ev,gpm_data)))
+ 	{

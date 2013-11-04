@@ -1,5 +1,5 @@
 #!/bin/sh
-# Load the mixer settings and OSS compatibility for ALSA.
+# Load the mixer settings and OSS compatibility (if enabled) for ALSA.
 # (the Advanced Linux Sound Architecture)
 
 # A function to load the ALSA mixer settings:
@@ -13,7 +13,7 @@ load_alsa_mixer() {
     if [ ! -r /var/lib/alsa/no.asound.state ]; then
       echo "Setting default ALSA mixer settings."
       # set default mixer volumes for ALSA
-      # Taken from the alsaconfig script.
+      # Taken from the alsaconf script.
       amixer -s -q <<EOF
 set Master 75% unmute
 set Master -12dB
@@ -59,23 +59,13 @@ EOF
   fi
 }
 
-# A function to load the ALSA OSS compat modules:
-load_alsa_oss_modules() {
-  if modprobe -c | tr _ - | grep -wq snd-pcm-oss ; then
-    if ! cat /proc/modules | tr _ - | grep -wq snd-pcm-oss ; then
-      echo "Loading OSS compatibility modules for ALSA."
-      modprobe snd-pcm-oss
-      modprobe snd-seq-oss
-      modprobe snd-mixer-oss
-    fi
-  fi
-}
-
-# If hotplug or something else has loaded the ALSA modules, then
+# If udev or something else has loaded the ALSA modules, then
 # simply load the mixer settings and make sure the OSS compat
-# modules are loaded:
+# modules are loaded (if enabled):
 if [ -d /proc/asound ]; then
-  load_alsa_oss_modules
+  if [ -x /etc/rc.d/rc.alsa-oss ]; then
+    sh /etc/rc.d/rc.alsa-oss
+  fi
   load_alsa_mixer
 else
   # If there are ALSA modules defined in /etc/modprobe.d/*, but
@@ -87,9 +77,11 @@ else
       modprobe $module
     done
   fi
-  # If ALSA is now up, then load the mixer settings and OSS modules:
+  # If ALSA is now up, then load the mixer settings and OSS modules (if enabled):
   if [ -d /proc/asound ]; then
-    load_alsa_oss_modules
+    if [ -x /etc/rc.d/rc.alsa-oss ]; then
+      sh /etc/rc.d/rc.alsa-oss
+    fi
     load_alsa_mixer
   fi
 fi

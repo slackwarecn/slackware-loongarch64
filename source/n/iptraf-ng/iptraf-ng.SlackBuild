@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 PKGNAM=iptraf-ng
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -72,6 +72,7 @@ find . \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --sbindir=/usr/sbin \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
@@ -82,12 +83,22 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Make symlinks to the old names:
+( cd $PKG/usr/sbin
+  ln -sf iptraf-ng iptraf
+  ln -sf rvnamed-ng rvnamed
+)
+( cd $PKG/usr/man/man8
+  ln -sf iptraf-ng.8 iptraf.8
+  ln -sf rvnamed-ng.8 rvnamed.8
+)
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mkdir -p $PKG/var/lib/iptraf
-mkdir -p $PKG//var/run/iptraf
-mkdir -p $PKG/var/log/iptraf
+mkdir -p $PKG/var/lib/iptraf-ng
+mkdir -p $PKG/var/run/iptraf-ng
+mkdir -p $PKG/var/log/iptraf-ng
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \

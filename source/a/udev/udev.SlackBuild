@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-$(echo udev-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-7}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -67,10 +67,17 @@ zcat $CWD/fix-42-usb-hid-pm.rules.diff.gz | patch -p1 --verbose || exit 1
 # Fixup the rule generator for our use
 zcat $CWD/rule_generator.diff.gz | patch -p1 --verbose || exit 1
 
+# Patch 60-cdrom_id.rules to create a full set of symlinks.
+# This is needed for a hotplugged optical device since the generated
+# rules will not be used until the second time the device is plugged.
+zcat $CWD/60-cdrom_id.rules.diff.gz | patch -p1 --verbose || exit 1
+
 # static libudev is needed for lvm2
 # --enable-udev_acl was removed (will be part of future CK release)
 # --enable-floppy support was also disabled by default in 173
 # --enable-rule_generator was disabled by default in 175
+
+LDFLAGS="$LDFLAGS -lrt" \
 ./configure \
   --prefix=/usr \
   --with-rootprefix=/ \

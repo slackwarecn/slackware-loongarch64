@@ -455,34 +455,8 @@ mkdir -p $MNTDIR2/syslinux
 cp -R $MNTDIR1/* $MNTDIR2/syslinux/
 rm -f $MNTDIR2/syslinux/ldlinux.sys
 
-# If we are creating a full Slackware installer, there is a lot more to do:
+# If we are creating a full Slackware installer, copy the package tree:
 if [ "$FULLINSTALLER" = "yes" ]; then
-  # Extract the Slackware initrd for modifications we have to do:
-  echo "--- Extracting Slackware initrd.img..."
-  ( cd ${MNTDIR3}/
-    gunzip -cd ${MNTDIR2}/syslinux/initrd.img | cpio -i -d -H newc --no-absolute-filenames
-  ) 2>>$LOGFILE
-
-  # Modify installer files so that installing from USB stick will be easier:
-  echo "--- Modifying installer files..."
-  ( cd ${MNTDIR3}/
-    # Try to automatically mount the installer partition:
-    mkdir usbinstall
-    echo "mount -t vfat -o ro,shortname=mixed \$(/sbin/blkid -t LABEL=$FATLABEL | cut -f1 -d:) /usbinstall 1>/dev/null 2>&1" >> etc/rc.d/rc.S
-    # Adapt the dialogs so that pressing [OK] will be all there is to it:
-    sed -i -e 's# --menu# --default-item 6 --menu#' usr/lib/setup/SeTmedia
-    sed -i -e "s# 2> \$TMP/sourcedir# /usbinstall/$(basename $REPOSROOT)/$PKGDIR 2> \$TMP/sourcedir#" usr/lib/setup/INSdir
-    FIXF=$(find usr/lib/setup -name SeTp*media)
-    sed -i -e 's# --menu# --default-item 3 --menu#' $FIXF
-  ) 2>>$LOGFILE
-
-  # Recreate the initrd:
-  echo "--- Gzipping the initrd image again:"
-  chmod 0755 ${MNTDIR3}
-  ( cd ${MNTDIR3}/
-    find . |cpio -o -H newc |gzip > ${MNTDIR2}/syslinux/initrd.img
-  ) 2>>$LOGFILE
-
   # Copy Slackware package tree (no sources) to the USB disk -
   # we already made sure that ${REPOSROOT} does not end with a '/'
   echo "--- Copying Slackware package tree to the USB drive..."

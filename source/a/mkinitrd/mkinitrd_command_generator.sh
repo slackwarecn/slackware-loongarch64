@@ -1,5 +1,6 @@
 #!/bin/sh
 # $Id: mkinitrd_command_generator.sh,v 1.45 2011/02/17 09:27:05 eha Exp eha $
+# Copyright 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # Copyright 2008, 2009, 2010, 2011  Eric Hameleers, Eindhoven, Netherlands
 #                                   Contact: <alien@slackware.com>
 # Copyright 2008, 2009  PiterPUNK, Sao Paulo, SP, Brazil
@@ -50,7 +51,12 @@ SOURCE_TREE=${SOURCE_TREE:-"/boot/initrd-tree"}
 CLEAR_TREE=${CLEAR_TREE:-1}
 KEYMAP=${KEYMAP:-"us"}
 UDEV=${UDEV:-1}
-WAIT=${WAIT:-1}
+# ARM devices need more time:
+case "$( uname -m )" in
+  arm*) WAIT_DEFAULT=4;;
+  *) WAIT_DEFAULT=1;;
+esac
+WAIT=${WAIT:-$WAIT_DEFAULT}
 
 # A basic explanation of the commandline parameters:
 basic_usage() {
@@ -108,7 +114,7 @@ extended_usage() {
 	the script determines, you can pass then to the script using the '-m'
 	parameter as follows:
 	
-	  $(basename $0) -m "uhci-hcd:usbhid"
+	  $(basename $0) -m "uhci-hcd:usbhid:hid_generic"
 	
 	The above example adds support for USB keyboards to the initrd - you
 	may need that if you have encrypted your root partition and need to
@@ -219,7 +225,7 @@ function add_usb_keyboard() {
   local USBMOD
   if cat /proc/bus/input/devices | sed -e 's/^$/\$/g' | \
      tr "\n$" " \n" | grep -q " Phys=.*usb.* .*Handlers=.*kbd.*B:"; then
-     USBMOD="usbhid"
+     USBMOD="usbhid:hid_generic"
      [ -n "$MLIST" ] && MLIST="$MLIST:$USBMOD" \
                      || MLIST="$USBMOD"
   fi
@@ -375,7 +381,7 @@ while [ ! -z "$1" ]; do
           KFILE=$(basename $KFILE)
         fi
         KFILE=${KFILEPATH}/$KFILE
-        if [ -z "$(file $KFILE | grep 'Linux kernel x86 boot')" ]; then
+        if [ -z "$(file $KFILE | grep -E 'Linux kernel x86 boot|x86 boot sector')" ]; then
           echo "File '$KFILE' does not look like it is a kernel file!"
           exit 1
         fi
@@ -439,7 +445,8 @@ if echo $MLIST | grep -q "virtio"; then
   MLIST="$MLIST:virtio:virtio_balloon:virtio_blk:virtio_ring:virtio_pci:virtio_net"
 fi
 
-# Determine if a USB keyboard is in use and include usbhid to module list
+# Determine if a USB keyboard is in use and include usbhid and hid_generic
+# to module list
 MLIST=$(add_usb_keyboard)
 
 # If we use any USB module, try to determine the Host Controller
@@ -546,7 +553,7 @@ configurations are optional and you can stick to the defaults." 11 72 3 \
 			   $([ $USING_LUKS = 1 ] && echo on || echo off) \
 "RESUMEDEV" "Select device for 'suspend-to-disk' feature" off \
 "UDEV" "Use UDEV in the initrd for device configuration" $(test $UDEV -eq 1 && echo on || echo off) \
-"WAIT" "Add delay to allow detection of slow disks at boot" $(test WAIT -gt 1 && echo on || echo off) )
+"WAIT" "Add delay to allow detection of slow disks at boot" $(test $WAIT -gt $WAIT_DEFAULT && echo on || echo off) )
   if [ "$?" != "0" ]; then
     exit 1
   fi
@@ -794,7 +801,7 @@ if [ $UDEV -eq 1 ]; then
   # Add UDEV support:
   MKINIT="$MKINIT -u"
 fi
-if [ -n "$WAIT" -a $WAIT -ne 1 ]; then
+if [ -n "$WAIT" -a $WAIT -ne $WAIT_DEFAULT ]; then
   # Add non-default wait time:
   MKINIT="$MKINIT -w $WAIT"
 fi

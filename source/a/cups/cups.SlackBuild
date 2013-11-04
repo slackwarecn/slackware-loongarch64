@@ -23,7 +23,7 @@
 # CUPS build script by volkerdi@slackware.com.
 
 VERSION=1.5.4
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -57,7 +57,7 @@ cd cups-$VERSION || exit 1
 
 # Fix for CUPS 1.5.4.  Don't reload the obsolete usblp module, as this
 # can cause partial printing with certain printers.
-zcat $CWD/usb-backend-reset-after-job-only-for-specific-devices.patch.gz | patch -p0 --verbose || exit 1
+zcat $CWD/cups-1.5.4-usb-quirks.diff.gz | patch -p1 --verbose || exit 1
 
 sed -i.orig -e 's#$exec_prefix/lib/cups#$libdir/cups#g' configure
 ./configure \
@@ -75,6 +75,13 @@ make $NUMJOBS || exit 1
 mkdir -p $PKG/etc/cups
 mkdir -p $PKG/var/spool
 make BUILDROOT=$PKG install || exit 1
+
+# Blacklist the usblp module just to make sure that it doesn't cause
+# any problems:
+mkdir -p $PKG/lib/modprobe.d
+cp -a $CWD/cups-blacklist-usblp.conf $PKG/lib/modprobe.d
+chown root:root $PKG/lib/modprobe.d/cups-blacklist-usblp.conf
+chmod 644 $PKG/lib/modprobe.d/cups-blacklist-usblp.conf
 
 # Hey, what's with the gigantic test files?  Bloat is bad.
 rm -f $PKG/usr/share/cups/ipptool/*.{pdf,ps,jpg}

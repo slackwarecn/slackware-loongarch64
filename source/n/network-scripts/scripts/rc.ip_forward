@@ -24,6 +24,17 @@ ip_forward_start() {
       /bin/grep ipv4 /etc/sysctl.conf | sysctl -p - 1> /dev/null 2> /dev/null
     fi
   fi
+  if [ -f /proc/sys/net/ipv6/conf/all/forwarding ]; then
+    echo "Activating IPv6 packet forwarding."
+    echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+    # Changing /proc/sys/net/ipv6/conf/all/forwarding results in resetting
+    # all non-default ipv6 parameters for the interface as mentioned in
+    # /usr/src/linux/Documentation/networking/ip-sysctl.txt.  So, we
+    # will reapply any ipv6 sysctl parameters now:
+    if [ -r /etc/sysctl.conf ]; then
+      /bin/grep ipv6 /etc/sysctl.conf | sysctl -p - 1> /dev/null 2> /dev/null
+    fi
+  fi
   # When using IPv4 packet forwarding, you will also get the
   # rp_filter, which automatically rejects incoming packets if the
   # routing table entry for their source address doesn't match the
@@ -51,6 +62,17 @@ ip_forward_stop() {
     # will reapply any ipv4 sysctl parameters now:
     if [ -r /etc/sysctl.conf ]; then
       /bin/grep ipv4 /etc/sysctl.conf | sysctl -p - 1> /dev/null 2> /dev/null
+    fi
+  fi
+  if [ -f /proc/sys/net/ipv6/conf/all/forwarding ]; then
+    echo "Disabling IPv6 packet forwarding."
+    echo 0 > /proc/sys/net/ipv6/conf/all/forwarding
+    # Changing /proc/sys/net/ipv6/conf/all/forwarding results in resetting
+    # all non-default ipv6 parameters for the interface as mentioned in
+    # /usr/src/linux/Documentation/networking/ip-sysctl.txt.  So, we
+    # will reapply any ipv6 sysctl parameters now:
+    if [ -r /etc/sysctl.conf ]; then
+      /bin/grep ipv6 /etc/sysctl.conf | sysctl -p - 1> /dev/null 2> /dev/null
     fi
   fi
 }

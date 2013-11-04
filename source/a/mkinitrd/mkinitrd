@@ -45,7 +45,7 @@
 # Modified by Patrick Volkerding <volkerdi@slackware.com> 21 August 2012
 #   Add Btrfs multi-device filesystem support option (-B).
 
-MKINITRD_VERSION=1.4.7
+MKINITRD_VERSION=1.4.8
 
 # Don't include these things from /lib/udev/ in the initrd image
 LIBUDEV_BLACKLIST="\
@@ -101,7 +101,7 @@ initrd, and the script is easy to modify.  Be creative.  :-)
           then you need to pass: -K LABEL=TRAVELSTICK:/keys/alien.luks
   -B      Add /sbin/btrfs to enable scanning for a root filesystem that is
           part of a Btrfs multi-device filesystem.
-  -M      Add the files in /etc/modprobe.d/ to the initrd
+  -M      Add the files in /etc/modprobe.d/ and /lib/modprobe.d/ to the initrd
   -R      Add support for RAID partitions
   -V      Display version number
 
@@ -422,6 +422,10 @@ fi
 # (unless we find that value is already set in the initrd-tree):
 if [ -z "$WAIT" -a -z "$(cat $SOURCE_TREE/wait-for-root)" ]; then
   WAIT=1
+  # ARM devices need even more time:
+  case "$( uname -m )" in
+    arm*) WAIT=4;;
+  esac
 fi
 if [ ! -z "$WAIT" ]; then
   echo $WAIT > $SOURCE_TREE/wait-for-root
@@ -479,6 +483,9 @@ if [ ! -z "$RAID" ]; then
     mkdir -p $SOURCE_TREE/lib/udev/rules.d
     echo 'KERNEL=="dm-[0-9]*", OPTIONS+="db_persist"' > \
       $SOURCE_TREE/lib/udev/rules.d/95-dm-initrd.rules
+    if [ -r /etc/mdadm.conf ] ; then
+      cp /etc/mdadm.conf $SOURCE_TREE/etc
+    fi
   else
     echo "ERROR:  mdadm and/or mdmon binary is missing, RAID support not installed"
   fi
@@ -674,7 +681,7 @@ if [ ! -z "$MODULE_LIST" ]; then
   # Pregenerate the module dependency information
   depmod -a -b $SOURCE_TREE ${KERNEL_VERSION}
 
-  # Copy /etc/modprobe.d/* if desired
+  # Copy /{etc,lib}/modprobe.d/* if desired
   if [ ! -z $MODCONF ]; then
     copy_modconf
   fi

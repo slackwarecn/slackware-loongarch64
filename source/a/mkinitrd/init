@@ -4,7 +4,7 @@
 #         This requires that your kernel supports initramfs!!!
 #
 # Copyright 2004  Slackware Linux, Inc., Concord, CA, USA
-# Copyright 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,8 @@
 #  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
+#
+##################################################################################
 # With a generic kernel, you need to load the modules needed to mount the
 # root partition.  This might mean a SCSI, RAID, or other drive controller
 # module, as well as the module to support the root filesystem.  Once the
@@ -62,6 +62,13 @@
 #                 need to make it executable:  
 #
 #                     chmod 755 load_kernel_modules
+##################################################################################
+# Changelog
+# 10-Dec-2012 <mozes@slackware.com>
+#  * Added support for the official Kernel parameters to select root filesystem
+#    type ('rootfstype') and pause before attempting to mount the root filesystem
+#    ('rootdelay').  The original parameters may continue to be used.
+##################################################################################
 
 INITRD=$(cat /initrd-name)
 ROOTDEV=$(cat /rootdev)
@@ -115,10 +122,10 @@ for ARG in $(cat /proc/cmdline); do
     root=UUID=*)
       ROOTDEV=$(echo $ARG | cut -f2- -d=)
     ;;
-    rootfs=*)
+    rootfs=*|rootfstype=*)
       ROOTFS=$(echo $ARG | cut -f2 -d=)
     ;;
-    waitforroot=*)
+    waitforroot=*|rootdelay=*)
       WAIT=$(echo $ARG | cut -f2 -d=)
     ;;
   esac
@@ -163,11 +170,15 @@ fi
 if [ "$RESCUE" = "" ]; then 
   # Initialize RAID:
   if [ -x /sbin/mdadm ]; then
-    /sbin/mdadm -E -s >/etc/mdadm.conf
-    /sbin/mdadm -S -s
-    /sbin/mdadm -A -s
-    # This seems to make the kernel see partitions more reliably:
-    fdisk -l /dev/md* 1> /dev/null 2> /dev/null
+    # If /etc/mdadm.conf is present, udev should DTRT on its own;
+    # If not, we'll make one and go from there:
+    if [ ! -r /etc/mdadm.conf ]; then
+      /sbin/mdadm -E -s >/etc/mdadm.conf
+      /sbin/mdadm -S -s
+      /sbin/mdadm -A -s
+      # This seems to make the kernel see partitions more reliably:
+      fdisk -l /dev/md* 1> /dev/null 2> /dev/null
+    fi
   fi
 
   # Unlock any encrypted partitions necessary to access the

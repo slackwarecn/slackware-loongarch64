@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2007-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007-2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,6 +24,10 @@
 # To build only a single package, specify both the source directory
 # and the name of the package, like:
 # ./x11.SlackBuild lib libX11
+
+# Upgrade packages as they are built.
+# This is default.  To not upgrade, pass UPGRADE_PACKAGES=no (or anything else).
+UPGRADE_PACKAGES=${UPGRADE_PACKAGES:-yes}
 
 pkgbase() {
   PKGEXT=$(echo $1 | rev | cut -f 1 -d . | rev)
@@ -130,7 +134,7 @@ mkdir -p $SLACK_X_BUILD_DIR
 # in the "magic order".  I built mine by hand through trial-and-error
 # before getting this script to work.  It wasn't that hard...  I think.  ;-)
 ( cd src
-  for x_source_dir in proto data util xcb lib app doc driver font xserver ; do
+  for x_source_dir in proto data util xcb lib app doc xserver driver font ; do
     # See if $1 is a source directory like "lib":
     if [ ! -z "$1" ]; then
       if [ ! "$1" = "${x_source_dir}" ]; then
@@ -269,6 +273,9 @@ mkdir -p $SLACK_X_BUILD_DIR
             BUILD=$MODBUILD . $CWD/makepkg/${PKGNAME}
           else
             /sbin/makepkg -l y -c n ${SLACK_X_BUILD_DIR}/${PKGNAME}-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz
+            if [ "$UPGRADE_PACKAGES" = "yes" ]; then
+              /sbin/upgradepkg --install-new ${SLACK_X_BUILD_DIR}/${PKGNAME}-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz
+            fi
           fi
         fi
 
@@ -320,6 +327,9 @@ mkdir -p $SLACK_X_BUILD_DIR
         BUILD=$MODBUILD . $CWD/makepkg/${PKGNAME}
       else
         /sbin/makepkg -l y -c n ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
+        if [ "$UPGRADE_PACKAGES" = "yes" ]; then
+          /sbin/upgradepkg --install-new ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
+        fi
       fi
     )
   done

@@ -1,0 +1,53 @@
+--- cvs-1.11.23/src/server.c.orig	2013-05-17
++++ cvs-1.11.23/src/server.c		2013-05-22
+@@ -5632,9 +5632,11 @@ check_repository_password (username, pas
+ 	    host_user_tmp = username;
+ 
+ 	/* Verify blank passwords directly, otherwise use crypt(). */
++	char *crypt_passwd = found_password ? crypt (password, found_password): NULL;
+ 	if ((found_password == NULL)
+-	    || ((strcmp (found_password, crypt (password, found_password))
+-		 == 0)))
++	    || (crypt_passwd != NULL
++               && (strcmp (found_password, crypt_passwd)
++		    == 0)))
+ 	{
+ 	    /* Give host_user_ptr permanent storage. */
+ 	    *host_user_ptr = xstrdup (host_user_tmp);
+@@ -5645,7 +5647,7 @@ check_repository_password (username, pas
+ #ifdef LOG_AUTHPRIV
+ 	syslog (LOG_AUTHPRIV | LOG_NOTICE,
+ 		"password mismatch for %s in %s: %s vs. %s", username,
+-		repository, crypt(password, found_password), found_password);
++		repository, crypt_passwd, found_password);
+ #endif
+ 	    *host_user_ptr = NULL;
+ 	    retval	 = 2;
+@@ -5675,6 +5677,7 @@ check_password (username, password, repo
+     char *host_user = NULL;
+     char *found_passwd = NULL;
+     struct passwd *pw;
++    char *crypt_passwd = NULL;
+ 
+     /* First we see if this user has a password in the CVS-specific
+        password file.  If so, that's enough to authenticate with.  If
+@@ -5752,7 +5755,9 @@ error 0 %s: no such user\n", username);
+     if (*found_passwd)
+     {
+ 	/* user exists and has a password */
+-	if (strcmp (found_passwd, crypt (password, found_passwd)) == 0)
++	crypt_passwd = crypt (password, found_passwd);
++	if ((crypt_passwd != NULL) &&
++	    (strcmp (found_passwd, crypt_passwd) == 0))
+ 	{
+ 	    host_user = xstrdup (username);
+ 	}
+@@ -5762,7 +5767,7 @@ error 0 %s: no such user\n", username);
+ #ifdef LOG_AUTHPRIV
+ 	    syslog (LOG_AUTHPRIV | LOG_NOTICE,
+ 		    "password mismatch for %s: %s vs. %s", username,
+-		    crypt(password, found_passwd), found_passwd);
++		    crypt_passwd, found_passwd);
+ #endif
+ 	}
+ 	goto handle_return;

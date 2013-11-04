@@ -23,10 +23,17 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PRGNAM=dropbear
-VERSION=0.50
-ARCH=${ARCH:-i486}
+VERSION=2012.55
 BUILD=${BUILD:-10}
 TAG=${TAG:-''}
+
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i486 ;;
+    arm*) ARCH=arm ;;
+       *) ARCH=$( uname -m ) ;;
+  esac
+fi
 
 # The programs we want to have as symlinks to dropbearmulti binary:
 PROGS="dropbear dbclient dropbearkey dropbearconvert scp ssh"
@@ -36,33 +43,37 @@ PROGS="dropbear dbclient dropbearkey dropbearconvert scp ssh"
 #  and adding symlinks for ssh and scp without worry
 #  about overwriting any pre-existing binaries.
 
-CWD=`pwd`
+CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/pkg-$PRGNAM
-OUTPUT=${OUTPUT:-/tmp}
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-elif [ "$ARCH" = "i486" ]; then
+if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
-mkdir -p $TMP $PKG $OUTPUT
+mkdir -p $TMP $PKG
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
 tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
 cd $PRGNAM-$VERSION || exit 1
 
-# Fix ownership and permissions inside the source tarball.
-# It's appalling how many projects have 777 permissions or
-# even suid, sgid, and sticky bits set on things.
 chown -R root:root .
-chmod -R u+w,go+r-w,a-s .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
 
 # Patch to allow empty passwords (used in Slackware's installer):
 patch -p1 < $CWD/dropbear_emptypass.patch
@@ -70,6 +81,8 @@ patch -p1 < $CWD/dropbear_emptypass.patch
 patch -p0 < $CWD/dropbear.xauth.patch
 # Change the path used for dbclient because our prefix is '/' not '/usr':
 patch -p1 < $CWD/dropbear_dbclientpath.patch
+# Patch for new glibc crypt() that may return NULL:
+patch -p1 < $CWD/dropbear.glibc.crypt.diff
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -96,10 +109,8 @@ cp dbclient.1 $PKG/usr/man/man1
 cp dropbearkey.8 dropbear.8 $PKG/usr/man/man8
 
 if [ -d $PKG/usr/man ]; then
- (cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \;
-  for i in `find . -type l` ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
- )
+  find $PKG/usr/man -type f -exec gzip -9 {} \;
+  for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 fi
 
 # Link binaries to dropbearmulti since the 'make install' does not do that
@@ -111,10 +122,10 @@ fi
  done
 )
 
-(cd $PKG
- find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
- find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-)
+make install DESTDIR=$PKG
+
+find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | \
+  grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
 mkdir -p $PKG/etc/rc.d $PKG/etc/dropbear
 cp $CWD/rc.dropbear.new $PKG/etc/rc.d/ # doinst.sh will handle .new
@@ -128,4 +139,4 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 cat $CWD/doinst.sh  > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.tgz
+/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.tgz

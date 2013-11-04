@@ -2,7 +2,7 @@
 #
 # Copyright 1994, 1998, 1999 Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2002, 2003  Slackware Linux, Inc, Concord, CA
-# Copyright 2007, 2008, 2011  Patrick Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007, 2008, 2011, 2013  Patrick Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,6 +25,32 @@
 TMP=/var/log/setup/tmp
 CONSOLETYPE=standard
 unset UTFVT
+
+# Most of the time LILO is not used on UEFI machines (in fact, it is useless
+# unless the machine is running in legacy BIOS mode).  So, we'll detect if
+# this is a machine running UEFI and suggest skipping LILO installation.
+# We'll still allow it if the user wants it, though.  It won't hurt anything,
+# and might be useful for booting in Legacy BIOS mode later.
+if [ -d /sys/firmware/efi ]; then
+  dialog --title "UEFI FIRMWARE DETECTED" \
+--backtitle "LILO (Linux Loader) installation" \
+--menu \
+"Since LILO (the traditional Linux Loader) does not work with machines \
+running UEFI firmware (except in Legacy BIOS mode), you probably do not \
+need to install it.  Instead, you'll need ELILO, which is a version of \
+LILO designed to work with EFI/UEFI systems." \
+12 70 2 \
+"skip" "Skip installing LILO and proceed to ELILO installation" \
+"install" "Install LILO anyway" 2> $TMP/reply
+ if [ $? = 1 -o $? = 255 ]; then
+  exit
+ fi
+ REPLY="`cat $TMP/reply`"
+ rm -f $TMP/reply
+ if [ "$REPLY" = "skip" ]; then
+   exit
+ fi
+fi
 
 # Set the OS root directory (called T_PX for some unknown reason).
 # If an argument is given to this script and it is a directory, it
@@ -50,6 +76,15 @@ if [ ! -d "$T_PX" ]; then
       T_PX=/
     fi
   fi
+fi
+
+# If os-prober is availible, we will use it to filter out unbootable
+# FAT/NTFS partitions.  If it is not availble, we'll use /bin/true
+# instead to avoid filtering.
+if which os-prober > /dev/null ; then
+  OSPROBER=os-prober
+else
+  OSPROBER=true
 fi
 
 # Determine LILO documentation directory:
@@ -294,6 +329,7 @@ EOF
    cat << EOF >> $T_PX/etc/lilo.conf
 boot = $ROOT_DEVICE
 #delay = 5
+#compact        # faster, but won't work on all systems.
 EOF
    if [ $CONSOLETYPE = standard ]; then
      cat << EOF >> $T_PX/etc/lilo.conf
@@ -396,6 +432,8 @@ EOF
  cat << EOF >> $T_PX/etc/lilo.conf
 boot = $LILO_TARGET
 
+#compact        # faster, but won't work on all systems.
+
 # Boot BMP Image.
 # Bitmap in BMP format: 640x480x8
   bitmap = /boot/slack.bmp
@@ -474,13 +512,18 @@ cat << EOF >> $T_PX/etc/lilo.conf
 # End LILO global section
 EOF
  # OK, now let's look for Windows partitions:
- DOSP="`PROBE -l | grep "DOS
+ # If we have os-prober, use the Windows partition list from that:
+ if which os-prober > /dev/null ; then
+  DOSP="$(os-prober 2> /dev/null | grep Windows | cut -f 1 -d :)"
+ else # use PROBE output:
+  DOSP="$(PROBE -l | grep "DOS
 Win
 W95
 FAT12
 FAT16
-HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort`"
- DOSP="`echo $DOSP | cut -f 1 -d ' '`"
+HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort )"
+  DOSP="`echo $DOSP | cut -f 1 -d ' '`"
+ fi
  if [ ! "$DOSP" = "" ]; then
   TABLE="`echo $DOSP | cut -b1-8`"
   cat << EOF >> $T_PX/etc/lilo.conf
@@ -896,7 +939,9 @@ default." 13 74 4 \
 #
 # Start LILO global section
 boot = $LILO_TARGET
+
 #compact        # faster, but won't work on all systems.
+
 EOF
    # Boot splash
    if [ "$PROMPT" = "prompt" ]; then
@@ -1096,7 +1141,7 @@ Win
 W95
 FAT12
 FAT16
-HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort >> $TMP/tmpmsg
+HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort | grep "$($OSPROBER 2> /dev/null | grep Windows | cut -f 1 -d :)" >> $TMP/tmpmsg
     echo >> $TMP/tmpmsg
     echo "Which one would you like LILO to boot?" >> $TMP/tmpmsg
     dialog --title "SELECT WINDOWS PARTITION" --no-collapse --inputbox \

@@ -28,6 +28,7 @@
 TARBALLVER=$(basename $(ls thunderbird-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
 # Strip the end from beta versions:
 VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
+MAJORVER=$(echo $TARBALLVER | cut -f 1 -d .)
 BUILD=${BUILD:-1}
 
 CWD=$(pwd)
@@ -42,7 +43,12 @@ if echo $TARBALLVER | grep -q b ; then # we think it is a beta
     MOZVERS=${MOZVERS:-release}
   fi
 else # release, no "b" in the tarball version:
-  MOZVERS=${MOZVERS:-release}
+  if bzgrep -q comm-esr${MAJORVER}/ $CWD/thunderbird-$TARBALLVER.source.tar.bz2 ; then
+    # Looks like we get this sometimes even when the tarball isn't labeled as esr...
+    MOZVERS=${MOZVERS:-esr${MAJORVER}}
+  else
+    MOZVERS=${MOZVERS:-release}
+  fi
 fi
 
 # Automatically determine the architecture we're building on:

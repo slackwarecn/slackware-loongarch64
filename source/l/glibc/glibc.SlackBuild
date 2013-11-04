@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,13 +22,16 @@
 
 ## build glibc-$VERSION for Slackware
 
-VERSION=${VERSION:-2.15}
+VERSION=${VERSION:-2.17}
 CHECKOUT=${CHECKOUT:-""}
 BUILD=${BUILD:-7}
 
 ## Included in glibc now:
 ## glibc-libidn version
 #LIBIDNVER=2.10.1
+
+# I was considering disabling NSCD, but MoZes talked me out of it.  :)
+#DISABLE_NSCD=" --disable-nscd "
 
 # $ARCH may be preset, otherwise i486 compatibility with i686 binary
 # structuring is the Slackware default, since this is what gcc-3.2+
@@ -134,13 +137,6 @@ fix_doinst() {
 # This is a patch function to put all glibc patches in the build script
 # up near the top.
 apply_patches() {
-  # Reexport the RPC interfaces that were removed in glibc-2.14.
-  # Sure, it's crufy code, but stuff needs it, so rather than pull the
-  # rug out from under you, we'll just humbly recommend that you consider
-  # transitioning away from it...  :-)
-  zcat $CWD/glibc-2.14-reexport-rpc-interface.patch.gz | patch -p1 --verbose || exit 1
-  # Add back the NIS and RPC headers:
-  zcat $CWD/glibc-2.14-reinstall-nis-rpc-headers.patch.gz | patch -p1 --verbose || exit 1
   # Use old-style locale directories rather than a single (and strangely
   # formatted) /usr/lib/locale/locale-archive file:
   zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
@@ -172,32 +168,27 @@ apply_patches() {
   # Avoid the Intel optimized asm routines for now because they break
   # the flash player.  We'll phase this in when it's safer to do so.
   zcat $CWD/glibc.disable.broken.optimized.memcpy.diff.gz | patch -p1 --verbose || exit 1
-  # Upstream fixes to avert Firefox crashes:  (still applies to 2.15...   probably better not to drop it)
-  zcat $CWD/glibc-2.14.1-fixes-1.patch.gz | patch -p1 --verbose || exit 1
-  # Upstream patch to fix relocation sorting related crashes:
-  zcat $CWD/glibc.git-6ee65ed6ddbf04402fad0bec6aa9c73b9d982ae4.diff.gz | patch -p1 --verbose || exit 1
-  # Upstream patch to fix crashes when nscd is not running:
-  zcat $CWD/glibc-2.15.nscd-race-fix.diff.gz | patch -p1 --verbose || exit 1
-  # Revert a patch that went into 2.15 that causes NPTL related crashes:
-  zcat $CWD/glibc-2.15-revert-c5a0802a.diff.gz | patch -p1 --verbose || exit 1
-  # Patch integer overflows in strtod*() functions:
-  zcat $CWD/glibc.strtod.CVE-2012-3480.diff.gz | patch -p1 --verbose || exit 1
-  # Update the timezone information:
-  ( cd timezone
-    tar xzf $CWD/tzdata?????.tar.gz
-    chown root:root *
-    mv yearistype.sh yearistype
-    chmod 644 *
-    chmod 755 yearistype
-    mkdir tzcode
-    cd tzcode
-    tar xzf $CWD/tzcode?????.tar.gz
-    # A partial build is needed here to update TZVERSION in version.h:
-    make -i
-    chown -R root:root .
-    chmod 644 *
-    cp -a *.c *.h ..
-  )
+  # Fix buffer overrun in regexp matcher.  This bug is deemed low impact since
+  # the buffer contents cannot be controlled, but could lead to a crash.
+  zcat $CWD/glibc.CVE-2013-0242.diff.gz | patch -p1 --verbose || exit 1
+  # Fix stack overflow in getaddrinfo with many results.  This bug can only be
+  # triggered through DNS poisoning or through the use of a hostile DNS
+  # server (in which case you already have problems), and requires large
+  # amounts of data to be sent to the targeted machine.  May lead to a
+  # crash.  Considered low impact.
+  zcat $CWD/glibc.CVE-2013-1914.diff.gz | patch -p1 --verbose || exit 1
+  # Remove pt_chown by default, as it can be used for a local privilege
+  # escalation.  However, although this is worth patching in the -current
+  # version, it requires a non-default (and known to weaken security) setting
+  # for FUSE.  Additionally, the patch is not portable to older versions of
+  # glibc (but thanks Mancha for porting it to 2.17!).  On older versions
+  # of glibc, making /usr/libexec/pt_chown a symlink to /bin/true will
+  # provide the same fix, if needed.  But the insecure setting for FUSE
+  # probably opens up many other possible exploits and should be avoided.
+  zcat $CWD/glibc.CVE-2013-2207.diff.gz | patch -p1 --verbose || exit 1
+  # Patch integer overflows in pvalloc, valloc, and
+  # posix_memalign/memalign/aligned_alloc (CVE-2013-4332).
+  zcat $CWD/glibc.CVE-2013-4332.diff.gz | patch -p1 --verbose || exit 1
 }
 
 # This is going to be the initial $DESTDIR:
@@ -275,10 +266,12 @@ CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-kernel=2.6.32 \
+  --enable-kernel=3.2.29 \
   --with-headers=/usr/include \
   --enable-add-ons=libidn,nptl \
+  --enable-obsolete-rpc \
   --enable-profile \
+  $DISABLE_NSCD \
   --infodir=/usr/info \
   --mandir=/usr/man \
   --with-tls \
@@ -311,6 +304,25 @@ strip -g $PKG/lib${LIBDIRSUFFIX}/l*.so*
 strip -g $PKG/usr/lib${LIBDIRSUFFIX}/l*.so*
 strip -g $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a
 
+# Build and install the zoneinfo database:
+cd $TMP
+rm -rf tzcodedata-build
+mkdir tzcodedata-build
+cd tzcodedata-build
+tar xzf $CWD/tzdata?????.tar.gz
+tar xzf $CWD/tzcode?????.tar.gz
+sed -i "s,/usr/local,$(pwd),g" Makefile
+sed -i "s,/etc/zoneinfo,/zoneinfo,g" Makefile
+make
+make install
+mkdir -p $PKG/usr/share/zoneinfo/{posix,right}
+cp -a zoneinfo/* $PKG/usr/share/zoneinfo
+cp -a zoneinfo-posix/* $PKG/usr/share/zoneinfo/posix
+cp -a zoneinfo-leaps/* $PKG/usr/share/zoneinfo/right
+# Remove $PKG/usr/share/zoneinfo/localtime -- the install script will
+# create it as a link to /etc/localtime.
+rm -f $PKG/usr/share/zoneinfo/localtime
+
 # Back to the sources dir to add some files/docs:
 cd $TMP/glibc-$CVSVER
 
@@ -320,6 +332,10 @@ mkdir -p $PKG/etc
 cat nscd/nscd.conf > $PKG/etc/nscd.conf.new
 
 # Install some scripts to help select a timezone:
+( cd $CWD/timezone-scripts
+  # Try to rebuild this:
+  sh output-updated-timeconfig.sh $PKG/usr/share/zoneinfo > timeconfig 2> /dev/null
+)
 mkdir -p $PKG/var/log/setup
 cp -a $CWD/timezone-scripts/setup.timeconfig $PKG/var/log/setup
 chown root:root $PKG/var/log/setup/setup.timeconfig
@@ -378,7 +394,7 @@ rm $PKG/etc/ld.so.cache
 
 # glibc-zoneinfo.  We will start with an easy one to avoid breaking a sweat.  ;-)
 cd $CWD
-ZONE_VERSIONS="$(echo tzcode* | cut -f1 -d . | cut -b7-11)_$(echo tzdata* | cut -f1 -d . | cut -b7-11)"
+ZONE_VERSIONS="$(echo tzdata* | cut -f1 -d . | cut -b7-11)"
 echo $ZONE_VERSIONS
 cd $PZONE
 # Install some scripts to help select a timezone:

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ VERSION=3.2.8
 # Sometimes this number lags behind...
 SOVER=3.2.8
 PSMISCVER=22.13
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -100,8 +100,11 @@ zcat $CWD/procps-3.2.8-ps-cgroup-suppress-root-group.patch.gz | patch -p1 --verb
 # Init contructors in correct order to avoid "Unknown HZ value!":
 zcat $CWD/procps-3.2.8.unknown.hz.value.diff.gz | patch -p1 --verbose || exit 1
 
+# Fix an ordering problem in the Makefile:
+zcat $CWD/procps-3.2.8.makefile.diff.gz | patch -p1 --verbose || exit 1
+
 make OPT="$SLKCFLAGS" || make OPT="$SLKCFLAGS" || exit 1
-mkdir -p $PKG/lib${LIBDIRSUFFIX} $PKG/bin $PKG/sbin $PKG/usr/bin
+mkdir -p $PKG/lib${LIBDIRSUFFIX} $PKG/bin $PKG/sbin $PKG/usr/bin $PKG/usr/include/proc
 cat free > $PKG/bin/free
 cat ps/ps> $PKG/bin/ps
 cat proc/libproc-${SOVER}.so > $PKG/lib${LIBDIRSUFFIX}/libproc-${SOVER}.so
@@ -123,6 +126,9 @@ cat watch > $PKG/usr/bin/watch
   ln -sf /bin/free .
   ln -sf /bin/ps .
 )
+cp -a proc/*.h $PKG/usr/include/proc
+chown -R root:root $PKG/usr/include/proc
+chmod 644 $PKG/usr/include/proc/*
 cp -a ps/ps.1 .
 mkdir -p $PKG/usr/man/man1
 for page in free.1 pgrep.1 pkill.1 ps.1 slabtop.1 skill.1 snice.1 tload.1 top.1 uptime.1 w.1 watch.1 ; do

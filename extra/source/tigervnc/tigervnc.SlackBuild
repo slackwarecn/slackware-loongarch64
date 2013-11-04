@@ -1,0 +1,311 @@
+#!/bin/sh
+# Copyright 2010, 2011, 2012, 2013  Eric Hameleers, Eindhoven. NL
+# All rights reserved.
+#
+#   Permission to use, copy, modify, and distribute this software for
+#   any purpose with or without fee is hereby granted, provided that
+#   the above copyright notice and this permission notice appear in all
+#   copies.
+#
+#   THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+#   WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#   MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#   IN NO EVENT SHALL THE AUTHORS AND COPYRIGHT HOLDERS AND THEIR
+#   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+#   USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+#   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+#   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#   SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+
+
+PKGNAM=tigervnc
+VERSION=${VERSION:-1.1.0}
+BUILD=${BUILD:-1}
+NUMJOBS=${NUMJOBS:" -j4 "}
+TAG=${TAG:-}
+
+# Do we build the java applet (needs jdk)?
+DO_APPLET=${DO_APPLET:-"NO"}
+
+# TigerVNC needs to use source of the X.Org server whose version matches
+# that of your installed X.Org package:
+XORG=${XORG:-$(X -version 2>&1 | grep "^X.Org X Server " | cut -f4 -d' ')}
+MAXPATCHVER="$(echo $XORG | cut -f1,2 -d. | tr -d '.')"
+
+# OS Stamp into the binaries:
+OSNAME="$(head -1 /etc/slackware-version)"
+OSVENDOR="Slackware Linux Project"
+BUILDER="Built by Alien BOB on $(date -u)"
+
+# This covers most filenames you'd want as documentation. Change if needed.
+DOCS="LICENCE.TXT doc/TODO doc/*.txt doc/*.odt"
+DOCS_XORG="COPYING ChangeLog"
+
+if [ -e $CWD/machine.conf ]; then
+  . $CWD/machine.conf ]
+elif [ -e /etc/slackbuild/machine.conf ]; then
+  . /etc/slackbuild/machine.conf ]
+else
+  # Automatically determine the architecture we're building on:
+  MARCH=$( uname -m )
+  if [ -z "$ARCH" ]; then
+    case "$MARCH" in
+      i?86)    export ARCH=i486 ;;
+      arm*)    export ARCH=arm ;;
+      # Unless $ARCH is already set, use uname -m for all other archs:
+      *)       export ARCH=$MARCH ;;
+    esac
+  fi
+  # Set CFLAGS/CXXFLAGS and LIBDIRSUFFIX:
+  if [ "$ARCH" = "i486" ]; then
+    SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+    LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "s390" ]; then
+    SLKCFLAGS="-O2"
+    LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "x86_64" ]; then
+    SLKCFLAGS="-O2 -fPIC"
+    LIBDIRSUFFIX="64"
+  elif [ "$ARCH" = "arm" ]; then
+    SLKCFLAGS="-O2 -march=armv5te"
+    LIBDIRSUFFIX=""
+  else
+    SLKCFLAGS="-O2"
+    LIBDIRSUFFIX=""
+  fi
+fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf $PKGNAM-$VERSION
+rm -rf xorg-server-${XORG}
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/xorg-server-${XORG}.tar.?z* || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
+# Move the xorg-server sources into the TigerVNC tree:
+mv unix/xserver/hw/vnc ../xorg-server-${XORG}/hw/
+rm -rf unix/xserver/hw
+mv ../xorg-server-${XORG}/* unix/xserver/
+
+# We have patches for X.Org later than 1.10 which tigervnc does not have:
+for PATCHVER in 111 112 113 114 ; do
+  if [ -e $CWD/patches/tigervnc$(echo $VERSION | cut -f1,2 -d. --output-delimiter=)-xorg${PATCHVER}.patch ]; then
+    cp $CWD/patches/tigervnc$(echo $VERSION | cut -f1,2 -d. --output-delimiter=)-xorg${PATCHVER}.patch unix/xserver${PATCHVER}.patch
+  fi
+done
+
+if [ $MAXPATCHVER -gt 110 ]; then
+  if [ $MAXPATCHVER -lt 113 ]; then
+    # The sed magic in the hw/vnc Makefile needs some love:
+    # ... taken care of in the xserver113 patch if we ever move to X.Org 1.13.
+    cat $CWD/patches/tigervnc$(echo $VERSION | cut -f1,2 -d. --output-delimiter=)-xorg_headers.patch | patch -p1 --verbose || exit 1
+  else
+    # We need to rewrite the xserver110.patch for X.Org 1.13 and newer:
+    cp $CWD/patches/tigervnc$(echo $VERSION | cut -f1,2 -d. --output-delimiter=)-xorg110.patch unix/xserver110.patch
+  fi
+fi
+
+# Patch the xorg-server source to include building the vnc driver
+cd unix/xserver
+  if [ $MAXPATCHVER -le 110 ]; then
+    # apply one of the tigervnc-provided patches:
+    cat ../xserver${MAXPATCHVER}.patch | patch -p1 --verbose || exit 1
+  else
+    # these external patches are incremental and must be applied in order:
+    for PATCHVER in 110 111 112 113 114 ; do
+      if [ $PATCHVER -le $MAXPATCHVER -a -e ../xserver${PATCHVER}.patch ]; then
+        cat ../xserver${PATCHVER}.patch | patch -p1 --verbose || exit 1
+      fi
+    done
+  fi
+cd -
+
+# We use Java7:
+cat $CWD/patches/tigervnc11-java7.patch | patch -p1 --verbose || exit 1
+
+# Explicitly put the java applet into a directory named 'tigervnc':
+sed -i -e 's#/vnc/class#/tigervnc/class#'g $(grep -rl vnc/class .)
+
+# Make sure ownerships and permissions are sane:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+export LDFLAGS="$SLKLDFLAGS -lpthread"
+export CXXFLAGS="$SLKCFLAGS"
+export CFLAGS="$SLKCFLAGS"
+
+echo -e "\n*** Building tigervnc ***\n"
+autoreconf -vif
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --localstatedir=/var \
+  --sysconfdir=/etc \
+  --disable-static \
+  --program-prefix= \
+  --program-suffix= \
+  --build=$TARGET
+
+make $NUMJOBS || make || exit 1
+make DESTDIR=$PKG install || exit 1
+
+cd unix/xserver
+  echo -e "\n*** Building xserver ***\n"
+  export CXXFLAGS="$SLKCFLAGS -fpermissive"
+  autoreconf -vif
+
+  # Default font paths to be used by the X server
+  DEF_FONTPATH="/usr/share/fonts/local,/usr/share/fonts/TTF,/usr/share/fonts/OTF,/usr/share/fonts/Type1,/usr/share/fonts/misc,/usr/share/fonts/CID,/usr/share/fonts/75dpi/:unscaled,/usr/share/fonts/100dpi/:unscaled,/usr/share/fonts/75dpi,/usr/share/fonts/100dpi,/usr/share/fonts/cyrillic"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib${LIBDIRSUFFIX} \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --mandir=/usr/man \
+    --disable-dri \
+    --disable-static \
+    --disable-xorg --disable-xnest --disable-xvfb --disable-dmx \
+    --disable-xwin --disable-xephyr --disable-kdrive \
+    --disable-xinerama \
+    --enable-composite \
+    --enable-install-libxf86config \
+    --enable-xcsecurity \
+    --enable-glx-tls --enable-dri2 \
+    --with-pic \
+    --with-int10=x86emu \
+    --with-default-font-path="${DEF_FONTPATH}" \
+    --with-module-dir=/usr/lib${LIBDIRSUFFIX}/xorg/modules \
+    --with-dri-driver-path=/usr/lib${LIBDIRSUFFIX}/xorg/modules/dri \
+    --with-xkb-path=/etc/X11/xkb \
+    --with-xkb-output=/var/lib/xkb \
+    --disable-config-dbus \
+    --disable-config-hal \
+    --disable-config-udev \
+    --disable-devel-docs \
+    --disable-unit-tests \
+    --without-dtrace \
+    --with-os-name="$OSNAME" \
+    --with-os-vendor="$OSVENDOR" \
+    --with-builderstring="$BUILDER" \
+    --build=$TARGET
+
+  make $NUMJOBS || make || exit 1
+  make -C hw/vnc DESTDIR=$PKG install
+cd -
+
+if [ "$DO_APPLET" = "YES" ]; then
+  # Compile the java applet (needs the JDK... JRE is not enough):
+  cd java/src/com/tigervnc/vncviewer
+    make || exit 1
+  cd -
+fi
+
+# Create .png icons from the .svg file:
+make -C media
+
+if [ "$DO_APPLET" = "YES" ]; then
+  # Install the java applet:
+  cd java/src/com/tigervnc/vncviewer
+    mkdir -p $PKG/usr/share/tigervnc/classes
+    install -m0755 VncViewer.jar $PKG/usr/share/tigervnc/classes/
+    install -m0644 index.vnc $PKG/usr/share/tigervnc/classes/
+    install -m0644 *.class $PKG/usr/share/tigervnc/classes/
+  cd -
+fi
+
+# Install menu entry:
+mkdir -p $PKG/usr/share/{applications,icons/hicolor/{16x16,24x24,32x32,48x48}/apps}
+for PSIZE in 16 24 32 48; do
+  install -m644 media/icons/tigervnc_${PSIZE}.png \
+    $PKG/usr/share/icons/hicolor/${PSIZE}x${PSIZE}/apps/tigervnc.png 
+done
+cat <<EOT > $PKG/usr/share/applications/tigervnc.desktop
+[Desktop Entry]
+Encoding=UTF-8
+Name=TigerVNC
+GenericName=VNCViewer (RFB Client)
+Comment=Connect to remote desktop
+SwallowExec=
+Exec=vncviewer
+MimeType=
+Icon=tigervnc
+Path=
+TerminalOptions=
+Terminal=false
+Type=Application
+Categories=Network;
+StartupWMClass=VNC Viewer: Connection Details
+EOT
+
+# Add this to the doinst.sh:
+! [ -d $PKG/install ] && mkdir -p $PKG/install
+cat <<EOT >> $PKG/install/doinst.sh
+# Update the desktop database:
+if [ -x usr/bin/update-desktop-database ]; then
+  chroot . /usr/bin/update-desktop-database usr/share/applications 1>/dev/null 2>&1
+fi
+
+# Update the mime database:
+if [ -x usr/bin/update-mime-database ]; then
+  chroot . /usr/bin/update-mime-database usr/share/mime 1>/dev/null 2>&1
+fi
+
+# Update hicolor theme cache:
+if [ -d usr/share/icons/hicolor ]; then
+  if [ -x usr/bin/gtk-update-icon-cache ]; then
+    chroot . /usr/bin/gtk-update-icon-cache -f -t usr/share/icons/hicolor 1> /dev/null 2> /dev/null
+  fi
+fi
+
+EOT
+
+# Add documentation:
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a $DOCS $PKG/usr/doc/$PKGNAM-$VERSION || true
+for FIL in $(echo $DOCS_XORG); do cp -a unix/xserver/$FIL $PKG/usr/doc/$PKGNAM-$VERSION/${FIL}.xorg ; done
+chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION
+find $PKG/usr/doc -type f -exec chmod 644 {} \;
+
+# Compress the man page(s):
+if [ -d $PKG/usr/man ]; then
+  find $PKG/usr/man -type f -name "*.?" -exec gzip -9f {} \;
+  for i in $(find $PKG/usr/man -type l -name "*.?") ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+fi
+
+# Strip binaries (if any):
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Add a package description:
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+if [ -f $CWD/doinst.sh.gz ]; then
+  zcat $CWD/doinst.sh.gz >> $PKG/install/doinst.sh
+fi
+
+# Build the package:
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz
+

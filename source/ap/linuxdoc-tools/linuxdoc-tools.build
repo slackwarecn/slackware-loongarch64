@@ -17,24 +17,29 @@
 LINUXDOCTOOLSVER=$PKGVERSION
 
 # Bundled package versions:
+ASCIIDOCVER=8.6.8
+DSSSLSTYLESHEETSVER=1.79
+XSLSTYLESHEETSVER=1.78.1
+DOCBOOKUTILSVER=0.6.14
 SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
-XSLSTYLESHEETSVER=1.76.1
-DSSSLSTYLESHEETSVER=1.79
-SGMLCOMMONVER=0.6.3
+GNOMEDOCUTILSVER=0.20.10
+GTKDOCVER=1.19
+SGMLSPLVER=1.03ii
 OPENJADEVER=1.3.3-pre1
 OPENSPVER=1.5.2
-GNOMEDOCUTILSVER=0.20.10
-GTKDOCVER=1.18
-SGMLSPLVER=1.03ii
+SGMLCOMMONVER=0.6.3
 XMLTOVER=0.0.25
-ASCIIDOCVER=8.6.7
-DOCBOOKUTILSVER=0.6.14
+DOCBOOK2XVER=0.8.8
 
 # Determine the general CFLAGS for the known architectures:
 case $ARCH in
   arm)     export SLKCFLAGS="-O2 -march=armv5te"
+           export LIBDIRSUFFIX=""
+           export HOSTTARGET="-gnueabi"
+           ;;
+  armv7hl) export SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
            export LIBDIRSUFFIX=""
            export HOSTTARGET="-gnueabi"
            ;;
@@ -483,11 +488,15 @@ for i in \
   docbook-utils-sgmlinclude.patch \
   docbook-utils-rtfmanpage.patch \
   docbook-utils-papersize.patch \
-  docbook-utils-nofinalecho.patch ; do
+  docbook-utils-nofinalecho.patch \
+  docbook-utils-newgrep.patch ; do
     patch --verbose -p1 < ../$i
 done || exit 1
 
 # Configure:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+CPPFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
@@ -698,12 +707,12 @@ find . \
 
 # Apply patches:
 for i in \
-  docbook-xsl-mandir.patch \
-  docbook-xsl-list-item-body.patch \
+  docbook-xsl-pagesetup.patch \
   docbook-xsl-marginleft.patch \
   docbook-xsl-newmethods.patch \
   docbook-xsl-non-constant-expressions.patch \
-  docbook-xsl-pagesetup.patch ; do
+  docbook-xsl-list-item-body.patch \
+  docbook-xsl-mandir.patch ; do
    patch --verbose -p1 < ../$i
 done || exit 1
 
@@ -720,6 +729,12 @@ mkdir -vpm755 /usr/share/xml/docbook/stylesheet
 ( cd /usr/share/xml/docbook/stylesheet
   rm -fv docbook-xsl
   ln -vfs ../xsl-stylesheets-$XSLSTYLESHEETSVER docbook-xsl )
+
+# Some stylesheets will look for VERSION.xsl rather than VERSION.
+# They are the same in the sources, so make a compatibility symlink:
+if [ ! -r /usr/share/xml/docbook/stylesheet/docbook-xsl/VERSION.xsl ]; then
+  ( cd /usr/share/xml/docbook/stylesheet/docbook-xsl ; ln -sf VERSION VERSION.xsl )
+fi
 
 # Create config files:
 if [ ! -d /etc/xml ]; then install -v -m755 -d /etc/xml; fi
@@ -758,9 +773,9 @@ cp -fav doc/* README* RELEASE-NOTES* NEWS* \
 # Extract source:
 cd $TMP
 mkdir xmlto && cd xmlto
-tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
-#rpm2cpio $CWD/sources/xmlto-${XMLTOVER}*.src.rpm | cpio -div || exit 1
-#tar xvvf xmlto-$XMLTOVER.tar.*z*
+#tar xvf $CWD/sources/xmlto-$XMLTOVER.tar.*z*
+rpm2cpio $CWD/sources/xmlto-${XMLTOVER}*.src.rpm | cpio -div || exit 1
+tar xvvf xmlto-$XMLTOVER.tar.*z*
 cd xmlto-$XMLTOVER || exit 1
 chown -R root:root .
 find . \
@@ -768,6 +783,9 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Apply patches:
+patch -p1 < ../xmlto-noextensions.patch || exit 1
 
 # Configure:
 ./configure \
@@ -847,8 +865,9 @@ export PATH=$( echo $PATH | sed -e 's?:/usr/share/texmf/bin??g' -e 's?/usr/share
 # Apply patches (these are included in the source rpm):
 for i in \
   linuxdoc-tools-0.9.13-letter.patch \
+  linuxdoc-tools-0.9.68-flex.patch \
   linuxdoc-tools-0.9.20-lib64.patch ; do
-   patch --verbose -p1 < ../$i
+    patch --verbose -p1 < ../$i
 done || exit 1
 
 # Find out what our Vendor perl directory is:
@@ -856,6 +875,9 @@ eval $(perl '-V:installvendorlib')
 mkdir -p $PKG/$installvendorlib
 
 # Configure:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+CPPFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --with-perllibdir=$installvendorlib \
@@ -920,6 +942,8 @@ find . \
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+CPPFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -956,10 +980,11 @@ find . \
   -exec chmod 644 {} \;
 
 # Configure:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+CPPFLAGS="$SLKCFLAGS" \
 ./configure \
-  --prefix=/usr \
-  --disable-scrollkeeper \
-  || exit 1
+  --prefix=/usr || exit 1
 
 # Build:
 make || exit 1
@@ -972,6 +997,99 @@ mkdir -vpm755 /usr/doc/gtk-doc-$GTKDOCVER
 cp -fav \
   AUTHORS COPYING INSTALL MAINTAINERS NEWS README TODO \
   /usr/doc/gtk-doc-$GTKDOCVER
+
+####################### Build docbook2X ###############################
+
+cd $TMP
+
+# Build supporting PERL libraries first:
+( mkdir XML-NamespaceSupport && cd XML-NamespaceSupport
+  rpm2cpio $CWD/sources/perl-XML-NamespaceSupport-*.src.rpm | cpio -di
+  tar xvf XML-NamespaceSupport-*.tar.gz
+  cd XML-NamespaceSupport* || exit 1
+  perl Makefile.PL INSTALLDIRS=vendor
+  # Make sure the man pages go where we want them:
+  fgrep -lr -- '/share/man/' . | xargs sed -i 's?/share/man/?/man/?g'
+  make || exit 1
+  make test || exit 1
+  make pure_install || exit 1 || exit 1 ) || exit 1
+
+( mkdir perl-XML-SAX-Base && cd perl-XML-SAX-Base
+  rpm2cpio $CWD/sources/perl-XML-SAX-Base-*.src.rpm | cpio -di
+  tar xvf XML-SAX-Base-*z 
+  cd XML-SAX-Base-* || exit 1
+  perl Makefile.PL INSTALLDIRS=vendor
+  fgrep -lr -- '/share/man/' . | xargs sed -i 's?/share/man/?/man/?g'
+  make || exit 1
+  make test || exit 1
+  make pure_install || exit 1 ) || exit 1
+
+( mkdir XML-SAX && cd XML-SAX
+  rpm2cpio $CWD/sources/perl-XML-SAX-[0-9]*.src.rpm | cpio -di
+  tar xvf XML-SAX-*nopatents.tar*
+  cd XML-SAX-* || exit 1
+  patch -p1 < ../perl-XML-SAX-0.99-rt20126.patch || exit 1
+  # Answer Y to updating ParserDetails.ini:
+  yes | perl Makefile.PL INSTALLDIRS=vendor
+  fgrep -lr -- '/share/man/' . | xargs sed -i 's?/share/man/?/man/?g'
+  make || exit 1
+  make test || exit 1
+  make pure_install || exit 1
+  # We need to make a ParserDetails.ini file, as suggested here:
+  # http://perl-xml.sourceforge.net/faq/#parserdetails.ini
+  perl -MXML::SAX -e "XML::SAX->add_parser(q(XML::SAX::PurePerl))->save_parsers()" ) || exit 1
+
+# Build docbook2X:
+# Extract source:
+tar xvf $CWD/sources/docbook2x*.orig.tar.xz
+cd docbook2X-* || exit 1
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+# Apply patches:
+xz -dc $CWD/sources/docbook2x*diff* | patch -p1 || exit 1
+for i in \
+   01_fix_static_datadir_evaluation.dpatch \
+   02_fix_418703_dont_use_abbreviated_sfnet_address.dpatch \
+   03_fix_420153_filename_whitespace_handling \
+   04_fix_442782_preprocessor_declaration_syntax.dpatch \
+   05_fix_439214_error_on_missing_refentry.dpatch ; do
+    patch --verbose -p1 < debian/patches/$i || exit 1
+done
+
+# Configure:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+CPPFLAGS="$SLKCFLAGS" \
+./configure \
+   --prefix=/usr \
+   --mandir=/usr/man \
+   --infodir=/usr/info \
+   --docdir=/usr/doc/docbook2X-$DOCBOOK2XVER \
+   --sysconfdir=/etc \
+   --localstatedir=/var \
+   --disable-maintainer-mode \
+   --disable-dependency-tracking \
+   --program-transform-name="s/^docbook2/docbook2x-/" \
+   --with-html-xsl \
+   --build=$ARCH-slackware-linux$HOSTTARGET || exit 1
+
+# Build:
+make || exit 1
+
+# Install:
+make install || exit 1
+mv -fv /usr/share/doc/docbook2X /usr/doc/docbook2X-$DOCBOOK2XVER
+
+# Copy docs:
+mkdir -vpm755 /usr/doc/docbook2X-$DOCBOOK2XVER
+cp -fav \
+   AUTHORS COPYING ChangeLog NEWS README THANKS TODO \
+   /usr/doc/docbook2X-$DOCBOOK2XVER
 
 #######################################################################
 

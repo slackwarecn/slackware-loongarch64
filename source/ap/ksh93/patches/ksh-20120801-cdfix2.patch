@@ -1,0 +1,25 @@
+diff -up ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c.cdfix2 ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c
+--- ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c.cdfix2	2013-02-01 16:46:50.441771371 +0100
++++ ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c	2013-02-01 16:57:43.241784024 +0100
+@@ -61,6 +61,7 @@ int sh_diropenat(Shell_t *shp, int dir,
+ {
+ 	int fd,shfd;
+ 	int savederrno=errno;
++	struct stat fs;
+ #ifndef AT_FDCWD
+ 	NOT_USED(dir);
+ #endif
+@@ -133,6 +134,13 @@ int sh_diropenat(Shell_t *shp, int dir,
+ 
+ 	if(fd < 0)
+ 		return fd;
++	
++	if (!fstat(fd, &fs) && !S_ISDIR(fs.st_mode))
++	{
++	  close(fd);
++	  errno = ENOTDIR;
++	  return -1;
++	}
+ 
+ 	/* Move fd to a number > 10 and *register* the fd number with the shell */
+ 	shfd = sh_fcntl(fd, F_dupfd_cloexec, 10);

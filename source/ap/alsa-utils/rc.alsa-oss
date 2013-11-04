@@ -1,0 +1,24 @@
+#!/bin/sh
+# Load the ALSA OSS kernel modules to support OSS applications.
+# To use this, set this script as executable (chmod 755 rc.alsa-oss)
+# and it will be run from the main rc.alsa script.  Unless you know
+# that something requires OSS support, it is better to leave this
+# script disabled.  Some applications will try OSS first even though
+# they also support ALSA, and will block other applications from
+# using audio I/O.
+#
+# Many programs that use OSS can be run using the aoss wrapper and
+# will then use ALSA in a non-blocking way (and will not require
+# loading these kernel modules).  Consider trying that before enabling
+# these modules.  (See "man aoss")
+
+if modprobe -c | tr _ - | grep -wq snd-pcm-oss ; then
+  if ! cat /proc/modules | tr _ - | grep -wq snd-pcm-oss ; then
+    echo "Loading OSS compatibility modules for ALSA."
+    # Use -b to enable blacklisting these modules:
+    modprobe -q -b snd-pcm-oss
+    modprobe -q -b snd-seq-oss
+    modprobe -q -b snd-mixer-oss
+  fi
+fi
+

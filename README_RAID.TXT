@@ -1,7 +1,7 @@
 Slackware RAID HOWTO
 
-Version 1.01
-2011/03/15
+Version 1.02
+2013/03/09
 
 by Amritpal Bath <amrit@slackware.com>
 
@@ -26,6 +26,8 @@ Contents
 Changelog
 ===============================================================================
 
+1.02 (2013/05/16):
+  - Various fixups
 1.01 (2011/03/15):
   - Added Robby Workman's --metadata edits per James Davies' tip.
 1.00 (2008/04/09):
@@ -128,7 +130,7 @@ You can see your drives by running: cat /proc/partitions
    your BIOS attempts to boot, and in the case of RAID 5, losing one drive
    will not result in losing your /boot partition.
 
-   I recommend at least 30MB for this partition, to give yourself room to
+   I recommend at least 50MB for this partition, to give yourself room to
    play with multiple kernels in the future, should the need arise.  I tend
    to use 100MB, so I can put all sorts of bootable images on the partition,
    such as MemTest86, for example.
@@ -199,7 +201,7 @@ Now that /dev/sda is partitioned as appropriate, copy the partitions to all
 the other drives to be used in your RAID arrays.
 
 An easy way to do this is:
-  sfdisk -d /dev/sda | sfdisk /dev/sdb
+  sfdisk -d /dev/sda | sfdisk --Linux /dev/sdb
 
 This will destroy all partitions on /dev/sdb, and replicate /dev/sda's
 partition setup onto it.
@@ -207,7 +209,7 @@ partition setup onto it.
 After this, your partitions should look something like the following:
 
  - RAID 0:
-     /dev/sda1  30MB      /dev/sdb1  30MB   
+     /dev/sda1  50MB      /dev/sdb1  50MB   
      /dev/sda2  100GB     /dev/sdb2  100GB  
      /dev/sda3  2GB       /dev/sdb3  2GB    
 
@@ -216,7 +218,7 @@ After this, your partitions should look something like the following:
      /dev/sda2  2GB       /dev/sdb2  2GB    
 
  - RAID 5:
-     /dev/sda1  30MB      /dev/sdb1  30MB     /dev/sdc1  30MB 
+     /dev/sda1  50MB      /dev/sdb1  50MB     /dev/sdc1  50MB 
      /dev/sda2  100GB     /dev/sdb2  100GB    /dev/sdc2  100GB
      /dev/sda3  2GB       /dev/sdb3  2GB      /dev/sdc3  2GB  
   
@@ -231,6 +233,10 @@ were created.
 
 The parameters for each of these RAID commands specifies, in order:
  - the RAID device node to create (--create /dev/mdX)
+ - the name to use for this array (--name=X)
+   Note that there is no requirement that you use this format, i.e.
+   /dev/md0 --> name=0 ; the result is that /dev/md0 will be /dev/md/0,
+   which means you could also do e.g. --name=root and get /dev/md/root
  - the RAID level to use for this array (--level X)
  - how many devices (partitions) to use in the array (--raid-devices X)
  - the actual list of devices (/dev/sdaX /dev/sdbX /dev/sdcX)
@@ -238,11 +244,13 @@ The parameters for each of these RAID commands specifies, in order:
    to use the older version 0.90 metadata instead of the newer version;
    you must use this for any array from which LILO will be loading a 
    kernel image, or else LILO won't be able to read from it.
+ - OPTIONAL: if you know the hostname you plan to give the system, you 
+   could also specify "--homehost=hostname" when creating the arrays.
 
 Start by creating the RAID array for your root filesystem.
 
  - RAID 0:
-     mdadm --create /dev/md0 --level 0 --raid-devices 2 \
+     mdadm --create /dev/md0 --name=0 --level 0 --raid-devices 2 \
        /dev/sda2 /dev/sdb2
 
  - RAID 1:
@@ -250,7 +258,7 @@ Start by creating the RAID array for your root filesystem.
        /dev/sda1 /dev/sdb1 --metadata=0.90
 
  - RAID 5:
-     mdadm --create /dev/md0 --level 5 --raid-devices 3 \
+     mdadm --create /dev/md0 --name=0 --level 5 --raid-devices 3 \
        /dev/sda2 /dev/sdb2 /dev/sdc2
 
 
@@ -259,15 +267,15 @@ regardless of which RAID level your root filesystem uses, but given our
 partition layouts, each command will still be slightly different.
 
  - RAID 0:
-     mdadm --create /dev/md1 --level 1 --raid-devices 2 \
+     mdadm --create /dev/md1 --name=1 --level 1 --raid-devices 2 \
        /dev/sda3 /dev/sdb3
 
  - RAID 1:
-     mdadm --create /dev/md1 --level 1 --raid-devices 2 \
+     mdadm --create /dev/md1 --name=1 --level 1 --raid-devices 2 \
        /dev/sda2 /dev/sdb2
 
  - RAID 5:
-     mdadm --create /dev/md1 --level 1 --raid-devices 3 \
+     mdadm --create /dev/md1 --name=1 --level 1 --raid-devices 3 \
        /dev/sda3 /dev/sdb3 /dev/sdc3
 
 
@@ -275,11 +283,11 @@ Finally, RAID 0 and RAID 5 users will need to create their /boot array.
 RAID 1 users do not need to do this.
 
  - RAID 0:
-     mdadm --create /dev/md2 --level 1 --raid-devices 2 \
+     mdadm --create /dev/md2 --name=2 --level 1 --raid-devices 2 \
        /dev/sda1 /dev/sdb1 --metadata=0.90
 
  - RAID 5:
-     mdadm --create /dev/md2 --level 1 --raid-devices 3 \
+     mdadm --create /dev/md2 --name=2 --level 1 --raid-devices 3 \
        /dev/sda1 /dev/sdb1 /dev/sdc1 --metadata=0.90
 
 
@@ -341,12 +349,22 @@ favorite editor (vim/nano/pico), edit /etc/lilo.conf:
  - run "lilo".
 
 
-When that's done, let's exit the installation and reboot:
-  - exit
-  - reboot
+Now's let's create a customized /etc/mdadm.conf for your system:
+ - mdadm -Es > /etc/mdadm.conf
+You should get something like this (note that this output is not consistent
+with the instructions above):
+  ARRAY /dev/md0 UUID=bb259b84:6bf27834:208cdb8d:9e23b04b
+  ARRAY /dev/md1  metadata=1.2 UUID=ea798427:4ae79ea8:9e7e263d:5ae8f69e name=slackware:1
+  ARRAY /dev/md2  metadata=1.2 UUID=4ca90e7a:99de6d09:f1f9ca9d:b2ea6e1b name=slackware:2
 
-Voila!
+If this is done on a live running system, you will notice that the arrays
+created with 1.2 metadata will show /dev/md/$name (e.g. /dev/md/1) instead
+of /dev/md1 in /etc/mdadm.conf; this is perfectly acceptable, and actually
+preferable, so you might want to go ahead and fix that now.
 
+If you plan to run the generic kernel (which is probably necessary, but you 
+are certainly welcome to try the huge kernel instead), then continue on to
+the next section; otherwise, skip to the exit and reboot part.
 
 
 
@@ -373,19 +391,23 @@ Don't run lilo yet, we'll do that soon.
 
 
 Next, edit (create, if necessary) /etc/mkinitrd.conf and add:
-  MODULE_LIST="ext3"
+  MODULE_LIST="ext4"
   RAID="1"
 
-Obviously, this assumes that you are using the EXT3 filesystem.  If you are
+Obviously, this assumes that you are using the EXT4 filesystem.  If you are
 using another filesystem, adjust the module appropriately (reiserfs or xfs,
 for example).  If you wish to read more about the MODULE_LIST variable,
-consult "man mkinitrd.conf".
+consult "man mkinitrd.conf".  Alternatively, you might find that the helper
+script at /usr/share/mkinitrd/mkinitrd_command_generator.sh works well for
+you by doing this:
+  /usr/share/mkinitrd/mkinitrd_command_generator.sh > /etc/mkinitrd.conf
+
 
 Note: If the module for your hard drive controller is not compiled into the
 generic kernel, you will want to add that module to the MODULE_LIST variable
 in mkinitrd.conf.  For example, my controller requires the mptspi module, so
 my /etc/mkinitrd.conf looks like:
-  MODULE_LIST="ext3:mptspi"
+  MODULE_LIST="ext4:mptspi"
   RAID="1"
 
 
@@ -405,6 +427,12 @@ Next, create the initrd based on the config file created earlier.
 Finally, run "lilo" to make the new settings take effect, give yourself a
 pat on the back, and reboot your finished system. :)
 
+
+When that's done, let's exit the installation and reboot:
+  - exit
+  - reboot
+
+Voila!
 
 
 
@@ -499,13 +527,13 @@ Acknowledgements/References
 
 - Thanks to John Jenkins (mrgoblin) for some tips in:
   "Installing with Raid on Slackware 12.0+"
-  http://www.userlocal.com/articles/raid1-slackware-12.php
+  http://slackware.com/~mrgoblin/articles/raid1-slackware-12.php
 
 - Thanks to Karl Magnus Kolstø (karlmag) for his original writeup on
   Slackware and RAID, ages ago!
   "INSTALLING SLACKWARE LINUX version 8.1 WITH ROOT PARTITION ON A SOFTWARE
    RAID level 0 DEVICE"
-  http://www.userlocal.com/articles/raid0-slackware-linux.php
+  http://slackware.com/~mrgoblin/articles/raid0-slackware-linux.php
 
 - Of course, thanks to Patrick "The Man" Volkerding for creating Slackware!
   http://slackware.com/

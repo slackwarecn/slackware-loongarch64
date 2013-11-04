@@ -2,8 +2,8 @@
 
 # Slackware build script for llvm
 
-# Copyright 2008-2011 Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008-2013 Heinz Wiesinger, Amsterdam, The Netherlands
+# Copyright 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=llvm
-VERSION=3.0
+VERSION=3.3
 BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -55,38 +55,23 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CLANG=${CLANG:-yes}
-
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-${VERSION}.src
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz
+tar xvf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
 
-if [ "$CLANG" = "no" ]; then
-  cd $PKGNAM-${VERSION}.src
-else
-  cd $PKGNAM-${VERSION}.src/tools
-  rm -rf clang clang-${VERSION}.src
-  tar xvf $CWD/clang-$VERSION.tar.xz
-  mv clang-${VERSION}.src clang
-  cd ../
-
-  # clang fixes for slackware
-  # No longer needed as of llvm/clang 3.0?
-  #patch -p1 -d tools/clang -i $CWD/clang-slackware.diff
-fi
+cd $PKGNAM-${VERSION}.src/tools
+  tar xvf $CWD/cfe-$VERSION.src.tar.xz || exit 1
+  mv cfe-${VERSION}.src clang || exit 1
+cd ../
 
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-CINC="/usr/include/"
-GCCDIR=/usr/lib$LIBDIRSUFFIX/gcc/$ARCH-slackware-linux*/*/
-CINC="$CINC:$(echo ${GCCDIR})/include/"
-CINC="$CINC:$(echo ${GCCDIR})/include-fixed/"
-
 # --mandir doesn't work currently
 # need to disable assertions to make llvm thread-safe
+# clang resource dir is a relative path based on the location of the clang binary
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -98,48 +83,64 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-optimized \
   --disable-assertions \
   --enable-pic \
-  --with-c-include-dirs=$CINC \
+  --enable-experimental-targets=R600 \
+  --with-clang-resource-dir="../lib${LIBDIRSUFFIX}/clang/${VERSION}" \
   --build=$ARCH-slackware-linux \
   --host=$ARCH-slackware-linux || exit 1
 
-# Correct libdir setting
+# Fix hardcoded libdir
 sed -i "s|\$(PROJ_prefix)/lib|\$(PROJ_prefix)/lib$LIBDIRSUFFIX|" \
   Makefile.config
-
-if [ "$CLANG" != "no" ]; then
-  sed -i "s|\$(PROJ_prefix)/lib|\$(PROJ_prefix)/lib$LIBDIRSUFFIX|" \
-    tools/clang/lib/Headers/Makefile
-fi
+sed -i "s|\$(PROJ_prefix)/lib|\$(PROJ_prefix)/lib$LIBDIRSUFFIX|" \
+  tools/clang/lib/Headers/Makefile
+sed -i "s|\"lib\"|\"lib${LIBDIRSUFFIX}\"|" \
+  tools/clang/lib/Frontend/CompilerInvocation.cpp
+sed -i "s|\"lib\"|\"lib${LIBDIRSUFFIX}\"|" \
+  tools/clang/lib/Driver/Tools.cpp
+sed -i "s|ActiveLibDir = ActivePrefix + \"/lib\"|ActiveLibDir = ActivePrefix + \"/lib${LIBDIRSUFFIX}\"|g" \
+  tools/llvm-config/llvm-config.cpp
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-if [ "$CLANG" != "no" ]; then
-  # install clang-static-analyzer
-  mkdir -p $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer
-  cp -pr tools/clang/tools/scan-{build,view} \
-    $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/ || exit 1
-  for i in scan-{build,view}; do
-    ln -s /usr/lib$LIBDIRSUFFIX/clang-analyzer/$i/$i \
-      $PKG/usr/bin/$i || exit 1
-  done
-  for i in ccc c++; do
-    ln -s /usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/$i-analyzer \
-      $PKG/usr/bin/$i-analyzer || exit 1
-  done
-fi
+# Add symlinks for $ARCH-slackware-linux-{clang,clang++}:
+( cd $PKG/usr/bin
+  ln -sf clang $ARCH-slackware-linux-clang
+  ln -sf clang++ $ARCH-slackware-linux-clang++
+)
+
+# install clang-static-analyzer
+mkdir -p $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer
+cp -pr tools/clang/tools/scan-{build,view} \
+  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/ || exit 1
+for i in scan-{build,view}; do
+  ln -s /usr/lib$LIBDIRSUFFIX/clang-analyzer/$i/$i \
+    $PKG/usr/bin/$i || exit 1
+done
+for i in ccc c++; do
+  ln -s /usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/$i-analyzer \
+    $PKG/usr/bin/$i-analyzer || exit 1
+done
+
+# Fix paths in scan-build
+sed -i "s|\$RealBin/bin|/usr/bin|" \
+  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build
+sed -i "s|\$RealBin/sorttable.js|/usr/lib${LIBDIRSUFFIX}/clang-analyzer/scan-build/sorttable.js|" \
+  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build
+sed -i "s|\$RealBin/scanview.css|/usr/lib${LIBDIRSUFFIX}/clang-analyzer/scan-build/scanview.css|" \
+  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build
 
 # Remove example libraries
 rm -f $PKG/usr/lib$LIBDIRSUFFIX/LLVMHello*
-
-# Fix wrong libdir
-sed -i -e "s|ABS_RUN_DIR/lib\"|ABS_RUN_DIR/lib$LIBDIRSUFFIX\"|" \
-  $PKG/usr/bin/llvm-config
 
 # Move man page directory:
 mv $PKG/usr/share/man $PKG/usr/
 # Try to remove /usr/share, which should be empty now.  If it's not, fine.
 rmdir $PKG/usr/share
+
+# Move scan-build man-page into place
+mv $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build.1 \
+  $PKG/usr/man/man1/
 
 # Strip binaries:
 ( cd $PKG
@@ -154,16 +155,12 @@ for i in $( find $PKG/usr/man -type l ) ; do
   rm $i
 done
 
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/clang
 cp -a CREDITS* LICENSE* README* $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a tools/clang/{INSTALL,LICENSE,NOTES,README}* \
+  $PKG/usr/doc/$PKGNAM-$VERSION/clang
 mv $PKG/usr/docs/llvm/* $PKG/usr/doc/$PKGNAM-$VERSION
 rm -rf $PKG/usr/docs
-
-if [ "$CLANG" != "no" ]; then
-  mkdir $PKG/usr/doc/$PKGNAM-$VERSION/clang
-  cp -a tools/clang/{INSTALL,NOTES,README,TODO}* \
-    $PKG/usr/doc/$PKGNAM-$VERSION/clang
-fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

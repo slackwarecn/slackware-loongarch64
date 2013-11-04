@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 
 VERSION=${VERSION:-$(echo gtk+-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -75,9 +75,6 @@ zcat $CWD/fix_build_issues_on_tutorial_and_faq.diff.gz | patch -p1 --verbose || 
 # warnings (most noticable when using Firefox and Flash):
 zcat $CWD/gtk.xid.nowarningflood.diff.gz | patch -p1 --verbose || exit 1
 
-# Use /etc/gtk-2.0/$ARCH-slackware-linux instead of /etc/gtk-2.0/ for gtk.immodules
-zcat $CWD/use_host_triplet_for_gtk_immodules.diff.gz | patch -p1 --verbose || exit 1
-
 # Patch to restore commonly used icon names, otherwise everything breaks.
 # I fail to see the point of this "cleanup"
 zcat $CWD/gtk+-2.24.x.icon-compat.diff.gz | patch -p1 --verbose || exit 1
@@ -91,7 +88,7 @@ autoreconf -vif
 # Our host is $ARCH-slackware-linux not $ARCH-slackware-linux-gnu:
 sed -i -e 's#linux|linux-gnu|#linux|linux|#' config.sub
 
-CFLAGS="$SLKCFLAGS -DHOST='"'"${ARCH}-slackware-linux"'"'" \
+CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -115,9 +112,6 @@ make install \
   RUN_QUERY_IMMODULES_TEST=false RUN_QUERY_LOADER_TEST=false \
   DESTDIR=$PKG \
   || exit 1
-
-mkdir -p $PKG/etc/gtk-2.0/$host
-mv $PKG/etc/gtk-2.0/gtk.immodules $PKG/etc/gtk-2.0/$host/
 
 # Don't clobber im-multipress.conf
 mv $PKG/etc/gtk-2.0/im-multipress.conf $PKG/etc/gtk-2.0/im-multipress.conf.new || exit 1

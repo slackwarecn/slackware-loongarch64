@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,8 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.2.3
-BUILD=${BUILD:-3}
+VERSION=1.2.8
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -112,10 +112,13 @@ sed -i "s/# Defaultvers=4/Defaultvers=3/g" $PKG/etc/nfsmount.conf.new
 # No NFSv4 yet, so remove these:
 rm -f $PKG/sbin/*nfs4
 
-# Why were we doing this?
+# This should move to support /usr on NFS:
 mkdir -p $PKG/sbin
 mv $PKG/usr/sbin/rpc.statd $PKG/sbin
 ( cd $PKG/usr/sbin ; ln -sf ../../sbin/rpc.statd . )
+
+# Chown /var/lib/nfs so that rpc.statd runs as rpc:rpc:
+chown -R rpc:rpc $PKG/var/lib/nfs
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2006  Patrick J. Volkerding, Sebeka, MN, USA.
+# Copyright 2000, 2001, 2006, 2007, 2008, 2012  Patrick J. Volkerding, Sebeka, MN, USA.
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is

@@ -1,0 +1,68 @@
+diff -up ksh-20120801/src/cmd/ksh93/tests/builtins.sh.fixregr ksh-20120801/src/cmd/ksh93/tests/builtins.sh
+--- ksh-20120801/src/cmd/ksh93/tests/builtins.sh.fixregr	2012-07-16 17:23:56.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/tests/builtins.sh	2012-08-08 12:29:00.733243019 +0200
+@@ -303,9 +303,9 @@ then	err_exit "printf '%..*s' not workin
+ fi
+ [[ $(printf '%q\n') == '' ]] || err_exit 'printf "%q" with missing arguments'
+ # we won't get hit by the one second boundary twice, right?
+-[[ $(printf '%T\n' now) == "$(date)" ]] ||
+-[[ $(printf '%T\n' now) == "$(date)" ]] ||
+-err_exit 'printf "%T" now'
++[[ $(printf '%T\n' now | sed 's/GMT/UTC/') == "$(date)" ]] ||
++[[ $(printf '%T\n' now | sed 's/GMT/UTC/') == "$(date)" ]] ||
++err_exit 'printf "%T" now = '"$(printf '%T\n' now) != $(date)"
+ behead()
+ {
+ 	read line
+diff -up ksh-20120801/src/cmd/ksh93/tests/locale.sh.fixregr ksh-20120801/src/cmd/ksh93/tests/locale.sh
+--- ksh-20120801/src/cmd/ksh93/tests/locale.sh.fixregr	2012-06-26 21:57:46.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/tests/locale.sh	2012-08-08 12:29:20.039405240 +0200
+@@ -104,6 +104,7 @@ if	(( $($SHELL -c $'export LC_ALL='$loca
+ then	LC_ALL=$locale $SHELL -c b1=$'"\342\202\254\342\202\254\342\202\254\342\202\254w\342\202\254\342\202\254\342\202\254\342\202\254"; [[ ${b1:4:1} == w ]]' || err_exit 'multibyte ${var:offset:len} not working correctly'
+ fi
+ 
++locale=en_US.UTF-8
+ #$SHELL -c 'export LANG='$locale'; printf "\u[20ac]\u[20ac]" > $tmp/two_euro_chars.txt'
+ printf $'\342\202\254\342\202\254' > $tmp/two_euro_chars.txt
+ exp="6 2 6"
+@@ -111,11 +112,11 @@ set -- $($SHELL -c "
+ 	unset LC_CTYPE
+ 	export LANG=$locale
+ 	export LC_ALL=C
+-	command wc -C < $tmp/two_euro_chars.txt
++	command wc -m < $tmp/two_euro_chars.txt
+ 	unset LC_ALL
+-	command wc -C < $tmp/two_euro_chars.txt
++	command wc -m < $tmp/two_euro_chars.txt
+ 	export LC_ALL=C
+-	command wc -C < $tmp/two_euro_chars.txt
++	command wc -m < $tmp/two_euro_chars.txt
+ ")
+ got=$*
+ [[ $got == $exp ]] || err_exit "command wc LC_ALL default failed -- expected '$exp', got '$got'"
+@@ -134,6 +135,8 @@ set -- $($SHELL -c "
+ got=$*
+ [[ $got == $exp ]] || err_exit "builtin wc LC_ALL default failed -- expected '$exp', got '$got'"
+ 
++locale=C_EU.UTF-8
++
+ # multibyte char straddling buffer boundary
+ 
+ {
+@@ -190,6 +193,7 @@ do	exp=$1
+ done
+ 
+ # setocale(LC_ALL,"") after setlocale() initialization
++locale=en_US.UTF-8
+ 
+ printf 'f1\357\274\240f2\n' > input1
+ printf 't2\357\274\240f1\n' > input2
+@@ -336,7 +340,7 @@ then	LC_ALL=en_US.UTF-8
+ 	[[ $(print -r -- "$x") == $'hello\u[20ac]\xee world' ]] || err_exit '%q with unicode and non-unicode not working'
+ 	if	[[ $(whence od) ]]
+ 	then	got='68 65 6c 6c 6f e2 82 ac ee 20 77 6f 72 6c 64 0a'
+-		[[ $(print -r -- "$x" | od -An -tx1) == "$got" ]] || err_exit "incorrect string from printf %q"
++		[[ $(print -r -- "$x" | od -An -tx1) =~ $got ]] || err_exit "incorrect string from printf %q"
+ 	fi
+ 	
+ fi

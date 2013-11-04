@@ -1,6 +1,7 @@
 #!/bin/sh
 # $Id: MPlayer.SlackBuild,v 1.27 2012/07/01 13:07:08 root Exp root $
 # Copyright 2006, 2007, 2008, 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -80,6 +81,10 @@
 # 1.1_20120701-1: 28/jun/2012 by alien@slackware.com
 #             * Update to the 1.1 branch (essentially this is MPlayer-1.1 but
 #               I like to check it out of SVN).
+# 1.1_20130819-1: 19/aug/2013 by volkerdi@slackware.com
+#             * Update to the latest 1.1 branch, and the same ffmpeg that was
+#               shipped with the 1.1.1 tarball.  The official 1.1.1 release
+#               did not start a new repo branch, so this is the latest.
 # 
 # Run 'sh MPlayer.SlackBuild' to build a Slackware package.
 # The package (.txz) plus descriptive .txt file are created in /tmp .
@@ -90,9 +95,9 @@
 # Set initial variables:
 
 PRGNAM=MPlayer
-VERSION=${VERSION:-20120701}
+VERSION=${VERSION:-20130819}
 BRANCH=${BRANCH:-1.1}        # leave empty if you want to build MPlayer trunk
-FFMPEG=${FFMPEG:-20120514}
+FFMPEG=${FFMPEG:-20130505}
 BUILD=${BUILD:-2}
 TAG=${TAG:-}
 
@@ -345,12 +350,8 @@ chown -R root:root *
 chmod -R u+w,go+r-w,a+X-s *
 cd ${PRGNAM}-${VERSION}
 
-# Prevent a compilation error:
-# "libm.h:54:74: error: expected identifier or '(' before 'sizeof'"
-# See also:
-# http://lists.mplayerhq.hu/pipermail/mplayer-users/2012-June/084871.html
-cat $SRCDIR/MPlayer_ffmpeg.patch | patch -p0 --verbose \
-  2>&1 | tee $OUTPUT/patch-${PRGNAM}.log
+# Apply patch to fix subtitles:
+zcat $SRCDIR/subreader-fix-srt-parsing.patch.gz | patch -p1 --verbose || exit 1
 
 # Determine what X we're running (the modular X returns the prefix
 # in the next command, while older versions stay silent):

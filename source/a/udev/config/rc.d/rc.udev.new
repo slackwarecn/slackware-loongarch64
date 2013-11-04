@@ -112,7 +112,7 @@ case "$1" in
           /sbin/udevadm trigger --type=devices --action=add
         else # trigger changes for already running udevd
           # If the persistent rules files do not exist, trigger an add event:
-          if [ ! -r /etc/udev/rules.d/70-persistent-net.rules ]; then
+          if [ ! -r /etc/udev/rules.d/70-persistent-net.rules -o ! -r /etc/udev/rules.d/70-persistent-cd.rules ]; then
             # Test that we can actually write to the directory first:
             if touch /etc/udev/rules.d/testfile 2> /dev/null ; then
               rm -f /etc/udev/rules.d/testfile
@@ -120,6 +120,13 @@ case "$1" in
               echo "Triggering udev to write persistent rules to /etc/udev/rules.d/"
               /sbin/udevadm trigger --type=devices --action=add
               sleep 3
+              # Create the files if they don't exist at this point.
+              # If a machine does not have a network device or an optical
+              # device, we don't want to waste time trying to generate
+              # rules at every boot.
+              # To force another attempt, delete the file(s).
+              touch /etc/udev/rules.d/70-persistent-net.rules
+              touch /etc/udev/rules.d/70-persistent-cd.rules
             fi
           fi
           # Since udevd is running, most of the time we only need change events:

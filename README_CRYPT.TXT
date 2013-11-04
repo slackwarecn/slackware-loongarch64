@@ -66,7 +66,7 @@ Using cryptsetup during Slackware installation
     We are going to enable encryption on some or all of our partitions or
 volumes before installing Slackware onto them.  The first section to follow
 deals with encrypting a single partition which is not the root partition.
-Typically, people have a need to encrypt their homedirectories and that is
+Typically, people have a need to encrypt their home directories and that is
 where that section will focus on.  Next is a section on encrypting your
 swap partition in addition to your /home partition.  The swap partition
 contains valuable information for a data thief, even after you power off

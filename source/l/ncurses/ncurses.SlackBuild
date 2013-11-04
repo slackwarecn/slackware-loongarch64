@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2000-2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2000-2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 PKGNAM=ncurses
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -58,11 +58,14 @@ CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
   --with-gpm \
   --disable-termcap \
   --with-normal \
   --with-shared \
   --enable-symlinks \
+  --enable-pc-files \
+  --with-pkg-config-libdir=/usr/lib${LIBDIRSUFFIX}/pkgconfig \
   --without-debug \
   --without-profile \
   --without-ada \
@@ -93,6 +96,10 @@ if [ ! -z "$(ls $CWD/patches/ncurses-$VERSION-2*.patch.gz 2> /dev/null)" ]; then
     zcat $file | patch -p1 --verbose || exit 1
   done
 fi
+
+# Apply upstream patch collection:
+xzcat $CWD/ncurses-5.9-20130504-patch.sh.xz > ncurses-5.9-20130504-patch.sh
+sh ncurses-5.9-20130504-patch.sh
 
 zcat $CWD/ncurses.mkhashsize.diff.gz | patch -p1 --verbose || exit 1
 

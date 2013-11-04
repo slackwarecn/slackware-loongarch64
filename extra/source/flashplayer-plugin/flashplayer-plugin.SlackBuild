@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2008, 2009, 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -70,6 +70,30 @@
 #                * Minor update.
 # 11.2.202.236-1:19/jun/2012 by Eric Hameleers <alien@slackware.com>
 #                * Minor update.
+# 11.2.202.238-1:15/aug/2012 by Eric Hameleers <alien@slackware.com>
+#                * Security update.
+# 11.2.202.243-1:10/oct/2012 by Eric Hameleers <alien@slackware.com>
+#                * Update.
+# 11.2.202.251-1:08/nov/2012 by Eric Hameleers <alien@slackware.com>
+#                * Update.
+# 11.2.202.258-1:13/dec/2012 by Eric Hameleers <alien@slackware.com>
+#                * Update.
+# 11.2.202.261-1:12/jan/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-01.
+# 11.2.202.270-1:12/feb/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-04.
+# 11.2.202.273-1:01/mar/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-08.
+# 11.2.202.275-1:13/mar/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-09.
+# 11.2.202.280-1:10/apr/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-11.
+# 11.2.202.285-1:15/may/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-14.
+# 11.2.202.291-1:12/jun/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-16.
+# 11.2.202.297-1:21/jul/2013 by Eric Hameleers <alien@slackware.com>
+#                * Update fixes critical vulnerabilities. See APSB13-17.
 # 
 # Run 'sh flashplayer-plugin.SlackBuild' to build a Slackware package.
 # The package (.txz) and .txt file as well as build logs are created in /tmp .
@@ -80,7 +104,7 @@
 # Set initial variables:
 
 PRGNAM=flashplayer-plugin
-VERSION=${VERSION:-"11.2.202.236"}
+VERSION=${VERSION:-"11.2.202.297"}
 MAJVER=$(echo $VERSION | cut -d. -f1)
 BUILD=${BUILD:-1}
 TAG=${TAG:-"alien"}
@@ -93,23 +117,18 @@ TMP=${TMP:-/tmp/build}
 PKG=$TMP/package-$PRGNAM
 OUTPUT=${OUTPUT:-/tmp}
 
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i386 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
-fi
-
-case "$ARCH" in
+# Automatically determine the architecture we're building on:
+MARCH=${ARCH:-$( uname -m )}
+case "$MARCH" in
   x86_64)
     LIBDIRSUFFIX="64"
     ARCHBITS="64"
+    export ARCH=x86_64
     ;;
   i?86)
     LIBDIRSUFFIX=""
     ARCHBITS="32"
+    export ARCH=i386
     ;;
   *)
     echo "Unsupported architecture '$ARCH'"
@@ -117,7 +136,7 @@ case "$ARCH" in
     ;;
 esac
 
-SOURCE="$SRCDIR/install_flash_player_${VERSION}_linux.${ARCH}.tar.gz"
+SOURCE="$SRCDIR/install_flash_player_${VERSION}_linux_${ARCH}.tar.gz"
 SRCURL="http://fpdownload.macromedia.com/get/flashplayer/pdc/${VERSION}/install_flash_player_${MAJVER}_linux.${ARCH}.tar.gz"
 
 ##
@@ -197,6 +216,9 @@ esac
 
 ## Move lib to lib64 if needed:
 #[ "$ARCH" = "x86_64" ] && mv usr/lib usr/lib${LIBDIRSUFFIX}
+
+# Remove 32-bit bogus compatibility in 64-bit package:
+[ "$ARCH" = "x86_64" ] && rm -rf $PKG/usr/lib
 
 # Install the plugin to the mozilla plugins dir and fix library file attributes:
 mkdir -p usr/lib${LIBDIRSUFFIX}/mozilla/plugins

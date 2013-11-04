@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,8 +22,11 @@
 
 
 PKGNAM=ghostscript
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+if [ -r gnu-ghostscript-*.tar.xz ]; then
+  SRCPREFIX="gnu-"
+fi
+VERSION=${VERSION:-$(echo $SRCPREFIX$PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -56,12 +59,18 @@ else
 fi
 
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
-cd ${PKGNAM}-$VERSION
+rm -rf ${SRCPREFIX}${PKGNAM}-${VERSION}
+tar xvf $CWD/${SRCPREFIX}${PKGNAM}-$VERSION.tar.xz || exit 1
+cd ${SRCPREFIX}${PKGNAM}-$VERSION
 
-## Regenerate ./configure (if patched):
-#sh autogen.sh
+# Use sprintf from Trio library as gs_printf to fix problems with
+# documents using locales where commas are used as decimals:
+zcat $CWD/ghostscript.gs_sprintf.diff.gz | patch -p1 --verbose || exit 1
+
+# Regenerate ./configure.  Needed if patched, or to prevent libtool mismatch.
+autoreconf --force --install
+( cd jbig2dec ; autoreconf --force --install )
+( cd ijs ; autoreconf --force --install )
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -73,9 +82,6 @@ find . \
 
 # Build/install IJS:
 ( cd ijs
-  if [ ! -r configure ]; then
-    sh autogen.sh
-  fi
   CFLAGS="$SLKCFLAGS" \
   ./configure \
   --prefix=/usr \
@@ -118,9 +124,10 @@ make soinstall DESTDIR=$PKG || exit 1
 # Replace the default cidfmap with one containing additional
 # support for CJK printing:
 
-if [ -r $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap ]; then
-  mv $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap.default.ghostscript-${VERSION}
-  zcat $CWD/cidfmap.gz > $PKG/usr/share/ghostscript/${VERSION}/Resource/Init/cidfmap.new
+if [ -r $PKG/usr/share/ghostscript/*.*/Resource/Init/cidfmap ]; then
+  SHARE_VERSION=$(echo $PKG/usr/share/ghostscript/*.*/Resource/Init/cidfmap | rev | cut -f 4 -d / | rev)
+  mv $PKG/usr/share/ghostscript/${SHARE_VERSION}/Resource/Init/cidfmap $PKG/usr/share/ghostscript/${SHARE_VERSION}/Resource/Init/cidfmap.default.ghostscript-${VERSION}
+  zcat $CWD/cidfmap.gz > $PKG/usr/share/ghostscript/${SHARE_VERSION}/Resource/Init/cidfmap.new
 fi
 
 # Many programs expect to find this filter with the old name:
@@ -163,7 +170,7 @@ fi
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 ( cd doc
   cp -a \
-    COPYING ../LICENSE README \
+    AUTHORS COPYING* ../LICENSE* README* \
     $PKG/usr/doc/${PKGNAM}-$VERSION
 )
 ( cd $PKG/usr/doc/${PKGNAM}-$VERSION

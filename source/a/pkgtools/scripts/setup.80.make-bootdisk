@@ -1,14 +1,26 @@
 #!/bin/sh
 #BLURB="Create a USB Linux boot stick"
-RDIR=/dev/tty4
+if [ -r /usr/lib/setup/setup ]; then
+  RDIR=/dev/tty4
+else
+  RDIR=/dev/null
+fi
 NDIR=/dev/null
 TMP=/var/log/setup/tmp
 
 if [ ! -d $TMP ]; then
   mkdir -p $TMP
 fi
-T_PX="$1"
-ROOT_DEVICE="$2"
+if [ -z "$T_PX" ]; then
+  T_PX=/
+else
+  T_PX="$1"
+fi
+if [ -z "$2" ]; then
+  ROOT_DEVICE=$(mount | head -n 1 | cut -f 1 -d ' ')
+else
+  ROOT_DEVICE="$2"
+fi
 
 while [ 0 ]; do # the bootdisk menu loop
  # Run "rescan-scsi-bus -l" to get an up to date overview of devices:
@@ -19,7 +31,12 @@ while [ 0 ]; do # the bootdisk menu loop
    [ -r /sys/block/$BDEV/removable -a "$(cat /sys/block/$BDEV/removable)" == "1" ] \
      && echo $BDEV >> $TMP/remov_prior
  done
- dialog --title "MAKE USB FLASH BOOT" --default-item "Skip" --menu \
+ if [ "$T_PX" = "/" ]; then
+   DEFAULTITEM="Create"
+ else
+   DEFAULTITEM="Skip"
+ fi
+ dialog --title "MAKE USB FLASH BOOT" --default-item "$DEFAULTITEM" --menu \
 "If your computer supports booting from a USB device, it is recommended that you make \
 a USB boot stick for your system at this time. It will boot your computer straight \
 into the root filesystem on $ROOT_DEVICE. \n\
@@ -151,14 +168,53 @@ EOF
   F2 returns to the previous page.
 
 EOF
+  if [ "$(uname -m)" == "x86_64" ]; then # also install an EFI bootloader
+    mkdir -p $TMP/bootdisk/EFI/BOOT 1> /dev/null 2> /dev/null
+    cp $T_PX/boot/elilo-x86_64.efi $TMP/bootdisk/EFI/BOOT/BOOTX64.EFI 1> /dev/null 2> /dev/null
+    cat << EOF > $TMP/bootdisk/EFI/BOOT/message.txt 2> /dev/null
+
+Welcome to the Slackware Linux custom USB boot stick!
+
+By default, this stick boots a root Linux partition on $ROOT_DEVICE when you
+hit ENTER.  If you'd like to boot some other partition, use a command like
+this on the prompt below:
+
+    huge.s root=/dev/sda1 ro
+
+Where "/dev/sda1" is the partition you want to boot, and "ro" specifies that
+the partition should be initially mounted as read-only.  If you wish to mount
+the partition read-write, use "rw" instead.  You may also add any other
+kernel parameters you might need depending on your hardware, and which
+drivers are included in your kernel.
+
+Hit ENTER to boot:
+
+EOF
+  cat << EOF > $TMP/bootdisk/EFI/BOOT/elilo.conf 2> /dev/null
+chooser=simple
+message=message.txt
+delay=300
+timeout=300
+#
+image=/vmlinuz
+        label=huge.s
+        read-only
+        append="root=$ROOT_DEVICE vga=normal ro"
+EOF
+  fi # end EFI installation
   umount /dev/$STICK
   rm -r $TMP/bootdisk
   # Make the device bootable:
   syslinux -s /dev/$STICK 1> /dev/null 2> /dev/null
+  if [ "$T_PX" = "/" ]; then
+    dialog --title "USB BOOT STICK CREATED" --msgbox \
+    "The USB boot stick has been successfully created on device /dev/$STICK." 6 60
+    exit
+  fi
   dialog --title "USB BOOT STICK CREATED" --ok-label Continue --cancel-label Create --menu \
-"The USB boot stick has been successfully created in /dev/$STICK.  If you would like to \
+"The USB boot stick has been successfully created on device /dev/$STICK.  If you would like to \
 create an additional boot stick, please select 'Create' and we'll go back and make another \
-one, otherwise select 'Continue' to continue configuring your system." 12 70 2 \
+one, otherwise select 'Continue' to continue configuring your system." 12 71 2 \
  "Continue" "Continue the configuration (done making boot sticks)" \
  "Create" "Make a spare Linux boot stick in /dev/$STICK" \
  2> $TMP/return

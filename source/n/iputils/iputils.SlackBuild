@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,8 +20,8 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=s20101006
-BUILD=${BUILD:-2}
+VERSION=s20121221
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -54,7 +54,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf iputils-$VERSION
-tar xvf $CWD/iputils-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/iputils-$VERSION.tar.?z* || exit 1
 cd iputils-$VERSION || exit 1
 
 chown -R root:root .
@@ -67,13 +67,28 @@ find . \
 make VPATH=/usr/lib${LIBDIRSUFFIX} || exit 1
 ( cd doc ; make man || exit 1 ) || exit 1
 
-strip arping clockdiff ping ping6 rarpd rdisc tracepath tracepath6 traceroute6
+( cd ninfod
+  CFLAGS="$SLKCFLAGS" \
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --libdir=/usr/lib${LIBDIRSUFFIX} \
+    --mandir=/usr/man \
+    --infodir=/usr/info \
+    --disable-static \
+    --build=$ARCH-slackware-linux
+    make
+)
+
+strip arping clockdiff ninfod/ninfod ping ping6 rarpd rdisc tracepath tracepath6 traceroute6
 mkdir -p $PKG/sbin
 cat arping > $PKG/sbin/arping
 chmod 755 $PKG/sbin/arping
 mkdir -p $PKG/usr/sbin
 cat clockdiff > $PKG/usr/sbin/clockdiff
 chmod 755 $PKG/usr/sbin/clockdiff
+cat ninfod/ninfod > $PKG/usr/sbin/ninfod
+chmod 755 $PKG/usr/sbin/ninfod
 mkdir -p $PKG/bin
 cat ping > $PKG/bin/ping
 cat ping6 > $PKG/bin/ping6
@@ -90,7 +105,7 @@ chmod 4711 $PKG/usr/bin/traceroute6
 
 mkdir -p $PKG/usr/man/man8
 ( cd doc
-  for file in arping clockdiff ping rarpd rdisc tracepath traceroute6 ; do
+  for file in arping clockdiff ninfod ping rarpd rdisc tracepath traceroute6 ; do
     cat $file.8 | gzip -9c > $PKG/usr/man/man8/$file.8.gz
   done
   cd $PKG/usr/man/man8

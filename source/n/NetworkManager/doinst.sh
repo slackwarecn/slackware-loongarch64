@@ -1,3 +1,4 @@
+
 config() {
   NEW="$1"
   OLD="$(dirname $NEW)/$(basename $NEW .new)"
@@ -19,7 +20,7 @@ preserve_perms() {
     cat ${NEW} > ${NEW}.incoming
     mv ${NEW}.incoming ${NEW}
   fi
-  config ${NEW}
+  mv ${NEW} ${OLD}
 }
 
 if [ -e etc/HOSTNAME ]; then
@@ -27,6 +28,13 @@ if [ -e etc/HOSTNAME ]; then
     etc/NetworkManager/NetworkManager.conf.new
 fi
 
+# Preserve permissions, but move this into place.  Otherwise the net
+# connection could be lost at a remote location.
 preserve_perms etc/rc.d/rc.networkmanager.new
 config etc/NetworkManager/NetworkManager.conf.new
+
+# If the .pid file is found in the old location, move it to the new one:
+if [ -r var/run/NetworkManager.pid ]; then
+  mv var/run/NetworkManager.pid var/run/NetworkManager/NetworkManager.pid
+fi
 

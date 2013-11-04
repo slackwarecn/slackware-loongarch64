@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=5.4
-MTOOLS=3.9.8
-BUILD=${BUILD:-3}
+VERSION=5.5
+MTOOLS=4.0.18
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -50,34 +50,39 @@ rm -rf $PKG $TMP/fdutils-$VERSION $TMP/mtools-$MTOOLS
 mkdir -p $TMP $PKG/{etc,usr/{bin,info,man/man{1,4,5}}}
 
 cd $TMP
-tar xzvf $CWD/fdutils-$VERSION.tar.gz
+tar xvf $CWD/fdutils-$VERSION.tar.?z*
 cd fdutils-$VERSION
-zcat $CWD/fdutils-5.4-20020222.diff.gz | patch -p1 --verbose --backup --suffix=.orig
-zcat $CWD/fdutils.mediaprm.diff.gz | patch -p1 --verbose --backup --suffix=.orig
+zcat $CWD/fdutils-5.5-20081027.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/fdutils.mediaprm.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+sed -i 's|<linux/ext2_fs.h>|<ext2fs/ext2_fs.h>|' src/fdmount.c
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
-  $ARCH-slackware-linux
-make install prefix=$PKG/usr
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --build=$ARCH-slackware-linux || exit 1
+make || exit 1
+make install prefix=$PKG/usr exec_prefix=$PKG/usr bindir=$PKG/usr/bin \
+  infodir=$PKG/usr/info mandir=$PKG/usr/man sysconfdir=$PKG/etc
 mkdir -p $PKG/usr/doc/fdutils-$VERSION
 cp -a COPYING CREDITS Changelog INSTALL doc/FAQ.html doc/README \
   $PKG/usr/doc/fdutils-$VERSION
 chown root:root $PKG/usr/doc/fdutils-$VERSION/*
 chmod 644 $PKG/usr/doc/fdutils-$VERSION/*
 cd $TMP
-tar xzvf $CWD/mtools-$MTOOLS.tar.gz
+tar xvf $CWD/mtools-$MTOOLS.tar.?z*
 cd mtools-$MTOOLS
 CFLAGS="$SLKCFLAGS" \
 ./configure \
-   --prefix=/usr \
-   --libdir=/usr/lib${LIBDIRSUFFIX} \
-   --sysconfdir=/etc \
-  $ARCH-slackware-linux
-#make all floppyd floppyd_installtest
-make all
-make install prefix=$PKG/usr sysconfdir=$PKG/etc bindir=$PKG/usr/bin \
-  MAN1DIR=$PKG/usr/man/man1  MAN5DIR=$PKG/usr/man/man5
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --sysconfdir=/etc \
+  --build=$ARCH-slackware-linux || exit 1
+make all || exit 1
+make install DESTDIR=$PKG || exit 1
 cat $CWD/mtools.conf > $PKG/etc/mtools.conf
 cat $CWD/mediaprm > $PKG/etc/mediaprm
 mkdir -p $PKG/usr/doc/mtools-$MTOOLS

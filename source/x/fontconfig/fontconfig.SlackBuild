@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -86,6 +86,10 @@ CFLAGS=$SLKCFLAGS \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --sysconfdir=/etc \
+  --with-templatedir=/etc/fonts/conf.avail \
+  --with-baseconfigdir=/etc/fonts \
+  --with-configdir=/etc/fonts/conf.d \
+  --with-xmldir=/etc/fonts \
   --localstatedir=/var \
   --enable-static=no \
   --build=$ARCH-slackware-linux
@@ -93,6 +97,15 @@ CFLAGS=$SLKCFLAGS \
 # Uses a currently non-functional sgml tool, thus '-i':
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Upstream has changed the default templatedir to /usr/share/fontconfig/conf.avail.
+# This change, if accepted, would break any existing font package containing a
+# conf.avail directory.  The safest thing to do is to keep things in the
+# traditional location, but put a link in the new place so that font packages
+# following the new standard location will work.  Let's hear it for being
+# "more correct" at the expense of having things "just work"!
+mkdir -p $PKG/usr/share/fontconfig
+( cd $PKG/usr/share/fontconfig ; ln -sf /etc/fonts/conf.avail . )
 
 mkdir -p $PKG/usr/doc/fontconfig-$VERSION
 cp -a \
@@ -120,7 +133,6 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # Set up the default options in /etc/fonts/conf.d:
 (  cd $PKG/etc/fonts/conf.d
    for fontconf in \
-        20-fix-globaladvance.conf \
         20-unhint-small-vera.conf \
         30-urw-aliases.conf \
         30-metric-aliases.conf \
@@ -135,7 +147,12 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
         69-unifont.conf \
         80-delicious.conf \
         90-synthetic.conf ; do
-     ln -sf ../conf.avail/$fontconf . || exit 1
+     if [ -r ../conf.avail/$fontconf ]; then
+       ln -sf ../conf.avail/$fontconf .
+     else
+       echo "ERROR:  unable to symlink ../conf.avail/$fontconf, file does not exist."
+       exit 1
+     fi
    done
    if [ ! $? = 0 ]; then
      exit 1
@@ -166,5 +183,5 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/fontconfig-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n --prepend $TMP/fontconfig-$VERSION-$ARCH-$BUILD.txz
 

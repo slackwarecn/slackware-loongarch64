@@ -3,7 +3,7 @@
 # Slackware build script for pm-utils
 
 # Copyright 2008, 2009, 2010  Robby Workman, Northport, Alabama, USA 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@
 
 PKGNAM=pm-utils
 VERSION=$(echo ${PKGNAM}-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-5}
 
 QUIRKS=20100619	# Version of the quirks database
 
@@ -72,8 +72,18 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-zcat $CWD/use_more_sane_harddrive_defaults.patch.gz | patch -p1 || exit 1
-zcat $CWD/fix-wrong-path-in-intel-audio-powersave.patch.gz | patch -p1 || exit 1
+zcat $CWD/patches/use_more_sane_harddrive_defaults.patch.gz | patch -p1 || exit 1
+zcat $CWD/patches/fix-wrong-path-in-intel-audio-powersave.patch.gz | patch -p1 || exit 1
+
+# Thanks to Fedora for these:
+# Use append instead of write for init_logfile
+zcat $CWD/patches/init-logfile-append.patch.gz | patch -p1 || exit 1
+# Fix hooks exit code logging
+zcat $CWD/patches/hook-exit-code-log.patch.gz | patch -p1 || exit 1
+# Fix line spacing in logs to be easier to read
+zcat $CWD/patches/log-line-spacing-fix.patch.gz | patch -p1 || exit 1
+# Add support for in-kernel (from kernel 3.6) suspend to both
+zcat $CWD/patches/add-in-kernel-suspend-to-both.patch.gz | patch -p1 || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -101,26 +111,29 @@ chown -R root:root $PKG/$PM_UTILS_LIBDIR/video-quirks
   chmod 0755 49bluetooth-generic
 )
 
-# Remove the NetworkManager hook since we don't ship it; 
-# it should be included with NetworkManager
-rm -f $PKG/usr/lib64/pm-utils/sleep.d/55NetworkManager
+# Remove the NetworkManager hook - recent NM listens to upower events
+# directly to know when the system is suspending/waking
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/sleep.d/55NetworkManager
+
+# Remove hooks which have shown to not reduce, or even increase power
+# usage (thanks to Debian for this, and to Marin Glibic for the referral)
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/power.d/journal-commit
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/power.d/readahead
+
+# HAL is gone, so this should be too:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/power.d/hal-cd-polling
+
+# Actually, it is a bad thing(tm) for pm-utils to go messing around with all
+# of the user's settings with the hooks in the power.d directory.  Anything
+# that wasn't already taken out back behind the shed should be disabled by
+# default:
+chmod 644 $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/power.d/*
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.*
-      )
-    done
-  )
-fi
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \

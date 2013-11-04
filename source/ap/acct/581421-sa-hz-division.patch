@@ -1,0 +1,66 @@
+From: Dominique Brazziel <dbrazziel@snet.net>
+Subject: Fix for sa reporting 'inf' or 'nan' instead of correct values
+ because of division by clock values.
+Bug-Debian: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=581421
+Last-Updated: 2010-07-23
+
+--- acct-6.5.4.orig/sa.c	2010-02-11 20:55:14.000000000 -0500
++++ acct-6.5.4/sa.c	2010-07-22 14:08:26.000000000 -0400
+@@ -417,7 +417,6 @@
+           (void)printf("%s: GNU Accounting Utilities (release %s)\n",
+                        program_name, VERSION_STRING);
+           exit(EXIT_SUCCESS);
+-        case 4:
+           acct_file_name = optarg;
+           break;
+         case 'j':
+@@ -594,8 +593,11 @@
+       exit(EXIT_FAILURE);
+     }
+ 
++    /* Set HZ value from system */
++    hzval = sysconf(_SC_CLK_TCK);
++    
+   /* Print out some debugging information. */
+-
++  
+   if (debugging_enabled)
+     {
+       (void)fprintf (stddebug, "hzval -> %d\n", hzval);
+@@ -1162,31 +1164,30 @@
+ # define CURR_AHZ ((double)(ahz))
+ #endif
+ 
+-
+   if (debugging_enabled)
+     fprintf (stddebug, "\
+              ----------------------------------------------------------------------\n\
+              acct entries\n\
+              ----------------------------------------------------------------------\n\
+              ");
+-
++             
+   /* loop while there are entries to be had */
+   while ((rec = pacct_get_entry ()) != NULL)
+     {
+ #ifdef HAVE_ACUTIME
+-      double ut = comp_t_2_double (rec->ac_utime) / (double) hzval;
++      double ut = comp_t_2_double (rec->ac_utime) / CURR_AHZ;
+ #endif
+ 
+ #ifdef HAVE_ACSTIME
+-      double st = comp_t_2_double (rec->ac_stime) / (double) hzval;
++      double st = comp_t_2_double (rec->ac_stime) / CURR_AHZ;
+ #endif
+ 
+ #ifdef HAVE_ACETIME
+-      double et = comp_t_2_double (rec->ac_etime) / (double) hzval;
++      double et = ACETIME_2_DOUBLE (rec->ac_etime) / CURR_AHZ;
+ #endif
+ 
+ #ifdef HAVE_ACIO
+-      double di = comp_t_2_double (rec->ac_io) / (double) hzval;
++      double di = comp_t_2_double (rec->ac_io) / CURR_AHZ;
+ #endif
+ 
+ #ifdef HAVE_ACMEM

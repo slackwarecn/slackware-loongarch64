@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -38,8 +38,10 @@ fi
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
+  OPTIMIZE_FLAG="-O2"
 else
   LIBDIRSUFFIX=""
+  OPTIMIZE_FLAG="-Os"
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -103,7 +105,7 @@ BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
 $TMP/comm-$COMM/configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-optimize=-O2 \
+  --enable-optimize=$OPTIMIZE_FLAG \
   --enable-cpp-rtti \
   --enable-default-toolkit=cairo-gtk2 \
   --enable-startup-notification \
@@ -118,12 +120,10 @@ $TMP/comm-$COMM/configure \
   --enable-nspr-autoconf \
   --enable-extensions=default,irc \
   --enable-crypto \
-  --enable-shared-js \
   --enable-libxul \
   --disable-xprint \
   --without-system-nspr \
   --with-system-zlib \
-  --with-system-jpeg \
   --with-system-mng \
   --enable-application=suite \
   --enable-xft \
@@ -136,7 +136,7 @@ $TMP/comm-$COMM/configure \
 make $NUMJOBS || exit 1
 DESTDIR=$PKG make install || exit 1
 
-# Install js/nspr/nss headers.
+# Install nspr/nss headers.
 for includedir in nspr nspr/obsolete nspr/private ; do
   mkdir -p $PKG/usr/include/seamonkey-${VERSION}/$includedir
   cp -aL mozilla/dist/include/${includedir}/*.h $PKG/usr/include/seamonkey-${VERSION}/$includedir
@@ -146,8 +146,6 @@ cp -aL mozilla/dist/include/*.h $PKG/usr/include/seamonkey-${VERSION}
 cp -aL mozilla/dist/sdk/include/* $PKG/usr/include/seamonkey-${VERSION}
 # compat symlinks
 ( cd $PKG/usr/include/seamonkey-${VERSION}
-  # make install seems to install js headers into a directory now, so don't make a symlink:
-  #ln -sf . js
   # Relocate anything that might be in the nss directory, and replace the directory with a symlink.
   # make install was putting an empty directory here, which was breaking other compiles.
   if [ -d nss ]; then
@@ -185,7 +183,6 @@ done
 
 # Add symlinks for the pkgconfig files:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
-  ln -s seamonkey-js.pc js.pc
   ln -s seamonkey-libxul.pc libxul.pc
   ln -s seamonkey-plugin.pc plugin.pc
   ln -s seamonkey-xpcom.pc xpcom.pc
@@ -252,7 +249,7 @@ rm -r $TMP/package-seamonkey-solibs
 mkdir -p $TMP/package-seamonkey-solibs/usr/doc
 cp -a $PKG/usr/doc/seamonkey-$VERSION $TMP/package-seamonkey-solibs/usr/doc
 mkdir -p $TMP/package-seamonkey-solibs/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}
-for file in libfreebl3.chk libfreebl3.so libmozjs.so libmozsqlite3.so \
+for file in libfreebl3.chk libfreebl3.so libmozsqlite3.so \
   libnspr4.so libnss* libplc4.so libplds4.so libsmime3.so libsoftokn3.chk \
   libsoftokn3.so libssl3.so ; do
   cp -a $PKG/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION}/$file \
@@ -274,8 +271,8 @@ cat << EOF > $TMP/package-seamonkey-solibs/install/slack-desc
 seamonkey-solibs: seamonkey-solibs (Shared libraries from Seamonkey)
 seamonkey-solibs:
 seamonkey-solibs: This package contains a subset of the shared libraries from Seamonkey
-seamonkey-solibs: to provide runtime support for programs that require nss, nspr, and
-seamonkey-solibs: js.  This package is built from the Seamonkey sources and is provided
+seamonkey-solibs: to provide runtime support for various programs.
+seamonkey-solibs: This package is built from the Seamonkey sources and is provided
 seamonkey-solibs: as a standalone runtime package for people who do not want to install
 seamonkey-solibs: the entire seamonkey package (as for server use).
 seamonkey-solibs:

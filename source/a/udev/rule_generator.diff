@@ -1,17 +1,62 @@
-diff -Nur udev-182.orig/src/rule_generator/write_cd_rules udev-182/src/rule_generator/write_cd_rules
---- udev-182.orig/src/rule_generator/write_cd_rules	2012-03-24 22:47:53.138527732 -0500
-+++ udev-182/src/rule_generator/write_cd_rules	2012-03-24 22:59:42.595889830 -0500
+--- ./src/rule_generator/write_cd_rules.orig	2012-01-28 18:15:46.958827013 -0600
++++ ./src/rule_generator/write_cd_rules	2013-01-17 22:58:27.294859303 -0600
 @@ -3,7 +3,8 @@
  # This script is run if an optical drive lacks a rule for persistent naming.
  #
  # It adds symlinks for optical drives based on the device class determined
 -# by cdrom_id and used ID_PATH to identify the device.
-+# by cdrom_id and uses ID_PATH or ID_SERIAL or ID_MODEL and ID_REVISION to
++# by cdrom_id and uses ID_SERIAL or ID_MODEL and ID_REVISION to
 +# identify the device.
  
  # (C) 2006 Marco d'Itri <md@Linux.IT>
  #
-@@ -105,18 +106,57 @@
+@@ -66,37 +67,16 @@
+         exit 1
+ fi
+ 
+-if [ "$1" ]; then
+-        METHOD="$1"
++# ID_PATH is gone from the ata subsystem used in recent kernels, so
++# always use the by-id method:
++if [ "$ID_SERIAL" ]; then
++        RULE="ENV{ID_SERIAL}==\"$ID_SERIAL\""
++elif [ "$ID_MODEL" -a "$ID_REVISION" ]; then
++        RULE="ENV{ID_MODEL}==\"$ID_MODEL\", ENV{ID_REVISION}==\"$ID_REVISION\""
+ else
+-        METHOD='by-path'
+-fi
+-
+-case "$METHOD" in
+-        by-path)
+-        if [ -z "$ID_PATH" ]; then
+-                echo "$DEVPATH not supported by path_id. by-id may work." >&2
+-                exit 1
+-        fi
+-        RULE="ENV{ID_PATH}==\"$ID_PATH\""
+-        ;;
+-
+-        by-id)
+-        if [ "$ID_SERIAL" ]; then
+-                RULE="ENV{ID_SERIAL}==\"$ID_SERIAL\""
+-        elif [ "$ID_MODEL" -a "$ID_REVISION" ]; then
+-                RULE="ENV{ID_MODEL}==\"$ID_MODEL\", ENV{ID_REVISION}==\"$ID_REVISION\""
+-        else
+-                echo "$DEVPATH not supported by ata_id. by-path may work." >&2
+-                exit 1
+-        fi
+-        ;;
+-
+-        *)
+-        echo "Invalid argument (must be either by-path or by-id)." >&2
++        echo "$DEVPATH not supported by ata_id.  Unable to generate persistent rules." >&2
+         exit 1
+-        ;;
+-esac
++fi
+ 
+ # Prevent concurrent processes from modifying the file at the same time.
+ lock_rules_file
+@@ -105,18 +85,62 @@
  choose_rules_file
  
  link_num=$(find_next_available 'cdrom[0-9]*')
@@ -19,8 +64,9 @@ diff -Nur udev-182.orig/src/rule_generator/write_cd_rules udev-182/src/rule_gene
  
  match="SUBSYSTEM==\"block\", ENV{ID_CDROM}==\"?*\", $RULE"
  
- comment="$ID_MODEL ($ID_PATH)"
+-comment="$ID_MODEL ($ID_PATH)"
 -
++comment="$ID_MODEL ($ID_SERIAL)"
          write_rule "$match" "cdrom$link_num" "$comment"
 -[ "$ID_CDROM_CD_R" -o "$ID_CDROM_CD_RW" ] && \
 -        write_rule "$match" "cdrw$link_num"
@@ -28,47 +74,52 @@ diff -Nur udev-182.orig/src/rule_generator/write_cd_rules udev-182/src/rule_gene
 -        write_rule "$match" "dvd$link_num"
 -[ "$ID_CDROM_DVD_R" -o "$ID_CDROM_DVD_RW" -o "$ID_CDROM_DVD_RAM" ] && \
 -        write_rule "$match" "dvdrw$link_num"
-+        if [ "$(find_all_rules 'SYMLINK+=' cdrom)" = "" ]; then
++        if [ "$link_num" = "0" ]; then
 +                write_rule "$match" "cdrom"
 +        fi
 +
 +        if [ "$ID_CDROM_CD_R" ]; then
-+                       write_rule "$match" "cdr$link_num"
-+                if [ "$(find_all_rules 'SYMLINK+=' cdr)" = "" ]; then
++                write_rule "$match" "cdr$link_num"
++                if [ "$link_num" = "0" ]; then
 +                        write_rule "$match" "cdr"
 +                fi
 +
 +                write_rule "$match" "cdwriter$link_num"
-+                if [ "$(find_all_rules 'SYMLINK+=' cdwriter)" = "" ]; then
++                if [ "$link_num" = "0" ]; then
 +                        write_rule "$match" "cdwriter"
 +                fi
 +
 +                if [ "$ID_CDROM_CD_RW" ]; then
 +                        write_rule "$match" "cdrw$link_num"
-+                        if [ "$(find_all_rules 'SYMLINK+=' cdrw)" = "" ]; then
++                        if [ "$link_num" = "0" ]; then
 +                                write_rule "$match" "cdrw"
 +                        fi
 +                fi
 +
-+                if [ "$(find_all_rules 'SYMLINK+=' writer)" = "" ]; then
++                if [ "$link_num" = "0" ]; then
 +                        write_rule "$match" "writer"
 +                fi
 +        fi
 +
 +        if [  "$ID_CDROM_DVD" ]; then
 +                write_rule "$match" "dvd$link_num"
-+                if [ "$(find_all_rules 'SYMLINK+=' dvd)" = "" ]; then
++                if [ "$link_num" = "0" ]; then
 +                        write_rule "$match" "dvd"
 +                fi
 +
 +                if [ "$ID_CDROM_DVD_R" -o "$ID_CDROM_DVD_RW" -o "$ID_CDROM_DVD_RAM" ]; then
++                        write_rule "$match" "dvdr$link_num"
++                        if [ "$link_num" = "0" ]; then
++                                write_rule "$match" "dvdr"
++                        fi
++
 +                        write_rule "$match" "dvdrw$link_num"
-+                        if [ "$(find_all_rules 'SYMLINK+=' dvdrw)" = "" ]; then
++                        if [ "$link_num" = "0" ]; then
 +                                write_rule "$match" "dvdrw"
 +                        fi
 +
 +                        write_rule "$match" "dvdwriter$link_num"
-+                        if [ "$(find_all_rules 'SYMLINK+=' dvdwriter)" = "" ]; then
++                        if [ "$link_num" = "0" ]; then
 +                                write_rule "$match" "dvdwriter"
 +                        fi
 +                fi

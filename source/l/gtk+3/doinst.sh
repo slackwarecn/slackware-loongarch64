@@ -10,6 +10,11 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
+# The GTK+3 theme no longer works, so if gtkrc uses that, back up the old
+# file and install the new one:
+if grep -q GTK etc/gtk-3.0/gtkrc 2> /dev/null ; then
+  mv etc/gtk-3.0/gtkrc etc/gtk-3.0/gtkrc.bak
+fi
 config etc/gtk-3.0/gtkrc.new
 config etc/gtk-3.0/im-multipress.conf.new
 rm -f etc/gtk-3.0/gtkrc.new

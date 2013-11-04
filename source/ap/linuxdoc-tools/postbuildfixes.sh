@@ -32,6 +32,9 @@ find . -name perllocal.pod -print0 | xargs -0 rm -f
 # We don't need setuid for anything in this package:
 chmod -R a-s .
 
+# Remove dangling symlinks from /usr/doc.  asciidoc-8.6.7 was a culprit.
+find usr/doc -xtype l -print0 | xargs -0 rm -fv
+
 # Ensure some permissions.  
 # I don't know why but these dirs are installed chmod 1755:
 #drwxr-xr-t root/root         0 2006-05-27 15:42:44 var/lib/texmf/

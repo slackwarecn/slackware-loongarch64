@@ -15,6 +15,7 @@ config var/lib/nfs/rmtab.new
 config var/lib/nfs/state.new
 config var/lib/nfs/xtab.new
 rm -f var/lib/nfs/*.new
+chown -R rpc:rpc var/lib/nfs
 if [ -x etc/rc.d/rc.nfsd ]; then
   chmod 755 etc/rc.d/rc.nfsd.new
 else

@@ -1,0 +1,76 @@
+#  Make CDROM tray toggle more robust by using CDS_TRAY_OPEN
+#  when avaiable.  
+#  Also includes Slackware's eject_for_mac.patch
+#
+diff -Nurp eject.old/eject.c eject.new/eject.c
+--- eject.old/eject.c	2013-02-19 10:18:36.041669514 +0000
++++ eject.new/eject.c	2013-02-19 10:33:04.289392780 +0000
+@@ -564,34 +564,45 @@ static void ToggleTray(int fd)
+ {
+ 	struct timeval time_start, time_stop;
+ 	int time_elapsed;
++        int status;
+ 
+ #ifdef CDROMCLOSETRAY
++ 
++	status = ioctl(fd, CDROM_DRIVE_STATUS, 0);
++	if (status == CDS_TRAY_OPEN) {
++		CloseTray(fd);
++	} else {
+ 
+-	/* Try to open the CDROM tray and measure the time therefor
+-	 * needed.  In my experience the function needs less than 0.05
+-	 * seconds if the tray was already open, and at least 1.5 seconds
+-	 * if it was closed.  */
+-	gettimeofday(&time_start, NULL);
++		/* Try to open the CDROM tray and measure the time therefor
++		 * needed.  In my experience the function needs less than 0.05
++		 * seconds if the tray was already open, and at least 1.5 seconds
++		 * if it was closed.  */
++		gettimeofday(&time_start, NULL);
+ 	
+-	/* Send the CDROMEJECT command to the device. */
+-	if (ioctl(fd, CDROMEJECT, 0) < 0) {
+-		perror("ioctl");
+-		exit(1);
++		/* Send the CDROMEJECT command to the device. */
++		if (ioctl(fd, CDROMEJECT, 0) < 0  &&  errno != EIO) {
++			perror("ioctl CDROMEJECT");
++			exit(1);
++		}
++
++		/* Get the second timestamp, to measure the time needed to open
++		 * the tray.  */
++		gettimeofday(&time_stop, NULL);
++
++		/* If the ioctl returns CDS_TRAY_OPEN now then we can ignore 
++                 * the guess based on elapsed-time  */
++		status = ioctl(fd, CDROM_DRIVE_STATUS, 0);
++		if (status != CDS_TRAY_OPEN) {
++			time_elapsed = (time_stop.tv_sec * 1000000 + time_stop.tv_usec) -
++				(time_start.tv_sec * 1000000 + time_start.tv_usec);
++
++			/* If the tray "opened" too fast, we can be nearly sure, that it
++			 * was already open. In this case, close it now. Else the tray was
++			 * closed before. This would mean that we are done.  */
++			if (time_elapsed < TRAY_WAS_ALREADY_OPEN_USECS)
++				CloseTray(fd);
++		}
+ 	}
+-
+-	/* Get the second timestamp, to measure the time needed to open
+-	 * the tray.  */
+-	gettimeofday(&time_stop, NULL);
+-
+-	time_elapsed = (time_stop.tv_sec * 1000000 + time_stop.tv_usec) -
+-		(time_start.tv_sec * 1000000 + time_start.tv_usec);
+-
+-	/* If the tray "opened" too fast, we can be nearly sure, that it
+-	 * was already open. In this case, close it now. Else the tray was
+-	 * closed before. This would mean that we are done.  */
+-	if (time_elapsed < TRAY_WAS_ALREADY_OPEN_USECS)
+-		CloseTray(fd);
+-
+ #else
+     fprintf(stderr, _("%s: CD-ROM tray toggle command not supported by this kernel\n"), programName);
+ #endif

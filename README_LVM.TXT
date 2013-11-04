@@ -11,7 +11,7 @@ installation to Logical Volumes.  In Slackware, the installer has never
 supported this, but the gurus usually would find a way to create logical
 volumes and install or migrate their Slackware onto those.  Having your
 Slackware installed fully on LVM was near impossible until Slackware 12.0.
-Slackware 14.0 has improved support for LVM built into the installer.
+Slackware 14.1 has improved support for LVM built into the installer.
 
 
 Preparing Logical Volumes (LV)
@@ -105,9 +105,9 @@ We are going to 'chroot' into our fresh installation:
     Next, while we are in the chroot, create the initrd with LVM support -
 in the example command line I assume that the root filesystem is 'ext3',
 we used the LV '/dev/myvg/root' as the root device, and are running the
-Slackware 14.0 default SMP kernel '3.2.29-smp':
+Slackware 14.1 default SMP kernel '3.10.17-smp':
 
-  # mkinitrd -c -k 3.2.29-smp -m ext3 -f ext3 -r /dev/myvg/root -L
+  # mkinitrd -c -k 3.10.17-smp -m ext3 -f ext3 -r /dev/myvg/root -L
 
     The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd, so open the
@@ -119,7 +119,7 @@ filename added by 'liloconfig' is '/boot/vmlinuz' which is a symbolic link to
 the huge SMP kernel.  Remember that we need a 'generic' kernel with the initrd.
 The end result should look somewhat like this:
 
-  image = /boot/vmlinuz-generic-smp-3.2.29-smp
+  image = /boot/vmlinuz-generic-smp-3.10.17-smp
     initrd = /boot/initrd.gz
     root = /dev/myvg/root
     label = linux
@@ -183,7 +183,7 @@ This is enough to get it recognized by the setup program.  Have fun!
 
 ========================================================
 Author:
-  Eric Hameleers <alien@slackware.com> 18-sep-2012
+  Eric Hameleers <alien@slackware.com> 13-oct-2013
 Wiki URLs:
   http://www.slackware.com/~alien/dokuwiki/doku.php?id=slackware:setup
 Documentation:

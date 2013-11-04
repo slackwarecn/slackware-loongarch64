@@ -40,7 +40,7 @@ fi
 # all of them), and make any additional device nodes that you need in the
 # /dev directory.  Even USB and IEEE1394 devices will need to have the
 # modules loaded by hand if udev is not used.  So use it.  :-)
-if grep -wq sysfs /proc/mounts && grep -q tmpfs /proc/filesystems ; then
+if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev ]; then
       /bin/sh /etc/rc.d/rc.udev start
@@ -51,7 +51,22 @@ fi
 # Mount Control Groups filesystem interface:
 if grep -wq cgroup /proc/filesystems ; then
   if [ -d /sys/fs/cgroup ]; then
-    mount -t cgroup cgroup /sys/fs/cgroup
+    # See linux-*/Documentation/cgroups/cgroups.txt (section 1.6)
+    # Check if we have some tools to autodetect the available cgroup controllers
+    if [ -x /usr/bin/lssubsys -a -x /usr/bin/tr -a -x /usr/bin/sed ]; then
+      # Mount a tmpfs as the cgroup filesystem root
+      mount -t tmpfs -o mode=0755 cgroup_root /sys/fs/cgroup
+      # Autodetect available controllers and mount them in subfolders
+      controllers="$(lssubsys -a 2>/dev/null | tr '\n' ' ' | sed s/.$//)"
+      for i in $controllers; do
+        mkdir /sys/fs/cgroup/$i
+        mount -t cgroup -o $i $i /sys/fs/cgroup/$i
+      done
+      unset i controllers
+    else
+      # We can't use autodetection so fall back mounting them all together
+      mount -t cgroup cgroup /sys/fs/cgroup
+    fi
   else
     mkdir -p /dev/cgroup
     mount -t cgroup cgroup /dev/cgroup
@@ -63,6 +78,8 @@ fi
 # /etc/lvm/backup/ (LVM2).  This is created by /sbin/vgscan, so to
 # use LVM you must run /sbin/vgscan yourself the first time (and
 # create some VGs and LVs).
+# Create LVM lock/run directories:
+mkdir -p -m 0700 /run/lvm /run/lock /run/lock/lvm
 if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
   echo "Initializing LVM (Logical Volume Manager):"
   # Check for device-mapper support.
@@ -385,9 +402,9 @@ if [ -f /etc/random-seed ]; then
   echo "Using /etc/random-seed to initialize /dev/urandom."
   cat /etc/random-seed > /dev/urandom
 fi
-# Use the pool size from /proc, or 512 bytes:
+# Use the pool size from /proc, or 4096 bits:
 if [ -r /proc/sys/kernel/random/poolsize ]; then
-  dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(cat /proc/sys/kernel/random/poolsize) 2> /dev/null
+  dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
 else
   dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
 fi

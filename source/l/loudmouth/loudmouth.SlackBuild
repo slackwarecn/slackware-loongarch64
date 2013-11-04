@@ -23,8 +23,8 @@
 # -----------------------------------------------------------------------------
 
 PKGNAM=loudmouth
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-1.5.0-20121201}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:" -j4 "}
 
@@ -67,15 +67,7 @@ rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
-zcat $CWD/loudmouth.crtpath.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/loudmouth.gnutls.configure.ac.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/loudmouth.async_assertion.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/loudmouth.sasl-md5-digest-uri.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/loudmouth.stanzadrop.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/loudmouth-1.4.3-glib-compile-fix.patch.gz | patch -p1 --verbose || exit 1
-
-# needed after the configure.ac gnutls patch
-autoreconf
+zcat $CWD/loudmouth.ld.gobject.diff.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -98,6 +90,7 @@ LDFLAGS="$SLKLDFLAGS" \
   --with-ssl=gnutls \
   --enable-debug=yes \
   --enable-static=no \
+  --enable-gtk-doc \
   --program-prefix= \
   --program-suffix= \
   --build=$ARCH-slackware-linux \
@@ -108,8 +101,8 @@ LDFLAGS="$SLKLDFLAGS" \
 ## messages to the console.  Don't mess with it!
 ##
 
-# this generates a broken libtool, so use the system version:
-cp /usr/bin/libtool .
+## this generates a broken libtool, so use the system version:
+#cp /usr/bin/libtool .
 
 # Build and install:
 make $NUMJOBS || make || exit 1
@@ -142,4 +135,4 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz

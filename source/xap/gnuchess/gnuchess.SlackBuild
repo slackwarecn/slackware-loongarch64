@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,10 +21,10 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERGNUCHESS=5.08
+VERGNUCHESS=6.0.3
 VERSJENG=11.2
 VEREBOARD=1.1.1
-VERXBOARD=4.5.1
+VERXBOARD=4.7.1
 BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
@@ -71,14 +71,14 @@ find . \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
-  $ARCH-slackware-linux
+  --infodir=/usr/info \
+  --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/gnuchess-$VERGNUCHESS
 cp -a \
-  doc/README* \
-  AUTHORS COPYING* INSTALL NEWS TODO \
+  AUTHORS COPYING* INSTALL NEWS README TODO \
   $PKG/usr/doc/gnuchess-$VERGNUCHESS
 
 ### Sjeng
@@ -96,7 +96,7 @@ find . \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
@@ -111,6 +111,7 @@ rm -rf eboard-$VEREBOARD
 tar xvf $CWD/eboard-$VEREBOARD.tar.bz2 || exit 1
 cd eboard-$VEREBOARD || exit 1
 zcat $CWD/eboard.assert.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/eboard.ldl.diff.gz | patch -p1 --verbose || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -120,7 +121,8 @@ find . \
 
 ./configure \
   --prefix=/usr \
-  --extra-flags=$(echo $SLKCFLAGS | sed -e "y/ /:/")
+  --extra-flags=$(echo $SLKCFLAGS | sed -e "y/ /:/") \
+  --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
@@ -134,6 +136,7 @@ cd $TMP
 rm -rf xboard-$VERXBOARD
 tar xvf $CWD/xboard-$VERXBOARD.tar.?z* || exit 1
 cd xboard-$VERXBOARD || exit 1
+zcat $CWD/xboard.conf.in.diff.gz | patch -p1 --verbose || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -141,42 +144,45 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# --infodir is fubar.
-#zcat $CWD/xboard.infodir.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 CFLAGS="$SLKCFLAGS" \
 ./configure \
    --prefix=/usr \
+   --sysconfdir=/etc \
    --infodir=/usr/info \
+   --mandir=/usr/man \
+   --with-gtk \
    --enable-zippy \
    --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
-install -c -s xboard $PKG/usr/bin/xboard
-install -c -s zic2xpm $PKG/usr/bin/zic2xpm
+make install DESTDIR=$PKG || exit 1
 install -c cmail $PKG/usr/bin/cmail
-install -c ./pxboard $PKG/usr/bin/pxboard
-install -c -m 644 ./xboard.man $PKG/usr/man/man6/xboard.6
-install -c -m 644 ./zic2xpm.man $PKG/usr/man/man6/zic2xpm.6
-mkdir -p $PKG/usr/info
-install -c -m 644 xboard.info $PKG/usr/info/xboard.info
+#install -c -s xboard $PKG/usr/bin/xboard
+#install -c -s zic2xpm $PKG/usr/bin/zic2xpm
+#install -c ./pxboard $PKG/usr/bin/pxboard
+#install -c -m 644 ./xboard.man $PKG/usr/man/man6/xboard.6
+#install -c -m 644 ./zic2xpm.man $PKG/usr/man/man6/zic2xpm.6
+#mkdir -p $PKG/usr/info
+#install -c -m 644 xboard.info $PKG/usr/info/xboard.info
 mkdir -p $PKG/usr/doc/xboard-$VERXBOARD
 cp -a \
-  AUTHORS COPYING COPYRIGHT FAQ FAQ.html NEWS READ_ME \
+  AUTHORS COPYING* COPYRIGHT FAQ.html NEWS README TODO \
   $PKG/usr/doc/xboard-$VERXBOARD
-
-### Finish up...
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
 gzip -9 $PKG/usr/man/man?/*.?
 gzip -9 $PKG/usr/info/*.info
 mkdir -p $PKG/usr/share/pixmaps
 cat $CWD/chess.png > $PKG/usr/share/pixmaps/chess.png
 mkdir -p $PKG/usr/share/applications
 cat $CWD/eboard.desktop > $PKG/usr/share/applications/eboard.desktop
-cat $CWD/xboard.desktop > $PKG/usr/share/applications/xboard.desktop
+rm -f $PKG/usr/info/dir
+mv $PKG/etc/xboard.conf $PKG/etc/xboard.conf.new
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/gnuchess-$VERGNUCHESS-$ARCH-$BUILD.txz

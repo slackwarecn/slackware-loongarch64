@@ -1,0 +1,27 @@
+Submitted By: Ken Moffat <ken at linuxfromscratch dot org>
+Date: 2013-04-17
+Initial Package Version: 0.99.7
+Upstream Status: Applied
+Origin: Upstream (Torsten Jager)
+Description: The change to use a png logo before 0.99.7 overlooked
+that static graphics have a different status in xine-lib (they never
+stop). That broke opening a file from the 'Open' menu (opening from
+the MRL Browser, or from a file passed on the command lein were OK).
+
+Upstream revision r3135:
+
+open user file immediately when only logo is playing
+
+diff -r 653d3359d87a -r edb37ede1ab2 src/xitk/actions.c
+--- a/src/xitk/actions.c	Tue Mar 19 22:29:33 2013 +0200
++++ b/src/xitk/actions.c	Mon Apr 15 19:56:17 2013 +0300
+@@ -2148,7 +2148,8 @@
+ 
+     /* If an MRL is not being played, select the first file appended. If in "smart mode" start
+        playing the entry.  If a an MRL is currently being played, let it continue normally */
+-    if((first != gGui->playlist.num) && (xine_get_status(gGui->stream) == XINE_STATUS_STOP)) {
++    if((first != gGui->playlist.num) &&
++      (gGui->logo_mode || (xine_get_status(gGui->stream) == XINE_STATUS_STOP))) {
+       gGui->playlist.cur = first;
+       if(gGui->smart_mode) {
+         gui_set_current_mmk(mediamark_get_current_mmk());

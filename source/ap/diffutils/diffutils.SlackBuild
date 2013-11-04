@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 
 PKGNAM=diffutils
-VERSION=${VERSION:-$(echo diffutils-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo diffutils-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -56,8 +56,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz
-cd $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -69,6 +69,9 @@ find . \
 zcat $CWD/diffutils-sdiff-no-waitpid.patch.gz | patch -p1 || exit 1
 # Prevent ruining sdiff.1 by touching it so it won't "regenerate":
 touch man/sdiff.1
+
+# Fix installation of NLS files:
+zcat $CWD/diffutils.mkdir_p.diff.gz | patch -p1 || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -110,7 +113,7 @@ fi
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING NEWS README THANKS TODO \
+  AUTHORS COPYING* NEWS README* THANKS TODO \
   $PKG/usr/doc/$PKGNAM-$VERSION
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

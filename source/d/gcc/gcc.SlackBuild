@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -137,6 +137,10 @@ cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
 cd $TMP
 tar xvf $CWD/gcc-$VERSION.tar.?z*
 
+#( cd gcc-$VERSION
+#  If we had any patches, we would apply them here, but we're .diff free now.
+#) || exit 1
+
 # Copy ecj.jar into the TLD of the source. Needed for java compiler.
 # This can be retrieved from ftp://sourceware.org/pub/java
 cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
@@ -145,11 +149,6 @@ cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
 # The runtime can be obtained from:
 #https://oss.sonatype.org/content/repositories/releases/org/antlr/antlr-runtime/
 ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
-
-# Upstream -fPIC fix for gnat build:
-cd gcc-$VERSION
-  zcat $CWD/gcc-4.7.1.adalib.pic.diff.gz | patch -p1 --verbose || exit 1
-cd ..
 
 # install docs
 ( cd gcc-$VERSION
@@ -330,7 +329,7 @@ cd ..
   echo
   rm -rf fastjar-$FASTJARVER
   tar xvf $CWD/fastjar-$FASTJARVER.tar.xz || exit 1
-  cd fastjar-$FASTJARVER || exit
+  cd fastjar-$FASTJARVER || exit 1
   chown -R root:root .
   find . \
     \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -615,6 +614,7 @@ mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
   mv $PKG1/usr/bin/gij usr/bin
   mv $PKG1/usr/bin/gjar usr/bin
   mv $PKG1/usr/bin/gjarsigner usr/bin
+  mv $PKG1/usr/bin/gjdoc usr/bin
   mv $PKG1/usr/bin/gkeytool usr/bin
   mv $PKG1/usr/bin/grepjar usr/bin
   mv $PKG1/usr/bin/grmid usr/bin
@@ -709,7 +709,8 @@ mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
   # statically, and we'll need a newer one elsewhere.
   find . -name "ffi*.h" | xargs rm
   find . -name "libffi*" | xargs rm
-  rm usr/man/man3/ffi*
+  rm -f usr/man/man3/ffi*
+  rm -f usr/info/libffi*
 )
 
 # gcc-objc:
@@ -740,7 +741,7 @@ mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
   mv $PKG1/usr/info/gccgo.info.gz usr/info
   mkdir -p usr/lib${LIBDIRSUFFIX}
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.la,libgo.so.0.*,libgobegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.la,libgo.so*,libgobegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
   # Ordinarily Slackware doesn't package static libraries, but in this case
   # it is useful for deploying compiled binaries on machines that do not yet
   # have libgo.so.0.0.0.

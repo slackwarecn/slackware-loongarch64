@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,25 +20,61 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Modified 2012 by Eric Hameleers <alien at slackware.com> for ARM port.
+
 
 VERSION=${VERSION:-$(echo samba-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
-# Automatically determine the architecture we're building on:
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
+if [ -e $CWD/machine.conf ]; then
+  . $CWD/machine.conf ]
+elif [ -e /etc/slackbuild/machine.conf ]; then
+  . /etc/slackbuild/machine.conf ]
+else
+  # Automatically determine the architecture we're building on:
+  if [ -z "$ARCH" ]; then
+    case "$( uname -m )" in
+      i?86) export ARCH=i486 ;;
+      arm*) export ARCH=arm ;;
+      # Unless $ARCH is already set, use uname -m for all other archs:
+         *) export ARCH=$( uname -m ) ;;
+    esac
+  fi
+  # Set CFLAGS/CXXFLAGS and LIBDIRSUFFIX:
+  if [ "$ARCH" = "i486" ]; then
+    SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+    LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "s390" ]; then
+    SLKCFLAGS="-O2"
+    LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "x86_64" ]; then
+    SLKCFLAGS="-O2 -fPIC"
+    LIBDIRSUFFIX="64"
+  else
+    SLKCFLAGS="-O2"
+    LIBDIRSUFFIX=""
+  fi
 fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-samba
 rm -rf $PKG
 mkdir -p $TMP $PKG
+
+if [ -r /usr/lib${LIBDIRSUFFIX}/libtalloc.so.? -a ! -r /var/log/packages/talloc* ]; then
+  echo "The Samba package needs to be removed before building to ensure that"
+  echo "talloc (and possibly other bundled libraries) are included in the build."
+  echo
+  echo "Removing the Samba package in 15 seconds, and then continuing with the build."
+  sleep 15
+  removepkg samba
+fi
 
 cd $TMP
 rm -rf samba-$VERSION
@@ -59,21 +95,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-cd source3
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-else
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-fi
-
 # Some of these options could be auto-detected, but declaring them
 # here doesn't hurt and helps document what features we're trying to
 # build in.
@@ -82,8 +103,10 @@ fi
 LDFLAGS="-Wl,--no-as-needed" \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
+  --enable-fhs \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --includedir=/usr/include \
   --bindir=/usr/bin \
   --sbindir=/usr/sbin \
   --mandir=/usr/man \
@@ -91,28 +114,30 @@ CFLAGS="$SLKCFLAGS" \
   --with-configdir=/etc/samba \
   --with-piddir=/var/run \
   --with-privatedir=/etc/samba/private \
-  --localstatedir=/var \
+  --with-privatelibdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-modulesdir=/usr/lib${LIBDIRSUFFIX} \
   --with-lockdir=/var/cache/samba \
-  --with-swatdir=/usr/share/swat \
   --with-logfilebase=/var/log/samba \
+  --localstatedir=/var \
   --enable-cups \
-  --enable-external-libtalloc=no \
-  --enable-static=no \
-  --enable-shared=yes \
-  --with-acl-support=yes \
+  --with-acl-support \
   --with-automount \
   --with-quotas \
   --with-syslog \
   --with-utmp \
-  --with-libsmbclient \
   --with-winbind \
   --with-ldap \
-  --build=$ARCH-slackware-linux
-  # Using with-fhs overrides our libdir, and besides we are already hard-coding
-  # directories. So, now we define them all explicitly...
-  #--with-fhs \
+  --with-ads \
+  --without-pam \
+  --build=$TARGET
+  # Gives errors:
+  #--builtin-libraries=replace,ccan \
+  #--bundled-libraries=heimdal \
 
 # -j options don't seem to work...
+JOBS=6
+MAXJOBS=6
+export JOBS MAXJOBS
 make || exit 1
 
 mkdir -p \
@@ -124,30 +149,52 @@ mkdir -p \
 chmod 700 $PKG/etc/samba/private
 chmod 1777 $PKG/var/spool/samba
 
-make install-everything DESTDIR=$PKG || exit 1
-
-# Install libnss_win* libraries:
-mkdir -p $PKG/lib${LIBDIRSUFFIX}
-cp -a ../nsswitch/libnss_winbind.so $PKG/lib${LIBDIRSUFFIX}/libnss_winbind.so.2
-cp -a ../nsswitch/libnss_wins.so $PKG/lib${LIBDIRSUFFIX}/libnss_wins.so.2
-( cd $PKG/lib${LIBDIRSUFFIX}
-  ln -sf libnss_winbind.so.2 libnss_winbind.so
-  ln -sf libnss_wins.so.2 libnss_wins.so
-)
+make install DESTDIR=$PKG || exit 1
 
 # Install pkgconfig files:
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
-cp -a pkgconfig/*.pc $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
 if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/talloc.pc ]; then
   cat $CWD/talloc.pc | sed -e "s/\/lib/\/lib${LIBDIRSUFFIX}/" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/talloc.pc
 fi
+if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/pytalloc-util.pc ]; then
+  cat $CWD/pytalloc-util.pc | sed -e "s/\/lib/\/lib${LIBDIRSUFFIX}/" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/pytalloc-util.pc
+fi
+
+# Install talloc.h:
+if [ ! -r $PKG/usr/include/talloc.h ]; then
+  cp -a lib/talloc/talloc.h $PKG/usr/include
+  chown root:root $PKG/usr/include/talloc.h
+  chmod 644 $PKG/usr/include/talloc.h
+fi
+
+# Make symlink for pytalloc.h in /usr/include:
+if [ ! -r $PKG/usr/include/pytalloc.h ]; then
+  if [ -r $PKG/usr/include/samba-4.0/pytalloc.h ]; then
+    ( cd $PKG/usr/include ; ln -sf samba-4.0/pytalloc.h . )
+  fi
+fi
+
+# Make symlink for libtalloc.so:
+if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/libtalloc.so -a -r $PKG/usr/lib${LIBDIRSUFFIX}/libtalloc.so.? ]; then
+  ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf libtalloc.so.? libtalloc.so )
+fi
+
+# Make symlink for libpytalloc-util.so:
+if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/libpytalloc-util.so -a -r $PKG/usr/lib${LIBDIRSUFFIX}/libpytalloc-util.so.? ]; then
+  ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf libpytalloc-util.so.? libpytalloc-util.so )
+fi
+
+# Install the smbprint script:
+install -m0744 packaging/printing/smbprint $PKG/usr/bin/smbprint
 
 # Add a sample config file:
 cat $CWD/smb.conf.default > $PKG/etc/samba/smb.conf-sample
 
+# Setup a default lmhosts file:
+echo "127.0.0.1	localhost" > $PKG/etc/samba/lmhosts.new
+
 if [ ! -r $PKG/usr/bin/smbget ]; then
   rm -f $PKG/usr/share/man/man1/smbget.1
-  rm -f $PKG/usr/share/swat/help/smbget.1.html
 fi
 
 # We'll add rc.samba to the init directory, but chmod 644 so that it doesn't
@@ -166,7 +213,6 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 rm -r $PKG/usr/share/locale
 rm -f $PKG/usr/man/man8/pam*
 
-cd ..
 cp -a \
   COPYING* MAINTAINERS Manifest PFIF.txt README* \
   Read-Manifest-Now Roadmap WHATSNEW.txt docs examples \
@@ -174,10 +220,8 @@ cp -a \
 # These are installed elsewhere:
 rm -rf $PKG/usr/doc/samba-$VERSION/docs/htmldocs \
        $PKG/usr/doc/samba-$VERSION/docs/manpages
-mkdir -p $PKG/usr/doc/samba-$VERSION/docs
-( cd $PKG/usr/doc/samba-$VERSION/docs
-  ln -sf /usr/share/swat/help htmldocs
-)
+# Empty now?
+rmdir $PKG/usr/doc/samba-$VERSION/docs 2> /dev/null
 # I'm sorry, but when all this info is included in HTML, adding 7MB worth of
 # PDF files just to have extra artwork is more fluff than I'll agree to.
 rm -f $PKG/usr/doc/samba-$VERSION/docs/*.pdf

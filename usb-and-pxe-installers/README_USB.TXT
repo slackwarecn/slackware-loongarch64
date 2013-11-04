@@ -72,7 +72,7 @@ copy the 'usbboot.img' file to a USB stick as follows:
     example command line below, I am assuming that the USB stick is known as
     '/dev/sdx'.
 
-      dd if=usbboot.img of=/dev/sdx bs=512
+      dd if=usbboot.img of=/dev/sdx bs=1M
 
     Be careful about the device name for your USB stick!  The above 'dd' 
     command will wipe out any existing data on the device, so you had better 

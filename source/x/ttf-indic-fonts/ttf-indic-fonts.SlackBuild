@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +20,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=0.4.7.4
+VERSION=0.5.14
 ARCH=noarch
 BUILD=1
 
@@ -32,11 +32,8 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf ttf-indic-fonts-$VERSION
-tar xvf $CWD/ttf-indic-fonts-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/ttf-indic-fonts_$VERSION.tar.xz || exit 1
 cd ttf-indic-fonts-$VERSION || exit 1
-# Patch copyright notices so that they do not give inaccurate
-# information about where to find the GPL:
-zcat $CWD/ttf-indic-fonts.copyright.diff.gz | patch -p1 --verbose || exit 1
 
 # I'm very interested in making this a better package, but have a
 # long way to go in understanding how all of this works.  I know
@@ -64,27 +61,24 @@ find . \
 mkdir -p $PKG/usr/share/fonts/TTF/
 cp -a */*.ttf $PKG/usr/share/fonts/TTF
 
-# This is a better Malayalam font:
-cp -a $CWD/Samyak_Malayalam.ttf.bz2 $PKG/usr/share/fonts/TTF
-( cd $PKG/usr/share/fonts/TTF
-  bzip2 -d Samyak_Malayalam.ttf.bz2
-  chmod 644 Samyak_Malayalam.ttf
-  chown root:root Samyak_Malayalam.ttf
+mkdir -p $PKG/etc/fonts/conf.avail
+find . -name "*.conf" -exec cp -a {} $PKG/etc/fonts/conf.avail \;
+
+mkdir -p $PKG/etc/fonts/conf.d
+( cd $PKG/etc/fonts/conf.d
+  for file in ../conf.avail/*.conf ; do
+    ln -sf $file .
+  done
 )
-# Remove the old Malayalam font:
-rm -f $PKG/usr/share/fonts/TTF/malayalam.ttf
 
 # Put copyright notices in the docs directory:
 mkdir -p $PKG/usr/doc/ttf-indic-fonts-$VERSION
 find . -name "*.copyright" -exec cp -a {} $PKG/usr/doc/ttf-indic-fonts-$VERSION \;
-cp -a $CWD/COPYING.bz2 $PKG/usr/doc/ttf-indic-fonts-$VERSION
-cp -a $CWD/Samyak_Malayalam.url $PKG/usr/doc/ttf-indic-fonts-$VERSION
-( cd $PKG/usr/doc/ttf-indic-fonts-$VERSION ; bzip2 -d COPYING.bz2 )
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/ttf-indic-fonts-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n --prepend $TMP/ttf-indic-fonts-$VERSION-$ARCH-$BUILD.txz
 

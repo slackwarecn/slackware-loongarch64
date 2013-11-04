@@ -1,5 +1,6 @@
 #!/bin/sh
 # Copyright 2005, 2006, 2008, 2009, 2010, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -23,9 +24,9 @@
 
 PKGNAM=mozilla-nss
 SRCNAM=nss
-VERSION=${VERSION:-3.13.5}
-NSPR=${NSPR:-4.9.1}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-3.15.2}
+NSPR=${NSPR:-4.10.1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -65,11 +66,9 @@ cd $TMP
 rm -rf nss-${VERSION}
 rm -rf nspr-${NSPR}
 tar xvf $CWD/nss-$VERSION.tar.?z* || exit 1
-tar xvf $CWD/nspr-$NSPR.tar.?z* || exit 1
 cd nss-$VERSION
-
-# NSS needs NSPR:
-ln -s ../../nspr-$NSPR/mozilla/nsprpub mozilla/nsprpub
+tar xvf $CWD/nspr-$NSPR.tar.?z* || exit 1
+mv nspr*/nspr .
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -86,13 +85,14 @@ export CXXFLAGS="$SLKCFLAGS"
 export BUILD_OPT=1
 export NSDISTMODE="copy"
 export NSS_USE_SYSTEM_SQLITE=1
-cd mozilla/security/nss
+export NSS_ENABLE_ECC=1
+cd nss
   make nss_build_all export
 cd -
 
 # Install all the needed stuff to the package dir:
 mkdir -p $PKG/usr/{bin,lib${LIBDIRSUFFIX},include/{nss,nspr}}
-cd mozilla/dist/$(uname -s)*
+cd dist/$(uname -s)*
   cp -pL bin/{certutil,cmsutil,crlutil,modutil,pk12util,shlibsign,signtool,signver,ssltap} $PKG/usr/bin/
   cp -pL lib/* $PKG/usr/lib${LIBDIRSUFFIX}/
   chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/*.so*
@@ -105,14 +105,14 @@ cd mozilla/dist/$(uname -s)*
   cp -L lib/libcrmf.a $PKG/usr/lib${LIBDIRSUFFIX}/ # yes, put this one back
 cd -
 
-cd mozilla/security/nss/cmd/smimetools
+cd nss/cmd/smimetools
   cp -a smime $PKG/usr/bin/
   chmod 0755 $PKG/usr/bin/smime 
   sed -i -e 's#/usr/local/bin#/usr/bin#g' $PKG/usr/bin/smime
 cd -
 
 # Install nspr-config:
-cat mozilla/nsprpub/$(uname -s)*/config/nspr-config | sed -e "s,prefix=/usr/local,prefix=/usr,g" | sed -e "s,libdir=\${exec_prefix}/lib,libdir=\${exec_prefix}/lib${LIBDIRSUFFIX},g" > $PKG/usr/bin/nspr-config
+cat nspr/$(uname -s)*/config/nspr-config | sed -e "s,prefix=/usr/local,prefix=/usr,g" | sed -e "s,libdir=\${exec_prefix}/lib,libdir=\${exec_prefix}/lib${LIBDIRSUFFIX},g" > $PKG/usr/bin/nspr-config
 chmod 755 $PKG/usr/bin/nspr-config
 
 # Install nss-config:

@@ -13,14 +13,22 @@ mkisofs -o /tmp/slackware-dvd.iso \
   -sort isolinux/iso.sort \
   -b isolinux/isolinux.bin \
   -c isolinux/isolinux.boot \
+  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
+  -eltorito-boot isolinux/efiboot.img \
   -m 'source' \
   -V "SlackDVD" .
 
+As an additional step, the ISO image may be processed to make it bootable
+when written to a USB stick.  This processing will not impact the ISO's
+ability to boot from DVD media.  Use the following command to do this:
+
+isohybrid -u /tmp/slackware-dvd.iso
+
 On my system, here's the command I'd use to burn the resulting DVD ISO:
 
-growisofs -speed=2 -dvd-compat -Z /dev/dvd=slackware-dvd.iso
+growisofs -speed=2 -dvd-compat -Z /dev/sr0=slackware-dvd.iso
 
-If your burner is not /dev/dvd, replace the device with the one your
+If your burner is not /dev/sr0, replace the device with the one your
 system uses.
 
 I find discs burned at 2x are more reliable than ones burned at higher
@@ -28,10 +36,16 @@ speeds, but you may see completely different results depending on media
 and burner type.  The -dvd-compat option is also used so that a complete
 lead-out is written to the media for maximum compatibility.
 
+To write the ISO image to a USB stick (process with isohybrid first, as
+shown above), use a command such as this (replace /dev/sdX with the device
+name for your USB stick):
+
+dd if=/tmp/slackware-dvd.iso of=/dev/sdX bs=1M
+
 Or, you can burn directly from the Slackware tree to a DVD(-/+)R(W):
 
 growisofs \
-  -Z /dev/dvd \
+  -Z /dev/sr0 \
   -R -J -A "Slackware Install" \
   -hide-rr-moved \
   -v -d -N \
@@ -39,6 +53,8 @@ growisofs \
   -sort isolinux/iso.sort \
   -b isolinux/isolinux.bin \
   -c isolinux/isolinux.boot \
+  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
+  -eltorito-boot isolinux/efiboot.img \
   -m 'source' \
   -dvd-compat \
   -V "SlackDVD" .
@@ -80,6 +96,8 @@ mkisofs -o /tmp/slackware-install-1.iso \
   -sort isolinux/iso.sort \
   -b isolinux/isolinux.bin \
   -c isolinux/isolinux.boot \
+  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
+  -eltorito-boot isolinux/efiboot.img \
   -V "SlackCD1" .
 
 Making a non-bootable disc is similar.  Just omit a few options:
@@ -110,6 +128,8 @@ mkisofs \
   -sort isolinux/iso.sort \
   -b isolinux/isolinux.bin \
   -c isolinux/isolinux.boot \
+  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
+  -eltorito-boot isolinux/efiboot.img \
   -V "SlackCD1" . | cdrecord -v dev=/dev/cdrw speed=10 fs=8m -tao -eject -data -
 
 -----

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,14 +21,14 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=mesa
-VERSION=8.0.4
-DEMOVERS=8.0.1
+VERSION=9.1.7
+DEMOVERS=8.1.0
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j8}
 
 # Be sure this list is up-to-date:
-DRI_DRIVERS="i915,i965,nouveau,r200,radeon,swrast"
+DRI_DRIVERS="i915,i965,intel,nouveau,r200,radeon,swrast"
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -61,6 +61,9 @@ rm -rf Mesa-${VERSION}
 tar xvf $CWD/MesaLib-${VERSION}.tar.?z* || exit 1
 cd Mesa-$VERSION
 
+# Let's kill the warning about operating on a dangling symlink:
+rm -f src/gallium/state_trackers/d3d1x/w32api
+
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
@@ -83,6 +86,9 @@ if [ ! -r configure ]; then
   autoreconf || exit 1
 fi
 
+# Running autogen to avoid problems if our autotools don't match upstream's:
+./autogen.sh
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -92,8 +98,11 @@ CFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/mesa-$VERSION \
   --with-dri-driverdir=/usr/lib${LIBDIRSUFFIX}/xorg/modules/dri \
   --with-dri-drivers="$DRI_DRIVERS" \
-  --with-gallium-drivers=nouveau,swrast,r300,r600 \
+  --with-gallium-drivers=nouveau,r300,r600,svga \
   --enable-gallium-llvm \
+  --enable-shared-glapi \
+  --enable-xa \
+  --enable-osmesa \
   --build=$ARCH-slackware-linux
 
 # r300 requires llvm

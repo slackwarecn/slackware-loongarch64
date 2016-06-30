@@ -29,7 +29,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-lvm2
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -68,8 +68,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Not yet.
-#zcat $CWD/fix-build-with-udev-183.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/create-dm-run-dir.diff.gz | patch -p1 --verbose || exit 1
 
 # uid 0 = root
 # gid 6 = disk
@@ -93,6 +92,7 @@ CFLAGS="$SLKCFLAGS" \
   --with-device-mode=0660 \
   --with-default-locking-dir=/run/lock/lvm \
   --with-default-run-dir=/run/lvm \
+  --with-default-dm-run-dir=/run/lvm \
   --with-clvmd-pidfile=/run/lvm/clvmd.pid \
   --with-cmirrord-pidfile=/run/lvm/cmirrord.pid \
   --with-dmeventd-pidfile=/run/lvm/dmeventd.pid \

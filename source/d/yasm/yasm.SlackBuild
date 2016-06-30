@@ -23,14 +23,14 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 #
-# Slackware SlackBuild script 
+# Slackware SlackBuild script
 # ===========================
 # By:         Eric Hameleers <alien@slackware.com>
 # For:        yasm
 # Descr:      complete rewrite of the NASM assembler
 # URL:        http://www.tortall.net/projects/yasm/
-# Needs:      
-# Changelog:  
+# Needs:
+# Changelog:
 # 0.7.1-1:    16/Jun/2008 by Eric Hameleers <alien@slackware.com>
 #             * Initial build.
 # 0.7.2-1:    08/dec/2008 by Eric Hameleers <alien@slackware.com>
@@ -39,17 +39,18 @@
 #             * Update.
 # 1.1.0-1:    2010-08-31 by volkerdi@slackware.com
 #             * Update.
-# 
+# 1.3.0-1:    2014-11-09 by Heinz Wiesinger <pprkut@slackware.com>
+#             * Update.
+#
 # Run 'sh yasm.SlackBuild' to build a Slackware package.
-# The package (.txz) plus descriptive .txt file are created in /tmp .
-# Install using 'installpkg'. 
+# The package (.txz) file is created in /tmp .
+# Install using 'installpkg'.
 #
 # -----------------------------------------------------------------------------
 
 PKGNAM=yasm
-VERSION=${VERSION:-1.2.0}
-BUILD=${BUILD:-2}
-TAG=${TAG:-}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -74,13 +75,6 @@ SRCDIR=$(cd $(dirname $0); pwd)
 TMP=${TMP:-/tmp/build}
 PKG=$TMP/package-$PKGNAM
 OUTPUT=${OUTPUT:-/tmp}
-
-SOURCE="$SRCDIR/${PKGNAM}-${VERSION}.tar.xz"
-SRCURL="http://www.tortall.net/projects/${PKGNAM}/releases/${PKGNAM}-${VERSION}.tar.gz"
-
-##
-## --- with a little luck, you won't have to edit below this point --- ##
-##
 
 # Exit the script on errors:
 set -e
@@ -114,30 +108,6 @@ mkdir -p $PKG             # place for the package to be built
 rm -rf $PKG/*             # always erase old package's contents
 rm -rf $TMP/tmp-$PKGNAM/* # remove the remnants of previous build
 
-# Source file availability:
-if ! [ -f ${SOURCE} ]; then
-  if ! [ "x${SRCURL}" == "x" ]; then
-    # Check if the $SRCDIR is writable at all - if not, download to $OUTPUT
-    [ -w "$SRCDIR" ] || SOURCE="$OUTPUT/$(basename $SOURCE)"
-    echo "Source '$(basename ${SOURCE})' not available yet..."
-    echo "Will download file to $(dirname $SOURCE)"
-    wget -nv -T 20 -O "${SOURCE}" "${SRCURL}" || true
-    if [ $? -ne 0 -o ! -s "${SOURCE}" ]; then
-      echo "Downloading '$(basename ${SOURCE})' failed... aborting the build."
-      mv -f "${SOURCE}" "${SOURCE}".FAIL
-      exit 1
-    fi
-  else
-    echo "File '$(basename ${SOURCE})' not available... aborting the build."
-    exit 1
-  fi
-fi
-
-if [ "$P1" == "--download" ]; then
-  echo "Download complete."
-  exit 0
-fi
-
 # --- PACKAGE BUILDING ---
 
 echo "++"
@@ -146,7 +116,7 @@ echo "++"
 
 cd $TMP/tmp-$PKGNAM
 echo "Extracting the source archive(s) for $PKGNAM..."
-tar xvf ${SOURCE}
+tar xvf $SRCDIR/$PKGNAM-$VERSION.tar.?z*
 cd ${PKGNAM}-${VERSION}
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
@@ -169,23 +139,16 @@ CFLAGS="$SLKCFLAGS" \
             ${PYTHONSTUFF} \
             --program-prefix= \
             --program-suffix= \
-            --build=$ARCH-slackware-linux \
-            2>&1 | tee $OUTPUT/configure-${PKGNAM}.log
-make 2>&1 | tee $OUTPUT/make-${PKGNAM}.log
+            --build=$ARCH-slackware-linux
 
-# Install all the needed stuff to the package dir
-# Use installwatch if available, to produce a logfile of the installation
-# process that is more easily readable:
-if $(which installwatch > /dev/null 2>&1); then
-  installwatch -o $OUTPUT/install-${PKGNAM}.log make DESTDIR=$PKG install
-else
-  make DESTDIR=$PKG install 2>&1 |tee $OUTPUT/install-${PKGNAM}.log
-fi
+make
+
+make DESTDIR=$PKG install
 
 # Add documentation:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a $DOCS $PKG/usr/doc/$PKGNAM-$VERSION || true
-cp -a $SRCDIR/$(basename $0) $PKG/usr/doc/$PKGNAM-$VERSION/$PKGNAM.SlackBuild
+rm $PKG/usr/doc/$PKGNAM-$VERSION/CMakeLists.txt
 chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION
 find $PKG/usr/doc -type f -exec chmod 644 {} \;
 
@@ -208,9 +171,5 @@ cat $SRCDIR/slack-desc > $PKG/install/slack-desc
 
 # Build the package:
 cd $PKG
-makepkg --linkadd y --chown n $OUTPUT/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz 2>&1 | tee $OUTPUT/makepkg-${PKGNAM}.log
-cd $OUTPUT
-md5sum ${PKGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz > ${PKGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txz.md5
-cd -
-cat $PKG/install/slack-desc | grep "^${PKGNAM}" > $OUTPUT/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}${TAG}.txt
+makepkg --linkadd y --chown n $OUTPUT/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}.txz
 

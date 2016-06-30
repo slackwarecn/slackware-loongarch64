@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,7 +28,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,8 +37,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -79,14 +79,28 @@ CFLAGS="$SLKCFLAGS" \
   --enable-utf8 \
   --enable-pcre16 \
   --enable-pcre32 \
+  --enable-jit \
   --enable-unicode-properties \
-  --build=$ARCH-slackware-linux
+  --enable-pcregrep-libz \
+  --enable-pcregrep-libbz2 \
+  --disable-static \
+  --build=$ARCH-slackware-linux || exit 1
 
 CFLAGS="$SLKCFLAGS" make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/libpcre.so.* \
   $PKG/usr/lib${LIBDIRSUFFIX}/libpcreposix.so.*
+
+# Move libraries, as they might be needed before /usr is available:
+mkdir $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  for file in lib*.so.?.* ; do
+    mv $file ../../lib${LIBDIRSUFFIX}
+    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+  done
+  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
+)
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

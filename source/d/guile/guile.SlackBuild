@@ -23,7 +23,7 @@
 
 PKGNAM=guile
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -83,6 +83,11 @@ CFLAGS="$SLKCFLAGS" \
 # Does not like parallel make...
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Move libguile*-gdb.scm to GDB's autoload directory to avoid
+# getting "not an ELF file" errors from ldconfig:
+mkdir -p $PKG/usr/share/gdb/auto-load/usr/lib${LIBDIRSUFFIX}
+mv $PKG/usr/lib${LIBDIRSUFFIX}/libguile*-gdb.scm $PKG/usr/share/gdb/auto-load/usr/lib${LIBDIRSUFFIX} || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

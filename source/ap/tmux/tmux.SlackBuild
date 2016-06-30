@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,13 +23,13 @@
 
 PKGNAM=tmux
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i486 ;;
-    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7lh ;;
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -38,11 +38,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mcpu=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -98,6 +95,16 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Add tmux terminfo entries:
+mkdir -p $PKG/usr/share/terminfo/t
+cat <<EOF | tic -x -o $PKG/usr/share/terminfo -
+tmux|tmux terminal multiplexer,
+  ritm=\E[23m, rmso=\E[27m, sitm=\E[3m, smso=\E[7m, Ms@,
+  use=xterm+tmux, use=screen,
+tmux-256color|tmux with 256 colors,
+  use=xterm+256setaf, use=tmux,
+EOF
+
 # Strip binaries:
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -107,7 +114,9 @@ make install DESTDIR=$PKG || exit 1
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  FAQ README TODO examples \
+  FAQ README TODO \
+  examples \
+  example_tmux.conf \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # Compress and if needed symlink the man pages:

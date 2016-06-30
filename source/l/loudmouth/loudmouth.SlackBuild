@@ -23,7 +23,7 @@
 # -----------------------------------------------------------------------------
 
 PKGNAM=loudmouth
-VERSION=${VERSION:-1.5.0-20121201}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:" -j4 "}
@@ -31,15 +31,15 @@ NUMJOBS=${NUMJOBS:" -j4 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   SLKLDFLAGS=""
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
@@ -67,8 +67,6 @@ rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
-zcat $CWD/loudmouth.ld.gobject.diff.gz | patch -p1 --verbose || exit 1
-
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
@@ -90,19 +88,16 @@ LDFLAGS="$SLKLDFLAGS" \
   --with-ssl=gnutls \
   --enable-debug=yes \
   --enable-static=no \
-  --enable-gtk-doc \
+  --disable-gtk-doc \
   --program-prefix= \
   --program-suffix= \
   --build=$ARCH-slackware-linux \
-  --host=$ARCH-slackware-linux
+  --host=$ARCH-slackware-linux || exit 1
 
 ##
 ## NOTE: For some reason --enable-debug=yes actually _disables_ verbose debug
 ## messages to the console.  Don't mess with it!
 ##
-
-## this generates a broken libtool, so use the system version:
-#cp /usr/bin/libtool .
 
 # Build and install:
 make $NUMJOBS || make || exit 1

@@ -1,0 +1,66 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/main.c.monintoron ksh-20120801/src/cmd/ksh93/sh/main.c
+--- ksh-20120801/src/cmd/ksh93/sh/main.c.monintoron	2013-05-31 10:15:02.738828102 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/main.c	2013-05-31 10:15:36.057095262 +0200
+@@ -406,10 +406,10 @@ static void	exfile(register Shell_t *shp
+ 		{
+ 			buff.mode = SH_JMPEXIT;
+ 			sh_onoption(SH_TRACKALL);
+-			sh_offoption(SH_MONITOR);
+ 		}
+ 		sh_offstate(SH_INTERACTIVE);
+-		sh_offstate(SH_MONITOR);
++		if(sh_isoption(SH_MONITOR))
++			sh_onstate(SH_MONITOR);
+ 		sh_offstate(SH_HISTORY);
+ 		sh_offoption(SH_HISTORY);
+ 	}
+diff -up ksh-20120801/src/cmd/ksh93/sh/jobs.c.orig ksh-20120801/src/cmd/ksh93/sh/jobs.c
+--- ksh-20120801/src/cmd/ksh93/sh/jobs.c.orig	2013-05-31 10:12:28.358590452 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/jobs.c	2013-05-31 10:16:51.203697890 +0200
+@@ -548,7 +548,7 @@ int job_reap(register int sig)
+ 		{
+ 			px = job_byjid((int)pw->p_job);
+ 			for(; px && (px->p_flag&P_DONE); px=px->p_nxtproc);
+-			if(!px)
++			if(!px && sh_isoption(SH_INTERACTIVE))
+ 				tcsetpgrp(JOBTTY,job.mypid);
+ 		}
+ #ifndef SHOPT_BGX
+@@ -842,10 +842,11 @@ static void job_set(register struct proc
+ 
+ static void job_reset(register struct process *pw)
+ {
++	Shell_t *shp = pw->p_shp;
+ 	/* save the terminal state for current job */
+ #ifdef SIGTSTP
+ 	job_fgrp(pw,tcgetpgrp(job.fd));
+-	if(tcsetpgrp(job.fd,job.mypid) !=0)
++	if(sh_isoption(SH_INTERACTIVE) && tcsetpgrp(job.fd,job.mypid) !=0)
+ 		return;
+ #endif	/* SIGTSTP */
+ 	/* force the following tty_get() to do a tcgetattr() unless fg */
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.orig ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.orig	2013-05-31 10:12:27.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2013-05-31 10:18:14.650367185 +0200
+@@ -2201,7 +2201,7 @@ int sh_exec(register const Shnode_t *t,
+ 			}
+ 			shp->exitval = n;
+ #ifdef SIGTSTP
+-			if(!pipejob && sh_isstate(SH_MONITOR))
++			if(!pipejob && sh_isstate(SH_MONITOR) && sh_isoption(SH_INTERACTIVE))
+ 				tcsetpgrp(JOBTTY,shp->gd->pid);
+ #endif /*SIGTSTP */
+ 			job.curpgid = savepgid;
+diff -up ksh-20120801/src/cmd/ksh93/edit/edit.c.kshmfix ksh-20120801/src/cmd/ksh93/edit/edit.c
+--- ksh-20120801/src/cmd/ksh93/edit/edit.c.kshmfix      2013-09-23 10:46:57.007256192 +0200
++++ ksh-20120801/src/cmd/ksh93/edit/edit.c      2013-09-23 10:47:43.988937610 +0200
+@@ -1050,7 +1050,7 @@ int ed_getchar(register Edit_t *ep,int m
+ 		{
+ 			if(mode<=0 && -c == ep->e_intr)
+ 			{
+-				sh_fault(SIGINT);
++				killpg(getpgrp(),SIGINT);
+ 				siglongjmp(ep->e_env, UINTR);
+ 			}
+ 			if(mode<=0 && ep->sh->st.trap[SH_KEYTRAP])
+

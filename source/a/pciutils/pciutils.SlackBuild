@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,14 +22,14 @@
 
 
 VERSION=${VERSION:-$(echo pciutils-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
-NUMJOBS=${NUMJOBS:--j3}
+NUMJOBS=${NUMJOBS:--j7}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-pciutils
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
@@ -56,7 +56,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf pciutils-$VERSION
 tar xvf $CWD/pciutils-$VERSION.tar.xz || exit 1
-cd pciutils-$VERSION
+cd pciutils-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -66,20 +66,9 @@ find . \
   -exec chmod 644 {} \;
 
 zcat $CWD/pciutils.dontcompress.diff.gz | patch -p1 || exit 1
-zcat $CWD/pciutils.update.pci.ids.url.diff.gz | patch -p1 || exit 1
 
-make \
-  PREFIX=/usr \
-  SBINDIR=/sbin \
-  LIBDIR=/usr/lib${LIBDIRSUFFIX} \
-  MANDIR=/usr/man \
-  IDSDIR=/usr/share/hwdata \
-  PCI_IDS=pci.ids \
-  PCI_COMPRESSED_IDS=0 \
-  SHARED=no \
-  OPT="$SLKCFLAGS" \
-  $NUMJOBS || exit 1
-
+# Build/install the library and utilities:
+make clean
 make install install-lib \
   PREFIX=/usr \
   SBINDIR=/sbin \
@@ -88,17 +77,30 @@ make install install-lib \
   IDSDIR=/usr/share/hwdata \
   PCI_IDS=pci.ids \
   PCI_COMPRESSED_IDS=0 \
-  SHARED=no \
-  DESTDIR=$PKG
+  SHARED=yes \
+  OPT="$SLKCFLAGS" \
+  DESTDIR=$PKG || exit 1
+
+chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/libpci.so.*
+
+# Move libraries, as they might be needed by programs that bring a network
+# mounted /usr online:
+mkdir $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  for file in lib*.so.?.* ; do
+    mv $file ../../lib${LIBDIRSUFFIX}
+    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+  done
+  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
+)
 
 mkdir -p $PKG/usr/sbin
 mv $PKG/sbin/update-pciids $PKG/usr/sbin/update-pciids
 
-# Do not compress pci.ids
-( cd $PKG/usr/share ; gzip -d pci.ids.gz )
-
-# Put a compat symlink in place 
-ln -s hwdata/pci.ids $PKG/usr/share/pci.ids
+# Use pci.ids from hwdata package
+rm -f $PKG/usr/share/hwdata/pci.ids
+# Remove empty directories:
+rmdir $PKG/usr/share/hwdata $PKG/usr/share
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -120,7 +122,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/pciutils-$VERSION
 cp -a \
-  COPYING* README TODO \
+  COPYING* README* TODO \
   $PKG/usr/doc/pciutils-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

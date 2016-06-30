@@ -3,7 +3,7 @@
 # Slackware build script for ntfs-3g
 
 # Copyright 2008  Antonio Hernandez Blas <hba.nihilismus@gmail.com>
-# Copyright 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,24 +27,24 @@
 # Modified by Eric Hameleers <alien@slackware.com>
 
 PKGNAM=ntfs-3g
-VERSION=2013.1.13
+SRCNAM=ntfs-3g_ntfsprogs
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-SRCNAM=ntfs-3g_ntfsprogs
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
@@ -90,6 +90,10 @@ CXXFLAGS="$SLKCFLAGS" \
   || exit 1
 
 make $NUMJOBS || make || exit 1
+
+# Installation bug kludge:
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+
 make install DESTDIR=$PKG || exit 1
 
 # I hate to do this (it worked without it before), but recently /bin/ntfs-3g

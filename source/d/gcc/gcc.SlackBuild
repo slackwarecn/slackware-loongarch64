@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -44,9 +44,17 @@
 # I see no reason to continue 386 support in the latest Slackware (and indeed
 # it's no longer easily possible).
 
+# Some more notes, Mon Aug  3 19:49:51 UTC 2015:
+#
+# Changing to -march=i586 for 32-bit x86 as several things (Mesa being one of
+# them) no longer work if constrained to -march=i486.  We're not going to use
+# -march=i686 since the only additional opcode is CMOV, which is actually less
+# efficient on modern CPUs running in 32-bit mode than the alternate i586
+# instructions.  No need to throw i586 CPUs under the bus (yet).
+
 PKGNAM=gcc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # How many jobs to run in parallel:
 NUMJOBS=" -j 7 "
@@ -54,8 +62,8 @@ NUMJOBS=" -j 7 "
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i486 ;;
-    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7lh ;;
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -137,13 +145,14 @@ cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
 cd $TMP
 tar xvf $CWD/gcc-$VERSION.tar.?z*
 
-#( cd gcc-$VERSION
-#  If we had any patches, we would apply them here, but we're .diff free now.
-#) || exit 1
+( cd gcc-$VERSION/gcc
+  zcat $CWD/gcc.66782.diff.gz | patch -p0 --verbose || exit 1
+  zcat $CWD/gcc.69140.diff.gz | patch -p2 --verbose || exit 1
+) || exit 1
 
 # Copy ecj.jar into the TLD of the source. Needed for java compiler.
 # This can be retrieved from ftp://sourceware.org/pub/java
-cp $CWD/ecj-4.5.jar gcc-$VERSION/ecj.jar
+cp $CWD/ecj-4.9.jar gcc-$VERSION/ecj.jar
 
 # Use an antlr runtime to compile javadoc.
 # The runtime can be obtained from:
@@ -393,7 +402,7 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
   # If enough people need "treelang" support for it may be considered.
   #  --enable-languages=ada,c,c++,fortran,java,objc,treelang
   # I think it's incorrect to include this option (as it'll end up set
-  # to i486 on x86 platforms), and we want to tune the binary structure
+  # to i586 on x86 platforms), and we want to tune the binary structure
   # for i686, as that's where almost all of the optimization speedups
   # are to be found.
   # Correct me if my take on this is wrong.
@@ -405,6 +414,9 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
     GCC_ARCHOPTS="--disable-multilib"
   fi
  
+  # NOTE:  For Slackware 15.0, look into removing --with-default-libstdcxx-abi=gcc4-compatible,
+  # which will then require rebuilding all C++ libraries.  That is, if there's any benefit.
+
   CFLAGS="$SLKCFLAGS" \
   CXXFLAGS="$SLKCFLAGS" \
   ../gcc-$VERSION/configure --prefix=/usr \
@@ -419,10 +431,13 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
      --enable-objc-gc \
      --with-system-zlib \
      --with-python-dir=/lib$LIBDIRSUFFIX/python2.7/site-packages \
+     --enable-libstdcxx-dual-abi \
+     --with-default-libstdcxx-abi=gcc4-compatible \
      --disable-libunwind-exceptions \
      --enable-__cxa_atexit \
      --enable-libssp \
      --enable-lto \
+     --disable-install-libiberty \
      --with-gnu-ld \
      --verbose \
      --enable-java-home \
@@ -489,10 +504,6 @@ chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
 rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj.a
 rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj-tools.a
 
-# This is provided by binutils, so delete it here:
-rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libiberty.a
-rm -f $PKG1/usr/lib/libiberty.a # catch-all
-
 # Fix stuff up:
 ( cd $PKG1/usr/info ; rm dir ; gzip -9 * )
 ( cd $PKG1
@@ -528,6 +539,9 @@ rm -f $PKG1/usr/lib/libiberty.a # catch-all
   ln -sf gfortran-gcc-$VERSION ${TARGET}-g77
   ln -sf gfortran g77
   ln -sf gfortran f77
+  cat $CWD/c89.sh > c89
+  cat $CWD/c99.sh > c99
+  chmod 755 c89 c99
 )
 
 ( cd $PKG1/usr/man
@@ -735,19 +749,22 @@ mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
 ( cd $PKG8
   mkdir -p usr/bin
   mv $PKG1/usr/bin/*gccgo* usr/bin
+  mv $PKG1/usr/bin/go{,fmt} usr/bin
   mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/go1 usr/libexec/gcc/$TARGET/$VERSION/go1
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/{cgo,go1} usr/libexec/gcc/$TARGET/$VERSION
   mkdir -p usr/info
   mv $PKG1/usr/info/gccgo.info.gz usr/info
   mkdir -p usr/lib${LIBDIRSUFFIX}
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.la,libgo.so*,libgobegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.la,libgo.so*,libgobegin.a,libgolibbegin.a,libnetgo.a} usr/lib${LIBDIRSUFFIX} || exit 1
   # Ordinarily Slackware doesn't package static libraries, but in this case
   # it is useful for deploying compiled binaries on machines that do not yet
   # have libgo.so.0.0.0.
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a usr/lib${LIBDIRSUFFIX}
   mkdir -p usr/man/man1
   mv $PKG1/usr/man/man1/gccgo.1.gz usr/man/man1
+  mv $PKG1/usr/man/man1/go.1.gz usr/man/man1
+  mv $PKG1/usr/man/man1/gofmt.1.gz usr/man/man1
 ) || exit 1
 
 # Filter all .la files (thanks much to Mark Post for the sed script):

@@ -24,7 +24,7 @@
 
 PKGNAM=ebook-tools
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -32,7 +32,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -40,8 +40,8 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -76,6 +76,9 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# Patch from svn to support epub3 fixed layout
+zcat $CWD/epub3_fixed_layout.patch.gz | patch -p0 --verbose || exit 1
+
 # Build and install:
 mkdir -p build
 cd build
@@ -95,7 +98,7 @@ cd -
 
 # Remove lit2epub binary because it doesn't work without clit (which has
 # distribution restrictions so we do not include it)
-rm -f $PKG/usr/bin/lit2epub 
+rm -f $PKG/usr/bin/lit2epub
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

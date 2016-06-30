@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -37,7 +37,7 @@ BUILD=${BUILD:-1}
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -45,10 +45,12 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mcpu=i686"
+elif [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
@@ -98,10 +100,10 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --build=$TARGET
+  --build=$TARGET || exit 1
 
-make -j4 || make || exit 1
-make install DESTDIR=$PKG
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
 mv $PKG/usr/share/doc $PKG/usr
 mkdir -p $PKG/bin
 mv $PKG/usr/bin/bash $PKG/bin/bash4.new
@@ -145,8 +147,8 @@ if [ -d $PKG/usr/info ]; then
 fi
 
 mkdir -p $PKG/usr/doc/bash-$VERSION
-cp -a AUTHORS CHANGES COMPAT COPYING INSTALL MANIFEST NEWS NOTES \
-  README Y2K doc/FAQ doc/INTRO \
+cp -a AUTHORS CHANGES COMPAT COPYING* INSTALL MANIFEST NEWS NOTES \
+  README* Y2K doc/FAQ doc/INTRO \
   $PKG/usr/doc/bash-$VERSION
 ( cd doc ; groff -ms -Tascii article.ms > $PKG/usr/doc/bash-$VERSION/article.txt )
 

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Busybox version: 1.20.1
-# Tue Jun 12 09:42:03 2012
+# Busybox version: 1.20.2
+# Wed Jun  8 14:48:15 2016
 #
 CONFIG_HAVE_DOT_CONFIG=y
 
@@ -509,10 +509,10 @@ CONFIG_DEPMOD=y
 #
 # Options common to multiple modutils
 #
-CONFIG_FEATURE_2_4_MODULES=y
+# CONFIG_FEATURE_2_4_MODULES is not set
 # CONFIG_FEATURE_INSMOD_TRY_MMAP is not set
 # CONFIG_FEATURE_INSMOD_VERSION_CHECKING is not set
-CONFIG_FEATURE_INSMOD_KSYMOOPS_SYMBOLS=y
+# CONFIG_FEATURE_INSMOD_KSYMOOPS_SYMBOLS is not set
 # CONFIG_FEATURE_INSMOD_LOADINKMEM is not set
 # CONFIG_FEATURE_INSMOD_LOAD_MAP is not set
 # CONFIG_FEATURE_INSMOD_LOAD_MAP_FULL is not set

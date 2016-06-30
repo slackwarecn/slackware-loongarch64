@@ -9,4 +9,4 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config etc/stunnel/stunnel.cnf.new
+config etc/stunnel/openssl.cnf.new

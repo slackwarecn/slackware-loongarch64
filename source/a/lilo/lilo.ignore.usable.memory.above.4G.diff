@@ -1,0 +1,42 @@
+From Sl4ck3ver on LQ:
+http://www.linuxquestions.org/questions/slackware-14/[patch]-found-a-nasty-lilo-bug-with-a-2-line-fix-for-14-2-a-4175577969/
+
+Every BIOS-e820 entry contains start and size of the area as 64-bit value
+and is shifted right 10 bits (1024) with "shrd" while searching for the
+largest "usable" memory range entry.
+
+
+Finally the found values are converted back into real addresses by shifting
+left 10 bits...
+
+BUT this is done the wrong only using a 32-bit register so the high dword is lost!!!
+
+0x000000027fffffff gets 0x000000007fffffff :-(
+
+Every EXISTING system which happens to work fine just happens to
+have an entry which just contains "usable" memory at that address.
+Often in the form of an entry like:
+
+BIOS-e820: [mem 0x0000000000100000-0x00000000fxxxxxxx] usable
+
+Virtually all systems have "usable" memory at that position, so until
+now this bug was not noticed!
+
+
+HERE IS THE FIX, A 2-LINER:
+===========================
+
+Ignore any usable memory range not starting below 4GB and
+so avoid the truncation, really just a work around :-)
+
+--- ./src/second.S.orig	2016-04-21 15:12:57.155456806 -0500
++++ ./src/second.S	2016-04-21 15:15:08.918466313 -0500
+@@ -2975,6 +2975,8 @@
+ 	shrd	memmap+8,eax,#10 ; convert to 1k
+ 	cmp	dword memmap,#1024	; below 1M
+ 	jb	e8go2		; below 1M, no interest
++	cmp	dword memmap,#4*1024*1024	; above 4G
++	jae	e8go2		; above 4G, no interest
+ 	cmp	esi,memmap+8	; check size
+ 	ja	e8go2		; want largest
+ 	mov	edx,memmap	; start (in 1k)

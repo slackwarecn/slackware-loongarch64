@@ -22,7 +22,9 @@ if [ -e etc/rc.d/rc.php-fpm ]; then
   mv etc/rc.d/rc.php-fpm.new.incoming etc/rc.d/rc.php-fpm.new
 fi
 config etc/rc.d/rc.php-fpm.new
-cp -a etc/httpd/php.ini-production etc/httpd/php.ini.new
-config etc/httpd/php.ini.new
-cp -a etc/php-fpm/php-fpm.conf.default etc/php-fpm/php-fpm.conf.new
-config etc/php-fpm/php-fpm.conf.new
+cp -a etc/php.ini-production etc/php.ini.new
+config etc/php.ini.new
+cp -a etc/php-fpm.conf.default etc/php-fpm.conf.new
+config etc/php-fpm.conf.new
+cp -a etc/php-fpm.conf.default etc/php-fpm.conf.new
+config etc/php-fpm.conf.new

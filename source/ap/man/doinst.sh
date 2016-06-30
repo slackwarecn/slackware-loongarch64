@@ -10,5 +10,10 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config usr/lib/man.conf.new
+# Move old config file if there's nothing in the way:
+if [ -r usr/lib/man.conf -a ! -r etc/man.conf ]; then
+  mv usr/lib/man.conf etc/man.conf
+fi
+# Install new config file if none exists:
+config etc/man.conf.new
 

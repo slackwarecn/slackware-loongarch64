@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,12 +22,12 @@
 
 
 VERSION=1.6g
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -38,8 +38,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-man
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -56,8 +56,11 @@ cd $TMP
 rm -rf $PKG
 mkdir -p $TMP $PKG
 rm -rf man-$VERSION
-tar xvf $CWD/man-$VERSION.tar.xz
-cd man-$VERSION
+tar xvf $CWD/man-$VERSION.tar.xz || exit 1
+cd man-$VERSION || exit 1
+
+# Fix conditional in makewhatis:
+zcat $CWD/makewhatis.bzcat.bugfix.diff.gz | patch -p1 --verbose || exit 1
 
 # In man.conf, set NROFF to "/usr/bin/nroff -mandoc" rather
 # than "/usr/bin/nroff -Tlatin1".  This works better with
@@ -72,10 +75,10 @@ find . \
  -exec chmod 644 {} \;
 
 # configure doesn't care about CFLAGS
-./configure +lang all +traditional -confdir /usr/lib${LIBDIRSUFFIX}
-make CFLAGS="$SLKCFLAGS"
-make install PREFIX=$PKG
-mv $PKG/usr/lib${LIBDIRSUFFIX}/man.conf $PKG/usr/lib${LIBDIRSUFFIX}/man.conf.new
+./configure +lang all +traditional -confdir /etc
+make CFLAGS="$SLKCFLAGS" || exit 1
+make install PREFIX=$PKG || exit 1
+mv $PKG/etc/man.conf $PKG/etc/man.conf.new
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

@@ -23,7 +23,7 @@
 
 
 PKGNAM=libdiscid
-VERSION=${VERSION:-0.2.2}
+VERSION=${VERSION:-0.6.1}
 BUILD=${BUILD:-1}
 
 CWD=$(pwd)
@@ -69,21 +69,18 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Configure:
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --disable-static \
-  --mandir=/usr/man \
-  --program-prefix= \
-  --program-suffix= \
-  --build=$ARCH-slackware-linux
-
-# Build and install:
+mkdir build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    ..
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+cd -
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

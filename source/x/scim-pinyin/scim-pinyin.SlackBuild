@@ -23,7 +23,7 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 #
-# Slackware SlackBuild script 
+# Slackware SlackBuild script
 # ===========================
 # By:        Eric Hameleers <alien@slackware.com>
 # For:       scim-pinyin
@@ -36,21 +36,21 @@
 PKGNAM=scim-pinyin
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i486 ;;
-    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7lh ;;
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
   export ARCH
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -68,11 +68,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar -xvf $CWD/${PKGNAM}-${VERSION}.tar.gz || exit 1
+tar -xvf $CWD/${PKGNAM}-${VERSION}.tar.?z* || exit 1
 cd ${PKGNAM}-${VERSION} || exit 1
-
-# Apply fix for our gcc 4.3.x
-zcat $CWD/scim-pinyin.gcc43.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -95,22 +92,6 @@ CFLAGS="$SLKCFLAGS" \
 
 make $NUMJOBS || make || exit 1
 make DESTDIR=$PKG install || exit 1
-
-#cd skim
-#echo Building skim ...
-#CFLAGS="$SLKCFLAGS" \
-#./configure \
-#  --prefix=$(kde-config --prefix) \
-#  --localstatedir=/var \
-#  --sysconfdir=/etc \
-#  --disable-static \
-#  --without-arts \
-#  --program-prefix= \
-#  --program-suffix= \
-#  --build=$ARCH-slackware-linux
-#make $NUMJOBS || make || exit 1
-#make DESTDIR=$PKG install || exit 1
-#cd -
 
 # Add documentation:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION

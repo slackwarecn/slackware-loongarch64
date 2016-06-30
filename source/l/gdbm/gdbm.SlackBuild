@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,12 +26,12 @@
 
 PKGNAM=gdbm
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -44,8 +44,8 @@ PKG=$TMP/package-gdbm
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -63,15 +63,31 @@ rm -rf gdbm-$VERSION
 tar xvf $CWD/gdbm-$VERSION.tar.?z* || exit 1
 cd gdbm-$VERSION || exit 1
 chown -R root:root .
-find . -perm 700 -exec chmod 755 {} \;
-find . -perm 600 -exec chmod 644 {} \;
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+# Prevent gdbm from storing uninitialized memory content
+# to database files. This patch improves security, as the
+# uninitialized memory might contain sensitive informations
+# from other applications.
+# https://bugzilla.redhat.com/show_bug.cgi?id=4457
+# http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=208927
+zcat $CWD/gdbm.zeroheaders.patch.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --infodir=/usr/info \
+  --mandir=/usr/man \
   --build=$ARCH-slackware-linux
+
 make -j4 || exit 1
-make install INSTALL_ROOT=$PKG
+
+make install DESTDIR=$PKG
 
 # I'm not sure what out there would need the "libgdbm_compat" library,
 # but it causes versions of ndbm.h and dbm.h to be installed that break
@@ -80,13 +96,17 @@ make install INSTALL_ROOT=$PKG
 # enough, either.  File this one under "not worth it".
 #make install-compat INSTALL_ROOT=$PKG
 
-( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+find $PKG | xargs file | grep -e "executable" -e "shared object" \
+  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $( find . -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 )
+
 mkdir -p $PKG/usr/doc/gdbm-$VERSION
 cp -a \
-  COPYING* NEWS README* \
+  ABOUT-NLS AUTHORS COPYING* NEWS NOTE-WARNING README* THANKS \
   $PKG/usr/doc/gdbm-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -99,7 +119,6 @@ fi
 
 rm -f $PKG/usr/info/dir
 gzip -9 $PKG/usr/info/gdbm.info
-gzip -9 $PKG/usr/man/man3/gdbm.3
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 

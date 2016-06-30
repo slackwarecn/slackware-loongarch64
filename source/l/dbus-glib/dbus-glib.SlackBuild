@@ -29,7 +29,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -42,8 +42,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -86,6 +86,13 @@ make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Put bash-completion file in system directory:
+mkdir -p $PKG/usr/share/bash-completion/completions/
+mv $PKG/etc/bash_completion.d/dbus-bash-completion.sh \
+   $PKG/usr/share/bash-completion/completions/dbus
+chmod 0644 $PKG/usr/share/bash-completion/completions/dbus
+rmdir --parents $PKG/etc/bash_completion.d 2>/dev/null
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then

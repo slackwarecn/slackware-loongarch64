@@ -225,7 +225,7 @@ function add_usb_keyboard() {
   local USBMOD
   if cat /proc/bus/input/devices | sed -e 's/^$/\$/g' | \
      tr "\n$" " \n" | grep -q " Phys=.*usb.* .*Handlers=.*kbd.*B:"; then
-     USBMOD="usbhid:hid_generic"
+     USBMOD="xhci-pci:ohci-pci:ehci-pci:xhci-hcd:uhci-hcd:ehci-hcd:hid:usbhid:i2c-hid:hid_generic:hid-cherry:hid-logitech:hid-logitech-dj:hid-logitech-hidpp:hid-lenovo:hid-microsoft:hid_multitouch"
      [ -n "$MLIST" ] && MLIST="$MLIST:$USBMOD" \
                      || MLIST="$USBMOD"
   fi
@@ -235,7 +235,7 @@ function add_usb_keyboard() {
 # Determine what USB Host Controller is in use
 function add_usb_hcd() {
   local USBMOD
-  for i in $(ls -Ld /sys/module/*_hcd/drivers/*); do 
+  for i in $(ls -Ld /sys/module/*_hcd/drivers/* 2> /dev/null); do 
     if ls -L $i | grep -q "[0-9a-f]*:" ; then
       USBMOD=$( echo $i | cut -f4 -d/ | tr "_" "-")
       [ -n "$MLIST" ] && MLIST="$MLIST:$USBMOD" \
@@ -409,7 +409,7 @@ fi
 # and check if modules for this kernel are actually present:
 if [ -z "$KVER" ]; then
   if [ -n "$KFILE" ]; then
-    KVER="$(strings $KFILE | grep '(.*@.*) #' | cut -f1 -d' ')"
+    KVER="$(strings $KFILE | grep '([^ ]*@[^ ]*) #' | cut -f1 -d' ')"
   else
     KVER="$(uname -r)"
   fi

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2010, 2012, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2010, 2012, 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -30,13 +30,14 @@ if [ ! -d $TMP ]; then
 fi
 PKG=/tmp/package-brltty
 
-VERSION=4.5
-BUILD=${BUILD:-1}
+PKGNAM=brltty
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -49,6 +50,8 @@ else
   LIBDIRSUFFIX=""
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
@@ -57,6 +60,7 @@ tar xvf $CWD/brltty-$VERSION.tar.?z* || exit 1
 cd brltty-$VERSION
 
 zcat $CWD/brltty.brlapi.pyx.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/brltty.fix.blanks.diff.gz | patch -p1 --verbose || exit 1
 
 sh autogen
 
@@ -66,6 +70,7 @@ find . -perm 700 -exec chmod 755 {} \;
 find . -perm 744 -exec chmod 755 {} \;
 find . -perm 664 -exec chmod 644 {} \;
 find . -perm 600 -exec chmod 644 {} \;
+
 ./configure \
   --prefix=/usr \
   --bindir=/bin \
@@ -76,10 +81,15 @@ find . -perm 600 -exec chmod 644 {} \;
   --sysconfdir=/etc \
   --localstatedir=/var \
   --disable-java-bindings \
-  --build=$ARCH-slackware-linux
-make -j2 || exit 1
+  --build=$ARCH-slackware-linux || exit 1
+
+make $NUMJOBS || exit 1
 make install INSTALL_ROOT=$PKG || exit 1
 chmod 755 $PKG/bin/* $PKG/lib${LIBDIRSUFFIX}/brltty/*
+
+# Add udev rules:
+mkdir -p $PKG/lib/udev/rules.d
+cp Autostart/Udev/udev.rules $PKG/lib/udev/rules.d/40-usb-brltty.rules
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -89,9 +99,8 @@ chmod 755 $PKG/bin/* $PKG/lib${LIBDIRSUFFIX}/brltty/*
 mkdir -p $PKG/usr/doc/brltty-$VERSION
 cp -a \
   README* COPYING* \
-  Documents/{Manual-*,TODO,CONTRIBUTORS,HISTORY,README.*} \
+  Documents/{ChangeLog,Manual-*,TODO,CONTRIBUTORS,HISTORY,README.*} \
   $PKG/usr/doc/brltty-$VERSION
-cat Documents/ChangeLog | head -n 150 > $PKG/usr/doc/brltty-$VERSION/ChangeLog
 ( cd $PKG/usr/doc/brltty-$VERSION
   find . -name "Makefile*" -exec rm -f {} \;
   find . -name "*.sgml" -exec rm -f {} \;

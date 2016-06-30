@@ -26,7 +26,7 @@ BUILD=1
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -38,8 +38,8 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 if [ "$ARCH" = "i386" ]; then
   SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
   LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -63,10 +63,8 @@ rm -rf tiff-$VERSION
 tar xvf $CWD/tiff-$VERSION.tar.?z* || exit 1
 cd tiff-$VERSION
 
-zcat $CWD/tiff-3.9.7_CVE-2012-4447_CVE-2012-4564_CVE-2013-1960_CVE-2013-1961.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/tiff-3.9.7_CVE-2013-4231.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/tiff-3.9.7_CVE-2013-4232.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/tiff-3.9.7_CVE-2013-4244.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libtiff-am-version.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libtiff-make-check.patch.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -80,6 +78,7 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  --disable-static \
   --program-prefix="" \
   --program-suffix="" \
   --build=$ARCH-slackware-linux

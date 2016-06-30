@@ -1,8 +1,6 @@
 #!/bin/sh
 
-# Slackware build script for bluez - http://www.bluez.org
-
-# Copyright 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,23 +21,23 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=bluez
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:-" -j7 "}
+NUMJOBS=${NUMJOBS:--j7}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -61,8 +59,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/${PKGNAM}-${VERSION}.tar.xz || exit 1
-cd $PKGNAM-$VERSION
-
+cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -70,88 +67,55 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Start bluetoothd via a wrapper script to check rc.bluetooth's +/-x first
-zcat $CWD/bluez-run_udev_helper.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bluez-5.30-obexd_without_systemd-1.patch.gz | patch -p1 --verbose || exit 1
 
-# Enable the audio socket in audio.conf:
-zcat $CWD/bluez.enable.audio.socket.diff.gz | patch -p1 --verbose || exit 1
+autoreconf -vif
+
+sed -i -e 's|-lreadline|\0 -lncursesw|g' Makefile.{in,tools}
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
+LDFLAGS="-L/usr/lib$LIBDIRSUFFIX" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --localstatedir=/var \
-  --enable-datafiles \
-  --enable-audio \
-  --enable-gstreamer \
-  --enable-alsa \
-  --enable-usb \
-  --enable-tools\
-  --enable-input \
-  --enable-bccmd \
-  --enable-hid2hci \
-  --enable-dfutool \
-  --enable-hidd \
-  --enable-pand \
-  --enable-dund \
-  --enable-cups \
-  --enable-service \
-  --enable-network \
-  --enable-serial \
-  --enable-health \
-  --enable-pnat \
-  --enable-maemo6 \
-  --enable-wiimote \
-  --enable-test \
-  --enable-dbusoob \
-  --with-ouifile=/usr/share/hwdata/oui.txt \
-  --disable-silent-rules \
-  --build=$ARCH-slackware-linux
+  --docdir=/usr/doc/${PKGNAM}-${VERSION} \
+  --enable-library \
+  --disable-systemd \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-cp scripts/bluetooth-serial.rules $PKG/lib/udev/rules.d/97-bluetooth-serial.rules || exit 1
-cp -a scripts/bluetooth_serial $PKG/lib/udev/bluetooth_serial || exit 1
-chmod 0755 $PKG/lib/udev/bluetooth_serial
+# Use reset=1 for the btusb module, which supposedly fixes reconnect problems:
+mkdir -p $PKG/lib/modprobe.d
+cp -a $CWD/btusb.conf $PKG/lib/modprobe.d
+chown root:root $PKG/lib/modprobe.d/btusb.conf
+chmod 644 $PKG/lib/modprobe.d/btusb.conf
 
-mkdir -p $PKG/etc/bluetooth
-cp -a audio/audio.conf $PKG/etc/bluetooth
-cp -a input/input.conf $PKG/etc/bluetooth
-cp -a network/network.conf $PKG/etc/bluetooth
-cp -a serial/serial.conf $PKG/etc/bluetooth
-chmod 644 $PKG/etc/bluetooth/*.conf
+# Add bluetoothd to /usr/sbin
+mkdir -p $PKG/usr/sbin
+ln -s ../libexec/bluetooth/bluetoothd $PKG/usr/sbin
 
-mkdir -p $PKG/etc/alsa
-mv $PKG/usr/share/alsa/bluetooth.conf $PKG/etc/alsa
-( cd $PKG/usr/share/alsa ; ln -s ../../../etc/alsa/bluetooth.conf . )
-
-# Do not overwrite configuration
-# Well, let the dbus file be overwritten, as it is not usually user-edited.
-( cd $PKG
-  for file in \
-    etc/alsa/bluetooth.conf \
-    etc/bluetooth/audio.conf \
-    etc/bluetooth/input.conf \
-    etc/bluetooth/network.conf \
-    etc/bluetooth/serial.conf \
-    etc/bluetooth/rfcomm.conf \
-    etc/bluetooth/main.conf \
-    etc/modprobe.d/bluetooth.conf ; do 
-      mv ${file} ${file}.new
-  done
-)
-
-# Add the wrapper script
-cat $CWD/config/bluetooth.sh > $PKG/lib/udev/bluetooth.sh
-chmod 0755 $PKG/lib/udev/bluetooth.sh
+# Install the configuration files
+mkdir -p $PKG/etc/bluetooth $PKG/etc/default
+cat src/main.conf > $PKG/etc/bluetooth/main.conf.new
+cat profiles/input/input.conf > $PKG/etc/bluetooth/input.conf.new
+cat profiles/network/network.conf > $PKG/etc/bluetooth/network.conf.new
+cat profiles/proximity/proximity.conf > $PKG/etc/bluetooth/proximity.conf.new
+cat $CWD/config/uart.conf > $PKG/etc/bluetooth/uart.conf.new
+cat $CWD/config/defaultconfig > $PKG/etc/default/bluetooth.new
 
 # Add an init script
 mkdir -p $PKG/etc/rc.d
 cat $CWD/config/rc.bluetooth > $PKG/etc/rc.d/rc.bluetooth.new
+
+# Let's go ahead and let that start by default, unless an existing init
+# script is not executable:
+chmod 755 $PKG/etc/rc.d/rc.bluetooth.new
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then
@@ -173,7 +137,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README* \
+  AUTHORS COPYING* INSTALL README* TODO \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -185,9 +149,9 @@ if [ -r ChangeLog ]; then
 fi
 
 mkdir -p $PKG/install
-cat $CWD/slack-desc > $PKG/install/slack-desc
+
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

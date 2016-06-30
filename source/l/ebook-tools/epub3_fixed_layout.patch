@@ -1,0 +1,160 @@
+Index: src/libepub/opf.c
+===================================================================
+--- src/libepub/opf.c	(revision 147)
++++ src/libepub/opf.c	(revision 148)
+@@ -184,12 +184,16 @@
+       struct meta *new = malloc(sizeof(struct meta));
+       new->name = xmlTextReaderGetAttribute(reader, (xmlChar *)"name");
+       new->content = xmlTextReaderGetAttribute(reader, (xmlChar *)"content");
++      new->property = xmlTextReaderGetAttribute(reader, (xmlChar *)"property");
++      new->value = string;
+       
+       AddNode(meta->meta, NewListNode(meta->meta, new));
+-      if (string)
+-        free(string);
+       _epub_print_debug(opf->epub, DEBUG_INFO, "meta is %s: %s", 
+                         new->name, new->content); 
++      if (new->property) {
++        _epub_print_debug(opf->epub, DEBUG_INFO, "meta has property %s: %s", 
++                        new->property, new->value); 
++      }
+     } else if (xmlStrcasecmp(local, (xmlChar *)"date") == 0) {
+       struct date *new = malloc(sizeof(struct date));
+       new->date = string;
+@@ -647,7 +651,7 @@
+ 
+ void _opf_parse_spine(struct opf *opf, xmlTextReaderPtr reader) {
+   int ret;
+-  xmlChar *linear;
++  xmlChar *linear, *properties;
+ 
+   _epub_print_debug(opf->epub, DEBUG_INFO, "parsing spine");
+   
+@@ -707,7 +711,25 @@
+ 
+     if(linear)
+         free(linear);
+-    
++
++    properties = xmlTextReaderGetAttribute(reader, (xmlChar *)"properties");
++    if (properties) {
++      if (xmlStrcasecmp(properties, (xmlChar *)"rendition:page-spread-center") == 0) {
++        item->spreadPosition = PAGE_SPREAD_CENTER;
++      } else if (xmlStrcasecmp(properties, (xmlChar *)"page-spread-left") == 0) {
++        item->spreadPosition = PAGE_SPREAD_LEFT;
++      } else if (xmlStrcasecmp(properties, (xmlChar *)"page-spread-right") == 0) {
++        item->spreadPosition = PAGE_SPREAD_RIGHT;
++      } else {
++        item->spreadPosition = PAGE_SPREAD_UNKNOWN;
++      }
++    } else {
++      item->spreadPosition = PAGE_SPREAD_UNKNOWN;
++    }
++
++    if(properties)
++        free(properties);
++
+      AddNode(opf->spine, NewListNode(opf->spine, item));
+      
+     // decide what to do with non linear items
+@@ -884,7 +906,7 @@
+   DumpList(opf->metadata->creator, (ListDumpFunc)_list_dump_creator);
+   printf("Identifier(s):\n   ");
+   DumpList(opf->metadata->id, (ListDumpFunc)_list_dump_id);
+-  printf("Reading order:\n   ");
++  printf("Reading order:\n");
+   DumpList(opf->spine, (ListDumpFunc)_list_dump_spine);
+   printf("\n");
+   if (opf->guide) {
+Index: src/libepub/epub_shared.h
+===================================================================
+--- src/libepub/epub_shared.h	(revision 147)
++++ src/libepub/epub_shared.h	(revision 148)
+@@ -52,4 +52,14 @@
+   TITERATOR_PAGES /**< The pages of the ebook */
+ };
+ 
++/**
++   The page-spread-* properties
++*/
++enum page_spread_position {
++  PAGE_SPREAD_CENTER,
++  PAGE_SPREAD_LEFT,
++  PAGE_SPREAD_RIGHT,
++  PAGE_SPREAD_UNKNOWN
++};
++
+ #endif
+Index: src/libepub/epublib.h
+===================================================================
+--- src/libepub/epublib.h	(revision 147)
++++ src/libepub/epublib.h	(revision 148)
+@@ -65,6 +65,8 @@
+ struct meta {
+   xmlChar *name;
+   xmlChar *content;
++  xmlChar *property;
++  xmlChar *value;
+ };
+ 
+ struct id {
+@@ -170,6 +172,7 @@
+ struct spine {
+   xmlChar *idref;
+   int linear; //bool
++  enum page_spread_position spreadPosition;
+ };
+ 
+ struct opf {
+Index: src/libepub/list.c
+===================================================================
+--- src/libepub/list.c	(revision 147)
++++ src/libepub/list.c	(revision 148)
+@@ -163,10 +163,24 @@
+          root->fullpath, root->mediatype);
+ }
+ void _list_dump_spine(struct spine *spine) {
+-  printf("%s", spine->idref);
++  printf("   %s", spine->idref);
+   if (spine->linear) 
+     printf("(L)");
+-  printf(" ");
++  switch (spine->spreadPosition) {
++  case PAGE_SPREAD_CENTER:
++    printf("(CENTER)");
++    break;
++  case PAGE_SPREAD_LEFT:
++    printf("(LEFT)");
++    break;
++  case PAGE_SPREAD_RIGHT:
++    printf("(RIGHT)");
++    break;
++  default:
++    printf("(UNKNOWN)");
++    break;
++  }
++  printf(" \n");
+ }
+ 
+ void _list_dump_spine_linear(struct spine *spine) {
+@@ -200,6 +214,20 @@
+     printf("%s", meta->content);
+   else 
+     printf("unspecified");
++
++  printf(" : ");
++
++  if (meta->property)
++    printf("%s", meta->property);
++  else 
++    printf("unspecified");
++
++  printf(" : ");
++
++  if (meta->value)
++    printf("%s", meta->value);
++  else 
++    printf("unspecified");
+   
+   printf("\n");
+ }

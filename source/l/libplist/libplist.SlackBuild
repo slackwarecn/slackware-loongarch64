@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2011, 2014  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -57,6 +57,16 @@ else
   LIBDIRSUFFIX=""
 fi
 
+if ls /var/log/packages/libplist-* 1> /dev/null 2> /dev/null ; then
+  echo "libplist is installed.  The package should be removed before"
+  echo "building, or the new python modules might be linked to the"
+  echo "old library version.  This is normally only a problem if the"
+  echo "major library version gets bumped, but still.  :)"
+  echo
+  echo "You'll be given a short time to consider this."
+  sleep 15
+fi
+
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
@@ -70,19 +80,20 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-mkdir -p build
-cd build
-  cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_INSTALL_LIBDIR=/usr/lib${LIBDIRSUFFIX} \
-    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    ..
-   make $NUMJOBS || make || exit 1
-   make install DESTDIR=$PKG || exit 1
-cd -
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --mandir=/usr/man \
+  --disable-static \
+  --build=$ARCH-slackware-linux 
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -114,7 +125,7 @@ fi
 # Add some docs:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING* README* \
+  AUTHORS COPYING* NEWS README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install

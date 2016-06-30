@@ -1,0 +1,177 @@
+From 9e279cc3fac9a7e92bf426867fa83c0c7aec5711 Mon Sep 17 00:00:00 2001
+From: Jerome Leclanche <jerome@leclan.ch>
+Date: Tue, 1 Apr 2014 15:33:16 +0200
+Subject: [PATCH 1/3] desktop-file-validate: Trailing semicolons have been
+ downgraded to optional
+
+https://bugs.freedesktop.org/show_bug.cgi?id=76902
+Approved by David Faure and Ryan Lortie
+---
+ src/validate.c | 105 ---------------------------------------------------------
+ 1 file changed, 105 deletions(-)
+
+diff --git a/src/validate.c b/src/validate.c
+index 68fd6f0..77a5fda 100644
+--- a/src/validate.c
++++ b/src/validate.c
+@@ -765,9 +765,6 @@ validate_numeric_key (kf_validator *kf,
+ /* + Values of type string may contain all ASCII characters except for control
+  *   characters.
+  *   Checked.
+- * + The multiple values should be separated by a semicolon. Those keys which
+- *   have several values should have a semicolon as the trailing character.
+- *   Checked.
+  * + FIXME: how should an empty list be handled?
+  */
+ static gboolean
+@@ -799,24 +796,6 @@ validate_string_regexp_list_key (kf_validator *kf,
+     return FALSE;
+   }
+ 
+-  if (i > 0 && value[i - 1] != ';') {
+-    print_fatal (kf, "value \"%s\" for %s list key \"%s\" in group \"%s\" "
+-                     "does not have a semicolon (';') as trailing "
+-                     "character\n",
+-                     value, type, key, kf->current_group);
+-
+-    return FALSE;
+-  }
+-
+-  if (i > 1 && value[i - 1] == ';' && value[i - 2] == '\\' &&
+-      (i < 3 || value[i - 3] != '\\')) {
+-    print_fatal (kf, "value \"%s\" for %s list key \"%s\" in group \"%s\" "
+-                     "has an escaped semicolon (';') as trailing character\n",
+-                     value, type, key, kf->current_group);
+-
+-    return FALSE;
+-  }
+-
+   return TRUE;
+ }
+ 
+@@ -845,10 +824,6 @@ validate_regexp_list_key (kf_validator *kf,
+  * + If a postfixed key occurs, the same key must be also present without the
+  *   postfix.
+  *   Checked.
+- * + The multiple values should be separated by a semicolon. Those keys which
+- *   have several values should have a semicolon as the trailing character.
+- *   FIXME: partly checked. We use checks that work for sure for ascii
+- *   characters, but that could possibly fail in some weird UTF-8 strings.
+  * + FIXME: how should an empty list be handled?
+  */
+ static gboolean
+@@ -858,7 +833,6 @@ validate_localestring_list_key (kf_validator *kf,
+                                 const char   *value)
+ {
+   char     *locale_key;
+-  int       len;
+ 
+   if (locale)
+     locale_key = g_strdup_printf ("%s[%s]", key, locale);
+@@ -876,27 +850,6 @@ validate_localestring_list_key (kf_validator *kf,
+     return FALSE;
+   }
+ 
+-  len = strlen (value);
+-
+-  if (len > 0 && value[len - 1] != ';') {
+-    print_fatal (kf, "value \"%s\" for locale string list key \"%s\" in group "
+-                     "\"%s\" does not have a semicolon (';') as trailing "
+-                     "character\n",
+-                     value, locale_key, kf->current_group);
+-
+-    return FALSE;
+-  }
+-
+-  if (len > 1 && value[len - 1] == ';' && value[len - 2] == '\\' &&
+-      (len < 3 || value[len - 3] != '\\')) {
+-    print_fatal (kf, "value \"%s\" for locale string list key \"%s\" in group "
+-                     "\"%s\" has an escaped semicolon (';') as trailing "
+-                     "character\n",
+-                     value, locale_key, kf->current_group);
+-
+-    return FALSE;
+-  }
+-
+   if (!g_hash_table_lookup (kf->current_keys, key)) {
+     print_fatal (kf, "key \"%s\" in group \"%s\" is a localized key, but "
+                      "there is no non-localized key \"%s\"\n",
+@@ -3109,45 +3062,11 @@ desktop_file_validate (const char *filename,
+   return (!kf.fatal_error);
+ }
+ 
+-static void
+-fixup_list (GKeyFile    *keyfile,
+-            const gchar *filename,
+-            const gchar *key)
+-{
+-  char *value;
+-  int   len;
+-
+-  value = g_key_file_get_value (keyfile, GROUP_DESKTOP_ENTRY, key, NULL);
+-  if (!value)
+-    return;
+-
+-  len = strlen (value);
+-
+-  if (len > 0 && (value[len - 1] != ';' ||
+-                  (len > 1 && value[len - 2] == '\\' &&
+-                  (len < 3 || value[len - 3] != '\\')))) {
+-    char *str;
+-
+-    g_printerr ("%s: warning: key \"%s\" is a list and does not have a "
+-                "semicolon as trailing character, fixing\n",
+-                filename, key);
+-
+-    str = g_strconcat (value, ";", NULL);
+-    g_key_file_set_value (keyfile, GROUP_DESKTOP_ENTRY,
+-                          key, str);
+-    g_free (str);
+-  }
+-}
+-
+ /* return FALSE if we were unable to fix the file */
+ gboolean
+ desktop_file_fixup (GKeyFile   *keyfile,
+                     const char *filename)
+ {
+-  gchar        **keys;
+-  gsize          keys_nb;
+-  unsigned int   i;
+-
+   if (g_key_file_has_group (keyfile, GROUP_KDE_DESKTOP_ENTRY)) {
+     g_printerr ("%s: warning: renaming deprecated \"%s\" group to \"%s\"\n",
+                 filename, GROUP_KDE_DESKTOP_ENTRY, GROUP_DESKTOP_ENTRY);
+@@ -3155,29 +3074,5 @@ desktop_file_fixup (GKeyFile   *keyfile,
+                                GROUP_KDE_DESKTOP_ENTRY, GROUP_DESKTOP_ENTRY);
+   }
+ 
+-  keys = g_key_file_get_keys (keyfile, GROUP_DESKTOP_ENTRY, &keys_nb, NULL);
+-
+-  /* Fix lists to have a ';' at the end if they don't */
+-  for (i = 0; i < G_N_ELEMENTS (registered_desktop_keys); i++) {
+-    if (registered_desktop_keys[i].type == DESKTOP_STRING_LIST_TYPE ||
+-        registered_desktop_keys[i].type == DESKTOP_REGEXP_LIST_TYPE)
+-      fixup_list (keyfile, filename, registered_desktop_keys[i].name);
+-
+-    if (registered_desktop_keys[i].type == DESKTOP_LOCALESTRING_LIST_TYPE) {
+-      gsize keylen;
+-      guint j;
+-
+-      keylen = strlen (registered_desktop_keys[i].name);
+-      for (j = 0; j < keys_nb; j++) {
+-        if (g_str_has_prefix (keys[j], registered_desktop_keys[i].name) &&
+-            (keys[j][keylen] == '[' || keys[j][keylen] == '\0')) {
+-          fixup_list (keyfile, filename, keys[j]);
+-        }
+-      }
+-    }
+-  }
+-
+-  g_strfreev (keys);
+-
+   return TRUE;
+ }
+-- 
+2.2.0
+

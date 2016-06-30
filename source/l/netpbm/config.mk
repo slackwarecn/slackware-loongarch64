@@ -658,5 +658,4 @@ TIFFLIB = libtiff.so
 JPEGLIB = libjpeg.so
 ZLIB = libz.so
 X11LIB = libX11.so
-LINUXSVGALIB = libvga.so
 NETPBM_DOCURL = http://netpbm.sourceforge.net/doc/

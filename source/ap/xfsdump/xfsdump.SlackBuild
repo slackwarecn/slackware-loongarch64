@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-$(echo xfsdump-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo xfsdump-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -29,7 +29,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -45,7 +45,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf xfsdump-$(echo $VERSION | cut -f 1 -d '-')
-tar xvf $CWD/xfsdump-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/xfsdump-$VERSION.tar.gz || exit 1
 cd xfsdump-$(echo $VERSION | cut -f 1 -d '-') || exit 1
 
 chown -R root:root .
@@ -57,7 +57,7 @@ find . \
 
 # Make sure you have the same version of autoconf as the
 # developers did...  ;-)
-autoconf
+#autoreconf -vif
 
 ./configure \
   --prefix=/usr \
@@ -66,7 +66,7 @@ autoconf
   --enable-gettext=yes \
   --mandir=/usr/man \
   --datadir=/usr/share \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

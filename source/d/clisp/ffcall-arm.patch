@@ -1,0 +1,93 @@
+--- ./callback/trampoline_r/cache-armel.c.orig	2009-04-27 10:44:13.000000000 -0600
++++ ./callback/trampoline_r/cache-armel.c	2013-09-06 11:00:00.000000000 -0600
+@@ -12,8 +12,9 @@
+ 
+ void __TR_clear_cache (char *first_addr, char *last_addr)
+ {
+-    register unsigned long _beg __asm ("a1") = first_addr;
+-    register unsigned long _end __asm ("a2") = last_addr;
++    register unsigned long _beg __asm ("a1") = (unsigned long) first_addr;
++    register unsigned long _end __asm ("a2") = (unsigned long) last_addr;
+     register unsigned long _flg __asm ("a3") = 0; 
+-    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
++    register unsigned long _sys __asm ("r7") = __ARM_NR_cacheflush;
++    __asm __volatile__ ("swi 0x0" : "=r" (_beg) : "0" (_beg), "r" (_end), "r" (_flg), "r" (_sys));
+ }
+--- ./callback/trampoline_r/cache-armel.s.orig	2009-04-27 10:44:13.000000000 -0600
++++ ./callback/trampoline_r/cache-armel.s	2013-09-06 13:00:00.000000000 -0600
+@@ -1,5 +1,5 @@
+-	.cpu arm10tdmi
+-	.fpu softvfp
++	.arch armv7-a
++	.fpu vfpv3-d16
+ 	.file	"cache-armel.c"
+ 	.text
+ 	.align	2
+@@ -9,10 +9,13 @@ __TR_clear_cache:
+ 	@ args = 0, pretend = 0, frame = 0
+ 	@ frame_needed = 0, uses_anonymous_args = 0
+ 	@ link register save eliminated.
+-	@ lr needed for prologue
++	str	r7, [sp, #-4]!
+ 	mov	r2, #0
++	mov	r7, #2
++	movt	r7, 15
+ #APP
+-	swi 0x9f0002
++	swi 0x0
++	ldr	r7, [sp], #4
+ 	bx	lr
+ 	.size	__TR_clear_cache, .-__TR_clear_cache
+-	.ident	"GCC: (GNU) 3.4.4 (release) (CodeSourcery ARM 2005q3-2)"
++	.ident	"GCC: (GNU) 4.8.1 20130829 (Red Hat 4.8.1-7)"
+--- ./trampoline/cache-armel.c.orig	2009-04-27 10:44:14.000000000 -0600
++++ ./trampoline/cache-armel.c	2013-09-06 11:00:00.000000000 -0600
+@@ -12,8 +12,9 @@
+ 
+ void __TR_clear_cache (char *first_addr, char *last_addr)
+ {
+-    register unsigned long _beg __asm ("a1") = first_addr;
+-    register unsigned long _end __asm ("a2") = last_addr;
++    register unsigned long _beg __asm ("a1") = (unsigned long) first_addr;
++    register unsigned long _end __asm ("a2") = (unsigned long) last_addr;
+     register unsigned long _flg __asm ("a3") = 0; 
+-    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
++    register unsigned long _sys __asm ("r7") = __ARM_NR_cacheflush;
++    __asm __volatile__ ("swi 0x0" : "=r" (_beg) : "0" (_beg), "r" (_end), "r" (_flg), "r" (_sys));
+ }
+--- ./trampoline/cache-armel.s.orig	2009-04-27 10:44:14.000000000 -0600
++++ ./trampoline/cache-armel.s	2013-09-06 13:00:00.000000000 -0600
+@@ -1,24 +1,21 @@
+-	.cpu arm10tdmi
+-	.fpu softvfp
++	.arch armv7-a
++	.fpu vfpv3-d16
+ 	.file	"cache-armel.c"
+ 	.text
+ 	.align	2
+ 	.global	__TR_clear_cache
+ 	.type	__TR_clear_cache, %function
+ __TR_clear_cache:
+-	@ args = 0, pretend = 0, frame = 8
++	@ args = 0, pretend = 0, frame = 0
+ 	@ frame_needed = 0, uses_anonymous_args = 0
+ 	@ link register save eliminated.
+-	sub	sp, sp, #8
+-	@ lr needed for prologue
+-	str	r0, [sp, #4]
+-	str	r1, [sp, #0]
+-	ldr	r0, [sp, #4]
+-	ldr	r1, [sp, #0]
++	str	r7, [sp, #-4]!
+ 	mov	r2, #0
++	mov	r7, #2
++	movt	r7, 15
+ #APP
+-	swi 0x9f0002
+-	add	sp, sp, #8
++	swi 0x0
++	ldr	r7, [sp], #4
+ 	bx	lr
+ 	.size	__TR_clear_cache, .-__TR_clear_cache
+-	.ident	"GCC: (GNU) 3.4.4 (release) (CodeSourcery ARM 2005q3-2)"
++	.ident	"GCC: (GNU) 4.8.1 20130829 (Red Hat 4.8.1-7)"

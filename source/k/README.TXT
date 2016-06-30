@@ -6,14 +6,14 @@ kernel sources, but it's not exactly a virgin either.
 Version specific notes (if any):
 =============================================================
 
-For a 2.6.x kernel (much easier):
+For a 4.x kernel (much easier):
 
    Untar Linus' source in /usr/src.
    Make all files owned by root:root with reasonable perms.
    Install a suitable .config, or use make menuconfig, etc.
 
    An example would be to use one of the config files here:
-   # cat config-generic-3.10.17 > /usr/src/linux-3.10.17/.config
+   # cat config-generic-4.4.14 > /usr/src/linux-4.4.14/.config
 
    Then run the build programs:
 

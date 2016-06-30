@@ -1,0 +1,27 @@
+From 74171852c8c11ebd4725e93cfac6a19906821272 Mon Sep 17 00:00:00 2001
+From: Dave Mielke <dave@mielke.cc>
+Date: Mon, 8 Feb 2016 22:06:45 -0500
+Subject: [PATCH] The Linux screen driver should prefer a blank [U+0020] if the
+ same glyph is also used for other characters. (dm)
+
+---
+ Drivers/Screen/Linux/screen.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/Drivers/Screen/Linux/screen.c b/Drivers/Screen/Linux/screen.c
+index bb5e273..bc2f2c4 100644
+--- a/Drivers/Screen/Linux/screen.c
++++ b/Drivers/Screen/Linux/screen.c
+@@ -912,7 +912,9 @@ setTranslationTable (int force) {
+         const struct unipair *sfm = &screenFontMapTable[--screenFontMapIndex];
+ 
+         if (sfm->fontpos < count) {
+-          translationTable[sfm->fontpos] = sfm->unicode;
++          wchar_t *character = &translationTable[sfm->fontpos];
++          if (*character == 0X20) continue;
++          *character = sfm->unicode;
+         }
+       }
+     }
+-- 
+2.1.1.1.g1fb337f

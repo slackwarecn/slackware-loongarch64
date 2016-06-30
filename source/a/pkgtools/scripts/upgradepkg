@@ -1,7 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 1999  Patrick Volkerding, Moorhead, Minnesota, USA 
 # Copyright 2001, 2002, 2003  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2015  Michal Nazarewicz <mina86@mina86.com>
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -34,29 +35,20 @@
 # Support new compression types and package extensions.
 # Converted to use new pkgbase() function to remove pathname and
 # valid package extensions.
+#
+# Sat 17 Jan 16:21:32 UTC 2015  mina86
+# Various optimisation mostly resolving around avoiding having to fork
+# and call cut, basename and other helper commands.  Slight
+# refactoring of code calling removepkg.
 
 # Return a package name that has been stripped of the dirname portion
 # and any of the valid extensions (only):
 pkgbase() {
-  PKGEXT=$(echo $1 | rev | cut -f 1 -d . | rev)
-  case $PKGEXT in
-  'tgz' )
-    PKGRETURN=$(basename $1 .tgz)
-    ;;
-  'tbz' )
-    PKGRETURN=$(basename $1 .tbz)
-    ;;
-  'tlz' )
-    PKGRETURN=$(basename $1 .tlz)
-    ;;
-  'txz' )
-    PKGRETURN=$(basename $1 .txz)
-    ;;
-  *)
-    PKGRETURN=$(basename $1)
-    ;;
+  PKGRETURN=${1##*/}
+  case "$PKGRETURN" in *.t[gblx]z)
+    PKGRETURN=${PKGRETURN%.*}
   esac
-  echo $PKGRETURN
+  echo "$PKGRETURN"
 }
 
 usage() {
@@ -101,6 +93,8 @@ umask 022
 # $ROOT defined?
 if [ -d "$ROOT" ]; then
   export ROOT
+else
+  unset ROOT
 fi
 
 # --help or no args?
@@ -147,173 +141,158 @@ done # processing args
 # old package.
 
 package_name() {
-  STRING=$(pkgbase $1)
-  # Check for old style package name with one segment:
-  if [ "$(echo $STRING | cut -f 1 -d -)" = "$(echo $STRING | cut -f 2 -d -)" ]; then
+  STRING=$(pkgbase "$1")
+  case "$STRING" in
+  *-*-*-*)
+    # At least four segments, strip version arch and build and return name:
+    echo "${STRING%-*-*-*}"
+    # cruft for later ;)
+    # BUILD=${STRING##*-}
+    # STRING=${STRING%*-}
+    # ARCH=${STRING##*-}
+    # STRING=${STRING%*-}
+    # VER=${STRING%*-}
+    ;;
+  *)
+    # Old style package name with one segment or we don't have four
+    # segments: return the old-style (or out of spec) package name.
     echo $STRING
-  else # has more than one dash delimited segment
-    # Count number of segments:
-    INDEX=1
-    while [ ! "$(echo $STRING | cut -f $INDEX -d -)" = "" ]; do
-      INDEX=$(expr $INDEX + 1)
-    done
-    INDEX=$(expr $INDEX - 1) # don't include the null value
-    # If we don't have four segments, return the old-style (or out of spec) package name:
-    if [ "$INDEX" = "2" -o "$INDEX" = "3" ]; then
-      echo $STRING
-    else # we have four or more segments, so we'll consider this a new-style name:
-      NAME=$(expr $INDEX - 3)
-      NAME="$(echo $STRING | cut -f 1-$NAME -d -)"
-      echo $NAME
-      # cruft for later ;)
-      #VER=$(expr $INDEX - 2)
-      #VER="$(echo $STRING | cut -f $VER -d -)"
-      #ARCH=$(expr $INDEX - 1)
-      #ARCH="$(echo $STRING | cut -f $ARCH -d -)"
-      #BUILD="$(echo $STRING | cut -f $INDEX -d -)"
-    fi
-  fi
+  esac
 }
 
 ERRCODE=0
 
 # Main processing loop:
-while [ ! "$1" = "" ]; do
+for ARG; do
+  OLD=${ARG%'%'*}  # first segment, = $ARG if no %
+  NEW=${ARG#*'%'}  # second segment, = $ARG if no %
 
-# Simple package integrity check:
-if [ ! -f $(echo $1 | cut -f 2 -d '%') ]; then
-  ERRCODE=4
-  echo "Cannot install $1:  file not found"
-  shift 1
-  continue;
-fi
-
-# Figure out the names of the old and new packages:
-OLD=$(echo $1 | cut -f 1 -d '%')
-NEW=$(echo $1 | cut -f 2 -d '%')
-INCOMINGDIR=$(dirname $NEW)
-# These are the package names with the extension:
-NNAME=$(basename $NEW)
-ONAME=$(basename $OLD)
-# These are the package names without the extension:
-OLD=$(pkgbase $OLD)
-NEW=$(pkgbase $NEW)
-
-# Make sure the extension is valid:
-if [ "$NNAME" = "$NEW" ]; then
-  # We won't throw an ERRCODE for this, but the package is skipped:
-  echo "Cannot install $1:  invalid package extension"
-  shift 1
-  continue;
-fi
-
-# Check and fix the old package name:
-SHORT="$(package_name $OLD)"
-if [ ! -r $ROOT/var/log/packages/$OLD ]; then
-  if ls $ROOT/var/log/packages/$SHORT* 1> /dev/null 2> /dev/null ; then
-    for installed_package in $ROOT/var/log/packages/$SHORT* ; do
-      if [ "$(package_name $installed_package)" = "$SHORT" ]; then # found one
-        OLD="$(basename $installed_package)"
-        break
-      fi
-    done
+  # Simple package integrity check:
+  if ! [ -f "$NEW" ]; then
+    ERRCODE=4
+    echo "Cannot install $ARG:  file not found"
+    continue;
   fi
-fi
 
-# Test to see if both the old and new packages are where we expect them
-# to be -- skip to the next package (or package pair) if anything's wrong:
+  # Figure out the names of the old and new packages:
+  INCOMINGDIR=$(dirname $NEW)
+  # These are the package names with the extension:
+  NNAME=${NEW##*/}
+  ONAME=${OLD##*/}
+  # These are the package names without the extension:
+  OLD=$(pkgbase $OLD)
+  NEW=$(pkgbase $NEW)
 
-if [ ! -r $ROOT/var/log/packages/$OLD ]; then
-  if [ ! "$INSTALL_NEW" = "yes" ]; then
-    if [ "$DRY_RUN" = "true" ]; then
-      echo "$OLD would not be upgraded (no installed package named $SHORT)."
-    else  
-      echo
-      echo "Error:  there is no installed package named $OLD."
-      echo "        (looking for $ROOT/var/log/packages/$OLD)"
-      echo
+  # Make sure the extension is valid:
+  if [ "$NNAME" = "$NEW" ]; then
+    # We won't throw an ERRCODE for this, but the package is skipped:
+    echo "Cannot install $OLD:  invalid package extension"
+    continue;
+  fi
+
+  # Check and fix the old package name:
+  SHORT="$(package_name $OLD)"
+  if [ ! -r $ROOT/var/log/packages/$OLD ]; then
+    if ls $ROOT/var/log/packages/$SHORT* 1> /dev/null 2> /dev/null ; then
+      for installed_package in $ROOT/var/log/packages/$SHORT* ; do
+        if [ "$(package_name $installed_package)" = "$SHORT" ]; then # found one
+          OLD="${installed_package##*/}"
+          break
+        fi
+      done
     fi
-    ERRCODE=1
-  else # --install-new was given, so install the new package:
-    if [ "$DRY_RUN" = "true" ]; then
-      echo "$NEW would be installed (new package)."
-    else
-      cat << EOF
+  fi
+
+  # Test to see if both the old and new packages are where we expect them
+  # to be -- skip to the next package (or package pair) if anything's wrong:
+
+  if [ ! -r $ROOT/var/log/packages/$OLD ]; then
+    if [ ! "$INSTALL_NEW" = "yes" ]; then
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "$OLD would not be upgraded (no installed package named $SHORT)."
+      else
+        echo
+        echo "Error:  there is no installed package named $OLD."
+        echo "        (looking for $ROOT/var/log/packages/$OLD)"
+        echo
+      fi
+      ERRCODE=1
+    else # --install-new was given, so install the new package:
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "$NEW would be installed (new package)."
+      else
+        cat << EOF
 
 +==============================================================================
 | Installing new package $INCOMINGDIR/$NNAME
 +==============================================================================
 
 EOF
-      /sbin/installpkg $INCOMINGDIR/$NNAME
+        /sbin/installpkg $INCOMINGDIR/$NNAME
+      fi
     fi
-  fi
-  shift 1
-  continue;
-elif [ ! -r "$INCOMINGDIR/$NNAME" ]; then
-  if [ "$DRY_RUN" = "true" ]; then
-    echo "$NEW incoming package not found (command line)."
-  else
-    echo
-    echo "Error:  incoming package $INCOMINGDIR/$NNAME not found."
-    echo
-  fi
-  shift 1
-  ERRCODE=1
-  continue;
-fi
-
-# Unless --reinstall was given, compare the package names
-# and skip any exact matches:
-if [ ! "$REINSTALL" = "true" ]; then
-  if [ "$OLD" = "$NEW" ]; then
+    continue;
+  elif [ ! -r "$INCOMINGDIR/$NNAME" ]; then
     if [ "$DRY_RUN" = "true" ]; then
-      echo "$NEW would be skipped (already installed)."
+      echo "$NEW incoming package not found (command line)."
     else
-      cat << EOF
+      echo
+      echo "Error:  incoming package $INCOMINGDIR/$NNAME not found."
+      echo
+    fi
+    ERRCODE=1
+    continue;
+  fi
+
+  # Unless --reinstall was given, compare the package names
+  # and skip any exact matches:
+  if [ ! "$REINSTALL" = "true" ]; then
+    if [ "$OLD" = "$NEW" ]; then
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "$NEW would be skipped (already installed)."
+      else
+        cat << EOF
 
 +==============================================================================
 | Skipping package $NEW (already installed)
 +==============================================================================
 
 EOF
+      fi
+      continue;
     fi
-    shift 1
-    continue; 
   fi
-fi
 
-# Showtime.  Let's do the upgrade.  First, we will rename all the
-# installed packages with this basename to make them easy to remove later:
+  # Showtime.  Let's do the upgrade.  First, we will rename all the
+  # installed packages with this basename to make them easy to remove later:
 
-TIMESTAMP=$(date +%Y-%m-%d,%T)
-SHORT="$(package_name $OLD)"
-if [ "$DRY_RUN" = "true" ]; then
-  echo -n "$NEW would upgrade: "
+  TIMESTAMP=$(date +%Y-%m-%d,%T)
+  SHORT="$(package_name $OLD)"
+  if [ "$DRY_RUN" = "true" ]; then
+    echo -n "$NEW would upgrade: "
+    for installed_package in $ROOT/var/log/packages/$SHORT* ; do
+    if [ "$(package_name $installed_package)" = "$SHORT" ]; then
+      echo -n "$(pkgbase $installed_package)"
+    fi
+    done
+    echo
+    continue
+  fi
   for installed_package in $ROOT/var/log/packages/$SHORT* ; do
-  if [ "$(package_name $installed_package)" = "$SHORT" ]; then
-    echo -n "$(pkgbase $installed_package)"
-  fi
-  done
-  echo
-  shift 1
-  continue
-fi
-for installed_package in $ROOT/var/log/packages/$SHORT* ; do
-  if [ "$(package_name $installed_package)" = "$SHORT" ]; then
-    mv $installed_package ${installed_package}-upgraded-$TIMESTAMP
-  fi
-done
-for installed_script in $ROOT/var/log/scripts/$SHORT* ; do
-  if [ "$(package_name $installed_script)" = "$SHORT" ]; then
-    if [ -r $installed_script ]; then
-      mv $installed_script ${installed_script}-upgraded-$TIMESTAMP
+    if [ "$(package_name $installed_package)" = "$SHORT" ]; then
+      mv $installed_package ${installed_package}-upgraded-$TIMESTAMP
     fi
-  fi
-done
+  done
+  for installed_script in $ROOT/var/log/scripts/$SHORT* ; do
+    if [ "$(package_name $installed_script)" = "$SHORT" ]; then
+      if [ -r $installed_script ]; then
+        mv $installed_script ${installed_script}-upgraded-$TIMESTAMP
+      fi
+    fi
+  done
 
-# Print a banner for the current upgrade:
-cat << EOF
+  # Print a banner for the current upgrade:
+  cat << EOF
 
 +==============================================================================
 | Upgrading $OLD package using $INCOMINGDIR/$NNAME
@@ -321,67 +300,49 @@ cat << EOF
 
 EOF
 
-# Next, the new package is pre-installed:
-if [ "$VERBOSE" = "verbose" ]; then
-  /sbin/installpkg $INCOMINGDIR/$NNAME
-  RETCODE=$?
-else
-  echo "Pre-installing package $NEW..."
-  /sbin/installpkg $INCOMINGDIR/$NNAME 1> /dev/null
-  RETCODE=$?
-fi
-# Make sure that worked:
-if [ ! $RETCODE = 0 ]; then
-  echo "ERROR:  Package $INCOMINGDIR/$NNAME did not install"
-  echo "correctly.  You may need to reinstall your old package"
-  echo "to avoid problems.  Make sure the new package is not"
-  echo "corrupted."
-  sleep 30
-  # Skip this package, but still try to proceed.  Good luck...
-  shift 1
-  continue;
-fi
+  # Next, the new package is pre-installed:
+  if [ "$VERBOSE" = "verbose" ]; then
+    /sbin/installpkg $INCOMINGDIR/$NNAME
+    RETCODE=$?
+  else
+    echo "Pre-installing package $NEW..."
+    /sbin/installpkg $INCOMINGDIR/$NNAME 1> /dev/null
+    RETCODE=$?
+  fi
+  # Make sure that worked:
+  if [ ! $RETCODE = 0 ]; then
+    echo "ERROR:  Package $INCOMINGDIR/$NNAME did not install"
+    echo "correctly.  You may need to reinstall your old package"
+    echo "to avoid problems.  Make sure the new package is not"
+    echo "corrupted."
+    sleep 30
+    # Skip this package, but still try to proceed.  Good luck...
+    continue;
+  fi
 
-# Now, the leftovers from the old package(s) can go.  Pretty simple, huh? :)
-if [ -d "$ROOT" ]; then
-  ( cd $ROOT/var/log/packages
-    for rempkg in *-$TIMESTAMP ; do
-      if [ "$VERBOSE" = "verbose" ]; then
-        ROOT=$ROOT /sbin/removepkg $rempkg
-      else
-        ROOT=$ROOT /sbin/removepkg $rempkg | grep -v "Skipping\." | grep -v "Removing files:"
-      fi
-    done
-  )
-else
-  ( cd /var/log/packages
-    for rempkg in *-$TIMESTAMP ; do
-      if [ "$VERBOSE" = "verbose" ]; then
-        /sbin/removepkg $rempkg
-      else
-        /sbin/removepkg $rempkg | grep -v "Skipping\." | grep -v "Removing files:"
-      fi
-    done
-  )
-fi
-echo
+  # Now, the leftovers from the old package(s) can go.  Pretty simple, huh? :)
+  for rempkg in "$ROOT/var/log/packages/"*"-$TIMESTAMP"; do
+    if [ "$VERBOSE" = "verbose" ]; then
+      /sbin/removepkg "${rempkg##*/}"
+    else
+      /sbin/removepkg "${rempkg##*/}" | grep -v 'Skipping\.\|Removing files:'
+    fi
+  done
+  echo
 
-# Again!  Again!
-# Seriously, the reinstalling of a package can be crucial if any files
-# shift location, so we should always reinstall as the final step:
-if [ ! "$NOT_PARANOID" = "true" ]; then
-  /sbin/installpkg $INCOMINGDIR/$NNAME
-fi
+  # Again!  Again!
+  # Seriously, the reinstalling of a package can be crucial if any files
+  # shift location, so we should always reinstall as the final step:
+  if [ ! "$NOT_PARANOID" = "true" ]; then
+    /sbin/installpkg $INCOMINGDIR/$NNAME
+  fi
 
-echo "Package $OLD upgraded with new package $INCOMINGDIR/$NNAME."
-ERRCODE=0
-
-# Process next parameter:
-shift 1
-
+  echo "Package $OLD upgraded with new package $INCOMINGDIR/$NNAME."
+  ERRCODE=0
 done
 
 if [ ! "$DRY_RUN" = "true" ]; then
   echo
 fi
 exit $ERRCODE
+

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2012, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@
 
 
 VERSION=${VERSION:-$(echo samba-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 if [ -e $CWD/machine.conf ]; then
   . $CWD/machine.conf ]
@@ -34,15 +34,15 @@ else
   # Automatically determine the architecture we're building on:
   if [ -z "$ARCH" ]; then
     case "$( uname -m )" in
-      i?86) export ARCH=i486 ;;
+      i?86) export ARCH=i586 ;;
       arm*) export ARCH=arm ;;
       # Unless $ARCH is already set, use uname -m for all other archs:
          *) export ARCH=$( uname -m ) ;;
     esac
   fi
   # Set CFLAGS/CXXFLAGS and LIBDIRSUFFIX:
-  if [ "$ARCH" = "i486" ]; then
-    SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  if [ "$ARCH" = "i586" ]; then
+    SLKCFLAGS="-O2 -march=i586 -mtune=i686"
     LIBDIRSUFFIX=""
   elif [ "$ARCH" = "s390" ]; then
     SLKCFLAGS="-O2"
@@ -81,6 +81,9 @@ rm -rf samba-$VERSION
 tar xvf $CWD/samba-$VERSION.tar.xz || exit 1
 cd samba-$VERSION || exit 1
 
+# Patch to install talloc/tevent/tdb libraries and includes:
+zcat $CWD/samba.install.talloc.tevent.tdb.diff.gz | patch -p1 --verbose || exit 1
+
 if [ ! -d source3/lib/cmdline ]; then
   ( cd source3/lib
     mkdir cmdline
@@ -113,7 +116,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --with-configdir=/etc/samba \
   --with-piddir=/var/run \
-  --with-privatedir=/etc/samba/private \
+  --with-privatedir=/var/lib/samba/private \
   --with-privatelibdir=/usr/lib${LIBDIRSUFFIX} \
   --with-modulesdir=/usr/lib${LIBDIRSUFFIX} \
   --with-lockdir=/var/cache/samba \
@@ -134,55 +137,22 @@ CFLAGS="$SLKCFLAGS" \
   #--builtin-libraries=replace,ccan \
   #--bundled-libraries=heimdal \
 
-# -j options don't seem to work...
+# -j options don't seem to work... [Yes they do!  At least try to use -j below...]
 JOBS=6
 MAXJOBS=6
 export JOBS MAXJOBS
-make || exit 1
+make -j $MAXJOBS || make || exit 1
 
 mkdir -p \
          $PKG/usr/doc/samba-$VERSION \
          $PKG/var/spool/samba \
          $PKG/var/log/samba \
-         $PKG/etc/samba/private \
+         $PKG/var/lib/samba/private \
          $PKG/var/cache/samba
-chmod 700 $PKG/etc/samba/private
+chmod 700 $PKG/var/lib/samba/private
 chmod 1777 $PKG/var/spool/samba
 
 make install DESTDIR=$PKG || exit 1
-
-# Install pkgconfig files:
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
-if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/talloc.pc ]; then
-  cat $CWD/talloc.pc | sed -e "s/\/lib/\/lib${LIBDIRSUFFIX}/" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/talloc.pc
-fi
-if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/pytalloc-util.pc ]; then
-  cat $CWD/pytalloc-util.pc | sed -e "s/\/lib/\/lib${LIBDIRSUFFIX}/" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/pytalloc-util.pc
-fi
-
-# Install talloc.h:
-if [ ! -r $PKG/usr/include/talloc.h ]; then
-  cp -a lib/talloc/talloc.h $PKG/usr/include
-  chown root:root $PKG/usr/include/talloc.h
-  chmod 644 $PKG/usr/include/talloc.h
-fi
-
-# Make symlink for pytalloc.h in /usr/include:
-if [ ! -r $PKG/usr/include/pytalloc.h ]; then
-  if [ -r $PKG/usr/include/samba-4.0/pytalloc.h ]; then
-    ( cd $PKG/usr/include ; ln -sf samba-4.0/pytalloc.h . )
-  fi
-fi
-
-# Make symlink for libtalloc.so:
-if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/libtalloc.so -a -r $PKG/usr/lib${LIBDIRSUFFIX}/libtalloc.so.? ]; then
-  ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf libtalloc.so.? libtalloc.so )
-fi
-
-# Make symlink for libpytalloc-util.so:
-if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/libpytalloc-util.so -a -r $PKG/usr/lib${LIBDIRSUFFIX}/libpytalloc-util.so.? ]; then
-  ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf libpytalloc-util.so.? libpytalloc-util.so )
-fi
 
 # Install the smbprint script:
 install -m0744 packaging/printing/smbprint $PKG/usr/bin/smbprint
@@ -236,9 +206,9 @@ cat << EOF
 
 *** Be sure the package contains:
 
-drwx------   2 root     root         1024 Mar 12 13:21 /etc/samba/private
 drwxr-xr-x   2 root     root         4096 May  3 15:46 /var/cache/samba/
-drwxr-xr-x    2 root     root          48 Aug 29 13:06 /var/log/samba/
+drwx------   2 root     root         1024 Mar 12 13:21 /var/lib/samba/private
+drwxr-xr-x   2 root     root           48 Aug 29 13:06 /var/log/samba/
 drwxrwxrwt   2 root     root         1024 Mar 12 13:21 /var/spool/samba/
 
 EOF

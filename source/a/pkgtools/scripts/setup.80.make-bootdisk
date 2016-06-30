@@ -5,13 +5,12 @@ if [ -r /usr/lib/setup/setup ]; then
 else
   RDIR=/dev/null
 fi
-NDIR=/dev/null
 TMP=/var/log/setup/tmp
 
 if [ ! -d $TMP ]; then
   mkdir -p $TMP
 fi
-if [ -z "$T_PX" ]; then
+if [ -z "$1" ]; then
   T_PX=/
 else
   T_PX="$1"
@@ -20,6 +19,16 @@ if [ -z "$2" ]; then
   ROOT_DEVICE=$(mount | head -n 1 | cut -f 1 -d ' ')
 else
   ROOT_DEVICE="$2"
+fi
+
+if [ -r $T_PX/usr/share/syslinux/mbr.bin ]; then
+  MBR_BIN=$T_PX/usr/share/syslinux/mbr.bin
+elif [ -r /usr/share/syslinux/mbr.bin ]; then
+  MBR_BIN=/usr/share/syslinux/mbr.bin
+else
+  dialog --title "ERROR: USB BOOT STICK NOT CREATED" --msgbox \
+  "Master Boot Record file mbr.bin not found.  This script requires that the syslinux package is installed." 6 60
+  exit
 fi
 
 while [ 0 ]; do # the bootdisk menu loop
@@ -38,7 +47,7 @@ while [ 0 ]; do # the bootdisk menu loop
  fi
  dialog --title "MAKE USB FLASH BOOT" --default-item "$DEFAULTITEM" --menu \
 "If your computer supports booting from a USB device, it is recommended that you make \
-a USB boot stick for your system at this time. It will boot your computer straight \
+a USB boot stick for your system at this time.  It will boot your computer straight \
 into the root filesystem on $ROOT_DEVICE. \n\
 \n\
 Please insert a USB flash memory stick and then press ENTER to create a boot stick.  \n\
@@ -89,31 +98,56 @@ otherwise select 'No'." 12 70
 
   dialog --title "CREATING USB BOOT STICK" --infobox "Creating SYSLINUX bootdisk for \
 $ROOT_DEVICE on /dev/$STICK." 3 64 
-  # Determine max size of the filesystem (in KB) we want to create:
-  USBSIZE=$(( $(cat /sys/block/$STICK/size) / 2048))
-  if [ $USBSIZE -lt 512 ]; then DOSSIZE=$(($USBSIZE*1024))
-  else DOSSIZE=$((512*1024))
-  fi
-  # Hack from Pat.  If we're wasting a whole stick, who cares if the partition is
-  # extra-small, as long as the kernel fits?  Also, FAT12 is the least problematic.
-  DOSSIZE=15861
+  # Create a 16M partition with FAT16.  This should be large enough for any kernel (for now).
+  PARTSIZE="+16384K"
+  # Zero out master boot record and then initialize it with one bootable dos partition  
+  dd if=/dev/zero of=/dev/$STICK bs=512 count=1  1> $RDIR 2> $RDIR
+  echo "PARTSIZE=$PARTSIZE" 1> $RDIR 
+  fdisk /dev/$STICK << EOF 1> $RDIR 2> $RDIR
+n
+p
+1
+2048
+$PARTSIZE
+t 1
+6
+a
+w
+EOF
   if [ -x /sbin/mkdosfs ]; then
-    /sbin/mkdosfs -I -n USBSLACK -F 12 /dev/$STICK $DOSSIZE 1> /dev/null 2> /dev/null
+    /sbin/mkdosfs -I -n USBSLACK -F 16 /dev/${STICK}1 1> $RDIR 2> $RDIR
   else
-    chroot $T_PX /sbin/mkdosfs -I -n USBSLACK -F 12 /dev/$STICK $DOSSIZE 1> /dev/null 2> /dev/null
+    chroot $T_PX /sbin/mkdosfs -I -n USBSLACK -F 16 /dev/${STICK}1 1> $RDIR 2> $RDIR
   fi
+  sync
+  # install syslinux
+  if which syslinux-nomtools 1> $RDIR 2> $RDIR ; then
+    syslinux-nomtools -i -s /dev/${STICK}1 1> $RDIR 2> $RDIR
+  elif which strace 1> $RDIR 2> $RDIR ; then
+    # There is a race condition between udev >= 214 and mtools which causes
+    # the regular version of syslinux to fail when installing to USB, but
+    # strace changes the timing just enough that it usually works:
+    strace syslinux -i -s /dev/${STICK}1 1> $RDIR 2> $RDIR
+  else
+    # This might work when the issues with mtools and udev are addressed,
+    # or if syslinux is eventually able to work around them.
+    syslinux -i -s /dev/${STICK}1 1> $RDIR 2> $RDIR
+  fi
+  # make the device bootable:
+  echo "dd if=$MBR_BIN of=/dev/$STICK" 1> $RDIR 2> $RDIR
+  dd if=$MBR_BIN of=/dev/$STICK  1> $RDIR 2> $RDIR
+  sync
+  # mount the device and write some configuration files
   if [ ! -d $TMP/bootdisk ]; then
-    mkdir $TMP/bootdisk
+    mkdir $TMP/bootdisk 2> $RDIR
   fi
-  mount -t vfat /dev/$STICK $TMP/bootdisk 1> /dev/null 2> /dev/null
-  if [ -r $T_PX/vmlinuz ]; then
-    cp $T_PX/vmlinuz $TMP/bootdisk/vmlinuz
-  elif [ -r $T_PX/boot/vmlinuz ]; then
-    cp $T_PX/boot/vmlinuz $TMP/bootdisk/vmlinuz
+  mount -t vfat /dev/${STICK}1 $TMP/bootdisk 1> $RDIR 2> $RDIR
+  if [ -r $T_PX/boot/vmlinuz ]; then
+    cp $T_PX/boot/vmlinuz $TMP/bootdisk/vmlinuz 1> $RDIR 2> $RDIR
+  elif [ -r $T_PX/vmlinuz ]; then
+    cp $T_PX/vmlinuz $TMP/bootdisk/vmlinuz  1> $RDIR 2> $RDIR
   fi
-  # We don't need the isolinux bootloader with syslinux do we?
-  #cp $T_PX/usr/share/syslinux/isolinux.bin $TMP/bootdisk/
-  cat << EOF > $TMP/bootdisk/message.txt
+  cat << EOF > $TMP/bootdisk/message.txt 2> $RDIR
 
 Welcome to the 09Slackware07 Linux custom USB boot stick!
 
@@ -131,7 +165,7 @@ kernel parameters you might need depending on your hardware, and which
 drivers are included in your kernel.
 
 EOF
-   cat << EOF > $TMP/bootdisk/syslinux.cfg
+   cat << EOF > $TMP/bootdisk/syslinux.cfg 2> $RDIR
 default vmlinuz root=$ROOT_DEVICE vga=normal ro
 prompt 1
 timeout 6000
@@ -147,7 +181,7 @@ label mount
   kernel vmlinuz
   append root=$ROOT_DEVICE vga=normal ro
 EOF
-  cat << EOF > $TMP/bootdisk/f1.txt
+  cat << EOF > $TMP/bootdisk/f1.txt 2> $RDIR
  STANDARD MODES:
  To make the kernel prompt for standard video modes use: vga=ask
 
@@ -169,9 +203,9 @@ EOF
 
 EOF
   if [ "$(uname -m)" == "x86_64" ]; then # also install an EFI bootloader
-    mkdir -p $TMP/bootdisk/EFI/BOOT 1> /dev/null 2> /dev/null
-    cp $T_PX/boot/elilo-x86_64.efi $TMP/bootdisk/EFI/BOOT/BOOTX64.EFI 1> /dev/null 2> /dev/null
-    cat << EOF > $TMP/bootdisk/EFI/BOOT/message.txt 2> /dev/null
+    mkdir -p $TMP/bootdisk/EFI/BOOT 1> $RDIR 2> $RDIR
+    cp $T_PX/boot/elilo-x86_64.efi $TMP/bootdisk/EFI/BOOT/BOOTX64.EFI 1> $RDIR 2> $RDIR
+    cat << EOF > $TMP/bootdisk/EFI/BOOT/message.txt 2> $RDIR
 
 Welcome to the Slackware Linux custom USB boot stick!
 
@@ -190,7 +224,7 @@ drivers are included in your kernel.
 Hit ENTER to boot:
 
 EOF
-  cat << EOF > $TMP/bootdisk/EFI/BOOT/elilo.conf 2> /dev/null
+  cat << EOF > $TMP/bootdisk/EFI/BOOT/elilo.conf 2> $RDIR
 chooser=simple
 message=message.txt
 delay=300
@@ -202,10 +236,12 @@ image=/vmlinuz
         append="root=$ROOT_DEVICE vga=normal ro"
 EOF
   fi # end EFI installation
-  umount /dev/$STICK
+  sync
+  umount /dev/${STICK}1
   rm -r $TMP/bootdisk
-  # Make the device bootable:
-  syslinux -s /dev/$STICK 1> /dev/null 2> /dev/null
+  # Sometimes the nomtools version of syslinux will leave the volume mounted,
+  # so umount again:
+  umount /dev/${STICK}1 2> $RDIR
   if [ "$T_PX" = "/" ]; then
     dialog --title "USB BOOT STICK CREATED" --msgbox \
     "The USB boot stick has been successfully created on device /dev/$STICK." 6 60

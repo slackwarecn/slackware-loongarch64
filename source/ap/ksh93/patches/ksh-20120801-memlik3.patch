@@ -1,0 +1,76 @@
+diff -up ksh-20120801/src/cmd/ksh93/include/name.h.memlik3 ksh-20120801/src/cmd/ksh93/include/name.h
+--- ksh-20120801/src/cmd/ksh93/include/name.h.memlik3	2012-05-10 18:33:41.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/include/name.h	2014-01-22 14:14:32.774483776 +0100
+@@ -215,7 +215,7 @@ extern Namval_t		*nv_mount(Namval_t*, co
+ extern Namval_t		*nv_arraychild(Namval_t*, Namval_t*, int);
+ extern int		nv_compare(Dt_t*, Void_t*, Void_t*, Dtdisc_t*);
+ extern void		nv_outnode(Namval_t*,Sfio_t*, int, int);
+-extern int		nv_subsaved(Namval_t*);
++extern int		nv_subsaved(Namval_t*,int);
+ extern void		nv_typename(Namval_t*, Sfio_t*);
+ extern void		nv_newtype(Namval_t*);
+ extern int		nv_istable(Namval_t*);
+diff -up ksh-20120801/src/cmd/ksh93/sh/name.c.memlik3 ksh-20120801/src/cmd/ksh93/sh/name.c
+--- ksh-20120801/src/cmd/ksh93/sh/name.c.memlik3	2014-01-22 14:14:32.751483987 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/name.c	2014-01-22 14:14:32.775483767 +0100
+@@ -1297,7 +1297,7 @@ void nv_delete(Namval_t* np, Dt_t *root,
+ 	{
+ 		if(dtdelete(root,np))
+ 		{
+-			if(!(flags&NV_NOFREE) && ((flags&NV_FUNCTION) || !nv_subsaved(np)))
++			if(!(flags&NV_NOFREE) && ((flags&NV_FUNCTION) || !nv_subsaved(np,flags&NV_TABLE)))
+ 				free((void*)np);
+ 		}
+ #if 0
+@@ -2461,14 +2461,14 @@ static void table_unset(Shell_t *shp, re
+ 			{
+ 				_nv_unset(nq,flags);
+ 				npnext = (Namval_t*)dtnext(root,nq);
+-				nv_delete(nq,root,0);
++				nv_delete(nq,root,NV_TABLE);
+ 			}
+ 		}
+ 		npnext = (Namval_t*)dtnext(root,np);
+                if(nv_arrayptr(np))
+                        nv_putsub(np,NIL(char*),ARRAY_SCAN);
+ 		_nv_unset(np,flags);
+-		nv_delete(np,root,0);
++		nv_delete(np,root,NV_TABLE);
+ 	}
+ }
+ 
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.memlik3 ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.memlik3	2014-01-22 14:14:32.768483831 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2014-01-22 14:20:50.810236676 +0100
+@@ -218,16 +218,28 @@ void sh_subfork(void)
+ 	}
+ }
+ 
+-int nv_subsaved(register Namval_t *np)
++int nv_subsaved(register Namval_t *np,int table)
+ {
+ 	register struct subshell	*sp;
+-	register struct Link		*lp;
++	register struct Link		*lp, *lpprev;
+ 	for(sp = (struct subshell*)subshell_data; sp; sp=sp->prev)
+ 	{
+-		for(lp=sp->svar; lp; lp = lp->next)
++		lpprev = 0;
++		for(lp=sp->svar; lp; lpprev=lp, lp=lp->next)
+ 		{
+ 			if(lp->node==np)
++			{
++				if(table&NV_TABLE)
++				{
++					if(lpprev)
++						lpprev->next = lp->next;
++					else
++						sp->svar = lp->next;
++					free((void*)np);
++					free((void*)lp);
++				}
+ 				return(1);
++			}
+ 		}
+ 	}
+ 	return(0);

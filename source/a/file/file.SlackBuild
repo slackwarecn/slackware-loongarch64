@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2008, 2009, 2010, 2013, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,15 +28,15 @@ NUMJOBS=${NUMJOBS:--j7}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
@@ -106,30 +106,28 @@ cat $(which libtool) > libtool
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Ignore for now - still labeled as experimental
+# Actually, let's ignore it until something needs it  :)  <volkerdi>
+#cd python/
+#  python setup.py build
+#  python setup.py install --root=$PKG
+#cd ..
+
 # Seems --disable-static has been ignored lately:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libmagic.a
 
-# Update:  We're going to use magic.mgc now as the flat files cause
-# libmagic crashes with versions newer than file-5.11.  Maybe that
-# wasn't being tested as well...  in any case, using magic.mgc works.
-#
-#
-## Is file really this much of a processing bottleneck?  Doubtful.
-##
-## NOTE:  Benchmarked flat files vs. .mgc June 2009, found no measurable
-## difference on 3000+ files.
-##
-## If you really need these (let's say you're doing virus scanning
-## and this *would* speed things up quite a bit) you can create
-## the pre-parsed file yourself using file's -C option.
-#rm -f $PKG/etc/file/magic.mgc
-#mkdir -p $PKG/etc/file/magic
-#cp -a magic/Magdir/* $PKG/etc/file/magic
-## After building, this works fine.  /etc/file/magic/ takes up 1.2M,
-## while the magic.mgc file is 1.7M.  Considering a difference of 500k,
-## and the potential speedup, I'm not sure it's worth the effort...
-## but it does make it easier for an admin to add a small chunk of
-## new magic.
+# Install the flat files.
+# We'll generate /etc/file/magic.mgc in the doinst.sh.
+rm -f $PKG/etc/file/magic.mgc
+mkdir -p $PKG/etc/file/magic
+cp -a magic/Magdir/* $PKG/etc/file/magic
+
+# Add a script to recompile the flat files in the obvious location.
+# The package install script will compile the flat files initially.
+cp -a $CWD/recompile_magic.mgc.sh.gz $PKG/etc/file
+gzip -d $PKG/etc/file/recompile_magic.mgc.sh.gz
+chown root:root $PKG/etc/file/recompile_magic.mgc.sh
+chmod 755 $PKG/etc/file/recompile_magic.mgc.sh
 
 # IMHO, moving this sort of thing does not make sense.
 # We'll support both the traditional and new locations.
@@ -148,11 +146,12 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/file-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL MAINT NEWS README TODO \
+  AUTHORS COPYING* INSTALL MAINT NEWS README* TODO \
     $PKG/usr/doc/file-$VERSION
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 # Build the package:
 cd $PKG

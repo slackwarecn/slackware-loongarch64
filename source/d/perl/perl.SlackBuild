@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,13 +24,13 @@
 # originally by:  David Cantrell <david@slackware.com>
 # maintained by:  <volkerdi@slackware.com>
 
-VERSION=5.18.1
+VERSION=5.22.2
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -44,18 +44,19 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-perl
 
 # Additional required modules:
-DBDMYSQL=4.023
-DBI=1.628
-URI=1.60
-XMLPARSER=2.41
-XMLSIMPLE=2.20
-GETTEXT=1.05
+DBDMYSQL=4.033
+DBI=1.636
+URI=1.71
+XMLPARSER=2.44
+XMLSIMPLE=2.22
+GETTEXT=1.07
+TERMREADKEY=2.33
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mcpu=i686"
   LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -68,9 +69,12 @@ fi
 if [ -x /usr/bin/perl ]; then
   echo "Perl detected."
   echo
-  echo "It's a good idea to remove your existing perl first."
+  echo "The perl package needs to be removed before building to ensure that"
+  echo "the perl modules are included in the new package."
   echo
+  echo "Removing the perl package in 15 seconds, and then continuing with the build."
   sleep 15
+  removepkg perl
 fi
 
 # Clear build location:
@@ -144,8 +148,6 @@ fi
 # Kludge for gcc-4.2.4's needlessly changed output:
 cat makefile | grep -v '\<command-line\>' > foo
 mv foo makefile
-cat x2p/makefile | grep -v '\<command-line\>' > foo
-mv foo x2p/makefile
 
 # Build perl
 make $NUMJOBS || exit 1
@@ -156,7 +158,6 @@ make install
 ( cd /usr/bin
   ln -sf perl$VERSION perl
   ln -sf c2ph pstruct
-  ln -sf s2p psed
 )
 #mkdir -p /usr/lib${LIBDIRSUFFIX}/perl5/vendor_perl/${VERSION}/${ARCH}-linux-thread-multi
 
@@ -175,8 +176,8 @@ make install DESTDIR=$PKG
     make install
     make install DESTDIR=$PKG
     mkdir -p $PKG/usr/doc/perl-$VERSION/DBI-${DBI}
-    cp -a README $PKG/usr/doc/perl-$VERSION/DBI-${DBI}
-    chmod 644 $PKG/usr/doc/perl-$VERSION/DBI-${DBI}/README
+    cp -a README* $PKG/usr/doc/perl-$VERSION/DBI-${DBI}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/DBI-${DBI}/README*
   )
   ( tar xzvf $CWD/DBD-mysql-${DBDMYSQL}.tar.gz
     cd DBD-mysql-${DBDMYSQL}
@@ -187,7 +188,7 @@ make install DESTDIR=$PKG
     make install
     make install DESTDIR=$PKG
     mkdir -p $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
-    cp -a INSTALL.html README TODO $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
+    cp -a INSTALL.html README* TODO $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
     chmod 644 $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}/*
   )
   ( tar xzvf $CWD/XML-Parser-${XMLPARSER}.tar.gz
@@ -199,7 +200,7 @@ make install DESTDIR=$PKG
     make install
     make install DESTDIR=$PKG
     mkdir -p $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}
-    cp -a README $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}
     chmod 644 $PKG/usr/doc/perl-$VERSION/XML-Parser-${XMLPARSER}/*
   )
   ( tar xzvf $CWD/XML-Simple-${XMLSIMPLE}.tar.gz
@@ -211,7 +212,7 @@ make install DESTDIR=$PKG
     make install
     make install DESTDIR=$PKG
     mkdir -p $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}
-    cp -a README $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}
     chmod 644 $PKG/usr/doc/perl-$VERSION/XML-Simple${XMLSIMPLE}/*
   )
   ( tar xzvf $CWD/URI-${URI}.tar.gz
@@ -223,11 +224,11 @@ make install DESTDIR=$PKG
     make install
     make install DESTDIR=$PKG
     mkdir -p $PKG/usr/doc/perl-$VERSION/URI-${URI}
-    cp -a README $PKG/usr/doc/perl-$VERSION/URI-${URI}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/URI-${URI}
     chmod 644 $PKG/usr/doc/perl-$VERSION/URI-${URI}/*
   )
   ( tar xzvf $CWD/gettext-${GETTEXT}.tar.gz
-    cd gettext-${GETTEXT}
+    cd Locale-gettext-${GETTEXT}
     chown -R root:root .
     perl Makefile.PL INSTALLDIRS=vendor
     make
@@ -235,8 +236,20 @@ make install DESTDIR=$PKG
     make install
     make install DESTDIR=$PKG
     mkdir -p $PKG/usr/doc/perl-$VERSION/gettext-${GETTEXT}
-    cp -a README $PKG/usr/doc/perl-$VERSION/gettext-${GETTEXT}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/gettext-${GETTEXT}
     chmod 644 $PKG/usr/doc/perl-$VERSION/gettext-${GETTEXT}/*
+  )
+  ( tar xzvf $CWD/TermReadKey-${TERMREADKEY}.tar.gz
+    cd TermReadKey-${TERMREADKEY}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make
+    make test
+    make install
+    make install DESTDIR=$PKG
+    mkdir -p $PKG/usr/doc/perl-$VERSION/TermReadKey-${TERMREADKEY}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/TermReadKey-${TERMREADKEY}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/TermReadKey-${TERMREADKEY}/*
   )
 )
 
@@ -255,8 +268,7 @@ make install DESTDIR=$PKG
 # Symlinks that replace hard links
 ( cd $PKG/usr/bin
   ln -sf perl$VERSION perl
-  ln -sf c2ph pstruct
-  ln -sf s2p psed )
+  ln -sf c2ph pstruct )
 
 # Install documentation
 mkdir -p $PKG/usr/doc/perl-$VERSION
@@ -276,8 +288,7 @@ cp -a \
   mv foo/* .
   rmdir foo
   gzip -9 *
-  ln -sf c2ph.1.gz pstruct.1.gz
-  ln -sf s2p.1.gz psed.1.gz )
+  ln -sf c2ph.1.gz pstruct.1.gz )
 ( cd $PKG/usr/man/man3
   gzip -9 * )
 

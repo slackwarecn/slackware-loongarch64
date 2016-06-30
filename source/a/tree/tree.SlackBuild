@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2007-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007-2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,13 +20,15 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=1.6.0
+VERSION=1.7.0
 BUILD=${BUILD:-1}
+
+NUMJOBS=${NUMJOBS:--j6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,9 +39,22 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-tree
 
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
-
 cd $TMP
 rm -rf tree-$VERSION
 tar xvf $CWD/tree-$VERSION.tar.?z* || exit 1
@@ -51,26 +66,30 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-make -j2 || exit 1
+sed -i "s,CFLAGS=-ggdb,CFLAGS=\$(XCFLAGS) -ggdb,g" Makefile
+make XCFLAGS="$SLKCFLAGS" $NUMJOBS || make || exit 1
+
 mkdir -p $PKG/usr/bin
 cat tree > $PKG/usr/bin/tree
 chmod 755 $PKG/usr/bin/tree
-mkdir -p $PKG/usr/man/man1
-cat doc/tree.1 | gzip -9c > $PKG/usr/man/man1/tree.1.gz
-mkdir -p $PKG/usr/man/fr/man1
-cat doc/tree.1.fr | gzip -9c > $PKG/usr/man/fr/man1/tree.1.gz
+
+mkdir -p $PKG/usr/man/man1 $PKG/usr/man/fr/man1
+gzip -9c doc/tree.1 > $PKG/usr/man/man1/tree.1.gz
+gzip -9c doc/tree.1.fr > $PKG/usr/man/fr/man1/tree.1.gz
+
 mkdir -p $PKG/usr/doc/tree-$VERSION
 cp -a \
   CHANGES LICENSE README* TODO \
   $PKG/usr/doc/tree-$VERSION
+
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/tree-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/tree-$VERSION-$ARCH-$BUILD.txz
 

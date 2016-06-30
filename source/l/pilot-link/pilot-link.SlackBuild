@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,12 +21,12 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-0.12.5}
-BUILD=${BUILD:-7}
+BUILD=${BUILD:-10}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -41,8 +41,8 @@ PKG=$TMP/package-pilot-link
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -61,6 +61,7 @@ tar xvf $CWD/pilot-link-$VERSION.tar.bz2 || exit 1
 cd pilot-link-$VERSION
 
 zcat $CWD/pilot-link.png14.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/pilot-link-0.12.5-redefinePerlsymbols.patch.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -131,7 +132,13 @@ fi
 mkdir -p $PKG/usr/man/man{1,7}
 cp -a doc/man/*.1 $PKG/usr/man/man1
 cp -a doc/man/*.7 $PKG/usr/man/man7
-gzip -9 $PKG/usr/man/man?/*.?
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

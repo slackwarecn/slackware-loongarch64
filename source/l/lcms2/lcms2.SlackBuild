@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2012, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,8 +24,8 @@
 
 
 PKGNAM=lcms2
-VERSION=${VERSION:-2.4}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -33,7 +33,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -41,8 +41,8 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -87,7 +87,7 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --enable-static=no \
-  --build=$TARGET
+  --build=$TARGET || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -98,8 +98,10 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 gzip -9 $PKG/usr/man/man?/*.?
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+# Don't include doc/, which is huge .pdf files and even larger .rtf files.
+# Find them in the source if you require them.
 cp -a \
-  AUTHORS COPYING INSTALL NEWS README* doc \
+  AUTHORS COPYING* NEWS README* \
   $PKG/usr/doc/$PKGNAM-$VERSION
 find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 644 {} \;
 

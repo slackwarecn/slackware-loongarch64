@@ -111,7 +111,7 @@ for ARG in $(cat /proc/cmdline); do
       RESCUE=1
     ;;
     resume=*)
-      RESUMEDEV=$(echo $ARG | cut -f2 -d=)
+      RESUMEDEV=$(echo $ARG | cut -f2- -d=)
     ;;
     root=/dev/*)
       ROOTDEV=$(echo $ARG | cut -f2 -d=)
@@ -193,9 +193,10 @@ if [ "$RESCUE" = "" ]; then
     if [ ! -z "$LUKSKEY" ]; then
       mkdir  /mountkey
       KEYPART=$(echo $LUKSKEY |cut -f1 -d:)
+      KEYNAME=$(echo $KEYPART |cut -f2 -d=)
       LUKSPATH="/mountkey$(echo $LUKSKEY |cut -f2 -d:)"
       # Catch possible mount failure:
-      if blkid -t TYPE=vfat $KEYPART 1>/dev/null 2>&1 ; then
+      if blkid |grep "TYPE=\"vfat\"" |grep $KEYNAME 1>/dev/null 2>&1 ; then
         MOUNTOPTS="-t vfat -o shortname=mixed"
       else
         MOUNTOPTS="-t auto"
@@ -283,8 +284,11 @@ if [ "$RESCUE" = "" ]; then
   
   # Resume state from swap
   if [ "$RESUMEDEV" != "" ]; then
-    if ls -l $RESUMEDEV | grep -q "^l" ; then
-      #RESUMEDEV=$(ls -l $RESUMEDEV | awk '{ print $NF }')
+    # Find resume device if a label or UUID was given:
+    if echo $RESUMEDEV | grep -q "LABEL=" || \
+       echo $RESUMEDEV | grep -q "UUID=" ; then
+      RESUMEDEV=$(findfs $RESUMEDEV)
+    elif ls -l $RESUMEDEV | grep -q "^l" ; then
       RESUMEDEV=$(readlink -f $RESUMEDEV)
     fi
     echo "Trying to resume from $RESUMEDEV"

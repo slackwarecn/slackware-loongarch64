@@ -3,7 +3,7 @@
 # Slackware build script for urwid
 
 # Copyright 2009 Andrew Psaltis <ampsaltis@gmail.com>
-# Copyright 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,14 +25,14 @@
 
 # Modified by Robby Workman <rworkman@slackware.com>
 
-PRGNAM=urwid
-VERSION=1.0.1
+PKGNAM=urwid
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -41,13 +41,13 @@ fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 
-rm -rf $PKG $TMP/$PRGNAM-$VERSION
+rm -rf $PKG $TMP/$PKGNAM-$VERSION
 mkdir -p $TMP $PKG
 cd $TMP || exit 1
-tar xvf $CWD/$PRGNAM-$VERSION.tar.?z
-cd $PRGNAM-$VERSION || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+cd $PKGNAM-$VERSION || exit 1
 chown -R root.root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -58,20 +58,16 @@ find . \
 python setup.py install --root=$PKG || exit 1
 
 # Strip this package's sole library, wherever it might be
-# This package probably isn't really a "noarch" due to this, but oh well
 find $PKG -name "str_util.so" -exec strip --strip-unneeded $PKG 2> /dev/null {} \;
 
-mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION/examples
-cp -a tutorial.html reference.html $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 # Include the code examples.  They're pretty small, so they can't hurt, I guess.
-cp -a bigtext.py browse.py calc.py dialog.py edit.py fib.py graph.py tour.py \
-  $PKG/usr/doc/$PRGNAM-$VERSION/examples
-# urwid's license (LGPLv2) is not included with the source archive.
-zcat $CWD/LICENSE.gz > $PKG/usr/doc/$PRGNAM-$VERSION/LICENSE
-find $PKG/usr/doc/$PRGNAM-$VERSION -type f -exec chmod 644 {} \;
+# NOTE:  They don't even exist in 1.0.3, so even smaller, I guess.  ;-)
+cp -a CHANGELOG COPYING* examples $PKG/usr/doc/$PKGNAM-$VERSION
+find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 644 {} \;
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

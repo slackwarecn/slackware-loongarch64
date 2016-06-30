@@ -21,10 +21,15 @@ rm -f etc/gtk-3.0/gtkrc.new
 
 chroot . rm -f /usr/share/icons/*/icon-theme.cache 1> /dev/null 2> /dev/null
 
-# Run this if we are on an installed system.  Otherwise it will be
+# Run these if we are on an installed system.  Otherwise they will be
 # handled on first boot.
 if [ -x /usr/bin/update-gtk-immodules-3.0 ]; then
   /usr/bin/update-gtk-immodules-3.0
+fi
+if [ -e /usr/share/glib-2.0/schemas ]; then
+  if [ -x /usr/bin/glib-compile-schemas ]; then
+    /usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas >/dev/null 2>&1
+  fi
 fi
 
 # In case this is the first run installing the standalone gdk-pixbuf,

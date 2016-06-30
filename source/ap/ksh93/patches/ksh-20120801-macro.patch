@@ -1,0 +1,205 @@
+diff -up ksh-20120801/src/cmd/ksh93/include/io.h.macro ksh-20120801/src/cmd/ksh93/include/io.h
+--- ksh-20120801/src/cmd/ksh93/include/io.h.macro	2012-07-18 16:12:38.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/include/io.h	2013-07-04 16:14:05.809595966 +0200
+@@ -81,6 +81,7 @@ extern void 	sh_iosave(Shell_t *, int,in
+ extern int 	sh_iovalidfd(Shell_t*, int);
+ extern int 	sh_inuse(Shell_t*, int);
+ extern void 	sh_iounsave(Shell_t*);
++extern void	iounpipe(Shell_t*);
+ extern int	sh_chkopen(const char*);
+ extern int	sh_ioaccess(int,int);
+ extern int	sh_devtofd(const char*);
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.macro ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.macro	2013-07-04 16:14:05.783595751 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2013-07-04 16:15:46.673432991 +0200
+@@ -171,7 +171,7 @@ void sh_subfork(void)
+ {
+ 	register struct subshell *sp = subshell_data;
+ 	Shell_t	*shp = sp->shp;
+-	int	curenv = shp->curenv;
++	int	curenv = shp->curenv, comsub=shp->comsub;
+ 	pid_t pid;
+ 	char *trap = shp->st.trapcom[0];
+ 	if(trap)
+@@ -204,7 +204,7 @@ void sh_subfork(void)
+ 		shp->comsub = 0;
+ 		SH_SUBSHELLNOD->nvalue.s = 0;
+ 		sp->subpid=0;
+-		shp->st.trapcom[0] = trap;
++		shp->st.trapcom[0] = (comsub==2?NULL:trap);
+ 		shp->savesig = 0;
+ 	}
+ }
+@@ -743,7 +743,6 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 		fchdir(shp->pwdfd);
+ 	}
+ 	shp->subshare = sp->subshare;
+-	shp->comsub = sp->comsub;
+ 	shp->subdup = sp->subdup;
+ #if SHOPT_COSHELL
+ 	shp->coshell = sp->coshell;
+@@ -773,7 +772,12 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 	if(nsig>0)
+ 		kill(getpid(),nsig);
+ 	if(sp->subpid)
++	{
+ 		job_wait(sp->subpid);
++		if(comsub>1)
++			iounpipe(shp);
++	}
++	shp->comsub = sp->comsub;
+ 	if(comsub && iop && sp->pipefd<0)
+ 		sfseek(iop,(off_t)0,SEEK_SET);
+ 	if(shp->trapnote)
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.macro ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.macro	2013-07-04 16:14:05.800595891 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2013-07-04 16:14:05.810595975 +0200
+@@ -102,11 +102,11 @@ struct funenv
+  * temp file.
+  */
+ static int      subpipe[3],subdup,tsetio,usepipe;
+-static void iounpipe(Shell_t*);
++void iounpipe(Shell_t*);
+ 
+-static int iousepipe(Shell_t *shp)
++int iousepipe(Shell_t *shp)
+ {
+-	int i;
++	int fd=sffileno(sfstdout),i,err=errno;
+ 	if(usepipe)
+ 	{
+ 		usepipe++;
+@@ -115,13 +115,18 @@ static int iousepipe(Shell_t *shp)
+ 	if(sh_rpipe(subpipe) < 0)
+ 		return(0);
+ 	usepipe++;
+-	fcntl(subpipe[0],F_SETFD,FD_CLOEXEC);
+-	subpipe[2] = sh_fcntl(1,F_DUPFD,10);
+-	fcntl(subpipe[2],F_SETFD,FD_CLOEXEC);
++	if(shp->comsub!=1)
++	{
++		subpipe[2] = sh_fcntl(subpipe[1],F_DUPFD,10);
++		sh_close(subpipe[1]);
++		return(1);
++	}
++	subpipe[2] = sh_fcntl(fd,F_dupfd_cloexec,10);
+ 	shp->fdstatus[subpipe[2]] = shp->fdstatus[1];
+-	close(1);
+-	fcntl(subpipe[1],F_DUPFD,1);
+-	shp->fdstatus[1] = shp->fdstatus[subpipe[1]];
++	while(close(fd)<0 && errno==EINTR)
++		errno = err;
++	fcntl(subpipe[1],F_DUPFD,fd);
++	shp->fdstatus[1] = shp->fdstatus[subpipe[1]]&~IOCLEX;
+ 	sh_close(subpipe[1]);
+ 	if(subdup=shp->subdup) for(i=0; i < 10; i++)
+ 	{
+@@ -135,14 +140,23 @@ static int iousepipe(Shell_t *shp)
+ 	return(1);
+ }
+ 
+-static void iounpipe(Shell_t *shp)
++void iounpipe(Shell_t *shp)
+ {
+-	int n;
++	int fd=sffileno(sfstdout),n,err=errno;
+ 	char buff[SF_BUFSIZE];
+-	close(1);
+-	fcntl(subpipe[2], F_DUPFD, 1);
+-	shp->fdstatus[1] = shp->fdstatus[subpipe[2]];
++	if(!usepipe)
++		return;
+ 	--usepipe;
++	if(shp->comsub>1)
++	{
++		sh_close(subpipe[2]);
++		while(read(subpipe[0],buff,sizeof(buff))>0);
++		goto done;
++	}
++	while(close(fd)<0 && errno==EINTR)
++		errno = err;
++	fcntl(subpipe[2], F_DUPFD, fd);
++	shp->fdstatus[1] = shp->fdstatus[subpipe[2]];
+ 	if(subdup) for(n=0; n < 10; n++)
+ 	{
+ 		if(subdup&(1<<n))
+@@ -174,6 +188,7 @@ static void iounpipe(Shell_t *shp)
+ 		else if(errno!=EINTR)
+ 			break;
+ 	}
++done:
+ 	sh_close(subpipe[0]);
+ 	subpipe[0] = -1;
+ 	tsetio = 0;
+@@ -725,7 +740,7 @@ static void unset_instance(Namval_t *nq,
+ }
+ 
+ #if SHOPT_COSHELL
+-uintmax_t	coused;
++static uintmax_t	coused;
+ /*
+  * print out function definition
+  */
+@@ -1619,10 +1634,14 @@ int sh_exec(register const Shnode_t *t,
+ 			if(shp->subshell)
+ 			{
+ 				sh_subtmpfile(shp);
+-				if(shp->comsub==1 && !(shp->fdstatus[1]&IONOSEEK))
+-					unpipe=iousepipe(shp);
+ 				if((type&(FAMP|TFORK))==(FAMP|TFORK))
+-					sh_subfork();
++				{
++					if(shp->comsub && !(shp->fdstatus[1]&IONOSEEK))
++					{
++						unpipe = iousepipe(shp);
++						sh_subfork();
++					}
++				}
+ 			}
+ 			no_fork = !ntflag && !(type&(FAMP|FPOU)) && !shp->subshell &&
+ 			    !(shp->st.trapcom[SIGINT] && *shp->st.trapcom[SIGINT]) &&
+@@ -3495,8 +3514,7 @@ static void sh_funct(Shell_t *shp,Namval
+ 	struct funenv fun;
+ 	char *fname = nv_getval(SH_FUNNAMENOD);
+ 	struct Level	*lp =(struct Level*)(SH_LEVELNOD->nvfun);
+-	int		level, pipepid=shp->pipepid, comsub=shp->comsub;
+-	shp->comsub = 0;
++	int		level, pipepid=shp->pipepid;
+ 	shp->pipepid = 0;
+ 	sh_stats(STAT_FUNCT);
+ 	if(!lp->hdr.disc)
+@@ -3539,7 +3557,6 @@ static void sh_funct(Shell_t *shp,Namval
+ 	lp->maxlevel = level;
+ 	SH_LEVELNOD->nvalue.s = lp->maxlevel;
+ 	shp->last_root = nv_dict(DOTSHNOD);
+-	shp->comsub = comsub;
+ #if 0
+ 	nv_putval(SH_FUNNAMENOD,shp->st.funname,NV_NOFREE);
+ #else
+diff -up ksh-20120801/src/cmd/ksh93/sh/macro.c.orig ksh-20120801/src/cmd/ksh93/sh/macro.c
+--- ksh-20120801/src/cmd/ksh93/sh/macro.c.orig	2012-06-29 20:05:47.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/macro.c	2013-08-12 18:06:17.291843164 +0200
+@@ -2152,6 +2152,11 @@ static void comsubst(Mac_t *mp,register
+ 	mp->ifsp = nv_getval(np);
+ 	stkset(stkp,savptr,savtop);
+ 	newlines = 0;
++	if(type/*==3 - don't break `` vs $() */ && mp->shp->spid)
++	{
++		job_wait(mp->shp->spid);
++		mp->shp->spid = 0;
++	}
+ 	sfsetbuf(sp,(void*)sp,0);
+ 	bufsize = sfvalue(sp);
+ 	/* read command substitution output and put on stack or here-doc */
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.orig ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.orig	2013-08-12 18:06:57.567497226 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2013-08-12 18:20:36.443454280 +0200
+@@ -1734,6 +1734,8 @@ int sh_exec(register const Shnode_t *t,
+ 					nlock--;
+ 					job_unlock();
+ 				}
++				if(shp->subshell)
++					shp->spid = parent;
+ 				if(type&FPCL)
+ 					sh_close(shp->inpipe[0]);
+ 				if(type&(FCOOP|FAMP))

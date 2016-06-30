@@ -1,0 +1,53 @@
+From 5cb89fd2150ac91d791b0360631d3fd08c5fb1d4 Mon Sep 17 00:00:00 2001
+From: Andreas Mohr <and@gmx.li>
+Date: Sat, 12 Mar 2016 16:20:43 +0000
+Subject: [PATCH] extfs.c: fix buffer overflow
+
+When handling with copy/move commands inside of archive we can lead into buffer overflow
+steps to roproduce:
+    create simple 7z archive
+    open it
+    rename single filename
+    hit buffer overflow
+
+found by clang/AddressSanitizer
+
+==17794==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x602000273593 at pc 0x00000045f2a9 bp 0x7ffc94aa8e20 sp 0x7ffc94aa85d0
+READ of size 2 at 0x602000273593 thread T0
+    #0 0x45f2a8 in __interceptor_strchr.part.44 (/usr/bin/mc+0x45f2a8)
+    #1 0x70fb72 in extfs_find_entry_int /tmp/portage/app-misc/mc-9999/work/mc-9999/src/vfs/extfs/extfs.c:312:13
+    #2 0x70f562 in extfs_find_entry /tmp/portage/app-misc/mc-9999/work/mc-9999/src/vfs/extfs/extfs.c:331:11
+    #3 0x712131 in extfs_internal_stat /tmp/portage/app-misc/mc-9999/work/mc-9999/src/vfs/extfs/extfs.c:1117:13
+    #4 0x7f3de308ab59 in mc_stat /tmp/portage/app-misc/mc-9999/work/mc-9999/lib/vfs/interface.c:556:46
+    #5 0x538575 in file_mask_dialog /tmp/portage/app-misc/mc-9999/work/mc-9999/src/filemanager/filegui.c:1340:25
+    #6 0x6e0753 in panel_operate /tmp/portage/app-misc/mc-9999/work/mc-9999/src/filemanager/file.c:2718:13
+    #7 0x6bdabd in rename_cmd /tmp/portage/app-misc/mc-9999/work/mc-9999/src/filemanager/cmd.c:811:9
+    #8 0x551ef4 in midnight_execute_cmd /tmp/portage/app-misc/mc-9999/work/mc-9999/src/filemanager/midnight.c:1307:9
+    #9 0x7f3de30a49e7 in buttonbar_callback /tmp/portage/app-misc/mc-9999/work/mc-9999/lib/widget/buttonbar.c:172:42
+    #10 0x7f3de30b2305 in dlg_try_hotkey /tmp/portage/app-misc/mc-9999/work/mc-9999/lib/widget/dialog.c:464:23
+    #11 0x7f3de30b199a in dlg_key_event /tmp/portage/app-misc/mc-9999/work/mc-9999/lib/widget/dialog.c:509:19
+    #12 0x7f3de30b2ef9 in frontend_dlg_run /tmp/portage/app-misc/mc-9999/work/mc-9999/lib/widget/dialog.c:570:9
+    #13 0x7f3de30b2af5 in dlg_run /tmp/portage/app-misc/mc-9999/work/mc-9999/lib/widget/dialog.c:1267:5
+    #14 0x5507bb in do_nc /tmp/portage/app-misc/mc-9999/work/mc-9999/src/filemanager/midnight.c:1827:9
+    #15 0x50b874 in main /tmp/portage/app-misc/mc-9999/work/mc-9999/src/main.c:403:21
+    #16 0x7f3de1ec78fb in __libc_start_main (/lib64/libc.so.6+0x208fb)
+    #17 0x427f48 in _start (/usr/bin/mc+0x427f48)
+
+Signed-off-by: Andreas Mohr <and@gmx.li>
+---
+ src/vfs/extfs/extfs.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/vfs/extfs/extfs.c b/src/vfs/extfs/extfs.c
+index 2e7c87b..f7cdaee 100644
+--- a/src/vfs/extfs/extfs.c
++++ b/src/vfs/extfs/extfs.c
+@@ -307,6 +307,8 @@ extfs_find_entry_int (struct entry *dir, const char *name, GSList * list,
+             }
+         }
+         /* Next iteration */
++        if (c == '\0')
++            break;
+         *q = c;
+         p = q + 1;
+         q = strchr (p, PATH_SEP);

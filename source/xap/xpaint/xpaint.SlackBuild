@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 
 PKGNAM=xpaint
-VERSION=${VERSION:-2.8.16}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -36,7 +36,6 @@ if [ -z "$ARCH" ]; then
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
-
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -60,13 +59,13 @@ fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
-if [ "$ARCH" = "x86_64" ]; then
-  # Make it detect Xaw3d:
-  sed -i -e "s#usr/lib/#usr/lib${LIBDIRSUFFIX}/#g" $( grep -lr 'usr/lib/' * )
-fi
+#if [ "$ARCH" = "x86_64" ]; then
+#  # Make it detect Xaw3d:
+#  sed -i -e "s#usr/lib/#usr/lib${LIBDIRSUFFIX}/#g" $( grep -lr 'usr/lib/' * )
+#fi
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -76,11 +75,23 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-./configure
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --enable-static=no \
+  --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG
-make install.man DESTDIR=$PKG
+
+# Since this won't listen:
+mv $PKG/usr/share/man/man1/* $PKG/usr/man/man1
+rmdir $PKG/usr/share/man/man1 $PKG/usr/share/man
+rm $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
 ( cd bitmaps
   mkdir -p ${PKG}/usr/include/X11/bitmaps
@@ -120,8 +131,9 @@ fi
 # Add a documentation directory:
 mkdir -p ${PKG}/usr/doc/xpaint-$VERSION
 cp -a \
-  GPL* INSTALL README* TODO* \
+  AUTHORS COPYING INSTALL NEWS README* TODO* \
   ${PKG}/usr/doc/xpaint-$VERSION
+chmod 644 ${PKG}/usr/doc/xpaint-$VERSION/*
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

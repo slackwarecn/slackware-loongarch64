@@ -23,12 +23,12 @@
 
 PKGNAM=fribidi
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,8 +37,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -62,19 +62,21 @@ rm -rf fribidi-$VERSION
 tar xvf $CWD/fribidi-$VERSION.tar.?z* || exit 1
 cd fribidi-$VERSION
 
-zcat $CWD/fribidi.glib.h.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . -perm 777 -exec chmod 755 {} \;
 find . -perm 775 -exec chmod 755 {} \;
 find . -perm 664 -exec chmod 644 {} \;
 chown -R root:root .
+
 CFLAGS="$SLKCFLAGS" \
 ./configure --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --disable-static \
-  --with-pic
+  --with-pic \
+  --docdir=/usr/doc/fribidi-$VERSION \
+  --build=$ARCH-slackware-linux
+
 make $NUMJOBS || exit 1
 make install DESTDIR=$PKG
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,12 +21,12 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=1.11
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -43,6 +43,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
+rm -rf icmpinfo-$VERSION
 tar xvf $CWD/icmpinfo-$VERSION.tar.gz || exit 1
 cd icmpinfo-$VERSION || exit 1
 
@@ -53,7 +54,10 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/icmpinfo-1.11.diff.gz | patch -p1 --backup || exit
+zcat $CWD/icmpinfo-1.11.diff.gz | patch -p1 --backup || exit 1
+
+# Patch to prevent segfault:
+zcat $CWD/icmpinfo-1.11-time.diff.gz | patch -p1 --backup || exit 1
 
 make $NUMJOBS || make || exit 1
 

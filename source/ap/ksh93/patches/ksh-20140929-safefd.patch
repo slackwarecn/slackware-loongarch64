@@ -1,0 +1,52 @@
+diff -up ksh-20120801/src/cmd/ksh93/include/io.h.safefd ksh-20120801/src/cmd/ksh93/include/io.h
+--- ksh-20120801/src/cmd/ksh93/include/io.h.safefd	2015-03-03 18:21:40.544732158 +0100
++++ ksh-20120801/src/cmd/ksh93/include/io.h	2015-03-03 18:22:16.284447849 +0100
+@@ -78,6 +78,7 @@ extern void 	sh_iorestore(Shell_t*,int,i
+ extern Sfio_t 	*sh_iostream(Shell_t*,int);
+ extern int	sh_redirect(Shell_t*,struct ionod*,int);
+ extern void 	sh_iosave(Shell_t *, int,int,char*);
++extern int 	safefdnumber(Shell_t* shp, int sfd);
+ extern int 	sh_iovalidfd(Shell_t*, int);
+ extern int 	sh_inuse(Shell_t*, int);
+ extern void 	sh_iounsave(Shell_t*);
+diff -up ksh-20120801/src/cmd/ksh93/sh/io.c.safefd ksh-20120801/src/cmd/ksh93/sh/io.c
+--- ksh-20120801/src/cmd/ksh93/sh/io.c.safefd	2015-03-03 18:21:40.511732421 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/io.c	2015-03-03 18:21:40.544732158 +0100
+@@ -1724,6 +1724,25 @@ void sh_iosave(Shell_t *shp, register in
+ 	}
+ }
+ 
++int safefdnumber(Shell_t* shp, int sfd)
++{
++	register int fd;
++
++	while(1)
++	{
++		for(fd=0; fd < shp->topfd; fd++)
++		{
++			if (filemap[fd].save_fd==sfd || filemap[fd].orig_fd==sfd || (fcntl(sfd, F_GETFD) != -1 || errno != EBADF))
++			{
++				sfd++;
++				continue;
++			}
++		}
++		break;
++	}
++	return sfd;
++}
++
+ /*
+  *  close all saved file descriptors
+  */
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.safefd ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.safefd	2015-03-03 18:21:40.531732261 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2015-03-03 18:21:40.544732158 +0100
+@@ -673,7 +673,7 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 			}
+ 			if(iop && sffileno(iop)==1)
+ 			{
+-				int fd=sfsetfd(iop,3);
++				int fd=sfsetfd(iop,safefdnumber(shp,3));
+ 				if(fd<0)
+ 				{
+ 					shp->toomany = 1;

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2011, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2011, 2012, 2014  Eric Hameleers, Eindhoven, NL
 # Copyright 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
@@ -94,6 +94,27 @@ cd build
   make $NUMJOBS
   make DESTDIR=$PKG install
 cd -
+
+# Conditional build of Qt5 support:
+if qtpaths-qt5 --qt-version 1>/dev/null 2>/dev/null ; then
+  mkdir -p build-qt5
+  cd build-qt5
+    cmake \
+      -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+      -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+      -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+      -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX=/usr \
+      -DMAN_INSTALL_DIR=/usr/man \
+      -DSYSCONF_INSTALL_DIR=/etc \
+      -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+      -DPHONON_BUILD_PHONON4QT5=ON \
+      ..
+    make $NUMJOBS
+    make DESTDIR=$PKG install
+  cd -
+fi
 
 # Add documentation:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION

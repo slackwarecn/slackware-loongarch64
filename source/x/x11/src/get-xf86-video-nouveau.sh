@@ -1,27 +1,46 @@
+#!/bin/sh
+
+# Copyright 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 # Pull a stable branch + patches
-BRANCH=master
+BRANCH=${1:-master}
 
-#rm -rf xf86-video-nouveau
-if [ -d xf86-video-nouveau ]; then
-  cd xf86-video-nouveau
-  git pull -f
-  cd ..
-else
-  git clone git://anongit.freedesktop.org/git/nouveau/xf86-video-nouveau/
-fi
+# Clear download area:
+rm -rf xf86-video-nouveau
 
-# use master branch
-#( cd xf86-video-nouveau 
-#  git checkout $BRANCH || exit 1
-#)
+# Clone repository:
+git clone git://anongit.freedesktop.org/git/nouveau/xf86-video-nouveau/
 
-HEADISAT="$(cat xf86-video-nouveau/.git/packed-refs | grep refs/remotes/origin/$BRANCH | cut -b1-7)"
+# checkout $BRANCH:
+( cd xf86-video-nouveau 
+  git checkout $BRANCH || exit 1
+)
+
+HEADISAT="$( cd xf86-video-nouveau && git log -1 --format=%h )"
+DATE="$( cd xf86-video-nouveau && git log -1 --format=%ad --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-nouveau && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-DATE=$(date +%Y%m%d)
 mv xf86-video-nouveau xf86-video-nouveau-git_${DATE}_${HEADISAT}
 tar cf xf86-video-nouveau-git_${DATE}_${HEADISAT}.tar xf86-video-nouveau-git_${DATE}_${HEADISAT}
-xz -9 xf86-video-nouveau-git_${DATE}_${HEADISAT}.tar
+xz -9 -f xf86-video-nouveau-git_${DATE}_${HEADISAT}.tar
 rm -rf xf86-video-nouveau-git_${DATE}_${HEADISAT}
 echo
 echo "xf86-video-nouveau branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-nouveau-git_${DATE}_${HEADISAT}.tar.xz"

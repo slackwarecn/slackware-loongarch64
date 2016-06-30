@@ -24,12 +24,12 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-1.1}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-libx86
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
@@ -67,10 +67,10 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Add a patch from Gentoo to make this build on 2.6.26+
-zcat $CWD/lrmi.c.diff.gz | patch -p1 || exit 1
+zcat $CWD/libx86-add-pkgconfig.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libx86-mmap-offset.patch.gz | patch -p1 --verbose || exit 1
 
-make BACKEND=x86emu LIBDIR=/usr/lib${LIBDIRSUFFIX} || exit 1
+make CFLAGS="$SLKCFLAGS" BACKEND=x86emu LIBDIR=/usr/lib${LIBDIRSUFFIX} || exit 1
 make install DESTDIR=$PKG LIBDIR=/usr/lib${LIBDIRSUFFIX}
 
 # Kill the static library; we shouldn't need it

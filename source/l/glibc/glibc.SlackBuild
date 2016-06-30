@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,23 +22,18 @@
 
 ## build glibc-$VERSION for Slackware
 
-VERSION=${VERSION:-2.17}
+VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-7}
-
-## Included in glibc now:
-## glibc-libidn version
-#LIBIDNVER=2.10.1
+BUILD=${BUILD:-1}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
 
-# $ARCH may be preset, otherwise i486 compatibility with i686 binary
-# structuring is the Slackware default, since this is what gcc-3.2+
-# requires for binary compatibility with previous releases.
+# $ARCH may be preset, otherwise i586 compatibility with i686 binary
+# structuring is the Slackware default.
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -56,7 +51,7 @@ case $ARCH  in
     LIBDIRSUFFIX=""
     ;;
   i586)
-    OPTIMIZ="-O3 -march=i586"
+    OPTIMIZ="-O3 -march=i586 -mtune=i686"
     LIBDIRSUFFIX=""
     ;;
   i686)
@@ -85,9 +80,9 @@ case $ARCH in
   x86_64)
     TARGET=${TARGET:-x86_64}
     ;;
-  i486)
-    # This should be i486 for all 32-bit x86 arch:
-    TARGET=${TARGET:-i486}
+  i586)
+    # This should be i586 for all 32-bit x86 arch:
+    TARGET=${TARGET:-i586}
     ;;
 esac
 
@@ -108,13 +103,7 @@ CWD=$(pwd)
 TMP=${TMP:-/glibc-tmp-$(mcookie)}
 mkdir -p $TMP
 
-NUMJOBS=${NUMJOBS:--j4}
-
-# Sanity check on the version number in the install scripts:
-if ! grep -vq libutil-${VERSION}.so $CWD/doinst.sh-glibc ; then
-  echo "FATAL:  doinst.sh scripts have wrong version numbers."
-  exit 1
-fi
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # This function fixes a doinst.sh file for x86_64.
 # With thanks to Fred Emmott.
@@ -144,58 +133,23 @@ apply_patches() {
   # not existing.  This patch reverts is_IS to the version shipped in
   # glibc-2.5:
   zcat $CWD/is_IS.diff.gz | patch -p1 --verbose || exit 1
-  # Fix NIS netgroups:
-  zcat $CWD/glibc.nis-netgroups.diff.gz | patch -p1 --verbose || exit 1
   # Support ru_RU.CP1251 locale:
   zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
-  # Fix missing MAX macro in getcwd.c:
-  zcat $CWD/glibc.getcwd.max.macro.diff.gz | patch -p1 --verbose || exit 1
   # Fix resolver problem with glibc-2.9:
   zcat $CWD/glibc-2.10-dns-no-gethostbyname4.diff.gz | patch -p0 --verbose || exit 1
   # This reverts a patch that was made to glibc to fix "namespace leakage",
   # which seems to cause some build failures (e.g. with conntrack):
-  zcat $CWD/glibc.revert.to.fix.build.breakages.diff.gz | patch -p1 --verbose || exit 1
-  # This partial security patch still applies and might be needed:
-  zcat $CWD/glibc.git-96611391ad8823ba58405325d78cefeae5cdf699-CVE-2010-3847b.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/glibc.revert.to.fix.build.breakages.diff.gz | patch -p1 -l --verbose || exit 1
   # Make it harder for people to trick ldd into running code:
   zcat $CWD/glibc.ldd.trace.through.dynamic.linker.diff.gz | patch -p1 --verbose || exit 1
-  # Make glibc compile with binutils using --enable-initfini-array.
-  # At this time, we do not recommend this due to probable ABI breakage.
-  # The also patch needs work before it would apply.
-  # ***NOT READY***
-  #zcat $CWD/glibc.git-4a531bb0b3b582cb693de9f76d2d97d970f9a5d5.patch.gz | patch -p1 --verbose || exit 1
-  #
-  # Avoid the Intel optimized asm routines for now because they break
-  # the flash player.  We'll phase this in when it's safer to do so.
-  zcat $CWD/glibc.disable.broken.optimized.memcpy.diff.gz | patch -p1 --verbose || exit 1
-  # Fix buffer overrun in regexp matcher.  This bug is deemed low impact since
-  # the buffer contents cannot be controlled, but could lead to a crash.
-  zcat $CWD/glibc.CVE-2013-0242.diff.gz | patch -p1 --verbose || exit 1
-  # Fix stack overflow in getaddrinfo with many results.  This bug can only be
-  # triggered through DNS poisoning or through the use of a hostile DNS
-  # server (in which case you already have problems), and requires large
-  # amounts of data to be sent to the targeted machine.  May lead to a
-  # crash.  Considered low impact.
-  zcat $CWD/glibc.CVE-2013-1914.diff.gz | patch -p1 --verbose || exit 1
-  # Remove pt_chown by default, as it can be used for a local privilege
-  # escalation.  However, although this is worth patching in the -current
-  # version, it requires a non-default (and known to weaken security) setting
-  # for FUSE.  Additionally, the patch is not portable to older versions of
-  # glibc (but thanks Mancha for porting it to 2.17!).  On older versions
-  # of glibc, making /usr/libexec/pt_chown a symlink to /bin/true will
-  # provide the same fix, if needed.  But the insecure setting for FUSE
-  # probably opens up many other possible exploits and should be avoided.
-  zcat $CWD/glibc.CVE-2013-2207.diff.gz | patch -p1 --verbose || exit 1
-  # Patch integer overflows in pvalloc, valloc, and
-  # posix_memalign/memalign/aligned_alloc (CVE-2013-4332).
-  zcat $CWD/glibc.CVE-2013-4332.diff.gz | patch -p1 --verbose || exit 1
+  # Add a C.UTF-8 locale:
+  zcat $CWD/glibc-c-utf8-locale.patch.gz | patch -p1 --verbose || exit 1
 }
 
 # This is going to be the initial $DESTDIR:
 export PKG=$TMP/package-glibc-incoming-tree
 PGLIBC=$TMP/package-glibc
 PSOLIBS=$TMP/package-glibc-solibs
-PZONE=$TMP/package-glibc-zoneinfo
 PI18N=$TMP/package-glibc-i18n
 PPROFILE=$TMP/package-glibc-profile
 PDEBUG=$TMP/package-glibc-debug
@@ -232,9 +186,6 @@ tar xvf $CWD/glibc-$CVSVER.tar.xz \
   || tar xvf $CWD/glibc-$CVSVER.tar.gz
 cd glibc-$CVSVER
 
-#tar xvf $CWD/glibc-libidn-$LIBIDNVER.tar.?z*
-#mv glibc-libidn-$LIBIDNVER libidn
-
 chown -R root:root .
 find . -perm 666 -exec chmod 644 {} \;
 find . -perm 664 -exec chmod 644 {} \;
@@ -266,9 +217,9 @@ CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-kernel=3.2.29 \
+  --enable-kernel=2.6.32 \
   --with-headers=/usr/include \
-  --enable-add-ons=libidn,nptl \
+  --enable-add-ons \
   --enable-obsolete-rpc \
   --enable-profile \
   $DISABLE_NSCD \
@@ -304,24 +255,9 @@ strip -g $PKG/lib${LIBDIRSUFFIX}/l*.so*
 strip -g $PKG/usr/lib${LIBDIRSUFFIX}/l*.so*
 strip -g $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a
 
-# Build and install the zoneinfo database:
-cd $TMP
-rm -rf tzcodedata-build
-mkdir tzcodedata-build
-cd tzcodedata-build
-tar xzf $CWD/tzdata?????.tar.gz
-tar xzf $CWD/tzcode?????.tar.gz
-sed -i "s,/usr/local,$(pwd),g" Makefile
-sed -i "s,/etc/zoneinfo,/zoneinfo,g" Makefile
-make
-make install
-mkdir -p $PKG/usr/share/zoneinfo/{posix,right}
-cp -a zoneinfo/* $PKG/usr/share/zoneinfo
-cp -a zoneinfo-posix/* $PKG/usr/share/zoneinfo/posix
-cp -a zoneinfo-leaps/* $PKG/usr/share/zoneinfo/right
-# Remove $PKG/usr/share/zoneinfo/localtime -- the install script will
-# create it as a link to /etc/localtime.
-rm -f $PKG/usr/share/zoneinfo/localtime
+# Remove the rquota.x and rquota.h include files, as they are provided by
+# the quota package:
+rm -f $PKG/usr/include/rpcsvc/rquota.{h,x}
 
 # Back to the sources dir to add some files/docs:
 cd $TMP/glibc-$CVSVER
@@ -331,31 +267,19 @@ cd $TMP/glibc-$CVSVER
 mkdir -p $PKG/etc
 cat nscd/nscd.conf > $PKG/etc/nscd.conf.new
 
-# Install some scripts to help select a timezone:
-( cd $CWD/timezone-scripts
-  # Try to rebuild this:
-  sh output-updated-timeconfig.sh $PKG/usr/share/zoneinfo > timeconfig 2> /dev/null
-)
-mkdir -p $PKG/var/log/setup
-cp -a $CWD/timezone-scripts/setup.timeconfig $PKG/var/log/setup
-chown root:root $PKG/var/log/setup/setup.timeconfig
-chmod 755 $PKG/var/log/setup/setup.timeconfig
-mkdir -p $PKG/usr/sbin
-cp -a $CWD/timezone-scripts/timeconfig $PKG/usr/sbin
-chown root:root $PKG/usr/sbin/timeconfig
-chmod 755 $PKG/usr/sbin/timeconfig
-
-## Install docs:
+# Install docs:
 ( mkdir -p $PKG/usr/doc/glibc-$VERSION
   cp -a \
-    BUGS CONFORMANCE COPYING COPYING.LIB FAQ INSTALL LICENSES NAMESPACE \
-    NEWS NOTES PROJECTS README README.libm \
+    BUGS CONFORMANCE COPYING* FAQ INSTALL LICENSES NAMESPACE \
+    NEWS NOTES PROJECTS README* \
     $PKG/usr/doc/glibc-$VERSION
 )
 
-# Don't forget to add the /usr/share/zoneinfo/localtime -> /etc/localtime symlink! :)
-if [ ! -r $PKG/usr/share/zoneinfo/localtime ]; then
-  ( cd $PKG/usr/share/zoneinfo ; ln -sf /etc/localtime . )
+# Trim the NEWS file to omit ancient history:
+if [ -r NEWS ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/glibc-$VERSION)
+  cat NEWS | head -n 1000 > $DOCSDIR/NEWS
+  touch -r NEWS $DOCSDIR/NEWS
 fi
 
 # OK, there are some very old Linux standards that say that any binaries in a /bin or
@@ -392,33 +316,6 @@ rm $PKG/etc/ld.so.cache
 # OK, time to make some packages #
 ##################################
 
-# glibc-zoneinfo.  We will start with an easy one to avoid breaking a sweat.  ;-)
-cd $CWD
-ZONE_VERSIONS="$(echo tzdata* | cut -f1 -d . | cut -b7-11)"
-echo $ZONE_VERSIONS
-cd $PZONE
-# Install some scripts to help select a timezone:
-mkdir -p $PZONE/var/log/setup
-cp -a $CWD/timezone-scripts/setup.timeconfig $PZONE/var/log/setup
-chown root:root $PZONE/var/log/setup/setup.timeconfig
-chmod 755 $PZONE/var/log/setup/setup.timeconfig
-mkdir -p $PZONE/usr/sbin
-cp -a $CWD/timezone-scripts/timeconfig $PZONE/usr/sbin
-chown root:root $PZONE/usr/sbin/timeconfig
-chmod 755 $PZONE/usr/sbin/timeconfig
-mkdir $PZONE/install
-cat $CWD/doinst.sh-glibc-zoneinfo > $PZONE/install/doinst.sh
-cat $CWD/slack-desc.glibc-zoneinfo > $PZONE/install/slack-desc
-mkdir -p $PZONE/usr/share
-cd $PZONE/usr/share
-cp -a --verbose $PKG/usr/share/zoneinfo .
-cd $PZONE
-mkdir -p $PZONE/etc
-# This is already hard-coded into doinst.sh (like it'll be there anyway ;-):
-rm -f etc/localtime
-# Wrap it up:
-makepkg -l y -c n $TMP/glibc-zoneinfo-$ZONE_VERSIONS-noarch-$BUILD.txz
-
 # glibc-profile:
 cd $PPROFILE
 mkdir -p usr/lib${LIBDIRSUFFIX}
@@ -444,12 +341,15 @@ makepkg -l y -c n $TMP/glibc-debug-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 
 # glibc-i18n:
 cd $PI18N
-mkdir -p usr/lib${LIBDIRSUFFIX}
-rm -rf usr/lib${LIBDIRSUFFIX}/locale
-cp -a $PKG/usr/lib${LIBDIRSUFFIX}/locale usr/lib${LIBDIRSUFFIX}
-mkdir -p usr/share
-cp -a $PKG/usr/share/i18n usr/share
-cp -a $PKG/usr/share/locale usr/share
+mkdir -p usr/lib${LIBDIRSUFFIX}/locale
+mv $PKG/usr/lib${LIBDIRSUFFIX}/locale/* usr/lib${LIBDIRSUFFIX}/locale
+mkdir -p usr/share/{i18n,locale}
+mv $PKG/usr/share/i18n/* usr/share/i18n
+mv $PKG/usr/share/locale/* usr/share/locale
+# Leave copies of the C, POSIX, and en_US locales in the main glibc package:
+cp -a usr/lib${LIBDIRSUFFIX}/locale/{C,en_US}* $PKG/usr/lib${LIBDIRSUFFIX}/locale
+mkdir -p $PKG/usr/share/i18n/locales
+cp -a usr/share/i18n/locales/{C,POSIX,en_US} $PKG/usr/share/i18n/locales
 mkdir install
 cp -a $CWD/slack-desc.glibc-i18n install/slack-desc
 makepkg -l y -c n $TMP/glibc-i18n-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
@@ -490,6 +390,7 @@ mkdir install
 cp -a $CWD/slack-desc.glibc-solibs install/slack-desc
 cp -a $CWD/doinst.sh-glibc-solibs install/doinst.sh
 fix_doinst
+sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
 # Ditch links:
 find . -type l -exec rm {} \;
 # Build the package:
@@ -509,6 +410,7 @@ mkdir install
 cp -a $CWD/slack-desc.glibc install/slack-desc
 cp -a $CWD/doinst.sh-glibc install/doinst.sh
 fix_doinst
+sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
 ( cd lib${LIBDIRSUFFIX}
   mkdir incoming
   mv *so* incoming

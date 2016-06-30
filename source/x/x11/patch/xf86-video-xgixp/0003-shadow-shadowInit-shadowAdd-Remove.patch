@@ -1,0 +1,79 @@
+From e5789dfd027424996711f366e036a933d1b98c3f Mon Sep 17 00:00:00 2001
+From: Adam Jackson <ajax@redhat.com>
+Date: Tue, 29 Jul 2014 09:37:18 -0400
+Subject: [PATCH 3/5] shadow: shadowInit -> shadowAdd/Remove
+
+Signed-off-by: Adam Jackson <ajax@redhat.com>
+---
+ src/xgi.h        |  1 +
+ src/xgi_driver.c | 26 +++++++++++++++++++++++++-
+ 2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/xgi.h b/src/xgi.h
+index 8cbe77d..e122f1c 100644
+--- a/src/xgi.h
++++ b/src/xgi.h
+@@ -534,6 +534,7 @@ typedef struct {
+     RefreshAreaFuncPtr  RefreshArea;
+     CloseScreenProcPtr  CloseScreen;
+     ScreenBlockHandlerProcPtr   BlockHandler;
++    CreateScreenResourcesProcPtr CreateScreenResources;
+     xf86PointerMovedProc        *PointerMoved;
+ 
+     struct xgi_regs           savedReg;
+diff --git a/src/xgi_driver.c b/src/xgi_driver.c
+index c98fcf7..637e360 100644
+--- a/src/xgi_driver.c
++++ b/src/xgi_driver.c
+@@ -1702,6 +1702,25 @@ Bool XGIFBManagerInit(ScreenPtr pScreen)
+     return ret;
+ }
+ 
++static Bool
++XGICreateScreenResources(ScreenPtr pScreen)
++{
++    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
++    XGIPtr pXGI = XGIPTR(pScrn);
++    Bool ret;
++
++    pScreen->CreateScreenResources = pXGI->CreateScreenResources;
++    ret = pScreen->CreateScreenResources(pScreen);
++    pXGI->CreateScreenResources = pScreen->CreateScreenResources;
++    pScreen->CreateScreenResources = XGICreateScreenResources;
++
++    if (ret)
++	ret = shadowAdd(pScreen, pScreen->GetScreenPixmap(pScreen),
++			XGIShadowUpdate, NULL, 0, 0);
++
++    return ret;
++}
++
+ /* Called at the start of each server generation. */
+ Bool XGIScreenInit(SCREEN_INIT_ARGS_DECL)
+ {
+@@ -2011,7 +2030,10 @@ pScrn->pScreen = pScreen;
+         {
+             pXGI->RefreshArea = XGIRefreshArea;
+         }
+-        shadowInit(pScreen, XGIShadowUpdate, 0);
++        if (!shadowSetup(pScreen))
++	    return FALSE;
++	pXGI->CreateScreenResources = pScreen->CreateScreenResources;
++	pScreen->CreateScreenResources = XGICreateScreenResources;
+     }
+     XGIDebug(DBG_FUNCTION, "[DBG] Jong 06142006-After pXGI->isShadowFB\n");
+ 
+@@ -2272,8 +2294,10 @@ static Bool XGICloseScreen(CLOSE_SCREEN_ARGS_DECL)
+ 
+     if (pXGI->pShadow)
+     {
++	shadowRemove(pScreen, pScreen->GetScreenPixmap(pScreen));
+         free(pXGI->pShadow);
+         pXGI->pShadow = NULL;
++	pScreen->CreateScreenResources = pXGI->CreateScreenResources;
+     }
+ 
+     if (pXGI->pDgaModes)
+-- 
+2.3.5
+

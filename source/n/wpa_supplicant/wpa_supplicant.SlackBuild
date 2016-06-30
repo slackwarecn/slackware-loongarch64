@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2004-2008 Eric Hameleers, Eindhoven, NL
-# Copyright 2008-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008-2015  Patrick J. Volkerding, Sebeka, MN, USA
 #  Permission to use, copy, modify, and distribute this software for
 #  any purpose with or without fee is hereby granted, provided that
 #  the above copyright notice and this permission notice appear in all
@@ -22,7 +22,7 @@
 # -----------------------------------------------------------------------------
 
 PKGNAM=wpa_supplicant
-VERSION=2.0
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 SRCVERSION=$(printf $VERSION | tr _ -)
@@ -30,7 +30,7 @@ SRCVERSION=$(printf $VERSION | tr _ -)
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -39,8 +39,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -78,14 +78,14 @@ find . \
 
 
 # Fixup various paths in the dbus service file
-patch -p1 < $CWD/patches/dbus-service-file-args.diff
+cat $CWD/patches/dbus-service-file-args.diff | patch -p1 --verbose || exit 1
 
 # Eliminate some logspam
-patch -p1 < $CWD/patches/quiet-scan-results-message.diff
+cat $CWD/patches/quiet-scan-results-message.diff | patch -p1 --verbose || exit 1
 
 # Apply a couple of other patches from Fedora
-patch -p1 < $CWD/patches/assoc-timeout.diff
-patch -p1 < $CWD/patches/flush-debug-output.diff
+cat $CWD/patches/assoc-timeout.diff | patch -p1 --verbose || exit 1
+cat $CWD/patches/flush-debug-output.diff | patch -p1 --verbose || exit 1
 
 cd wpa_supplicant
 
@@ -155,6 +155,14 @@ cp -a \
   $PKG/usr/doc/$PKGNAM-$VERSION
 chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION/*
 chmod -R a-w $PKG/usr/doc/$PKGNAM-$VERSION/*
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

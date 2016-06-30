@@ -34,6 +34,9 @@ SKIP="--skip-networking"
 # Uncomment the next line to use Oracle's InnoDB plugin instead of the included XtraDB
 #INNODB="--ignore-builtin-innodb --plugin-load=innodb=ha_innodb.so"
 
+# Uncomment the next line to use TokuDB
+#TOKUDB="--plugin-load=ha_tokudb"
+
 # Start mysqld:
 mysqld_start() {
   if [ -x /usr/bin/mysqld_safe ]; then
@@ -44,7 +47,13 @@ mysqld_start() {
         rm -f /var/run/mysql/mysql.pid
       fi
     fi
-    /usr/bin/mysqld_safe --datadir=/var/lib/mysql --pid-file=/var/run/mysql/mysql.pid $SKIP $INNODB &
+
+    if ! [ -z "$TOKUDB" ]; then
+      echo "never" > /sys/kernel/mm/transparent_hugepage/enabled
+      echo "never" > /sys/kernel/mm/transparent_hugepage/defrag
+    fi
+
+    /usr/bin/mysqld_safe --datadir=/var/lib/mysql --pid-file=/var/run/mysql/mysql.pid $SKIP $INNODB $TOKUDB &
   fi
 }
 
@@ -64,6 +73,10 @@ mysqld_stop() {
     if [ "$second" = "60" ]; then
       echo "WARNING:  Gave up waiting for mysqld to exit!"
       sleep 15
+    fi
+    if ! [ -z "$TOKUDB" ]; then
+        echo "always" > /sys/kernel/mm/transparent_hugepage/enabled
+        echo "always" > /sys/kernel/mm/transparent_hugepage/defrag
     fi
   fi
 }

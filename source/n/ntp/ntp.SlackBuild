@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,12 +22,12 @@
 
 PKGNAM=ntp
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -36,8 +36,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
@@ -61,10 +61,10 @@ zcat $CWD/ntp.nano.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
-  \( -perm 2777 -o -perm 2755 \) \
-  -exec chmod 755 {} \; -o \
+  \( -perm 2777 -o -perm 2755 -o -perm 2775 \) \
+  -exec chmod u+rwx,g-sw,g+rx,o-w,o+rx {} \; -o \
   \( -perm 777 -o -perm 775 -o -perm 774 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \; -o \
+  -exec chmod u+rwx,g-sw,g+rx,o-w,o+rx {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
@@ -76,6 +76,8 @@ CFLAGS="$SLKCFLAGS" \
   --bindir=/usr/sbin \
   --sbindir=/usr/sbin \
   --mandir=/usr/man \
+  --docdir=/usr/doc/ntp-$VERSION \
+  --htmldir=/usr/doc/ntp-$VERSION \
   --enable-ipv6 \
   --with-crypto \
   --program-prefix= \
@@ -90,8 +92,11 @@ make -i install DESTDIR=$PKG || exit 1
 mv $PKG/usr/bin/* $PKG/usr/sbin
 rmdir $PKG/usr/bin
 
-# This is just epty:
-rmdir $PKG/usr/lib || exit 1
+# This might only be an empty directory:
+rmdir $PKG/usr/lib/pkgconfig
+
+# This should be empty.  Try to remove it, and error out if it's not actually empty:
+rmdir $PKG/usr/libexec || exit 1
 
 mkdir -p $PKG/etc/ntp
 cat $CWD/ntp.conf > $PKG/etc/ntp.conf.new
@@ -102,10 +107,10 @@ touch $PKG/etc/ntp/step-tickers
 mkdir -p $PKG/etc/rc.d
 cat $CWD/rc.ntpd > $PKG/etc/rc.d/rc.ntpd.new
 
-mkdir -p $PKG/usr/doc/ntp-$VERSION
+mv $PKG/usr/doc/ntp-$VERSION/*.html $PKG/usr/doc/ntp-$VERSION/html || exit 1
 cp -a \
   COPYRIGHT NEWS README* TODO WHERE-TO-START \
-  *.y2kfixes clockstuff conf html scripts \
+  *.y2kfixes clockstuff conf scripts \
   $PKG/usr/doc/ntp-$VERSION
 mkdir $PKG/usr/doc/ntp-$VERSION/util
 cp -a util/README $PKG/usr/doc/ntp-$VERSION/util

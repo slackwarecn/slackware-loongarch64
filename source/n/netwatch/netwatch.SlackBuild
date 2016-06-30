@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,14 +21,14 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=1.3.0
-EXTRAVERSION=${EXTRAVERSION:-1}
-BUILD=${BUILD:-2}
+VERSION=1.3.1
+EXTRAVERSION=${EXTRAVERSION:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,8 +37,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "x86_64" ]; then
@@ -54,9 +54,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 
 cd $TMP
-rm -rf netwatch-$VERSION
-tar xvf $CWD/netwatch-$VERSION-$EXTRAVERSION.tar.gz || exit 1
-cd netwatch-$VERSION || exit 1
+rm -rf netwatch-$VERSION-$EXTRAVERSION
+tar xvf $CWD/netwatch-$VERSION-$EXTRAVERSION.tar.xz || exit 1
+cd netwatch-$VERSION-$EXTRAVERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -97,16 +97,16 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 )
 
 # Copy program documentation into the package
-mkdir -p $PKG/usr/doc/netwatch-$VERSION
+mkdir -p $PKG/usr/doc/netwatch-${VERSION}_${EXTRAVERSION}
 cp -a \
   BUGS CHANGES COPYING README README.performance TODO \
   netwatch-$VERSION.lsm NetwatchKeyCommands.html \
-  $PKG/usr/doc/netwatch-$VERSION
+  $PKG/usr/doc/netwatch-${VERSION}_${EXTRAVERSION}
 
 # Copy the slack-desc
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/netwatch-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/netwatch-${VERSION}_${EXTRAVERSION}-$ARCH-$BUILD.txz
 

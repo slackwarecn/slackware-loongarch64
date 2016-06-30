@@ -1,0 +1,48 @@
+--- icu/source/common/unicode/localpointer.h.orig       2016-02-21 21:40:54.346007093 +0100
++++ icu/source/common/unicode/localpointer.h    2016-02-21 21:46:25.455090792 +0100
+@@ -508,12 +508,12 @@
+                 : LocalPointerBase<Type>(src.ptr) { \
+             src.ptr=NULL; \
+         } \
+-        ~LocalPointerClassName() { closeFunction(ptr); } \
++        ~LocalPointerClassName() { if (ptr != NULL) closeFunction(ptr); } \
+         LocalPointerClassName &operator=(LocalPointerClassName &&src) U_NOEXCEPT { \
+             return moveFrom(src); \
+         } \
+         LocalPointerClassName &moveFrom(LocalPointerClassName &src) U_NOEXCEPT { \
+-            closeFunction(ptr); \
++            if (ptr != NULL) closeFunction(ptr); \
+             LocalPointerBase<Type>::ptr=src.ptr; \
+             src.ptr=NULL; \
+             return *this; \
+@@ -527,7 +527,7 @@
+             p1.swap(p2); \
+         } \
+         void adoptInstead(Type *p) { \
+-            closeFunction(ptr); \
++            if (ptr != NULL) closeFunction(ptr); \
+             ptr=p; \
+         } \
+     }
+@@ -536,9 +536,9 @@
+     class LocalPointerClassName : public LocalPointerBase<Type> { \
+     public: \
+         explicit LocalPointerClassName(Type *p=NULL) : LocalPointerBase<Type>(p) {} \
+-        ~LocalPointerClassName() { closeFunction(ptr); } \
++        ~LocalPointerClassName() { if (ptr != NULL) closeFunction(ptr); } \
+         LocalPointerClassName &moveFrom(LocalPointerClassName &src) U_NOEXCEPT { \
+-            closeFunction(ptr); \
++            if (ptr != NULL) closeFunction(ptr); \
+             LocalPointerBase<Type>::ptr=src.ptr; \
+             src.ptr=NULL; \
+             return *this; \
+@@ -552,7 +552,7 @@
+             p1.swap(p2); \
+         } \
+         void adoptInstead(Type *p) { \
+-            closeFunction(ptr); \
++            if (ptr != NULL) closeFunction(ptr); \
+             ptr=p; \
+         } \
+     }
+

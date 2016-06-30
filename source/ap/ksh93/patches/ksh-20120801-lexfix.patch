@@ -1,0 +1,56 @@
+diff -up ksh-20120801/src/cmd/ksh93/edit/edit.c.trajfiks ksh-20120801/src/cmd/ksh93/edit/edit.c
+--- ksh-20120801/src/cmd/ksh93/edit/edit.c.trajfiks	2012-08-02 00:18:19.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/edit/edit.c	2014-02-06 12:12:11.570942651 +0100
+@@ -53,6 +53,7 @@
+ 
+ static char CURSOR_UP[20] = { ESC, '[', 'A', 0 };
+ static char KILL_LINE[20] = { ESC, '[', 'J', 0 };
++static char *savelex;
+ 
+ 
+ 
+@@ -232,6 +233,8 @@ int tty_set(int fd, int action, struct t
+ void tty_cooked(register int fd)
+ {
+ 	register Edit_t *ep = (Edit_t*)(shgd->ed_context);
++	if(ep->sh->st.trap[SH_KEYTRAP] && savelex)
++		memcpy(ep->sh->lex_context,savelex,ep->sh->lexsize);
+ 	ep->e_keytrap = 0;
+ 	if(ep->e_raw==0)
+ 		return;
+@@ -783,6 +786,13 @@ void	ed_setup(register Edit_t *ep, int f
+ 			ep->e_lbuf[n] = *pp++;
+ 		ep->e_default = 0;
+ 	}
++	if(ep->sh->st.trap[SH_KEYTRAP])
++	{
++		if(!savelex)
++			savelex = (char*)malloc(shp->lexsize);
++		if(savelex)
++			memcpy(savelex, ep->sh->lex_context, ep->sh->lexsize);
++	}
+ }
+ 
+ static void ed_putstring(register Edit_t *ep, const char *str)
+diff -up ksh-20120801/src/cmd/ksh93/include/defs.h.trajfiks ksh-20120801/src/cmd/ksh93/include/defs.h
+--- ksh-20120801/src/cmd/ksh93/include/defs.h.trajfiks	2014-02-06 12:18:13.149091836 +0100
++++ ksh-20120801/src/cmd/ksh93/include/defs.h	2014-02-06 12:18:13.175091784 +0100
+@@ -224,6 +224,7 @@ struct shared
+ 	int		xargexit; \
+ 	int		nenv; \
+ 	mode_t		mask; \
++	int             lexsize; \
+ 	Env_t		*env; \
+ 	void		*init_context; \
+ 	void		*mac_context; \
+diff -up ksh-20120801/src/cmd/ksh93/sh/lex.c.trajfiks ksh-20120801/src/cmd/ksh93/sh/lex.c
+--- ksh-20120801/src/cmd/ksh93/sh/lex.c.trajfiks	2014-02-06 12:19:13.587950320 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/lex.c	2014-02-06 12:19:13.623950219 +0100
+@@ -268,6 +268,7 @@ Lex_t *sh_lexopen(Lex_t *lp, Shell_t *sp
+ 	{
+ 		lp = (Lex_t*)newof(0,Lex_t,1,0);
+ 		lp->sh = sp;
++		sp->lexsize = sizeof(Lex_t);
+ 	}
+ 	fcnotify(lex_advance,lp);
+ 	lp->lex.intest = lp->lex.incase = lp->lex.skipword = lp->lexd.warn = 0;

@@ -1,0 +1,44 @@
+From fe902c8827fccae8df93d9deff53e22917d69369 Mon Sep 17 00:00:00 2001
+From: Sander Sweers <infirit@gmail.com>
+Date: Mon, 16 May 2016 16:22:14 +0200
+Subject: [PATCH 1/2] Notification: Also check if notification daemon supports
+ body
+
+This is the absolute minimum we require from the notification daemon. With
+this we fix the when no daemon is available (not running or installed).
+See [1] what prompted this change.
+
+[1] https://github.com/blueman-project/blueman/issues/519#issuecomment-218976647
+---
+ blueman/gui/Notification.py | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/blueman/gui/Notification.py b/blueman/gui/Notification.py
+index 41fdd69..6f3d3dc 100644
+--- a/blueman/gui/Notification.py
++++ b/blueman/gui/Notification.py
+@@ -161,10 +161,18 @@ class Notification(object):
+     def actions_supported():
+         return "actions" in Notify.get_server_caps()
+ 
++    @staticmethod
++    def body_supported():
++        return "body" in Notify.get_server_caps()
++
+     def __new__(cls, summary, message, timeout=-1, actions=None, actions_cb=None, pixbuf=None, status_icon=None):
+-        if not Config('org.blueman.general')['notification-daemon'] or (actions and not cls.actions_supported()):
+-            # Use fallback as user does not want to use a notification daemon or we have to show actions and the
+-            # notification daemon does not provide them
++        forced_fallback = not Config('org.blueman.general')['notification-daemon']
++
++        if forced_fallback or not cls.body_supported() or (actions and not cls.actions_supported()):
++            # Use fallback in the case:
++            # * user does not want to use a notification daemon
++            # * the notification daemon is not available
++            # * we have to show actions and the notification daemon does not provide them
+             klass = _NotificationDialog
+         else:
+             klass = _NotificationBubble
+-- 
+2.8.3
+

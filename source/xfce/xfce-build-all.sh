@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2012, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -31,7 +31,6 @@ for package in \
   libxfce4util \
   xfconf \
   libxfce4ui \
-  libxfcegui4 \
   exo \
   garcon \
   tumbler \
@@ -43,14 +42,12 @@ for package in \
   xfwm4 \
   xfce4-appfinder \
   gtk-xfce-engine \
-  xfwm4-themes \
   xfce4-terminal \
   orage \
-  xfce4-mixer \
   thunar-volman \
   xfce4-power-manager \
+  xfce4-pulseaudio-plugin \
   xfce4-notifyd \
-  xfce4-volumed \
   xfce4-clipman-plugin \
   xfce4-screenshooter \
   xfce4-systemload-plugin \

@@ -30,15 +30,15 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -92,7 +92,7 @@ make install DESTDIR=$PKG
 mkdir -p $PKG/usr/include
 ( cd $PKG/usr/include
   rm -rf freetype
-  ln -sf freetype2/freetype .
+  ln -sf freetype2 freetype
 )
 
 # Can't imagine a lot of use for this:
@@ -100,6 +100,9 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+mv $PKG/usr/share/man $PKG/usr/man
+find $PKG/usr/man -type f -exec gzip -9 {} \;
 
 mkdir -p $PKG/usr/doc/freetype-$VERSION
 cp -a \

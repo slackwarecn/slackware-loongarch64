@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=acl
-VERSION=2.2.51
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 4- -d . | rev | cut -f 2 -d -)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -60,13 +60,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Add DESTDIR support and improve docs install location:
-zcat $CWD/acl.destdir.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit
-
-# Make sure you have the same version of autoconf as the
-# developers did...  ;-)
-autoconf
-
 ./configure \
   --prefix=/ \
   --exec-prefix=/ \
@@ -76,15 +69,15 @@ autoconf
   --libexecdir=/usr/lib${LIBDIRSUFFIX} \
   --includedir=/usr/include \
   --mandir=/usr/man \
-  --datadir=/usr/share
+  --datadir=/usr/share \
+  --docdir=/usr/doc/acl-$VERSION \
+  --build=$ARCH-slackware-linux
 
-make || exit 1
-make install DESTDIR=$PKG
-make install-dev DESTDIR=$PKG
-make install-lib DESTDIR=$PKG
+make PKG_DOC_DIR=/usr/doc/acl-$VERSION || exit 1
+make install PKG_DOC_DIR=/usr/doc/acl-$VERSION DESTDIR=$PKG
+make install-dev PKG_DOC_DIR=/usr/doc/acl-$VERSION DESTDIR=$PKG
+make install-lib PKG_DOC_DIR=/usr/doc/acl-$VERSION DESTDIR=$PKG
 
-mv $PKG/usr/share/doc $PKG/usr
-( cd $PKG/usr/doc ; mv acl acl-$VERSION )
 #It would be nice to keep the same timestamps that the files have in the source:
 cp -a \
   README doc/COPYING* doc/PORTING \

@@ -1,0 +1,31 @@
+diff --git a/src/declarativeitems/lessonpainter.cpp b/src/declarativeitems/lessonpainter.cpp
+index dc8fc61..2c56c0c 100644
+--- a/src/declarativeitems/lessonpainter.cpp
++++ b/src/declarativeitems/lessonpainter.cpp
+@@ -236,8 +236,7 @@ void LessonPainter::updateTrainingStatus()
+     const QString referenceLine = m_trainingLineCore->referenceLine();
+     const QString actualLine = m_trainingLineCore->actualLine();
+     const QString preeditString = m_trainingLineCore->preeditString();
+-    const QTextBlock block = m_doc->findBlockByNumber(m_currentLine + 1);
+-    const int blockPosition = block.position();
++    const int blockPosition = m_doc->findBlockByNumber(m_currentLine + 1).position();
+ 
+     for (int linePos = 0; linePos < referenceLine.length(); linePos++)
+     {
+@@ -257,8 +256,14 @@ void LessonPainter::updateTrainingStatus()
+ 
+         cursor.setPosition(charPosition, QTextCursor::MoveAnchor);
+         cursor.setPosition(charPosition + 1, QTextCursor::KeepAnchor);
+-        cursor.deleteChar();
+-        cursor.insertText(QString(displayedChar), charFormat);
++	
++        /* QUICKFIX: Using the charFormat to decide whether a char must be repainted or not.
++         * Not nice but quite efficient ... */
++        if (cursor.charFormat() != charFormat)
++        {
++            cursor.deleteChar();
++            cursor.insertText(QString(displayedChar), charFormat);
++        }
+     }
+ 
+     invalidateImageCache();

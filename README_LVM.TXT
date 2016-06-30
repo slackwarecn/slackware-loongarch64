@@ -10,8 +10,8 @@ Introduction
 installation to Logical Volumes.  In Slackware, the installer has never
 supported this, but the gurus usually would find a way to create logical
 volumes and install or migrate their Slackware onto those.  Having your
-Slackware installed fully on LVM was near impossible until Slackware 12.0.
-Slackware 14.1 has improved support for LVM built into the installer.
+Slackware installed fully on LVM was near impossible until Slackware 12.0,
+but now Slackware has improved support for LVM built into the installer.
 
 
 Preparing Logical Volumes (LV)
@@ -30,7 +30,7 @@ you want to use for setting up the logical volumes. For any partition you
 create and that you want to use for LVM, you should set the partition type
 to '8e' (Linux LVM).
 
-    In the next example, I will assume we use a single 10 GB partition
+    In the next example, I will assume we use a single 20 GB partition
 '/dev/sda1' for our Volume Group (VG).  With LVM, it is possible to use
 multiple physical volumes (i.e. partitions, whole disks) for a VG, but that is
 left as an exercise for the reader.  You can always add extra physical volumes
@@ -40,16 +40,16 @@ LV's called 'root' and 'home'.  The first is going to contain the root partition
 
     After booting your computer from the Slackware CD/DVD/USB, and logging in
 as root, you run the following sequence of commands to create the Physical
-Volume (PV), the Volume Group (VG) within that PV and two LV's of size 6GB
-(root) and 3GB (home) inside the VG:
+Volume (PV), the Volume Group (VG) within that PV and two LV's of size 15GB
+(root) and 4GB (home) inside the VG:
 
   # pvcreate /dev/sda1
 
   # vgcreate myvg /dev/sda1
 
-  # lvcreate -L 6G -n root myvg
+  # lvcreate -L 15G -n root myvg
 
-  # lvcreate -L 3G -n home myvg
+  # lvcreate -L 4G -n home myvg
 
     ========================================================================
     NOTE: if you want, you can just allocate all remaining space inside the
@@ -73,8 +73,8 @@ Using LVM during setup
 the LV's are available in the Linux partition selection.  Our two LV's "root"
 and "home" are visible as "/dev/myvg/root" and "/dev/myvg/home".  Select the
 first for your root ('/') filesystem, and the other for your /home filesystem.
-Create any filesystem you like on them.  My favorite fstype still is ext3,
-but you can choose ext4, xfs or jfs for stability and speed.
+Create any filesystem you like on them.  My favorite fstype still is ext4,
+but you can choose others such as btrfs, jfs, or xfs.
 
     Setup will proceed as usual, but when you get to the point where you are
 presented with the lilo configuration dialog, it is almost time to perform
@@ -94,20 +94,18 @@ Fortunately, the Slackware installer has done some of the work for us.
 It will have created the LVM device nodes which lilo needs in order to
 install successfully.  The installer will have mounted the /sys and /proc
 filesystems as well.  Inside a 'chroot' we will create an initrd image
-and configure lilo to use it with the generic kernel.  Be aware that
-Slackware's 'huge' kernels are too big to work with an initrd image using
-the lilo bootloader.  Lilo will complain that there is too little space
-left in the 15M-16M 'memory hole'.
+and configure lilo to use it with the generic kernel.
+
 We are going to 'chroot' into our fresh installation:
 
   # chroot /mnt
 
     Next, while we are in the chroot, create the initrd with LVM support -
-in the example command line I assume that the root filesystem is 'ext3',
+in the example command line I assume that the root filesystem is 'ext4',
 we used the LV '/dev/myvg/root' as the root device, and are running the
-Slackware 14.1 default SMP kernel '3.10.17-smp':
+Slackware 14.2 default kernel '4.4.14':
 
-  # mkinitrd -c -k 3.10.17-smp -m ext3 -f ext3 -r /dev/myvg/root -L
+  # mkinitrd -c -k 4.4.14 -m ext4 -f ext4 -r /dev/myvg/root -L
 
     The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd, so open the
@@ -119,7 +117,7 @@ filename added by 'liloconfig' is '/boot/vmlinuz' which is a symbolic link to
 the huge SMP kernel.  Remember that we need a 'generic' kernel with the initrd.
 The end result should look somewhat like this:
 
-  image = /boot/vmlinuz-generic-smp-3.10.17-smp
+  image = /boot/vmlinuz-generic-4.4.14
     initrd = /boot/initrd.gz
     root = /dev/myvg/root
     label = linux

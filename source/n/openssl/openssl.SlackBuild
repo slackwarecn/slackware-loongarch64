@@ -2,7 +2,7 @@
 
 # Copyright 2000 BSDi, Inc. Concord, CA, USA
 # Copyright 2001, 2002 Slackware Linux, Inc.  Concord, CA, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -33,7 +33,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -57,11 +57,19 @@ rm -rf $PKG1 $PKG2 openssl-$VERSION
 tar xvf $CWD/openssl-$VERSION.tar.gz || exit 1
 cd openssl-$VERSION
 
+# Fix pod syntax errors which are fatal wih a newer perl:
+find . -name "*.pod" -exec sed -i "s/^\=item \([0-9]\)\(\ \|$\)/\=item C<\1>/g" {} \;
+
 # Use .so.1, not .so.1.0.0:
-zcat $CWD/openssl.soname.diff.gz | patch -p1 --backup --verbose --suffix=.orig || exit 1
-if [ "$ARCH" = "i486" ]; then
-  # Build with -march=i486 -mtune=i686:
-  zcat $CWD/openssl.optsx86.diff.gz | patch -p1 --backup --verbose --suffix=.orig || exit 1
+sed -i "s/soname=\$\$SHLIB\$\$SHLIB_SOVER\$\$SHLIB_SUFFIX/soname=\$\$SHLIB.1/g" Makefile.shared
+
+if [ "$ARCH" = "i586" ]; then
+  # Build with -march=i586 -mtune=i686:
+  sed -i "/linux-elf/s/fomit-frame-pointer/fomit-frame-pointer -march=i586 -mtune=i686/g" Configure
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  # Build with -march=i686 -mtune=i686:
+  sed -i "/linux-elf/s/fomit-frame-pointer/fomit-frame-pointer -march=i686 -mtune=i686/g" Configure
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -72,9 +80,9 @@ fi
 # paranoid that they won't run against a different OpenSSL version than
 # what they were compiled against, whether or not the ABI has changed.
 #
-# So, we will use the OPENSSL_VERSION_NUMBER from openssl-1.0.1c unless ABI
+# So, we will use the OPENSSL_VERSION_NUMBER from openssl-1.0.2e unless ABI
 # breakage forces it to change.  Yes, we're finally using this old trick.  :)
-sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1000103fL (1.0.1c) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1000103fL/g" crypto/opensslv.h || exit 1
+sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1000205fL (1.0.2e) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1000205fL/g" crypto/opensslv.h || exit 1
 
 chown -R root:root .
 mkdir -p $PKG1/usr/doc/openssl-$VERSION
@@ -93,16 +101,23 @@ fi
 
 # These are the known patent issues with OpenSSL:
 # name   #         expires
-# MDC-2: 4,908,861  2007-03-13, included.  :-)
+# MDC-2: 4,908,861  2007-03-13, not included.
 # IDEA:  5,214,703  2010-05-25, not included.
 # RC5:   5,724,428  2015-03-03, not included.
+#
+# Although all of the above are expired, it's still probably
+# not a good idea to include them as there are better
+# algorithms to use.
 
 ./config \
  --prefix=/usr \
  --openssldir=/etc/ssl \
+ no-mdc2 \
  no-idea \
  no-rc5 \
  no-sse2 \
+ no-ssl2 \
+ no-weak-ssl-ciphers \
  shared
 
 make $NUMJOBS depend || make depend || exit 1
@@ -190,15 +205,14 @@ mkdir -p $PKG2/usr/doc/openssl-$VERSION
 ( cd $TMP/openssl-$VERSION
   cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
   LICENSE NEWS README README.ENGINE $PKG2/usr/doc/openssl-$VERSION
+  # If there's a CHANGES file, installing at least part of the recent history
+  # is useful, but don't let it get totally out of control:
+  if [ -r CHANGES ]; then
+    DOCSDIR=$(echo $PKG2/usr/doc/*-$VERSION)
+    cat CHANGES | head -n 2000 > $DOCSDIR/CHANGES
+    touch -r CHANGES $DOCSDIR/CHANGES
+  fi
 )
-
-# If there's a CHANGES file, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r CHANGES ]; then
-  DOCSDIR=$(echo $PKG2/usr/doc/*-$VERSION)
-  cat CHANGES | head -n 2000 > $DOCSDIR/CHANGES
-  touch -r CHANGES $DOCSDIR/CHANGES
-fi
 
 find $PKG2/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \;
 find $PKG2/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \;

@@ -1,17 +1,17 @@
 
-Welcome to Slackware 14.1!  (64-bit x86_64 edition)
+Welcome to Slackware 14.2!  (64-bit x86_64 edition)
 
-Slackware 14.1 is a complete distribution of the Linux operating system.
+Slackware 14.2 is a complete distribution of the Linux operating system.
 
-Here are some versions of major components of Slackware 14.1:
+Here are some versions of major components of Slackware 14.2:
 
-- Linux kernel           3.10.17
-- C compiler             gcc-4.8.2
-- Binutils               2.23.52.0.1
-- GNU C Library          glibc-2.17
+- Linux kernel           4.4.14
+- C compiler             gcc-5.3.0
+- Binutils               2.26
+- GNU C Library          glibc-2.23
 - X Window System        X11R7.7
-- KDE                    4.10.5
-- Xfce                   4.10.1
+- KDE                    4.14.21 (KDE 4.14.3 with kdelibs-4.14.21)
+- Xfce                   4.12.1
 
 For installation instructions, see the file 'Slackware-HOWTO'.
 
@@ -20,7 +20,7 @@ For important hints about this release, see the file 'CHANGES_AND_HINTS.TXT'.
 These are some of the important files and directories found on the Slackware
 FTP site:
 
-  ftp://ftp.slackware.com/pub/slackware/slackware64-14.1/
+  ftp://ftp.slackware.com/pub/slackware/slackware64-14.2/
 
 Thanks to cwo.com for continuing to help us with hosting for our web site,
 and to the OSU Open Source Lab for hosting our archives at ftp.slackware.com
@@ -30,10 +30,9 @@ If you're reading this on a CD-ROM, these directories will probably be
 split across several discs.
 
 .
-|-- ANNOUNCE.14.1        Announcement for Slackware 14.1.
-|-- BOOTING.TXT          Tips for troubleshooting boot problems.
-|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 14.0
-|                        to 14.1 and common pitfalls.
+|-- ANNOUNCE.14.2        Announcement for Slackware 14.2.
+|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 14.1
+|                        to 14.2 and common pitfalls.
 |-- CHECKSUMS.md5        MD5 format file checksums.
 |-- COPYING              The GNU Public License, version 2.
 |-- COPYING3             The GNU Public License, version 3.
@@ -58,15 +57,15 @@ split across several discs.
 |
 |-- Slackware-HOWTO      Instructions for installing Slackware from CD.
 |                        If you're new to Slackware, start with this.
+|-- UPGRADE.TXT          How to upgrade from Slackware 14.1 to Slackware 14.2.
 |
 |-- extra/               Extra packages for Slackware like:
 |   |                    aspell-word-lists, bash-completion, bittornado,
 |   |                    bittorrent, brltty, emacspeak, mplayerplug-in,
-|   |                    partitionmanager, recordmydesktop, tigervnc, wicd,
-|   |                    and xf86-video-fbdev.  Scripts are also included to
-|   |                    repackage some non-redistributable binaries into
-|   |                    Slackware packages:  google-chrome, java, and
-|   |                    flashplayer-plugin.
+|   |                    recordmydesktop, tigervnc, wicd, and xf86-video-fbdev.
+|   |                    Scripts are also included to repackage some
+|   |                    non-redistributable binaries into Slackware packages:
+|   |                    google-chrome, java, and flashplayer-plugin.
 |   |
 |   `-- source/          Source code for the extra packages.
 |
@@ -80,16 +79,16 @@ split across several discs.
 |   |
 |   `-- initrd.img       Installation initrd (can also be loaded with Loadlin)
 |
-|-- kernels/             Precompiled Linux 3.10.17 kernel images.
+|-- kernels/             Precompiled Linux 4.4.14 kernel images.
 |   |
 |   `-- huge.s           The default standard install kernel for Slackware.
 |                        This supports pretty much everything in the
-|                        3.10.17 kernel, including Speakup.  This kernel
+|                        4.4.14 kernel, including Speakup.  This kernel
 |                        requires an x86_64 (also known as AMD64, EM64T, or
 |                        Intel 64) capable 64-bit CPU.
 |    
 |-- slackware64/         This directory contains the core software packages
-|   |                    for Slackware 14.1.
+|   |                    for Slackware 14.2.
 |   |
 |   |-- a/               The A (base) package series.
 |   |-- ap/              The AP (applications) package series.
@@ -131,10 +130,9 @@ split across several discs.
 |
 |-- testing/             This directory contains packages being tested
 |   |                    for possible use in future versions of Slackware.
-|   |                    For this release, it contains efibootmgr-0.6.0
-|   |                    and sample kernel configuration files for an
-|   |                    older LTS kernel (3.4.66), as well as the latest
-|   |                    kernel (3.12).
+|   |                    For this release, it contains efibootmgr-0.6.0,
+|   |                    tmux-2.2, and sample kernel configuration files
+|   |                    for Linux 4.6.
 |   |
 |   `--- source/         This directory contains source code for the 
 |                        packages in testing.
@@ -154,7 +152,7 @@ split across several discs.
 
 
 If you like Slackware, please consider supporting the project by becoming
-a Slackware subscriber.  The announcement (ANNOUNCE_14.1) in this directory
+a Slackware subscriber.  The announcement (ANNOUNCE_14.2) in this directory
 has information about ordering or subscribing to the Slackware CD-ROM or
 DVD releases.  Note that the x86_64 release is only available as part of the
 DVD.  You can find out about ordering Slackware on media, or read more about

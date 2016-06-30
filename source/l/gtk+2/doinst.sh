@@ -10,9 +10,7 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/gtk-2.0/gtkrc.new
 config etc/gtk-2.0/im-multipress.conf.new
-rm -f etc/gtk-2.0/gtkrc.new
 
 chroot . rm -f /usr/share/icons/*/icon-theme.cache 1> /dev/null 2> /dev/null
 

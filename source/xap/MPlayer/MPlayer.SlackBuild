@@ -23,13 +23,13 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 #
-# Slackware SlackBuild script 
+# Slackware SlackBuild script
 # ===========================
 # By:        Eric Hameleers <alien@slackware.com>
 # For:       MPlayer
 # Descr:     a movie player for LINUX
 # URL:       http://www.mplayerhq.hu/
-# Needs:     
+# Needs:
 # Changelog:
 # 1.0rc1-1:   05/Nov/2006 by Eric Hameleers <alien@slackware.com>
 #            * Initial build.
@@ -85,21 +85,27 @@
 #             * Update to the latest 1.1 branch, and the same ffmpeg that was
 #               shipped with the 1.1.1 tarball.  The official 1.1.1 release
 #               did not start a new repo branch, so this is the latest.
-# 
+# 20150308-1: 09/mar/2015 by pprkut@slackware.com
+#             * Update to latest version from trunk, together with ffmpeg 2.6,
+#               which was released roughly around that date as well.
+# 20140403-1: 03/apr/2015 by volkerdi@slackware.com
+#             * Update to latest version from trunk and ffmpeg-2.6.1.
+#
 # Run 'sh MPlayer.SlackBuild' to build a Slackware package.
 # The package (.txz) plus descriptive .txt file are created in /tmp .
-# Install using 'installpkg'. 
+# Install using 'installpkg'.
 #
 # -----------------------------------------------------------------------------
 
 # Set initial variables:
 
 PRGNAM=MPlayer
-VERSION=${VERSION:-20130819}
-BRANCH=${BRANCH:-1.1}        # leave empty if you want to build MPlayer trunk
-FFMPEG=${FFMPEG:-20130505}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-20160125}
+BRANCH=${BRANCH:-1.2}        # leave empty if you want to build MPlayer trunk
+FFMPEG=${FFMPEG:-2.8.6}
+BUILD=${BUILD:-3}
 TAG=${TAG:-}
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Show the branch version in the package name if we build from a branch:
 [ -n "$BRANCH" ] && PKGVERSION=${BRANCH}_${VERSION} || PKGVERSION=${VERSION}
@@ -117,7 +123,7 @@ fi
 FFURI=git://git.videolan.org/ffmpeg.git
 
 DEFSKIN=${DEFSKIN:-"Blue"}  # Download more skins at the following url:
-SKINVER=${SKINVER:-"1.8"}   # http://www.mplayerhq.hu/design7/dload.html
+SKINVER=${SKINVER:-"1.11"}   # http://www.mplayerhq.hu/design7/dload.html
 
 # Available languages: all cs de en es fr hu it pl ru zh_CN
 LANGUAGES="en,de,es,fr"
@@ -126,7 +132,7 @@ LANGUAGES="en,de,es,fr"
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -153,9 +159,7 @@ CODECSDIR=/usr/lib${LIBDIRSUFFIX}/codecs
 
 # ---------------------------------------------------------------------------
 # -- PATENT ALERT! --
-# MPlayer source contains an internal copy of 'libdvdcss' for reading DVD's.
-# This is considered illegal software in some countries.
-# Also, MPLayer can be built with MP3 (lame) and AMR audio encoders
+# MPLayer can be built with MP3 (lame) and AMR audio encoders
 # (needed for FLV and .3GP videos) but these libraries are 'contaminated'
 # with patents from Fraunhofer and GGP.
 # Also, the AAC encoder has patent issues.
@@ -166,12 +170,6 @@ CODECSDIR=/usr/lib${LIBDIRSUFFIX}/codecs
 # incorporate patented code. So here you go. My Slackware package was
 # built with "USE_PATENTS=NO" i.e. without using
 # the lame mp3, faac, AMR and dvdcss libraries.
-# This also means that this creates a version of MPlayer that is unable
-# to play encrypted DVD's (which is most DVD's on the market). If it is
-# allowed in your country to use libdvdcss, this is not a big problem though.
-# Install a libdvdcss package and it will be picked up automatically by
-# MPlayer's internal libdvdread library, so that MPlayer will again be able
-# to play encrypted DVD's.
 # ---------------------------------------------------------------------------
 USE_PATENTS=${USE_PATENTS:-"NO"}
 
@@ -187,13 +185,10 @@ OSDFONTS="LiberationSans-Regular.ttf \
           Arialuni.ttf arial.ttf \
           DejaVuSans.ttf Vera.ttf"
 
-# We will work with a stripped-down source tarball, not containing libdvdcss:
-[ "$USE_PATENTS" != "YES" ] && EXTRA="_nolibdvdcss" || EXTRA=""
-
 # Where do we look for sources?
 SRCDIR=$(cd $(dirname $0); pwd)
 
-SOURCE[0]="$SRCDIR/${PRGNAM}${EXTRA}-${VERSION}.tar.xz"
+SOURCE[0]="$SRCDIR/${PRGNAM}-${VERSION}.tar.xz"
 SRCURL[0]=""
 
 # The default skin to use (we need to add at least one)
@@ -229,32 +224,21 @@ src_checkout() {
        && cd MPlayer-${VERSION} \
        && svn checkout --revision $REV ${MPURI}/${MPBRANCH} . \
        && svn propget svn:externals | sed -e 's/[[:space:]].*$//g' | xargs svn up --revision $REV \
-       && find . -type d -name '.svn' -depth | xargs rm -rf \
-       && ([ "$USE_PATENTS" != "YES" ] && rm -rf libdvdcss || true) \
        && chown -R root:root . \
        && cd .. \
-       && tar -${TARCOMP}cf ${2} MPlayer-${VERSION}
+       && tar --exclude-vcs -${TARCOMP}cf ${2} MPlayer-${VERSION}
      rm -rf MPlayer-${VERSION}
      ;;
   2) # ffmpeg-${FFMPEG}
      mkdir ffmpeg_temp_checkout_$$ \
        && cd ffmpeg_temp_checkout_$$
-       if [ "$FFMPEG" = "HEAD" ]; then
-         # Checkout without downloading version history (fast!):
-         echo "Checking out HEAD from '$FFURI':"
-         git clone --depth=1 ${FFURI} ffmpeg
-       else
-         # Checkout code from a certain branch and/or date; this will take a
-         # long time because we have to clone the complete git-repository first:
-         echo "Checking out branch 'master' at date $FFMPEG from '$FFURI':"
-         git clone ${FFURI} ffmpeg \
-         && cd ffmpeg \
-         && git checkout master \
-         && git checkout $(git rev-list -n 1 --before="`date -d $FFMPEG`" master) \
-         && cd ..
-       fi
+       echo "Checking out tag n$FFMPEG from '$FFURI':"
+       git clone ${FFURI} ffmpeg \
+       && cd ffmpeg \
+       && git checkout n$FFMPEG \
+       && cd ..
        chown -R root:root . \
-       && tar --exclude .git -${TARCOMP}cf ${2} ffmpeg
+       && tar --exclude-vcs -${TARCOMP}cf ${2} ffmpeg
      cd ..
      rm -rf ffmpeg_temp_checkout_$$
      ;;
@@ -323,35 +307,27 @@ echo "++"
 echo "|| $PRGNAM-$VERSION"
 echo "++"
 
-# Warn about libdvdread requirement:
-if [ "$USE_PATENTS" != "YES" ]; then
-  cat <<"EOT"
-**
-** Removing internal DECSS library.
-** If you want to play encrypted DVD's you need to install libdvdcss separately.
-**
-** If you do not want to remove libdvdcss, then
-** edit this SlackBuild script and change the line:
-** USE_PATENTS=${USE_PATENTS:-"NO"}
-** to:
-** USE_PATENTS="YES"
-**
-EOT
-  sleep 2
-fi
-
 cd $TMP/tmp-$PRGNAM
 echo "Extracting the source archive(s) for $PRGNAM..."
 tar -xvf ${SOURCE[0]}
-# Extract the ffmpeg source inside the MPlayer directory:
-( cd ${PRGNAM}-${VERSION} && tar -xvf ${SOURCE[2]} )
+
+cd ${PRGNAM}-${VERSION}
+  # remove MPlayer's copy of libswscale
+  rm -rf ffmpeg
+
+  # Extract the ffmpeg source inside the MPlayer directory:
+  tar -xvf ${SOURCE[2]}
+
+  # in case we build with an official tarball
+  if [ -e "ffmpeg-$FFMPEG" ]; then
+    mv "ffmpeg-$FFMPEG" ffmpeg
+  fi
+
+cd ..
 
 chown -R root:root *
 chmod -R u+w,go+r-w,a+X-s *
 cd ${PRGNAM}-${VERSION}
-
-# Apply patch to fix subtitles:
-zcat $SRCDIR/subreader-fix-srt-parsing.patch.gz | patch -p1 --verbose || exit 1
 
 # Determine what X we're running (the modular X returns the prefix
 # in the next command, while older versions stay silent):
@@ -360,13 +336,21 @@ XPREF=$(pkg-config --variable=prefix x11) || true
 
 # Remove support for patent encumbered and possibly illegal code:
 if [ "$USE_PATENTS" != "YES" ]; then
-  DO_PATENTED="--disable-libdvdcss-internal \
-               --disable-mp3lame --disable-mp3lame-lavc \
+  DO_PATENTED="--disable-mp3lame --disable-mp3lame-lavc \
                --disable-libopencore_amrnb \
                --disable-libopencore_amrwb"
 else
   DO_PATENTED=""
 fi
+
+# fix building against samba 4
+zcat $SRCDIR/include-samba-4.0.patch.gz | patch -p1 --verbose || exit 1
+
+# fix building against openjpeg 2
+sed -i "s|lopenjpeg|lopenmj2|" ./configure
+
+# fix flac playback with embedded album art:
+zcat $SRCDIR/MPlayer.demux_lavf.flac.diff.gz | patch -p1 --verbose || exit 1
 
 echo Building ...
 # MPlayer wants to automatically determine compiler flags,
@@ -377,10 +361,13 @@ echo Building ...
   --confdir=/etc/mplayer \
   --enable-gui \
   --enable-menu \
+  --enable-vdpau \
   --disable-arts \
+  --disable-ossaudio \
   --disable-bitmap-font \
   --codecsdir=${CODECSDIR} \
   --language="${LANGUAGES}" \
+  --extra-cflags="-I/usr/include/openmj2-2.1/" \
   ${EXTRACONFIGUREOPTIONS} \
   ${DO_PATENTED} \
   2>&1 | tee $OUTPUT/configure-${PRGNAM}.log
@@ -388,7 +375,7 @@ echo Building ...
 if [ ! -f VERSION ]; then
   echo $VERSION > VERSION
 fi
-make 2>&1 | tee $OUTPUT/make-${PRGNAM}.log
+make $NUMJOBS 2>&1 | tee $OUTPUT/make-${PRGNAM}.log
 make DESTDIR=$PKG install 2>&1 |tee $OUTPUT/install-${PRGNAM}.log
 
 # Build the html documentation (not all languages are available):
@@ -396,7 +383,7 @@ if [ "$LANGUAGES" = "all" ]; then
   # make html-chunked
   make html-single
 else
-  for i in $(echo $LANGUAGES | tr , ' ') ; do 
+  for i in $(echo $LANGUAGES | tr , ' ') ; do
     # make html-chunked-$i ;
     make html-single-$i ;
   done
@@ -510,22 +497,4 @@ cd $OUTPUT
 md5sum ${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz > ${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz.md5
 cd -
 cat $PKG/install/slack-desc | grep "^${PRGNAM}" > $OUTPUT/${PRGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txt
-
-# Warn about libdvdcss requirement (again):
-if [ "$USE_PATENTS" != "YES" ]; then
-  cat <<"EOT"
-**
-** Internal DECSS library was not built.
-** If you want to play encrypted DVD's you need to install libdvdcss separately.
-**
-** If you do not care about patent issues,
-** and want to keep support for internal libdvdcss, then
-** edit this SlackBuild script and change the line:
-** USE_PATENTS=${USE_PATENTS:-"NO"}
-** to:
-** USE_PATENTS="YES"
-**
-EOT
-
-fi
 

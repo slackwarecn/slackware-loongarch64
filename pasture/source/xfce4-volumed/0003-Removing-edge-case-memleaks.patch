@@ -1,0 +1,80 @@
+From ac129e178c24d7ec79b020a7912cc680a6008c5b Mon Sep 17 00:00:00 2001
+From: Steve Dodier-Lazaro <sidnioulz@gmail.com>
+Date: Wed, 10 Dec 2014 03:38:32 +0000
+Subject: [PATCH 3/3] Removing edge-case memleaks
+
+---
+ src/main.c      |  2 +-
+ src/xvd_mixer.c | 30 ++++++++++++++++++------------
+ 2 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/src/main.c b/src/main.c
+index 18e8e01..d04920c 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -81,7 +81,7 @@ xvd_shutdown()
+ 	xvd_keys_release (Inst);
+ 	xvd_xfconf_shutdown (Inst);
+ 	
+-	//TODO xvd_instance_free
++	g_free (Inst);
+ }
+ 
+ static void 
+diff --git a/src/xvd_mixer.c b/src/xvd_mixer.c
+index 1d580bf..cef3151 100644
+--- a/src/xvd_mixer.c
++++ b/src/xvd_mixer.c
+@@ -102,31 +102,37 @@ _xvd_mixer_bus_message (GstBus *bus, GstMessage *message,
+ 	{
+ 		gst_mixer_message_parse_mute_toggled (message, &msg_track, &Inst->muted);
+ 		g_object_get (msg_track, "label", &label, NULL);
+-		if (g_strcmp0 (Inst->track_label, label) != 0)
+-			return;
++
++		if (g_strcmp0 (Inst->track_label, label) == 0)
++		{
+ #ifdef HAVE_LIBNOTIFY
+-		if (Inst->muted)
+-			xvd_notify_notification (Inst, "audio-volume-muted", 0);
+-		else {
+-			xvd_mixer_init_volume (Inst);
+-			xvd_notify_volume_notification (Inst);
++		  if (Inst->muted)
++			  xvd_notify_notification (Inst, "audio-volume-muted", 0);
++		  else {
++			  xvd_mixer_init_volume (Inst);
++			  xvd_notify_volume_notification (Inst);
+ #endif
++		  }
+ 		}
++
+ 		g_free (label);
+ 	}
+ 	else if (type == GST_MIXER_MESSAGE_VOLUME_CHANGED)
+ 	{
+ 		gst_mixer_message_parse_volume_changed (message, &msg_track, &volumes, &num_channels);
+ 		g_object_get (msg_track, "label", &label, NULL);
+-		if (g_strcmp0 (Inst->track_label, label) != 0)
+-			return;
+-		xvd_calculate_avg_volume (Inst, volumes, num_channels);
++		if (g_strcmp0 (Inst->track_label, label) == 0)
++		{
++		  xvd_calculate_avg_volume (Inst, volumes, num_channels);
+ #ifdef HAVE_LIBNOTIFY
+-		xvd_notify_volume_notification (Inst);
++		  xvd_notify_volume_notification (Inst);
+ #endif
++		}
++
+ 		g_free (label);
+ 	}
+-	else if (type == GST_MIXER_MESSAGE_MIXER_CHANGED) {
++	else if (type == GST_MIXER_MESSAGE_MIXER_CHANGED)
++	{
+ 		// This kind of message shouldn't happen on an hardware card
+ 		g_debug ("GST_MIXER_MESSAGE_MIXER_CHANGED event\n");
+ 	}
+-- 
+2.3.0
+

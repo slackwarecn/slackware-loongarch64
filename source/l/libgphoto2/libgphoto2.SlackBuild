@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Copyright 2007-2008  Frank Caraballo <fecaraballo{at}gmail{dot}com>
-# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,7 +29,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -38,8 +38,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
@@ -71,9 +71,6 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
-
-# udev-175 bundles usb_id into the udevd binary
-zcat $CWD/fix-usb_id-callout-for-udev-175.diff.gz | patch -p1 || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -112,16 +109,13 @@ LD_LIBRARY_PATH=$PKG/usr/lib${LIBDIRSUFFIX}
 CAMLIBS=$PKG/usr/lib${LIBDIRSUFFIX}/$PKGNAM/$VERSION 
 LIBDIR=$PKG/usr/lib${LIBDIRSUFFIX}
 export LD_LIBRARY_PATH CAMLIBS LIBDIR
-# Generate udev rules
+# Generate udev rules -- for udev <= 200
 mkdir -p $PKG/lib/udev/rules.d
-$PKG/usr/bin/print-camera-list udev-rules version 136 mode 0660 owner root group plugdev \
+$PKG/usr/bin/print-camera-list udev-rules version 175 mode 0660 owner root group plugdev \
   > $PKG/lib/udev/rules.d/40-libgphoto2.rules
-# Generate fdi files
-mkdir -p $PKG/usr/share/hal/fdi/information/20thirdparty
-$PKG/usr/bin/print-camera-list hal-fdi \
-  > $PKG/usr/share/hal/fdi/information/20thirdparty/10-camera-libgphoto2.fdi
-$PKG/usr/bin/print-camera-list hal-fdi-device \
-  > $PKG/usr/share/hal/fdi/information/20thirdparty/10-camera-libgphoto2-device.fdi
+# For udev >= 201
+mkdir -p $PKG/lib/udev/hwdb.d/
+$PKG/usr/bin/print-camera-list hwdb > $PKG/lib/udev/hwdb.d/20-gphoto.conf
 unset LD_LIBRARY_PATH CAMLIBS LIBDIR   # Unset these just in case
 
 # Compress and link manpages, if any:

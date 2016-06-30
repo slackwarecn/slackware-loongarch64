@@ -1,0 +1,26 @@
+Guarding GC_setup_mark_lock usage with PARALLEL_MARK is required to avoid
+an undefined reference in non-PARALLEL_MARK configurations:
+commit 4c8e0dc234e671c4d64ffab9d4f94b6cd8cc2f63
+Author: Thomas Schwinge < thomas at codesourcery.com >
+Date:   Mon Sep 22 13:36:00 2014 +0200
+    Refer to GC_setup_mark_lock only in PARALLEL_MARK code.
+    
+        ./.libs/libgc.so: undefined reference to `GC_setup_mark_lock'
+    
+    * misc.c (GC_init): Guard GC_setup_mark_lock usage.
+---
+ misc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+diff --git misc.c misc.c
+index 41bd3f4..721a999 100644
+--- misc.c
++++ misc.c
+@@ -889,7 +889,7 @@ GC_API void GC_CALL GC_init(void)
+         /* else */ InitializeCriticalSection (&GC_allocate_ml);
+      }
+ #   endif /* GC_WIN32_THREADS */
+-#   if defined(GC_PTHREADS) && !defined(GC_WIN32_THREADS)
++#   if defined(PARALLEL_MARK) && defined(GC_PTHREADS) && !defined(GC_WIN32_THREADS)
+       GC_setup_mark_lock();
+ #   endif /* GC_PTHREADS */
+ #   if (defined(MSWIN32) || defined(MSWINCE)) && defined(THREADS)

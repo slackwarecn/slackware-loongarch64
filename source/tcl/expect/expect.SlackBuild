@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2013, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,14 +22,13 @@
 
 
 PKGNAM=expect
-VERSION=5.44.1.15
-TCLVER=8.6.0
-BUILD=${BUILD:-2}
+VERSION=5.45
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -44,8 +43,8 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -58,17 +57,10 @@ else
   LIBDIRSUFFIX=""
 fi
 
-if [ ! -d $TMP/tcl${TCLVER} ]; then
-  echo "ERROR:  no $TMP/tcl${TCLVER} -- this is needed for Tcl internal headers"
-  exit 1
-fi
-
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
-cd ${PKGNAM}-$VERSION || exit 1
-
-zcat $CWD/expect.exp_main_tk.c.version.require.diff.gz | patch -p1 --verbose || exit 1
+rm -rf ${PKGNAM}${VERSION}
+tar xvf $CWD/${PKGNAM}$VERSION.tar.xz || exit 1
+cd ${PKGNAM}$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -87,22 +79,12 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --disable-static \
   --with-tclconfig=/usr/lib${LIBDIRSUFFIX} \
-  --with-tclinclude=/usr/include/tcl-private/generic \
-  --with-tkconfig=/usr/lib${LIBDIRSUFFIX} \
-  --with-tkinclude=/usr/include/tk-private/generic \
+  --with-tclinclude=/usr/include \
   --build=$ARCH-slackware-linux
 
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# expectk will not work correctly if called from /bin/sh,
-# but using /usr/bin/tclsh will work:
-( cd $PKG/usr/bin
-  for file in multixterm tknewsbiff tkpasswd xpstat ; do
-    sed -i "s/bin\/sh/usr\/bin\/tclsh/g" $file
-  done
-)
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

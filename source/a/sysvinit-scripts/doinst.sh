@@ -17,9 +17,12 @@ config etc/rc.d/rc.6.new
 config etc/rc.d/rc.K.new
 config etc/rc.d/rc.M.new
 config etc/rc.d/rc.S.new
+config etc/rc.d/rc.cpufreq.new
 config etc/rc.d/rc.local.new
 config etc/rc.d/rc.loop.new
 config etc/rc.d/rc.sysvinit.new
+config etc/rc.d/rc.modules.new
+config etc/rc.d/rc.modules.local.new
 
 ( cd etc/rc.d ; rm -rf rc.0 )
 ( cd etc/rc.d ; ln -sf rc.6 rc.0 )

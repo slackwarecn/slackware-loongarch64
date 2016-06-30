@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2011  Robby Workman, Northport, Alabama, USA
+# Copyright 2009, 2011, 2015  Robby Workman, Northport, Alabama, USA
 # Copyright 2010  Eric Hameleers, Eindhoven, NL
 # Copyright 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -24,13 +24,13 @@
 
 
 PKGNAM=polkit
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -43,8 +43,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -72,7 +72,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-zcat $CWD/05_revert-admin-identities-unix-group-wheel.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/dont-set-wheel-group-as-admin.diff.gz | patch -p1 || exit 1
+
+# If we get here and don't have a polkitd user/group, add one.
+# Otherwise a few directories in the package will have wrong permissions.
+if ! grep -q "^polkitd:" /etc/passwd ; then
+  groupadd -fg 87 polkitd
+  useradd -c "PolicyKit daemon owner" -d /var/lib/polkit -u 87 -g polkitd -s /bin/false polkitd
+fi
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -86,28 +93,25 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-gtk-doc \
   --mandir=/usr/man \
   --disable-static \
+  --disable-examples \
   --enable-introspection \
+  --enable-libsystemd-login=no \
   --with-authfw=shadow \
   --enable-verbose-mode \
   --with-os-type=Slackware \
   --build=$ARCH-slackware-linux
 
-#NOTE: The directory /etc/polkit-1/localauthority must be owned
-#      by root and have mode 700
-#NOTE: The directory /var/lib/polkit-1 must be owned
-#      by root and have mode 700
-#NOTE: The file ${exec_prefix}/libexec/polkit-agent-helper-1 must be owned
-#      by root and have mode 4755 (setuid root binary)
-#NOTE: The file ${exec_prefix}/bin/pkexec must be owned by root and
-#      have mode 4755 (setuid root binary)
-
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Create homedir for polkit.  This is mentioned in /etc/passwd, but isn't
+# actually used for anything later.  Perms don't matter.
+mkdir -p $PKG/var/lib/polkit
+
 # Add default policy files for udisks2 and NetworkManager events:
-cat $CWD/20-plugdev-group-mount-override.pkla > $PKG/etc/polkit-1/localauthority/50-local.d/20-plugdev-group-mount-override.pkla.new
-cat $CWD/10-org.freedesktop.NetworkManager.pkla > $PKG/etc/polkit-1/localauthority/50-local.d/10-org.freedesktop.NetworkManager.pkla.new
+cat $CWD/10-org.freedesktop.NetworkManager.rules > $PKG/etc/polkit-1/rules.d/10-org.freedesktop.NetworkManager.rules.new
+cat $CWD/20-plugdev-group-mount-override.rules > $PKG/etc/polkit-1/rules.d/20-plugdev-group-mount-override.rules.new
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

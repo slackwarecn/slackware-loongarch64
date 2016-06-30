@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,28 +23,45 @@
 TARBALLVER=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
 # Strip the end from beta versions:
 VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
-COMM=${COMM:-release}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "x86_64" ]; then
+if [ "$ARCH" = "i586" ]; then
+  LIBDIRSUFFIX=""
+  OPTIMIZE_FLAG="-O2"
+  # On IA32, use gold since GNU ld runs out of memory linking libxul.so:
+  PATH="$(pwd)/gold:$PATH"
+  export CC="gcc -B$(pwd)/gold"
+  export CXX="g++ -B$(pwd)/gold"
+elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
   OPTIMIZE_FLAG="-O2"
 else
   LIBDIRSUFFIX=""
-  OPTIMIZE_FLAG="-Os"
+  OPTIMIZE_FLAG="-O2"
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
+
+# Workaround to prevent unidentified crashes when compiling with recent gcc.
+# Presumably a newer version will fix this (as it did with Firefox), so only
+# enable the workaround for known crashing versions.
+# Test page to check for crash:  http://onet.pl
+if [ $VERSION = 2.39 -o \
+     $VERSION = 2.40 ]; then
+  OPTIMIZE_FLAG="$(echo "$OPTIMIZE_FLAG" | sed 's/O2/Os/g')"
+  echo "Detected Seamonkey $VERSION...  enabling crash workaround O2 -> Os."
+  sleep 1
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -53,9 +70,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 
 cd $TMP
-rm -rf comm-$COMM
+rm -rf seamonkey-${TARBALLVER}
 tar xvf $CWD/seamonkey-${TARBALLVER}.source.tar.?z* || exit 1
-cd comm-$COMM || exit 1
+cd seamonkey-${TARBALLVER} || exit 1
 
 # Make sure the perms/ownerships are sane:
 chown -R root:root .
@@ -65,44 +82,10 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Fix a long standing bug that's prevented staying current on GTK+.
-# Thanks to the BLFS folks.  :-)
-cat >> mozilla/layout/build/Makefile.in << EOF
-
-ifdef MOZ_ENABLE_CANVAS
-EXTRA_DSO_LDOPTS += \$(XLDFLAGS) -lX11 -lXrender
-endif
-
-EOF
-
-if gcc --version | grep -q "gcc (GCC) 4.7.0" ; then
- # Enable compiling with gcc-4.7.0:
- sed -i '/fcntl.h/a#include <unistd.h>' \
-   mozilla/ipc/chromium/src/base/{file_util_linux,message_pump_libevent,process_util_posix}.cc &&
- sed -i '/sys\/time\.h/a#include <unistd.h>' mozilla/ipc/chromium/src/base/time_posix.cc &&
- sed -i 's#\"PRIxPTR#\" PRIxPTR#g' mozilla/layout/base/tests/TestPoisonArea.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/search/src/nsMsgSearchAdapter.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/compose/src/nsSmtpProtocol.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapMailFolder.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapProtocol.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapServerResponseParser.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/local/src/nsPop3Protocol.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/mime/src/mimedrft.cpp &&
- sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/mime/src/mimemult.cpp &&
- sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
- sed -i 's# ""##' mozilla/browser/base/Makefile.in
-fi
-
 chown -R root:root .
 
-# Mozilla devs enforce using an objdir for building
-# and launching configure with the absolute path
-# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
-mkdir obj
-cd obj
-BUILD_OFFICIAL=1 MOZILLA_OFFICIAL=1 \
-$TMP/comm-$COMM/configure \
+# Our building options, in a configure-like display ;)
+OPTIONS="\
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-optimize=$OPTIMIZE_FLAG \
@@ -116,6 +99,7 @@ $TMP/comm-$COMM/configure \
   --disable-crashreporter \
   --enable-svg \
   --enable-canvas \
+  --enable-gstreamer=1.0 \
   --disable-short-wchar \
   --enable-nspr-autoconf \
   --enable-extensions=default,irc \
@@ -129,12 +113,35 @@ $TMP/comm-$COMM/configure \
   --enable-xft \
   --host=$ARCH-slackware-linux \
   --target=$ARCH-slackware-linux \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux"
 
   # --enable-system-cairo \
   # --with-system-png
-make $NUMJOBS || exit 1
-DESTDIR=$PKG make install || exit 1
+
+export BUILD_OFFICIAL=1
+export MOZILLA_OFFICIAL=1
+export MOZ_MAKE_FLAGS="$NUMJOBS"
+
+# Clear some variables that could break the build
+unset DBUS_SESSION_BUS_ADDRESS ORBIT_SOCKETDIR SESSION_MANAGER \
+  XDG_SESSION_COOKIE XAUTHORITY MAKEFLAGS
+
+# Assemble our .mozconfig:
+echo > .mozconfig
+
+# Mozilla devs enforce using an objdir for building
+# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
+mkdir obj
+echo "mk_add_options MOZ_OBJDIR=$(pwd)/obj" >> .mozconfig
+# This directory is also needed or the build will fail:
+mkdir -p mozilla/obj
+
+# Write in it the options above
+for option in $OPTIONS; do echo "ac_add_options $option" >> .mozconfig; done
+
+echo "ac_add_options --disable-tests" >> .mozconfig
+make -f client.mk build || exit 1
+make -f client.mk install DESTDIR=$PKG || exit 1
 
 # Install nspr/nss headers.
 for includedir in nspr nspr/obsolete nspr/private ; do
@@ -156,9 +163,6 @@ cp -aL mozilla/dist/sdk/include/* $PKG/usr/include/seamonkey-${VERSION}
   ln -sf . plugin
   ln -sf . xpcom
 )
-
-# Exit obj directory:
-cd ..
 
 # We don't need this stuff in the package:
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/seamonkey-devel-$VERSION

@@ -22,13 +22,13 @@
 
 
 PKGNAM=dmidecode
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -43,8 +43,8 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
@@ -53,7 +53,7 @@ fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
@@ -64,11 +64,22 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/dmidecode.makefile.diff.gz | patch -p1 --verbose || exit 1
+# Upstream recommends taking four of these on top of 3.0 anyway, and the others
+# look reasonable too, so here are all of the patches from git after 3.0
+# Upsream recommends: 1, 5, 7, and 8
+zcat $CWD/patches/0001-Add-no-sysfs-option-description-to-h-output.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0002-Avoid-SIGBUS-on-mmap-failure.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0003-Fix-error-paths-in-mem_chunk.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0004-dmidecode-Handle-OEM-specific-types-in-group-associa.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0005-Fix-No-SMBIOS-nor-DMI-entry-point-found-on-SMBIOS3.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0006-dmidecode-Introduce-SYS_FIRMWARE_DIR.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0007-Let-read_file-return-the-actual-data-size.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0008-dmidecode-Use-read_file-to-read-the-DMI-table-from-s.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0009-dmidecode-Check-sysfs-entry-point-length.patch.gz | patch -p1 --verbose || exit 1
 
 # Build and install:
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+make prefix=/usr mandir=/usr/man $NUMJOBS || make prefix=/usr mandir=/usr/man || exit 1
+make prefix=/usr mandir=/usr/man install DESTDIR=$PKG || exit 1
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

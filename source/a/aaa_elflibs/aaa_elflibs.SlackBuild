@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,13 +21,13 @@
 
 
 PKGNAM=aaa_elflibs
-VERSION=${VERSION:-14.1}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-14.2}
+BUILD=${BUILD:-23}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -46,8 +46,13 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
+if [ -x /sbin/ldconfig ]; then
+  /sbin/ldconfig
+fi
+
 cd $PKG
 cat $CWD/symlinks-to-tracked-libs \
+  | grep -v "^#" | grep -v "^$" \
   | sed -e "s#^/lib/#/lib${LIBDIRSUFFIX}/#" \
         -e "s#^/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" \
   | while read library ; do
@@ -61,7 +66,39 @@ cat $CWD/symlinks-to-tracked-libs \
     cp -a $(dirname $library)/$(readlink $library) .
   )
 done
+
 cat $CWD/tracked-files \
+  | grep -v "^#" | grep -v "^$" \
+  | sed -e "s#^/lib/#/lib${LIBDIRSUFFIX}/#" \
+        -e "s#^/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" \
+  | while read library ; do
+  ( [ ! -e $library ] && continue
+    echo "Adding $library"
+    mkdir -p $(dirname $library | cut -b2- )
+    cd $(dirname $library | cut -b2- )
+    rm -f $(basename $library)
+    cp -a $library .
+  )
+done
+
+cat $CWD/symlinks-to-tracked-libs-tmp \
+  | grep -v "^#" | grep -v "^$" \
+  | sed -e "s#^/lib/#/lib${LIBDIRSUFFIX}/#" \
+        -e "s#^/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" \
+  | while read library ; do
+  ( [ ! -e $library ] && continue
+    echo "Adding $library"
+    mkdir -p $(dirname $library | cut -b2- )
+    cd $(dirname $library | cut -b2- )
+    rm -f $(basename $library)
+    cp -a $library .
+    rm -f $(readlink $library)
+    cp -a $(dirname $library)/$(readlink $library) .
+  )
+done
+
+cat $CWD/tracked-files-tmp \
+  | grep -v "^#" | grep -v "^$" \
   | sed -e "s#^/lib/#/lib${LIBDIRSUFFIX}/#" \
         -e "s#^/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" \
   | while read library ; do

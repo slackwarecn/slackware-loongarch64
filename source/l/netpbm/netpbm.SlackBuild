@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,21 +22,21 @@
 
 
 PKGNAM=netpbm
-VERSION=${VERSION:-10.49.02}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-10.66.02}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -59,6 +59,9 @@ cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
 cd ${PKGNAM}-$VERSION
+
+zcat $CWD/netpbm-noppmtompeg.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-pnmtops.patch.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -92,9 +95,20 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   cd usr
   mkdir -p doc/netpbm-$VERSION
   mv VERSION bin/doc.url doc/netpbm-$VERSION
-  ( cd lib ; ln -sf libnetpbm.so.10 libnetpbm.so )
+  if [ -r lib/libnetpbm.so.11 ]; then
+    ( cd lib ; rm -f libnetpbm.so ; ln -sf libnetpbm.so.11 libnetpbm.so )
+  else
+    echo "ERROR:  libnetpbm.so.11 not found."
+    echo "Please edit the correct library major version into the build script"
+    exit 1
+  fi
   mv lib lib${LIBDIRSUFFIX}
-  rm -rf config_template link misc pkginfo man/man1/manweb.1 man/web
+  # Remove junk directories:
+  rm -rf link misc
+  # Remove manweb related files:
+  rm -rf bin/manweb man/man1/manweb.1* man/web
+  # Any other files in /usr are junk:
+  rm --verbose * 2> /dev/null
 )
 
 # Compress and link manpages, if any:

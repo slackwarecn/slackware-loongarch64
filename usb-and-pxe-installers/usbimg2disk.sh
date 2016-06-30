@@ -21,9 +21,6 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Paranoid as usual:
-set -e
-
 # Define some variables ahead of time, so that cleanup knows about them:
 MNTDIR1=""
 MNTDIR2=""
@@ -32,13 +29,13 @@ MNTDIR3=""
 # Clean up in case of failure:
 cleanup() {
   # Clean up by unmounting our loopmounts, deleting tempfiles:
-  echo "--- Cleaning up the staging area..."
+  echo "--- Syncing I/O..."
   sync
+  echo "--- Unmounting volumes and deleting temporary files..."
   [ ! -z "${MNTDIR1}" ] && ( umount -f ${MNTDIR1} ; rmdir $MNTDIR1 )
   [ ! -z "${MNTDIR2}" ] && ( umount -f ${MNTDIR2} ; rmdir $MNTDIR2 )
   [ ! -z "${MNTDIR3}" ] && rm -rf ${MNTDIR3} || true
 }
-trap 'echo "*** $0 FAILED at line $LINENO ***"; cleanup; exit 1' ERR INT TERM
 
 showhelp() {
   echo "# "
@@ -58,6 +55,7 @@ showhelp() {
   echo "# "
   echo "# $(basename $0) accepts the following parameters:"
   echo "#   -h|--help                  This help"
+  echo "#   -e|--errors                Abort operations in case of any errors"
   echo "#   -f|--format                Format the USB drive before use"
   echo "#   -i|--infile <filename>     Full path to the usbboot.img file"
   echo "#   -l|--logfile <filename>    Optional logfile to catch fdisk output"
@@ -94,9 +92,6 @@ reformat() {
   # Wipe the MBR:
   dd if=/dev/zero of=$TOWIPE bs=512 count=1
 
-  # Temporarily accept errors (so that we can examine them):
-  set +e
-
   # create a FAT32 partition (type 'b')
   /sbin/fdisk $TOWIPE <<EOF
 n
@@ -122,9 +117,6 @@ EOF
     fi
   fi
 
-  # Fail on errors again:
-  set -e
-
   if mount | grep -q ${TOWIPE}1 ; then
     echo "--- Un-mounting ${TOWIPE}1 because your desktop auto-mounted it..."
     umount -f ${TOWIPE}1
@@ -134,7 +126,7 @@ EOF
   # It will enable the installer to mount the fat partition automatically
   # and pre-fill the correct pathname for the "SOURCE" dialog.
   # Format with a vfat filesystem:
-  /sbin/mkdosfs -F32 -n ${THELABEL} ${TOWIPE}1
+  /sbin/mkdosfs -F32 -n "${THELABEL}" ${TOWIPE}1
 }
 
 makebootable() {
@@ -148,7 +140,7 @@ makebootable() {
   fi
 
   # Set the bootable flag for the first partition:
-  /sbin/sfdisk -A $USBDRV 1
+  /sbin/sfdisk $USBDRV -A 1 -N1
 }
 
 # Parse the commandline parameters:
@@ -158,6 +150,10 @@ if [ -z "$1" ]; then
 fi
 while [ ! -z "$1" ]; do
   case $1 in
+    -e|--errors)
+      ABORT_ON_ERROR=1
+      shift
+      ;;
     -f|--format)
       REFORMAT=1
       shift
@@ -198,6 +194,13 @@ while [ ! -z "$1" ]; do
       ;;
   esac
 done
+
+if [ "$ABORT_ON_ERROR" = "1" ]; then
+  set -e
+  trap 'echo "*** $0 FAILED at line $LINENO ***"; cleanup; exit 1' ERR INT TERM # trap and abort on any error
+else
+  trap 'echo "*** Ctrl-C caught -- aborting operations ***"; cleanup; exit 1' 2 14 15 # trap Ctrl-C and kill
+fi
 
 # Before we start:
 [ -x /bin/id ] && CMD_ID="/bin/id" || CMD_ID="/usr/bin/id"
@@ -286,9 +289,17 @@ if mount | grep -q $TARGETPART ; then
   exit 1
 fi
 
-# Do not croak if we have a Slackware tree without sources:
-if [ ! $(readlink -f ${REPOSROOT}/extra/java ) ]; then
-   EXCLUDES="${EXCLUDES} --exclude=extra/java"
+# Exclude all dangling symlinks from the rsync to avoid errors and/or
+# rsync refusing to delete files.  Such links may be present in a partial
+# Slackware tree with the sources removed.
+if [ -d "$REPOSROOT" ] ; then
+  pushd $REPOSROOT
+    for link in $(find * -type l ) ; do
+      if [ ! $(readlink -f $link ) ]; then
+        EXCLUDES="${EXCLUDES} --exclude=$link"
+      fi
+    done
+  popd
 fi
 
 # Check for prerequisites which may not always be installed:
@@ -345,7 +356,7 @@ if [ $REFORMAT -eq 1 ]; then
     echo "--- Last chance! Press CTRL-C to abort!"
     read -p "Or press ENTER to continue: " JUNK
   fi
-  ( reformat $TARGET ${FATLABEL} ) 1>>$LOGFILE 2>&1
+  ( reformat $TARGET "${FATLABEL}" ) 1>>$LOGFILE 2>&1
 else
   # We do not format the drive, but apply a FAT label if required.
 
@@ -358,12 +369,10 @@ else
     # User gave us a FAT label to use, so we will force that upon the drive:
     echo "--- Setting FAT partition label to '$FATLABEL'"
     MTOOLSRC=$MTOOLSRCFILE mlabel s:${FATLABEL}
-  elif [ -n "$(/sbin/blkid -t TYPE=vfat -s LABEL -o export $TARGETPART)" ] ; then
+  elif [ -n "$(/sbin/blkid -t TYPE=vfat -s LABEL -o value $TARGETPART)" ] ; then
     # User did not care, but the USB stick has a FAT label that we will use:
-    eval $(/sbin/blkid -t TYPE=vfat -s LABEL -o export $TARGETPART)
-    FATLABEL=$LABEL
+    FATLABEL="$(/sbin/blkid -t TYPE=vfat -s LABEL -o value $TARGETPART)"
     echo "--- Using current FAT partition label '$FATLABEL'"
-    unset LABEL
   else
     # No user-supplied label, nor a drive label present. We apply our default:
     echo "--- Setting FAT partition label to '$FATLABEL'"
@@ -449,11 +458,9 @@ if [ $UNATTENDED -eq 0 ]; then
   fi
 fi
 
-# Copy boot image files to the USB disk in its own subdirectory '/syslinux':
+# Copy boot image files to the USB disk:
 echo "--- Copying boot files to the USB drive..."
-mkdir -p $MNTDIR2/syslinux
-cp -R $MNTDIR1/* $MNTDIR2/syslinux/
-rm -f $MNTDIR2/syslinux/ldlinux.sys
+cp -R $MNTDIR1/* $MNTDIR2
 
 # If we are creating a full Slackware installer, copy the package tree:
 if [ "$FULLINSTALLER" = "yes" ]; then
@@ -469,7 +476,9 @@ cleanup
 # Run syslinux and write a good MBR:
 echo "--- Making the USB drive '$TARGET' bootable..."
 ( makebootable $TARGET ) 1>>$LOGFILE 2>&1
-/usr/bin/syslinux -s -d /syslinux $TARGETPART 1>>$LOGFILE 2>&1
+/usr/bin/syslinux -s $TARGETPART 1>>$LOGFILE 2>&1
 dd if=$MBRBIN of=$TARGET 1>>$LOGFILE 2>&1
+
+echo "--- Done."
 
 # THE END

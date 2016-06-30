@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=attr
-VERSION=2.4.46
+VERSION=2.4.47
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -58,13 +58,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Add DESTDIR support and improve docs install location:
-zcat $CWD/attr.destdir.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-
-# The 1/2 assed job has begun...  the onus of running autoconf should never
-# be placed on packagers.  They may not have the same autotools versions.
-autoconf
-
 ./configure \
   --prefix=/ \
   --exec-prefix=/ \
@@ -74,15 +67,15 @@ autoconf
   --libexecdir=/usr/lib${LIBDIRSUFFIX} \
   --includedir=/usr/include \
   --mandir=/usr/man \
-  --datadir=/usr/share
+  --datadir=/usr/share \
+  --docdir=/usr/doc/attr-$VERSION \
+  --build=$ARCH-slackware-linux
 
-make || exit 1
-make install DESTDIR=$PKG
-make install-dev DESTDIR=$PKG
-make install-lib DESTDIR=$PKG
+make PKG_DOC_DIR=/usr/doc/attr-$VERSION || exit 1
+make install PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG
+make install-dev PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG
+make install-lib PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG
 
-mv $PKG/usr/share/doc $PKG/usr
-( cd $PKG/usr/doc ; mv attr attr-$VERSION )
 #It would be nice to keep the same timestamps that the files have in the source:
 rm -rf $PKG/usr/doc/attr-$VERSION/ea-conv
 cp -a \
@@ -96,7 +89,8 @@ strip -g $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 # Remove bogus files:
 rm -f $PKG/lib${LIBDIRSUFFIX}/*.a $PKG/lib${LIBDIRSUFFIX}/libattr.so $PKG/lib${LIBDIRSUFFIX}/*.la $PKG/usr/lib${LIBDIRSUFFIX}/*.la
 # Make /usr/lib${LIBDIRSUFFIX}/libattr.so a symlink to /lib${LIBDIRSUFFIX}:
-( cd $PKG/usr/lib${LIBDIRSUFFIX} ; rm -f libattr.so ; ln -sf /lib${LIBDIRSUFFIX}/libattr.so.1 libattr.so )
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+ln -sf /lib${LIBDIRSUFFIX}/libattr.so.1 $PKG/usr/lib${LIBDIRSUFFIX}/libattr.so
 # Fix shared library perms:
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/*
 

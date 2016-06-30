@@ -1,0 +1,95 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/init.c.fixset ksh-20120801/src/cmd/ksh93/sh/init.c
+--- ksh-20120801/src/cmd/ksh93/sh/init.c.fixset	2014-11-03 15:45:36.510997271 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/init.c	2014-11-03 16:20:44.398917280 +0100
+@@ -2003,8 +2003,91 @@ static Dt_t *inittree(Shell_t *shp,const
+  * skip over items that are not name-value pairs
+  */
+ 
++
+ static void env_init(Shell_t *shp)
+ {
++	register char *cp;
++	register Namval_t	*np;
++	register char **ep=environ;
++	register char *next=0;
++#ifdef _ENV_H
++	shp->env = env_open(environ,3);
++	env_delete(shp->env,"_");
++#endif
++	if(ep)
++	{
++		while(cp= *ep++)
++		{
++			if(*cp=='A' && cp[1]=='_' && cp[2]=='_' && cp[3]=='z' && cp[4]=='=')
++				next = cp+4;
++			else if(np=nv_open(cp,shp->var_tree,(NV_EXPORT|NV_IDENT|NV_ASSIGN|NV_NOFAIL))) 
++			{
++				nv_onattr(np,NV_IMPORT);
++				np->nvenv = cp;
++				nv_close(np);
++			}
++			else  /* swap with front */
++			{
++				ep[-1] = environ[shp->nenv];
++				environ[shp->nenv++] = cp;
++			}
++		}
++		while(cp=next)
++		{
++			if(next = strchr(++cp,'='))
++				*next = 0;
++			np = nv_search(cp+2,shp->var_tree,NV_ADD);
++			if(np!=SHLVL && nv_isattr(np,NV_IMPORT|NV_EXPORT))
++			{
++				int flag = *(unsigned char*)cp-' ';
++				int size = *(unsigned char*)(cp+1)-' ';
++				if((flag&NV_INTEGER) && size==0)
++				{
++					/* check for floating*/
++					char *ep,*val = nv_getval(np);
++					strtol(val,&ep,10);
++					if(*ep=='.' || *ep=='e' || *ep=='E')
++					{
++						char *lp;
++						flag |= NV_DOUBLE;
++						if(*ep=='.')
++						{
++							strtol(ep+1,&lp,10);
++							if(*lp)
++								ep = lp;
++						}
++						if(*ep && *ep!='.')
++						{
++							flag |= NV_EXPNOTE;
++							size = ep-val;
++						}
++						else
++							size = strlen(ep);
++						size--;
++					}
++				}
++				nv_newattr(np,flag|NV_IMPORT|NV_EXPORT,size);
++			}
++			else
++				cp += 2;
++		}
++	}
++#ifdef _ENV_H
++	env_delete(shp->env,e_envmarker);
++#endif
++	if(nv_isnull(PWDNOD) || nv_isattr(PWDNOD,NV_TAGGED))
++	{
++		nv_offattr(PWDNOD,NV_TAGGED);
++		path_pwd(shp,0);
++	}
++	if((cp = nv_getval(SHELLNOD)) && (sh_type(cp)&SH_TYPE_RESTRICTED))
++		sh_onoption(SH_RESTRICTED); /* restricted shell */
++	return;
++}
++
++
++static void env_init_backup(Shell_t *shp)
++{
+ 	register char		*cp;
+ 	register Namval_t	*np,*mp;
+ 	register char		**ep=environ;

@@ -30,7 +30,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -41,8 +41,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-libgsf
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -77,24 +77,20 @@ CFLAGS="$SLKCFLAGS" \
   --with-html-dir=/usr/share/gtk-doc/html \
   --mandir=/usr/man \
   --disable-static \
+  --enable-introspection \
+  --with-bz2 \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# This is useless, describing a command that's not installed:
-rm -f $PKG/usr/man/man1/gsf-office-thumbnailer.1
-rmdir $PKG/usr/man/man1 2> /dev/null
-rmdir $PKG/usr/man 2> /dev/null
-
-# And this, more simple removal is about what libgsf deserves if it ignores
-# the --mandir option to configure, which is more than likely...
-rm -rf $PKG/usr/share/man
-
-# In the remote chance that any other man page was installed, and to the
+# In the remote chance that any man page was installed, and to the
 # requested directory too, then let's gzip it.  Probably send the error
 # output from this one to /dev/null, because gzip won't find anything.
-gzip -9 $PKG/usr/man/man?/*.? 2> /dev/null
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $( find . -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+)
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

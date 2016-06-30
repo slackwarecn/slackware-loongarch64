@@ -40,8 +40,6 @@ fi
 ( cd sbin ; ln -sf  init telinit )
 ( cd sbin ; rm -rf reboot )
 ( cd sbin ; ln -sf  halt reboot )
-( cd sbin ; rm -rf pidof )
-( cd sbin ; ln -sf killall5 pidof )
 ( cd sbin ; rm -rf poweroff )
 ( cd sbin ; ln -sf halt poweroff )
 

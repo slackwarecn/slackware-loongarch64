@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright 2005, 2006, 2008, 2009, 2010, 2012  Eric Hameleers, Eindhoven, NL
-# Copyright 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -24,15 +24,15 @@
 
 PKGNAM=mozilla-nss
 SRCNAM=nss
-VERSION=${VERSION:-3.15.2}
-NSPR=${NSPR:-4.10.1}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-3.23}
+NSPR=${NSPR:-4.12}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -40,8 +40,8 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
@@ -58,6 +58,9 @@ fi
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
+
+# Seems parallel build does not work with this.
+#NUMJOBS=${NUMJOBS:-" -j7 "}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -87,6 +90,8 @@ export NSDISTMODE="copy"
 export NSS_USE_SYSTEM_SQLITE=1
 export NSS_ENABLE_ECC=1
 cd nss
+  # Seems parallel build does not work with this.
+  #make $NUMJOBS nss_build_all export
   make nss_build_all export
 cd -
 

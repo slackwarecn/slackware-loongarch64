@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,14 +21,14 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-VERSION=${VERSION:-4.13}
-PKG_VERSION=${PKG_VERSION:-${VERSION}a}
-BUILD=${BUILD:-4}
+PKGNAM=texinfo
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,16 +37,24 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 CWD=$(pwd)
@@ -57,7 +65,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-tar xvf $CWD/texinfo-$PKG_VERSION.tar.?z* || exit 1
+tar xvf $CWD/texinfo-$VERSION.tar.xz || exit 1
 cd texinfo-$VERSION
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -68,10 +76,13 @@ find . \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --sysconfdir=/etc \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --docdir=/usr/doc/texinfo-$PKG_VERSION \
-  --build=$ARCH-slackware-linux
+  --disable-static \
+  --docdir=/usr/doc/texinfo-$VERSION \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG
@@ -83,22 +94,26 @@ mv $PKG/usr/info/dir $PKG/usr/info/dir.new
 gzip -9 $PKG/usr/info/*info*
 gzip -9 $PKG/usr/man/man?/*
 
-mkdir -p $PKG/usr/doc/texinfo-$PKG_VERSION
+mkdir -p $PKG/usr/doc/texinfo-$VERSION
 cp -a \
   ABOUT-NLS AUTHORS COPYING* INSTALL INTRODUCTION NEWS README* TODO \
-  $PKG/usr/doc/texinfo-$PKG_VERSION
-chmod 644 $PKG/usr/doc/texinfo-$PKG_VERSION/*
-chown -R root:root $PKG/usr/doc/texinfo-$PKG_VERSION
+  $PKG/usr/doc/texinfo-$VERSION
+chmod 644 $PKG/usr/doc/texinfo-$VERSION/*
+chown -R root:root $PKG/usr/doc/texinfo-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 # Build the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/texinfo-$PKG_VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/texinfo-$VERSION-$ARCH-$BUILD.txz
 
-# Clean up the extra stuff:
-if [ "$1" = "--cleanup" ]; then
-  rm -rf $TMP/texinfo-$VERSION
-  rm -rf $PKG
-fi

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=2.4.5
-RADVER=0.3.2
+VERSION=2.4.7
+RADVER=1.1.6
 PPPVER=1.98
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -55,7 +55,7 @@ echo "| ppp-$VERSION |"
 echo "+============+"
 cd $TMP
 rm -rf ppp-$VERSION
-tar xvf $CWD/ppp-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/ppp-$VERSION.tar.xz || exit 1
 cd ppp-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -66,19 +66,17 @@ find . \
 
 zcat $CWD/ppp.slack.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 sed -i -e "s#lib/pppd#lib${LIBDIRSUFFIX}/pppd#g" $(grep -lr 'lib/pppd' *)
-zcat $CWD/ppp.crypt.diff.gz | patch -p1 --verbose || exit 1
 
 # This conflicts with the header in 3.5+ kernels:
 rm -f include/linux/if_pppol2tp.h
+
+zcat $CWD/ppp.CVE-2015-3310.diff.gz | patch -p1 --verbose || exit 1
 
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX}
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG/usr
-
-mv $PKG/usr/share/man $PKG/usr
-rmdir $PKG/usr/share
 
 # Install PPP config files:
 mkdir -p $PKG/etc/ppp
@@ -102,24 +100,22 @@ cp -a \
   $PKG/usr/doc/ppp-$VERSION
 
 echo "+====================+"
-echo "| radiusclient-$RADVER |"
+echo "| freeradius-client-$RADVER |"
 echo "+====================+"
 cd $TMP
-rm -rf radiusclient-$RADVER
-tar xf $CWD/radiusclient-$RADVER.tar.bz2 || exit 1
-cd radiusclient-$RADVER || exit 1
+rm -rf freeradius-client-$RADVER
+tar xf $CWD/freeradius-client-$RADVER.tar.xz || exit 1
+cd freeradius-client-$RADVER || exit 1
 chown -R root:root .
-#cp /usr/share/libtool/config.{guess,sub} .             # libtool-1.x
-cp /usr/share/libtool/config/config.{guess,sub} .       # libtool-2.x
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc
+  --sysconfdir=/etc \
+  --build=$ARCH-slackware-linux
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 zcat $CWD/radius.msdict.gz > $PKG/etc/radiusclient/dictionary.microsoft
 zcat $CWD/realms.gz > $PKG/etc/radiusclient/realms
-zcat $CWD/servers.gz > $PKG/etc/radiusclient/servers
 ( cd $PKG/etc/radiusclient
   chmod 600 realms servers
   mv issue issue.new
@@ -127,18 +123,18 @@ zcat $CWD/servers.gz > $PKG/etc/radiusclient/servers
   mv realms realms.new
   mv servers servers.new
 )
-mkdir -p $PKG/usr/doc/radiusclient-$RADVER
+mkdir -p $PKG/usr/doc/freeradius-client-$RADVER
 cp -a \
   BUGS CHANGES COPYRIGHT README README.radexample doc/instop.html \
-  $PKG/usr/doc/radiusclient-$RADVER
-chmod 644 $PKG/usr/doc/radiusclient-$RADVER/*
+  $PKG/usr/doc/freeradius-client-$RADVER
+chmod 644 $PKG/usr/doc/freeradius-client-$RADVER/*
 
 echo "+===============+"
 echo "| pppsetup-$PPPVER |"
 echo "+===============+"
 cd $TMP
 rm -rf pppsetup-$PPPVER
-tar xvf $CWD/pppsetup-$PPPVER.tar.gz || exit 1
+tar xvf $CWD/pppsetup-$PPPVER.tar.xz || exit 1
 cd pppsetup-$PPPVER || exit 1
 chown -R root:root .
 zcat $CWD/pppsetup-1.98.slack.diff.gz | patch -p1 --backup || exit

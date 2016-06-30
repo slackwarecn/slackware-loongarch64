@@ -1,0 +1,54 @@
+Common subdirectories: ../binutils-2.24.orig/ld/emulparams and ld/emulparams
+Common subdirectories: ../binutils-2.24.orig/ld/emultempl and ld/emultempl
+diff -up ../binutils-2.24.orig/ld/ldlang.c ld/ldlang.c
+--- a/ld/ldlang.c	2014-05-09 10:35:04.589504928 +0100
++++ b/ld/ldlang.c	2014-05-09 10:35:55.515661478 +0100
+@@ -7096,6 +7096,18 @@
+ 	       && little != NULL)
+ 	format = little;
+ 
++      if (getenv ("LD_FORCE_LE") != NULL)
++	{
++	  if (strcmp (format, "elf64-powerpc") == 0)
++	    format = "elf64-powerpcle";
++	  else if (strcmp (format, "elf32-powerpc") == 0)
++	    format = "elf32-powerpcle";
++	  else if (strcmp (format, "elf64-big") == 0)
++	    format = "elf64-little";
++	  else if (strcmp (format, "elf32-big") == 0)
++	    format = "elf32-little";
++	}
++
+       output_target = format;
+     }
+ }
+Only in ld: ldlang.c.orig
+diff -up ../binutils-2.24.orig/ld/ldmain.c ld/ldmain.c
+--- a/ld/ldmain.c	2014-05-09 10:35:04.593504941 +0100
++++ b/ld/ldmain.c	2014-05-09 10:35:55.515661478 +0100
+@@ -603,6 +603,18 @@
+ 	}
+     }
+ 
++  if ((strncmp (emulation, "elf64ppc", 8) == 0
++       || strncmp (emulation, "elf32ppc", 8) == 0)
++      && getenv ("LD_FORCE_LE") != NULL)
++    {
++      size_t len = strlen (emulation);
++      char *le = xmalloc (len + 2);
++      memcpy (le, emulation, 5);
++      le[5] = 'l';
++      memcpy (le + 6, emulation + 5, len - 4);
++      emulation = le;
++    }
++
+   return emulation;
+ }
+ 
+Only in ld: ldmain.c.orig
+Common subdirectories: ../binutils-2.24.orig/ld/ldscripts and ld/ldscripts
+Common subdirectories: ../binutils-2.24.orig/ld/.libs and ld/.libs
+Common subdirectories: ../binutils-2.24.orig/ld/po and ld/po
+Common subdirectories: ../binutils-2.24.orig/ld/scripttempl and ld/scripttempl
+Common subdirectories: ../binutils-2.24.orig/ld/testsuite and ld/testsuite
+Common subdirectories: ../binutils-2.24.orig/ld/tmpdir and ld/tmpdir

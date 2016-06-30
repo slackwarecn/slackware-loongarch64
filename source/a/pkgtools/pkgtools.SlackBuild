@@ -27,9 +27,9 @@ fi
 PKG=$TMP/package-pkgtools
 
 # *** UPDATE THESE WITH EACH BUILD:
-VERSION=14.1
+VERSION=14.2
 ARCH=${ARCH:-noarch}
-BUILD=2
+BUILD=10
 
 if [ ! -d $TMP ]; then
   mkdir -p $TMP # location to build the source
@@ -44,6 +44,19 @@ mkdir -p $PKG
     removepkg.8 ; do
     cat $page | gzip -9c > $PKG/usr/man/man8/$page.gz
   done
+)
+
+# Install internationalized manpages from
+# http://slint.fr/forSlackware/man_l10n/pkgtools/
+( cd $PKG/usr/man
+  tar xf $CWD/manpages-l10n.tar.xz
+  for page in manpages-l10n/* ; do
+    manpage=$(basename $page)
+    mkdir -p ${manpage%%.*}/man8
+    mv $page ${manpage%%.*}/man8/${page#*.}.8
+  done
+  gzip -9 */man8/*.8
+  rmdir manpages-l10n
 )
 
 # Install Slackware scripts:
@@ -74,7 +87,7 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build the package:
 cd $PKG
-makepkg -l y -c n $TMP/pkgtools-$VERSION-$ARCH-$BUILD.tgz
+makepkg -l y -c n $TMP/pkgtools-$VERSION-$ARCH-$BUILD.txz
 
 echo
 echo "HEY -- did you remember to update the version numbers in the setup scripts?"

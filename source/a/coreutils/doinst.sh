@@ -11,3 +11,6 @@ config() {
 }
 config etc/DIR_COLORS.new
 
+# This is needed to prevent installpkg from trippping over itself:
+PATH=/bin:$PATH
+

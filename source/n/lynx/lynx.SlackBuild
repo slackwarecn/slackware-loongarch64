@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,24 +21,24 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-SRCVER=2.8.7
-PKGVER=2.8.7
-BUILD=${BUILD:-3}
+PKGVER=2.8.8rel.2
+DIRVER=2-8-8
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -58,9 +58,9 @@ PKG=$TMP/package-lynx
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}/lynx
 cd $TMP
-rm -rf lynx2-8-7
-tar xvf $CWD/lynx${SRCVER}.tar.?z* || exit 1
-cd lynx2-8-7
+rm -rf lynx$DIRVER
+tar xvf $CWD/lynx${PKGVER}.tar.?z* || exit 1
+cd lynx$DIRVER || exit 1
 
 find . -name "*~" -exec rm -f {} \;
 chown -R root:root .
@@ -69,11 +69,6 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-
-# Fix /usr/local paths and libdir paths
-zcat $CWD/lynx.path.diff.gz | \
-  sed -e "s#@SLACK_LIBDIR@#/usr/lib${LIBDIRSUFFIX}/#g" | \
-  patch -p1 --verbose || exit 1
 
 # Apply recolorizing patch:
 zcat $CWD/lynx.cfg.diff.gz | patch -p1 --verbose --backup || exit 1
@@ -84,6 +79,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX}/lynx \
   --datadir=/usr/share/lynx \
+  --mandir=/usr/man \
   --enable-default-colors \
   --with-screen=ncursesw \
   --enable-widec \
@@ -140,7 +136,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
 if [ -r CHANGES ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  DOCSDIR=$(echo $PKG/usr/share/lynx/lynx_doc)
   cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
   touch -r CHANGES $DOCSDIR/CHANGES
 fi

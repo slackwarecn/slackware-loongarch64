@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006, 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 
 PKGNAM=svgalib
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -78,6 +78,8 @@ find . -name "*.h" -exec chmod 644 {} \;
 zcat $CWD/svgalib.prefix.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/svgalib-1.9.25-kernel-2.6.26.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/svgalib.nohelper.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/svgalib-1.9.25-round_gtf_gtfcalc_c.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/svgalib-1.9.25-vga_getmodenumber.patch.gz | patch -p1 --verbose || exit 1
 
 # Build and install - spamming your partition first...:
 make install NO_HELPER=y || exit 1
@@ -113,6 +115,11 @@ cp -a \
   0-INSTALL CHANGES DESIGN Driver-programming-HOWTO README.joystick \
   README.keymap README.multi-monitor README.patching README.vesa TODO dual-head-howto \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+)
+
+# Make sure the package contains all library symlinks:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  ldconfig -l *
 )
 
 mkdir -p $PKG/install

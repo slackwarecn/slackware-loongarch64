@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2006-2007  Robby Workman  (http://rlworkman.net) 
+# Copyright 2006-2007, 2014  Robby Workman, Tuscaloosa, AL, USA
 # Copyright 2007, 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
@@ -28,7 +28,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -41,8 +41,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/pkg-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -74,6 +74,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --infodir=/usr/info \
+  --mandir=/usr/man \
   --build=$ARCH-slackware-linux \
   --host=$ARCH-slackware-linux
 
@@ -82,6 +83,8 @@ make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+find $PKG/usr/man -type f -exec gzip -9 {} \;
 
 gzip -9 $PKG/usr/info/*.info
 rm -rf $PKG/usr/info/dir

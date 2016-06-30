@@ -1,0 +1,33 @@
+--- ksh-20120801/src/cmd/ksh93/sh/init.c	2014-12-10 20:11:17.693446084 -0200
++++ ksh-20120801/src/cmd/ksh93/sh/init.c	2014-12-10 20:11:24.753442619 -0200
+@@ -576,6 +576,7 @@ static char* get_ifs(register Namval_t*
+ 			shp->ifstable[' '] = shp->ifstable['\t'] = S_SPACE;
+ 			shp->ifstable['\n'] = S_NL;
+ 		}
++		shp->ifstable[0] = S_EOF;
+ 	}
+ 	return(value);
+ }
+--- ksh-20120801/src/cmd/ksh93/bltins/alarm.c	2014-12-18 12:03:39.198461933 -0200
++++ ksh-20120801/src/cmd/ksh93/bltins/alarm.c	2014-12-18 12:04:32.464421268 -0200
+@@ -130,6 +130,7 @@ void	sh_timetraps(Shell_t *shp)
+ {
+ 	register struct tevent *tp, *tpnext;
+ 	register struct tevent *tptop;
++	char	ifstable[256];
+ 	while(1)
+ 	{
+ 		shp->sigflag[SIGALRM] &= ~SH_SIGALRM;
+@@ -141,7 +142,11 @@ void	sh_timetraps(Shell_t *shp)
+ 			{
+ 				tp->flags &= ~L_FLAG;
+ 				if(tp->action)
++				{
++				    	memcpy(ifstable,shp->ifstable,sizeof(ifstable));
+ 					sh_fun(tp->action,tp->node,(char**)0);
++					memcpy(shp->ifstable,ifstable,sizeof(ifstable));
++				}
+ 				tp->flags &= ~L_FLAG;
+ 				if(!tp->flags)
+ 				{
+

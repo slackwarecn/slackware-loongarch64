@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,13 +23,8 @@
 # Thanks to the folks at the Mozilla Foundation for permission to
 # distribute this, and for all the great work!  :-)
 
-VERSION=$(basename $(ls firefox-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
-RELEASEVER=$(echo $VERSION | cut -f 1 -d r | cut -f 1 -d b)
-# With esr releases we need to fix this
-if [ "${RELEASEVER}r" = "$VERSION" ]; then
-  RELEASEVER=$(echo $RELEASEVER | cut -f 1 -d e)
-  RELEASEVERMAJ=$(echo $RELEASEVER | cut -f 1 -d .)
-fi  
+VERSION=$(basename $(ls firefox-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
+RELEASEVER=$(echo $VERSION | cut -f 1 -d r | cut -f 1 -d b | cut -f 1 -d e)
 BUILD=${BUILD:-1}
 
 # Specify this variable for a localized build.
@@ -43,7 +38,7 @@ MOZLOCALIZE=${MOZLOCALIZE:-}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -77,40 +72,55 @@ fi
 # PGO is disabled by default:
 PGO=${PGO:-no}
 
-# Try to be gentle to the compiler, no optimizations:
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS=""
   LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
+  # On IA32, use gold since GNU ld runs out of memory linking libxul.so:
+  PATH="$(pwd)/gold:$PATH"
+  export CC="gcc -B$(pwd)/gold"
+  export CXX="g++ -B$(pwd)/gold"
 elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O"
+  SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O -fPIC"
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+  OPTIMIZE=" --enable-optimize=-O2 "
 elif [ "$ARCH" = "arm" ]; then
   SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
   LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
+fi
+
+# Workaround to prevent unidentified crashes.  Since this seems to be
+# fixed in recent betas, only use the fix for known crashing versions:
+if [ $VERSION = 43.0 \
+     -o $VERSION = 43.0.1 \
+     -o $VERSION = 43.0.2 \
+     -o $VERSION = 43.0.3 \
+     -o $VERSION = 43.0.4 ]; then
+  OPTIMIZE="$(echo "$OPTIMIZE" | sed 's/O2/Os/g')"
+  echo "Detected Firefox $VERSION...  enabling crash workaround O2 -> Os."
+  sleep 1
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mozilla-firefox
 
-# If not specified, figure out if this is a beta, an esr
-# or a release (we start assuming this last):
+# If not specified, figure out if this is a beta or a release
 MOZVERS=${MOZVERS:-release}
-if echo $VERSION | grep -q b ; then # we think it is a beta
-  if bzgrep -q ^mozilla-beta/ $CWD/firefox-$VERSION.source.tar.bz2 ; then
-    MOZVERS=beta
-  fi
-elif echo $VERSION | grep -q esr ; then # we think it is an esr
-  if bzgrep -q ^mozilla-esr$RELEASEVERMAJ/ $CWD/firefox-$VERSION.source.tar.bz2 ; then
-    MOZVERS=esr$RELEASEVERMAJ
-  fi
-fi
+if echo $VERSION | grep -q b ; then MOZVERS=beta ; fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -118,29 +128,25 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 
 cd $TMP
-rm -rf mozilla-$MOZVERS
-tar xvf $CWD/firefox-$VERSION.source.tar.bz2 || exit 1
-cd mozilla-$MOZVERS || exit 1
+rm -rf firefox-$VERSION
+# Unpack this in a subdirectory to prevent changing permissions on /tmp:
+rm -rf firefox-unpack
+mkdir firefox-unpack
+cd firefox-unpack
+tar xvf $CWD/firefox-$VERSION.source.tar.?z* || exit 1
+mv * ..
+cd ..
+rm -rf firefox-unpack
+cd firefox-$VERSION || exit 1
 
 # Fetch localization, if requested:
 if [ ! -z $MOZLOCALIZE ]; then
   LOC_TAG="FIREFOX_$( echo $VERSION | tr \. _ )_RELEASE"
   rm -f $LOC_TAG.tar.bz2
-  if echo $MOZVERS | grep -q esr ; then LOC_VERS=release ; else LOC_VERS=$MOZVERS ; fi
-  wget https://hg.mozilla.org/releases/l10n/mozilla-$LOC_VERS/$MOZLOCALIZE/archive/$LOC_TAG.tar.bz2
+  wget https://hg.mozilla.org/releases/l10n/mozilla-$MOZVERS/$MOZLOCALIZE/archive/$LOC_TAG.tar.bz2
   tar xvf $LOC_TAG.tar.bz2
   mv $MOZLOCALIZE-$LOC_TAG $MOZLOCALIZE
 fi
-
-# Fix a long standing bug that's prevented staying current on GTK+.
-# Thanks to the BLFS folks.  :-)
-cat << EOF >> layout/build/Makefile.in
-
-ifdef MOZ_ENABLE_CANVAS
-EXTRA_DSO_LDOPTS += \$(XLDFLAGS) -lX11 -lXrender
-endif
-
-EOF
 
 # Patch mimeTypes.rdf
 # Uncomment this if you want to use the patch; otherwise, we overwrite the
@@ -154,15 +160,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-if gcc --version | grep -q "gcc (GCC) 4.7.0" ; then 
- # Enable compiling with gcc-4.7.0:
- sed -i '/fcntl.h/a#include <unistd.h>' \
-   ipc/chromium/src/base/{file_util_linux,message_pump_libevent,process_util_posix}.cc &&
- sed -i '/sys\/time\.h/a#include <unistd.h>' ipc/chromium/src/base/time_posix.cc &&
- sed -i 's#\"PRIxPTR#\" PRIxPTR#' layout/base/tests/TestPoisonArea.cpp &&
- sed -i 's# ""##' browser/base/Makefile.in
-fi
-
 # Our building options, in a configure-like display ;)
 OPTIONS="\
   --enable-official-branding \
@@ -174,37 +171,39 @@ OPTIONS="\
   --enable-default-toolkit=cairo-gtk2 \
   --enable-startup-notification \
   --enable-crypto \
+  --enable-gstreamer=1.0 \
   --enable-svg \
   --enable-canvas \
   --enable-logging \
   --enable-xft \
   --enable-webm \
-  --enable-xinerama \
-  --enable-optimize \
+  $OPTIMIZE \
   --enable-reorder \
   --enable-strip \
   --enable-cpp-rtti \
-  --enable-single-profile \
   --disable-gnomevfs \
-  --disable-ldap \
   --disable-accessibility \
   --disable-crashreporter \
   --disable-debug \
   --disable-pedantic \
-  --disable-installer \
-  --disable-mailnews \
-  --disable-composer \
-  --disable-profilesharing"
+  --disable-installer"
 # Complains about missing APNG support in Slackware's libpng:
 # --with-system-png \
 # This option breaks mozilla-12.0:
 # --enable-system-cairo \
+# NOTE:  It probably reduces bugs to use the bundled library versions,
+# so in general we will not --enable-system-libraries.
+# But since system zlib has been used for a long time and isn't a moving
+# target, we'll leave that one as-is.
 if [ ! -z $MOZLOCALIZE ]; then
   OPTIONS=$OPTIONS" \
   --enable-ui-locale=$MOZLOCALIZE
   --with-l10n-base=.."
-  # There's no dictionaries in localized builds
-  sed -i "/@BINPATH@\/dictionaries\/\*/d" browser/installer/package-manifest.in || exit 1
+  # There are no dictionaries in localized builds
+  sed -i \
+    -e "/@BINPATH@\/dictionaries\/\*/d" \
+    -e "/@RESPATH@\/dictionaries\/\*/d" \
+    browser/installer/package-manifest.in || exit 1
 fi
 
 export MOZILLA_OFFICIAL="1"
@@ -226,7 +225,7 @@ echo ". \$topsrcdir/browser/config/mozconfig" > .mozconfig
 # Mozilla devs enforce using an objdir for building
 # https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
 mkdir obj
-echo "mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj" >> .mozconfig
+echo "mk_add_options MOZ_OBJDIR=$(pwd)/obj" >> .mozconfig
 
 if [ "$MOZLOCALIZE" ]; then
   echo "mk_add_options MOZ_CO_LOCALES=\"$MOZLOCALIZE\"" >> .mozconfig

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -36,12 +36,12 @@ if ! /bin/ls $CWD/btrfs-progs*tar* 1> /dev/null 2> /dev/null ; then
   rm -r $CWD/btrfs-progs
 fi
 
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -f 3 -d - | cut -f 1 -d .)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -56,9 +56,9 @@ rm -rf $PKG
 mkdir -p $PKG
 
 cd $TMP
-rm -rf btrfs-progs
+rm -rf btrfs-progs btrfs-progs-$VERSION
 tar xf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
-cd btrfs-progs
+cd btrfs-progs-$VERSION || cd btrfs-progs || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -74,10 +74,20 @@ find . -perm 511 -exec chmod 755 {} \;
 find . -perm 711 -exec chmod 755 {} \;
 find . -perm 555 -exec chmod 755 {} \;
 
-# Build:
-make $NUMJOBS || make || exit 1
+# Configure:
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --bindir=/sbin \
+  --sysconfdir=/etc \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --disable-static \
+  --build=$ARCH-slackware-linux
 
-# Install:
+# Build and install:
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Strip binaries:
@@ -86,16 +96,16 @@ make install DESTDIR=$PKG || exit 1
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-# Move stuff out of /usr/local:
-mv $PKG/usr/local/bin $PKG/sbin
-mv $PKG/usr/local/man $PKG/usr/man
+# Move manpages:
+mv $PKG/usr/share/man $PKG/usr/man
+rmdir $PKG/usr/share
 
-# Do not ship libraries/include files.
+# Do not ship libraries.
 # If there becomes a use for these outside of btrfs-progs, let me know.
-rm -rf $PKG/usr/local
+rm -rf $PKG/usr/lib
 
 # According to https://btrfs.wiki.kernel.org/index.php/FAQ#When_will_Btrfs_have_a_fsck_like_tool.3F
-# it is not recommended to make fsck.btrfs a no-op by linking it to /bin/true:
+# it is safe and recommended to make fsck.btrfs a no-op by linking it to /bin/true:
 ln -sf /bin/true $PKG/sbin/fsck.btrfs
 
 # Compress and link manpages, if any:
@@ -103,7 +113,7 @@ if [ -d $PKG/usr/man ]; then
   ( cd $PKG/usr/man
     for manpagedir in $(find . -type d -name "man*") ; do
       ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
+        for eachpage in $( find . -type l -maxdepth 1 | grep -v '\.gz$') ; do
           ln -s $( readlink $eachpage ).gz $eachpage.gz
           rm $eachpage
         done

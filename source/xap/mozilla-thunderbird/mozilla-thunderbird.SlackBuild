@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,64 +25,47 @@
 # Thanks to the folks at the Mozilla Foundation for permission to
 # distribute this, and for all the great work!  :-)
 
-TARBALLVER=$(basename $(ls thunderbird-*.tar.bz2 | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
-# Strip the end from beta versions:
-VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
-MAJORVER=$(echo $TARBALLVER | cut -f 1 -d .)
+VERSION=$(basename $(ls thunderbird-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
+RELEASEVER=$(echo $VERSION | cut -f 1 -d e | cut -f 1 -d b)
 BUILD=${BUILD:-1}
+
+# Specify this variable for a localized build.
+# For example, to build a version of Thunderbird with Italian support, run
+# the build script like this:
+#
+# MOZLOCALIZE=it ./mozilla-firefox.SlackBuild
+#
+MOZLOCALIZE=${MOZLOCALIZE:-}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) export ARCH=i586 ;;
+    armv7hl) export ARCH=armv7hl ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
+  esac
+fi
+
+if [ "$ARCH" = "i586" ]; then
+  LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
+  # On IA32, use gold since GNU ld runs out of memory linking libxul.so:
+  PATH="$(pwd)/gold:$PATH"
+  export CC="gcc -B$(pwd)/gold"
+  export CXX="g++ -B$(pwd)/gold"
+elif [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+  OPTIMIZE=" --enable-optimize=-O2 "
+else
+  LIBDIRSUFFIX=""
+  OPTIMIZE=" --enable-optimize=-O2 "
+fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mozilla-thunderbird
-
-# Figure out if this is a beta, or a release:
-if echo $TARBALLVER | grep -q b ; then # we think it is a beta
-  if bzgrep -q comm-beta/ $CWD/thunderbird-$TARBALLVER.source.tar.bz2 ; then
-    MOZVERS=${MOZVERS:-beta}
-  else # blindly assume it is a release
-    MOZVERS=${MOZVERS:-release}
-  fi
-else # release, no "b" in the tarball version:
-  if bzgrep -q comm-esr${MAJORVER}/ $CWD/thunderbird-$TARBALLVER.source.tar.bz2 ; then
-    # Looks like we get this sometimes even when the tarball isn't labeled as esr...
-    MOZVERS=${MOZVERS:-esr${MAJORVER}}
-  else
-    MOZVERS=${MOZVERS:-release}
-  fi
-fi
-
-# Automatically determine the architecture we're building on:
-MARCH=$( uname -m )
-if [ -z "$ARCH" ]; then
-  case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
-    armv7hl) export ARCH=$MARCH ;;
-    arm*)    export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-    *)       export ARCH=$MARCH ;;
-  esac
-fi
-
-# Try to be gentle to the compiler, no optimizations:
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O -fPIC"
-  LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "arm" ]; then
-  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "armel" ]; then
-  SLKCFLAGS="-O2 -march=armv4t"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
-  LIBDIRSUFFIX=""
-fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -90,19 +73,25 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 
 cd $TMP
-rm -rf comm-$MOZVERS
-tar xvf $CWD/thunderbird-$TARBALLVER.source.tar.bz2 || exit 1
-cd comm-$MOZVERS || exit 1
+rm -rf thunderbird-$VERSION
+# Unpack this in a subdirectory to prevent changing permissions on /tmp:
+rm -rf thunderbird-unpack
+mkdir thunderbird-unpack
+cd thunderbird-unpack
+tar xvf $CWD/thunderbird-$VERSION.source.tar.?z* || exit 1
+mv * ..
+cd ..
+rm -rf thunderbird-unpack
+cd thunderbird-$VERSION || exit 1
 
-# Fix a long standing bug that's prevented staying current on GTK+.
-# Thanks to the BLFS folks.  :-)
-cat << EOF >> mozilla/layout/build/Makefile.in
-
-ifdef MOZ_ENABLE_CANVAS
-EXTRA_DSO_LDOPTS += \$(XLDFLAGS) -lX11 -lXrender
-endif
-
-EOF
+# Fetch localization, if requested:
+if [ ! -z $MOZLOCALIZE ]; then
+  LOC_TAG="THUNDERBIRD_$( echo $VERSION | tr \. _ )_RELEASE"
+  rm -f $LOC_TAG.tar.bz2
+  wget https://hg.mozilla.org/releases/l10n/mozilla-release/$MOZLOCALIZE/archive/$LOC_TAG.tar.bz2
+  tar xvf $LOC_TAG.tar.bz2
+  mv $MOZLOCALIZE-$LOC_TAG $MOZLOCALIZE
+fi
 
 # Arch-dependent patches:
 case "$ARCH" in
@@ -121,44 +110,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-if gcc --version | grep -q "gcc (GCC) 4.7.0" ; then
- # Enable compiling with gcc-4.7.0:
- sed -i '/fcntl.h/a#include <unistd.h>' \
-   mozilla/ipc/chromium/src/base/{file_util_linux,message_pump_libevent,process_util_posix}.cc &&
- sed -i '/sys\/time\.h/a#include <unistd.h>' mozilla/ipc/chromium/src/base/time_posix.cc &&
- sed -i 's#\"PRIxPTR#\" PRIxPTR#g' mozilla/layout/base/tests/TestPoisonArea.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/search/src/nsMsgSearchAdapter.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/compose/src/nsSmtpProtocol.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapMailFolder.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapProtocol.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/imap/src/nsImapServerResponseParser.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/local/src/nsPop3Protocol.cpp &&
- sed -i 's#\"CRLF#\" CRLF#g' mailnews/mime/src/mimedrft.cpp &&
- sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/mime/src/mimemult.cpp &&
- sed -i 's#\"MSG_LINEBREAK#\" MSG_LINEBREAK#g' mailnews/base/src/nsMsgFolderCompactor.cpp &&
- sed -i 's# ""##' mozilla/browser/base/Makefile.in
-fi
-
-# Mozilla devs enforce using an objdir for building
-# and launching configure with the absolute path
-# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
-mkdir obj
-cd obj
-export MOZILLA_DIR=$TMP/comm-$MOZVERS/mozilla &&
-export MOZILLA_OFFICIAL="1" &&
-export BUILD_OFFICIAL="1" &&
-export MOZ_PHOENIX="1" &&
-export CFLAGS="$SLKCFLAGS" &&
-export CXXFLAGS="$SLKCFLAGS" &&
-export MOZ_MAKE_FLAGS="$NUMJOBS" &&
-$TMP/comm-$MOZVERS/configure \
+# Our building options, in a configure-like display ;)
+OPTIONS="\
   --enable-official-branding \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --with-default-mozilla-five-home=/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION \
   --with-system-zlib \
   --enable-application=mail \
+  --enable-calendar \
   --enable-default-toolkit=cairo-gtk2 \
   --enable-startup-notification \
   --enable-crypto \
@@ -167,34 +127,60 @@ $TMP/comm-$MOZVERS/configure \
   --enable-svg \
   --enable-canvas \
   --enable-xft \
-  --enable-xinerama \
-  --enable-optimize \
+  $OPTIMIZE \
   --enable-reorder \
   --enable-strip \
   --enable-cpp-rtti \
-  --enable-single-profile \
   --disable-accessibility \
   --disable-crashreporter \
   --disable-debug \
   --disable-tests \
-  --disable-logging \
   --disable-pedantic \
-  --disable-installer \
-  --disable-profilesharing
+  --host=$ARCH-slackware-linux \
+  --target=$ARCH-slackware-linux \
+  --build=$ARCH-slackware-linux"
   # Complains about missing APNG support in Slackware's libpng:
   #--with-system-png \
   # Broken with 12.0:
   #--enable-system-cairo \
+if [ ! -z $MOZLOCALIZE ]; then
+  OPTIONS=$OPTIONS" \
+  --enable-ui-locale=$MOZLOCALIZE
+  --with-l10n-base=.."
+  # There are no dictionaries in localized builds
+  sed -i \
+    -e "/@BINPATH@\/dictionaries\/\*/d" \
+    -e "/@RESPATH@\/dictionaries\/\*/d" \
+    mail/installer/package-manifest.in || exit 1
+fi
 
-#make -f client.mk build MOZ_MAKE_FLAGS="$NUMJOBS" || exit 1
-make $NUMJOBS || exit 1
-make install DESTDIR=$PKG || exit 1
+export BUILD_OFFICIAL=1
+export MOZILLA_OFFICIAL=1
+export MOZ_PHOENIX=1
+export MOZ_MAKE_FLAGS="$NUMJOBS"
 
-# Exit obj directory:
-cd ..
+# Clear some variables that could break the build
+unset DBUS_SESSION_BUS_ADDRESS ORBIT_SOCKETDIR SESSION_MANAGER \
+  XDG_SESSION_COOKIE XAUTHORITY MAKEFLAGS
+
+# Assemble our .mozconfig:
+echo > .mozconfig
+
+# Mozilla devs enforce using an objdir for building
+# https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
+mkdir obj
+echo "mk_add_options MOZ_OBJDIR=$(pwd)/obj" >> .mozconfig
+# This directory is also needed or the build will fail:
+mkdir -p mozilla/obj
+
+# Write in it the options above
+for option in $OPTIONS; do echo "ac_add_options $option" >> .mozconfig; done
+
+make -f client.mk build || exit 1
+make -f client.mk install DESTDIR=$PKG || exit 1
 
 # We don't need these (just symlinks anyway):
-rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$VERSION
+rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$RELEASEVER
 
 # Nor these:
 rm -rf $PKG/usr/include
@@ -212,10 +198,10 @@ cat $CWD/mozilla-thunderbird.desktop > $PKG/usr/share/applications/mozilla-thund
 mkdir -p $PKG/usr/share/pixmaps
 cat $CWD/thunderbird.png > $PKG/usr/share/pixmaps/thunderbird.png
 
-# These files/directories are usually created if Firefox is run as root,
+# These files/directories are usually created if Thunderbird is run as root,
 # which on many systems might (and possibly should) be never.  Therefore, if we
 # don't see them we'll put stubs in place to prevent startup errors.
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$RELEASEVER
   if [ -d extensions/talkback\@mozilla.org ]; then
     if [ ! -r extensions/talkback\@mozilla.org/chrome.manifest ]; then
       echo > extensions/talkback\@mozilla.org/chrome.manifest
@@ -227,21 +213,27 @@ cat $CWD/thunderbird.png > $PKG/usr/share/pixmaps/thunderbird.png
 )
 
 # Need some default icons in the right place:
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/chrome/icons/default
-install -m 644 other-licenses/branding/thunderbird/default16.png \
-  $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/icons/
-install -m 644 other-licenses/branding/thunderbird/default16.png \
-  $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/chrome/icons/default/ 
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION
-  install -m 644 icons/{default,mozicon50}.xpm chrome/icons/default/
-)
+for i in 16 22 24 32 48 256; do
+  install -m 0644 -D other-licenses/branding/thunderbird/mailicon${i}.png \
+    $PKG/usr/share/icons/hicolor/${i}x${i}/apps/thunderbird.png
+done
+mkdir -p $PKG/usr/share/pixmaps
+( cd $PKG/usr/share/pixmaps ; ln -sf /usr/share/icons/hicolor/256x256/apps/thunderbird . )
+mkdir -p $PKG/usr/lib$LIBDIRSUFFIX/thunderbird-$RELEASEVER/chrome/icons/default
+install -m 644 other-licenses/branding/thunderbird/mailicon16.png \
+  $PKG/usr/lib$LIBDIRSUFFIX/thunderbird-$RELEASEVER/icons/
+install -m 644 other-licenses/branding/thunderbird/mailicon16.png \
+  $PKG/usr/lib$LIBDIRSUFFIX/thunderbird-$RELEASEVER/chrome/icons/default/
 
 # Copy over the LICENSE
-install -p -c -m 644 LICENSE $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$VERSION/
+install -p -c -m 644 LICENSE $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$RELEASEVER/
 
 mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/mozilla-thunderbird-$TARBALLVER-$ARCH-$BUILD.txz
-
+if [ -z $MOZLOCALIZE ]; then
+  /sbin/makepkg -l y -c n $TMP/mozilla-thunderbird-$VERSION-$ARCH-$BUILD.txz
+else
+  /sbin/makepkg -l y -c n $TMP/mozilla-thunderbird-$VERSION-$ARCH-${BUILD}_$MOZLOCALIZE.txz
+fi

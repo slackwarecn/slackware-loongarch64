@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,15 +20,16 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Modified by Matteo Bernardini <ponce@slackbuilds.org> (2014)
 
 PKGNAM=lxc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,8 +38,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -70,7 +71,20 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Add the template file:
+cat $CWD/lxc-slackware.in > templates/lxc-slackware.in
+
+# Our python package is not split:
+sed -i "s|PKG_CHECK_MODULES(\[PYTHONDEV.*||" configure.ac || exit 1
+
+autoreconf -fi
+
+# Enable python stuff only if python3 is installed
+python=""
+[ -x /usr/bin/python3 ] && export PYTHON=/usr/bin/python3 && python="--enable-python"
+
 # Configure:
+# lua is autodetected
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -80,14 +94,41 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --infodir=/usr/info \
+  --with-global-conf=/etc/lxc/lxc.conf \
+  --with-rootfs-path=/var/lib/rootfs-lxc \
+  $python \
   --build=$ARCH-slackware-linux
 
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Make configuration directory:
-mkdir -p $PKG/var/lib/lxc
+# Add the modified Slackware startup scripts:
+mkdir -p $PKG/usr/share/lxc/scripts/slackware
+cp -a $CWD/scripts/*.lxc $PKG/usr/share/lxc/scripts/slackware
+chown root:root $PKG/usr/share/lxc/scripts/slackware/*
+chmod 644 $PKG/usr/share/lxc/scripts/slackware/*
+
+# Make the default configuration directories and an empty rootfs folder:
+mkdir -p $PKG/var/lib/lxc $PKG/etc/lxc $PKG/var/lib/rootfs-lxc
+
+# Create a sample default configuration file:
+echo "lxcpath = /var/lib/lxc" > $PKG/etc/lxc/lxc.conf.sample
+
+# Move the other config files to .new:
+mv $PKG/etc/lxc/default.conf $PKG/etc/lxc/default.conf.new
+mv $PKG/etc/default/lxc $PKG/etc/default/lxc.new
+
+# Install an init script (non executable by default):
+install -D -m 0644 $CWD/rc.lxc $PKG/etc/rc.d/rc.lxc.new
+
+# Put bash completion file in system directory:
+mkdir -p $PKG/usr/share/bash-completion/completions/
+mv $PKG/etc/bash_completion.d/lxc \
+   $PKG/usr/share/bash-completion/completions/lxc
+rmdir --parents $PKG/etc/bash_completion.d 2>/dev/null
+# Replace illegal characters in the bash completion file:
+sed -i "s/lxc-generic-/lxc_generic_/g" $PKG/usr/share/bash-completion/completions/lxc
 
 # Strip binaries:
 ( cd $PKG
@@ -98,7 +139,7 @@ mkdir -p $PKG/var/lib/lxc
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS CONTRIBUTING COPYING* INSTALL MAINTAINERS NEWS README* THANKS TODO \
+  AUTHORS CONTRIBUTING COPYING* INSTALL MAINTAINERS NEWS README* TODO \
   doc/FAQ.txt \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
@@ -134,6 +175,7 @@ fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz

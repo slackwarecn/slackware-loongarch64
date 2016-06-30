@@ -1,0 +1,505 @@
+diff -up ksh20120801/src/cmd/ksh93/sh/subshell.c.orig ksh20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh20120801/src/cmd/ksh93/sh/subshell.c.orig	2012-07-17 23:54:21.000000000 +0200
++++ ksh20120801/src/cmd/ksh93/sh/subshell.c	2012-10-24 15:03:44.436870792 +0200
+@@ -40,14 +40,6 @@
+ #   define PIPE_BUF	512
+ #endif
+ 
+-#ifndef O_SEARCH
+-#   ifdef O_PATH
+-#	define O_SEARCH	O_PATH
+-#   else
+-#	define O_SEARCH	0
+-#   endif
+-#endif
+-
+ /*
+  * Note that the following structure must be the same
+  * size as the Dtlink_t structure
+@@ -84,7 +76,7 @@ static struct subshell
+ 	char		*pwd;	/* present working directory */
+ 	const char	*shpwd;	/* saved pointer to sh.pwd */
+ 	void		*jobs;	/* save job info */
+-	int		pwdfd;	/* file descritor for pwd */
++	int		shpwdfd;/* fd for present working directory */
+ 	mode_t		mask;	/* saved umask */
+ 	short		tmpfd;	/* saved tmp file descriptor */
+ 	short		pipefd;	/* read fd if pipe is created */
+@@ -101,7 +93,6 @@ static struct subshell
+ 	int		subdup;
+ 	char		subshare;
+ 	char		comsub;
+-	char		pwdclose;
+ #if SHOPT_COSHELL
+ 	void		*coshell;
+ #endif /* SHOPT_COSHELL */
+@@ -518,7 +509,6 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 		shp->pathinit = 0;
+ 	}
+ 	sp->pathlist = path_dup((Pathcomp_t*)shp->pathlist);
+-	sp->pwdfd = -1;
+ 	if(!shp->pwd)
+ 		path_pwd(shp,0);
+ 	sp->bckpid = shp->bckpid;
+@@ -531,39 +521,14 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 	shp->subshare = comsub==2 ||  (comsub==1 && sh_isoption(SH_SUBSHARE));
+ 	if(comsub)
+ 		shp->comsub = comsub;
++	sp->shpwdfd=-1;
+ 	if(!comsub || !shp->subshare)
+ 	{
+-		struct subshell *xp;
+ 		sp->shpwd = shp->pwd;
+-#ifdef _lib_fchdir
+-		for(xp=sp->prev; xp; xp=xp->prev) 
+-		{
+-			if(xp->pwdfd>0 && strcmp(xp->pwd,shp->pwd)==0)
+-			{
+-				sp->pwdfd = xp->pwdfd;
+-				break;
+-			}
+-		}
+-		if(sp->pwdfd<0)
+-		{
+-			int n = open(".",O_RDONLY);
+-			if(O_SEARCH && errno==EACCES)
+-				n =  open(".",O_RDONLY);
+-			if(n>=0)
+-			{
+-				sp->pwdfd = n;
+-				if(n<10)
+-				{
+-					sp->pwdfd = sh_fcntl(n,F_DUPFD,10);
+-					close(n);
+-				}
+-				if(sp->pwdfd>0)
+-				{
+-					fcntl(sp->pwdfd,F_SETFD,FD_CLOEXEC);
+-					sp->pwdclose = 1;
+-				}
+-			}
+-		}
++		sp->shpwdfd=((shp->pwdfd >= 0))?sh_fcntl(shp->pwdfd, F_dupfd_cloexec, 10):-1;
++#ifdef O_SEARCH
++		if(sp->shpwdfd<0)
++			errormsg(SH_DICT,ERROR_system(1), "Can't obtain directory fd.");
+ #endif
+ 		sp->pwd = (shp->pwd?strdup(shp->pwd):0);
+ 		sp->mask = shp->mask;
+@@ -741,14 +706,11 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 			Namval_t *pwdnod = sh_scoped(shp,PWDNOD);
+ 			if(shp->pwd)
+ 			{
+-				if(sp->pwdfd >=0)
+-				{
+-					if(fchdir(sp->pwdfd)<0)
+-						chdir(sp->pwd);
+-				}
+-				else
+-					chdir(sp->pwd);
+ 				shp->pwd=sp->pwd;
++#ifndef O_SEARCH
++				if (sp->shpwdfd < 0)
++					chdir(shp->pwd);
++#endif
+ 				path_newdir(shp,shp->pathlist);
+ 			}
+ 			if(nv_isattr(pwdnod,NV_NOFREE))
+@@ -762,8 +724,6 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 		}
+ 		else
+ 			free((void*)sp->pwd);
+-		if(sp->pwdclose)
+-			close(sp->pwdfd);
+ 		if(sp->mask!=shp->mask)
+ 			umask(shp->mask=sp->mask);
+ 		if(shp->coutpipe!=sp->coutpipe)
+@@ -775,6 +735,13 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 		shp->cpipe[1] = sp->cpipe;
+ 		shp->coutpipe = sp->coutpipe;
+ 	}
++	if(sp->shpwdfd >=0)
++	{
++		if(shp->pwdfd >=0)
++			sh_close(shp->pwdfd);
++		shp->pwdfd=sp->shpwdfd;
++		fchdir(shp->pwdfd);
++	}
+ 	shp->subshare = sp->subshare;
+ 	shp->comsub = sp->comsub;
+ 	shp->subdup = sp->subdup;
+diff -up ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c.orig ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c
+--- ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c.orig	2012-08-02 16:50:40.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/bltins/cd_pwd.c	2012-10-24 15:37:46.814469045 +0200
+@@ -38,6 +38,10 @@
+ #include	"builtins.h"
+ #include	<ls.h>
+ 
++#ifndef EINTR_REPEAT
++#   define EINTR_REPEAT(expr) while((expr) && (errno == EINTR)) errno=0;
++#endif
++
+ /*
+  * Invalidate path name bindings to relative paths
+  */
+@@ -49,6 +53,95 @@ static void rehash(register Namval_t *np
+ 		_nv_unset(np,0);
+ }
+ 
++/*
++ * Obtain a file handle to the directory "path" relative to directory
++ * "dir", or open a NFSv4 xattr directory handle for file dir/path.
++ */
++int sh_diropenat(Shell_t *shp, int dir, const char *path, bool xattr)
++{
++	int fd,shfd;
++	int savederrno=errno;
++#ifndef AT_FDCWD
++	NOT_USED(dir);
++#endif
++#ifndef O_XATTR
++	NOT_USED(xattr);
++#endif
++
++#ifdef O_XATTR
++	if(xattr)
++	{
++		int apfd; /* attribute parent fd */
++		/* open parent node... */
++		EINTR_REPEAT((apfd = openat(dir, path, O_RDONLY|O_NONBLOCK|O_cloexec)) < 0);
++		if(apfd < 0)
++			return -1;
++
++		/* ... and then open a fd to the attribute directory */
++		 EINTR_REPEAT((fd = openat(apfd, e_dot, O_XATTR|O_cloexec)) < 0);
++
++		savederrno = errno;
++		EINTR_REPEAT(close(apfd) < 0);
++		errno = savederrno;
++	}
++	else
++#endif
++	{
++#ifdef AT_FDCWD
++		/*
++		 * Open directory. First we try without |O_SEARCH| and
++		 * if this fails with EACCESS we try with |O_SEARCH|
++		 * again.
++		 * This is required ...
++		 * - ... because some platforms may require that it can
++		 * only be used for directories while some filesystems
++		 * (e.g. Reiser4 or HSM systems) allow a |fchdir()| into
++		 * files, too)
++		 * - ... to preserve the semantics of "cd", e.g.
++		 * otherwise "cd" would return [No access] instead of
++		 * [Not a directory] for files on filesystems which do
++		 * not allow a "cd" into files.
++		 * - ... to allow that a
++		 * $ redirect {n}</etc ; cd /dev/fd/$n # works on most
++		 * platforms.
++		 */
++		EINTR_REPEAT((fd = openat(dir, path, O_RDONLY|O_NONBLOCK|O_cloexec)) < 0);
++#   ifdef O_SEARCH
++		if((fd < 0) && (errno == EACCES))
++		{
++			EINTR_REPEAT((fd = openat(dir, path, O_SEARCH|O_cloexec)) < 0)
++		}
++#   endif
++#else
++		/*
++		 * Version of openat() call above for systems without
++		 * openat API. This only works because we basically
++		 * gurantee that |dir| is always the same place as
++		 * |cwd| on such machines (but this won't be the case
++		 * in the future).
++		 */
++		/*
++		 * This |fchdir()| call is not needed (yet) since
++		 * all consumers do not use |dir| when |AT_FDCWD|
++		 * is not available.
++		 *
++		 * fchdir(dir);
++		 */
++		EINTR_REPEAT((fd = open(path, O_cloexec)) < 0);
++#endif
++	}
++
++	if(fd < 0)
++		return fd;
++
++	/* Move fd to a number > 10 and *register* the fd number with the shell */
++	shfd = sh_fcntl(fd, F_dupfd_cloexec, 10);
++	savederrno=errno;
++	sh_close(fd);
++	errno=savederrno;
++	return(shfd);
++}
++
+ int	b_cd(int argc, char *argv[],Shbltin_t *context)
+ {
+ 	register char *dir;
+@@ -56,18 +149,20 @@ int	b_cd(int argc, char *argv[],Shbltin_
+ 	register const char *dp;
+ 	register Shell_t *shp = context->shp;
+ 	int saverrno=0;
+-	int rval,flag=0;
++	int rval;
++	bool flag=false,xattr=false;
+ 	char *oldpwd;
++	int newdirfd;
+ 	Namval_t *opwdnod, *pwdnod;
+ 	if(sh_isoption(SH_RESTRICTED))
+ 		errormsg(SH_DICT,ERROR_exit(1),e_restricted+4);
+ 	while((rval = optget(argv,sh_optcd))) switch(rval)
+ 	{
+ 		case 'L':
+-			flag = 0;
++			flag = false;
+ 			break;
+ 		case 'P':
+-			flag = 1;
++			flag = true;
+ 			break;
+ 		case ':':
+ 			errormsg(SH_DICT,2, "%s", opt_info.arg);
+@@ -179,14 +274,72 @@ int	b_cd(int argc, char *argv[],Shbltin_
+ 					continue;
+ #endif /* SHOPT_FS_3D */
+ 		}
++		rval = newdirfd = sh_diropenat(shp, shp->pwdfd,
++			path_relative(shp,stakptr(PATH_OFFSET)), xattr);
++		if(newdirfd >=0)
++		{
++			/* chdir for directories on HSM/tapeworms may take minutes */
++			if(fchdir(newdirfd) >= 0)
++			{
++				if(shp->pwdfd >= 0)
++					sh_close(shp->pwdfd);
++				shp->pwdfd=newdirfd;
++				goto success;
++			}
++		}
++#ifndef O_SEARCH
++		else
++		{
+ 		if((rval=chdir(path_relative(shp,stakptr(PATH_OFFSET)))) >= 0)
+-			goto success;
+-		if(errno!=ENOENT && saverrno==0)
++			{
++				if(shp->pwdfd >= 0)
++				{
++					sh_close(shp->pwdfd);
++#ifdef AT_FDCWD
++					shp->pwdfd = AT_FDCWD;
++#else
++					shp->pwdfd = -1;
++#endif
++				}
++			}
++		}
++#endif
++		if(saverrno==0)
+ 			saverrno=errno;
++		if(newdirfd >=0)
++			sh_close(newdirfd);
+ 	}
+ 	while(cdpath);
+ 	if(rval<0 && *dir=='/' && *(path_relative(shp,stakptr(PATH_OFFSET)))!='/')
+-		rval = chdir(dir);
++	{
++		rval = newdirfd = sh_diropenat(shp,
++			shp->pwdfd,
++			dir, xattr);
++		if(newdirfd >=0)
++		{
++			/* chdir for directories on HSM/tapeworms may take minutes */
++			if(fchdir(newdirfd) >= 0)
++			{
++				if(shp->pwdfd >= 0)
++					sh_close(shp->pwdfd);
++				shp->pwdfd=newdirfd;
++				goto success;
++			}
++		}
++#ifndef O_SEARCH
++		else
++		{
++			if(chdir(dir) >=0)
++			{
++				if(shp->pwdfd >= 0)
++				{
++					sh_close(shp->pwdfd);
++					shp->pwdfd=-1;
++				}
++			}
++		}
++#endif
++	}
+ 	/* use absolute chdir() if relative chdir() fails */
+ 	if(rval<0)
+ 	{
+@@ -213,7 +366,7 @@ success:
+ 	if(*dir != '/')
+ 		return(0);
+ 	nv_putval(opwdnod,oldpwd,NV_RDONLY);
+-	flag = strlen(dir);
++	flag = (strlen(dir)>0)?true:false;
+ 	/* delete trailing '/' */
+ 	while(--flag>0 && dir[flag]=='/')
+ 		dir[flag] = 0;
+diff -up ksh-20120801/src/cmd/ksh93/include/shell.h.orig ksh-20120801/src/cmd/ksh93/include/shell.h
+--- ksh-20120801/src/cmd/ksh93/include/shell.h.orig	2012-07-17 22:07:40.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/include/shell.h	2012-10-24 15:42:10.756987230 +0200
+@@ -145,6 +145,7 @@ struct Shell_s
+ 	unsigned char	trapnote;	/* set when trap/signal is pending */
+ 	char		shcomp;		/* set when runing shcomp */
+ 	short		subshell;	/* set for virtual subshell */
++	int		pwdfd;		/* file descriptor for pwd */
+ #ifdef _SH_PRIVATE
+ 	_SH_PRIVATE
+ #endif /* _SH_PRIVATE */
+diff -up ksh-20120801/src/cmd/ksh93/sh/init.c.orig ksh-20120801/src/cmd/ksh93/sh/init.c
+--- ksh-20120801/src/cmd/ksh93/sh/init.c.orig	2012-05-11 19:19:10.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/init.c	2012-10-24 15:31:59.659485151 +0200
+@@ -1365,6 +1365,18 @@ Shell_t *sh_init(register int argc,regis
+ 		}
+ 	}
+ 	sh_ioinit(shp);
++#ifdef AT_FDCWD
++       shp->pwdfd = sh_diropenat(shp, AT_FDCWD, e_dot, false);
++#else
++       /* Systems without AT_FDCWD/openat() do not use the |dir| argument */
++       shp->pwdfd = sh_diropenat(shp, -1, e_dot, false);
++#endif
++#ifdef O_SEARCH
++       /* This should _never_ happen, guranteed by design and goat sacrifice */
++       if(shp->pwdfd < 0)
++               errormsg(SH_DICT,ERROR_system(1), "Can't obtain directory fd.");
++#endif
++
+ 	/* initialize signal handling */
+ 	sh_siginit(shp);
+ 	stakinstall(NIL(Stak_t*),nospace);
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.orig ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.orig	2012-07-23 16:49:32.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2012-10-24 15:35:02.209539671 +0200
+@@ -1348,8 +1348,12 @@ int sh_exec(register const Shnode_t *t,
+ 						{
+ 							if(!shp->pwd)
+ 								path_pwd(shp,0);
+-							if(shp->pwd)
+-								stat(".",&statb);
++#ifndef O_SEARCH
++							else if (shp->pwdfd>=0)
++								fstat(shp->pwdfd,&statb);
++							else if (shp->pwd)
++								stat(e_dot,&statb);
++#endif
+ 							sfsync(NULL);
+ 							share = sfset(sfstdin,SF_SHARE,0);
+ 							sh_onstate(SH_STOPOK);
+@@ -1428,14 +1432,32 @@ int sh_exec(register const Shnode_t *t,
+ 						sh_offstate(SH_NOFORK);
+ 					if(!(nv_isattr(np,BLT_ENV)))
+ 					{
+-						if(shp->pwd)
++#ifdef O_SEARCH
++						while((fchdir(shp->pwdfd) < 0) && errno==EINTR)
++							errno = 0;
++#else
++						if(shp->pwd || (shp->pwdfd >= 0))
+ 						{
+ 							struct stat stata;
+ 							stat(".",&stata);
+ 							/* restore directory changed */
+ 							if(statb.st_ino!=stata.st_ino || statb.st_dev!=stata.st_dev)
+-								chdir(shp->pwd);
++							{
++								/* chdir for directories on HSM/tapeworms may take minutes */
++								int err=errno;
++								if(shp->pwdfd >= 0)
++								{
++									 while((fchdir(shp->pwdfd) < 0) && errno==EINTR)
++										errno = err;
++								}
++								else
++								{
++									 while((chdir(shp->pwd) < 0) && errno==EINTR)
++										errno = err;
++								}
++							}
+ 						}
++#endif /* O_SEARCH */
+ 						sh_offstate(SH_STOPOK);
+ 						if(share&SF_SHARE)
+ 							sfset(sfstdin,SF_PUBLIC|SF_SHARE,1);
+diff -up ksh-20120801/src/lib/libast/features/common.orig ksh-20120801/src/lib/libast/features/common
+--- ksh-20120801/src/lib/libast/features/common.orig	2011-12-12 20:55:33.000000000 +0100
++++ ksh-20120801/src/lib/libast/features/common	2012-10-24 15:54:35.433885131 +0200
+@@ -463,6 +463,66 @@ typ uintptr_t stdint.h inttypes.h no{
+ 	typedef unsigned _ast_int4_t uintptr_t;
+ 	#endif
+ }end
++typ _Bool = uint8_t
++cat{
++	#if defined(_STDC_C99) || __STDC_VERSION__ >= 199901L
++	#include <stdbool.h>
++	#else
++	#define bool	_Bool
++	#define false	0
++	#define true	1
++	#endif
++}end
++tst key __thread -lpthread note{ __thread keyword exists and works with -lpthread }end execute{
++	#include	<pthread.h>
++	
++	#define INITIAL		1
++	#define LOOP		100
++	
++	static __thread int	specific = INITIAL;
++	static int		global = 0;
++	
++	static void* worker(void* arg)
++	{
++		int	k;
++		int	v;
++		v = (int)(arg - 0);
++		for (k = 0; k < LOOP; ++k)
++		{	
++			specific += v;
++			usleep(1);
++		}
++		if (specific != (INITIAL + LOOP * v)) 
++			global = 1;
++		return 0;
++	}
++	int main()
++	{
++		pthread_t	th[2];
++	
++		if (pthread_create(&th[0], 0, worker, (void*)0 + 5) ||
++		    pthread_create(&th[1], 0, worker, (void*)0 + 7))
++		{
++			NOTE("pthread_create failed");
++			return 1;
++		}
++		pthread_join(th[0], 0);
++		pthread_join(th[1], 0);
++		if (global)
++		{
++			NOTE("__thread variable not thread specific");
++			return 1;
++		}
++		if (specific != INITIAL)
++		{
++			NOTE("main __thread variable changed by another thread");
++			return 1;
++		}
++		return 0;
++	}
++}end no{
++	#define __thread		/* __thread keyword does not exist or does not work with -lpthread */
++}end
+ 
+ tst	- -DTRY=1 - -DTRY=1 -Dvoid=char - -DTRY=2 - -DTRY=3 - -DTRY=4 output{
+ 	#if _STD_ && _hdr_stdarg

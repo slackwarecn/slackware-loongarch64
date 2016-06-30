@@ -28,7 +28,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -63,9 +63,13 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --mandir=/usr/man \
   --build=${ARCH}-slackware-linux || exit 1
+
 make || exit 1
-mkdir -p $PKG/usr/bin $PKG/usr/man/man1
+make -C doc || exit 1
+
+mkdir -p $PKG/usr/bin $PKG/usr/man/man1 $PKG/usr/info
 make install INSTALLROOT=$PKG || exit 1
+cp -a doc/info/* $PKG/usr/info
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -75,15 +79,8 @@ cp -a \
   AUTHORS CHANGES COPYING* INSTALL LICENSE README* TODO \
   $PKG/usr/doc/nasm-$VERSION
 
-( cd doc
-  make
-  cd info
-  mkdir -p $PKG/usr/info
-  cp -a * $PKG/usr/info
-  gzip -9 $PKG/usr/info/*
-)
-
 gzip -9 $PKG/usr/man/man?/*
+gzip -9 $PKG/usr/info/*
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

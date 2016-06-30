@@ -18,5 +18,9 @@ if [ -e etc/rc.d/rc.messagebus ]; then
   mv etc/rc.d/rc.messagebus.new.incoming etc/rc.d/rc.messagebus.new
 fi
 
-config etc/rc.d/rc.messagebus.new
+#config etc/rc.d/rc.messagebus.new
+# No, just install the thing.  Leaving it as .new will only lead to problems.
+if [ -r etc/rc.d/rc.messagebus.new ]; then
+  mv etc/rc.d/rc.messagebus.new etc/rc.d/rc.messagebus
+fi
 

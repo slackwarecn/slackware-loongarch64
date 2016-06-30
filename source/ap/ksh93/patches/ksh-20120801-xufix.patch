@@ -1,0 +1,29 @@
+diff -up ksh-20120801/src/cmd/ksh93/bltins/typeset.c.xufix ksh-20120801/src/cmd/ksh93/bltins/typeset.c
+--- ksh-20120801/src/cmd/ksh93/bltins/typeset.c.xufix	2015-02-03 14:47:23.266022137 +0100
++++ ksh-20120801/src/cmd/ksh93/bltins/typeset.c	2015-02-03 14:47:23.308022046 +0100
+@@ -93,6 +93,8 @@ int    b_readonly(int argc,char *argv[],
+ 	memset((void*)&tdata,0,sizeof(tdata));
+ 	tdata.sh = context->shp;
+ 	tdata.aflag = '-';
++	/* do not change size */
++	tdata.argnum = -1;
+ 	while((flag = optget(argv,*command=='e'?sh_optexport:sh_optreadonly))) switch(flag)
+ 	{
+ 		case 'p':
+diff -up ksh-20120801/src/cmd/ksh93/sh/name.c.xufix ksh-20120801/src/cmd/ksh93/sh/name.c
+--- ksh-20120801/src/cmd/ksh93/sh/name.c.xufix	2015-02-03 14:47:23.281022105 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/name.c	2015-02-03 14:52:08.768404194 +0100
+@@ -3019,10 +3019,12 @@ void nv_newattr (register Namval_t *np,
+ 			nv_onattr(np,NV_EXPORT);
+ 			sh_envput(shp->env,np);
+ 		}
+-		if((n^newatts)==NV_EXPORT)
++		if((n^newatts)==NV_EXPORT && size==-1)
+ 			return;
+ 	}
+ 	oldsize = nv_size(np);
++	if (size == -1)
++		size = oldsize;
+ 	if((size==oldsize|| (n&NV_INTEGER)) && !trans && ((n^newatts)&~NV_NOCHANGE)==0)
+ 	{
+ 		if(size)

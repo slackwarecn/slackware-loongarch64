@@ -28,7 +28,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -39,21 +39,40 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-ethtool
 
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
-
 cd $TMP
 rm -rf ethtool-$VERSION
 tar xvf $CWD/ethtool-$VERSION.tar.?z* || exit 1
 cd ethtool-$VERSION || exit 1
 chown -R root:root .
+
+CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
-  --mandir=/usr/man
+  --mandir=/usr/man \
+  --build=$ARCH-slackware-linux
+
 make || exit 1
 make install DESTDIR=$PKG
-strip $PKG/usr/sbin/ethtool
+
+strip --strip-unneeded $PKG/usr/sbin/ethtool
 gzip -9 $PKG/usr/man/man8/ethtool.8
+
 mkdir -p $PKG/usr/doc/ethtool-$VERSION
 cp -a \
   AUTHORS COPYING* LICENSE NEWS README* \

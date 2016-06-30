@@ -1,0 +1,79 @@
+From 1cb5647f76dc8cd7bacbce2a64fac9e6c2dc3b16 Mon Sep 17 00:00:00 2001
+From: Tanu Kaskinen <tanu.kaskinen at linux.intel.com>
+Date: Tue, 28 Apr 2015 14:32:43 +0300
+Subject: [PATCH] client-conf: Add allow-autospawn-for-root
+
+Usually autospawning for root is a bad idea, since it can easily
+interfere with other users' PulseAudio instances, but in embedded
+environments where only root exists, autospawning is fine.
+
+Upstream-Status: Submitted [http://thread.gmane.org/gmane.comp.audio.pulseaudio.general/23549]
+
+Signed-off-by: Tanu Kaskinen <tanu.kaskinen at linux.intel.com>
+---
+ man/pulse-client.conf.5.xml.in | 9 +++++++++
+ src/pulse/client-conf.c        | 1 +
+ src/pulse/client-conf.h        | 1 +
+ src/pulse/client.conf.in       | 1 +
+ src/pulse/context.c            | 2 +-
+ 5 files changed, 13 insertions(+), 1 deletion(-)
+
+--- ./man/pulse-client.conf.5.xml.in.orig	2016-05-10 07:28:04.000000000 -0500
++++ ./man/pulse-client.conf.5.xml.in	2016-06-22 13:39:30.494696654 -0500
+@@ -82,6 +82,15 @@
+     </option>
+ 
+     <option>
++      <p><opt>allow-autospawn-for-root=</opt> Allow autospawning also for root.
++      Takes a boolean value, defaults to <opt>no</opt>. If the <opt>autospawn
++      </opt> option is disabled, this option has no effect. Autospawning for
++      root is disabled by default, because running PulseAudio as root will
++      interfere with regular users' PulseAudio instances. This option should be
++      enabled only in environments where there are no regular users at all.</p>
++    </option>
++
++    <option>
+       <p><opt>daemon-binary=</opt> Path to the PulseAudio daemon to
+       run when autospawning. Defaults to a path configured at compile
+       time.</p>
+--- ./src/pulse/client.conf.in.orig	2016-05-03 01:17:39.000000000 -0500
++++ ./src/pulse/client.conf.in	2016-06-22 13:39:30.527696657 -0500
+@@ -23,6 +23,7 @@
+ ; default-dbus-server =
+ 
+ ; autospawn = yes
++; allow-autospawn-for-root = no
+ ; daemon-binary = @PA_BINARY@
+ ; extra-arguments = --log-target=syslog
+ 
+--- ./src/pulse/client-conf.c.orig	2016-05-10 07:28:04.000000000 -0500
++++ ./src/pulse/client-conf.c	2016-06-22 13:39:30.505696655 -0500
+@@ -138,6 +138,7 @@
+         { "default-server",         pa_config_parse_string,   &c->default_server, NULL },
+         { "default-dbus-server",    pa_config_parse_string,   &c->default_dbus_server, NULL },
+         { "autospawn",              pa_config_parse_bool,     &c->autospawn, NULL },
++        { "allow-autospawn-for-root", pa_config_parse_bool,   &c->allow_autospawn_for_root, NULL },
+         { "cookie-file",            pa_config_parse_string,   &c->cookie_file_from_client_conf, NULL },
+         { "disable-shm",            pa_config_parse_bool,     &c->disable_shm, NULL },
+         { "enable-shm",             pa_config_parse_not_bool, &c->disable_shm, NULL },
+--- ./src/pulse/context.c.orig	2016-06-01 05:50:54.000000000 -0500
++++ ./src/pulse/context.c	2016-06-22 13:39:30.536696657 -0500
+@@ -1027,7 +1027,7 @@
+     if (!(flags & PA_CONTEXT_NOAUTOSPAWN) && c->conf->autospawn) {
+ 
+ #ifdef HAVE_GETUID
+-        if (getuid() == 0)
++        if (!c->conf->allow_autospawn_for_root && getuid() == 0)
+             pa_log_debug("Not doing autospawn since we are root.");
+         else {
+             c->do_autospawn = true;
+--- ./src/pulse/client-conf.h.orig	2016-06-22 13:39:30.517696656 -0500
++++ ./src/pulse/client-conf.h	2016-06-22 13:40:11.754699631 -0500
+@@ -38,6 +38,7 @@
+     char *cookie_file_from_application;
+     char *cookie_file_from_client_conf;
+     bool autospawn, disable_shm, disable_memfd, auto_connect_localhost, auto_connect_display;
++    bool allow_autospawn_for_root;
+     size_t shm_size;
+ } pa_client_conf;
+ 

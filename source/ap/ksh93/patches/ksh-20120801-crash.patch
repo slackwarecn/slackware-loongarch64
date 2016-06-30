@@ -1,0 +1,64 @@
+diff -up ksh-20120801/src/cmd/ksh93/include/jobs.h.crash ksh-20120801/src/cmd/ksh93/include/jobs.h
+--- ksh-20120801/src/cmd/ksh93/include/jobs.h.crash	2014-07-16 17:32:03.570057304 +0200
++++ ksh-20120801/src/cmd/ksh93/include/jobs.h	2014-07-16 17:32:03.600057172 +0200
+@@ -118,6 +118,7 @@ struct jobs
+ 	char		jobcontrol;	/* turned on for real job control */
+ 	char		waitsafe;	/* wait will not block */
+ 	char		waitall;	/* wait for all jobs in pipe */
++	char		hack1_waitall;
+ 	char		toclear;	/* job table needs clearing */
+ 	unsigned char	*freejobs;	/* free jobs numbers */
+ #if SHOPT_COSHELL
+diff -up ksh-20120801/src/cmd/ksh93/sh/jobs.c.crash ksh-20120801/src/cmd/ksh93/sh/jobs.c
+--- ksh-20120801/src/cmd/ksh93/sh/jobs.c.crash	2014-07-16 17:32:03.554057375 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/jobs.c	2014-07-16 17:32:03.600057172 +0200
+@@ -1957,6 +1957,7 @@ again:
+ 	{
+ 		count = bp->count;
+ 		jp = bp->list;
++		jpold = 0;
+ 		goto again;
+ 	}
+ 	if(jp)
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.crash ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.crash	2014-07-16 17:32:03.593057203 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2014-07-16 17:32:03.600057172 +0200
+@@ -492,6 +492,7 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 	struct sh_scoped savst;
+ 	struct dolnod   *argsav=0;
+ 	int argcnt;
++        int pipefail = 0;
+ 	memset((char*)sp, 0, sizeof(*sp));
+ 	sfsync(shp->outpool);
+ 	sh_sigcheck(shp);
+@@ -541,7 +542,10 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 	sp->comsub = shp->comsub;
+ 	shp->subshare = comsub==2 ||  (comsub==1 && sh_isoption(SH_SUBSHARE));
+ 	if(comsub)
++	{
+ 		shp->comsub = comsub;
++		job.hack1_waitall=(comsub==1);
++	}
+ 	sp->shpwdfd=-1;
+ 	if(!comsub || !shp->subshare)
+ 	{
+@@ -648,6 +652,7 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 		}
+ 		else
+ 		{
++			job.hack1_waitall=0;
+ 			/* move tmp file to iop and restore sfstdout */
+ 			iop = sfswap(sfstdout,NIL(Sfio_t*));
+ 			if(!iop)
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.crash ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.crash	2014-07-16 17:32:03.587057230 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2014-07-16 17:32:03.601057168 +0200
+@@ -2125,7 +2125,7 @@ int sh_exec(register const Shnode_t *t,
+ 				memset(exitval,0,job.waitall*sizeof(int));
+ 			}
+ 			else
+-				job.waitall |= !pipejob && sh_isstate(SH_MONITOR);
++				job.waitall |= job.hack1_waitall || !pipejob && sh_isstate(SH_MONITOR);
+ 			job_lock();
+ 			nlock++;
+ 			do

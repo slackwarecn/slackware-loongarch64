@@ -17,7 +17,7 @@
 LINUXDOCTOOLSVER=$PKGVERSION
 
 # Bundled package versions:
-ASCIIDOCVER=8.6.8
+ASCIIDOCVER=8.6.9
 DSSSLSTYLESHEETSVER=1.79
 XSLSTYLESHEETSVER=1.78.1
 DOCBOOKUTILSVER=0.6.14
@@ -25,12 +25,12 @@ SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
 GNOMEDOCUTILSVER=0.20.10
-GTKDOCVER=1.19
+GTKDOCVER=1.24
 SGMLSPLVER=1.03ii
 OPENJADEVER=1.3.3-pre1
 OPENSPVER=1.5.2
 SGMLCOMMONVER=0.6.3
-XMLTOVER=0.0.25
+XMLTOVER=0.0.26
 DOCBOOK2XVER=0.8.8
 
 # Determine the general CFLAGS for the known architectures:
@@ -43,7 +43,7 @@ case $ARCH in
            export LIBDIRSUFFIX=""
            export HOSTTARGET="-gnueabi"
            ;;
-  i486)    export SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  i586)    export SLKCFLAGS="-O2 -march=i586 -mtune=i686"
            export LIBDIRSUFFIX=""
            export HOSTTARGET=""
            ;;
@@ -74,9 +74,6 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-
-# Revert a change that breaks processing the git documentation:
-# xz -dc $CWD/sources/asciidoc.asciidoc7compatible.revertbrokenchange.diff.xz | patch --verbose -p1 || exit 1
 
 # Configure:
 ./configure \
@@ -279,6 +276,9 @@ sed -i 's:LITLEN          240 :LITLEN          8092:' unicode/{gensyntax.pl,unic
 
 # Stop OpenJade from segfaulting:
 patch --verbose -p1 < ../opensp-sigsegv.patch || exit 1
+# Inconsistency between help & man page:
+patch --verbose -p1 < ../opensp-manpage.patch || exit 1
+patch --verbose -p1 < ../opensp-nodeids.patch || exit 1
 
 # Configure without optimisation.  OpenSP & OpenJade
 # are sensitive to optimisations, resulting in segfaults,
@@ -784,9 +784,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Apply patches:
-patch -p1 < ../xmlto-noextensions.patch || exit 1
-
 # Configure:
 ./configure \
   --prefix=/usr \
@@ -818,7 +815,10 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-xz -dc $CWD/sources/libsgmls-perl_$SGMLSPLVER-*.diff.xz | patch -p1 || exit 1
+tar xvvf $CWD/sources/libsgmls-perl_$SGMLSPLVER-*.debian.tar.xz || exit 1
+
+# Apply patches from Debian:
+cat debian/patches/series | while read dpf ; do patch -p1 --verbose < debian/patches/$dpf || exit 1 ; done || exit 1
 
 # Configure:
 perl Makefile.PL INSTALLDIRS=vendor || exit 1
@@ -830,6 +830,7 @@ make OPTIMIZE="$SLKCFLAGS" || exit 1
 # Install:
 make install PREFIX=/usr
 sed 's?usr/share/doc/sgmls-doc/?usr/doc/sgmlspl-'"$SGMLSPLVER"'/?g' sgmlspl.1 > /usr/man/man1/sgmlspl.1
+mv -fv /usr/bin/sgmlspl{.pl,}
 
 # Copy docs:
 mkdir -vpm755 /usr/doc/sgmlspl-$SGMLSPLVER
@@ -845,8 +846,9 @@ cp -fav \
 # Extract source:
 cd $TMP
 mkdir linuxdoc-tools && cd linuxdoc-tools
-rpm2cpio $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm | cpio -div || exit 1
-tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
+#rpm2cpio $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm | cpio -div || exit 1
+#tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
+tar xvf $CWD/sources/linuxdoc-tools_$LINUXDOCTOOLSVER.tar.xz
 cd linuxdoc-tools-$LINUXDOCTOOLSVER || exit 1
 
 chown -R root:root .
@@ -862,12 +864,12 @@ find . \
 OPATH=$PATH
 export PATH=$( echo $PATH | sed -e 's?:/usr/share/texmf/bin??g' -e 's?/usr/share/texmf/bin:??g' )
 
-# Apply patches (these are included in the source rpm):
+# Apply patches (these were originally taken from the Fedora SRPM but broken out later
+# when the 'original' source from Debian began to be used)
 for i in \
-  linuxdoc-tools-0.9.13-letter.patch \
-  linuxdoc-tools-0.9.68-flex.patch \
-  linuxdoc-tools-0.9.20-lib64.patch ; do
-    patch --verbose -p1 < ../$i
+  linuxdoc-tools-0.9.13-letter.patch.xz \
+  linuxdoc-tools-0.9.20-lib64.patch.xz ; do
+    xzcat $CWD/sources/$i | patch -p1 || exit 1
 done || exit 1
 
 # Find out what our Vendor perl directory is:
@@ -908,12 +910,6 @@ make install \
    perl5libdir=$PKG/$installvendorlib \
    DESTDIR=/ \
    LINUXDOCDOC=/usr/doc/linuxdoc-tools-$LINUXDOCTOOLSVER || exit 1
-
-# Install shell scripts for sgml2{txt,latex,info}
-for i in txt latex info; do \
-    install -vpm755 debian/addition/sgml2$i \
-    /usr/bin/sgml2$i; \
-done
 
 # Install info page:
 cat debian/linuxdoc-tools.info-base doc/guide.info > /usr/info/linuxdoc-sgml.info
@@ -1051,13 +1047,14 @@ find . \
   -exec chmod 644 {} \;
 
 # Apply patches:
-xz -dc $CWD/sources/docbook2x*diff* | patch -p1 || exit 1
+tar xvvf $CWD/sources/docbook2x*debian*z || exit 1
 for i in \
-   01_fix_static_datadir_evaluation.dpatch \
-   02_fix_418703_dont_use_abbreviated_sfnet_address.dpatch \
-   03_fix_420153_filename_whitespace_handling \
-   04_fix_442782_preprocessor_declaration_syntax.dpatch \
-   05_fix_439214_error_on_missing_refentry.dpatch ; do
+   01_fix_static_datadir_evaluation.patch \
+   02_fix_418703_dont_use_abbreviated_sfnet_address.patch \
+   03_fix_420153_filename_whitespace_handling.patch \
+   04_fix_442782_preprocessor_declaration_syntax.patch \
+   05_fix_439214_error_on_missing_refentry.patch \
+   06_fix_man_typo.patch ; do
     patch --verbose -p1 < debian/patches/$i || exit 1
 done
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,15 +21,15 @@
 
 
 PKGNAM=obexftp
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-9}
+VERSION=${VERSION:-$(echo $PKGNAM-*-Source.tar.?z* | rev | cut -f 3- -d . | cut -f 2 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -57,9 +57,9 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
-cd ${PKGNAM}-$VERSION || exit 1
+rm -rf ${PKGNAM}-${VERSION}-Source
+tar xvf $CWD/${PKGNAM}-${VERSION}-Source.tar.?z* || exit 1
+cd ${PKGNAM}-${VERSION}-Source || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -69,24 +69,29 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Fixes the RSTRINGLEN for ruby-1.9
-zcat $CWD/ruby_rstringlen.diff.gz | patch -p1 --verbose || exit 1
+# Thanks to Fedora for these
+zcat $CWD/patches/obexftp-0.24-fix-absurd-install-path.patch.gz | patch -p1 || exit 1
+zcat $CWD/patches/obexftp-0.24-fuse.patch.gz | patch -p1 || exit 1
+zcat $CWD/patches/obexftp-norpath.patch.gz | patch -p1 || exit 1
+zcat $CWD/patches/obexftp-pkgconfig_requires.patch.gz | patch -p1 || exit 1
 
-# Configure:
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --disable-static \
-  --mandir=/usr/man \
-  --program-prefix= \
-  --program-suffix= \
-  --build=$ARCH-slackware-linux
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DCMAKE_INSTALL_DOCDIR=/usr/doc/$PKGNAM-$VERSION \
+    -DCMAKE_BUILD_TYPE=Release ..
+  make $NUMJOBS || make || exit 1
+  make doc || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
-# Build and install:
-make $NUMJOBS INSTALLDIRS=vendor || exit 1
-make install INSTALLDIRS=vendor DESTDIR=$PKG || exit 1
+# Relocate man pages:
+mv $PKG/usr/share/man $PKG/usr
+rmdir $PKG/usr/share 2> /dev/null
 
 if [ -e $PKG/usr/bin/obexftpd ]; then
   mkdir -p $PKG/usr/sbin
@@ -128,6 +133,7 @@ cp -a \
   AUTHORS COPYING* INSTALL NEWS README* THANKS TODO contrib \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 rm -f $PKG/usr/doc/${PKGNAM}-$VERSION/contrib/Makefile*
+find $PKG/usr/doc/${PKGNAM}-$VERSION -type f -exec chmod 0644 {} \;
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

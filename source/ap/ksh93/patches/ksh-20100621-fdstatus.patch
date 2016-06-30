@@ -1,0 +1,54 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/io.c.fdstatus ksh-20120801/src/cmd/ksh93/sh/io.c
+--- ksh-20120801/src/cmd/ksh93/sh/io.c.fdstatus	2013-07-04 18:01:27.187516655 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/io.c	2013-07-04 18:01:38.249607392 +0200
+@@ -1508,7 +1508,7 @@ int	sh_redirect(Shell_t *shp,struct iono
+ 					fn = fd;
+ 					if(fd<10)
+ 					{
+-						if((fn=fcntl(fd,F_DUPFD,10)) < 0)
++						if((fn=sh_fcntl(fd,F_DUPFD,10)) < 0)
+ 							goto fail;
+ 						if(fn>=shp->gd->lim.open_max && !sh_iovalidfd(shp,fn))
+ 							goto fail;
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.fdstatus ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.fdstatus	2012-07-17 23:54:21.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2013-07-04 17:56:20.342000310 +0200
+@@ -122,7 +122,7 @@ void	sh_subtmpfile(Shell_t *shp)
+ 		register struct checkpt	*pp = (struct checkpt*)shp->jmplist;
+ 		register struct subshell *sp = subshell_data->pipe;
+ 		/* save file descriptor 1 if open */
+-		if((sp->tmpfd = fd = fcntl(1,F_DUPFD,10)) >= 0)
++		if((sp->tmpfd = fd = sh_fcntl(1,F_DUPFD,10)) >= 0)
+ 		{
+ 			fcntl(fd,F_SETFD,FD_CLOEXEC);
+ 			shp->fdstatus[fd] = shp->fdstatus[1]|IOCLEX;
+@@ -554,7 +554,7 @@ Sfio_t *sh_subshell(Shell_t *shp,Shnode_
+ 				sp->pwdfd = n;
+ 				if(n<10)
+ 				{
+-					sp->pwdfd =  fcntl(n,F_DUPFD,10);
++					sp->pwdfd = sh_fcntl(n,F_DUPFD,10);
+ 					close(n);
+ 				}
+ 				if(sp->pwdfd>0)
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.fdstatus ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.fdstatus	2012-07-23 16:49:32.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2013-07-04 17:57:47.153712116 +0200
+@@ -116,7 +116,7 @@ static int iousepipe(Shell_t *shp)
+ 		return(0);
+ 	usepipe++;
+ 	fcntl(subpipe[0],F_SETFD,FD_CLOEXEC);
+-	subpipe[2] = fcntl(1,F_DUPFD,10);
++	subpipe[2] = sh_fcntl(1,F_DUPFD,10);
+ 	fcntl(subpipe[2],F_SETFD,FD_CLOEXEC);
+ 	shp->fdstatus[subpipe[2]] = shp->fdstatus[1];
+ 	close(1);
+@@ -3622,7 +3622,7 @@ static void coproc_init(Shell_t *shp, in
+ 		sh_pipe(shp->cpipe);
+ 		if((outfd=shp->cpipe[1]) < 10) 
+ 		{
+-		        int fd=fcntl(shp->cpipe[1],F_DUPFD,10);
++		        int fd=sh_fcntl(shp->cpipe[1],F_DUPFD,10);
+ 			if(fd>=10)
+ 			{
+ 			        shp->fdstatus[fd] = (shp->fdstatus[outfd]&~IOCLEX);

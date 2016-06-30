@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,7 +29,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gtk2
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -77,8 +77,13 @@ zcat $CWD/gtk.xid.nowarningflood.diff.gz | patch -p1 --verbose || exit 1
 
 # Patch to restore commonly used icon names, otherwise everything breaks.
 # I fail to see the point of this "cleanup"
-zcat $CWD/gtk+-2.24.x.icon-compat.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/gtk+-2.24.x.icon-compat.am.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gtk+-2.24.x.icon-compat.diff.gz | patch -p1 --verbose || exit 1
+
+# Prevents build failures in the docs.  Found online.
+# Only needed if autoreconf is used...  ?
+zcat $CWD/gtk.gtk-faq.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/gtk.gtk-tut.diff.gz | patch -p1 --verbose || exit 1
 
 # Regenerate ./configure:
 libtoolize --force
@@ -117,7 +122,10 @@ make install \
 mv $PKG/etc/gtk-2.0/im-multipress.conf $PKG/etc/gtk-2.0/im-multipress.conf.new || exit 1
 
 # Install a "starter" gtkrc
-echo 'gtk-theme-name="GTK+"' > $PKG/etc/gtk-2.0/gtkrc.new
+# /etc/gtk-2.0/gtkrc overrides this  --rworkman
+echo 'gtk-theme-name="GTK+"' > $PKG/usr/share/gtk-2.0/gtkrc
+echo 'gtk-icon-theme-name="Adwaita"' >> $PKG/usr/share/gtk-2.0/gtkrc
+echo 'gtk-fallback-icon-theme = "Tango"' >> $PKG/usr/share/gtk-2.0/gtkrc
 
 # We need to have separate 32-bit and 64-bit binaries
 # for places where we have two copies of the GTK+ package installed.

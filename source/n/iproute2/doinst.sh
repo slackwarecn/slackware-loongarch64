@@ -16,4 +16,4 @@ config etc/iproute2/rt_protos.new
 config etc/iproute2/rt_realms.new
 config etc/iproute2/rt_scopes.new
 config etc/iproute2/rt_tables.new
-
+config etc/iproute2/nl_protos.new

@@ -1,0 +1,88 @@
+From 458f73d58c24a7addce82bf1e8bfb8c2554ca458 Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Wed, 14 Oct 2015 14:37:09 +0200
+Subject: [PATCH 3/9] Fix error paths in mem_chunk
+
+Use a common error path in function mem_chunk, to make sure it does
+not leak memory and does not leave an opened file descriptor behind,
+without duplicating the cleaning code.
+---
+ CHANGELOG |  1 +
+ util.c    | 24 ++++++++++--------------
+ 2 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/CHANGELOG b/CHANGELOG
+index aa1c28f..c940c9f 100644
+--- a/CHANGELOG
++++ b/CHANGELOG
+@@ -3,6 +3,7 @@
+ 	* util.c: Avoid SIGBUS on mmap failure.
+ 	  This fixes Savannah bug #46066:
+ 	  https://savannah.nongnu.org/bugs/?46066
++	* util.c: Fix error paths in mem_chunk.
+ 
+ 2015-10-01  Roy Franz  <roy.franz@linaro.org>
+ 
+diff --git a/util.c b/util.c
+index 5795d02..f97ac0d 100644
+--- a/util.c
++++ b/util.c
+@@ -166,7 +166,7 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
+ 	if ((p = malloc(len)) == NULL)
+ 	{
+ 		perror("malloc");
+-		return NULL;
++		goto out;
+ 	}
+ 
+ #ifdef USE_MMAP
+@@ -174,8 +174,7 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
+ 	{
+ 		fprintf(stderr, "%s: ", devmem);
+ 		perror("stat");
+-		free(p);
+-		return NULL;
++		goto err_free;
+ 	}
+ 
+ 	/*
+@@ -186,8 +185,7 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
+ 	{
+ 		fprintf(stderr, "mmap: Can't map beyond end of file %s\n",
+ 			devmem);
+-		free(p);
+-		return NULL;
++		goto err_free;
+ 	}
+ 
+ #ifdef _SC_PAGESIZE
+@@ -220,19 +218,17 @@ try_read:
+ 	{
+ 		fprintf(stderr, "%s: ", devmem);
+ 		perror("lseek");
+-		free(p);
+-		return NULL;
++		goto err_free;
+ 	}
+ 
+-	if (myread(fd, p, len, devmem) == -1)
+-	{
+-		free(p);
+-		return NULL;
+-	}
++	if (myread(fd, p, len, devmem) == 0)
++		goto out;
++
++err_free:
++	free(p);
++	p = NULL;
+ 
+-#ifdef USE_MMAP
+ out:
+-#endif
+ 	if (close(fd) == -1)
+ 		perror(devmem);
+ 
+-- 
+2.6.4
+

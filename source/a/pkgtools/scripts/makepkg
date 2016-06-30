@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 1994, 1998, 2008  Patrick Volkerding, Moorhead, Minnesota USA 
 # Copyright 2003  Slackware Linux, Inc.  Concord, CA USA
-# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,8 +21,15 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Wed Sep 23 18:36:43 UTC 2015
+# Support spaces in file/directory names.  <alphageek>
+#
 # Sun Apr  5 21:23:26 CDT 2009
 # Support .tgz, .tbz, .tlz, and .txz packages.  <volkerdi>
+#
+# Fri Nov 26 13:53:36 GMT 2004
+# Patched to chmod 755 the package's root directory if needed, then restore
+# previous permissions after the package has been created. <sw>
 #
 # Wed Mar 18 15:32:33 CST 1998
 # Patched to avoid possible symlink attacks in /tmp.
@@ -48,18 +55,21 @@ Written by John Gilmore and Jay Fenlason." ]; then
 fi
 
 make_install_script() {
+  TAB="$(echo -e "\t")"
   COUNT=1
-  LINE="$(sed -n "$COUNT p" $1)"
-  while [ ! "$LINE" = "" ]; do
-   LINKGOESIN="$(echo "$LINE" | cut -f 1 -d " ")" 
-   LINKGOESIN="$(dirname $LINKGOESIN)" 
-   LINKNAMEIS="$(echo "$LINE" | cut -f 1 -d ' ')"
+  while :; do
+   LINE="$(sed -n "$COUNT p" $1)"
+   if [ "$LINE" = "" ]; then
+    break
+   fi
+   LINKGOESIN="$(echo "$LINE" | cut -f 1 -d "$TAB")" 
+   LINKGOESIN="$(dirname "$LINKGOESIN")" 
+   LINKNAMEIS="$(echo "$LINE" | cut -f 1 -d "$TAB")"
    LINKNAMEIS="$(basename "$LINKNAMEIS")"
-   LINKPOINTSTO="$(echo "$LINE" | cut -f 3 -d ' ')"
+   LINKPOINTSTO="$(echo "$LINE" | cut -f 2 -d "$TAB")"
    echo "( cd $LINKGOESIN ; rm -rf $LINKNAMEIS )"
    echo "( cd $LINKGOESIN ; ln -sf $LINKPOINTSTO $LINKNAMEIS )"
    COUNT=$(expr $COUNT + 1)
-   LINE="$(sed -n "$COUNT p" $1)"
   done
 }
 
@@ -189,13 +199,12 @@ case $EXTENSION in
 esac
 
 echo
-echo "Slackware package maker, version 3.14159."
+echo "Slackware package maker, version 3.141593."
 echo
 echo "Searching for symbolic links:"
 # Get rid of possible pre-existing trouble:
 INST=$(mktemp $TMP/makepkg.XXXXXX)
-# This requires the ls from coreutils-5.0 (or newer):
-find . -type l -exec ls -l --time-style=long-iso {} \; | while read foo ; do echo $foo ; done | cut -f 8- -d ' ' | cut -b3- | tee $INST
+find . -type l -printf "%p\t%l\n" | sed 's,^\./,, ; s, ,\\ ,g' | tee $INST
 if [ ! "$(cat $INST)" = "" ]; then
   echo
   echo "Making symbolic link creation script:"
@@ -279,6 +288,18 @@ if [ "$CHOWN" = "y" ]; then
   find . -type d -exec chown -v root.root {} \;
 fi
 
+# Ensure that the 'root' of the package is chmod 755 because
+# the / of your filesystem will inherit these permissions.
+# If it's anything tighter than 755 then bad things happen such as users
+# not being able to login, users already logged in can no longer run commands
+# and so on.
+OLDROOTPERMS="$(find -name . -printf "%m\n")"
+if [ $OLDROOTPERMS -ne 755 ]; then
+  echo "WARNING: $PWD is chmod $OLDROOTPERMS"
+  echo "         temporarily changing to chmod 755"
+  chmod 755 .
+fi
+
 echo "Creating Slackware package:  ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}"
 echo
 rm -f ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
@@ -340,6 +361,13 @@ fi
 
 if find . | grep site_perl 1> /dev/null ; then
   echo "WARNING:  site_perl directory detected (this is fine for a local package build)"
+fi
+
+# Restore the old permissions if they previously weren't chmod 755
+if [ $OLDROOTPERMS -ne 755 ]; then
+  echo
+  echo "Restoring permissions of $PWD to chmod $OLDROOTPERMS"
+  chmod $OLDROOTPERMS .
 fi
 
 echo

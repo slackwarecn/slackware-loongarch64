@@ -22,7 +22,7 @@
 
 
 VERSION=${VERSION:-$(echo cdrtools-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 ZISOFSTOOLS=1.0.8
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -30,7 +30,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -55,9 +55,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-make -e $NUMJOBS INS_BASE=/usr DEFMANBASE=. || exit 1
-# Without this second run, cdda2wav is skipped...
-make -e INS_BASE=/usr DEFMANBASE=. || exit 1
+zcat $CWD/cdrtools-3.01-fix-20151126-mkisofs-isoinfo.patch.gz | patch -p1 --verbose || exit 1
+
+make -e $NUMJOBS INS_BASE=/usr DEFMANBASE=. || make -e INS_BASE=/usr DEFMANBASE=. || exit 1
 make -e install INS_BASE=/usr DEFMANBASE=. DESTDIR=$PKG || exit 1
 
 # I don't know why this couldn't be "/etc/cdrtools" or something, but since
@@ -133,6 +133,9 @@ mkdir -p $PKG/usr/doc/zisofs-tools-$ZISOFSTOOLS
 cp -a \
   CHANGES COPYING INSTALL README zisofs.magic \
   $PKG/usr/doc/zisofs-tools-$ZISOFSTOOLS
+
+# Remove these useless man pages that stomp on actual C library pages:
+rm -rf $PKG/usr/man/man3
 
 # Fix permissions:
 cd $PKG

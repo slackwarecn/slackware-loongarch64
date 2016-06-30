@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2009, 2010, 2011, 2012, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,9 @@
 
 # Slackware build script for bash-completion
 
-VERSION=2.1
+VERSION=2.2
 ARCH=noarch
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -46,15 +46,31 @@ find . \
 # Fixup sh completion for us
 zcat $CWD/fixup-sh-script-completions.diff.gz | patch -p1 --verbose || exit 1
 
+# Add some patches from git to fix tar filename completion and related
+# https://github.com/scop/bash-completion/issues/15
+zcat $CWD/patches/0001-tar-Don-t-write-to-tmp-jetel.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0002-test-suite-Add-tar-xvf-filename-test-case.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0003-tar-Fix-GNU-tar-help-output-parsing-regex-fixes-15.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0004-tar-Remove-unused-variable.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0005-tar-Detect-GNU-other-from-version-only-once-per-sess.patch.gz | patch -p1 --verbose || exit 1
+
+# Don't symlink mpv -> mplayer as it reportedly doesn't work well.  Upstream patch.
+zcat $CWD/patches/0006-Remove-mplayer-aliased-completion.patch.gz | patch -p1 --verbose || exit 1
+
+autoreconf -vif
+
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --docdir=/usr/doc/bash-completion-$VERSION
+  --docdir=/usr/doc/bash-completion-$VERSION || exit 1
 
 make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Create the local directory for admin changes/additions:
+mkdir -p $PKG/etc/bash_completion.d/
 
 chmod 0755 $PKG/etc/profile.d/bash_completion.sh
 

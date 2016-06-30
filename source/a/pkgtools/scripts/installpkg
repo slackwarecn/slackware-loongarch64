@@ -21,19 +21,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Fri Apr 22 20:45:45 UTC 2011
-# A stronger formula is needed to regularize output that will be parsed.
-unset LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY \
-  LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT \
-  LC_IDENTIFICATION LC_ALL
-LANG=C
-export LANG
-#
-# Thu Apr 21 17:31:29 UTC 2011
-# Set LC_MESSAGES=C to avoid output parsing issues.
-# Might as well do that right now.
-#LC_MESSAGES=C
-#export LC_MESSAGES
+# Sun Sep  6 21:58:36 BST 2009
+# Replaced usage of "cat" with STDIN redirection or file name parameters
+# to speed up execution on ARM.
+# Replaced pkgbase & package_name code with 'sed' script by Jim Hawkins.
 #
 # Sat Apr 25 21:18:53 UTC 2009
 # Converted to use new pkgbase() function to remove pathname and
@@ -67,28 +58,18 @@ export LANG
 # Changed $TMP directory to /var/log/setup/tmp, and chmod'ed it 700 to close
 # some security holes.
 
+# A stronger formula is needed to regularize output that will be parsed.
+unset LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY \
+  LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT \
+  LC_IDENTIFICATION LC_ALL
+LANG=C
+export LANG
+
 # Return a package name that has been stripped of the dirname portion
 # and any of the valid extensions (only):
 pkgbase() {
-  PKGEXT=$(echo $1 | rev | cut -f 1 -d . | rev)
-  case $PKGEXT in
-  'tgz' )
-    PKGRETURN=$(basename $1 .tgz)
-    ;;
-  'tbz' )
-    PKGRETURN=$(basename $1 .tbz)
-    ;;
-  'tlz' )
-    PKGRETURN=$(basename $1 .tlz)
-    ;;
-  'txz' )
-    PKGRETURN=$(basename $1 .txz)
-    ;;
-  *)
-    PKGRETURN=$(basename $1)
-    ;;
-  esac
-  echo $PKGRETURN
+  # basename + strip extensions .tbz, .tgz, .tlz and .txz
+  echo "$1" | sed 's?.*/??;s/\.t[bglx]z$//'
 }
 
 # If installpkg encounters a problem, it will return a non-zero error code.
@@ -157,33 +138,9 @@ crunch() {
   done
 }
 
+# Strip version, architecture and build from the end of the name
 package_name() {
-  STRING=$(pkgbase $1)
-  # Check for old style package name with one segment:
-  if [ "$(echo $STRING | cut -f 1 -d -)" = "$(echo $STRING | cut -f 2 -d -)" ]; then
-    echo $STRING
-  else # has more than one dash delimited segment
-    # Count number of segments:
-    INDEX=1
-    while [ ! "$(echo $STRING | cut -f $INDEX -d -)" = "" ]; do
-      INDEX=$(expr $INDEX + 1)
-    done
-    INDEX=$(expr $INDEX - 1) # don't include the null value
-    # If we don't have four segments, return the old-style (or out of spec) package name:
-    if [ "$INDEX" = "2" -o "$INDEX" = "3" ]; then
-      echo $STRING
-    else # we have four or more segments, so we'll consider this a new-style name:
-      NAME=$(expr $INDEX - 3)
-      NAME="$(echo $STRING | cut -f 1-$NAME -d -)"
-      echo $NAME
-      # cruft for later ;)
-      #VER=$(expr $INDEX - 2)
-      #VER="$(echo $STRING | cut -f $VER -d -)"
-      #ARCH=$(expr $INDEX - 1)
-      #ARCH="$(echo $STRING | cut -f $ARCH -d -)"
-      #BUILD="$(echo $STRING | cut -f $INDEX -d -)"
-    fi
-  fi
+  pkgbase $1 | sed 's?-[^-]*-[^-]*-[^-]*$??'
 }
 
 # Parse options:
@@ -285,8 +242,8 @@ if [ "$MODE" = "warn" ]; then
     esac
     ( cd $TMP/scan$$ ; $packagecompression -dc | $TAR xf - install ) < $1 2> /dev/null 
     if [ -r $TMP/scan$$/install/doinst.sh ]; then
-      if cat $TMP/scan$$/install/doinst.sh | grep ' rm -rf ' 1>/dev/null 2>/dev/null ; then
-        cat $TMP/scan$$/install/doinst.sh | grep ' rm -rf ' > $TMP/scan$$/install/delete
+      if grep ' rm -rf ' $TMP/scan$$/install/doinst.sh 1>/dev/null 2>/dev/null ; then
+        grep ' rm -rf ' $TMP/scan$$/install/doinst.sh > $TMP/scan$$/install/delete
 	for f in `cat $TMP/scan$$/install/delete | cut -f 3,7 -d ' ' | tr ' ' '/'`; do
 	  f="/$f"
 	  if [ -f "$f" -o -L "$f" ]; then
@@ -428,14 +385,7 @@ for package in $* ; do
     rm -f $TMP/tmplist$$ $TMP/tmpsize$$
     continue
   fi
-  UNCOMPRESSED="$(expr $(cat $TMP/tmpsize$$ | head -n 1 | cut -f 1 -d +) / 2)"
-  if [ $UNCOMPRESSED -lt 1024 ]; then
-    UNCOMPRESSED="${UNCOMPRESSED}K"
-  elif [ $UNCOMPRESSED -lt 10239 ]; then
-    UNCOMPRESSED="$(expr $UNCOMPRESSED \* 1000 / 1024 | cut -b1).$(expr $UNCOMPRESSED \* 1000 / 1024 | cut -b2)M"
-  else
-    UNCOMPRESSED="$(expr $UNCOMPRESSED / 1024)M"
-  fi
+  UNCOMPRESSED="$(cat $TMP/tmpsize$$ | tail -n 1 | cut -f 1 -d ' ' | numfmt --to=iec)"
   rm -f $TMP/tmpsize$$
 
   # If we still don't have a package description, look inside the package.
@@ -456,12 +406,12 @@ for package in $* ; do
   fi
 
   # Gather package infomation into a temporary file:
-  cat $DESCRIPTION | grep "^$packagebase:" | cut -f 2- -d : | cut -b2- 1> $TMP/tmpmsg$$ 2> /dev/null
+  grep "^$packagebase:" $DESCRIPTION | cut -f 2- -d : | cut -b2- 1> $TMP/tmpmsg$$ 2> /dev/null
   if [ "$shortname" != "$packagebase" ]; then
-    cat $DESCRIPTION | grep "^$shortname:" | cut -f 2- -d : | cut -b2- 1>> $TMP/tmpmsg$$ 2> /dev/null
+    grep "^$shortname:" $DESCRIPTION | cut -f 2- -d : | cut -b2- 1>> $TMP/tmpmsg$$ 2> /dev/null
   fi
   # Adjust the length here.  This allows a slack-desc to be any size up to 13 lines instead of fixed at 11.
-  LENGTH=$(cat $TMP/tmpmsg$$ | wc -l)
+  LENGTH=$(wc -l < $TMP/tmpmsg$$ )
   while [ $LENGTH -lt 12 ]; do
     echo >> $TMP/tmpmsg$$
     LENGTH=$(expr $LENGTH + 1)
@@ -495,12 +445,12 @@ EOF
       echo "Installing package $(basename $package) $PMSG:"
     fi
     echo "PACKAGE DESCRIPTION:"
-    cat $DESCRIPTION | grep "^$packagebase:" | uniq | sed "s/^$packagebase:/#/g"
+    grep "^$packagebase:" $DESCRIPTION | uniq | sed "s/^$packagebase:/#/g"
     if [ "$shortname" != "$packagebase" ]; then
-      cat $DESCRIPTION | grep "^$shortname:" | uniq | sed "s/^$shortname:/#/g"
+      grep "^$shortname:" $DESCRIPTION | uniq | sed "s/^$shortname:/#/g"
     fi
   elif [ "$MODE" = "terse" ]; then # emit a single description line
-    printf "%-72s %-6s\n" "$(echo $shortname: $(cat $DESCRIPTION | grep "^$packagebase:" | sed "s/^$packagebase: //g" | head -n 1 | tr -d '()' | sed "s/^$packagebase //g" ) | cut -b1-72)" "[${UNCOMPRESSED}]" | cut -b1-80
+    printf "%-72s %-6s\n" "$(echo $shortname: $(echo $(cat $DESCRIPTION | grep "^$packagebase:" | sed "s/^$packagebase: //g" | head -n 1 | tr -d '()' | sed "s/^$packagebase //g" ) $(echo " ......................................................................")) | cut -b1-72)" "[${UNCOMPRESSED}]" | cut -b1-80
   elif [ "$MODE" = "infobox" ]; then # install infobox package
     dialog --title "Installing package $shortname $PMSG" --infobox "$(cat $TMP/tmpmsg$$)" 0 0
   elif [ "$MODE" = "menu" -a "$PRIORITY" = "ADD" -a ! "$ALWAYSASK" = "yes" ]; then # ADD overrides menu mode unless -ask was used
@@ -526,7 +476,7 @@ EOF
 
   # Make sure there are no symbolic links sitting in the way of
   # incoming package files:
-  cat $TMP/tmplist$$ | grep -v "/$" | while read file ; do
+    grep -v "/$" $TMP/tmplist$$ | while read file ; do
     if [ -L "$ROOT/$file" ]; then
       rm -f "$ROOT/$file"
     fi
@@ -543,13 +493,13 @@ EOF
     echo "PACKAGE MD5SUM: $(md5sum $package | cut -f 1 -d ' ')" >> $ADM_DIR/packages/$shortname
   fi
   echo "PACKAGE DESCRIPTION:" >> $ADM_DIR/packages/$shortname
-  cat $DESCRIPTION | grep "^$packagebase:" >> $ADM_DIR/packages/$shortname 2> /dev/null
+  grep "^$packagebase:" $DESCRIPTION >> $ADM_DIR/packages/$shortname 2> /dev/null
   if [ "$shortname" != "$packagebase" ]; then
-    cat $DESCRIPTION | grep "^$shortname:" >> $ADM_DIR/packages/$shortname 2> /dev/null
+    grep "^$shortname:" $DESCRIPTION >> $ADM_DIR/packages/$shortname 2> /dev/null
   fi
   echo "FILE LIST:" >> $ADM_DIR/packages/$shortname
-  ( cd $ROOT/ ; $packagecompression -dc | $TAR -xlUpvf - ) < $package >> $TMP/$shortname 2> /dev/null
-  if [ "$(cat $TMP/$shortname | grep '^\./' | wc -l | tr -d ' ')" = "1" ]; then
+  ( cd $ROOT/ ; $packagecompression -dc | $TAR -xlUpvf - | sort ) < $package >> $TMP/$shortname 2> /dev/null
+  if [ "$( grep '^\./' $TMP/$shortname | wc -l | tr -d ' ')" = "1" ]; then
     # Good.  We have a package that meets the Slackware spec.
     cat $TMP/$shortname >> $ADM_DIR/packages/$shortname
   else
@@ -571,7 +521,14 @@ EOF
     if [ "$MODE" = "install" ]; then
       echo "Executing install script for $(basename $package)."
     fi
-    ( cd $ROOT/ ; sh install/doinst.sh -install; )
+    # If bash is available, use sed to convert the install script to use pushd/popd
+    # rather than spawning subshells which is slow on ARM.  This will also speed up
+    # install script processing on any platform.
+    if [ -x /bin/bash ]; then
+      ( cd $ROOT/ ; sed -e's?^( cd \([^;]*\);\(.*\) )$?pushd \1 \&\> /dev/null ; \2 ; popd \&\> /dev/null?g ' install/doinst.sh | /bin/bash ; )
+    else
+      ( cd $ROOT/ ; sh install/doinst.sh ; )
+    fi
   fi 
   # Clean up the mess...
   if [ -d $ROOT/install ]; then

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@
 # Modified by Patrick Volkerding <volkerdi@slackware.com>
 
 PKGNAM=emacs
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-2}
 # Determine version number the tarball is labeled with:
 TARBALLVER=${TARBALLVER:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # OK, now what's being used as the source directory version number...  account
@@ -40,16 +40,16 @@ VERSION=$SRCDIRVER
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i486 ;;
-    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7lh ;;
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
   export ARCH
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
@@ -148,7 +148,11 @@ chown -R games:root $PKG/var/games/emacs
 
 # This avoids a collision with Exuberant Ctags...
 mv $PKG/usr/bin/ctags $PKG/usr/bin/ctags-emacs
-mv $PKG/usr/man/man1/ctags.1 $PKG/usr/man/man1/ctags-emacs.1
+if [ -r $PKG/usr/man/man1/ctags.1 ]; then
+  mv $PKG/usr/man/man1/ctags.1 $PKG/usr/man/man1/ctags-emacs.1
+elif [ -r $PKG/usr/man/man1/ctags.1.gz ]; then
+  mv $PKG/usr/man/man1/ctags.1.gz $PKG/usr/man/man1/ctags-emacs.1.gz
+fi
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

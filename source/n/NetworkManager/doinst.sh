@@ -32,6 +32,8 @@ fi
 # connection could be lost at a remote location.
 preserve_perms etc/rc.d/rc.networkmanager.new
 config etc/NetworkManager/NetworkManager.conf.new
+config etc/NetworkManager/conf.d/00-rc-manager.conf.new
+config etc/NetworkManager/conf.d/00-dhcp-client.conf.new
 
 # If the .pid file is found in the old location, move it to the new one:
 if [ -r var/run/NetworkManager.pid ]; then

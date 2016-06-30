@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,14 +22,14 @@
 
 PKGNAM=coreutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:--j6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -88,6 +88,9 @@ find . \
 # Patch uname to correctly display CPU information:
 zcat $CWD/$PKGNAM.uname.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
+# Revert change to ls quoting style introduced in coreutils-8.25:
+zcat $CWD/no_ls_quoting.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+
 # Compilation with glibc version later than 2.3.2 needs the environment
 # variable DEFAULT_POSIX2_VERSION set to 199209.
 # Without that line, the coreutils will start complaining about 'obsolete'
@@ -107,6 +110,7 @@ DEFAULT_POSIX2_VERSION=199209 \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --without-gmp \
+  --enable-install-program=arch \
   --build=$ARCH-slackware-linux
 
 make $NUMJOBS || make || exit 1
@@ -130,6 +134,9 @@ mv $PKG/usr/man/man1/mktemp.1 $PKG/usr/man/man1/mktemp-gnu.1
 # installs them as flat text files, while coreutils installs empty directories
 # Oh well, this is what we've done for years, and nobody's complained...
 rm -rf $PKG/usr/share/locale/*/LC_TIME
+
+# Move "arch" to /bin
+mv $PKG/usr/bin/arch $PKG/bin
 
 # These are important enough that they should probably all go into /bin at this
 # point...   Having some of them unavailable when /usr isn't mounted is just a

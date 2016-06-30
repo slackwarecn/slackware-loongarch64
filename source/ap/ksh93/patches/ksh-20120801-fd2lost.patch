@@ -1,0 +1,64 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/macro.c.orig ksh-20120801/src/cmd/ksh93/sh/macro.c
+--- ksh-20120801/src/cmd/ksh93/sh/macro.c.orig	2013-12-09 13:13:22.153525239 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/macro.c	2013-12-09 13:20:58.144635385 +0100
+@@ -391,7 +391,7 @@ void sh_machere(Shell_t *shp,Sfio_t *inf
+ 				break;
+ 			    }
+ 			    case S_PAR:
+-				comsubst(mp,(Shnode_t*)0,1);
++				comsubst(mp,(Shnode_t*)0,3);
+ 				break;
+ 			    case S_EOF:
+ 				if((c=fcfill()) > 0)
+@@ -1165,7 +1165,7 @@ retry1:
+ 	    case S_PAR:
+ 		if(type)
+ 			goto nosub;
+-		comsubst(mp,(Shnode_t*)0,1);
++		comsubst(mp,(Shnode_t*)0,3);
+ 		return(1);
+ 	    case S_DIG:
+ 		var = 0;
+@@ -2152,10 +2152,12 @@ static void comsubst(Mac_t *mp,register
+ 	mp->ifsp = nv_getval(np);
+ 	stkset(stkp,savptr,savtop);
+ 	newlines = 0;
+-	if(type/*==3 - don't break `` vs $() */ && mp->shp->spid)
++	if(type==3 && mp->shp->spid)
+ 	{
+ 		job_wait(mp->shp->spid);
+-		mp->shp->spid = 0;
++		if(mp->shp->pipepid==mp->shp->spid)
++			mp->shp->spid = 0;
++		mp->shp->pipepid = 0;
+ 	}
+ 	sfsetbuf(sp,(void*)sp,0);
+ 	bufsize = sfvalue(sp);
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.anotherfix ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.anotherfix	2014-01-20 14:43:46.410416327 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2014-01-20 14:43:46.444416042 +0100
+@@ -122,7 +122,8 @@ void	sh_subtmpfile(Shell_t *shp)
+ 		else if(errno!=EBADF)
+ 			errormsg(SH_DICT,ERROR_system(1),e_toomany);
+ 		/* popping a discipline forces a /tmp file create */
+-		sfdisc(sfstdout,SF_POPDISC);
++		if(shp->comsub != 1)
++			sfdisc(sfstdout,SF_POPDISC);
+ 		if((fd=sffileno(sfstdout))<0)
+ 		{
+ 			/* unable to create the /tmp file so use a pipe */
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.anotherfix ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.anotherfix	2014-01-20 14:47:30.527524008 +0100
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2014-01-20 14:47:30.563523703 +0100
+@@ -1773,7 +1773,11 @@ int sh_exec(register const Shnode_t *t,
+ 					if(shp->pipepid)
+ 						shp->pipepid = parent;
+ 					else
++					{
+ 						job_wait(parent);
++						if(parent==shp->spid)
++							shp->spid = 0;
++					}
+ 					if(shp->topfd > topfd)
+ 						sh_iorestore(shp,topfd,0);
+ 					if(usepipe && tsetio &&  subdup && unpipe)

@@ -24,13 +24,13 @@
 
 PKGNAM=GConf
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:--j6}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) ARCH=i486 ;;
+    i?86) ARCH=i586 ;;
     arm*) ARCH=arm ;;
        *) ARCH=$( uname -m ) ;;
   esac
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
@@ -64,7 +64,12 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+zcat $CWD/patches/0001-mconvert-enable-recursive-scheme-lookup-and-fix-a-cr.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0003-gsettings-data-convert-Warn-and-fix-invalid-schema-p.patch.gz | patch -p1 --verbose || exit 1
+
 # This should be fixed in 3.2.6, I hope - it's a bug exposed by glib-2.32
+# (but it wasn't)
 sed -i '/INTROSPECTION_SCANNER_ARGS/s#$# -lgmodule-2.0#' gconf/Makefile.in
 
 # --disable-orbit means we use DBUS for IPC

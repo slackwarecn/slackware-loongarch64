@@ -1,0 +1,37 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/array.c.memlik ksh-20120801/src/cmd/ksh93/sh/array.c
+--- ksh-20120801/src/cmd/ksh93/sh/array.c.memlik	2012-06-07 00:00:42.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/array.c	2013-06-11 16:52:47.557123973 +0200
+@@ -1701,7 +1701,11 @@ void *nv_associative(register Namval_t *
+ 			ap->header.scope = 0;
+ 		}
+ 		else
+-			dtclose(ap->header.table);
++ 		{
++ 			if((ap->header.nelem&ARRAY_MASK)==0 && (ap->cur=nv_search("0",ap->header.table,0)))
++ 				nv_associative(np,(char*)0,NV_ADELETE);
++ 			dtclose(ap->header.table);
++ 		}
+ 		return((void*)ap);
+ 	    case NV_ANEXT:
+ 		if(!ap->pos)
+diff -up ksh-20120801/src/cmd/ksh93/sh/name.c.memlik ksh-20120801/src/cmd/ksh93/sh/name.c
+--- ksh-20120801/src/cmd/ksh93/sh/name.c.memlik	2012-07-23 18:21:57.000000000 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/name.c	2013-06-11 16:19:41.036648218 +0200
+@@ -2465,6 +2465,8 @@ static void table_unset(Shell_t *shp, re
+ 			}
+ 		}
+ 		npnext = (Namval_t*)dtnext(root,np);
++               if(nv_arrayptr(np))
++                       nv_putsub(np,NIL(char*),ARRAY_SCAN);
+ 		_nv_unset(np,flags);
+ 		nv_delete(np,root,0);
+ 	}
+@@ -3326,7 +3328,7 @@ int nv_rename(register Namval_t *np, int
+ 	shp->last_root = last_root;
+ 	if(flags&NV_MOVE)
+ 	{
+-		if(arraynp && !nv_isattr(np,NV_MINIMAL) && (mp=(Namval_t*)np->nvenv) && (ap=nv_arrayptr(mp)))
++		if(arraynp && !nv_isattr(np,NV_MINIMAL) && (mp=(Namval_t*)np->nvenv) && (ap=nv_arrayptr(mp)) && !ap->fun)
+ 			ap->nelem++;
+ 	}
+ 	if((nv_arrayptr(nr) && !arraynr) || nv_isvtree(nr))

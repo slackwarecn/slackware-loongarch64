@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2011, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,12 +23,12 @@
 
 PKGNAM=cairo
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,8 +37,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -68,6 +68,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+zcat $CWD/cairo.c088ba1faab9579efdaed7a524124901a17801b0.diff.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -81,26 +83,25 @@ CFLAGS="$SLKCFLAGS" \
   --disable-trace \
   --enable-xlib \
   --enable-xcb \
-  --enable-xcb-shm \
-  --enable-xlib-xcb \
   --enable-ps \
   --enable-pdf \
   --enable-svg \
   --enable-tee \
+  --enable-ft \
+  --enable-gl \
   --enable-gobject \
   --enable-xml \
   --build=$ARCH-slackware-linux
 
 # None of these are 'stable' yet...
 #  --enable-qt \
-#  --enable-gl \
 #  --enable-drm \
-#  --enable-xlib-xcb \
-#  --enable-xcb-shm \
 
 # Not sure if these two are needed / useful yet; --enable-xcb is now default
 #  --enable-xcb-shm \
+#  ^^ may cause GTK+3 instability
 #  --enable-xlib-xcb \
+#  ^^  this one caused a GIMP slowdown
 
 # Skipping this, because it causes a dependency on the specific
 # version of binutils installed at compile time:

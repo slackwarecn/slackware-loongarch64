@@ -3,7 +3,7 @@
 # Slackware build script for hplip
 
 # Copyright 2006-2010  Robby Workman, Northport, Alabama, USA
-# Copyright 2006-2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006-2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,22 +25,22 @@
 
 PKGNAM=hplip
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -66,9 +66,9 @@ tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
 zcat $CWD/hplip.no.upgrade.diff.gz | patch -p1 --verbose || exit 1
-# Upstream added nohup to the rule, but didn't background with '&'.
-# Fix this to prevent a startup delay:
-zcat $CWD/hplip.56-hpmud.background.diff.gz | patch -p1 --verbose || exit 1
+
+# Set LC_ALL=C to fix issues with CUPS output parsing in hp-setup:
+zcat $CWD/setup.py.lc_all.c.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -76,11 +76,6 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
-
-# Fix udev rules for current versions of udev
-sed -i 's/SYSFS/ATTR/g' data/rules/*.rules
-# Fix ownership in udev rules file
-sed -i 's%OWNER="lp"%OWNER="root"%g' data/rules/*.rules
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -93,13 +88,15 @@ CXXFLAGS="$SLKCFLAGS" \
   --localstatedir=/var \
   --docdir=/usr/doc/hplip-$VERSION \
   --with-docdir=/usr/doc/hplip-$VERSION \
-  --with-hpppddir=/usr/share/cups/model/HP \
-  --with-drvdir=/usr/share/cups/drv/hp \
+  --with-htmldir=/usr/doc/hplip-$VERSION/html \
+  --with-hpppddir=/usr/share/ppd/HP \
+  --with-drvdir=/usr/share/cups/drv/HP \
   --enable-hpijs-install \
   --enable-shadow-build \
   --enable-scan-build \
   --enable-gui-build \
   --enable-fax-build \
+  --enable-doc-build \
   --enable-foomatic-rip-hplip-install \
   --disable-foomatic-ppd-install \
   --enable-foomatic-drv-install \

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,22 +21,22 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-$(echo WindowMaker-0*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -68,13 +68,16 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Fix a segfault in wmmenugen.c:
+zcat $CWD/wmmenugen.c.diff.gz | patch -p1 --verbose || exit 1
+
 # This should be non-interactive where possible.
 zcat $CWD/wmaker.inst.diff.gz | patch -p1 --verbose || exit 1
 
 # Get rid of OpenSUSE menu:
 zcat $CWD/WindowMaker.noopensusemenu.diff.gz | patch -p1 --verbose || exit 1
 
-LINGUAS="$(cd po ; /bin/ls *.po | sed 's/.po//g')" \
+LINGUAS="$(ls po/*.po | sed 's:po/\(.*\)\.po$:\1:' | tr '\012' '\040')" \
 GNUSTEP_LOCAL_ROOT=/usr/lib${LIBDIRSUFFIX}/GNUstep \
 CFLAGS="$SLKCFLAGS" \
 NLSDIR=/usr/share/locale \
@@ -85,13 +88,16 @@ NLSDIR=/usr/share/locale \
   --sysconfdir=/etc/X11 \
   --docdir=/usr/doc/WindowMaker-$VERSION \
   --enable-usermenu \
-  --enable-xrandr \
+  --enable-randr \
   --enable-xinerama \
   --disable-static \
-  --build=$ARCH-slackware-linux
+  --disable-magick \
+  --build=$ARCH-slackware-linux || exit 1
 
-# NLS bugs like -i
-make $NUMJOBS || make -i || exit 1
+# Disabling magick per this LQ thread:
+# http://www.linuxquestions.org/questions/showthread.php?p=5284319#post5284319
+
+make $NUMJOBS || make || exit 1
 
 # Change /usr/local/GNUstep to /usr/lib/GNUstep in the WMRootMenu:
 sed -i -e "s#/usr/local/GNUstep/Applications/WPrefs.app/#/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications/WPrefs.app/#" \
@@ -104,8 +110,8 @@ sed -i -e "s#/usr/local/GNUstep/Applications/WPrefs.app/#/usr/lib${LIBDIRSUFFIX}
 sed -i -e "s#WMCreatePLString(\"WPrefs\")#WMCreatePLString(\"/usr/lib${LIBDIRSUFFIX}/GNUstep/Applications/WPrefs.app/WPrefs\")#" \
        -e "s#/usr/local/share#/usr/share/#" util/wmgenmenu.c
 
+make install DESTDIR=$PKG || exit 1
 
-make -i install DESTDIR=$PKG 
 mkdir -p $PKG/usr/doc/WindowMaker-$VERSION
 cp -a \
   AUTHORS BUGFORM BUGS COPYING* FAQ* INSTALL* MIRRORS NEWS README* TODO \ 
@@ -128,7 +134,7 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --with-iconsdir=/usr/share/pixmaps \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -140,20 +146,12 @@ mkdir -p $PKG/etc/X11/xinit
 zcat $CWD/xinitrc.wmaker.gz > $PKG/etc/X11/xinit/xinitrc.wmaker
 chmod 0755 $PKG/etc/X11/xinit/xinitrc.wmaker
 
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

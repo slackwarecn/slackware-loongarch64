@@ -1,0 +1,37 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/xec.c.hokaido ksh-20120801/src/cmd/ksh93/sh/xec.c
+--- ksh-20120801/src/cmd/ksh93/sh/xec.c.hokaido	2014-09-18 14:41:57.696756230 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/xec.c	2014-09-18 14:43:55.439205247 +0200
+@@ -1633,12 +1633,20 @@ int sh_exec(register const Shnode_t *t,
+ #endif /* SHOPT_COSHELL */
+ 			if(shp->subshell)
+ 			{
++				int comsubsave = shp->comsub;
++				if(comsubsave==1)
++					shp->comsub = 2;
+ 				sh_subtmpfile(shp);
++				shp->comsub = comsubsave;
++				if(shp->comsub==1 && (!(shp->fdstatus[1]&IONOSEEK)))
++					unpipe = iousepipe(shp);
++
+ 				if((type&(FAMP|TFORK))==(FAMP|TFORK))
+ 				{
+ 					if(shp->comsub && !(shp->fdstatus[1]&IONOSEEK))
+ 					{
+-						unpipe = iousepipe(shp);
++						if (!unpipe)
++							unpipe = iousepipe(shp);
+ 						sh_subfork();
+ 					}
+ 				}
+@@ -2107,7 +2115,11 @@ int sh_exec(register const Shnode_t *t,
+ 			job.curjobid = 0;
+ 			if(shp->subshell)
+ 			{
++				int comsubsave = shp->comsub;
++				if(comsubsave==1)
++					shp->comsub = 2;
+ 				sh_subtmpfile(shp);
++				shp->comsub = comsubsave;
+ 				if(shp->comsub==1 && !(shp->fdstatus[1]&IONOSEEK))
+ 					iousepipe(shp);
+ 			}

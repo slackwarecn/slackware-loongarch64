@@ -1,6 +1,8 @@
 #!/bin/sh
 
 # Copyright 2008, 2009, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2011, 2012  Eric Hameleers, Eindhoven, NL
+# Copyright 2015  Heinz Wiesinger, Amsterdam, NL
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,51 +24,102 @@
 
 
 # Version on the tarball
-VERSION=1.1.21
+VERSION=1.2.6
 # Version used in the source directory to cd into
-DIRVER=1.1.21
+DIRVER=1.2.6
 # Version used for the Slackware package
-PKGVER=1.1.21
+PKGVER=1.2.6
 
-BUILD=${BUILD:-2}
+# Version used for statically linked ffmpeg
+FFMPEG_VERSION=${FFMPEG_VERSION:-$(echo ../MPlayer/ffmpeg-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
+
+BUILD=${BUILD:-8}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i686 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-# I would use "-march=i486 -mtune=i686" here as usual, but with XINE it's all or nothing.
-# I'd rather have it work well for the i686/Athlon crowd than suck for everyone.
 TARGET=${TARGET:-$ARCH-pc-linux-gnu}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
+  FFARCHOPTS="--arch=x86_64 --enable-pic"
+elif [ "$ARCH" = "i586" ]; then
+  LIBDIRSUFFIX=""
+  # 32bit x86 fails without this... let me know if you have a fix
+  FFARCHOPTS="--disable-asm"
 else
   LIBDIRSUFFIX=""
+  FFARCHOPTS=""
 fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-xine-lib
-rm -rf $PKG
-mkdir -p $TMP $PKG/usr
+FFMPEG_PKG=$TMP/package-ffmpeg
+rm -rf $PKG $FFMPEG_PKG
+mkdir -p $TMP $PKG/usr $FFMPEG_PKG
 
 cd $TMP
+rm -rf ffmpeg*
+tar xvf $CWD/../MPlayer/ffmpeg-$FFMPEG_VERSION.tar.xz || exit 1
+cd ffmpeg* || exit 1
+
+  chown -R root:root .
+  find . \
+   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+   -exec chmod 755 {} \; -o \
+   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+   -exec chmod 644 {} \;
+
+  echo Building static ffmpeg libs ...
+
+  FFMPEGDIR=/tmp/ff-$(mcookie)
+
+  CFLAGS="$SLKCFLAGS -fvisibility=hidden -I/usr/include/openmj2-2.1" \
+  CXXFLAGS="$SLKCFLAGS -fvisibility=hidden -I/usr/include/openmj2-2.1" \
+  ./configure \
+    --prefix=$FFMPEGDIR/usr \
+    --libdir=$FFMPEGDIR/usr/lib${LIBDIRSUFFIX} \
+    --shlibdir=$FFMPEGDIR/usr/lib${LIBDIRSUFFIX} \
+    --enable-gpl \
+    --enable-version3 \
+    --enable-libtheora \
+    --enable-postproc \
+    --disable-doc \
+    --disable-avfilter \
+    --disable-avdevice \
+    --disable-swresample \
+    --disable-ffserver \
+    --disable-ffplay \
+    --disable-ffmpeg \
+    --disable-ffprobe \
+    --enable-pthreads \
+    --disable-debug \
+    --disable-shared \
+    --enable-static \
+    --enable-hardcoded-tables \
+    --enable-memalign-hack \
+    --enable-bzlib \
+    --enable-zlib \
+    --enable-libopenjpeg \
+    ${FFARCHOPTS}
+
+    make $NUMJOBS V=1 || exit 1
+    make install # Note: no DESTDIR !!
+cd -
+
 rm -rf xine-lib-$VERSION
 tar xvf $CWD/xine-lib-$VERSION.tar.xz || exit 1
 cd xine-lib-$DIRVER || exit 1
-
-zcat $CWD/xine-lib.XvMClib.h.diff.gz | patch -p1 --verbose || exit 1
-
-# Fix for zlib-1.2.6 (or higher):
-sed -i 's#gzgetc(#gzgetc_(#' src/xine-engine/osd.c
 
 chown -R root:root .
 find . \
@@ -75,6 +128,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+export PKG_CONFIG_PATH="${FFMPEGDIR}/usr/lib${LIBDIRSUFFIX}/pkgconfig"
+export CFLAGS="-I${FFMPEGDIR}/usr/include $SLKCFLAGS"
+export CXXFLAGS="-I${FFMPEGDIR}/usr/include $SLKCFLAGS"
+export LDFLAGS="-L${FFMPEGDIR}/usr/lib${LIBDIRSUFFIX} $SLKLDFLAGS"
+
 XINE_BUILD=$TARGET \
 ./configure \
   --prefix=/usr \
@@ -82,12 +140,17 @@ XINE_BUILD=$TARGET \
   --docdir=/usr/doc/xine-lib-$VERSION \
   --mandir=/usr/man \
   --with-w32-path=/usr/lib${LIBDIRSUFFIX}/codecs \
-  --with-arts \
+  --with-wavpack \
   --disable-nosefart \
-  --without-speex
+  --disable-vcd \
+  --without-speex \
+  --with-external-dvdnav
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Remove .la files:
+rm -f $PKG//usr/lib${LIBDIRSUFFIX}/*.la
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/codecs
 

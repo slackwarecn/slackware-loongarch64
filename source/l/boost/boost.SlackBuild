@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # Copyright 2007, 2008, 2012 Eric Hameleers, Eindhoven, NL
-# Copyright 2007-2008, 2013 Heinz Wiesinger, Amsterdam, NL
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007-2008, 2013, 2014 Heinz Wiesinger, Amsterdam, NL
+# Copyright 2008, 2009, 2010, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,7 +29,7 @@
 
 PKGNAM=boost
 VERSION=${VERSION:-$(echo $PKGNAM_*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d _)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 PKG_VERSION=$(echo $VERSION | tr _ .)	# Leave this alone
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -38,7 +38,7 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -46,8 +46,8 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -74,13 +74,6 @@ rm -rf boost_$VERSION
 tar xvf $CWD/boost_$VERSION.tar.?z* || exit 1
 cd boost_$VERSION || exit 1
 
-# Revert changeset 82498, which breaks OQGRAPH support in MariaDB:
-zcat $CWD/changeset_82498.diff.gz | patch -R -p2 --verbose || exit 1
-
-# glibc as of 2.17 no longer defines __GLIBC_HAVE_LONG_LONG (it is assumed
-# to support it), so don't use that to detect long long support:
-zcat $CWD/boost.glibc.long.long.diff.gz | patch -p0 --verbose || exit 1
-
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -88,25 +81,21 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Apply Hotfixes from:
-# http://svn.boost.org/trac/boost/wiki/ReleasePractices/HotFixes
-#
-# (none currently for this $VERSION)
-
-# Avoid C++11 for now as it introduces potentially different behaviour.
-# Let's give applications some more time to adjust to this.
-EXTRA_CXXFLAGS="-std=gnu++98"
+# Don't allow MOC to process this incompatible header:
+sed -e '1 i#ifndef Q_MOC_RUN' \
+  -e '$ a#endif' \
+  -i boost/type_traits/detail/has_binary_operator.hpp
 
 # This is the python we build against:
 PYTHON_VERSION=$(python -c 'import sys; print sys.version[:3]')
 PYTHON_FLAGS="-sPYTHON_ROOT=/usr -sPYTHON_VERSION=$PYTHON_VERSION"
 
 # First build bjam, the boost build system:
-cd tools/build/v2/engine
+cd tools/build/src/engine
   CFLAGS="$SLKCFLAGS -fno-strict-aliasing" CC=gcc ./build.sh cc
 cd -
 
-BJAM=$(find tools/build/v2/engine/ -name b2 -a -type f)
+BJAM=$(find tools/build/src/engine/ -name b2 -a -type f)
 
 # Create build subdirectory
 mkdir obj

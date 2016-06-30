@@ -3,11 +3,21 @@
 #
 # Written for Slackware Linux by Patrick J. Volkerding <volkerdi@slackware.com>.
 
+# Uncomment the following line to use the -c option to syslogd.  This will
+# disable suppressing repeated messages, which may be useful with tools that
+# parse the logs, such as fail2ban:
+#SYSLOGD_OPTIONS="-c "
+
+# Options for klogd:
+# '-c 3' = display level 'error' or higher messages on console
+# '-x' = turn off broken EIP translation
+KLOGD_OPTIONS="-c 3 -x"
+
 syslogd_start() {
   if [ -x /usr/sbin/syslogd -a -x /usr/sbin/klogd ]; then
     echo -n "Starting sysklogd daemons:  "
-    echo -n "/usr/sbin/syslogd "
-    /usr/sbin/syslogd
+    echo -n "/usr/sbin/syslogd ${SYSLOGD_OPTIONS};"
+    /usr/sbin/syslogd $SYSLOGD_OPTIONS
     # prevent syslogd/klogd race condition on SMP kernels
     if ps acx | grep -q udevd ; then
       while [ ! -e /dev/log ] ; do
@@ -16,10 +26,11 @@ syslogd_start() {
     else
       sleep 1
     fi
-    echo "/usr/sbin/klogd -c 3 -x"
-    # '-c 3' = display level 'error' or higher messages on console
-    # '-x' = turn off broken EIP translation
-    /usr/sbin/klogd -c 3 -x
+    # Run klogd, unless we are in a container:
+    if [ -z $container ]; then
+      echo " /usr/sbin/klogd $KLOGD_OPTIONS"
+      /usr/sbin/klogd $KLOGD_OPTIONS
+    fi
   fi
 }
 

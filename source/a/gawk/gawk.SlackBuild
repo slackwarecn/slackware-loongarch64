@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2014  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,14 +22,14 @@
 
 PKGNAM=gawk
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -40,8 +40,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gawk
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -90,7 +90,6 @@ make install DESTDIR=$PKG || exit 1
 
 ( cd $PKG/usr/bin
   ln -sf gawk-$VERSION gawk
-  ln -sf pgawk-$VERSION pgawk
 )
 
 mkdir -p $PKG/bin
@@ -109,11 +108,15 @@ mv $PKG/usr/bin/awk $PKG/bin
 )
 
 ( cd $PKG/usr/man/man1
-  rm -f pgawk.1
-  gzip -9 *
-  ln -sf gawk.1.gz awk.1.gz
-  ln -sf gawk.1.gz pgawk.1.gz
+  ln -sf gawk.1 awk.1
 )
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/usr/doc/gawk-$VERSION
 cp -a \

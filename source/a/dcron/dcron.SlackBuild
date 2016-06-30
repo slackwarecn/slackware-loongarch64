@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2012, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,12 +21,12 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION=${VERSION:-$(echo dcron-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -37,8 +37,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-dcron
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -64,13 +64,19 @@ find . \
  -exec chmod 644 {} \;
 
 # Define TMPDIR as /var/spool/cron instead of /tmp
-zcat $CWD/defs.h.TMPDIR.diff.gz | patch -p1 || exit 1
+zcat $CWD/defs.h.TMPDIR.diff.gz | patch -p1 --verbose || exit 1
 
 # Fix problem where user creates /var/spool/cron/crontabs/<user>.new 
 # using 'crontab -', exits with control-c, and then crontab refuses to
 # overwrite the junk file.  It would be better if dcron would wipe
 # the junk file in the event it were not closed correctly, but oh well.
-zcat $CWD/crontab.c.O_EXCL.diff.gz | patch -p1 || exit 1
+zcat $CWD/crontab.c.O_EXCL.diff.gz | patch -p1 --verbose || exit 1
+
+# Running jobs should not block cron.update:
+zcat $CWD/dcron.update.during.long.running.jobs.diff.gz | patch -p1 --verbose || exit 1
+
+# Change _BSD_SOURCE to _DEFAULT_SOURCE for recent glibc:
+zcat $CWD/defs.h._DEFAULT_SOURCE.diff.gz | patch -p1 --verbose || exit 1
 
 CFLAGS+="$SLKCFLAGS" make || exit 1
 strip --strip-unneeded crond crontab

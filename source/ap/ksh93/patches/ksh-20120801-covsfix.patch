@@ -1,0 +1,58 @@
+diff -up ksh-20120801/src/cmd/ksh93/sh/init.c.covsfix ksh-20120801/src/cmd/ksh93/sh/init.c
+--- ksh-20120801/src/cmd/ksh93/sh/init.c.covsfix	2013-07-22 17:41:34.674054068 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/init.c	2013-07-22 17:42:50.761361921 +0200
+@@ -1237,9 +1237,11 @@ static void put_mode(Namval_t* np, const
+ 				mode = *(double*)val;
+ 		}
+ 		else
++		{
+ 			mode = strperm(val, &last,0);
+-		if(*last)
+-			errormsg(SH_DICT,ERROR_exit(1),"%s: invalid mode string",val);
++			if(*last)
++				errormsg(SH_DICT,ERROR_exit(1),"%s: invalid mode string",val);
++		}
+ 		nv_putv(np,(char*)&mode,NV_INTEGER,nfp);
+ 	}
+ 	else
+diff -up ksh-20120801/src/cmd/ksh93/sh/io.c.covsfix ksh-20120801/src/cmd/ksh93/sh/io.c
+--- ksh-20120801/src/cmd/ksh93/sh/io.c.covsfix	2013-07-22 17:06:30.282927080 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/io.c	2013-07-22 17:08:49.645721280 +0200
+@@ -954,6 +954,7 @@ int	sh_pipe(register int pv[])
+ 	socklen_t		slen;
+ 	if ((pv[out] = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+ 		errormsg(SH_DICT,ERROR_system(1),e_pipe);
++	memset(&sin.sin_zero, 0, sizeof(sin.sin_zero));
+ 	do
+ 	{
+ 		sin.sin_family = AF_INET;
+diff -up ksh-20120801/src/cmd/ksh93/sh/name.c.covsfix ksh-20120801/src/cmd/ksh93/sh/name.c
+--- ksh-20120801/src/cmd/ksh93/sh/name.c.covsfix	2013-07-22 17:40:31.644635604 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/name.c	2013-07-22 17:41:15.828227073 +0200
+@@ -3094,6 +3094,7 @@ void nv_newattr (register Namval_t *np,
+ 			if(!mp)
+ 				nv_putval (np, cp, NV_RDONLY);
+ 			free(cp);
++			cp = NULL;
+ 		}
+ 	}
+ 	while(ap && nv_nextsub(np));
+diff -up ksh-20120801/src/cmd/ksh93/sh/subshell.c.covsfix ksh-20120801/src/cmd/ksh93/sh/subshell.c
+--- ksh-20120801/src/cmd/ksh93/sh/subshell.c.covsfix	2013-07-22 17:46:15.607533423 +0200
++++ ksh-20120801/src/cmd/ksh93/sh/subshell.c	2013-07-22 17:48:36.739290968 +0200
+@@ -205,7 +205,14 @@ void sh_subfork(void)
+ 		shp->comsub = 0;
+ 		SH_SUBSHELLNOD->nvalue.s = 0;
+ 		sp->subpid=0;
+-		shp->st.trapcom[0] = (comsub==2?NULL:trap);
++		if (comsub==2)
++		{
++			shp->st.trapcom[0] = NULL;
++			if(trap)
++				free((void*)trap);
++		}
++		else
++			shp->st.trapcom[0] = (comsub==2?NULL:trap);
+ 		shp->savesig = 0;
+ 	}
+ }

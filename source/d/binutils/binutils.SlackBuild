@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005-2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,13 +25,13 @@
 
 PKGNAM=binutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -58,8 +58,8 @@ DEFAULT_LD=ld.bfd
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=46770
 NO_INITFINI=" --disable-initfini-array "
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   # The config option below is currently needed to compile on x86:
   WERROR="--enable-werror=no"
   LIBDIRSUFFIX=""
@@ -100,16 +100,28 @@ tar xvf $CWD/binutils-$VERSION.tar.xz || \
   tar xvf $CWD/binutils-$VERSION.tar.bz2 || exit 1
 cd binutils-$VERSION
 
-# Use dynamic symbol table if addr2line can't find ordinary symbols:
-zcat $CWD/binutils.addr2line.dynsymtab.diff.gz | patch -p1 --verbose || exit 1
+# Various upstream patches:
+zcat $CWD/patches/binutils-2.20.51.0.2-libtool-lib64.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.20.51.0.10-ppc64-pie.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.25-version.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.25-set-long-long.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.20.51.0.10-copy-osabi.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.20.51.0.10-sec-merge-emit.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.22.52.0.1-relro-on-by-default.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.23.52.0.1-addr2line-dynsymtab.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.24-ldforcele.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.25.1-cleansweep.patch | patch -p2 --verbose || exit 1
+zcat $CWD/patches/binutils-2.26-formatting.patch | patch -p2 --verbose || exit 1
+zcat $CWD/patches/binutils-2.26-fix-compile-warnings.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.26-Bsymbolic_PIE.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.26-lto.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-rh1312151.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.26-fix-GOT-offset-calculation.patch | patch -p1 --verbose || exit 1
+
 # Export the demangle.h header file:
-zcat $CWD/binutils.export.demangle.h.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils.export.demangle.h.diff.gz | patch -p1 --verbose || exit 1
 # Don't check to see if "config.h" was included in the installed headers:
-zcat $CWD/binutils.no-config-h-check.diff.gz | patch -p1 --verbose || exit 1
-# Revert a patch that broke library linking for weak symbols:
-zcat $CWD/binutils.revert.pr15149.diff.gz | patch -p1 --verbose || exit 1
-# Prepare for texinfo-5.x...  someday:
-zcat $CWD/binutils.texinfo5.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils.no-config-h-check.diff.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -137,6 +149,7 @@ CFLAGS="$SLKCFLAGS" \
   --enable-plugins \
   --enable-threads \
   --enable-targets=i386-efi-pe,${TARGET} \
+  --enable-install-libiberty \
   $GOLD \
   $NO_INITFINI \
   $WERROR \
@@ -146,9 +159,6 @@ CFLAGS="$SLKCFLAGS" \
 make clean || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# "make install" skips this, but binutils.spec doesn't.  Sneaky, huh?
-cp -a include/libiberty.h $PKG/usr/include/libiberty.h
 
 # Differentiate between BSD strings and GNU strings
 ( cd $PKG/usr/bin ; mv strings strings-GNU )

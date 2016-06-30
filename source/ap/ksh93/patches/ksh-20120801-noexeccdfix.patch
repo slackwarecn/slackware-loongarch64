@@ -1,0 +1,40 @@
+From b8260293a8ed7849a358291faae7b58f4a05dcc9 Mon Sep 17 00:00:00 2001
+From: Kamil Dudka <kdudka@redhat.com>
+Date: Mon, 10 Nov 2014 18:23:34 +0100
+Subject: [PATCH] Resolves: #1160923 - handle failure of fchdir()
+
+... and chdir()
+---
+ src/cmd/ksh93/bltins/cd_pwd.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ksh93/bltins/cd_pwd.c b/src/cmd/ksh93/bltins/cd_pwd.c
+index a972da6..c20959c 100644
+--- a/src/cmd/ksh93/bltins/cd_pwd.c
++++ b/src/cmd/ksh93/bltins/cd_pwd.c
+@@ -329,18 +329,20 @@ int	b_cd(int argc, char *argv[],Shbltin_t *context)
+ 		if(newdirfd >=0)
+ 		{
+ 			/* chdir for directories on HSM/tapeworms may take minutes */
+-			if(fchdir(newdirfd) >= 0)
++			if((rval=fchdir(newdirfd)) >= 0)
+ 			{
+ 				if(shp->pwdfd >= 0)
+ 					sh_close(shp->pwdfd);
+ 				shp->pwdfd=newdirfd;
+ 				goto success;
+ 			}
++			else
++				sh_close(newdirfd);
+ 		}
+ #ifndef O_SEARCH
+ 		else
+ 		{
+-			if(chdir(dir) >=0)
++			if((rval=chdir(dir)) >=0)
+ 			{
+ 				if(shp->pwdfd >= 0)
+ 				{
+-- 
+2.1.0
+

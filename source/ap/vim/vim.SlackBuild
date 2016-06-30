@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,16 +20,31 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VIMVER=7.4
+VIMBRANCH=7.4
 CTAGSVER=5.8
-# This is the directory in the VIM source archive to cd into.
-DIRVER=74
 BUILD=${BUILD:-1}
+
+CWD=$(pwd)
+
+if [ -r vim-${VIMBRANCH}*.tar.xz ]; then # if there's a source archive already, use the version number from it:
+  VERSION=$(echo vim-${VIMBRANCH}*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+else # need to fetch the latest source archive for this branch:
+  VERSION="$(echo $(basename $(wget -q -O - https://github.com/vim/vim/releases | grep v${VIMBRANCH} | head -n 1 | cut -f 2 -d \" )) | cut -b2- )"
+  ( lftpget https://github.com/vim/vim/archive/v${VERSION}.tar.gz
+    gzip -d v${VERSION}.tar.gz
+    mv v${VERSION}.tar vim-${VERSION}.tar
+    xz -9 -v vim-${VERSION}.tar
+    if [ ! -r vim-${VERSION}.tar.xz ]; then
+      echo "ERROR:  Something went wrong trying to fetch https://github.com/vim/vim/archive/v${VERSION}.tar.gz"
+      exit 1
+    fi
+  ) || exit 1
+fi
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -49,31 +64,17 @@ else
 fi
 export SLKLDFLAGS="-L/usr/lib${LIBDIRSUFFIX}"
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-vim
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-# Determine VIM patchlevel:
-if [ -d $CWD/patches ] ; then
-  cd $CWD/patches
-  PATCHLEVEL=$(/bin/ls ?.?.????.gz 2> /dev/null | tail -1 | cut -f 3 -d . )
-  if [ "$PATCHLEVEL" = "" ]; then
-    PATCHLEVEL=$(/bin/ls ?.?.???.gz 2> /dev/null | tail -1 | cut -f 3 -d . )
-    if [ "$PATCHLEVEL" = "" ]; then
-      PATCHLEVEL=000
-    fi
-  fi
-  cd $CWD
-fi
-
 # ctags was once a part of vim,
 # but now we have to bundle it in
 cd $TMP
 rm -rf ctags-$CTAGSVER
-tar xvf $CWD/ctags-$CTAGSVER.tar.gz || exit 1
+tar xvf $CWD/ctags-$CTAGSVER.tar.xz || exit 1
 cd ctags-$CTAGSVER
 chown -R root:root .
 find . \
@@ -93,13 +94,13 @@ mkdir -p $PKG/usr/man/man1
 cat ctags.1 | gzip -9c > $PKG/usr/man/man1/ctags.1.gz
 mkdir -p $PKG/usr/doc/ctags-$CTAGSVER
 cp -a \
-  COPYING EXTENDING.html FAQ INSTALL INSTALL.oth NEWS README \
+  COPYING* EXTENDING.html FAQ INSTALL INSTALL.oth NEWS README* \
   $PKG/usr/doc/ctags-$CTAGSVER
 chmod 644 $PKG/usr/doc/ctags-$CTAGSVER/*
 
 cd $TMP
-rm -rf vim$DIRVER
-tar xvf $CWD/vim-$VIMVER.tar.?z* || exit 1
+rm -rf vim-${VERSION}
+tar xvf $CWD/vim-${VERSION}.tar.xz || exit 1
 
 config_vim() {
 CFLAGS="$SLKCFLAGS" \
@@ -120,21 +121,7 @@ CFLAGS="$SLKCFLAGS" \
   #  --enable-rubyinterp
 }
 
-cd $TMP/vim$DIRVER
-
-# If there's no syntax update, create one:
-if ! ls $CWD/vim-runtime-syntax-* 1> /dev/null 2> /dev/null ; then
-  rm -rf runtime/syntax.orig
-  cp -a runtime/syntax runtime/syntax.orig
-  echo "Fetching vim syntax updates from ftp.nluug.nl..."
-  rsync -avzcP ftp.nluug.nl::Vim/runtime/syntax/ runtime/syntax/
-  diff -u -r --new-file runtime/syntax.orig runtime/syntax | gzip -9c > $CWD/vim-runtime-syntax-$(date +%Y%m%d).diff.gz
-  rm -rf runtime/syntax
-  mv runtime/syntax.orig runtime/syntax
-fi
-
-# Apply the syntax update:
-zcat $CWD/vim-runtime-syntax-*.diff.gz | patch -p0 --verbose || exit 1
+cd $TMP/vim-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -142,11 +129,6 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-for file in $CWD/patches/?.?.???.gz $CWD/patches/?.?.????.gz ; do
-  if [ -f $file ]; then
-    zcat $file | patch -p0 --verbose || exit 1
-  fi
-done
 
 config_vim --without-x --disable-gui
 make $NUMJOBS || make || exit 1
@@ -192,11 +174,11 @@ fi
 ( cd $PKG/usr/bin ; rm -rf evim )
 ( cd $PKG/usr/bin ; ln -sf vim evim )
 
-mkdir -p $PKG/usr/doc/vim-$VIMVER.$PATCHLEVEL
-cp -a README.txt $PKG/usr/doc/vim-$VIMVER.$PATCHLEVEL
-find $PKG/usr/doc/vim-$VIMVER.$PATCHLEVEL -type f | xargs chmod 644
-( cd $PKG/usr/doc/vim-$VIMVER.$PATCHLEVEL ; rm -rf doc )
-( cd $PKG/usr/doc/vim-$VIMVER.$PATCHLEVEL ; ln -sf /usr/share/vim/vim$DIRVER doc )
+mkdir -p $PKG/usr/doc/vim-$VERSION
+cp -a README.txt $PKG/usr/doc/vim-$VERSION
+find $PKG/usr/doc/vim-$VERSION -type f | xargs chmod 644
+( cd $PKG/usr/doc/vim-$VERSION ; rm -rf doc )
+( cd $PKG/usr/doc/vim-$VERSION ; ln -sf /usr/share/vim/vim$(echo $VIMBRANCH | tr -d .) doc )
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc.vim > $PKG/install/slack-desc
@@ -221,5 +203,5 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/vim-$VIMVER.$PATCHLEVEL-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/vim-$VERSION-$ARCH-$BUILD.txz
 

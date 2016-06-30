@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,7 +29,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -42,8 +42,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
@@ -75,7 +75,10 @@ fromdos < config/config.guess > $TEMPFILE
 cat $TEMPFILE > config/config.guess ; rm -f $TEMPFILE
 
 make $NUMJOBS OPT="$SLKCFLAGS" || make OPT="$SLKCFLAGS" || exit 1
-make install GLEW_DEST=$PKG/usr || exit 1
+make install.all GLEW_DEST=$PKG/usr || exit 1
+
+chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/libGLEW*.so.*
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libGLEW*.a
 
 ( cd $PKG
   find . | xargs file | grep "executable"    | grep ELF | cut -f 1 -d : | \

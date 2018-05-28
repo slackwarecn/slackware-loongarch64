@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xterm
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -37,7 +38,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
@@ -55,7 +63,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION
 
 if [ -d $CWD/patches ]; then
@@ -88,10 +96,12 @@ CFLAGS="$SLKCFLAGS" \
   --enable-wide-chars \
   --enable-88-color \
   --enable-256-color \
+  --enable-regis-graphics \
+  --enable-sixel-graphics \
   --with-icon-theme=hicolor \
   --with-icondir=/usr/share/icons \
   --with-pixmapdir=/usr/share/pixmaps \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1

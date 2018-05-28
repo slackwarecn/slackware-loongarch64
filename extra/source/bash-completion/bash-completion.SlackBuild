@@ -22,9 +22,9 @@
 
 # Slackware build script for bash-completion
 
-VERSION=2.2
+VERSION=2.8
 ARCH=noarch
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
@@ -34,8 +34,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf bash-completion-$VERSION
-tar xvf $CWD/bash-completion-$VERSION.tar.?z*
-cd bash-completion-$VERSION
+tar xvf $CWD/bash-completion-$VERSION.tar.?z || exit 1
+cd bash-completion-$VERSION || exit 1
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -43,19 +43,13 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# Add some patches from git
+for file in $CWD/patches/*.patch.gz ; do 
+  zcat $file | patch -p1 --verbose || exit 1
+done
+
 # Fixup sh completion for us
 zcat $CWD/fixup-sh-script-completions.diff.gz | patch -p1 --verbose || exit 1
-
-# Add some patches from git to fix tar filename completion and related
-# https://github.com/scop/bash-completion/issues/15
-zcat $CWD/patches/0001-tar-Don-t-write-to-tmp-jetel.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0002-test-suite-Add-tar-xvf-filename-test-case.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0003-tar-Fix-GNU-tar-help-output-parsing-regex-fixes-15.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0004-tar-Remove-unused-variable.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0005-tar-Detect-GNU-other-from-version-only-once-per-sess.patch.gz | patch -p1 --verbose || exit 1
-
-# Don't symlink mpv -> mplayer as it reportedly doesn't work well.  Upstream patch.
-zcat $CWD/patches/0006-Remove-mplayer-aliased-completion.patch.gz | patch -p1 --verbose || exit 1
 
 autoreconf -vif
 
@@ -68,6 +62,12 @@ autoreconf -vif
 
 make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't clobber mount and umount completions from util-linux:
+mv $PKG/usr/share/bash-completion/completions/mount \
+   $PKG/usr/share/bash-completion/completions/_mount
+mv $PKG/usr/share/bash-completion/completions/umount \
+   $PKG/usr/share/bash-completion/completions/_umount
 
 # Create the local directory for admin changes/additions:
 mkdir -p $PKG/etc/bash_completion.d/

@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2007, 2008, 2012 Eric Hameleers, Eindhoven, NL
-# Copyright 2007-2008, 2013, 2014 Heinz Wiesinger, Amsterdam, NL
-# Copyright 2008, 2009, 2010, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007-2008, 2013, 2014, 2017 Heinz Wiesinger, Amsterdam, NL
+# Copyright 2008, 2009, 2010, 2013, 2014, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,9 +26,10 @@
 # Script modified by Robby Workman - no copyright claims or added terms
 # Modified 2012 by Eric Hameleers <alien at slackware.com> for ARM port.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=boost
-VERSION=${VERSION:-$(echo $PKGNAM_*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d _)}
+VERSION=${VERSION:-$(echo $PKGNAM_*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 2- -d _)}
 BUILD=${BUILD:-1}
 
 PKG_VERSION=$(echo $VERSION | tr _ .)	# Leave this alone
@@ -44,6 +45,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$PKG_VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -63,7 +72,9 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
+PYTHON_VERSION=$(python -c 'import sys; print(sys.version[:3])')
+PYTHON3_VERSION=$(python3 -c 'import sys; print(sys.version[:3])')
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-boost
 
@@ -71,7 +82,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf boost_$VERSION
-tar xvf $CWD/boost_$VERSION.tar.?z* || exit 1
+tar xvf $CWD/boost_$VERSION.tar.?z || exit 1
 cd boost_$VERSION || exit 1
 
 chown -R root:root .
@@ -81,72 +92,91 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Don't allow MOC to process this incompatible header:
-sed -e '1 i#ifndef Q_MOC_RUN' \
-  -e '$ a#endif' \
-  -i boost/type_traits/detail/has_binary_operator.hpp
-
-# This is the python we build against:
-PYTHON_VERSION=$(python -c 'import sys; print sys.version[:3]')
-PYTHON_FLAGS="-sPYTHON_ROOT=/usr -sPYTHON_VERSION=$PYTHON_VERSION"
-
 # First build bjam, the boost build system:
-cd tools/build/src/engine
-  CFLAGS="$SLKCFLAGS -fno-strict-aliasing" CC=gcc ./build.sh cc
-cd -
+./bootstrap.sh \
+  --with-toolset=gcc \
+  --with-icu \
+  --with-python=/usr/bin/python2 || exit 1
 
-BJAM=$(find tools/build/src/engine/ -name b2 -a -type f)
-
-# Create build subdirectory
-mkdir obj
-
-# Next, we build boost using bjam
-$BJAM \
-  release \
-  $NUMJOBS \
-  "-sNO_COMPRESSION=0" \
-  "-sZLIB_INCLUDE=/usr/include" \
-  "-sZLIB_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
-  "-sBZIP2_INCLUDE=/usr/include" \
-  "-sBZIP2_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
-  "-sEXPAT_INCLUDE=/usr/include" \
-  "-sEXPAT_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
+# # Next, we build boost using bjam
+./b2 \
   --layout=system \
-  --builddir=obj \
+  --build-dir=build-python2 \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=/usr/lib$LIBDIRSUFFIX \
   --build-type=minimal \
   toolset=gcc \
   variant=release \
+  debug-symbols=off \
   link=shared \
   threading=multi \
   runtime-link=shared \
+  python=$PYTHON_VERSION \
   cflags="$SLKCFLAGS" \
   cxxflags="$SLKCFLAGS $EXTRA_CXXFLAGS" \
-  $PYTHON_FLAGS \
-  stage
+  stage || exit 1
 
-# And then install boost..
-mkdir -p $PKG/usr/{lib$LIBDIRSUFFIX,include}
-
-$BJAM \
-  release \
-  "-sEXPAT_INCLUDE=/usr/include" \
-  "-sEXPAT_LIBPATH=/usr/lib${LIBDIRSUFFIX}" \
+# # And then install boost..
+./b2 \
   --layout=system \
-  --builddir=obj \
+  --build-dir=build-python2 \
   --prefix=$PKG/usr \
-  --libdir=$PKG/usr/lib${LIBDIRSUFFIX} \
+  --libdir=$PKG/usr/lib$LIBDIRSUFFIX \
   --build-type=minimal \
   toolset=gcc \
   variant=release \
+  debug-symbols=off \
   link=shared \
   threading=multi \
   runtime-link=shared \
+  python=$PYTHON_VERSION \
   cflags="$SLKCFLAGS" \
   cxxflags="$SLKCFLAGS $EXTRA_CXXFLAGS" \
-  $PYTHON_FLAGS \
-  install
+  install || exit 1
+
+# one more run to build libboost_python3..
+sed -e '/using python/ s@;@: /usr/include/python${PYTHON_VERSION/3*/${PYTHON_VERSION}m} ;@' \
+  -i bootstrap.sh
+
+./bootstrap.sh \
+  --with-toolset=gcc \
+  --with-icu \
+  --with-python=/usr/bin/python3 \
+  --with-libraries=python || exit 1
+
+./b2 \
+  --layout=system \
+  --build-dir=build-python3 \
+  --prefix=/usr \
+  --libdir=/usr/lib$LIBDIRSUFFIX \
+  --build-type=minimal \
+  toolset=gcc \
+  variant=release \
+  debug-symbols=off \
+  link=shared \
+  threading=multi \
+  runtime-link=shared \
+  python=$PYTHON3_VERSION \
+  cflags="$SLKCFLAGS" \
+  cxxflags="$SLKCFLAGS $EXTRA_CXXFLAGS" \
+  stage || exit 1
+
+./b2 \
+  --layout=system \
+  --build-dir=build-python3 \
+  --prefix=$PKG/usr \
+  --libdir=$PKG/usr/lib$LIBDIRSUFFIX \
+  --build-type=minimal \
+  toolset=gcc \
+  variant=release \
+  debug-symbols=off \
+  link=shared \
+  threading=multi \
+  runtime-link=shared \
+  python=$PYTHON3_VERSION \
+  cflags="$SLKCFLAGS" \
+  cxxflags="$SLKCFLAGS $EXTRA_CXXFLAGS" \
+  install || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

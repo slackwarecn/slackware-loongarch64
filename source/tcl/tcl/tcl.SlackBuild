@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2012, 2013, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012, 2013, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,12 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-8.6.5}
+PKGNAM=tcl
+VERSION=${VERSION:-8.6.8}
 # See also version number 8.6 in the symlinks below...)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -35,9 +37,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-tcl
 
@@ -68,7 +77,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf tcl$VERSION
-tar xvf $CWD/tcl$VERSION-src.tar.?z* || exit 1
+tar xvf $CWD/tcl$VERSION-src.tar.?z || exit 1
 cd tcl$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -78,7 +87,8 @@ find . \
   -exec chmod 644 {} \;
 
 mkdir -p $PKG/usr/doc/tcl$VERSION
-cp -a README license.terms $PKG/usr/doc/tcl$VERSION
+cp -a README* license.terms $PKG/usr/doc/tcl$VERSION
+
 cd unix
 # Fix 64bit path names:
 sed -i -e "s#TCL_LIBRARY='\$(prefix)/lib/tcl\$(VERSION)'#TCL_LIBRARY='\$(prefix)/lib$LIBDIRSUFFIX/tcl\$(VERSION)'#" configure
@@ -91,9 +101,9 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-man-symlinks \
   ${CONFARGS} \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
-make $NUMJOBS || exit 1
+make $NUMJOBS || make || exit 1
 
 # Fix paths in tclConfig.sh:
  sed -e "s@^\(TCL_SRC_DIR='\).*@\1/usr/include'@" \

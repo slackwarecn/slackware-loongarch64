@@ -122,7 +122,7 @@ looknew() {
 	fi
 
 	echo -e "\nSearching for NEW configuration files"
-	FILES=$(find /etc -name "*.new" ${ONLY_NEW_DOTNEW} \
+	FILES=$(find /etc /var/yp /usr/share/vim -name "*.new" ${ONLY_NEW_DOTNEW} \
 		-not -name "rc.inet1.conf.new" \
 		-not -name "group.new" \
 		-not -name "passwd.new" \
@@ -214,7 +214,7 @@ Do you want slackpkg to run lilo now? (Y/n)"
 		else
 			echo -e "\n
 Your kernel image was updated and lilo is not found on your system.
-You may need to adjust your boot manager(like GRUB) to boot appropriate
+You may need to adjust your boot manager (like GRUB) to boot appropriate
 kernel."
 		fi
 	fi

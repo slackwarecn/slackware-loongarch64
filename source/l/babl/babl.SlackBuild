@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2008, 2009  Robby Workman, Northport, Alabama, USA
 # All rights reserved.
 #
@@ -21,9 +21,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=babl
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -36,9 +37,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-babl
 
@@ -60,7 +68,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf babl-$VERSION
-tar xvf $CWD/babl-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/babl-$VERSION.tar.?z || exit 1
 cd babl-$VERSION || exit 1
 
 chown -R root:root .
@@ -75,14 +83,17 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --docdir=/usr/doc/babl-$VERSION \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
   # Trust defaults:
   #--enable-mmx \
   #--disable-sse \
   #--enable-introspection \
 
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

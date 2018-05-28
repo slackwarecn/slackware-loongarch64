@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2012, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=vte
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -35,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -51,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
@@ -60,7 +68,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
-cd ${PKGNAM}-$VERSION
+cd ${PKGNAM}-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -70,11 +78,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# https://bugzilla.gnome.org/show_bug.cgi?id=663779
-zcat $CWD/fix_meta_alt_keybinding.patch.gz | patch -p1 || exit 1
-
-# Escape sequences can cause high CPU usage (CVE-2012-2738):
-zcat $CWD/vte.escape.cpu.usage.diff.gz | patch -p1 || exit 1
+./autogen.sh
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -85,16 +89,16 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
-  --disable-introspection \
-  --enable-python \
-  --enable-gnome-pty-helper \
-  --with-gtk=2.0 \
-  --with-default-emulation=xterm \
+  --enable-introspection \
+  --disable-vala \
   --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
@@ -128,7 +132,7 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   AUTHORS COPYING* HACKING INSTALL MAINTAINERS NEWS README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
-ln -s /usr/share/gtk-doc/html/vte-0.0 $PKG/usr/doc/vte-$VERSION/html
+ln -s /usr/share/gtk-doc/html/vte-* $PKG/usr/doc/vte-$VERSION/html
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

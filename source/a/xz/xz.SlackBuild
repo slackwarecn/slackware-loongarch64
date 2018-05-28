@@ -1,25 +1,26 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
-
-#   Permission to use, copy, modify, and distribute this software for
-#   any purpose with or without fee is hereby granted, provided that
-#   the above copyright notice and this permission notice appear in all
-#   copies.
 #
-#   THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
-#   WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-#   MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-#   IN NO EVENT SHALL THE AUTHORS AND COPYRIGHT HOLDERS AND THEIR
-#   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-#   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-#   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-#   USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-#   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-#   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-#   OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-#   SUCH DAMAGE.
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xz
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
@@ -33,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 case "$ARCH" in
@@ -62,10 +71,9 @@ case "$ARCH" in
              ;;
 esac
 
-CWD=$(pwd)
-# Temporary build location.  This should *NOT* be a directory
-# path a non-root user could create later...
-TMP=${TMP:-/xz-tmp-$(mcookie)}
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
+TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -94,10 +102,13 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-rpath \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
-make || exit 1
-make DESTDIR=$PKG install
+make $NUMJOBS || make || exit 1
+make DESTDIR=$PKG install || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # It might be advisable to have the libraries in /lib${LIBDIRSUFFIX}:
 mkdir -p $PKG/lib${LIBDIRSUFFIX}
@@ -153,11 +164,4 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}.txz
-
-# Move temporary stuff to /tmp, so that it won't get forgotten
-# in the shuffle:
-
-cp -a $TMP/${PKGNAM}-${VERSION}-${ARCH}-${BUILD}.txz /tmp
-rm -rf /tmp/xz-tmp*
-mv /xz-tmp* /tmp
 

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,21 +20,30 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=sysvinit-functions
 VERSION=${VERSION:-8.53}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-sysvinit-functions
 
@@ -57,10 +66,10 @@ rm -rf function-src-$VERSION
 # A small patch was applied to initlog to shut it the %^@& up.
 tar xjf $CWD/function-src-$VERSION.tar.bz2 || exit 1
 cd function-src-$VERSION
-make
+make || exit 1
 find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 mkdir -p $PKG/bin $PKG/sbin $PKG/usr/man/man{1,8}
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
 gzip -9 $PKG/usr/man/man?/*.?
 
 # The FHS/LSB is a little bit unclear as to what to do here --

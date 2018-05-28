@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,10 @@
 
 # Modified 2011 by Eric Hameleers <alien at slackware.com> for ARM port.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=binutils
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
@@ -37,6 +38,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -87,7 +96,6 @@ case "$ARCH" in
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-binutils
 
@@ -96,32 +104,25 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf binutils-$VERSION
-tar xvf $CWD/binutils-$VERSION.tar.xz || \
-  tar xvf $CWD/binutils-$VERSION.tar.bz2 || exit 1
-cd binutils-$VERSION
+tar xvf $CWD/binutils-$VERSION.tar.?z || exit 1
+cd binutils-$VERSION || exit 1
 
 # Various upstream patches:
-zcat $CWD/patches/binutils-2.20.51.0.2-libtool-lib64.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.20.51.0.10-ppc64-pie.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.25-version.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.25-set-long-long.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.20.51.0.10-copy-osabi.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.20.51.0.10-sec-merge-emit.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.22.52.0.1-relro-on-by-default.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.23.52.0.1-addr2line-dynsymtab.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.24-ldforcele.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.25.1-cleansweep.patch | patch -p2 --verbose || exit 1
-zcat $CWD/patches/binutils-2.26-formatting.patch | patch -p2 --verbose || exit 1
-zcat $CWD/patches/binutils-2.26-fix-compile-warnings.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.26-Bsymbolic_PIE.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.26-lto.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-rh1312151.patch | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-2.26-fix-GOT-offset-calculation.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.20.51.0.2-libtool-lib64.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.25-version.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.25-set-long-long.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.20.51.0.10-copy-osabi.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.20.51.0.10-sec-merge-emit.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.24-ldforcele.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/binutils-2.25.1-cleansweep.patch.gz | patch -p2 --verbose || exit 1
 
 # Export the demangle.h header file:
 zcat $CWD/patches/binutils.export.demangle.h.diff.gz | patch -p1 --verbose || exit 1
 # Don't check to see if "config.h" was included in the installed headers:
 zcat $CWD/patches/binutils.no-config-h-check.diff.gz | patch -p1 --verbose || exit 1
+
+# Set %version to something halfway meaningful:
+sed -i -e 's/%''{release}/slack15/g' bfd/Makefile{.am,.in}
 
 chown -R root:root .
 find . \
@@ -143,6 +144,7 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --with-docdir=/usr/doc/binutils-$VERSION \
+  --disable-compressed-debug-sections \
   --enable-shared \
   --enable-multilib \
   --enable-64-bit-bfd \
@@ -156,32 +158,54 @@ CFLAGS="$SLKCFLAGS" \
   --build=$TARGET \
   || exit 1
 
+# Use "tooldir=/usr" to avoid internal references to the /usr/${TARGET}/
+# directory. While binutils won't actually use that directory after this,
+# we'll still create it since some people have made local use of it.
+# Note that this will place ldscripts in /usr/lib, even on $ARCH that
+# use LIBDIRSUFFIX=64. According to Ian Lance Taylor, the ldscripts have
+# been built into the linker for quite some time and the ones in the
+# filesystem aren't actually loaded. For the most part they are now
+# documentation and it doesn't matter where they reside.
 make clean || exit 1
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+make tooldir=/usr $NUMJOBS || make tooldir=/usr || exit 1
+make tooldir=/usr install DESTDIR=$PKG || exit 1
 
-# Differentiate between BSD strings and GNU strings
-( cd $PKG/usr/bin ; mv strings strings-GNU )
-( cd $PKG/usr/man/man1 ; mv strings.1 strings-GNU.1 )
+# Using tooldir=/usr also makes the /usr/${TARGET}/lib${LIBDIRSUFFIX}
+# directory obsolete, and the build will no longer install it. But since
+# some people might be making local use of that directory, we'll install
+# it anyway:
+mkdir -p $PKG/usr/${TARGET}/lib${LIBDIRSUFFIX}
+# Same with /usr/${TARGET}/bin:
+mkdir -p $PKG/usr/${TARGET}/bin
 
-# Move ldscripts to /usr/lib${LIBDIRSUFFIX}, and then put symlinks in place
-mv $PKG/usr/${TARGET}/lib/ldscripts $PKG/usr/lib${LIBDIRSUFFIX}
-( cd $PKG/usr/${TARGET}
-  ln -s /usr/lib${LIBDIRSUFFIX}/ldscripts lib/ldscripts
-  for FILE in ar as ld ld.bfd ld.gold nm objcopy objdump ranlib strip ; do
-    if [ -r "/usr/bin/$FILE" ]; then
-      rm -f bin/$FILE
-      ln -s /usr/bin/$FILE bin/$FILE
-    fi
-  done
-)
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Add a symlink since binutils's version of strings used to be called
+# "strings-GNU" on Slackware, and it's possible that people have scripts
+# that use that name:
+( cd $PKG/usr/bin ; ln -sf strings strings-GNU )
+
+## OBSOLETE, since we're using tooldir=/usr. But we'll keep this cruft as a
+## reference until we get the all clear on the tooldir= changes. :-)
+## Move ldscripts to /usr/lib${LIBDIRSUFFIX}, and then put symlinks in place
+#mv $PKG/usr/${TARGET}/lib/ldscripts $PKG/usr/lib${LIBDIRSUFFIX}
+#( cd $PKG/usr/${TARGET}
+#  ln -s /usr/lib${LIBDIRSUFFIX}/ldscripts lib/ldscripts
+#  for FILE in ar as ld ld.bfd ld.gold nm objcopy objdump ranlib strip ; do
+#    if [ -r "/usr/bin/$FILE" ]; then
+#      rm -f bin/$FILE
+#      ln -s /usr/bin/$FILE bin/$FILE
+#    fi
+#  done
+#)
 
 # If the requested default linker is present, make it the default:
 # Set the link differently on the system to change the default at runtime.
 if [ -r $PKG/usr/bin/$DEFAULT_LD ]; then
   ( cd $PKG/usr/bin ; rm -f ld ; ln -sf $DEFAULT_LD ld )
 fi
-      
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 

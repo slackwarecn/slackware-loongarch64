@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,11 @@
 
 # CUPS build script by volkerdi@slackware.com.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=cups
-VERSION=${VERSION:-$(echo $PKGNAM-*-source.tar.xz | cut -f 2 -d -)}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo $PKGNAM-*-source.tar.?z | cut -f 2 -d -)}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -58,7 +68,6 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-cups
 
@@ -67,8 +76,11 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf cups-$VERSION
-tar xvf $CWD/cups-$VERSION-source.tar.xz || exit 1
+tar xvf $CWD/cups-$VERSION-source.tar.?z || exit 1
 cd cups-$VERSION || exit 1
+
+# Fix building without PAM:
+zcat $CWD/3cd7b5e053f8100da1ca8d8daf93976cca3516ef.patch.gz | patch -p1 --verbose || exit 1
 
 sed -i.orig -e 's#$exec_prefix/lib/cups#$libdir/cups#g' configure
 
@@ -84,7 +96,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-pam \
   --disable-avahi \
   --disable-dnssd \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || exit 1
 make BUILDROOT=$PKG install || exit 1

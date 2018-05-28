@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2018  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,13 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERSION=1.0.25
-BACKVER=1.0.25
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=sane
+VERSION=1.0.27
+BACKVER=1.0.27
 FRONTVER=1.0.14
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -33,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -51,7 +62,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-sane
 
@@ -62,7 +72,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf sane-backends-$BACKVER
 tar xvf $CWD/sane-backends-$BACKVER.tar.xz || exit 1
-cd sane-backends-$BACKVER
+cd sane-backends-$BACKVER || exit 1
 chown -R root:root .
 
 # Put the SANE_CAP_ALWAYS_SETTABLE definition back until
@@ -75,13 +85,14 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --mandir=/usr/man \
-  --with-docdir=/usr/doc/sane-$VERSION \
+  --docdir=/usr/doc/sane-$VERSION \
   --localstatedir=/var/lib \
   --enable-locking \
   --with-lockdir=/var/lock/sane \
   --with-group=scanner \
-  --enable-libusb_1_0 \
-  --build=$ARCH-slackware-linux
+  --with-usb \
+  --without-api-spec \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install || exit 1
@@ -113,7 +124,7 @@ install -D -m644 tools/sane-backends.pc \
 cd $TMP 
 rm -rf sane-frontends-$FRONTVER
 tar xvf $CWD/sane-frontends-$FRONTVER.tar.xz || exit 1
-cd sane-frontends-$FRONTVER
+cd sane-frontends-$FRONTVER || exit 1
 chown -R root:root .
 
 CFLAGS="$SLKCFLAGS" \
@@ -123,7 +134,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --with-docdir=/usr/doc/sane-$VERSION \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install || exit 1
@@ -138,6 +149,9 @@ chmod 775 $PKG/var/lock/sane
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # List additional backends in /etc/sane.d/dll.conf.
 # I don't think it will hurt anything to do this, even

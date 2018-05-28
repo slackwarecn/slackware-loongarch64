@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 1994, 1998, 2008  Patrick Volkerding, Moorhead, Minnesota USA 
 # Copyright 2003  Slackware Linux, Inc.  Concord, CA USA
-# Copyright 2009, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,6 +21,16 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Mon May 21 18:31:20 UTC 2018
+# Add --compress option, usually used to change the preset compression level
+# or block size.
+#
+# Tue Feb 13 00:46:12 UTC 2018
+# Use recent tar, and support storing POSIX ACLs and extended attributes.
+#
+# Tue Dec 12 21:55:59 UTC 2017
+# If possible, use multiple compression threads.
+#
 # Wed Sep 23 18:36:43 UTC 2015
 # Support spaces in file/directory names.  <alphageek>
 #
@@ -36,23 +46,7 @@
 
 CWD=$(pwd)
 
-TAR=tar-1.13
 umask 022
-$TAR --help 1> /dev/null 2> /dev/null
-if [ ! $? = 0 ]; then
-  TAR=tar
-fi
-if [ ! "$(LC_MESSAGES=C $TAR --version)" = "tar (GNU tar) 1.13
-
-Copyright (C) 1988, 92,93,94,95,96,97,98, 1999 Free Software Foundation, Inc.
-This is free software; see the source for copying conditions.  There is NO
-warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-Written by John Gilmore and Jay Fenlason." ]; then
-  echo "WARNING: pkgtools are unstable with tar > 1.13."
-  echo "         You should provide a \"tar-1.13\" in your \$PATH."
-  sleep 5
-fi
 
 make_install_script() {
   TAB="$(echo -e "\t")"
@@ -80,26 +74,48 @@ Usage: makepkg package_name.tgz
        (or: package_name.tbz, package_name.tlz, package_name.txz)
 
 Makes a Slackware compatible package containing the contents of the current
-and all subdirectories.  If symbolic links exist, they will be removed and
+and all subdirectories. If symbolic links exist, they will be removed and
 an installation script will be made to recreate them later. This script will
 be called "install/doinst.sh". You may add any of your own ash-compatible
 shell scripts to this file and rebuild the package if you wish.
 
 options:  -l, --linkadd y|n (moves symlinks into doinst.sh: recommended)
           -p, --prepend (prepend rather than append symlinks to an existing
-                         doinst.sh.  Useful to link libraries needed by
-                         programs in the doinst.sh script)
-          -c, --chown y|n (resets all permissions to root:root 755
-                           - not generally recommended)
+               doinst.sh.  Useful to link libraries needed by programs in
+               the doinst.sh script)
+          -c, --chown y|n (resets all permissions to root:root 755 - not
+               generally recommended)
+          --threads <number> For xz/plzip compressed packages, set the max
+               number of threads to be used for compression. Only has an
+               effect on large packages. For plzip, the default is equal to
+               the number of CPU threads available on the machine. For xz,
+               the default is equal to 2 (due to commonly occuring memory
+               related failures when using many threads with multi-threaded
+               xz compression).
+          --compress <option> Supply a custom option to the compressor.
+               This will be used in place of the default, which is: -9
+          --acls Support storing POSIX ACLs in the package. The resulting
+               package will not be compatible with pkgtools version < 15.0.
+          --xattrs Support storing extended attributes in the package. The
+               resulting package will not be compatible with pkgtools
+               version < 15.0.
 
-If these options are not set, makepkg will prompt as appropriate.
+If these options are not set, makepkg will prompt if appropriate.
 EOF
 }
 
 TMP=/tmp # This can be a hole, but I'm going to be careful about file
          # creation in there, so don't panic. :^)
 
+# Set maximum number of threads to use. By default, this will be the number
+# of CPU threads:
+THREADS="$(nproc)"
+
+# Set default compression option.
+COMPRESS_OPTION="-9"
+
 # Parse options
+unset ACLS XATTRS
 while [ 0 ]; do
   if [ "$1" = "--linkadd" -o "$1" = "-l" ]; then
     if [ "$2" = "y" ]; then
@@ -124,6 +140,21 @@ while [ 0 ]; do
   elif [ "$1" = "-p" -o "$1" = "--prepend" ]; then
     PREPEND=y
     shift 1
+  elif [ "$1" = "-threads" -o "$1" = "--threads" ]; then
+    THREADS="$2"
+    shift 2
+    # xz has memory issues with threads it seems, so we'll use two threads by
+    # default unless we see that something else was user-selected:
+    XZ_THREADS_FORCED=yes
+  elif [ "$1" = "-compress" -o "$1" = "--compress" ]; then
+    COMPRESS_OPTION="$2"
+    shift 2
+  elif [ "$1" = "--acls" ]; then
+    ACLS="--acls"
+    shift 1
+  elif [ "$1" = "--xattrs" ]; then
+    XATTRS="--xattrs"
+    shift 1 
   elif [ "$1" = "-h" -o "$1" = "-H" -o "$1" = "--help" -o $# = 0 ]; then
     usage
     exit 0
@@ -136,26 +167,109 @@ PACKAGE_NAME="$1"
 TARGET_NAME="$(dirname $PACKAGE_NAME)"
 PACKAGE_NAME="$(basename $PACKAGE_NAME)"
 
-# Identify package extension:
+# Identify package extension and compression type to use:
 if [ ! "$(basename $PACKAGE_NAME .tgz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tgz"
+  COMPEXT="gz"
+  COMPRESSOR="gzip ${COMPRESS_OPTION} -c"
+  if ! which gzip 1> /dev/null 2> /dev/null ; then
+    echo "ERROR:  gzip compression utility not found in \$PATH."
+    exit 3
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .tar.gz)" = "$PACKAGE_NAME" ]; then
-  # .tar.compression is also supported, although the resulting "packages" will
-  # not be installable by installpkg without the correct 3 letter extension
-  # instead.
   EXTENSION="tar.gz"
+  COMPRESSOR="gzip ${COMPRESS_OPTION} -c"
+  if ! which gzip 1> /dev/null 2> /dev/null ; then
+    echo "ERROR:  gzip compression utility not found in \$PATH."
+    exit 3
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .tbz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tbz"
+  if which lbzip2 1> /dev/null 2> /dev/null ; then
+    COMPRESSOR="lbzip2 ${COMPRESS_OPTION} -c"
+  else
+    if which bzip2 1> /dev/null 2> /dev/null ; then
+      COMPRESSOR="bzip2 ${COMPRESS_OPTION} -c"
+    else
+      echo "ERROR:  bzip2 compression utility not found in \$PATH."
+      exit 3
+    fi
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .tar.bz2)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tar.bz2"
+  if which lbzip2 1> /dev/null 2> /dev/null ; then
+    COMPRESSOR="lbzip2 ${COMPRESS_OPTION} -c"
+  else
+    if which bzip2 1> /dev/null 2> /dev/null ; then
+      COMPRESSOR="bzip2 ${COMPRESS_OPTION} -c"
+    else
+      echo "ERROR:  bzip2 compression utility not found in \$PATH."
+      exit 3
+    fi
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .tlz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tlz"
+  if which plzip 1> /dev/null 2> /dev/null ; then
+    COMPRESSOR="plzip ${COMPRESS_OPTION} --threads=${THREADS} -c"
+  else
+    echo "WARNING:  plzip compression utility not found in \$PATH."
+    echo "WARNING:  package will not support multithreaded decompression."
+    if which lzip 1> /dev/null 2> /dev/null ; then
+      COMPRESSOR="lzip ${COMPRESS_OPTION} -c"
+    else
+      echo "ERROR:  lzip compression utility not found in \$PATH."
+      exit 3
+    fi
+  fi
+elif [ ! "$(basename $PACKAGE_NAME .tar.lz)" = "$PACKAGE_NAME" ]; then
+  EXTENSION="tar.lz"
+  if which plzip 1> /dev/null 2> /dev/null ; then
+    COMPRESSOR="plzip ${COMPRESS_OPTION} --threads=${THREADS} -c"
+  else
+    echo "WARNING:  plzip compression utility not found in \$PATH."
+    echo "WARNING:  package will not support multithreaded decompression."
+    if which lzip 1> /dev/null 2> /dev/null ; then
+      COMPRESSOR="lzip ${COMPRESS_OPTION} -c"
+    else
+      echo "ERROR:  lzip compression utility not found in \$PATH."
+      exit 3
+    fi
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .tar.lzma)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tar.lzma"
+  COMPRESSOR="lzma ${COMPRESS_OPTION} -c"
+  if ! which lzma 1> /dev/null 2> /dev/null ; then
+    echo "ERROR:  lzma compression utility not found in \$PATH."
+    exit 3
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .txz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="txz"
+  if [ ! "$XZ_THREADS_FORCED" = "yes" ]; then
+    # Two threads by default with xz due to memory failures on 32-bit. Not that
+    # it matters much... if upstream ever gets around to implementing multi-
+    # threaded decompression we'll revisit this default.  :-D
+    COMPRESSOR="xz ${COMPRESS_OPTION} --threads=2 -c"
+  else
+    COMPRESSOR="xz ${COMPRESS_OPTION} --threads=${THREADS} -c"
+  fi
+  if ! which xz 1> /dev/null 2> /dev/null ; then
+    echo "ERROR:  xz compression utility not found in \$PATH."
+    exit 3
+  fi
 elif [ ! "$(basename $PACKAGE_NAME .tar.xz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tar.xz"
+  if [ ! "$XZ_THREADS_FORCED" = "yes" ]; then
+    # Two threads by default with xz due to memory failures on 32-bit. Not that
+    # it matters much... if upstream ever gets around to implementing multi-
+    # threaded decompression we'll revisit this default.  :-D
+    COMPRESSOR="xz ${COMPRESS_OPTION} --threads=2 -c"
+  else
+    COMPRESSOR="xz ${COMPRESS_OPTION} --threads=${THREADS} -c"
+  fi
+  if ! which xz 1> /dev/null 2> /dev/null ; then
+    echo "ERROR:  xz compression utility not found in \$PATH."
+    exit 3
+  fi
 else
   EXTENSION="$(echo $PACKAGE_NAME | rev | cut -f 1 -d . | rev)"
   echo "ERROR:  Package extension .$EXTENSION is not supported."
@@ -170,36 +284,8 @@ if [ "$CWD" = "$TARGET_NAME" -o "." = "$TARGET_NAME" ]; then
   exit 2
 fi
 
-# Make sure external compression utility is available:
-case $EXTENSION in
-'tgz' | 'tar.gz' )
-  if ! which gzip 1> /dev/null 2> /dev/null ; then
-    echo "ERROR:  gzip compression utility not found in \$PATH."
-    exit 3
-  fi
-  ;;
-'tbz' | 'tar.bz2' )
-  if ! which bzip2 1> /dev/null 2> /dev/null ; then
-    echo "ERROR:  bzip2 compression utility not found in \$PATH."
-    exit 3
-  fi
-  ;;
-'tlz' | 'tar.lzma' )
-  if ! which lzma 1> /dev/null 2> /dev/null ; then
-    echo "ERROR:  lzma compression utility not found in \$PATH."
-    exit 3
-  fi
-  ;;
-'txz' | 'tar.xz' )
-  if ! which xz 1> /dev/null 2> /dev/null ; then
-    echo "ERROR:  xz compression utility not found in \$PATH."
-    exit 3
-  fi
-  ;;
-esac
-
 echo
-echo "Slackware package maker, version 3.141593."
+echo "Slackware package maker, version 3.14159265."
 echo
 echo "Searching for symbolic links:"
 # Get rid of possible pre-existing trouble:
@@ -303,36 +389,27 @@ fi
 echo "Creating Slackware package:  ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}"
 echo
 rm -f ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
-case $EXTENSION in
-'tgz' | 'tar.gz' )
-  $TAR cvf - . | gzip -9c > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
-  ERRCODE=$?
-  if [ ! $? = 0 ]; then
-    echo "ERROR:  gzip returned error code $? -- makepkg failed."
-  fi
-  ;;
-'tbz' | 'tar.bz2' )
-  $TAR cvf - . | bzip2 -9c > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
-  ERRCODE=$?
-  if [ ! $ERRCODE = 0 ]; then
-    echo "ERROR:  bzip2 returned error code $ERRCODE -- makepkg failed."
-  fi
-  ;;
-'tlz' | 'tar.lzma' )
-  $TAR cvf - . | lzma -c > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
-  ERRCODE=$?
-  if [ ! $ERRCODE = 0 ]; then
-    echo "ERROR:  lzma returned error code $ERRCODE -- makepkg failed."
-  fi
-  ;;
-'txz' | 'tar.xz' )
-  $TAR cvf - . | xz -c > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
-  ERRCODE=$?
-  if [ ! $ERRCODE = 0 ]; then
-    echo "ERROR:  xz returned error code $ERRCODE -- makepkg failed."
-  fi
-  ;;
-esac
+
+# HISTORICAL NOTE 2/2018:
+# In the interest of maximizing portability of this script, we'll use find
+# and sed to create a filelist compatible with tar-1.13, and then use a
+# more modern tar version to create the archive.
+#
+# Other (but possibly less portable) ways to achieve the same result:
+#
+# Use the tar --transform and --show-transformed-names options:
+# tar --transform "s,^\./\(.\),\1," --show-transformed-names $ACLS $XATTRS -cvf - . | $COMPRESSOR > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
+#
+# Use cpio:
+# find ./ | sed '2,$s,^\./,,' | cpio --quiet -ovHustar > ${TARGET_NAME}/${TAR_NAME}.tar
+
+# Create the package:
+find ./ | sed '2,$s,^\./,,' | tar --no-recursion $ACLS $XATTRS  -T - -cvf - | $COMPRESSOR > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
+ERRCODE=$?
+if [ ! $ERRCODE = 0 ]; then
+  echo "ERROR:  $COMPRESSOR returned error code $ERRCODE -- makepkg failed."
+  exit 1
+fi
 
 # Warn of zero-length files:
 find . -type f -size 0c | while read file ; do

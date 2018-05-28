@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,6 +20,8 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=whois
 VERSION=${VERSION:-$(echo ${PKGNAM}_*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d _ | rev)}
 BUILD=${BUILD:-1}
@@ -33,7 +35,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-whois
 
@@ -50,7 +59,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-make HAVE_LIBIDN=y || exit
+make HAVE_LIBIDN2=y || exit
 make install install-pos BASEDIR=$PKG || exit 1
 
 mv $PKG/usr/share/man $PKG/usr
@@ -61,9 +70,6 @@ for i in $( find $PKG/usr/man -type l ) ; do
   ln -s $( readlink $i ).gz $i.gz
   rm $i
 done
-
-# Remove mkpasswd stuff:
-find $PKG -iname "mkpasswd*" -exec rm -f {} \;
 
 mkdir -p $PKG/usr/doc/whois-$VERSION
 cp -a \

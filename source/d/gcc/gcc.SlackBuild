@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -52,6 +52,8 @@
 # efficient on modern CPUs running in 32-bit mode than the alternate i586
 # instructions.  No need to throw i586 CPUs under the bus (yet).
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=gcc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-3}
@@ -68,6 +70,20 @@ if [ -z "$ARCH" ]; then
     *) ARCH=$(uname -m) ;;
   esac
   export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "gcc-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-g++-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-gfortran-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-gnat-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-objc-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-go-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-brig-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i386" ]; then
@@ -109,10 +125,8 @@ case "$ARCH" in
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
-CWD=$(pwd)
-# Temporary build location.  This should *NOT* be a directory
-# path a non-root user could create later...
-TMP=${TMP:-"/gcc-$(mcookie)"}
+# Temporary build location:
+TMP=${TMP:-/tmp}
 
 # This is the main DESTDIR target:
 PKG1=$TMP/package-gcc
@@ -120,55 +134,44 @@ PKG1=$TMP/package-gcc
 PKG2=$TMP/package-gcc-g++
 PKG3=$TMP/package-gcc-gfortran
 PKG4=$TMP/package-gcc-gnat
-PKG5=$TMP/package-gcc-java
 PKG6=$TMP/package-gcc-objc
-PKG7=$TMP/package-gcc-g++-gch
+#PKG7=$TMP/package-gcc-g++-gch
 PKG8=$TMP/package-gcc-go
+PKG9=$TMP/package-gcc-brig
 
 # Clear the build locations:
-if [ -d $TMP ]; then
-  rm -rf $TMP
-fi
-mkdir -p $PKG{1,2,3,4,5,6,7,8}/usr/doc/gcc-$VERSION
+rm -rf $TMP/gcc.build.lnx
+rm -rf $PKG{1,2,3,4,6,8,9}
+mkdir -p $PKG{1,2,3,4,6,8,9}/usr/doc/gcc-$VERSION
 
 # Insert package descriptions:
-mkdir -p $PKG{1,2,3,4,5,6,7,8}/install
+mkdir -p $PKG{1,2,3,4,6,8,9}/install
 cat $CWD/slack-desc.gcc > $PKG1/install/slack-desc
 cat $CWD/slack-desc.gcc-g++ > $PKG2/install/slack-desc
 cat $CWD/slack-desc.gcc-gfortran > $PKG3/install/slack-desc
 cat $CWD/slack-desc.gcc-gnat > $PKG4/install/slack-desc
-cat $CWD/slack-desc.gcc-java > $PKG5/install/slack-desc
 cat $CWD/slack-desc.gcc-objc > $PKG6/install/slack-desc
-# cat $CWD/slack-desc.gcc-g++-gch > $PKG7/install/slack-desc
+#cat $CWD/slack-desc.gcc-g++-gch > $PKG7/install/slack-desc
 cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
+cat $CWD/slack-desc.gcc-brig > $PKG9/install/slack-desc
 
 cd $TMP
-tar xvf $CWD/gcc-$VERSION.tar.?z*
+rm -rf gcc-$VERSION
+tar xvf $CWD/gcc-$VERSION.tar.xz || exit 1
 
-( cd gcc-$VERSION/gcc
-  zcat $CWD/gcc.66782.diff.gz | patch -p0 --verbose || exit 1
-  zcat $CWD/gcc.69140.diff.gz | patch -p2 --verbose || exit 1
-) || exit 1
+( cd gcc-$VERSION || exit 1
 
-# Copy ecj.jar into the TLD of the source. Needed for java compiler.
-# This can be retrieved from ftp://sourceware.org/pub/java
-cp $CWD/ecj-4.9.jar gcc-$VERSION/ecj.jar
-
-# Use an antlr runtime to compile javadoc.
-# The runtime can be obtained from:
-#https://oss.sonatype.org/content/repositories/releases/org/antlr/antlr-runtime/
-ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
-
-# install docs
-( cd gcc-$VERSION
   # Smite the fixincludes:
   zcat $CWD/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-  # Fix perms/owners
+
+  # Fix perms/owners:
   chown -R root:root .
   find . -perm 777 -exec chmod 755 {} \;
   find . -perm 775 -exec chmod 755 {} \;
   find . -perm 754 -exec chmod 755 {} \;
   find . -perm 664 -exec chmod 644 {} \;
+
+  # Install docs:
   mkdir -p $PKG1/usr/doc/gcc-$VERSION
   cp -a \
     COPYING* ChangeLog* FAQ INSTALL \
@@ -189,13 +192,13 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
   fi
 
   mkdir -p $PKG1/usr/doc/gcc-${VERSION}/gcc
-  ( cd gcc
+  ( cd gcc || exit 0
     cp -a \
       ABOUT* COPYING* DATESTAMP DEV-PHASE LANG* ONEWS README* SERVICE \
     $PKG1/usr/doc/gcc-$VERSION/gcc
          
     mkdir -p $PKG3/usr/doc/gcc-${VERSION}/gcc/fortran
-    ( cd fortran
+    ( cd fortran || exit 0
       if [ -r ChangeLog ]; then
         cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
         touch -r ChangeLog $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
@@ -203,7 +206,7 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
     )
 
     mkdir -p $PKG4/usr/doc/gcc-${VERSION}/gcc/ada
-    ( cd ada
+    ( cd ada || exit 0
       cp -a \
         ChangeLog.tree-ssa \
       $PKG4/usr/doc/gcc-$VERSION/gcc/ada
@@ -213,19 +216,8 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
       fi
     )
 
-    mkdir -p $PKG5/usr/doc/gcc-${VERSION}/gcc/java
-    ( cd java
-      cp -a \
-        ChangeLog.tree-ssa \
-      $PKG5/usr/doc/gcc-${VERSION}/gcc/java
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG5/usr/doc/gcc-${VERSION}/gcc/java/ChangeLog
-        touch -r ChangeLog $PKG5/usr/doc/gcc-${VERSION}/gcc/java/ChangeLog
-      fi
-    )
-  
     mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
-    ( cd objc
+    ( cd objc || exit 0
       cp -a \
         README* \
       $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
@@ -236,7 +228,7 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
     )
 
     mkdir -p $PKG8/usr/doc/gcc-${VERSION}/gcc/go
-    ( cd go
+    ( cd go || exit 0
       if [ -r ChangeLog ]; then
         cat ChangeLog | head -n 1000 > $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
         touch -r ChangeLog $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
@@ -247,10 +239,18 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
       $PKG8/usr/doc/gcc-${VERSION}/gcc/go
     )
 
+    mkdir -p $PKG9/usr/doc/gcc-${VERSION}/gcc/brig
+    ( cd brig || exit 0
+      if [ -r ChangeLog ]; then
+        cat ChangeLog | head -n 1000 > $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
+        touch -r ChangeLog $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
+      fi
+    )
+
   ) || exit 1
 
   mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
-  ( cd libgfortran
+  ( cd libgfortran || exit 0
     if [ -r ChangeLog ]; then
       cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
       touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
@@ -258,47 +258,15 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
   )
 
   mkdir -p $PKG4/usr/doc/gcc-${VERSION}/libada
-  ( cd libada
+  ( cd libada || exit 0
     if [ -r ChangeLog ]; then
       cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
       touch -r ChangeLog $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
     fi
   )
 
-  mkdir -p $PKG5/usr/doc/gcc-${VERSION}/libffi
-  ( cd libffi
-    cp -a \
-      ChangeLog.libgcj ChangeLog.v1 \
-      LICENSE* README* \
-    $PKG5/usr/doc/gcc-${VERSION}/libffi
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG5/usr/doc/gcc-${VERSION}/libffi/ChangeLog
-      touch -r ChangeLog $PKG5/usr/doc/gcc-${VERSION}/libffi/ChangeLog
-    fi
-  )
-
-  mkdir -p $PKG5/usr/doc/gcc-${VERSION}/libjava
-  ( cd libjava
-    cp -a \
-      COPYING* HACKING LIBGCJ_LICENSE \
-      NEWS README* THANKS \
-    $PKG5/usr/doc/gcc-${VERSION}/libjava
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG5/usr/doc/gcc-${VERSION}/libjava/ChangeLog
-      touch -r ChangeLog $PKG5/usr/doc/gcc-${VERSION}/libjava/ChangeLog
-    fi
-  )
-
-  mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libmudflap
-  ( cd libmudflap
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libmudflap/ChangeLog
-      touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libmudflap/ChangeLog
-    fi
-  )
-
   mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libgomp
-  ( cd libgomp
+  ( cd libgomp || exit 0
     if [ -r ChangeLog ]; then
       cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
       touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
@@ -306,7 +274,7 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
   )
   
   mkdir -p $PKG6/usr/doc/gcc-${VERSION}/libobjc
-  ( cd libobjc
+  ( cd libobjc || exit 0
     if [ -r ChangeLog ]; then
       cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
       touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
@@ -317,7 +285,7 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
   )
     
   mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
-  ( cd libstdc++-v3
+  ( cd libstdc++-v3 || exit 0
     cp -a \
       README* \
       doc/html/faq.html \
@@ -330,77 +298,10 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
 
 )
 
-# Add fastjar to the gcc-java package:
-( cd $TMP
-  FASTJARVER=$(echo $CWD/fastjar-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-  echo
-  echo "Building fastjar-$FASTJARVER first"
-  echo
-  rm -rf fastjar-$FASTJARVER
-  tar xvf $CWD/fastjar-$FASTJARVER.tar.xz || exit 1
-  cd fastjar-$FASTJARVER || exit 1
-  chown -R root:root .
-  find . \
-    \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-    -exec chmod 755 {} \; -o \
-    \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-    -exec chmod 644 {} \;
-  for patch in $CWD/fastjar-patches/*.gz ; do
-    zcat $patch | patch -p1 --verbose || exit 1
-  done
-  CFLAGS="$SLKCFLAGS" \
-  CXXFLAGS="$SLKCFLAGS" \
-  ./configure \
-     --prefix=/usr \
-     --libdir=/usr/lib$LIBDIRSUFFIX \
-     --mandir=/usr/man \
-     --infodir=/usr/info \
-     --build=$TARGET
-  make $NUMJOBS || exit 1
-  make install DESTDIR=$PKG5 || exit 1
-  mkdir -p $PKG5/usr/doc/fastjar-$FASTJARVER
-  cp -a \
-    AUTHORS CHANGES COPYING* INSTALL NEWS README* TODO \
-    $PKG5/usr/doc/fastjar-$FASTJARVER
-  # If there's a ChangeLog, installing at least part of the recent history
-  # is useful, but don't let it get totally out of control:
-  if [ -r ChangeLog ]; then
-    DOCSDIR=$(echo $PKG5/usr/doc/fastjar-$FASTJARVER)
-    cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-    touch -r ChangeLog $DOCSDIR/ChangeLog
-  fi
-  find $PKG5 | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-    | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  # Compress and if needed symlink the man pages:
-  if [ -d $PKG5/usr/man ]; then
-    ( cd $PKG5/usr/man
-      for manpagedir in $(find . -type d -name "man*") ; do
-        ( cd $manpagedir
-          for eachpage in $( find . -type l -maxdepth 1) ; do
-            ln -s $( readlink $eachpage ).gz $eachpage.gz
-            rm $eachpage
-          done
-          gzip -9 *.?
-        )
-      done
-    )
-  fi
-  # Compress info files, if any:
-  if [ -d $PKG5/usr/info ]; then
-    ( cd $PKG5/usr/info
-      rm -f dir
-      gzip -9 *
-    )
-  fi
-  echo
-) || exit 1
-
 # build gcc
 ( mkdir gcc.build.lnx;
   cd gcc.build.lnx;
 
-  # If enough people need "treelang" support for it may be considered.
-  #  --enable-languages=ada,c,c++,fortran,java,objc,treelang
   # I think it's incorrect to include this option (as it'll end up set
   # to i586 on x86 platforms), and we want to tune the binary structure
   # for i686, as that's where almost all of the optimization speedups
@@ -414,9 +315,6 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
     GCC_ARCHOPTS="--disable-multilib"
   fi
  
-  # NOTE:  For Slackware 15.0, look into removing --with-default-libstdcxx-abi=gcc4-compatible,
-  # which will then require rebuilding all C++ libraries.  That is, if there's any benefit.
-
   CFLAGS="$SLKCFLAGS" \
   CXXFLAGS="$SLKCFLAGS" \
   ../gcc-$VERSION/configure --prefix=/usr \
@@ -425,14 +323,13 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
      --infodir=/usr/info \
      --enable-shared \
      --enable-bootstrap \
-     --enable-languages=ada,c,c++,fortran,go,java,lto,objc \
+     --enable-languages=ada,brig,c,c++,fortran,go,lto,objc \
      --enable-threads=posix \
      --enable-checking=release \
      --enable-objc-gc \
      --with-system-zlib \
-     --with-python-dir=/lib$LIBDIRSUFFIX/python2.7/site-packages \
      --enable-libstdcxx-dual-abi \
-     --with-default-libstdcxx-abi=gcc4-compatible \
+     --with-default-libstdcxx-abi=new \
      --disable-libunwind-exceptions \
      --enable-__cxa_atexit \
      --enable-libssp \
@@ -440,13 +337,7 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
      --disable-install-libiberty \
      --with-gnu-ld \
      --verbose \
-     --enable-java-home \
-     --with-java-home=/usr/lib$LIBDIRSUFFIX/jvm/jre \
-     --with-jvm-root-dir=/usr/lib$LIBDIRSUFFIX/jvm \
-     --with-jvm-jar-dir=/usr/lib$LIBDIRSUFFIX/jvm/jvm-exports \
      --with-arch-directory=$LIB_ARCH \
-     --with-antlr-jar=$ANTLJAR \
-     --enable-java-awt=gtk \
      --disable-gtktest \
      $GCC_ARCHOPTS \
      --target=${TARGET} \
@@ -456,108 +347,123 @@ ANTLJAR=$(echo $CWD/antlr-*.jar | tail -1)
   # Start the build:
 
   # Include all debugging info (for now):
-  make $NUMJOBS bootstrap;
+  make $NUMJOBS bootstrap || exit 1
 
   ( cd gcc
-    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS"
+    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS" || exit 1
     # This wants a shared -ladd2line?
-    #make gnatlib-shared
+    #make gnatlib-shared || exit 1
     
     CFLAGS="$SLKCFLAGS" \
     CXXFLAGS="$SLKCFLAGS" \
-    make $NUMJOBS gnattools
-  )
-  make info
+    make $NUMJOBS gnattools || exit 1
+  ) || exit 1
+  make info || exit 1
 
   # Set GCCCHECK=something to run the tests
   if [ ! -z $GCCCHECK ]; then
-    make $NUMJOBS check
+    make $NUMJOBS check || exit 1
   fi
 
-  make install DESTDIR=$PKG1
+  make install DESTDIR=$PKG1 || exit 1
 
-# KLUDGE ALERT
-# These *gdb.py files are causing ldconfig to complain, so they are going
-# to be REMOVED for now...  at some point, they might be moved somewhere
-# else, in which case things should Just Work(tm).  Keep an eye on it.
-rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/*gdb.py
+  # Move gdb pretty printers to the correct place
+  mkdir -p $PKG1/usr/share/gdb/auto-load/usr/lib$LIBDIRSUFFIX
+  mv $PKG1/usr/lib$LIBDIRSUFFIX/*-gdb.py \
+    $PKG1/usr/share/gdb/auto-load/usr/lib$LIBDIRSUFFIX/
 
-# Be sure the "specs" file is installed.
-if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
-  cat stage1-gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
-fi
+  # Be sure the "specs" file is installed.
+  if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
+    cat stage1-gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
+  fi
 
-# Make our 64bit gcc look for 32bit gcc binaries in ./32 subdirectory:
-if [ "$ARCH" = "x86_64" ]; then
-  sed -i 's#;.\(:../lib !m64 m32;\)$#;32\1#' \
-    $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
-fi
+  # Make our 64bit gcc look for 32bit gcc binaries in ./32 subdirectory:
+  if [ "$ARCH" = "x86_64" ]; then
+    sed -i 's#;.\(:../lib !m64 m32;\)$#;32\1#' \
+      $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
+  fi
 
-#  make ada.install-common DESTDIR=$PKG1
-#  make install-gnatlib DESTDIR=$PKG1
-make -i install-info DESTDIR=$PKG1
+  # make ada.install-common DESTDIR=$PKG1 || exit 1
+  # make install-gnatlib DESTDIR=$PKG1 || exit 1
+  make -i install-info DESTDIR=$PKG1 || exit 1
 
-chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
+  chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
 
-# The (huge) static GNU java libraries are not packaged.  In nearly all
-# cases one or more dependencies will not be available as static anyway.
-rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj.a
-rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj-tools.a
+  # Fix stuff up:
+  ( cd $PKG1/usr/info ; rm dir ; gzip -9 * )
+  ( cd $PKG1
+    # *not* ${LIBDIRSUFFIX}
+    mkdir -p lib
+    cd lib
+    ln -sf /usr/bin/cpp .
+  )
 
-# Fix stuff up:
-( cd $PKG1/usr/info ; rm dir ; gzip -9 * )
-( cd $PKG1
-  # *not* ${LIBDIRSUFFIX}
-  mkdir -p lib
-  cd lib
-  ln -sf /usr/bin/cpp .
-)
+  ( cd $PKG1/usr/bin
+    mv g++ g++-gcc-$VERSION
+    mv gcc gcc-$VERSION
+    mv ${TARGET}-gfortran gfortran-gcc-$VERSION
+    ln -sf g++-gcc-$VERSION g++
+    ln -sf gcc-$VERSION gcc
+    ln -sf g++ c++
+    ln -sf gcc cc
+    ln -sf gcc-$VERSION ${TARGET}-gcc
+    ln -sf gcc-$VERSION ${TARGET}-gcc-$VERSION
+    ln -sf gcc-ar ${TARGET}-gcc-ar
+    ln -sf gcc-nm ${TARGET}-gcc-nm
+    ln -sf gcc-ranlib ${TARGET}-gcc-ranlib
+    ln -sf g++-gcc-$VERSION ${TARGET}-c++
+    ln -sf g++-gcc-$VERSION ${TARGET}-g++
+    ln -sf gfortran-gcc-$VERSION gfortran
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran-$VERSION
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-g95
+    ln -sf gfortran g95
+    ln -sf gfortran f95
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-g77
+    ln -sf gfortran g77
+    ln -sf gfortran f77
+    cat $CWD/c89.sh > c89
+    cat $CWD/c99.sh > c99
+    chmod 755 c89 c99
+  )
 
-( cd $PKG1/usr/bin
-  mv g++ g++-gcc-$VERSION
-  mv gcc gcc-$VERSION
-  mv ${TARGET}-gfortran gfortran-gcc-$VERSION
-  ln -sf g++-gcc-$VERSION g++
-  ln -sf gcc-$VERSION gcc
-  ln -sf g++ c++
-  ln -sf gcc cc
-  ln -sf gcc-$VERSION ${TARGET}-gcc
-  ln -sf gcc-$VERSION ${TARGET}-gcc-$VERSION
-  ln -sf gcc-ar ${TARGET}-gcc-ar
-  ln -sf gcc-nm ${TARGET}-gcc-nm
-  ln -sf gcc-ranlib ${TARGET}-gcc-ranlib
-  ln -sf gcj ${TARGET}-gcj
-  ln -sf gcjh ${TARGET}-gcjh
-  ln -sf g++-gcc-$VERSION ${TARGET}-c++
-  ln -sf g++-gcc-$VERSION ${TARGET}-g++
-  ln -sf gfortran-gcc-$VERSION gfortran
-  ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran
-  ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran-$VERSION
-  ln -sf gfortran-gcc-$VERSION ${TARGET}-g95
-  ln -sf gfortran g95
-  ln -sf gfortran f95
-  ln -sf gfortran-gcc-$VERSION ${TARGET}-g77
-  ln -sf gfortran g77
-  ln -sf gfortran f77
-  cat $CWD/c89.sh > c89
-  cat $CWD/c99.sh > c99
-  chmod 755 c89 c99
-)
+  ( cd $PKG1/usr/man
+    gzip -9 */*
+    cd man1
+    ln -sf g++.1.gz c++.1.gz
+    ln -sf gcc.1.gz cc.1.gz
+  )  
 
-( cd $PKG1/usr/man
-  gzip -9 */*
-  cd man1
-  ln -sf g++.1.gz c++.1.gz
-  ln -sf gcc.1.gz cc.1.gz
-)  
+  ## build an all-in-one txz package:
+  #(
+  #  cd $PKG1;
+  #  makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz
+  #)
 
-## build the txz package
-#(
-#  cd $PKG1;
-#  makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz
-#)
-# keep a log
+# keep a log:
 ) 2>&1 | tee $TMP/gcc.build.log
+
+# Filter all .la files (thanks much to Mark Post for the sed script):
+( cd $PKG1
+  for file in $(find . -type f -name "*.la") ; do
+    cat $file | sed -e 's%-L/gcc-[[:graph:]]* % %g' > $TMP/tmp-la-file
+    cat $TMP/tmp-la-file > $file
+  done
+  rm $TMP/tmp-la-file
+)
+
+# Don't ship .la files in /{,usr/}lib${LIBDIRSUFFIX}:
+rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Strip bloated binaries and libraries:
+( cd $PKG1
+  find . -name "lib*so*" -exec strip --strip-unneeded "{}" \;
+  find . -name "lib*so*" -exec patchelf --remove-rpath "{}" \;
+  find . -name "lib*a" -exec strip -g "{}" \;
+  strip --strip-unneeded usr/bin/* 2> /dev/null
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
 
 # OK, time to split the big package where needed:
 
@@ -573,6 +479,10 @@ rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj-tools.a
   mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cc1plus usr/libexec/gcc/$TARGET/$VERSION/cc1plus
   mkdir -p usr/man/man1
   mv $PKG1/usr/man/man1/*++* usr/man/man1
+  mkdir -p usr/share
+  mv $PKG1/usr/share/gdb usr/share
+  mkdir -p usr/share/gcc-$VERSION/python
+  mv $PKG1/usr/share/gcc-$VERSION/python/libstdcxx usr/share/gcc-$VERSION/python
 )
 
 # gcc-gfortran:
@@ -598,11 +508,6 @@ rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj-tools.a
 )
 
 # gcc-gnat:
-# First, relocate usr/bin/gnative2ascii to the gcc-java package so it
-# isn't matched and accidentally put in gcc-gnat:
-mkdir -p $PKG5/usr/bin
-mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
-# Now make the gcc-gnat package tree:
 ( cd $PKG4
   mkdir -p usr/bin
   mv $PKG1/usr/bin/gnat* usr/bin
@@ -614,117 +519,6 @@ mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
   mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/adainclude usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/adalib usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
-)
-
-# gcc-java:
-( cd $PKG5
-  mkdir -p usr/bin
-  mv $PKG1/usr/bin/aot-compile usr/bin
-  mv $PKG1/usr/bin/addr2name.awk usr/bin
-  # mv $PKG1/usr/bin/fastjar usr/bin
-  mv $PKG1/usr/bin/gappletviewer usr/bin
-  mv $PKG1/usr/bin/gc-analyze usr/bin
-  mv $PKG1/usr/bin/*gcj* usr/bin
-  mv $PKG1/usr/bin/gij usr/bin
-  mv $PKG1/usr/bin/gjar usr/bin
-  mv $PKG1/usr/bin/gjarsigner usr/bin
-  mv $PKG1/usr/bin/gjdoc usr/bin
-  mv $PKG1/usr/bin/gkeytool usr/bin
-  mv $PKG1/usr/bin/grepjar usr/bin
-  mv $PKG1/usr/bin/grmid usr/bin
-  mv $PKG1/usr/bin/grmic usr/bin
-  mv $PKG1/usr/bin/grmiregistry usr/bin
-  mv $PKG1/usr/bin/gserialver usr/bin
-  mv $PKG1/usr/bin/gtnameserv usr/bin
-  mv $PKG1/usr/bin/gjavah usr/bin
-  mv $PKG1/usr/bin/gorbd usr/bin
-  mv $PKG1/usr/bin/jar usr/bin
-  mv $PKG1/usr/bin/jcf-dump usr/bin
-  mv $PKG1/usr/bin/jv-* usr/bin
-  mv $PKG1/usr/bin/rmi* usr/bin
-  mkdir -p usr/include/c++/$VERSION
-  # Move some Java only C++ headers from the C++ package:
-  mv $PKG2/usr/include/c++/$VERSION/{gcj,gnu,java,javax,org,sun} usr/include/c++/$VERSION
-  mv $PKG1/usr/include/ffi.h usr/include
-  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jawt.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/ffi.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/ffitarget.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jawt_md.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jni.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jni_md.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/jvmpi.h usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/libffi usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  # aot-compile Python plugins:
-  if [ ! -d $PKG1/usr/lib${LIBDIRSUFFIX}/python2.7 ]; then
-    echo "NO $PKG1/usr/lib${LIBDIRSUFFIX}/python2.7 !"
-    exit 1
-  fi
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/python2.7 usr/lib${LIBDIRSUFFIX}
-  mkdir -p usr/info
-  mv $PKG1/usr/info/gcj.* usr/info
-  # mv $PKG1/usr/info/fastjar.* usr/info
-  mkdir -p usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libffi* usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/logging.properties usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcj* usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgcj* usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgij* usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/lib-org* usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/security usr/lib${LIBDIRSUFFIX}
-  mkdir -p usr/lib${LIBDIRSUFFIX}/pkgconfig
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/pkgconfig/libgcj*.pc usr/lib${LIBDIRSUFFIX}/pkgconfig
-  rmdir $PKG1/usr/lib${LIBDIRSUFFIX}/pkgconfig 2> /dev/null
-  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/jc1 usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/ecj1 usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/jvgenmain usr/libexec/gcc/$TARGET/$VERSION
-  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/gcj usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mkdir -p usr/man/man1
-  mv $PKG1/usr/man/man1/aot-compile.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gappletviewer.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gc-analyze.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gcj.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gcjh.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gcj-dbtool.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gij.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gjar.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gjarsigner.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gjavah.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gjdoc.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gjnih.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gkeytool.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gnative2ascii.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gorbd.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/grmic.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/grmid.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/grmiregistry.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gserialver.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gtnameserv.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/jcf-dump.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/jv-convert.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/jv-scan.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/rebuild-gcj-db.1.gz usr/man/man1
-  mkdir -p usr/man/man3
-  mv $PKG1/usr/man/man3/ffi* usr/man/man3
-  mkdir -p usr/share
-  mv $PKG1/usr/share/java usr/share
-  # The ecj wrapper script:
-  cat $CWD/ecj.sh | sed -e "s,@JAVADIR@,/usr/share/java," > usr/bin/ecj
-  chmod 755 usr/bin/ecj
-  # The JAVA_HOME compatibility links.
-  # Caution: non-multilib arch-independent stuff! No lib64 here.
-  mkdir -p usr/lib$LIBDIRSUFFIX
-  mv $PKG1/usr/lib$LIBDIRSUFFIX/jvm* usr/lib$LIBDIRSUFFIX
-  # And add the missing javac symlink:
-  ln -s ../../../bin/ecj usr/lib$LIBDIRSUFFIX/jvm/bin/javac
-  # Don't package libffi stuff anymore.  GCC will link the internal version
-  # statically, and we'll need a newer one elsewhere.
-  find . -name "ffi*.h" | xargs rm
-  find . -name "libffi*" | xargs rm
-  rm -f usr/man/man3/ffi*
-  rm -f usr/info/libffi*
 )
 
 # gcc-objc:
@@ -756,37 +550,29 @@ mv $PKG1/usr/bin/gnative2ascii $PKG5/usr/bin
   mv $PKG1/usr/info/gccgo.info.gz usr/info
   mkdir -p usr/lib${LIBDIRSUFFIX}
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.la,libgo.so*,libgobegin.a,libgolibbegin.a,libnetgo.a} usr/lib${LIBDIRSUFFIX} || exit 1
-  # Ordinarily Slackware doesn't package static libraries, but in this case
-  # it is useful for deploying compiled binaries on machines that do not yet
-  # have libgo.so.0.0.0.
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a usr/lib${LIBDIRSUFFIX}
+  if [ -r $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.la ]; then
+    mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.la usr/lib${LIBDIRSUFFIX}
+  fi
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.so*,libgobegin.a,libgolibbegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
+  # Don't package the (bloated) libgo.a. As a rule, we don't package static libraries.
+  rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a
   mkdir -p usr/man/man1
   mv $PKG1/usr/man/man1/gccgo.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/go.1.gz usr/man/man1
   mv $PKG1/usr/man/man1/gofmt.1.gz usr/man/man1
 ) || exit 1
 
-# Filter all .la files (thanks much to Mark Post for the sed script):
-( cd $TMP
-  for file in $(find . -type f -name "*.la") ; do
-    cat $file | sed -e 's%-L/gcc-[[:graph:]]* % %g' > $TMP/tmp-la-file
-    cat $TMP/tmp-la-file > $file
-  done
-  rm $TMP/tmp-la-file
+# gcc-brig:
+( cd $PKG9
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/*brig* usr/bin
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libhsail* usr/lib${LIBDIRSUFFIX}
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/brig1 usr/libexec/gcc/$TARGET/$VERSION
 )
 
-## Strip bloated binaries and libraries:
-for dir in $PKG{1,2,3,4,5,6,8}; do
-  ( cd $dir
-    find . -name "lib*so*" -exec strip --strip-unneeded "{}" \;
-    find . -name "lib*a" -exec strip -g "{}" \;
-    strip --strip-unneeded usr/bin/* 2> /dev/null
-    find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-    find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  )
-done
-
+# Generate packages:
 ( cd $PKG1
   makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG2
@@ -795,14 +581,12 @@ done
   makepkg -l y -c n $TMP/gcc-gfortran-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG4
   makepkg -l y -c n $TMP/gcc-gnat-$VERSION-$ARCH-$BUILD.txz )
-( cd $PKG5
-  makepkg -l y -c n $TMP/gcc-java-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG6
   makepkg -l y -c n $TMP/gcc-objc-$VERSION-$ARCH-$BUILD.txz )
-#( cd $PKG7
-#  makepkg -l y -c n $TMP/gcc-g++-gch-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG8
   makepkg -l y -c n $TMP/gcc-go-$VERSION-$ARCH-$BUILD.txz )
+( cd $PKG9
+  makepkg -l y -c n $TMP/gcc-brig-$VERSION-$ARCH-$BUILD.txz )
 
 echo
 echo "Slackware GCC package build complete!"

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libxml2
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
@@ -33,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -51,7 +60,9 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
+PYTHONLIB=$( python -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' )
+PYTHON3LIB=$( python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' )
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-libxml2
 rm -rf $PKG
@@ -59,8 +70,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf libxml2-$VERSION
-tar xvf $CWD/libxml2-$VERSION.tar.?z* || exit 1
-cd libxml2-$VERSION
+tar xvf $CWD/libxml2-$VERSION.tar.?z || exit 1
+cd libxml2-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -70,7 +81,22 @@ find . \
 
 zcat $CWD/libxml2.do-not-check-crc.diff.gz | patch -p1 --verbose || exit 1
 
-zcat $CWD/0001-Fix-attribute-decoding-during-XML-schema-validation.diff.gz | patch -p1 --verbose || exit 1
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --disable-static \
+  --with-python=/usr/bin/python3 \
+  --build=$ARCH-slackware-linux || exit 1
+
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+python3 -m compileall "${PKG}$PYTHON3LIB"
+python3 -O -m compileall "${PKG}$PYTHON3LIB"
+
+make clean
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -78,15 +104,17 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --disable-static \
-  --build=$ARCH-slackware-linux 
+  --with-python=/usr/bin/python \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-#echo
-#echo "Only the python bindings in /usr/lib/python__/site-packages/ should"
-#echo "be kept... toss the other stuff"
-#echo
+python -m compileall "${PKG}$PYTHONLIB"
+python -O -m compileall "${PKG}$PYTHONLIB"
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -94,7 +122,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 mv $PKG/usr/share/doc $PKG/usr
 mv $PKG/usr/doc/libxml2-python-$VERSION $PKG/usr/doc/libxml2-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README \
+  AUTHORS COPYING* INSTALL NEWS README* \
   $PKG/usr/doc/libxml2-$VERSION
 find $PKG/usr/doc/libxml2-$VERSION -type f | xargs chmod 644
 
@@ -102,12 +130,6 @@ gzip -9 $PKG/usr/man/man?/*.?
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
-# Be sure to clobber any .pyc files that might have been generated so that
-# the new .py files will be used instead of the already compiled copies
-cat << EOF > $PKG/install/doinst.sh
-rm -f /usr/lib${LIBDIRSUFFIX}/python2.7/site-packages/libxml2.pyc
-rm -f /usr/lib${LIBDIRSUFFIX}/python2.7/site-packages/drv_libxml2.pyc
-EOF
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/libxml2-$VERSION-$ARCH-$BUILD.txz

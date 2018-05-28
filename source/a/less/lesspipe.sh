@@ -2,7 +2,7 @@
 #
 # Copyright 1997, 1998, 1999, 2000  Patrick Volkerding, Moorhead, MN, USA
 # Copyright 2001, 2002  Slackware Linux, Inc, Concord, CA, USA
-# Copyright 2006, 2009  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2009, 2017  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,8 +29,9 @@
 lesspipe() {
   case "$1" in
   *.tar) tar tvvf "$1" 2>/dev/null ;;
+  *.tar.lzma ) lzma -dc "$1" 2> /dev/null | tar tvvf - 2> /dev/null ;;
   *.tgz | *.tar.gz | *.tar.Z | *.tar.z | *.tar.bz2 | *.tbz ) tar tvvf "$1" 2>/dev/null ;;
-  *.tlz | *.tar.lzma ) lzma -dc "$1" 2> /dev/null | tar tvvf - 2> /dev/null ;;
+  *.tlz | *.tar.lz ) lzip -dc "$1" 2> /dev/null | tar tvvf - 2> /dev/null ;;
   *.txz | *.tar.xz ) xz -dc "$1" 2> /dev/null | tar tvvf - 2> /dev/null ;;
   *.zip) unzip -l "$1" 2>/dev/null ;;
   *.rpm) rpm -qpvl "$1" 2>/dev/null ;;

@@ -1,0 +1,2924 @@
+--- nn-6.7.3.orig/Makefile
++++ nn-6.7.3/Makefile
+@@ -24,7 +24,7 @@
+ #CPP =		/lib/cpp
+ #CPP =		/usr/bin/cpp -no-cpp-precomp	# for MacOS X
+ 
+-CFLAGS =	-O # -g -Wall -ansi -pedantic
++CFLAGS =	-O2 # -g -Wall -ansi -pedantic
+ #CFLAGS =	-O # -w0 -g3			# for DEC
+ 
+ MAKE =		make
+@@ -61,6 +61,7 @@
+ 	sed -e '1,/MAKE WILL CUT HERE/d' \
+ 	    -e '/^#/d' \
+ 	    -e 's/^  */	/' \
++ 	    -e 's/^ /	/' \
+ 	    -e '/^[ \f	]$$/d' \
+ 	    -e '/^[ \/]*[*]/d' | \
+ 	sed -n -e '/^..*$$/p' > ymakefile
+--- nn-6.7.3.orig/admin.c
++++ nn-6.7.3/admin.c
+@@ -764,7 +764,7 @@
+ 		goto tr_failed;
+ 	    }
+ 	    log_entry('A', "Log Truncated");
+-	    chmod(log_file, 0666);
++	    chmod(log_file, 0644);
+ 	}
+ 	return;
+ 
+--- nn-6.7.3.orig/answer.c
++++ nn-6.7.3/answer.c
+@@ -167,7 +167,7 @@
+ 
+     ng = use_follow && news.ng_follow ? news.ng_follow : news.ng_groups;
+     if (ng == NULL)
+-	return;
++       return;
+ 
+     fprintf(t, "Newsgroups: %s\n", ng);
+     ed_line++;
+--- nn-6.7.3.orig/aux.c
++++ nn-6.7.3/aux.c
+@@ -507,7 +507,7 @@
+ 		prompt_line = Lines - 1;
+ 		prompt("To: ");
+ 		unset_raw();
+-		if (getline(&cc[0], sizeof(cc)) == 0)
++		if (local_getline(&cc[0], sizeof(cc)) == 0)
+ 		    cc[0] = CR;
+ 		nn_raw();
+ 		if (cc[0] != CR)
+--- nn-6.7.3.orig/aux.sh
++++ nn-6.7.3/aux.sh
+@@ -282,7 +282,7 @@
+     # call editor to enter at line $ED_LINE of work file
+ 
+     case `basename "${EDITOR-vi}"` in
+-    vi|emacs|emacsclient|pico|joe )
++    vi|emacs|emacsclient|pico|joe|jove|jv )
+       # Berkeley vi display editor
+       # GNU emacs display editor
+       # pico display editor
+@@ -484,6 +484,10 @@
+   ?*)
+     echo "To: $CC" > $TEMP
+     sed -e "s/^To:/X-To:/" $FINAL >>$TEMP
++    echo "
++------
++This is a Cc: of an article on USENET sent to you for your convenience.
++------" >> $TEMP
+     if $MAILER_PIPE ; then
+       $MAILER < $TEMP
+       x=$?
+--- nn-6.7.3.orig/conf/s-linux.h
++++ nn-6.7.3/conf/s-linux.h
+@@ -187,7 +187,7 @@
+ 
+ /* #define	MAILX		"/usr/bin/mailx"	/* SV */
+ /* #define	MAILX	"/usr/ucb/Mail"		/* BSD */
+-#define	MAILX	"/bin/mailx"	/* linux */
++#define	MAILX	"/usr/bin/mailx"	/* linux */
+ 
+ /*
+  *	Define the maximum length of any pathname that may occur
+@@ -225,7 +225,7 @@
+  *	Define standard compiler flags here:
+  */
+ 
+-#define COMPILER_FLAGS -O2
++#define COMPILER_FLAGS -O2 -fno-strength-reduce -fomit-frame-pointer -pipe
+ 
+ /*
+  *	Define standard loader flags here:
+--- nn-6.7.3.orig/config.h-dist
++++ nn-6.7.3/config.h-dist
+@@ -23,6 +23,10 @@
+ 
+ /************************* NOV CONFIGURATION ******************************
+  *
++ *	Define USE_SPOOL if you want to be able to read directly on a news
++ *	spool. You may have to also correct NOV_DIRECTORY NOV_FILENAME and 
++ *	NEWS_DIRECTORY settings to match your local Spool-Configuration.
++ *
+  *	Define NOV if you have access to .overview files in your news spool
+  *	area and you want to use them rather than run nnmaster.
+  *	If you use NNTP and your server is INN 1.4 or later with XOVER support
+@@ -39,6 +43,9 @@
+  *	NOV_DIRECTORY and NOV_FILENAME can normally be left undefined.
+  */
+ 
++/* Optional */
++/* #define USE_SPOOL */
++
+ #define NOV
+ 
+ /* Optional */
+--- nn-6.7.3.orig/debian/README.Debian
++++ nn-6.7.3/debian/README.Debian
+@@ -0,0 +1,28 @@
++nn for Debian
++-------------
++
++* LOCAL SPOOL reading.
++
++  Reading directly on spool disabled, because we have to many
++  newsserver-setups which characteristics have to compiled into this package.
++
++  Joey (Martin Schulze <joey@debian.org>) has patched nn so it is able to use
++  both local spool and remote news servers.  To use the local spool variant
++  you have to ensure that the local hostname and the name of the news server
++  (see for /etc/news/server) are the same.  They are compared case
++  insensitive.
++
++  Reading on local spool only works if you use traditional spool.  To enable
++  it, you have to change the settings for USE_SPOOL and NOV* in
++  debian/config.h and then recompile.
++
++ -- Cord Beermann <cord@debian.org>  Thu, 21 Feb 2002 00:21:45 +0100
++
++* RFC1522-Patch pulled.
++
++  I removed the patch that tried to interpret iso-encodings in Subject/From
++  and so on, because RFC1522 is obsolete, the patch is ugly and unmaintained.
++
++  If you want it back drop me a note.
++
++ -- Cord Beermann <cord@debian.org>  Thu, 01 Oct 2005 23:37:19 +0200
+--- nn-6.7.3.orig/debian/TODO
++++ nn-6.7.3/debian/TODO
+@@ -0,0 +1,3 @@
++* RFC1522-Patch is only useful for reading. for writing there 
++  should be Content-*-Headers.
++* mktemp should be replaced by tmpfile.
+--- nn-6.7.3.orig/debian/changelog
++++ nn-6.7.3/debian/changelog
+@@ -0,0 +1,371 @@
++nn (6.7.3-10) unstable; urgency=medium
++
++  * add patch by Chris Lamb <lamby@debian.org> for reproducable builds.
++    (closes: #776764)
++  * bumb debhelper to 9
++
++ -- Cord Beermann <cord@debian.org>  Thu, 20 Aug 2015 13:39:10 +0200
++
++nn (6.7.3-9) unstable; urgency=low
++
++  * The DebConf-Release
++  * Bump Standard-Version to 3.9.6
++  * Reconfigured Hardening to make lintian happy
++
++ -- Cord Beermann <cord@debian.org>  Mon, 10 Aug 2015 21:22:13 +0200
++
++nn (6.7.3-8) unstable; urgency=low
++
++  * define MAXHOSTNAMELEN if not already set for the Hurd.
++
++ -- Cord Beermann <cord@debian.org>  Sun, 24 Jun 2012 10:35:12 +0200
++
++nn (6.7.3-7) unstable; urgency=low
++
++  * Fix a lintian-override thanks to: Jakub Wilk <jwilk@debian.org> 
++    (closes: #642239)
++
++ -- Cord Beermann <cord@debian.org>  Sun, 24 Jun 2012 10:03:38 +0200
++
++nn (6.7.3-6) unstable; urgency=low
++
++  * disabled DEB_BUILD_HARDENING_FORMAT
++
++ -- Cord Beermann <cord@debian.org>  Sat, 23 Jun 2012 20:34:59 +0200
++
++nn (6.7.3-5) unstable; urgency=low
++
++  * fix debian/rules to have a config.h when we need it.
++
++ -- Cord Beermann <cord@debian.org>  Sat, 23 Jun 2012 19:12:01 +0200
++
++nn (6.7.3-4) unstable; urgency=low
++
++  * Acknowledge NMUs (closes: #628348)
++  * Add Hardening
++  * Remove Template from watch-File
++  * Fixed duplicate changelog
++  * Bump Standard to 3.9.3 (no changes)
++
++ -- Cord Beermann <cord@debian.org>  Thu, 21 Jun 2012 23:18:07 +0200
++
++nn (6.7.3-3.1) unstable; urgency=low
++
++  * Non-maintainer upload.
++  * Fix "FTBFS: ymakefile:12: *** commands commence before first target.
++    Stop.": add patch from Ubuntu / Andreas Moog:
++    - Escape backslashes in makefile template to fix FTBFS (LP: #756213)
++      (Closes: #628348)
++
++ -- gregor herrmann <gregoa@debian.org>  Tue, 25 Oct 2011 18:24:08 +0200
++
++nn (6.7.3-3) unstable; urgency=low
++
++  * add spanish Translation (closes: #570354)
++  * Acknowledge NMUs
++  * Make Lintian happy
++    + Fixed typos 
++    + moving nn-eu.po to eu.po
++    + Bumped Policy-version
++    + DH version 7
++
++ -- Cord Beermann <cord@debian.org>  Tue, 25 May 2010 17:44:40 +0200
++
++nn (6.7.3-2.2) unstable; urgency=low
++
++  * Non-maintainer upload.
++  * Rename local getline func to local_getline. (Closes: #552849, #548461).
++  * Add Italian debconf translation. (Closes: #504995).
++    + Thanks to Luca Monducci.
++
++ -- Barry deFreese <bdefreese@debian.org>  Sat, 31 Oct 2009 20:55:20 -0400
++
++nn (6.7.3-2.1) unstable; urgency=low
++
++  * Non-maintainer upload to fix bashism in build process.
++  * Modified prefix.c to check for a NULL value when generating shell
++    scripts headers (closes: #459108)
++  * Added nl.po and pt_BR.po contributed by Bart Cornelis and Eder L. Marques
++    (closes: #419733) (closes: #447150)
++  * Fixed text lines in the manpages with a leading dot.
++  * Converted debian copyright file to utf8.
++  * Updated menu file "Apps/Net" -> "Applications/Network/Communication".
++
++ -- Maximiliano Curia <maxy@gnuservers.com.ar>  Sat, 08 Mar 2008 16:07:37 -0200
++
++nn (6.7.3-2) unstable; urgency=medium
++
++  * debconf translations
++    + added ka.po and vi.po (closes: #399496) (sorry, Christian)
++  * no more changes, should be safe for release...
++
++ -- Cord Beermann <cord@debian.org>  Wed,  3 Jan 2007 22:34:53 +0100
++
++nn (6.7.3-1) unstable; urgency=low
++
++  * New upstream release (no significant changes)
++  * debconf translations
++    + added basque translation (closes: #331351)
++    + updated swedish translation (closes: #331351)
++    + updated russian translation (closes: #361657)
++    + added portugese translation (closes: #381633)
++  * Fix up broken templates/config/postinst files (closes: #335270)
++    (many thanks to  J S Bygott for figuring this out)
++  * Fix bashism (closes: #376430)
++  * bumped Standards-Version, no change.
++
++ -- Cord Beermann <cord@debian.org>  Sun, 19 Nov 2006 13:40:15 +0100
++
++nn (6.7.2-1) unstable; urgency=low
++
++  * New upstream (closes: #325055)
++    + fixed AUTO-Domain-problem (closes: #190599)
++  * Update debian/watch
++  * debconf translations
++    + added japanese (closes: #308748)
++    + changed german (closes: #311853)
++    + added vietnamese (closes: #316060)
++    + added french (closes: #299252)
++    + added czech (closes: #309078)
++    + added danish (closes: #323364)
++  * Bumped Standard-version
++  * added {misc:Depend}
++  * Make Lintian happy
++    + removed non-bashism from nn.config
++
++ -- Cord Beermann <cord@debian.org>  Sat,  1 Oct 2005 21:50:12 +0200
++
++nn (6.6.5-2) unstable; urgency=low
++
++  * Applied patch by  Martin Quinson <martin.quinson@imag.fr> for
++    gettext-based debconf templates (closes: #237443)
++  * Applied patch by  Andreas Jochens <aj@andaco.de> to let nn also
++    build with gcc-4.3 (closes: #265531)
++  * make lintian happy:
++    + fixed three manpages.
++    + fixed debian/menu
++    + added sendmail as alternative for mail-transport-agent
++  * bumped Standards-Version, no change.
++
++ -- Cord Beermann <cord@debian.org>  Sat, 26 Feb 2005 22:03:22 +0100
++
++nn (6.6.5-1) unstable; urgency=low
++
++  * New upstream release
++    - nnview no longer tries to connect to the NNTPSERVER
++    - DOMAIN can now be defined even if HIDDENNET isn't
++    - nn no longer segfaults if it reconnects during initial authentication
++  * added danish debconf-template (closes: #174796)
++  * closing old bug. Reporter didn't respond to question if his problem is
++    fixed. I think the problem (displaying errorcodes) is. (closes: #9356)
++
++ -- Cord Beermann <cord@debian.org>  Mon, 10 Feb 2003 16:05:00 +0100
++
++nn (6.6.4-1) unstable; urgency=low
++
++  * New upstream release
++    + fixes security problem. (closes: #150418)
++  * added /etc/news to the nn-dirs. (closes: #134002)
++  * added russian debconf-template (closes: #136601)
++  * removed apostrophe from description. (closes: #139730)
++
++ -- Cord Beermann <cord@debian.org>  Fri, 28 Jun 2002 19:50:10 +0200
++
++nn (6.6.2-5) unstable; urgency=low
++
++  * reactivated Digests, since it looks like it works again. 
++    (closes: #129654)
++
++ -- Cord Beermann <cord@debian.org>  Thu, 31 Jan 2002 23:41:10 +0100
++
++nn (6.6.2-4) unstable; urgency=low
++
++  * fixed a buffer-overflow in RfC1522-Patch. 
++    (Thanks to Elrond for the patch)
++  * added fix by Bob Hain <bob@me.umn.edu> to workaround HIDDENNET
++
++ -- Cord Beermann <cord@debian.org>  Fri,  2 Nov 2001 22:04:36 +0100
++
++nn (6.6.2-3) unstable; urgency=low
++
++  * disabled check for $MTA. Debian-Dependency will do this for us.
++    (closes: #116641)
++
++ -- Cord Beermann <cord@debian.org>  Tue, 23 Oct 2001 20:42:27 +0200
++
++nn (6.6.2-2) unstable; urgency=low
++
++  * fixed symlinks.
++  * added german-template to debconf (closes: #116471)
++  * removed old MANIFEST-File as we don't need it anymore for building.
++  * written man-page for nnbatch.
++
++ -- Cord Beermann <cord@debian.org>  Sun, 21 Oct 2001 12:07:06 +0200
++
++nn (6.6.2-1) unstable; urgency=low
++
++  * New upstream release
++  * finally Lintian-happy
++
++ -- Cord Beermann <cord@debian.org>  Fri, 19 Oct 2001 20:51:36 +0200
++
++nn (6.6.0-4) unstable; urgency=low
++
++  * making lintian happy.
++    - upstream changelog now correct.
++    - debconf removed from Build-dependency and added to dependency.
++    - changed odd 'Upstream Author(s)'
++    - nnbatch.1 gets undocumented-manpage.
++
++ -- Cord Beermann <cord@debian.org>  Wed,  3 Oct 2001 11:41:14 +0200
++
++nn (6.6.0-3) unstable; urgency=low
++
++  * moved Logfile to $USER/.nn (close a point out of the reopened #9356)
++  * reverted mkstemp back to mktemp.
++  * remove update.h on clean.
++  * Build-dependency changed from libncurses5-dev to libncurses-dev
++
++ -- Cord Beermann <cord@debian.org>  Wed,  3 Oct 2001 11:41:14 +0200
++
++nn (6.6.0-2) unstable; urgency=low
++
++  * removed -malign-{loops,jumps,functions} from Compiler-Flags. 
++    (closes: #114028)
++  * real fixing build problem with gcc-3.x. Programs which use different
++    meanings to Tabs and spaces have to die! (closes: #104956)
++
++ -- Cord Beermann <cord@debian.org>  Mon,  1 Oct 2001 11:32:10 +0200
++
++nn (6.6.0-1) unstable; urgency=low
++
++  * New Maintainer.
++  * Package rebuilt from scratch.
++  * New upstream release. changes include:
++    - support for NNTP AUTH. Can't find information XAUTHINFO GENERIC.
++      (closes: #9356)
++    - 'mailed to the moderator' added to aux-script. (closes: #54333)
++  * added RfC1522-patch by Kristian Koehntopp and Stefan Roerich
++  * added a patch by Daniel Merritt <merritt@highlander.cbnet.ns.ca> which
++    prevents nn from crashing if NNTPSERVER contains an unresolveable name.
++    (closes: #97074)
++  * disabled NOV, it causes different problems. People should read per NNTP or
++    have to recompile to read directly on spool. (closes: #84409, #105759)
++  * NMU fixes finally closed. (closes: #83855, #90457, #92105)
++  * guessed that the Bugreport from hppa-autobuilder could be this: fixed
++    build problem with gcc-3.x (fix found in news.software.nn by Neil W
++    Rickert <rickert+nn@cs.niu.edu>) (closes: #104956)
++    Please make sure that new Bugreports are more meaningful!
++  * Bug has disappeared (closes: #83442)
++
++ -- Cord Beermann <cord@debian.org>  Sat, 22 Sep 2001 21:11:46 +0200
++
++nn (6.5.1-7.2) unstable; urgency=low
++
++  * Added the missing build dependency on gawk.
++    (closes: #90457, #92105)
++  * Standards-Version: 3.1.1
++
++ -- Adrian Bunk <bunk@fs.tum.de>  Sun, 15 Apr 2001 00:54:44 +0200
++
++nn (6.5.1-7.1) unstable; urgency=low
++
++  * Non-maintainer upload
++  * Fix compilation with libncurses5-dev 5.2.20010310-2. Fixes: #83855
++  * Added Build-Depends on libncurses5-dev.
++  * Fixed menu file (lintian error).
++  * Added -isp to dpkg-gencontrol (lintian warning).
++  * Moved docs to /usr/share/doc and added code to postinst and prerm to
++    handle the /usr/doc symlinks (lintian error).
++
++ -- Paul Martin <pm@debian.org>  Sun, 18 Mar 2001 20:03:52 +0000
++
++nn (6.5.1-7) unstable; urgency=low
++
++  * The postinst script will now create /etc/news if it does not exist
++    (closes: Bug#49639)
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Fri, 12 Nov 1999 21:04:10 +0100
++
++nn (6.5.1-6) unstable; urgency=low
++
++  * Reverted patch for 6.5.1-5 since the bug was mistakenly taken care
++    of.  In our policy Section 2.3.8 talks about /etc/nntpserver but
++    section 4.6 talks about /etc/news/server.  It seems that the
++    reference to /etc/nntpserver was just left in by accident when policy
++    was updated to use /etc/news/server.  See also Bug#21875
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Tue, 20 Apr 1999 00:18:49 +0200
++
++nn (6.5.1-5) unstable; urgency=low
++
++  * Changed location for NNTP server to /etc/nntpserver (closes:
++    Bug#Bug#36135)
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Fri, 16 Apr 1999 10:18:15 +0200
++
++nn (6.5.1-4) frozen unstable; urgency=low
++
++  * Re-upload into frozen
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Sun,  8 Nov 1998 12:41:48 +0100
++
++nn (6.5.1-3) unstable; urgency=low
++
++  * Corrected menu file (closes: Bug#29119)
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Sat,  7 Nov 1998 18:05:00 +0100
++
++nn (6.5.1-2) frozen unstable; urgency=medium
++
++  * Reupload into frozen because the distribution was changed suddenly
++    *after* the last upload so it went into the wrong one.
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Tue,  3 Nov 1998 23:08:25 +0100
++
++nn (6.5.1-1) unstable; urgency=low
++
++  * New maintainer
++  * New upstream source (close: Bug#12973)
++  * New packaging scheme
++  * New menu file
++  * Updated Standards-Version
++  * New config.h, placed it into the debian directory instead of a set of
++    only half working sed rules
++  * Updated copyright file
++  * Moved tmp directory to /tmp (was: /var/tmp)
++  * Turned all insecure gets() into size-checking fgets() calls
++  * Some variables are now initialized with proper values
++  * Extracted <term.h> and placed a locally modified copy in the debian
++    directory
++  * Removed nnbatch
++  * Turned strcmp() into strcasecmp() for comparing the local hostname
++    with the nntp server.  This would turn even more machines into use
++    local spool files.
++  * Included old README since it still contains information
++  * Introduced NEWS_VAR_DIRECTORY alias news_var_directory to provide the
++    distinction between /usr/lib/news and /var/lib/news (closes: Bug#4181,
++    Bug#5296, Bug#5815, Bug#8092, Bug#12980)
++  * Reworked description (closes: Bug#18968)
++  * Removed absolute path to inews *sigh* (closes: Bug#14025)
++  * Reworked postinst (closes: Bug#12591)
++  * Added NULL-test to nntp_check(), thanks dark (closes: Bug#8093)
++  * Included sample init file (closes: Bug#7684, Bug#24235)
++  * Added patch from Franco Venturi <fventuri@mediaone.net> to be able to
++    work with more than 32k active newsgroups (closes: Bug#22024)
++
++ -- Martin Schulze <joey@finlandia.infodrom.north.de>  Sun,  1 Nov 1998 02:35:48 +0100
++
++nn (6.5.0.b3.linux.1.1-1.1) unstable; urgency=low
++  
++  * Non-maintainer release.
++  * Libc6 compile.
++  * Updated from pre 2.0.0.0 standards.
++
++ -- Martin Mitchell <martin@debian.org>  Wed, 12 Nov 1997 21:44:07 +1100
++
++
++
++Local variables:
++mode: debian-changelog
++End:
+--- nn-6.7.3.orig/debian/compat
++++ nn-6.7.3/debian/compat
+@@ -0,0 +1 @@
++9
+--- nn-6.7.3.orig/debian/config.h
++++ nn-6.7.3/debian/config.h
+@@ -0,0 +1,441 @@
++/**************************** NN CONFIGURATION ***************************
++ *
++ *	Configuration file for nn.
++ *
++ *	You must edit this file to reflect your local configuration
++ *	and environment.
++ *
++ *	Before editing this file, read the licence terms in the README
++ *	file and the installation guidelines in the INSTALLATION file.
++ *
++ *	(c) Copyright 1990, Kim F. Storm.  All rights reserved.
++ */
++
++
++
++/*
++ * The Good Net-Keeping Seal of Approval folks seem to think it necessary to
++ * waste screen real estate with headers.  For such people, uncomment the
++ * following to change the default headers
++ */
++
++/* #define GNKSA	*/
++
++
++/************************* NOV CONFIGURATION ******************************
++ *
++ *	Define USE_SPOOL if you want to be able to read directly on a news
++ *	spool. You may have to also correct NOV_DIRECTORY NOV_FILENAME and 
++ *	NEWS_DIRECTORY settings to match your local Spool-Configuration.
++ *
++ *	Define NOV if you have access to .overview files in your news spool
++ *	area and you want to use them rather than run nnmaster.
++ *	If you use NNTP and your server is INN 1.4 or later with XOVER support
++ *	and is generating .overview files there, you can use NOV over NNTP. In
++ *	that case, make sure you define NNTP below as well.
++ *
++ *	If your NOV implementation doesn't have records for digests (none
++ *	that I know of do), you might want to define 'DO_NOV_DIGEST'.
++ *	This will cause nn to grab a digest article and split it apart
++ *	before anything has been selected to be read from that article.
++ *	'DO_NOV_DIGEST' is necessary if you want any digests (like
++ *	'comp.risks') to be automatically split.
++ *
++ *	NOV_DIRECTORY and NOV_FILENAME can normally be left undefined.
++ */
++
++/* Optional */
++/* #define USE_SPOOL */
++
++#define NOV
++
++/* Optional */
++#define DO_NOV_DIGEST
++
++/* Optional */
++/* #define NOV_DIRECTORY	"/usr/spool/news"	*/
++
++/* Optional */
++/* #define NOV_FILENAME		".overview"		*/
++
++
++/********************************** NNTP *********************************
++ *
++ *	Define NNTP to enable nntp support.  If you are not using NNTP,
++ *	just leave the following NNTP_* definitions as they are - they
++ *	will be ignored anyway.
++ */
++
++#define NNTP
++
++/*
++ *	Define NNTP_SERVER to the name of a file containing the name of the
++ *	nntp server (aka the newsserver you connect to).
++ *
++ *	If the file name does not start with a slash, it is relative to
++ *	LIB_DIRECTORY defined below.
++ */
++
++#define NNTP_SERVER	"/etc/news/server"
++
++/*
++ *  Define your local domain name.  If you leave this undefined, nn will
++ *  attempt to discover it.
++ *  See comment below on HIDDENNET.
++ */
++
++/* #define DOMAIN	"frobozz.bogus" */
++
++/*
++ *  If you define HIDDENNET, the hostname will not appear in the posting
++ *  data except on the path.  Items will be from user@DOMAIN (with
++ *  DOMAIN as defined above).  If you don't want this, comment it out.
++ */
++
++#define HIDDENNET
++
++
++/***************** OPERATING SYSTEM DEPENDENT DEFINITIONS *******************
++ *
++ *	Include the appropriate s- file for your system below.
++ *
++ *	If a file does not exist for your system, you can use
++ *	conf/s-template.h as a starting point for writing you own.
++ */
++
++#include "s-linux.h"
++
++/*
++ *	Define DEFAULT_PAGER as the initial value of the 'pager' variable.
++ *	nnadmin pipes shell command output though this command.
++ */
++
++/* #define DEFAULT_PAGER	"pg -n -s"	*/	/* System V */
++#define DEFAULT_PAGER		"sensible-pager"			/* bsd */
++
++/*
++ *	DEFAULT_PRINTER is the initial value of the 'printer' variable.
++ *	nn's :print command pipes text into this command.
++ */
++
++/* #define DEFAULT_PRINTER	"lp -s"		*/	/* System V */
++#define DEFAULT_PRINTER		"lpr -p -JNEWS"		/* bsd */
++
++
++/********************** MACHINE DEPENDENT DEFINITIONS **********************
++ *
++ *	Include the appropriate m- file for your system below.
++ *
++ *	If a file does not exist for your system, you can use
++ *	conf/m-template.h as a starting point for writing you own.
++ */
++
++#include "m-i80386.h"
++
++
++/***************************** OWNERSHIP ***************************
++ *
++ *	Specify owner and group for installed files and programs.
++ *
++ *	The nnmaster will run suid/sgid to this owner and group.
++ *
++ *	The only requirements are that the ownership allows the
++ *	nnmaster to READ the news related files and directories, and
++ *	the ordinary users to read the database and execute the nn*
++ *	programs.
++ *
++ *	Common choices are: (news, news) and (your uid, your gid)
++ */
++
++#define OWNER	"news"
++#define GROUP	"news"
++
++
++/**************************** LOCALIZATION ****************************
++ *
++ *	Specify where programs and files are installed.
++ *
++ *	BIN_DIRECTORY	 - the location of the user programs (mandatory)
++ *
++ *	LIB_DIRECTORY	 - the location of auxiliary programs and files.
++ *			   (mandatory UNLESS ALL of the following are defined).
++ *
++ *	MASTER_DIRECTORY - the location of the master program (on server)
++ *			   (= LIB_DIRECTORY if undefined)
++ *
++ *	CLIENT_DIRECTORY - the location of auxiliary programs (on clients)
++ *			   (= LIB_DIRECTORY if undefined)
++ *
++ *	HELP_DIRECTORY	 - the location of help files, online manual, etc.
++ *			   (= CLIENT_DIRECTORY/help if undefined)
++ *
++ *	CACHE_DIRECTORY	 - if NNTP is used, nn uses this central directory
++ *			   to store working copies of articles on the local
++ *			   system.  If not defined, it stores the articles
++ *			   in each user's ~/.nn directory.
++ *
++ *	TMP_DIRECTORY	 - temporary file storage.  Overriden by $TMPDIR.
++ *			   (= /var/tmp if undefined).
++ *
++ *	LOG_FILE	 - the location of nn's log file.
++ *			   (= $HOME/.nn/Log if undefined).
++ */
++
++#define BIN_DIRECTORY	"/usr/bin"
++#define LIB_DIRECTORY	"/usr/lib/nn"
++
++
++
++
++/*************************** MAIL INTERFACE *************************
++ *
++ *	Specify a mailer that accepts a letter WITH a header IN THE TEXT.
++ *
++ *	A program named 'recmail' program is normally delivered with
++ *	the Bnews system, or you can use sendmail -t if you have it.
++ *
++ *	The contrib/ directory contains two programs which you might
++ *	be able to use with a little tweaking.
++ */
++
++/* #define REC_MAIL	"/usr/lib/news/recmail"	*/	/* non-sendmail */
++#define REC_MAIL	"/usr/lib/sendmail -t"		/* sendmail */
++
++
++/*
++ *	nn needs to know the name of your host.
++ *	To obtain the host name it will use either of the 'uname' or
++ *	'gethostname' system calls as specified in the s-file included
++ *	above.
++ *
++ *	If neither 'uname' nor 'gethostname' is available, you must
++ *	define HOSTNAME to be the name of your host.  Otherwise, leave
++ *	it undefined (it will not be used anyway).
++ */
++
++/* #define HOSTNAME	"myhost"	*/
++
++/*
++ *	Define APPEND_SIGNATURE if you want nn to ask users to append
++ *	~/.signature to mail messages (reply/forward/mail).
++ *
++ *	If the mailer defined in REC_MAIL automatically includes .signature
++ *	you should not define this (it will fool people to include it twice).
++ *
++ *	I think 'recmail' includes .signature, but 'sendmail -t' doesn't.
++ */
++
++#define APPEND_SIGNATURE
++
++/*
++ *	BUG_REPORT_ADDRESS is the initial value of the bug-report-address
++ *	variable which is used by the :bug command to report bugs in
++ *	the nn software.
++ */
++
++#define BUG_REPORT_ADDRESS	"mtpins@nndev.org"
++
++
++/*************************** DOCUMENTATION ***************************
++ *
++ *	Specify directories for the user and system manuals
++ *
++ *	Adapt this to your local standards; the manuals will be named
++ *		$(MAN_DIR)/program.$(MAN_SECTION)
++ *
++ *	USER_MAN	- nn, nntidy, nngrep, etc.
++ *	SYS_MAN		- nnadmin
++ *	DAEMON_MAN	- nnmaster
++ */
++
++#define USER_MAN_DIR	"/usr/share/man/man1"
++#define USER_MAN_SECTION	"1"
++
++#define SYS_MAN_DIR	"/usr/share/man/man1"
++#define SYS_MAN_SECTION		"1m"
++
++#define DAEMON_MAN_DIR	"/usr/share/man/man8"
++#define DAEMON_MAN_SECTION	"8"
++
++
++/************************** LOCAL POLICY *****************************
++ *
++ *	Define STATISTICS if you want to keep a record of how much
++ *	time the users spend on news reading.
++ *
++ *	Sessions shorter than the specified number of minutes are not
++ *	recorded (don't clutter up the log file).
++ *
++ *	Usage statistics is entered into the $LOG_FILE with code U
++ */
++
++/* #define STATISTICS	5	*/	/* minutes */
++
++/*
++ *	Define ACCOUNTING if you want to keep accumulated accounting
++ *	based on the statistics in a separate 'acct' file.  In this
++ *	case, the accounting figures will be secret, and not be
++ *	written to the Log file.  And the users will not be able to
++ *	"decrease" their own account.
++ *
++ *	See account.h for optional cost calculation parameters.
++ */
++
++/* #define ACCOUNTING	*/
++
++/*
++ *	Define AUTHORIZE if you want to restrict the use of nn to
++ *	certain users or certain periods of the day.  Define both
++ *	this and ACCOUNTING if you want to impose a usage quota.
++ *
++ *	See account.h for implementing various access policies.
++ */
++
++/* #define AUTHORIZE	*/
++
++/*
++ *	Default folder directory
++ */
++
++#define FOLDER_DIRECTORY	"~/News"
++
++/*
++ *	Default length of authors name (in "edited" format).
++ *	Also size of "Name" field on the article menus.
++ *	The actual value used will be the larger of this and 1/5 the width
++ *	of the window.
++ */
++
++#define NAME_LENGTH	16
++
++/*
++ *	SIGN_TYPE is the program to be used to create digital signatures.
++ */
++
++#define SIGN_TYPE		"gpg"
++/* #define SIGN_TYPE		"pgp"		*/
++
++/*
++ *	If no "Lines:" header field is present, NN can be made to
++ *	count them itself.
++ */
++
++#define DONT_COUNT_LINES
++
++/*
++ *	PUT_TIMESTAMP_IN_SCRIPTS
++ *	Defining this causes the "inst" script to add identifying information
++ *	to the beginning of the shell scripts.
++ */
++
++#undef PUT_TIMESTAMP_IN_SCRIPTS
++
++/*
++ *	CONFIG_NUM_IN_VERSION
++ *	Defining this will make NN announce itself including the build number
++ *	like "NN version 6.7.x #12", rather than "NN version 6.7.x".
++ */
++
++/* #define CONFIG_NUM_IN_VERSION	*/
++
++/*
++ *	ART_GREP
++ *	Define this if you want to enable the "experimental" subject
++ *	body search code.  On the "G" menu, there will be two extra
++ *	choices: "b" body search unread, and "B" body search all.
++ *	Choose your pattern, and you will be presented with a merged group
++ *	containing the articles you chose.  There may still be bugs!
++ *	WARNING:
++ *	THIS WOULD BE *BAD* FOR NNTP SITES!  You don't want all your
++ *	users downloading the entire news database...
++ */
++
++/* #define ART_GREP	*/
++
++/*
++ *	CACHE_PURPOSE
++ *	Defining this makes NN cache the newsgroup/purpose list, sorted
++ *	in memory and use binary search to locate a group's purpose.
++ *	This can be a winner on systems with *everything* in their
++ *	newsgroups list.  Note that this will cause nn to always download
++ *	the newsgroup/purpose list.  This will increase startup time for nn
++ *	but is still a win for people who have show-purpose-mode=2.
++ *	Currently CACHE_PURPOSE and nnmaster don't work together,
++ *	so please leave this undefined unless you are using NOV.
++ */
++
++/* #define CACHE_PURPOSE	*/
++
++/*
++ * If you aren't running nnmaster you can stop here.
++ */
++
++/************************ NNMASTER CONFIGURATION *************************/
++
++/*********************** NETWORK DEPENDENT DEFINITIONS **********************
++ *
++ *	Define NETWORK_DATABASE if you share the database through NFS on
++ *	a network with different, non-compatible machines, e.g. SUNs and
++ *	VAXen, or SUN-3 and SUN-4, or if you are using different compilers
++ *	on the same architecture.
++ *
++ *	In a homogenous network, you can leave it undefined for higher
++ *	performance (no data conversion is needed).
++ */
++
++/* #define NETWORK_DATABASE	*/
++
++
++/**************************** DATABASE LOCATION **************************
++ *
++ *	Specify where the nn database should be installed.
++ *
++ *	If none of the following symbols are defined, the database will
++ *	be contained in the NEWS_DIRECTORY in a separate .nn directory for
++ *	master files and in files named .nnx and .nnd in each group's
++ *	spool directory.  To use this scheme, the OWNER specified above
++ *	must have write permission on the news spool directories.
++ *
++ *	If you access news via NNTP, you will probably always have to
++ *	give the database directory explicitly through DB_DIRECTORY
++ *	(and DB_DATA_DIRECTORY), since the normal news spool directories
++ *	are probably not available on the local system.
++ *	The exception may be if nnmaster runs directly on the nntp server.
++ *
++ *	To change the default behavior, you can define the following
++ *	symbols:
++ *
++ *	DB_DIRECTORY	   - the directory containing the master files.
++ *
++ *	DB_DATA_DIRECTORY  - the directory containing the per-group files
++ *			     (default is DB_DIRECTORY/DATA if undefined).
++ *
++ *	DB_LONG_NAMES	   - use group's name rather than number when
++ *			     building file names in DB_DATA_DIRECTORY.
++ *	     (The file system must support long file names!!)
++ */
++
++/* #define DB_DIRECTORY	"/usr/spool/nn"	*/
++
++
++/*************************** NEWS TRANSPORT **************************
++ *
++ *	Specify the location of your news programs and files
++ *	You only need to specify these if you are not
++ *	satisfied with the default settings.
++ *
++ *	NEWS_DIRECTORY		- The news spool directory.
++ *				  Default: /usr/spool/news
++ *
++ *	NEWS_LIB_DIRECTORY	- The news lib directory.
++ *				  Default: /usr/lib/news
++ *
++ *	RMGROUP_PATH		- The location of the rmgroup program.
++ *				  Default: NEWS_LIB_DIR/{rm,del}group
++ */
++
++/* #define NEWS_DIRECTORY	"/usr/spool/news"	*/
++/* #define NEWS_LIB_DIRECTORY	"/usr/lib/news"		*/
++
++/************************ CONFIGURATION COMPLETED ************************/
++
+--- nn-6.7.3.orig/debian/control
++++ nn-6.7.3/debian/control
+@@ -0,0 +1,29 @@
++Source: nn
++Section: news
++Priority: optional
++Maintainer: Cord Beermann <cord@debian.org>
++Build-Depends: debhelper (>= 9), gawk, libncurses-dev
++Standards-Version: 3.9.6
++Homepage: http://www.nndev.org
++
++Package: nn
++Architecture: any
++Depends: ${shlibs:Depends}, ${misc:Depends}
++Recommends: sendmail | mail-transport-agent
++Suggests: ispell, gnupg
++Provides: news-reader
++Description: Heavy-duty USENET news reader (curses-based client)
++ The motto of nn is its expanded name, which is "No News is good
++ news, but nn is better", and the nn newsreader is designed to let you
++ minimize the amount of time you spend reading news (or, more
++ realistically, to allow you to follow even more newsgroups :-).
++ .
++ Nn allows you to quickly select articles of interest and skip the
++ rest.  It also supports efficient article killing and selection of
++ articles by author and subject.
++ .
++ This version of nn reads news from a news server via NNTP (the
++ Network News Transfer Protocol), and can make use of your NNTP
++ server's NOV database, if configured.  You must have a news server
++ available - large sites usually provide a site-wide server.  (For
++ those familiar with 'nn', this is a client-only version.)
+--- nn-6.7.3.orig/debian/copyright
++++ nn-6.7.3/debian/copyright
+@@ -0,0 +1,60 @@
++This package was debianized by Cord Beermann <cord@debian.org> on
++Sat, 22 Sep 2001 21:11:46 +0200.
++
++This package was originally put together by Mike Coleman
++<coleman@cstp.umkc.edu>, then taken over by Martin Schulze <joey@debian.org>
++and is now maintained by Cord Beermann <cord@debian.org>.
++
++It was downloaded from http://www.nndev.org
++
++Author(s): Kim F. Storm, Peter Wemm, and Michael T Pins.
++
++Actual Keeper of the sources is Michael T. Pins <mtpins@nndev.org>
++
++Copyright:
++
++Copyright (c) 1989, 1990 by Kim Fabricius Storm.  All rights reserved.
++
++Not derived from licensed software except as stated below.
++
++Permission is granted to anyone to use, modify, and reuse this
++software for any purpose on any computer system, and to redistribute
++it freely, subject to the following restrictions:
++
++1. The author is not responsible for the consequences of use of this
++   software, no matter how awful, even if they arise from defects in it.
++
++2. The origin of this software must not be misrepresented, either by
++   explicit claim or by omission.
++
++3. Altered versions must be plainly marked as such, and must not be
++   misrepresented as being the original software.
++
++The following code modules have been incorporated into nn, and the
++above copyright notice does not apply to these modules; they include
++their own copyright notices (or have none):
++
++regexp.c:       Copyright (c) 1986 by University of Toronto.
++                Written by Henry Spencer.
++
++unshar.c:       No copyright notice.
++                Written by K. Greer, S. Shafer, and M. Mauldin
++
++decode.c:       Derived from a modified Berkeley original posted on
++                USENET.
++
++fullname.c:     Copyright (c) 1986 by Rick Adams.
++                Derived from the Bnews distribution.
++
++contrib/*:      Various copyright notices.
++                The software available in the contrib/ directory was sent
++                to me for inclusion in the nn distribution, because
++                the authors think it might be useful to other nn users.
++                I have included it *as is*.
++
++
++I've added a patch by Kristian Köhntopp <kris@schulung.netuse.de> and Stefan
++Röhrich <sr@stefan.lake.de>, see PATCH.RFC1522. It adds support for different
++ISO-Charsets as iso-8859-1.
++
++
+--- nn-6.7.3.orig/debian/dirs
++++ nn-6.7.3/debian/dirs
+@@ -0,0 +1,5 @@
++etc/news
++usr/bin
++usr/lib/nn
++usr/share/man/man1
++usr/share/man/man8
+--- nn-6.7.3.orig/debian/docs
++++ nn-6.7.3/debian/docs
+@@ -0,0 +1,3 @@
++README
++INSTALLATION
++
+--- nn-6.7.3.orig/debian/menu
++++ nn-6.7.3/debian/menu
+@@ -0,0 +1,4 @@
++?package(nn):\
++	needs="text" section="Applications/Network/Communication"\
++	title="nn" longtitle="No news is good news, but nn is better"\
++	command="/usr/bin/nn"
+--- nn-6.7.3.orig/debian/nn.config
++++ nn-6.7.3/debian/nn.config
+@@ -0,0 +1,20 @@
++#!/bin/sh
++
++set -e
++
++# We need debconf.
++. /usr/share/debconf/confmodule
++
++go=0
++
++if [ ! -f /etc/news/server ]
++ then
++#        if [ ! -d /etc/news ]
++#	then
++#		install -d -m 755 -o news -g news /etc/news
++#	fi
++	db_input high nn/ask-newsserver || true
++	db_go
++fi
++
++exit 0
+--- nn-6.7.3.orig/debian/nn.templates
++++ nn-6.7.3/debian/nn.templates
+@@ -0,0 +1,5 @@
++Template: nn/ask-newsserver
++Type: string
++Default: news
++_Description: NNTP server to use:
++ Enter the fully qualified host name of the news server to use for reading.
+--- nn-6.7.3.orig/debian/nnbatch.1
++++ nn-6.7.3/debian/nnbatch.1
+@@ -0,0 +1,44 @@
++.\"                                      Hey, EMACS: -*- nroff -*-
++.\" First parameter, NAME, should be all caps
++.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
++.\" other parameters are allowed: see man(7), man(1)
++.TH NN 1 "20011021"
++.\" Please adjust this date whenever revising the manpage.
++.\"
++.\" Some roff macros, for reference:
++.\" .nh        disable hyphenation
++.\" .hy        enable hyphenation
++.\" .ad l      left justify
++.\" .ad b      justify to both left and right margins
++.\" .nf        disable filling
++.\" .fi        enable filling
++.\" .br        insert line break
++.\" .sp <n>    insert n+1 empty lines
++.\" for manpage-specific macros, see man(7)
++.SH NAME
++nnbatch \- nn in batch mode.
++.SH SYNOPSIS
++.B nnbatch
++.RI [ options ] " files" ...
++.SH DESCRIPTION
++This manual page documents briefly the
++.B nnbatch
++command.
++This manual page was written for the Debian GNU/Linux distribution
++because the original program does not have a manual page.
++.PP
++\fBnnbatch\fP is a program that starts 
++\fBnn\fP in batch mode. 
++
++.SH OPTIONS
++This program takes the same options as 
++\fBnn\fP. 
++For a description, see the 
++\fBnn\fP manpage.
++
++.SH SEE ALSO
++.BR nn (1)
++
++.SH AUTHOR
++This manual page was written by Cord Beermann <cord@debian.org>,
++for the Debian GNU/Linux system (but may be used by others).
+--- nn-6.7.3.orig/debian/po/POTFILES.in
++++ nn-6.7.3/debian/po/POTFILES.in
+@@ -0,0 +1 @@
++[type: gettext/rfc822deb] nn.templates
+--- nn-6.7.3.orig/debian/po/cs.po
++++ nn-6.7.3/debian/po/cs.po
+@@ -0,0 +1,28 @@
++# Czech translation of nn templates
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn 6.6.5-2\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: 2005-05-14 11:33+0200\n"
++"Last-Translator: Martin Sin <martin.sin@seznam.cz>\n"
++"Language-Team: Czech <debian-l10n-czech@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "Použít NNTP server:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Zadejte plně kvalifikovaný název hostitelského počítače, který se má použít "
++"pro získávání news příspěvků."
+--- nn-6.7.3.orig/debian/po/da.po
++++ nn-6.7.3/debian/po/da.po
+@@ -0,0 +1,43 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans#
++#    Developers do not need to manually edit POT or PO files.
++# Claus Hindsgaul <claus_h@image.dk>, 2005.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn debconf\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: 2005-08-16 11:34+0200\n"
++"Last-Translator: Claus Hindsgaul <claus_h@image.dk>\n"
++"Language-Team: Danish <dansk@klid.dk>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=ISO-8859-1\n"
++"Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.9.1\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "NNTP-server, der skal benyttes:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "Enter the fully qualified host name of the news server to use for reading."
++msgstr "Angiv det fulde v�rtsnavn p� den nyhedsserver, der skal l�ses fra."
++
++#~ msgid "What news server (NNTP server) should I use for reading?"
++#~ msgstr "Hvilken nyhedsserver (NNTP) skal jeg bruge til at l�se fra?"
++
++#~ msgid "Enter its full name:"
++#~ msgstr "Indtast dens fulde navn:"
++
+--- nn-6.7.3.orig/debian/po/de.po
++++ nn-6.7.3/debian/po/de.po
+@@ -0,0 +1,40 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans#
++#    Developers do not need to manually edit POT or PO files.
++# Erik Schanze <mail@erikschanze.de>, 2005.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn_6.6.5-2_de\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: 2005-06-03 21:59+0200\n"
++"Last-Translator: Erik Schanze <mail@erikschanze.de>\n"
++"Language-Team: German <debian-l10n-german@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.9.1\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "verwendeter NNTP-Server:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Geben Sie den vollständigen Rechnernamen des News-Servers ein, den Sie zum "
++"Lesen verwenden."
++
+--- nn-6.7.3.orig/debian/po/es.po
++++ nn-6.7.3/debian/po/es.po
+@@ -0,0 +1,51 @@
++# nn po-debconf translation to Spanish
++# Copyright (C) 2009 Software in the Public Interest
++# This file is distributed under the same license as the nn package.
++#
++# Changes:
++#   - Initial translation
++#       Ricardo Fraile <rikr@esdebian.org>, 2009
++#
++# Traductores, si no conocen el formato PO, merece la pena leer la
++# documentación de gettext, especialmente las secciones dedicadas a este
++# formato, por ejemplo ejecutando:
++#       info -n '(gettext)PO Files'
++#       info -n '(gettext)Header Entry'
++#
++# Equipo de traducción al español, por favor lean antes de traducir
++# los siguientes documentos:
++#
++#   - El proyecto de traducción de Debian al español
++#     http://www.debian.org/intl/spanish/
++#     especialmente las notas y normas de traducción en
++#     http://www.debian.org/intl/spanish/notas
++#
++#   - La guía de traducción de po's de debconf:
++#     /usr/share/doc/po-debconf/README-trans
++#     o http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn 6.7.3-2.1\n"
++"Report-Msgid-Bugs-To: nn@packages.debian.org\n"
++"POT-Creation-Date: 2008-05-27 18:36+0200\n"
++"PO-Revision-Date: 2009-10-16 10:52+0200\n"
++"Last-Translator: Ricardo Fraile <rikr@esdebian.org>\n"
++"Language-Team: Debian l10n Spanish <debian-l10n-spanish@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "Servidor NNTP a utilizar:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr "Escriba el nombre completo del servidor de noticias a utilizar para la lectura."
++
+--- nn-6.7.3.orig/debian/po/eu.po
++++ nn-6.7.3/debian/po/eu.po
+@@ -0,0 +1,37 @@
++# translation of nn-eu.po to librezale
++# Piarres Beobide <pi@beobide.net>, 2006.
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#    Developers do not need to manually edit POT or PO files.
++msgid ""
++msgstr ""
++"Project-Id-Version: nn-eu\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2006-11-17 07:53+0100\n"
++"PO-Revision-Date: 2006-11-17 21:53+0100\n"
++"Last-Translator: Piarres Beobide <pi@beobide.net>\n"
++"Language-Team: librezale <librezale@librezale.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"Plural-Forms: nplurals=2; plural=(n != 1)\n"
++"X-Generator: KBabel 1.11.4\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "Erabiliko den NNTP zerbitzaria:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "Enter the fully qualified host name of the news server to use for reading."
++msgstr "Idatzi irakurketarako erabiliko den berri-talde zerbitzariaren guztiz baliozko ostalari izena (fqhn)."
++
+--- nn-6.7.3.orig/debian/po/fr.po
++++ nn-6.7.3/debian/po/fr.po
+@@ -0,0 +1,38 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: 2005-03-06 10:28+0200\n"
++"Last-Translator: Eric Madesclair <eric-m@wanadoo.fr>\n"
++"Language-Team: French <debian-l10n-french@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=ISO-8859-1\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "Nom d'h�te du serveur NNTP�:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Veuillez indiquer le nom complet du serveur utilis� pour lire les nouvelles."
+--- nn-6.7.3.orig/debian/po/it.po
++++ nn-6.7.3/debian/po/it.po
+@@ -0,0 +1,31 @@
++# nn po-debconf translation to italian
++# Copyright (C) 2004 Software in the Public Interest
++# This file is distributed under the same license as the nn package.
++# Luca Monducci <luca.mo@tiscali.it>, 2008.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn 6.7.3 debconf\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2008-03-17 04:43+0100\n"
++"PO-Revision-Date: 2008-11-08 13:00+0100\n"
++"Last-Translator: Luca Monducci <luca.mo@tiscali.it>\n"
++"Language-Team: Italian <debian-l10n-italian@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "Server NNTP da usare:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Inserire il nome host completamente qualificato del server news da usare per "
++"la lettura."
+--- nn-6.7.3.orig/debian/po/ja.po
++++ nn-6.7.3/debian/po/ja.po
+@@ -0,0 +1,38 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++#, fuzzy
++msgid ""
++msgstr ""
++"Project-Id-Version: nn 6.6.5-2\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
++"Last-Translator: NOSHIRO Shigeo <noshiro@debian.org>\n"
++"Language-Team: Japanese <debian-japanese@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=EUC-JP\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "$B;HMQ$9$k(BNNTP server"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr "$B%K%e!<%9$rFI$`$?$a$K;HMQ$9$k%K%e!<%9%5!<%P$N(BFQDN$B$rF~$l$F2<$5$$(B"
+--- nn-6.7.3.orig/debian/po/ka.po
++++ nn-6.7.3/debian/po/ka.po
+@@ -0,0 +1,29 @@
++msgid ""
++msgstr ""
++"Project-Id-Version: nn_6.6.5-2_ka\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2006-11-17 07:53+0100\n"
++"PO-Revision-Date: 2006-11-17 21:05+0400\n"
++"Last-Translator: Aiet Kolkhi <aietkolkhi@gmail.com>\n"
++"Language-Team: Georgian <ka@aiet.qartuli.net>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=utf-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"Plural-Forms: nplurals=1;plural=0;\n"
++"X-Poedit-Language: Georgian\n"
++"X-Poedit-Country: GEORGIA\n"
++"X-Poedit-SourceCharset: utf-8\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "გამოსაყენებელი NNTP სერვერი:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"შეიყვანეთ news-სერვერის სრული სახელი, რომლის გამოყენებაც წასაკითხად გსურთ."
+--- nn-6.7.3.orig/debian/po/nl.po
++++ nn-6.7.3/debian/po/nl.po
+@@ -0,0 +1,30 @@
++# SOME DESCRIPTIVE TITLE.
++# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
++# This file is distributed under the same license as the PACKAGE package.
++# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2007-01-13 19:55+0100\n"
++"PO-Revision-Date: 2007-04-06 13:16+0100\n"
++"Last-Translator: Bart Cornelis <cobaco@skolelinux.no>\n"
++"Language-Team: debian-l10n-dutch <debian-l10n-dutch@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=utf-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"X-Poedit-Language: Dutch\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "Te gebruiken NNTP-server:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "Enter the fully qualified host name of the news server to use for reading."
++msgstr "Wat is de volledig gekwalificeerde domeinnaam (FQDN) van de nieuwsserver die u gebruikt om nieuws te lezen?"
++
+--- nn-6.7.3.orig/debian/po/pt.po
++++ nn-6.7.3/debian/po/pt.po
+@@ -0,0 +1,27 @@
++# Portuguese translation for nn's debconf messages
++# Luísa Lourenço <kikentai@gmail.com>, 2006
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: 2006-06-03 15:18+0000\n"
++"Last-Translator: Luísa Lourenço <kikentai@gmail.com>\n"
++"Language-Team: Portuguese <traduz@debianpt.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "Servidor de NNTP a usar:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr "Insira o nome do host do servidor de news a usar para ler."
+--- nn-6.7.3.orig/debian/po/pt_BR.po
++++ nn-6.7.3/debian/po/pt_BR.po
+@@ -0,0 +1,32 @@
++# nn Brazilian Portuguese translation
++# Copyright (c) 2007 nn's PACKAGE COPYRIGHT HOLDER
++# This file is distributed under the same license as the nn package.
++# Eder L. Marques <frolic@debian-ce.org>, 2007.
++#
++msgid ""
++msgstr "pt_BR utf-8\n"
++"Project-Id-Version: nn_6.7.3-2\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2007-01-13 19:55+0100\n"
++"PO-Revision-Date: 2007-10-05 01:47-0300\n"
++"Last-Translator: Eder L. Marques <frolic@debian-ce.org>\n"
++"Language-Team: l10n Portuguese <debian-l10n-portuguese@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.11.4\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "Servidor NNTP a ser usado:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Informe o nome de máquina completamente qualificado do servidor de notícias "
++"a ser usado para leitura."
++
+--- nn-6.7.3.orig/debian/po/ru.po
++++ nn-6.7.3/debian/po/ru.po
+@@ -0,0 +1,39 @@
++# translation of nn_6.7.2-1_ru.po to Russian
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans#
++#    Developers do not need to manually edit POT or PO files.
++# Yuri Kozlov <kozlov.y@gmail.com>, 2006.
++#
++msgid ""
++msgstr ""
++"Project-Id-Version: nn_6.7.2-1\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2006-11-17 07:53+0100\n"
++"PO-Revision-Date: 2006-04-09 14:21+0300\n"
++"Last-Translator: Yuri Kozlov <kozlov.y@gmail.com>\n"
++"Language-Team: Russian <debian-l10n-russian@lists.debian.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=UTF-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.9.1\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr "Сервер NNTP:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Укажите полное имя сервера, который будет использоваться для чтения новостей."
+--- nn-6.7.3.orig/debian/po/sv.po
++++ nn-6.7.3/debian/po/sv.po
+@@ -0,0 +1,38 @@
++# Translators, if you are not familiar with the PO format, gettext
++# documentation is worth reading, especially sections dedicated to
++# this format, e.g. by running:
++# info -n '(gettext)PO Files'
++# info -n '(gettext)Header Entry'
++# Some information specific to po-debconf are available at
++# /usr/share/doc/po-debconf/README-trans
++# or http://www.debian.org/intl/l10n/po-debconf/README-trans
++# Developers do not need to manually edit POT or PO files.
++# , fuzzy
++# 
++# 
++msgid ""
++msgstr ""
++"Project-Id-Version: nn 6.6.5-2\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2006-11-17 07:53+0100\n"
++"PO-Revision-Date: 2005-10-04 04:36+0200\n"
++"Last-Translator: Daniel Nylander <po@danielnylander.se>\n"
++"Language-Team: Swedish <sv@li.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=iso-8859-1\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "NNTP-server att anv�nda:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Ange det fullt kvalificerade v�rdnamnet till news-servern som anv�nds f�r "
++"l�sning."
+--- nn-6.7.3.orig/debian/po/templates.pot
++++ nn-6.7.3/debian/po/templates.pot
+@@ -0,0 +1,38 @@
++#
++#    Translators, if you are not familiar with the PO format, gettext
++#    documentation is worth reading, especially sections dedicated to
++#    this format, e.g. by running:
++#         info -n '(gettext)PO Files'
++#         info -n '(gettext)Header Entry'
++#
++#    Some information specific to po-debconf are available at
++#            /usr/share/doc/po-debconf/README-trans
++#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
++#
++#    Developers do not need to manually edit POT or PO files.
++#
++#, fuzzy
++msgid ""
++msgstr ""
++"Project-Id-Version: PACKAGE VERSION\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2004-03-10 23:38-0800\n"
++"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
++"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
++"Language-Team: LANGUAGE <LL@li.org>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=CHARSET\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid "NNTP server to use:"
++msgstr ""
++
++#. Type: string
++#. Description
++#: ../nn.templates:4
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
+--- nn-6.7.3.orig/debian/po/vi.po
++++ nn-6.7.3/debian/po/vi.po
+@@ -0,0 +1,31 @@
++# Vietnamese translation for nn.
++# Copyright © 2006 Free Software Foundation, Inc.
++# Clytie Siddall <clytie@riverland.net.au>, 2005-2006.
++# 
++msgid ""
++msgstr ""
++"Project-Id-Version: nn 6.6.5-2\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2006-11-17 07:53+0100\n"
++"PO-Revision-Date: 2006-11-19 15:31+1030\n"
++"Last-Translator: Clytie Siddall <clytie@riverland.net.au>\n"
++"Language-Team: Vietnamese <vi-VN@googlegroups.com>\n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=utf-8\n"
++"Content-Transfer-Encoding: 8bit\n"
++"Plural-Forms: nplurals=1; plural=0;\n"
++"X-Generator: LocFactoryEditor 1.6fc1\n"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid "NNTP server to use:"
++msgstr "Máy phục vụ NNTP cần dùng:"
++
++#. Type: string
++#. Description
++#: ../nn.templates:1001
++msgid ""
++"Enter the fully qualified host name of the news server to use for reading."
++msgstr ""
++"Hãy nhập tên máy khả năng đầy đủ của máy phục vụ tin tức cần sử dụng để đọc."
+--- nn-6.7.3.orig/debian/postinst
++++ nn-6.7.3/debian/postinst
+@@ -0,0 +1,52 @@
++#! /bin/sh
++# postinst script for nn
++#
++# see: dh_installdeb(1)
++
++set -e
++
++. /usr/share/debconf/confmodule
++
++# summary of how this script can be called:
++#        * <postinst> `configure' <most-recently-configured-version>
++#        * <old-postinst> `abort-upgrade' <new version>
++#        * <conflictor's-postinst> `abort-remove' `in-favour' <package>
++#          <new-version>
++#        * <deconfigured's-postinst> `abort-deconfigure' `in-favour'
++#          <failed-install-package> <version> `removing'
++#          <conflicting-package> <version>
++# for details, see /usr/share/doc/packaging-manual/
++#
++# quoting from the policy:
++#     Any necessary prompting should almost always be confined to the
++#     post-installation script, and should be protected with a conditional
++#     so that unnecessary prompting doesn't happen if a package's
++#     installation fails and the `postinst' is called with `abort-upgrade',
++#     `abort-remove' or `abort-deconfigure'.
++
++case "$1" in
++    configure)
++	# setting /etc/news/server
++	db_get nn/ask-newsserver || true
++	echo $RET > /etc/news/server
++	db_stop
++    ;;
++
++    abort-upgrade|abort-remove|abort-deconfigure)
++
++    ;;
++
++    *)
++        echo "postinst called with unknown argument \`$1'" >&2
++        exit 0
++    ;;
++esac
++
++# dh_installdeb will replace this with shell code automatically
++# generated by other debhelper scripts.
++
++#DEBHELPER#
++
++exit 0
++
++
+--- nn-6.7.3.orig/debian/rules
++++ nn-6.7.3/debian/rules
+@@ -0,0 +1,87 @@
++#!/usr/bin/make -f
++# Sample debian/rules that uses debhelper.
++# GNU copyright 1997 to 1999 by Joey Hess.
++
++# Uncomment this to turn on verbose mode.
++#export DH_VERBOSE=1
++
++# This is the debhelper compatibility version to use.
++#export DH_COMPAT=4
++
++# Hardening
++export DPKG_EXPORT_BUILDFLAGS = 1
++include /usr/share/dpkg/buildflags.mk
++
++configure: configure-stamp
++configure-stamp:
++	dh_testdir
++	# Add here commands to configure the package.
++	cp -f debian/config.h .
++
++	touch configure-stamp
++
++build-arch: build-stamp
++build-indep: build-stamp
++build: build-stamp
++build-stamp: configure-stamp
++	dh_testdir
++
++	# Add here commands to compile the package.
++	$(MAKE)
++	#/usr/bin/docbook-to-man debian/nn.sgml > nn.1
++
++	touch build-stamp
++
++clean:
++	dh_testdir
++	dh_testroot
++	# Add here commands to clean up after the build process.
++	[ ! -f config.h ] || $(MAKE) clean
++	rm -f build-stamp configure-stamp config.h update.h
++	dh_clean
++
++install: build
++	dh_testdir
++	dh_testroot
++	dh_prep
++	dh_installdirs
++
++	# Add here commands to install the package into debian/nn.
++	DESTDIR=$(CURDIR)/debian/nn ./inst n
++
++# Build architecture-independent files here.
++binary-indep: build install
++# We have nothing to do by default.
++
++# Build architecture-dependent files here.
++binary-arch: build install
++	dh_testdir
++	dh_testroot
++	dh_installdebconf	
++	dh_installdocs
++	dh_installexamples
++	dh_installmenu
++#	dh_installlogrotate
++#	dh_installemacsen
++#	dh_installpam
++#	dh_installmime
++#	dh_installinit
++	dh_installcron
++	dh_installman debian/nnbatch.1
++	dh_installinfo
++#	dh_undocumented
++	dh_installchangelogs ChangeLog
++	dh_link
++	dh_strip
++	dh_compress
++	dh_fixperms
++#	dh_makeshlibs
++	dh_installdeb
++#	dh_perl
++	dh_shlibdeps
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary install configure
+--- nn-6.7.3.orig/debian/source/format
++++ nn-6.7.3/debian/source/format
+@@ -0,0 +1 @@
++1.0
+--- nn-6.7.3.orig/debian/watch
++++ nn-6.7.3/debian/watch
+@@ -0,0 +1,4 @@
++# Site		Directory		Pattern			Version	Script
++#ftp.nndev.org	/pub/nn-6.6	nn-(.*)\.tar\.Z		debian	uupdate
++version=3
++ftp://ftp.nndev.org/pub/nn-6.7/nn-(.*)\.tar\.Z debian uupdate
+--- nn-6.7.3.orig/format.awk
++++ nn-6.7.3/format.awk
+@@ -16,7 +16,7 @@
+ 
+ 	printf("From: %s\nSubject:", progname);
+ 	if ($2 == "NAME") {
+-		getline
++		local_getline
+ 		for (i = 2; i <= NF; i++) printf(" %s", $i);
+ 		printf("\n\n")
+ 		print
+@@ -73,7 +73,7 @@
+ 
+ 	printf("\n")
+ 
+-	getline; linebuf = $0
++	local_getline; linebuf = $0
+ 	indent = "     "
+ 	curcol = indcol = 5
+ 	if (length(linebuf) >= 5) {
+--- nn-6.7.3.orig/global.c
++++ nn-6.7.3/global.c
+@@ -312,12 +312,6 @@
+     help_directory = mk_file_name(lib_directory, "help");
+ #endif
+ 
+-#ifdef LOG_FILE
+-    log_file = LOG_FILE;
+-#else
+-    log_file = mk_file_name(LIB_DIRECTORY, "Log");
+-#endif
+-
+     if (who_am_i == I_AM_MASTER || who_am_i == I_AM_SPEW)
+ 	return 0;
+ 
+@@ -339,6 +333,12 @@
+ 
+     organization = getenv("ORGANIZATION");
+ 
++#ifdef LOG_FILE
++    log_file = LOG_FILE;
++#else
++    log_file = mk_file_name(nn_directory, "Log");
++#endif
++
+     return 0;
+ }
+ 
+@@ -1186,6 +1186,22 @@
+ #endif
+ }
+ 
++#ifdef NEED_STRDUP
++char *strdup(const char *s)
++{
++    char *t   = NULL;
++    int   len = 0;
++
++    if (!s)
++	return NULL;
++
++    len = strlen(s)+1;
++    t   = newstr(len);
++    strncpy(t, s, len);
++    return t;
++}
++#endif
++
+ /* Should really have some sort of configure file and use strdup().. */
+ char           *
+ strsave(char *s)
+@@ -1307,12 +1323,12 @@
+ }
+ 
+ /*
+- *	getline - gets a line from stdin
++ *	local_getline - gets a line from stdin
+  *			returns the length of the line
+  */
+ 
+ int
+-getline(char *line, int max)
++local_getline(char *line, int max)
+ {
+     if (fgets(line, max, stdin) == NULL)
+ 	return 0;
+--- nn-6.7.3.orig/global.h
++++ nn-6.7.3/global.h
+@@ -42,6 +42,19 @@
+ 
+ /* misc macros */
+ 
++#ifdef __GNUC__
++#define INLINE inline
++#else
++#define INLINE
++#endif
++
++
++#define HEXDIGIT(c) ( \
++    ((c) >= '0' && (c) <= '9') ? ((c)-'0') : \
++    (((c) >= 'A' && (c) <= 'F') ? ((c) - 'A' + 10) : \
++     (((c) >= 'a' && (c) <= 'f') ? ((c) - 'a' + 10) : 0)) \
++    )
++
+ #define fl fflush(stdout)
+ 
+ #ifdef CONTROL_
+@@ -258,7 +271,7 @@
+ char           *strsave(char *);
+ char           *str3save(char *, char *, char *);
+ char           *fgetstr(FILE *);
+-int             getline(char *, int);
++int             local_getline(char *, int);
+ extern char    *tmp_directory;
+ extern char    *nntp_cache_dir;
+ #endif				/* _NN_GLOBAL_H */
+--- nn-6.7.3.orig/inst.sh
++++ nn-6.7.3/inst.sh
+@@ -60,11 +60,11 @@
+ 	fi
+ fi
+ 
+-set $RECMAIL
+-if [ ! -f "$1" ]
+-then
+-	echo ERROR: Mailer program $RECMAIL not found.
+-fi
++#set $RECMAIL
++#if [ ! -f "$1" ]
++#then
++#	echo ERROR: Mailer program $RECMAIL not found.
++#fi
+ ) > ErrorCheck
+ 
+ if [ -s ErrorCheck ]
+@@ -246,69 +246,69 @@
+ 
+ bin)
+ 	echo
+-	if [ ! -d "$BIN"/. ]
++	if [ ! -d "$DESTDIR/$BIN"/. ]
+ 	then
+-		echo Directory $BIN does not found!
++		echo Directory $DESTDIR/$BIN does not found!
+ 		exit 1
+ 	fi
+ 
+-	echo Installing user programs in $BIN
++	echo Installing user programs in $DESTDIR/$BIN
+ 
+-	if [ -f $BIN/nn ]
++	if [ -f $DESTDIR/$BIN/nn ]
+ 	then
+ 	     (
+-		cd $BIN
++		cd $DESTDIR/$BIN
+ 		mv nn nn.old
+-		rm -f $BIN_PROG $BIN_LINK
++		rm -f $BIN_PROG $DESTDIR/$BIN_LINK
+ 	     )
+ 	fi
+ 
+ 	for prog in $BIN_PROG
+ 	do
+-		./inst copy 755 $BIN $prog
++		./inst copy 755 $DESTDIR/$BIN $prog
+ 	done
+ 
+ 	for link in $BIN_LINK
+ 	do
+-		ln $BIN/nn $BIN/$link
+-		echo $link linked to nn
++		ln -s nn $DESTDIR/$BIN/$link
++		echo $link symlinked to nn
+ 	done
+ 
+-	if [ -f $BIN/nnacct ] ; then
+-		chmod 4755 $BIN/nnacct
++	if [ -f $DESTDIR/$BIN/nnacct ] ; then
++		chmod 4755 $DESTDIR/$BIN/nnacct
+ 		echo nnacct is setuid ${OWNER}.
+ 	fi
+ 	;;
+ 
+ aux)
+ 	echo
+-	./inst mkdir $LIB 755 || exit 1
++	./inst mkdir $DESTDIR/$LIB 755 || exit 1
+ 
+-	echo Installing auxiliary programs in $LIB
++	echo Installing auxiliary programs in $DESTDIR/$LIB
+ 
+ 	for prog in $LIB_PROG
+ 	do
+-		./inst copy 755 $LIB $prog
++		./inst copy 755 $DESTDIR/$LIB $prog
+ 	done
+ 
+-	./mkprefix conf > ${LIB}/conf
++	./mkprefix conf > $DESTDIR/${LIB}/conf
+ 	grep "^#" config.h |
+-	sed -e '/_MAN_/d' -e 's/[ 	]*\/\*.*$//' >> ${LIB}/conf
+-	./inst chmod 644 ${LIB}/conf
++	sed -e '/_MAN_/d' -e 's/[ 	]*\/\*.*$//' >> $DESTDIR/${LIB}/conf
++	./inst chmod 644 $DESTDIR/${LIB}/conf
+ 	;;
+ 
+ help)
+-	./inst mkdir $HELP 755 || exit 1
++	./inst mkdir $DESTDIR/$HELP 755 || exit 1
+ 
+ 	echo
+-	echo Installing help files in $HELP
++	echo Installing help files in $DESTDIR/$HELP
+ 
+ 	cd help
+ 	for h in *
+ 	do
+ 		cd ..
+-		./cvt-help < help/$h > $HELP/$h
+-		./inst chmod 644 $HELP/$h
++		./cvt-help < help/$h > $DESTDIR/$HELP/$h
++		./inst chmod 644 $DESTDIR/$HELP/$h
+ 		echo $h
+ 		cd help
+ 	done
+@@ -327,32 +327,32 @@
+ 	} |
+ 	while read DIR SECT SRC
+ 	do
+-		if [ -d "$DIR"/. ]
++		if [ -d "$DESTDIR/$DIR"/. ]
+ 		then
+ 			for i in man/*$SRC
+ 			do
+ 				MAN=`basename ${i} $SRC`
+-				NEW=$DIR/${MAN}.$SECT
++				NEW=$DESTDIR/$DIR/${MAN}.$SECT
+ 				sed -e '/^\.TH /s/6.7/'${PL}'/' $i > $NEW
+ 				./inst chmod 644 $NEW
+ 				echo $MAN in $NEW
+ 			done
+ 		else
+-			echo $DIR not found or not writeable
++			echo $DESTDIR/$DIR not found or not writeable
+ 		fi
+ 	done
+ 	;;
+ 
+ online)
+-	./inst mkdir $HELP 755 || exit 1
++	./inst mkdir $DESTDIR/$HELP 755 || exit 1
+ 
+ 	MAN=$HELP/Manual
+ 
+ 	echo
+-	echo "Formatting online manual $MAN"
++	echo "Formatting online manual $DESTDIR/$MAN"
+ 	echo ".... (continues in background) ...."
+ 
+-	rm -f $MAN
++	rm -f $DESTDIR/$MAN
+ 
+ 	(
+ 	sed 	-e 's/\\f[BPI]//g' \
+@@ -362,9 +362,9 @@
+ 		-e '/^\.if/d' -e '/^\.ta/d' -e '/^\.nr/d' \
+ 		-e '/^\.in/d' -e 's/^\.[BI] //' \
+ 		`ls -1 man/*.? man/*.??` |
+-	${AWK} -f format.awk - > $MAN
++	${AWK} -f format.awk - > $DESTDIR/$MAN
+ 
+-	./inst chmod 644 $MAN
++	./inst chmod 644 $DESTDIR/$MAN
+ 	) &
+ 	;;
+ 
+@@ -502,9 +502,9 @@
+ 
+ done
+ 
+-if [ -f $LOG ]
++if [ -f $DESTDIR/$LOG ]
+ then
+-	chmod 666 $LOG
++	chmod 666 $DESTDIR/$LOG
+ fi
+ 
+ if $PAUSE
+--- nn-6.7.3.orig/man/nn.1.nnmaster
++++ nn-6.7.3/man/nn.1.nnmaster
+@@ -2554,7 +2554,7 @@
+ bit width of the character set (7 for "us-ascii" and "unknown", 8 for the
+ "iso-8859-\fIX\fP" sets).
+ .sp 0.5v
+-The value of this variable also determines wether \fInn\fP allows
++The value of this variable also determines whether \fInn\fP allows
+ 8-bit characters in the body of articles being posted and letters
+ being mailed (unless the value is "unknown", in which case this is
+ determined by the value of the \fBdata-bits\fP variable).
+@@ -2708,7 +2708,7 @@
+ section for more details.
+ .sp 0.5v
+ If the \fBcharset\fP has value "unknown", the value of \fBdata-bits\fP
+-also determines wether \fInn\fP allows 8-bit characters in the body of
++also determines whether \fInn\fP allows 8-bit characters in the body of
+ articles being posted and letters being mailed (this is normally
+ determined directly by the \fBcharset\fP variable).
+ .TP
+@@ -5104,7 +5104,7 @@
+ sequence.  The group itself (if it exists) is not included.
+ Examples: "comp.", "comp.unix.".
+ .TP
+-.group.name
++\&.group.name
+ Append the groups whose name ends with the specified name to the
+ sequence.  Example: ".test".
+ .TP
+--- nn-6.7.3.orig/man/nn.1.nov
++++ nn-6.7.3/man/nn.1.nov
+@@ -15,10 +15,10 @@
+ [ \fIoptions\fP ] [ \fInewsgroup\fP  |  +\fIfolder\fP  |  \fIfile\fP ]...
+ .br
+ .B nn
+--g [ -r ]
++\-g [ \-r ]
+ .br
+ .B nn
+--a0 [ \fInewsgroup\fP ]...
++\-a0 [ \fInewsgroup\fP ]...
+ .SH DESCRIPTION
+ Net news is a world-wide information exchange service covering
+ numerous topics in science and every day life.  Topics are organized
+@@ -99,18 +99,18 @@
+ Collect only articles which contain the string
+ .I WORD
+ in their subject (case is ignored).  This is normally combined with
+-the -x and -m options to find all articles on a specific subject.
++the \-x and \-m options to find all articles on a specific subject.
+ .TP
+ \-\fBs/\fP\fIregexp\fP
+ Collect only articles whose subject matches the regular expression
+ .IR regexp .
+-This is normally combined with the -x and -m options to find all
++This is normally combined with the \-x and \-m options to find all
+ articles on a specific subject.
+ .TP
+ \-\fBn\fP\fIWORD\fP or \-\fBn/\fP\fIregexp\fP
+ Same as \-\fBs\fP except that it matches on the sender's name
+ instead of the article's subject.
+-This is normally combined with the -x and -m options to find all
++This is normally combined with the \-x and \-m options to find all
+ articles from a specific author.  It cannot be mixed with the
+ \-\fBs\fP option!
+ .TP
+@@ -120,10 +120,10 @@
+ .TP
+ \-\fBm\fP
+ Merge all articles into one `meta group' instead of showing
+-them one group at a time.  This is normally used together with the -x
+-and -s options to get all the articles on a specific subject presented
++them one group at a time.  This is normally used together with the \-x
++and \-s options to get all the articles on a specific subject presented
+ on a single menu (when you don't care about which group they belong
+-to).  When -m is used, no articles will be marked as read.
++to).  When \-m is used, no articles will be marked as read.
+ .TP
+ \-\fBx\fP[\fIN\fP]
+ Present (or scan) all (or the last \fIN\fP) unread as well as
+@@ -135,7 +135,7 @@
+ Read/scan unsubscribed groups also.  Most useful when looking for
+ a specific subject in \fBall\fP groups, e.g.
+ .nf
+-	nn -mxX -sSubject all
++	nn \-mxX \-sSubject all
+ .fi
+ .TP
+ \fInews.group\fP  or  \fIfile\fP  or  \fI+folder\fP
+@@ -2378,7 +2378,7 @@
+ assignment can be used:
+ .sp 0.5v
+ .nf
+-	set included-mark  \e\ \e#\e\ \ \ # blank-#-blank
++	set included-mark  \e\ \e#\e\ \ \ # blank\-#\-blank
+ .fi
+ .sp 0.5v
+ To include a backslash in the string, it must be duplicated `\e\e'.
+@@ -2570,7 +2570,7 @@
+ bit width of the character set (7 for "us-ascii" and "unknown", 8 for the
+ "iso-8859-\fIX\fP" sets).
+ .sp 0.5v
+-The value of this variable also determines wether \fInn\fP allows
++The value of this variable also determines whether \fInn\fP allows
+ 8-bit characters in the body of articles being posted and letters
+ being mailed (unless the value is "unknown", in which case this is
+ determined by the value of the \fBdata-bits\fP variable).
+@@ -2718,7 +2718,7 @@
+ section for more details.
+ .sp 0.5v
+ If the \fBcharset\fP has value "unknown", the value of \fBdata-bits\fP
+-also determines wether \fInn\fP allows 8-bit characters in the body of
++also determines whether \fInn\fP allows 8-bit characters in the body of
+ articles being posted and letters being mailed (this is normally
+ determined directly by the \fBcharset\fP variable).
+ .TP
+@@ -2843,7 +2843,7 @@
+ normally give a message about this and sleep for a number of seconds
+ specified by this variable.  Setting this variable to zero will still
+ make \fInn\fP give the message without sleeping afterwards.  Setting
+-it to -1 will cause the message not to be shown at all.
++it to \-1 will cause the message not to be shown at all.
+ .TP
+ \fBflow-control\fP	(boolean, default true)
+ When set, \fInn\fP will turn on xon/xoff flow-control before writing
+@@ -2872,7 +2872,7 @@
+ append the article in the proper format.  If this variable is not set,
+ folders are assumed to be in the format specified via the
+ \fBmmdf-format\fP and \fBmail-format\fP variables, and articles are
+-saved in that format without checking.  Otherwise, the \fB*-format\fP
++saved in that format without checking.  Otherwise, the \fB*\-format\fP
+ variables are only used to determine the format for \fInew\fP folders.
+ .TP
+ \fBfolder-save-file\fP \fIfile\fP	(string, default not set)
+@@ -2978,7 +2978,7 @@
+ are very difficult to comprehend.  Let's all use the standard folks!
+ (And hack inews if it is the 50% rule that bothers you.)
+ .TP
+-\fBinews\fP \fIshell-command\fP	(string, default "INEWS_PATH -h")
++\fBinews\fP \fIshell-command\fP	(string, default "INEWS_PATH \-h")
+ The program which is invoked by \fInn\fP to deliver an article to the
+ news transport.  The program will be given a complete article
+ including a header containing the newsgroups to which the article is
+@@ -3171,7 +3171,7 @@
+ .fi
+ .TP
+ \fBmerge-report-rate\fP \fIrate\fP	(integer, default 1)
+-When \fInn\fP is invoked with the -m option (directly or via
++When \fInn\fP is invoked with the \-m option (directly or via
+ \fInngrap\fP), a status report of the merging process is displayed and
+ updated on the screen every \fIrate\fP seconds.  The report contains
+ the time used so far and an estimate of the time needed to complete
+@@ -3194,7 +3194,7 @@
+ \fBmonitor\fP		(boolean, default false)
+ When set, \fInn\fP will show
+ .I all
+-characters in the received messages using a "cat -v" like format.
++characters in the received messages using a "cat \-v" like format.
+ Otherwise, only the printable characters are shown (default).
+ .TP
+ \fBmotd\fP		(boolean, default true)
+@@ -3224,8 +3224,8 @@
+ \&.newsrc is the only way to recognize it as an old group:
+ .sp 0.5v
+ \fB0\fP)  Ignore groups which are not in \&.newsrc.  This will obviously
+-include new groups, and therefore you must explictly add any new
+-groups that you care about (by editting the \fI.newsrc\fP file, or
++include new groups, and therefore you must explicitly add any new
++groups that you care about (by editing the \fI.newsrc\fP file, or
+ using the \fBG\fP menu command and then subscribing to the group).
+ When \fBNNTP\fP is being used, this setting prevents the \fIactive.times\fP
+ data from being read from the server; this can be helpful
+@@ -3349,7 +3349,7 @@
+ This is the pager used by the \fB:admin\fP command (and \fInnadmin\fP)
+ when it executes certain commands, e.g. grepping in the Log file.
+ .TP
+-\fBpatch-command\fP \fIshell-command\fP	(string, default "patch -p0")
++\fBpatch-command\fP \fIshell-command\fP	(string, default "patch \-p0")
+ This is the command which is invoked by the \fB:patch\fP command.
+ .TP
+ \fBpost-distribution\fP \fIwords\fP	(string, default see below)
+@@ -3418,7 +3418,7 @@
+ .B print
+ command.  It should include an option which prevents the spooler from
+ echoing a job-id or similar to the terminal to avoid problems with
+-screen handling (e.g. lp -s on System V).
++screen handling (e.g. lp \-s on System V).
+ .TP
+ \fBquery-signature\fP		(boolean, default ...)
+ Will cause \fInn\fP to require confirmation before appending
+@@ -3452,7 +3452,7 @@
+ 	4:  If any references use layout 0, else layout 1.
+ .fi
+ .TP
+-\fBre-layout-read\fP \fIN\fP	(integer, default -1)
++\fBre-layout-read\fP \fIN\fP	(integer, default \-1)
+ When the \fBheader-lines\fP variable is not set, or contains the "*"
+ field specifier, a line similar to the menu line will be used as the
+ header of the article in reading mode, including the sender's name and
+@@ -3795,7 +3795,7 @@
+ \fBuse-editor-line\fP		(boolean, default true)
+ Most editors accept arguments of the form:
+ .nf
+-	editor [-arguments] +n filename
++	editor [\-arguments] +n filename
+ .fi
+ where editor is the name of the editor, and n is the line number to put the
+ cursor upon entering the file.  If use-editor-line is false, it will not
+@@ -4023,9 +4023,9 @@
+ as the global init file.  The list of init files must
+ \fInot\fP be separated from the \fB\-I\fP option by blanks, and it
+ must be the first option.  Example:  The default behaviour corresponds
+-to using -I,init (first the global file, then the file ~/.nn/init).
++to using \-I,init (first the global file, then the file ~/.nn/init).
+ The global \fIsetup\fP file is still read as the first init file
+-independently of the -I option used.
++independently of the \-I option used.
+ .TP
+ \-\fBk\fP	{\fBtoggle kill\fP}
+ Do not [do] perform automatic kill and selection of articles.
+@@ -4044,7 +4044,7 @@
+ .TP
+ \-\fBm\fP	{\fIno corresponding variable\fP}
+ Merge all articles into one `meta group' instead of showing
+-them one group at a time.  When -m is used, no articles will be marked
++them one group at a time.  When \-m is used, no articles will be marked
+ as read.
+ .TP
+ \-\fBn\fP\fIWORD\fP
+@@ -4099,7 +4099,7 @@
+ Read/scan unsubscribed groups also.  Most useful when looking for
+ a specific subject in all groups, e.g.
+ .br
+-   nn -mxX -sSubject all
++   nn \-mxX \-sSubject all
+ .br
+ .SH MACRO DEFINITIONS
+ Practically any combination of commands and key strokes can be defined
+@@ -4900,7 +4900,7 @@
+ unset the flow-control variable if the tty is a pseudo-tty, the
+ following conditional can be used:
+ .nf
+-	on [ -n "`tty | grep ttyp`" ]
++	on [ \-n "`tty | grep ttyp`" ]
+ 		unset flow-control
+ 	end
+ .fi
+@@ -5021,7 +5021,7 @@
+ .nf
+ 	\fBon entry\fP comp.sources* alt.sources
+ 		:set cross-post on   # set before collection
+-		:local auto-read-mode-limit -1   # set before showing menu
++		:local auto-read-mode-limit \-1   # set before showing menu
+ 		::unset cross-post   # set after collection
+ 	\fBend\fP
+ .fi
+@@ -5139,7 +5139,7 @@
+ sequence.  The group itself (if it exists) is not included.
+ Examples: "comp.", "comp.unix.".
+ .TP
+-.group.name
++\&.group.name
+ Append the groups whose name ends with the specified name to the
+ sequence.  Example: ".test".
+ .TP
+--- nn-6.7.3.orig/man/nnadmin.1m
++++ nn-6.7.3/man/nnadmin.1m
+@@ -1,4 +1,4 @@
+-.TH NNADMIN 1M "Release 6.6"
++.TH NNADMIN 1m "Release 6.6"
+ .\" (c) Copyright 1988, 1990, Kim F. Storm.  All rights reserved.
+ .UC 4
+ .SH NAME
+@@ -32,7 +32,7 @@
+ argument will be used as a series of key-strokes which are interpreted
+ exactly as if they were typed in from the keyboard in interactive
+ mode.  For example, to stop the \fInnmaster\fP, the following
+-invokation of nnadmin can be used:
++invocation of nnadmin can be used:
+ .br
+ 	\fInnadmin\fP MK
+ .br
+@@ -451,7 +451,7 @@
+ .TP
+ initialized
+ .br
+-The time when the database was last rebuild using \fInnmaster\fP -I.
++The time when the database was last rebuild using \fInnmaster\fP \-I.
+ .TP
+ last_scan, last_size
+ .br
+@@ -619,7 +619,7 @@
+ can use \fInnadmin\fP to send messages to the \fInnmaster\fP.
+ However, to send a wakeup signal to the master, anybody can run
+ .br
+-	\fInnmaster\fP -w
++	\fInnmaster\fP \-w
+ .SH BUGS
+ The user interface is completely out of line with the rest of the
+ \fInn\fP family, and the way to run \fInnadmin\fP in the
+--- nn-6.7.3.orig/man/nncheck.1
++++ nn-6.7.3/man/nncheck.1
+@@ -5,7 +5,7 @@
+ nncheck \- check for unread articles
+ .SH SYNOPSIS
+ .B nncheck
+-[ -Q -r -t ]  [ -f format ]
++[ \-Q \-r \-t ]  [ \-f format ]
+ .SH DESCRIPTION
+ .I nncheck
+ will report if there are some articles on the system which you have not read.
+@@ -54,13 +54,13 @@
+ .TP
+ \&\-\fBf\fP \fIformat\fP
+ Output the number of unread articles using the specified format.  The
+-format is a text that may contain the following %-escapes:
++format is a text that may contain the following %\-escapes:
+ .sp 0.5v
+ .DT
+ .ta 1i 2i
+ .\"ta 1 10 20
+ .nf
+-	\fB%-code\fP	\fBresulting output\fP
++	\fB%\-code\fP	\fBresulting output\fP
+ .sp 0.5v
+ 	%u	"\fIuuu\fP unread articles"
+ 	%g	"\fIggg\fP groups"
+--- nn-6.7.3.orig/man/nngrab.1
++++ nn-6.7.3/man/nngrab.1
+@@ -11,7 +11,7 @@
+ contain an instance of \fIkeyword\fP.  \fInngrab\fP is a fast
+ equivalent for:
+ .sp 0.5v
+-	nn -mxX -s/\fIkeyword\fP all
++	nn \-mxX \-s/\fIkeyword\fP all
+ .LP
+ For example,
+ .sp 0.5v
+--- nn-6.7.3.orig/man/nngrep.1
++++ nn-6.7.3/man/nngrep.1
+@@ -59,7 +59,7 @@
+ You can use this to read a specific subset of news groups with
+ \fInn\fP; for example
+ .br
+-	nn `nngrep -sp source`
++	nn `nngrep \-sp source`
+ .SH LONG LISTING
+ A \fIlong\fP listing of the matched groups can be requested with the
+ \fB\-l\fP option.  It will include the following information:
+--- nn-6.7.3.orig/man/nnmaster.8
++++ nn-6.7.3/man/nnmaster.8
+@@ -13,7 +13,7 @@
+ \fBnnmaster\fP \-\fBl\fP [ "\fIlock message\fP" ]
+ .br
+ \fBnnmaster\fP [ \fIoptions\fP ] [ \fIgroups\fP ]
+-.br.
++.br
+ \fBnnmaster\fP \-\fBF\fP [ \fIoptions\fP ] [ \fIgroups\fP ]
+ .SH DESCRIPTION
+ .I nnmaster
+@@ -28,7 +28,7 @@
+ .I nnmaster
+ daemon:
+ .sp 0.5v
+-	$master/nnmaster -l -r -C
++	$master/nnmaster \-l \-r \-C
+ .sp 0.5v
+ where $master is the MASTER_DIRECTORY defined during configuration
+ of \fInn\fP.
+@@ -69,7 +69,7 @@
+ to be collected.  For example, to collect everything but rec and misc,
+ use the following command:
+ .br
+-	\fInnmaster\fP -r !rec !misc ""
++	\fInnmaster\fP \-r !rec !misc ""
+ .br
+ If the empty argument had been omitted, nothing would be collected,
+ since the presence of any \fIgroups\fP arguments causes \fInnmaster\fP
+@@ -79,14 +79,14 @@
+ different sets of groups at different intervals or under different
+ conditions:
+ .br
+-	\fInnmaster\fP -B -O14 rec misc sci -LBO -u
++	\fInnmaster\fP \-B \-O14 rec misc sci \-LBO \-u
+ .br
+-	\fInnmaster\fP !rec !misc !sci "" -u
++	\fInnmaster\fP !rec !misc !sci "" \-u
+ .sp 0.5v
+ Example 2: The group arguments are used in the given sequence, e.g. to
+ leave out comp.sys, but still collect comp.sys.ibm.pc, use the command:
+ .br
+-	\fInnmaster\fP -r comp.sys.ibm.pc !comp.sys ""
++	\fInnmaster\fP \-r comp.sys.ibm.pc !comp.sys ""
+ .sp 0.5v
+ The use of the \-\fBu\fP option in the first example is essential,
+ since each of the commands will update the active file time stamp
+@@ -330,7 +330,7 @@
+ 3, this will produce a compact but still very informative trace of the
+ collection or expire process directly on the terminal.  This is most
+ useful when doing the first collection of articles after initializing
+-the database with -I.  If \fIN\fP is 2 or 3, a trace of the NNTP
++the database with \-I.  If \fIN\fP is 2 or 3, a trace of the NNTP
+ traffic is written to a file nnmaster.log in the TMP directory. This
+ option disables \-\fBr\fP.
+ .TP
+@@ -455,7 +455,7 @@
+ running because it may add new groups to the file.  After editing the
+ GROUPS file, the command
+ .br
+-	\fInnmaster\fP -G
++	\fInnmaster\fP \-G
+ .br
+ must be run before restarting the \fInnmaster\fP to parse and verify
+ the new GROUPS file.
+--- nn-6.7.3.orig/man/nnstats.1m
++++ nn-6.7.3/man/nnstats.1m
+@@ -1,4 +1,4 @@
+-.TH NNSTATS 1M "Release 6.6"
++.TH NNSTATS 1m "Release 6.6"
+ .\" (c) Copyright 1988, 1990, Kim F. Storm.  All rights reserved.
+ .UC 4
+ .SH NAME
+@@ -32,9 +32,9 @@
+ that date only is calculated and printed.
+ .SH FILES
+ .DT
+-.ta \w'.../Log'u+3m
++.ta \w'\&../Log'u+3m
+ .\"ta 0 20
+-.../Log	The log file
++\&../Log	The log file
+ .DT
+ .SH SEE ALSO
+ nn(1), nnusage(1M), nnadmin(1M), nnmaster(8)
+--- nn-6.7.3.orig/man/nnusage.1m
++++ nn-6.7.3/man/nnusage.1m
+@@ -1,4 +1,4 @@
+-.TH NNUSAGE 1M "Release 6.6"
++.TH NNUSAGE 1m "Release 6.6"
+ .\" (c) Copyright 1988, 1990, Kim F. Storm.  All rights reserved.
+ .UC 4
+ .SH NAME
+@@ -23,9 +23,9 @@
+ truly report the actual time spent on news reading.
+ .SH FILES
+ .DT
+-.ta \w'.../Log'u+3m
++.ta \w'\&../Log'u+3m
+ .\"ta 0 20
+-.../Log	The log file
++\&../Log	The log file
+ .DT
+ .SH SEE ALSO
+ nn(1), nncheck(1), nngoback(1), nngrep(1), nntidy(1)
+--- nn-6.7.3.orig/menu.c
++++ nn-6.7.3/menu.c
+@@ -811,7 +811,7 @@
+ 	}
+ 
+ 	if (again > 1)
+-	    sprintf(delayed_msg, "Showing %d articles again", again);
++	    sprintf(delayed_msg, "Showing %ld articles again", again);
+     } while (again);
+ 
+     return MC_READGROUP;
+--- nn-6.7.3.orig/newsrc.c
++++ nn-6.7.3/newsrc.c
+@@ -1629,7 +1629,7 @@
+ 	newsrc_update_freq = 0;
+ 	dump_newsrc();
+ 	dump_select();
+-	tprintf("NOTICE: Original files are saved with %s extention\n", bak_suffix);
++	tprintf("NOTICE: Original files are saved with %s extension\n", bak_suffix);
+     }
+ }
+ 
+--- nn-6.7.3.orig/nntp.c
++++ nn-6.7.3/nntp.c
+@@ -37,6 +37,10 @@
+ #define NNTPCACHE	10
+ #endif
+ 
++#ifndef MAXHOSTNAMELEN 
++#define MAXHOSTNAMELEN 255
++#endif
++
+ #ifdef NNTP
+ #include "nntp.h"
+ #include "patchlevel.h"
+@@ -915,7 +919,11 @@
+ 	server_real_name = hp->h_name;
+     else
+ 	nn_exitmsg(1, "NNTPSERVER is invalid");
+-    use_nntp = (strcmp(host_name, server_real_name) != 0);
++#ifdef USE_SPOOL
++    use_nntp = (strcasecmp(host, server_real_name) != 0);
++#else /* USE_SPOOL */
++    use_nntp = 1;
++#endif /* USE_SPOOL */
+ 
+     if (use_nntp) {
+ 	freeobj(news_active);
+--- nn-6.7.3.orig/prefix.c
++++ nn-6.7.3/prefix.c
+@@ -73,7 +73,11 @@
+     fprintf(f, "ACTIVE=%s/active\n", news_lib_directory);
+ #endif
+ 
+-    fprintf(f, "LOG=%s\n", log_file);
++	if (log_file == NULL) {
++		fprintf(f, "LOG=null\n");
++	} else {
++    	fprintf(f, "LOG=%s\n", log_file);
++	}
+     fprintf(f, "TMP=${TMPDIR-%s}\n", tmp_directory);
+     fprintf(f, "DB=%s\n", db_directory);
+     fprintf(f, "BIN=%s\n", bin_directory);
+--- nn-6.7.3.orig/xmakefile
++++ nn-6.7.3/xmakefile
+@@ -77,16 +77,16 @@
+ 
+ SHELL = /bin/sh
+ 
+-MASTER = master.o collect.o expire.o proto.o hostname.o \
+-	global.o options.o active.o db.o nntp.o \
++MASTER = master.o collect.o expire.o proto.o hostname.o \\
++	global.o options.o active.o db.o nntp.o \\
+ 	pack_date.o pack_name.o pack_subject.o news.o digest.o
+ 
+-NN = 	nn.o admin.o proto.o global.o options.o db.o nntp.o \
+-	init.o variable.o term.o keymap.o macro.o regexp.o \
+-	menu.o more.o newsrc.o group.o folder.o dir.o aux.o \
+-	sort.o articles.o sequence.o kill.o active.o fullname.o \
+-	answer.o reroute.o hostname.o save.o unshar.o decode.o execute.o \
+-	pack_date.o pack_name.o pack_subject.o news.o digest.o match.o \
++NN = 	nn.o admin.o proto.o global.o options.o db.o nntp.o \\
++	init.o variable.o term.o keymap.o macro.o regexp.o \\
++	menu.o more.o newsrc.o group.o folder.o dir.o aux.o \\
++	sort.o articles.o sequence.o kill.o active.o fullname.o \\
++	answer.o reroute.o hostname.o save.o unshar.o decode.o execute.o \\
++	pack_date.o pack_name.o pack_subject.o news.o digest.o match.o \\
+ 	chset.o printconf.o
+ #ifdef NOV
+ NOVOBJ = awksplit.o hash.o hdbm.o libnov.o split.o
+@@ -189,75 +189,75 @@
+ * dependencies
+ *
+ 
+-account.o:	account.c account.h config.h global.h execute.h options.h \
++account.o:	account.c account.h config.h global.h execute.h options.h \\
+ 		proto.h
+-active.o:	active.c active.h config.h data.h global.h db.h master.h \
++active.o:	active.c active.h config.h data.h global.h db.h master.h \\
+ 		newsrc.h
+-admin.o:	admin.c admin.h config.h data.h global.h db.h execute.h \
++admin.o:	admin.c admin.h config.h data.h global.h db.h execute.h \\
+ 		group.h keymap.h nn.h proto.h nn_term.h
+-answer.o:	answer.c answer.h config.h data.h global.h aux.h db.h \
+-		fullname.h group.h hostname.h init.h keymap.h kill.h \
+-		match.h news.h nn.h nntp.h options.h printconf.h regexp.h \
++answer.o:	answer.c answer.h config.h data.h global.h aux.h db.h \\
++		fullname.h group.h hostname.h init.h keymap.h kill.h \\
++		match.h news.h nn.h nntp.h options.h printconf.h regexp.h \\
+ 		reroute.h nn_term.h variable.h
+-articles.o:	articles.c articles.h config.h data.h global.h db.h keymap.h \
++articles.o:	articles.c articles.h config.h data.h global.h db.h keymap.h \\
+ 		kill.h match.h news.h newsrc.h regexp.h sort.h nn_term.h
+-aux.o:		aux.c aux.h config.h data.h global.h chset.h execute.h \
++aux.o:		aux.c aux.h config.h data.h global.h chset.h execute.h \\
+ 		keymap.h news.h nn.h nntp.h reroute.h nn_term.h
+ chset.o:	chset.c chset.h config.h
+-collect.o:	collect.c collect.h config.h global.h db.h news.h digest.h \
++collect.o:	collect.c collect.h config.h global.h db.h news.h digest.h \\
+ 		master.h news.h nntp.h pack_date.h pack_name.h pack_subject.h
+-db.o:		db.c db.h config.h data.h global.h answer.h articles.h \
+-		keymap.h libnov.h nntp.h nn_term.h pack_date.h pack_name.h \
++db.o:		db.c db.h config.h data.h global.h answer.h articles.h \\
++		keymap.h libnov.h nntp.h nn_term.h pack_date.h pack_name.h \\
+ 		pack_subject.h hash.h newsoverview.h
+-decode.o:	decode.c decode.h config.h data.h global.h keymap.h save.h \
++decode.o:	decode.c decode.h config.h data.h global.h keymap.h save.h \\
+ 		nn_term.h
+-digest.o:	digest.c digest.h config.h data.h global.h debug.h keymap.h \
++digest.o:	digest.c digest.h config.h data.h global.h debug.h keymap.h \\
+ 		news.h pack_name.h nn_term.h
+-dir.o:		dir.c dir.h config.h data.h global.h articles.h keymap.h \
++dir.o:		dir.c dir.h config.h data.h global.h articles.h keymap.h \\
+ 		nn_term.h
+-execute.o:	execute.c execute.h config.h data.h global.h folder.h \
++execute.o:	execute.c execute.h config.h data.h global.h folder.h \\
+ 		keymap.h nn_term.h
+-expire.o:	expire.c expire.h config.h global.h db.h keymap.h master.h \
++expire.o:	expire.c expire.h config.h global.h db.h keymap.h master.h \\
+ 		nntp.h nn_term.h
+-folder.o:	folder.c folder.h config.h data.h global.h articles.h \
+-		db.h digest.h dir.h keymap.h match.h menu.h news.h \
+-		pack_date.h pack_name.h pack_subject.h regexp.h save.h \
++folder.o:	folder.c folder.h config.h data.h global.h articles.h \\
++		db.h digest.h dir.h keymap.h match.h menu.h news.h \\
++		pack_date.h pack_name.h pack_subject.h regexp.h save.h \\
+ 		sort.h nn_term.h
+ fullname.o:	fullname.c fullname.h config.h data.h global.h
+-global.o:	global.c data.h global.h config.h execute.h keymap.h nn.h \
++global.o:	global.c data.h global.h config.h execute.h keymap.h nn.h \\
+ 		patchlevel.h nn_term.h update.h
+-group.o:	group.c group.h config.h data.h global.h articles.h db.h \
+-		folder.h keymap.h macro.h match.h menu.h newsrc.h nn.h \
++group.o:	group.c group.h config.h data.h global.h articles.h db.h \\
++		folder.h keymap.h macro.h match.h menu.h newsrc.h nn.h \\
+ 		nntp.h regexp.h sort.h nn_term.h variable.h
+ hostname.o:	hostname.c hostname.h config.h
+-init.o:		init.c init.h config.h data.h global.h articles.h admin.h \
+-		answer.h db.h execute.h folder.h group.h hostname.h \
+-		keymap.h kill.h macro.h menu.h newsrc.h nn.h printconf.h \
++init.o:		init.c init.h config.h data.h global.h articles.h admin.h \\
++		answer.h db.h execute.h folder.h group.h hostname.h \\
++		keymap.h kill.h macro.h menu.h newsrc.h nn.h printconf.h \\
+ 		save.h sequence.h sort.h nn_term.h variable.h
+ keymap.o:	keymap.c keymap.h config.h data.h global.h init.h nn_term.h
+-kill.o:		kill.c kill.h config.h data.h global.h db.h keymap.h \
++kill.o:		kill.c kill.h config.h data.h global.h db.h keymap.h \\
+ 		match.h menu.h regexp.h nn_term.h
+-macro.o:	macro.c macro.h config.h data.h global.h db.h init.h \
++macro.o:	macro.c macro.h config.h data.h global.h db.h init.h \\
+ 		keymap.h menu.h nn_term.h variable.h
+-master.o:	master.c master.h config.h global.h active.h collect.h db.h \
++master.o:	master.c master.h config.h global.h active.h collect.h db.h \\
+ 		digest.h execute.h expire.h news.h nntp.h options.h proto.h
+ match.o:	match.c match.h config.h data.h global.h regexp.h
+-menu.o:		menu.c menu.h config.h data.h global.h articles.h \
+-		answer.h db.h execute.h folder.h group.h init.h keymap.h \
+-		kill.h macro.h match.h more.h newsrc.h regexp.h save.h \
++menu.o:		menu.c menu.h config.h data.h global.h articles.h \\
++		answer.h db.h execute.h folder.h group.h init.h keymap.h \\
++		kill.h macro.h match.h more.h newsrc.h regexp.h save.h \\
+ 		sort.h nn_term.h 
+-more.o:		more.c more.h config.h data.h global.h articles.h answer.h \
+-		db.h execute.h folder.h group.h init.h keymap.h kill.h \
++more.o:		more.c more.h config.h data.h global.h articles.h answer.h \\
++		db.h execute.h folder.h group.h init.h keymap.h kill.h \\
+ 		macro.h match.h menu.h news.h regexp.h save.h nn_term.h
+ news.o:		news.c news.h config.h data.h global.h digest.h more.h nntp.h
+-newsrc.o:	newsrc.c newsrc.h config.h data.h global.h articles.h \
++newsrc.o:	newsrc.c newsrc.h config.h data.h global.h articles.h \\
+ 		active.h db.h keymap.h nn.h options.h regexp.h nn_term.h
+-nn.o:		nn.c nn.h config.h data.h global.h admin.h answer.h \
+-		articles.h db.h execute.h folder.h group.h init.h keymap.h \
+-		kill.h libnov.h macro.h match.h menu.h newsrc.h nntp.h \
++nn.o:		nn.c nn.h config.h data.h global.h admin.h answer.h \\
++		articles.h db.h execute.h folder.h group.h init.h keymap.h \\
++		kill.h libnov.h macro.h match.h menu.h newsrc.h nntp.h \\
+ 		options.h proto.h regexp.h sequence.h nn_term.h
+-nntp.o:		nntp.c nntp.h config.h data.h global.h fullname.h hash.h \
+-		hostname.h keymap.h libnov.h nn_term.h patchlevel.h \
++nntp.o:		nntp.c nntp.h config.h data.h global.h fullname.h hash.h \\
++		hostname.h keymap.h libnov.h nn_term.h patchlevel.h \\
+ 		newsoverview.h
+ options.o:	options.c options.h config.h data.h global.h nn.h variable.h
+ pack_date.o:	pack_date.c pack_date.h config.h data.h global.h
+@@ -268,21 +268,21 @@
+ proto.o:	proto.c proto.h config.h data.h global.h hostname.h
+ regexp.o:	regexp.c regexp.h config.h data.h global.h keymap.h nn_term.h
+ reroute.o:	reroute.c reroute.h config.h data.h global.h
+-save.o:		save.c save.h config.h data.h global.h db.h decode.h \
++save.o:		save.c save.h config.h data.h global.h db.h decode.h \\
+ 		digest.h folder.h keymap.h more.h news.h nn_term.h unshar.h
+-sequence.o:	sequence.c sequence.h config.h data.h global.h db.h \
++sequence.o:	sequence.c sequence.h config.h data.h global.h db.h \\
+ 		debug.h keymap.h macro.h nn.h nn_term.h variable.h
+ sort.o:		sort.c sort.h config.h data.h global.h  articles.h
+-term.o:		term.c nn_term.h config.h data.h global.h execute.h \
++term.o:		term.c nn_term.h config.h data.h global.h execute.h \\
+ 		folder.h keymap.h macro.h nn.h regexp.h
+ unshar.o:	unshar.c unshar.h config.h data.h global.h keymap.h nn_term.h
+-variable.o:	variable.c variable.h config.h data.h global.h chset.h \
++variable.o:	variable.c variable.h config.h data.h global.h chset.h \\
+ 		folder.h init.h keymap.h regexp.h sort.h nn_term.h
+ 
+ awksplit.o:	awksplit.c awksplit.h config.h split.h
+ hash.o:		hash.c hash.h config.h hdbm.h
+ hdbm.o:		hdbm.c hdbm.h config.h hdbmint.h 
+-libnov.o:	libnov.c libnov.h config.h data.h global.h awksplit.h \
++libnov.o:	libnov.c libnov.h config.h data.h global.h awksplit.h \\
+ 		digest.h hash.h newsoverview.h news.h nntp.h split.h
+ split.o:	split.c split.h config.h
+ 

@@ -36,11 +36,11 @@ fi
 # Set the hostname.
 if [ -z "$container" ]; then
   if [ -r /etc/HOSTNAME ]; then
-    /bin/hostname $(cat /etc/HOSTNAME | cut -f1 -d .)
+    /bin/hostname $(cat /etc/HOSTNAME)
   else
     # fall back on this old default:
     echo "darkstar.example.net" > /etc/HOSTNAME
-    /bin/hostname darkstar
+    /bin/hostname $(cat /etc/HOSTNAME)
   fi
 fi
 
@@ -78,14 +78,14 @@ fi
 # that's how it is...
 #
 if [ -x /etc/rc.d/rc.pcmcia -a -z "$container" ]; then
-  . /etc/rc.d/rc.pcmcia start
+  /etc/rc.d/rc.pcmcia start
   # The cards might need a little extra time here to initialize.
   sleep 5
 fi
 
 # Start the system logger.
 if [ -x /etc/rc.d/rc.syslog -a -x /usr/sbin/syslogd -a -d /var/log ]; then
-  . /etc/rc.d/rc.syslog start
+  /etc/rc.d/rc.syslog start
 fi
 
 # Update the X font indexes:
@@ -100,41 +100,36 @@ fi
 if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
-      /bin/sh /etc/rc.d/rc.udev start
+      /etc/rc.d/rc.udev start
     fi
   fi
 fi
 
 # Initialize the networking hardware.
 if [ -x /etc/rc.d/rc.inet1 ]; then
-  . /etc/rc.d/rc.inet1
+  /etc/rc.d/rc.inet1
 fi
 
 # Start D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
-  sh /etc/rc.d/rc.messagebus start
+  /etc/rc.d/rc.messagebus start
 fi
 
 # Start Bluetooth:
 if [ -x /etc/rc.d/rc.bluetooth ]; then
-  sh /etc/rc.d/rc.bluetooth start
+  /etc/rc.d/rc.bluetooth start
 fi
 
 # Start wicd or networkmanager:
 if [ -x /etc/rc.d/rc.wicd -a -x /usr/sbin/wicd ]; then
-  sh /etc/rc.d/rc.wicd start
+  /etc/rc.d/rc.wicd start
 elif [ -x /etc/rc.d/rc.networkmanager ]; then
-  sh /etc/rc.d/rc.networkmanager start
+  /etc/rc.d/rc.networkmanager start
 fi
 
 # Start networking daemons:
 if [ -x /etc/rc.d/rc.inet2 ]; then
-  . /etc/rc.d/rc.inet2
-fi
-
-# Look for additional USB/SCSI/IEEE1394/etc devices on multiple LUNs:
-if [ -x /etc/rc.d/rc.scanluns ]; then
-  . /etc/rc.d/rc.scanluns
+  /etc/rc.d/rc.inet2
 fi
 
 # Mount any additional filesystem types that haven't already been mounted:
@@ -142,12 +137,12 @@ mount -a -v 2> /dev/null | grep -v -e "already mounted" -e "ignored" | cut -f 1 
 
 # Start the Control Script for automounter:
 if [ -x /etc/rc.d/rc.autofs ]; then
-  sh /etc/rc.d/rc.autofs start
+  /etc/rc.d/rc.autofs start
 fi
 
 # Start the Network Time Protocol daemon:
 if [ -x /etc/rc.d/rc.ntpd ]; then
-  sh /etc/rc.d/rc.ntpd start
+  /etc/rc.d/rc.ntpd start
 fi
 
 # Remove stale locks and junk files (must be done after mount -a!)
@@ -166,12 +161,12 @@ chmod 1777 /tmp /var/tmp
 
 # Start ACPI daemon.
 if [ -x /etc/rc.d/rc.acpid -a -z "$container" ]; then
-  . /etc/rc.d/rc.acpid start
+  /etc/rc.d/rc.acpid start
 fi
 
 # Enable CPU frequency scaling:
 if [ -x /etc/rc.d/rc.cpufreq -a -z "$container" ]; then
-  . /etc/rc.d/rc.cpufreq start
+  /etc/rc.d/rc.cpufreq start
 fi
 
 # Update any existing icon cache files:
@@ -198,18 +193,18 @@ fi
 
 # Start console-kit-daemon:
 if [ -x /etc/rc.d/rc.consolekit ]; then
-  sh /etc/rc.d/rc.consolekit start
+  /etc/rc.d/rc.consolekit start
 fi
 
 # Start HAL:
 if [ -x /etc/rc.d/rc.hald ]; then
-  sh /etc/rc.d/rc.hald start
+  /etc/rc.d/rc.hald start
 fi
 
 # Start system-wide PulseAudio daemon (not recommended, nor required in
 # order to use PulseAudio -- see the script for details):
 if [ -x /etc/rc.d/rc.pulseaudio ]; then
-  . /etc/rc.d/rc.pulseaudio start
+  /etc/rc.d/rc.pulseaudio start
 fi
 
 # These GTK+/pango files need to be kept up to date for
@@ -251,7 +246,7 @@ if [ -x /etc/rc.d/rc.cups ]; then
   /etc/rc.d/rc.cups start
 elif [ -x /etc/rc.d/rc.lprng ]; then
   # Start LPRng (lpd):
-  . /etc/rc.d/rc.lprng start
+  /etc/rc.d/rc.lprng start
 fi
 
 # Start netatalk. (a file/print server for Macs using Appletalk)
@@ -333,65 +328,72 @@ if grep -q quota /etc/fstab ; then
 fi
 
 # Start the SASL authentication server.  This provides SASL
-# authentication services for sendmail:
+# authentication services for sendmail/postfix:
 if [ -x /etc/rc.d/rc.saslauthd ]; then
-  . /etc/rc.d/rc.saslauthd start
+  /etc/rc.d/rc.saslauthd start
 fi
 
-# Start the sendmail daemon:
-if [ -x /etc/rc.d/rc.sendmail ]; then
-  . /etc/rc.d/rc.sendmail start
+# Start the mail server. Try the rc.sendmail script first, then try rc.postfix.
+if [ -x /etc/rc.d/rc.sendmail -a -x usr/sbin/makemap ]; then
+  /etc/rc.d/rc.sendmail start
+elif [ -x /etc/rc.d/rc.postfix -a -x usr/sbin/postdrop ]; then
+  /etc/rc.d/rc.postfix start
 fi
 
 # Load ALSA (sound) defaults:
 if [ -x /etc/rc.d/rc.alsa -a -z "$container" ]; then
-  . /etc/rc.d/rc.alsa
+  /etc/rc.d/rc.alsa
 fi
 
 # Load a custom screen font if the user has an rc.font script.
 if [ -x /etc/rc.d/rc.font ]; then
-  . /etc/rc.d/rc.font
+  /etc/rc.d/rc.font
 fi
 
 # Load a custom keymap if the user has an rc.keymap script.
 if [ -x /etc/rc.d/rc.keymap ]; then
-  . /etc/rc.d/rc.keymap
+  /etc/rc.d/rc.keymap
 fi
 
 # Start the MySQL database:
 if [ -x /etc/rc.d/rc.mysqld ]; then
-  . /etc/rc.d/rc.mysqld start
+  /etc/rc.d/rc.mysqld start
 fi
 
 # Start Apache web server:
 if [ -x /etc/rc.d/rc.httpd ]; then
-  . /etc/rc.d/rc.httpd start
+  /etc/rc.d/rc.httpd start
 fi
 
 # Start OpenLDAP:
 if [ -x /etc/rc.d/rc.openldap ]; then
-  . /etc/rc.d/rc.openldap start
+  /etc/rc.d/rc.openldap start
+fi
+
+# Start Dovecot:
+if [ -x /etc/rc.d/rc.dovecot ]; then
+  /etc/rc.d/rc.dovecot start
 fi
 
 # Start Samba (a file/print server for Win95/NT machines).
 # Samba can be started in /etc/inetd.conf instead.
 if [ -x /etc/rc.d/rc.samba ]; then
-  . /etc/rc.d/rc.samba start
+  /etc/rc.d/rc.samba start
 fi
 
 # Start the GPM mouse server:
 if [ -x /etc/rc.d/rc.gpm ]; then
-  . /etc/rc.d/rc.gpm start
+  /etc/rc.d/rc.gpm start
 fi
 
 # If there are SystemV init scripts for this runlevel, run them.
 if [ -x /etc/rc.d/rc.sysvinit ]; then
-  . /etc/rc.d/rc.sysvinit
+  /etc/rc.d/rc.sysvinit
 fi
 
 # Start the local setup procedure.
 if [ -x /etc/rc.d/rc.local ]; then
-  . /etc/rc.d/rc.local
+  /etc/rc.d/rc.local
 fi
 
 # All done.

@@ -13,7 +13,6 @@ config() {
 config var/lib/nfs/etab.new
 config var/lib/nfs/rmtab.new
 config var/lib/nfs/state.new
-config var/lib/nfs/xtab.new
 rm -f var/lib/nfs/*.new
 chown -R rpc:rpc var/lib/nfs
 if [ -x etc/rc.d/rc.nfsd ]; then
@@ -21,6 +20,7 @@ if [ -x etc/rc.d/rc.nfsd ]; then
 else
   chmod 644 etc/rc.d/rc.nfsd.new
 fi
+config etc/default/nfs.new
 config etc/rc.d/rc.nfsd.new
 config etc/nfsmount.conf.new
 config etc/exports.new

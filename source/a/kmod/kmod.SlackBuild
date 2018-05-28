@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for kmod
 
-# Copyright 2011-2015  Robby Workman, Tuscaloosa, Alabama, USA
-# Copyright 2013-2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2011-2016  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2013-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,9 +23,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=kmod
-VERSION=${VERSION:-22}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-25}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -35,7 +37,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -87,6 +96,45 @@ CXXFLAGS="$SLKCFLAGS" \
 
 make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# "make clean" deletes too much, so we have to start fresh :(
+
+cd $TMP
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
+cd $PKGNAM-$VERSION || exit 1
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \; -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \;
+
+# Fix paths in manual pages
+sed -i "s,/usr/lib,/lib,g" man/*
+
+# Build python3 bindings for libkmod
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+PYTHON=python3 \
+./configure \
+  --prefix=/usr \
+  --libdir=/lib${LIBDIRSUFFIX} \
+  --bindir=/sbin \
+  --sbindir=/sbin \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --with-xz \
+  --with-zlib \
+  --enable-python \
+  --build=$ARCH-slackware-linux || exit 1
+
+make \
+  install-pkgpyexecLTLIBRARIES \
+  install-dist_pkgpyexecPYTHON \
+  DESTDIR=$PKG || exit 1
 
 # Strip binaries:
 ( cd $PKG

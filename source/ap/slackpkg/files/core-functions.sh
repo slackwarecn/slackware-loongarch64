@@ -957,7 +957,7 @@ function checkchangelog()
 	if ! grep -q "[a-z]" $TMPDIR/ChangeLog.txt ; then
 		echo -e "\
 \nError downloading from $SOURCE.\n\
-Please, check your mirror and try again."
+Please check your mirror and try again."
 		cleanup
 	fi
 

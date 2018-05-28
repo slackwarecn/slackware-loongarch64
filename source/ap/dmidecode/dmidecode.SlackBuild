@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=dmidecode
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -35,9 +36,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
@@ -63,19 +71,6 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-
-# Upstream recommends taking four of these on top of 3.0 anyway, and the others
-# look reasonable too, so here are all of the patches from git after 3.0
-# Upsream recommends: 1, 5, 7, and 8
-zcat $CWD/patches/0001-Add-no-sysfs-option-description-to-h-output.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0002-Avoid-SIGBUS-on-mmap-failure.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0003-Fix-error-paths-in-mem_chunk.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0004-dmidecode-Handle-OEM-specific-types-in-group-associa.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0005-Fix-No-SMBIOS-nor-DMI-entry-point-found-on-SMBIOS3.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0006-dmidecode-Introduce-SYS_FIRMWARE_DIR.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0007-Let-read_file-return-the-actual-data-size.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0008-dmidecode-Use-read_file-to-read-the-DMI-table-from-s.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/0009-dmidecode-Check-sysfs-entry-point-length.patch.gz | patch -p1 --verbose || exit 1
 
 # Build and install:
 make prefix=/usr mandir=/usr/man $NUMJOBS || make prefix=/usr mandir=/usr/man || exit 1

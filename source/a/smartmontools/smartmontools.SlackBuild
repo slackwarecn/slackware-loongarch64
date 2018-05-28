@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2011  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2011, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=smartmontools
 VERSION=${VERSION:-$(echo smartmontools-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,13 +36,20 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=/tmp/package-smartmontools
 
@@ -50,7 +59,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf smartmontools-$VERSION
 tar xvf $CWD/smartmontools-$VERSION.tar.?z* || exit 1
-cd smartmontools-$VERSION
+cd smartmontools-$VERSION || exit 1
 chown -R root:root .
 
 ./configure \
@@ -59,13 +68,18 @@ chown -R root:root .
   --mandir=/usr/man \
   --sysconfdir=/etc \
   --docdir=/usr/doc/smartmontools-$VERSION \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Not used on Slackware:
-rm -rf $PKG/etc/rc.d
+# Don't use the included init script:
+rm -rf $PKG/etc/rc.d/*
+
+# Install the Slackware smartd init script:
+cp -a $CWD/rc.smartd $PKG/etc/rc.d/rc.smartd.new
+chown root:root $PKG/etc/rc.d/rc.smartd.new
+chmod 644 $PKG/etc/rc.d/rc.smartd.new
 
 mv $PKG/etc/smartd.conf $PKG/etc/smartd.conf.new
 gzip -9 $PKG/usr/man/man?/*.?

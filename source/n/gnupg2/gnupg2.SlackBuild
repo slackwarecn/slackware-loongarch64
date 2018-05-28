@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2006-2010  Robby Workman, Northport, AL, USA
-# Copyright 2007-2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SCRIPT, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gnupg2
-VERSION=${VERSION:-$(echo gnupg-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo gnupg-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -38,9 +39,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-gnupg
+PKG=$TMP/package-gnupg2
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -61,8 +69,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf gnupg-$VERSION
-tar xvf $CWD/gnupg-$VERSION.tar.?z* || exit 1
-cd gnupg-$VERSION
+tar xvf $CWD/gnupg-$VERSION.tar.?z || exit 1
+cd gnupg-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -82,7 +90,8 @@ CXXFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/gnupg2-$VERSION \
   --program-prefix="" \
   --program-suffix="" \
-  --build=$ARCH-slackware-linux
+  --enable-gpg-is-gpg2 \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -115,37 +124,6 @@ mkdir -p $PKG/usr/doc/gnupg2-$VERSION
 cp -a \
   AUTHORS COPYING* INSTALL NEWS README* THANKS TODO VERSION \
   $PKG/usr/doc/gnupg2-$VERSION
-# Build html docs
-( cd doc
-  make gnupg.html
-  mv gnupg.html $PKG/usr/doc/gnupg2-$VERSION/html
-)
-# Fix some filenames in the html directory
-( cd $PKG/usr/doc/gnupg2-$VERSION/html
-mv how_002dto_002dspecify_002da_002duser_002did.html howto_specify_user_id.html
-mv GnuPG_002d1-and-GnuPG_002d2.html GnuPG_1-and-GnuPG_2.html
-mv gpg_002dpreset_002dpassphrase.html gpg_preset_passphrase.html
-mv gpgsm_002dgencert_002esh.html gpgsm_gencert_sh.html
-mv Invoking-gpg_002dpreset_002dpassphrase.html Invoking-gpg_preset_passphrase.html
-mv Invoking-gpg_002dconnect_002dagent.html Invoking-gpg_connect_agent.html
-mv gpg_002dconnect_002dagent.html gpg_connect_agent.html
-mv Agent-GET_005fCONFIRMATION.html Agent-GET_CONFIRMATION.html
-mv option-_002d_002denable_002dssh_002dsupport.html option-enable_ssh_support.html
-mv option-_002d_002doptions.html option-options.html
-mv Invoking-GPG_002dAGENT.html Invoking-GPG_AGENT.html
-mv gpg_002dzip.html gpg_zip.html
-mv option-_002d_002dp12_002dcharset.html option-p12_charset.html
-mv option-_002d_002dallow_002dmark_002dtrusted.html option-allow_mark_trusted.html
-mv Controlling-gpg_002dconnect_002dagent.html Controlling-gpg_connect_agent.html
-mv Agent-GET_005fPASSPHRASE.html Agent-GET_PASSPHRASE.html
-mv option-_002d_002dhomedir.html option-homedir.html
-mv PKCS_002315-Card.html PKCS-15-Card.html
-mv option-_002d_002dexport_002downertrust.html option-export_ownertrust.html
-mv option-_002d_002dlog_002dfile.html option-logfile.html
-mv option-watchgnupg-_002d_002dtcp.html option-watchgnupg-tcp.html
-)
-# Move html doc to the proper location
-mv $PKG/usr/doc/gnupg2-$VERSION/faq.html $PKG/usr/doc/gnupg2-$VERSION/html/
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

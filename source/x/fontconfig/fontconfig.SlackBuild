@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,28 +20,37 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=fontconfig
 VERSION=${VERSION:-$(echo fontconfig-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-fontconfig
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -60,7 +69,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf fontconfig-$VERSION
 tar xvf $CWD/fontconfig-$VERSION.tar.?z* || exit 1
-cd fontconfig-$VERSION
+cd fontconfig-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -68,16 +77,14 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# The wonderful extended version of the font so generously
-# opened up for free modification and distribution by one
-# for the previously proprietary font founderies, and that
-# Stepan Roh did such a marvelous job on getting the ball
-# rolling with should clearly (IMHO) be the default font:
-zcat $CWD/fontconfig.dejavu.diff.gz | patch -p1 --verbose || exit 1
+# Prefer DejaVu fonts in 60-latin.conf:
+#zcat $CWD/fontconfig.dejavu.diff.gz | patch -p1 --verbose || exit 1
 
-# Hardcode the default font search path rather than having
-# fontconfig figure it out (and possibly follow symlinks, or
-# index ugly bitmapped fonts):
+# Prefer Liberation fonts in 60-latin.conf (these work better with hinting):
+zcat $CWD/fontconfig.liberation.diff.gz | patch -p1 --verbose || exit 1
+
+# Hardcode the default font search path rather than having fontconfig figure
+# it out (and possibly follow symlinks, or index ugly bitmapped fonts):
 zcat $CWD/fontconfig.font.dir.list.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 CFLAGS=$SLKCFLAGS \
@@ -92,11 +99,13 @@ CFLAGS=$SLKCFLAGS \
   --with-xmldir=/etc/fonts \
   --localstatedir=/var \
   --enable-static=no \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
-# Uses a currently non-functional sgml tool, thus '-i':
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Upstream has changed the default templatedir to /usr/share/fontconfig/conf.avail.
 # This change, if accepted, would break any existing font package containing a
@@ -134,7 +143,6 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 (  cd $PKG/etc/fonts/conf.d
    for fontconf in \
         20-unhint-small-vera.conf \
-        30-urw-aliases.conf \
         30-metric-aliases.conf \
         40-nonlatin.conf \
         45-latin.conf \
@@ -162,6 +170,10 @@ if [ ! $? = 0 ]; then
   echo "Missing /etc/fonts/$fontconf default.  Exiting"
   exit 1
 fi
+
+# This is a really ugly default.  If you like it, you'll have to link this
+# one yourself:
+rm -f $PKG/etc/fonts/conf.d/10-hinting-slight.conf
 
 # Fix manpages:
 if [ -d $PKG/usr/man ]; then

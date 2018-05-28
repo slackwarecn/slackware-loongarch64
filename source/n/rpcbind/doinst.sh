@@ -21,4 +21,5 @@ preserve_perms() {
   config $NEW
 }
 
+config etc/default/rpc.new
 preserve_perms etc/rc.d/rc.rpc.new

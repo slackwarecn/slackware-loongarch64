@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,20 +20,30 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=amp
 VERSION=0.7.6
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-amp
 
@@ -46,12 +56,12 @@ explodepkg $CWD/_amp.tar.gz
 
 cd $TMP
 rm -rf amp-$VERSION
-tar xzvf $CWD/amp-$VERSION.tar.gz
-cd amp-$VERSION
+tar xvf $CWD/amp-$VERSION.tar.gz || exit 1
+cd amp-$VERSION || exit 1
 zcat $CWD/amp-gcc34.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 chown -R root:root .
-./configure --prefix=/usr $ARCH-slackware-linux
-make
+./configure --prefix=/usr $ARCH-slackware-linux || exit 1
+make || exit 1
 strip amp
 cat amp > $PKG/usr/bin/amp
 cat amp.1 | gzip -9c > $PKG/usr/man/man1/amp.1.gz

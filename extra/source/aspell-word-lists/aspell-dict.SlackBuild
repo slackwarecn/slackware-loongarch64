@@ -1,0 +1,83 @@
+#!/bin/sh
+
+# Copyright 2008, 2009, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-aspell-dict
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+cd src
+for file in aspell*bz2 ; do
+  NAME=$(echo $file | cut -f 1-2 -d -)-$(echo $file | cut -f 3- -d - | rev | cut -b9- | rev | tr '[\-]' '[_]')
+  if [ -r $CWD/build/$(basename $file | cut -f 1,2 -d -) ]; then
+    BUILD="$(cat $CWD/build/$(basename $file | cut -f 1,2 -d -))"
+  else
+    BUILD=1
+  fi
+  rm -rf $PKG
+  mkdir -p $TMP $PKG
+  cd $TMP
+  rm -rf $(basename $file .tar.bz2)
+  tar xjf $CWD/src/$file
+  cd $(basename $file .tar.bz2)
+  chown -R root:root .
+  ./configure || exit 1
+  make || exit 1
+  make install DESTDIR=$PKG || exit 1
+  # Use a uniform package name.
+  NAME=$(echo $NAME | sed 's/aspell5/aspell/' | sed 's/aspell6/aspell/')
+  mkdir -p $PKG/usr/doc/${NAME}
+  cp -a \
+    README* Copyright* COPYING* \
+    $PKG/usr/doc/${NAME}
+  # Overwrite from doc/ is fine:
+  cp -a \
+    doc/* \ 
+    $PKG/usr/doc/${NAME}
+  chmod 644 $PKG/usr/doc/${NAME}/*
+  mkdir $PKG/install
+  SLACKDESC=$(echo $NAME | cut -f 1-2 -d -)
+  echo "${SLACKDESC}: ${SLACKDESC}" > $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}: $(head -n 1 README)." >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  echo "${SLACKDESC}:" >> $PKG/install/slack-desc
+  cd $PKG
+  makepkg -l y -c n $TMP/${NAME}-$ARCH-$BUILD.txz
+done || exit 1

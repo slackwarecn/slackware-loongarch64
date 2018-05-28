@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-$(echo less-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+PKGNAM=less
+VERSION=${VERSION:-$(echo less-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -53,7 +63,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-less
 rm -rf $PKG
@@ -61,8 +70,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf less-$VERSION
-tar xvf $CWD/less-$VERSION.tar.?z* || exit 1
-cd less-$VERSION
+tar xvf $CWD/less-$VERSION.tar.?z || exit 1
+cd less-$VERSION || exit 1
 
 # Fix path in manpage:
 sed -i "s,/usr/local/etc,/etc,g" less.nro
@@ -78,16 +87,28 @@ CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
-  --mandir=/usr/man
+  --mandir=/usr/man || exit 1
 
 make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
 
-mkdir -p $PKG/usr/bin
-cat less > $PKG/usr/bin/less
-cat lesskey > $PKG/usr/bin/lesskey
-cat lessecho > $PKG/usr/bin/lessecho
 zcat $CWD/lesspipe.sh.gz > $PKG/usr/bin/lesspipe.sh
-chmod 755 $PKG/usr/bin/*
+chmod 755 $PKG/usr/bin/lesspipe.sh
+
+# Compress and link manpages, if any:
+if [ -d $PKG/usr/man ]; then
+  ( cd $PKG/usr/man
+    for manpagedir in $(find . -type d -name "man*") ; do
+      ( cd $manpagedir
+        for eachpage in $( find . -type l -maxdepth 1 | grep -v '\.gz$') ; do
+          ln -s $( readlink $eachpage ).gz $eachpage.gz
+          rm $eachpage
+        done
+        gzip -9 *.?
+      )
+    done
+  )
+fi
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

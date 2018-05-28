@@ -7,6 +7,14 @@
 #
 # Written for Slackware Linux by Patrick J. Volkerding <volkerdi@slackware.com>.
 
+# Source default settings:
+if [ -r /etc/default/rpc ]; then
+  . /etc/default/rpc
+fi
+if [ -r /etc/default/nfs ]; then
+  . /etc/default/nfs
+fi
+
 nfsd_start() {
   # Sanity checks.  Exit if there's no /etc/exports, or if there aren't any
   # shares defined in it.
@@ -51,19 +59,28 @@ nfsd_start() {
   fi
 
   if [ -x /usr/sbin/rpc.rquotad ]; then
-    echo "  /usr/sbin/rpc.rquotad"
-    /usr/sbin/rpc.rquotad
+    if [ -n "$RPC_RQUOTAD_PORT" ]; then
+      RPC_RQUOTAD_OPTS="$RPC_RQUOTAD_OPTS -p $RPC_RQUOTAD_PORT"
+    fi
+    echo "  /usr/sbin/rpc.rquotad $RPC_RQUOTAD_OPTS"
+    /usr/sbin/rpc.rquotad $RPC_RQUOTAD_OPTS
   fi
 
-  # Start 8 nfsd servers by default (an old Sun standard):
+  # Start nfsd servers - 8 if not set otherwise (an old Sun standard):
   if [ -x /usr/sbin/rpc.nfsd ]; then
-    echo "  /usr/sbin/rpc.nfsd 8"
-    /usr/sbin/rpc.nfsd 8
+    if [ -z "$RPC_NFSD_COUNT" ]; then
+      RPC_NFSD_COUNT=8
+    fi
+    echo "  /usr/sbin/rpc.nfsd $RPC_NFSD_OPTS $RPC_NFSD_COUNT"
+    /usr/sbin/rpc.nfsd $RPC_NFSD_OPTS $RPC_NFSD_COUNT
   fi
 
   if [ -x /usr/sbin/rpc.mountd ]; then
-    echo "  /usr/sbin/rpc.mountd"
-    /usr/sbin/rpc.mountd
+    if [ -n "$RPC_MOUNTD_PORT" ]; then
+      RPC_MOUNTD_OPTS="$RPC_MOUNTD_OPTS -p $RPC_MOUNTD_PORT"
+    fi
+    echo "  /usr/sbin/rpc.mountd $RPC_MOUNTD_OPTS"
+    /usr/sbin/rpc.mountd $RPC_MOUNTD_OPTS
   fi
 
 }

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=mailx
 VERSION=12.5
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -46,7 +56,6 @@ else
   SLKCFLAGS="-O2"
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mailx
 rm -rf $PKG
@@ -57,7 +66,9 @@ rm -rf mailx-$VERSION
 tar xvf $CWD/mailx-$VERSION.tar.?z* || exit 1
 cd mailx-$VERSION || exit 1
 
-zcat $CWD/heirloom-mailx-12.5-fixes-1.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/mailx-12.5-openssl.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/mailx-12.5-globname-Invoke-wordexp-with-WRDE_NOCMD-CVE-2004-277.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/mailx-12.5-outof-Introduce-expandaddr-flag.patch.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -71,7 +82,7 @@ make CFLAGS="$SLKCFLAGS" \
      MANDIR=/usr/man \
      MAILSPOOL=/var/spool/mail \
      UCBINSTALL=/usr/bin/install \
-     SENDMAIL=/usr/sbin/sendmail
+     SENDMAIL=/usr/sbin/sendmail || exit 1
 
 make install DESTDIR=$PKG \
              CFLAGS="$SLKCFLAGS" \
@@ -79,7 +90,7 @@ make install DESTDIR=$PKG \
              MANDIR=/usr/man \
              MAILSPOOL=/var/spool/mail \
              UCBINSTALL=/usr/bin/install \
-             SENDMAIL=/usr/sbin/sendmail
+             SENDMAIL=/usr/sbin/sendmail || exit 1
 
 # We put symlinks in /bin since some things still expect '/bin/mail' or '/bin/Mail':
 mkdir -p $PKG/bin

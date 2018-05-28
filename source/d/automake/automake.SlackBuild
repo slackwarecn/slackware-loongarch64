@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2012, 2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,12 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-$(echo automake-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=automake
+VERSION=${VERSION:-$(echo automake-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 NUMJOBS=${NUMJOBS:-" -j7 "}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Note: the package is _built_ as 'noarch'
 # Automatically determine architecture for build & packaging:
@@ -35,7 +37,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-noarch-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-automake
 
@@ -44,11 +53,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf automake-$VERSION
-tar xvf $CWD/automake-$VERSION.tar.xz || exit 1
-cd automake-$VERSION
-
-# Patch to work with Perl 5.20:
-zcat $CWD/automake-1.15-perl-escape-curly-bracket.patch.gz | patch -p1 --verbose || exit 1
+tar xvf $CWD/automake-$VERSION.tar.?z || exit 1
+cd automake-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -61,7 +67,7 @@ find . \
   --prefix=/usr \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

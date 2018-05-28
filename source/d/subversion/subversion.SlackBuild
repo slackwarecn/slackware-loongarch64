@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=subversion
 VERSION=${VERSION:-$(echo subversion-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -50,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-subversion
 
@@ -81,10 +90,11 @@ CFLAGS="$SLKCFLAGS" \
   --with-apr=/usr \
   --with-apr-util=/usr \
   --with-apxs=/usr/bin/apxs \
+  --with-lz4=internal \
   --with-zlib=/usr \
   --with-pic \
   --with-kwallet \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -92,8 +102,8 @@ make install-tools DESTDIR=$PKG || exit 1
 make install-docs DESTDIR=$PKG || exit 1
 
 # Install python bindings
-make swig-py
-make install-swig-py DESTDIR=$PKG
+make swig-py || exit 1
+make install-swig-py DESTDIR=$PKG || exit 1
 PYTHON_VER=$(python -c 'import sys; print "%d.%d" % sys.version_info[:2]')
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/python${PYTHON_VER}/site-packages
 mv $PKG/usr/lib${LIBDIRSUFFIX}/svn-python/* \
@@ -101,21 +111,31 @@ mv $PKG/usr/lib${LIBDIRSUFFIX}/svn-python/* \
 rmdir $PKG/usr/lib${LIBDIRSUFFIX}/svn-python
 
 # Perl bindings
-make swig-pl-lib
-make install-swig-pl-lib DESTDIR=$PKG
+make swig-pl-lib || exit 1
+make install-swig-pl-lib DESTDIR=$PKG || exit 1
 ( cd subversion/bindings/swig/perl/native
   perl Makefile.PL
-  make install_vendor DESTDIR=$PKG
-)
+  make install_vendor DESTDIR=$PKG || exit 1
+) || exit 1
 eval $(perl '-V:archlib')
 mv $PKG/$archlib/perllocal.pod $PKG/$archlib/subversion.pod
 
 # Ruby bindings
-make swig-rb
-make install-swig-rb DESTDIR=$PKG
+make swig-rb || exit 1
+make install-swig-rb DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Remove rpaths:
+for file in $(find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : 2> /dev/null) ; do
+  if [ ! "$(patchelf --print-rpath $file 2> /dev/null)" = "" ]; then
+    patchelf --remove-rpath $file
+  fi
+done
 
 rm -rf $PKG/usr/info
 # Something doesn't honor --mandir

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2008, 2009, 2010, 2011, 2012, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,21 +20,30 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=attr
 VERSION=2.4.47
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$(echo $VERSION | tr - _ )-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-attr
 
@@ -69,12 +78,12 @@ find . \
   --mandir=/usr/man \
   --datadir=/usr/share \
   --docdir=/usr/doc/attr-$VERSION \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make PKG_DOC_DIR=/usr/doc/attr-$VERSION || exit 1
-make install PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG
-make install-dev PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG
-make install-lib PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG
+make install PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG || exit 1
+make install-dev PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG || exit 1
+make install-lib PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG || exit 1
 
 #It would be nice to keep the same timestamps that the files have in the source:
 rm -rf $PKG/usr/doc/attr-$VERSION/ea-conv

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2013  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 
@@ -21,8 +21,11 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=LibRaw
-VERSION=${VERSION:-0.17.2}
+VERSION=${VERSION:-0.18.10}
+DEMOSAIC=${DEMOSAIC:-0.18.8}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:--j7}
@@ -37,6 +40,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -61,7 +72,6 @@ case "$ARCH" in
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -71,9 +81,9 @@ cd $TMP
 rm -rf $PKGNAM-$VERSION-build
 mkdir $PKGNAM-$VERSION-build
 cd $PKGNAM-$VERSION-build
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
-tar xvf $CWD/$PKGNAM-demosaic-pack-GPL2-$VERSION.tar.xz || exit 1
-tar xvf $CWD/$PKGNAM-demosaic-pack-GPL3-$VERSION.tar.xz || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+tar xvf $CWD/$PKGNAM-demosaic-pack-GPL2-$DEMOSAIC.tar.?z || exit 1
+tar xvf $CWD/$PKGNAM-demosaic-pack-GPL3-$DEMOSAIC.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
@@ -93,28 +103,26 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
-  --enable-demosaic-pack-gpl2=../LibRaw-demosaic-pack-GPL2-$VERSION \
-  --enable-demosaic-pack-gpl3=../LibRaw-demosaic-pack-GPL3-$VERSION \
+  --enable-demosaic-pack-gpl2=../LibRaw-demosaic-pack-GPL2-$DEMOSAIC \
+  --enable-demosaic-pack-gpl3=../LibRaw-demosaic-pack-GPL3-$DEMOSAIC \
   --enable-jasper \
   --enable-lcms \
   --disable-examples \
-  --build=$TARGET \
-  || exit 1
+  --build=$TARGET || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-pdftotext LICENSE.LibRaw.pdf
 cp -a \
-  COPYRIGHT Changelog.txt LICENSE.* README* doc \
+  COPYRIGHT Changelog.txt LICENSE* README* doc \
   $PKG/usr/doc/$PKGNAM-$VERSION
-if [ -r $PKG/usr/doc/$PKGNAM-$VERSION/LICENSE.LibRaw.txt ]; then # package weight loss program
-  rm -f $PKG/usr/doc/$PKGNAM-$VERSION/LICENSE.LibRaw.pdf
-fi
 mv $PKG/usr/doc/$PKGNAM-$VERSION/doc $PKG/usr/doc/$PKGNAM-$VERSION/html
 find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 0644 {} \;
 

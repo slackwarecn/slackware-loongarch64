@@ -1,0 +1,74 @@
+From 6c8dd87f311e411bcb1c72c1c780497881a5621c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Lyson=C4=9Bk?= <olysonek@redhat.com>
+Date: Mon, 4 Sep 2017 11:32:03 +0200
+Subject: [PATCH 35/35] Modify DH enablement patch to build with OpenSSL 1.1
+
+---
+ ssl.c | 41 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/ssl.c b/ssl.c
+index ba8a613..09ec96a 100644
+--- a/ssl.c
++++ b/ssl.c
+@@ -88,19 +88,54 @@ static struct mystr debug_str;
+ }
+ #endif
+ 
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
++int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
++{
++  /* If the fields p and g in d are NULL, the corresponding input
++   * parameters MUST be non-NULL.  q may remain NULL.
++   */
++  if ((dh->p == NULL && p == NULL)
++      || (dh->g == NULL && g == NULL))
++    return 0;
++
++  if (p != NULL) {
++    BN_free(dh->p);
++    dh->p = p;
++  }
++  if (q != NULL) {
++    BN_free(dh->q);
++    dh->q = q;
++  }
++  if (g != NULL) {
++    BN_free(dh->g);
++    dh->g = g;
++  }
++
++  if (q != NULL) {
++    dh->length = BN_num_bits(q);
++  }
++
++  return 1;
++}
++#endif
++
+ #if !defined(DH_get_dh)
+   // Grab DH parameters
+   DH *
+   DH_get_dh(int size)
+   {
++    BIGNUM *g = NULL;
++    BIGNUM *p = NULL;
+     DH *dh = DH_new();
+     if (!dh) {
+       return NULL;
+     }
+-    dh->p = DH_get_prime(match_dh_bits(size));
+-    BN_dec2bn(&dh->g, "2");
+-    if (!dh->p || !dh->g)
++    p = DH_get_prime(match_dh_bits(size));
++    BN_dec2bn(&g, "2");
++    if (!p || !g || !DH_set0_pqg(dh, p, NULL, g))
+     {
++      BN_free(g);
++      BN_free(p);
+       DH_free(dh);
+       return NULL;
+     }
+-- 
+2.9.5
+

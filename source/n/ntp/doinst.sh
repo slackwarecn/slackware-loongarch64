@@ -20,9 +20,7 @@ preserve_perms() {
   config ${NEW}
 }
 
+config etc/logrotate.d/ntp.new
 config etc/ntp.conf.new
-config etc/ntp/ntp.keys.new
-if [ -r etc/rc.d/rc.ntpd -a -r etc/rc.d/rc.ntpd.new ]; then
-  chmod --reference=etc/rc.d/rc.ntpd etc/rc.d/rc.ntpd.new
-fi
-mv etc/rc.d/rc.ntpd.new etc/rc.d/rc.ntpd
+config etc/ntp.keys.new
+preserve_perms etc/rc.d/rc.ntpd.new

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=freetype
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -35,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -51,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-freetype
 
@@ -59,7 +67,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf freetype-$VERSION
-tar xvf $CWD/freetype-$VERSION.tar.xz || exit 1
+tar xvf $CWD/freetype-$VERSION.tar.?z || exit 1
 cd freetype-$VERSION
 
 chown -R root:root .
@@ -75,15 +83,35 @@ zcat $CWD/freetype.illadvisederror.diff.gz | patch -p1 --verbose || exit 1
 
 # The line below enables code patented by Microsoft, so don't uncomment it
 # unless you have a license to use the code and take all legal responsibility
-# for doing so.
+# for doing so. With the new subpixel hinting modes there's not much reason
+# to want to use this anyway.
 # Please see this web site for more details:
 #   http://www.freetype.org/patents.html
 #zcat $CWD/freetype.subpixel.rendering.diff.gz | patch -p1 --verbose || exit 1
 
+# Compile support into the Freetype library for both the Infinality and
+# new 2.7.x (default) subpixel hinting modes. To adjust your preferences
+# (the classic hinting mode is also available), see the freetype profile
+# scripts in /etc/profile.d/.
+zcat $CWD/freetype.compile.both.subpixel.hinting.methods.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 CFLAGS="$SLKCFLAGS" make setup CFG="--prefix=/usr --libdir=/usr/lib${LIBDIRSUFFIX} --build=$ARCH-slackware-linux"
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Install runtime profile configuration scripts, used to set hinting defaults:
+mkdir -p $PKG/etc/profile.d
+cp -a $CWD/freetype.csh.gz $PKG/etc/profile.d
+cp -a $CWD/freetype.sh.gz $PKG/etc/profile.d
+gzip -d $PKG/etc/profile.d/*
+chown root:root $PKG/etc/profile.d/*
+chmod 755 $PKG/etc/profile.d/*
+mv $PKG/etc/profile.d/freetype.csh $PKG/etc/profile.d/freetype.csh.new
+mv $PKG/etc/profile.d/freetype.sh $PKG/etc/profile.d/freetype.sh.new
 
 # This shouldn't be needed (apps should pick up -I/usr/include/freetype2 from
 # `freetype-config --cflags` while compiling), but it's so often reported as
@@ -113,6 +141,7 @@ cp -a \
 rm -rf $PKG/usr/doc/freetype-$VERSION/docs/reference
 
 mkdir $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,10 @@
 
 # Modified 2012 by Eric Hameleers <alien at slackware.com> for ARM port.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=e2fsprogs
-VERSION=${VERSION:-$(echo e2fsprogs*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+VERSION=${VERSION:-$(echo e2fsprogs*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -39,6 +40,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -63,7 +72,6 @@ case "$ARCH" in
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-e2fsprogs
 
@@ -71,7 +79,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf e2fsprogs-$VERSION
-tar xvf $CWD/e2fsprogs-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/e2fsprogs-$VERSION.tar.?z || exit 1
 cd e2fsprogs-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -100,7 +108,7 @@ CFLAGS="$SLKCFLAGS" \
   --disable-libblkid \
   --disable-libuuid \
   --disable-uuidd \
-  --build=$TARGET
+  --build=$TARGET || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -147,7 +155,7 @@ fi
   ln -sf mke2fs mkfs.ext4dev
   ln -sf tune2fs e2label
   cat << EOF > fsck.ext2
-#!/bin/sh
+#!/bin/bash
 exec /sbin/e2fsck -C 0 \$*
 EOF
   chmod 0755 fsck.ext2

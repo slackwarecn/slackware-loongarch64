@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,12 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=3.04
+PKGNAM=xpdf
+VERSION=4.00
 PATCHLEVEL=
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -35,6 +37,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-${VERSION}${PATCHLEVEL}-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -51,7 +61,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-xpdf
 
@@ -72,30 +81,29 @@ find . \
 
 zcat $CWD/patches/xpdfrc.diff.gz | patch -p1 --verbose || exit 1
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --sysconfdir=/etc \
-  --with-freetype2-includes=/usr/include/freetype2 \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+mkdir build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DXPDFWIDGET_PRINTING=1 \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 chmod 0755 $PKG/usr/bin/*
 gzip -9 $PKG/usr/man/man?/*
 
 # We'll use the versions of these from the poppler derived work (if they exist here):
-( cd $PKG/usr/bin
-  rm -f pdfinfo pdftops pdftoppm pdftohtml pdftotext pdfimages pdffonts
-  cd $PKG/usr/man/man1
-  for file in pdfinfo pdftops pdftoppm pdftohtml pdftotext pdfimages pdffonts ; do
-    rm -f ${file}.1.gz
-  done
-)
+for file in pdfinfo pdftops pdftoppm pdftohtml pdftotext pdfimages pdffonts ; do
+  rm -f $PKG/usr/bin/${file}
+  rm -f $PKG/usr/man/man1/${file}.1.gz
+done
 
 # Don't clobber /etc/xpdfrc
 mkdir -p $PKG/etc
@@ -110,7 +118,7 @@ cat xpdf/xpdfIcon.xpm > $PKG/usr/share/pixmaps/xpdfIcon.xpm
 # Add additional language support:
 for language in xpdf-arabic xpdf-chinese-simplified xpdf-chinese-traditional xpdf-cyrillic xpdf-greek xpdf-hebrew xpdf-japanese xpdf-korean xpdf-latin2 xpdf-thai xpdf-turkish ; do
   rm -rf ${language}
-  tar xf $CWD/lang/${language}*.tar.gz
+  tar xf $CWD/lang/${language}*.tar.?z
   ( cd ${language}
     echo "Patching for ${language}:"
     zcat $CWD/lang/${language}.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
@@ -127,7 +135,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/xpdf-$VERSION
 cp -a \
-  ANNOUNCE CHANGES COPYING INSTALL README \
+  ANNOUNCE CHANGES COPYING* INSTALL README \
   $PKG/usr/doc/xpdf-$VERSION
 chmod 0644 $PKG/usr/doc/xpdf-$VERSION/*
 
@@ -135,7 +143,7 @@ chmod 0644 $PKG/usr/doc/xpdf-$VERSION/*
 # is useful, but don't let it get totally out of control:
 if [ -r CHANGES ]; then
   DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
-  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  cat CHANGES | tail -n 1000 > $DOCSDIR/CHANGES
   touch -r CHANGES $DOCSDIR/CHANGES
 fi
 

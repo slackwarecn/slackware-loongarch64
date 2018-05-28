@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=vsftpd
 VERSION=${VERSION:-$(echo ${PKGNAM}-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-5}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -36,13 +38,20 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-vsftpd
 
@@ -63,6 +72,11 @@ find . \
 zcat $CWD/vsftpd.builddefs.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/vsftpd.conf.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/vsftpd.crypt.diff.gz | patch -p1 --verbose || exit 1
+
+# Support OpenSSL 1.1.x:
+zcat $CWD/0021-Introduce-support-for-DHE-based-cipher-suites.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/0035-Modify-DH-enablement-patch-to-build-with-OpenSSL-1.1.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/vsftpd.link-with-openssl-1.1.diff.gz | patch -p1 --verbose || exit 1
 
 make $NUMJOBS || make || exit 1
 

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,13 +20,31 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=0.17
-ARCH=${ARCH:-x86_64}
-BUILD=${BUILD:-1}
+PKGNAM=bsd-finger
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-3}
 
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-bsd-finger
 
@@ -34,12 +52,30 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
+rm -rf bsd-finger-$VERSION
 tar xvf $CWD/bsd-finger-$VERSION.tar.gz || exit 1
 cd bsd-finger-$VERSION || exit 1
+
 chown -R root:root .
-zcat $CWD/bsd-finger-0.17.diff.gz | patch -p1 || exit
-./configure --prefix=/usr
+
+zcat $CWD/bsd-finger-0.17.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.16-allocbroken.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.16-pts.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-coverity-bugs.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-exact.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-host-info.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-init-realname.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-match_sigsegv.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-rfc742.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-time.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-usagi-ipv6.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-0.17-utmp.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/bsd-finger-wide-char-support5.patch.gz | patch -p1 --verbose || exit 1
+
+./configure --prefix=/usr || exit 1
+
 make || exit 1
+
 cd finger
 strip finger
 mkdir -p $PKG/usr/bin

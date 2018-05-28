@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-$(echo alsa-lib-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+PKGNAM=alsa-lib
+VERSION=${VERSION:-$(echo alsa-lib-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -36,7 +38,6 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-alsa-lib
 
@@ -54,15 +55,31 @@ else
   LIBDIRSUFFIX=""
 fi
 
+# If this package is being built for ALSA (no PulseAudio), use the _alsa $TAG:
+if [ ! -r /usr/lib${LIBDIRSUFFIX}/pkgconfig/libpulse.pc ]; then
+  TAG="_alsa"
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD$TAG.txz"
+  exit 0
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf alsa-lib-$VERSION
-tar xvf $CWD/alsa-lib-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/alsa-lib-$VERSION.tar.?z || exit 1
 cd alsa-lib-$VERSION || exit 1
 
-zcat $CWD/alsa-lib.fdba9e1bad8f769a6137e565471f0227f23a3132.diff.gz | patch -p1 --verbose || exit 1
+# Fix file missing in 1.1.6:
+if [ ! -r src/conf/smixer.conf ]; then
+  cp -a $CWD/smixer.conf src/conf
+fi
 
 chown -R root:root .
 find . \
@@ -74,17 +91,27 @@ find . \
 CFLAGS="$SLKCFLAGS" \
  ./configure \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --enable-mixer-modules \
+  --enable-mixer-pymods \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Redirect to PulseAudio:
 mkdir $PKG/etc
-cp -a $CWD/asound.conf $PKG/etc/asound.conf.new
+if [ "$TAG" = "_alsa" ]; then
+  # Ship an empty asound.conf for ALSA-only system:
+  cp -a $CWD/asound.conf.alsa $PKG/etc/asound.conf.new
+else
+  # Redirect to PulseAudio:
+  cp -a $CWD/asound.conf.pulse $PKG/etc/asound.conf.new
+fi
 chmod 644 $PKG/etc/asound.conf.new
 chown root:root $PKG/etc/asound.conf.new
 
@@ -113,5 +140,5 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/alsa-lib-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/alsa-lib-$VERSION-$ARCH-$BUILD$TAG.txz
 

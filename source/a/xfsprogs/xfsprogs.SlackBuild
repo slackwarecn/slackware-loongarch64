@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2012, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,8 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-$(echo xfsprogs-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=xfsprogs
+VERSION=${VERSION:-$(echo xfsprogs-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -36,7 +38,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-xfsprogs
 
@@ -59,8 +68,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf xfsprogs-$VERSION
-tar xvf $CWD/xfsprogs-$VERSION.tar.?z* || exit 1
-cd xfsprogs-$VERSION
+tar xvf $CWD/xfsprogs-$VERSION.tar.xz || exit 1
+cd xfsprogs-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -69,9 +78,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Make sure you have the same version of autoconf as the
-# developers did...  ;-)
-autoconf
+## Make sure you have the same version of autoconf as the
+## developers did...  ;-)
+#autoconf
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -85,12 +94,11 @@ CFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/xfsprogs-$VERSION \
   --enable-shared=yes \
   --enable-gettext=yes \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
-make install DIST_ROOT=$PKG
-make install-dev DIST_ROOT=$PKG
-make install-qa DIST_ROOT=$PKG
+make install DIST_ROOT=$PKG || exit 1
+make install-dev DIST_ROOT=$PKG || exit 1
 
 mv $PKG/usr/share/doc $PKG/usr
 mv $PKG/usr/doc/xfsprogs $PKG/usr/doc/xfsprogs-$VERSION

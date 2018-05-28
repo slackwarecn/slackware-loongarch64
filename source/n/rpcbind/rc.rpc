@@ -9,15 +9,36 @@
 # To run an NFS server, starting these is mandatory.
 #
 
+# Source default settings:
+if [ -r /etc/default/rpc ]; then
+  . /etc/default/rpc
+fi
+
 rpc_start() {
   if [ -x /sbin/rpcbind -a -x /sbin/rpc.statd ]; then
+    # Set up port for lockd:
+    if [ -n "$LOCKD_TCP_PORT" ]; then
+      /sbin/sysctl -w "fs.nfs.nlm_tcpport=$LOCKD_TCP_PORT" >/dev/null 2>&1
+    fi
+    if [ -n "$LOCKD_UDP_PORT" ]; then
+      /sbin/sysctl -w "fs.nfs.nlm_udpport=$LOCKD_UDP_PORT" >/dev/null 2>&1
+    fi
     if ! ps axc | grep -q rpcbind ; then
-      echo "Starting RPC portmapper:  /sbin/rpcbind -l $1"
-      /sbin/rpcbind -l $1
+      echo "Starting RPC portmapper:  /sbin/rpcbind -l $* $RPCBIND_OPTS"
+      /sbin/rpcbind -l "$@" $RPCBIND_OPTS
     fi
     if ! ps axc | grep -q rpc.statd ; then
-      echo "Starting RPC NSM (Network Status Monitor):  /sbin/rpc.statd"
-      /sbin/rpc.statd
+      if [ -n "$RPC_STATD_HOSTNAME" ]; then
+        RPC_STATD_OPTS="$RPC_STATD_OPTS -n $RPC_STATD_HOSTNAME"
+      fi
+      if [ -n "$RPC_STATD_PORT" ]; then
+        RPC_STATD_OPTS="$RPC_STATD_OPTS -p $RPC_STATD_PORT"
+      fi
+      if [ -n "$RPC_STATD_OUTGOING_PORT" ]; then
+        RPC_STATD_OPTS="$RPC_STATD_OPTS -o $RPC_STATD_OUTGOING_PORT"
+      fi
+      echo "Starting RPC NSM (Network Status Monitor):  /sbin/rpc.statd $RPC_STATD_OPTS"
+      /sbin/rpc.statd $RPC_STATD_OPTS
     fi
   else
     echo "WARNING:  Cannot start RPC daemons needed for NFS.  One or more of"

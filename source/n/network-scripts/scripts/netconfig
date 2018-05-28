@@ -40,24 +40,28 @@ fi
 # Config information for eth0:
 IPADDR[0]="$RCIPCOPY"
 NETMASK[0]="$RCMASKCOPY"
+IPALIASES[0]=""
 USE_DHCP[0]="$USE_DHCP"
 DHCP_HOSTNAME[0]="$DHCP_HOSTNAME"
 
 # Config information for eth1:
 IPADDR[1]=""
 NETMASK[1]=""
+IPALIASES[1]=""
 USE_DHCP[1]=""
 DHCP_HOSTNAME[1]=""
 
 # Config information for eth2:
 IPADDR[2]=""
 NETMASK[2]=""
+IPALIASES[2]=""
 USE_DHCP[2]=""
 DHCP_HOSTNAME[2]=""
 
 # Config information for eth3:
 IPADDR[3]=""
 NETMASK[3]=""
+IPALIASES[3]=""
 USE_DHCP[3]=""
 DHCP_HOSTNAME[3]=""
 
@@ -71,16 +75,36 @@ DEBUG_ETH_UP="no"
 
 # Example of how to configure a bridge:
 # Note the added "BRNICS" variable which contains a space-separated list
-# of the physical network interfaces you want to add to the bridge.
+# of the physical or virtual network interfaces you want to add to the bridge.
 #IFNAME[0]="br0"
 #BRNICS[0]="eth0"
 #IPADDR[0]="192.168.0.1"
 #NETMASK[0]="255.255.255.0"
+#IPALIASES[0]=""
 #USE_DHCP[0]=""
 #DHCP_HOSTNAME[0]=""
 
+# Virtual interfaces to create - these are created before any address
+# configuration or bridge setup is done, so you may use these interfaces
+# as IFNAME or BRNICS values. These can be tun or tap interfaces:
+# adjust VIRTIFNAME and VIRTIFTYPE accordingly.
+# Starting with VIRTIFNAME[0] is mandatory, and each next one must be
+# incremented by one, so VIRTIFNAME[1], VIRTIFNAME[2], and so on.
+#
+# Virtual tap interface example
+#VIRTIFNAME[0]="tap0"
+#VIRTIFTYPE[0]="tap"
+#VIRTIFUSER[0]="root"
+#VIRTIFGROUP[0]="root"
+#
+# Virtual tun interface example
+#VIRTIFNAME[1]="tun0"
+#VIRTIFTYPE[1]="tun"
+#VIRTIFUSER[1]="someuser"
+#VIRTIFGROUP[1]="somegroup"
+
 ## Example config information for wlan0.  Uncomment the lines you need and fill
-## in your info.  (You may not need all of these for your wireless network)
+## in your data.  (You may not need all of these for your wireless network)
 #IFNAME[4]="wlan0"
 #IPADDR[4]=""
 #NETMASK[4]=""
@@ -90,38 +114,55 @@ DEBUG_ETH_UP="no"
 #DHCP_KEEPNTP[4]="yes"
 #DHCP_KEEPGW[4]="yes"
 #DHCP_IPADDR[4]=""
-#WLAN_ESSID[4]=BARRIER05
+#WLAN_ESSID[4]=DARKSTAR
 #WLAN_MODE[4]=Managed
-##WLAN_RATE[4]="54M auto"
-##WLAN_CHANNEL[4]="auto"
-##WLAN_KEY[4]="D5AD1F04ACF048EC2D0B1C80C7"
-##WLAN_IWPRIV[4]="set AuthMode=WPAPSK | set EncrypType=TKIP | set WPAPSK=96389dc66eaf7e6efd5b5523ae43c7925ff4df2f8b7099495192d44a774fda16"
+#WLAN_RATE[4]="54M auto"
+#WLAN_CHANNEL[4]="auto"
+#WLAN_KEY[4]="D5A31F54ACF0487C2D0B1C10D2"
+#WLAN_IWPRIV[4]="set AuthMode=WPAPSK | set EncrypType=TKIP | set WPAPSK=96389dc66eaf7e6efd5b5523ae43c7925ff4df2f8b7099495192d44a774fda16"
 #WLAN_WPA[4]="wpa_supplicant"
-#WLAN_WPADRIVER[4]="ndiswrapper"
+#WLAN_WPADRIVER[4]="wext"
+#WLAN_WPAWAIT[4]=30
 
 ## Some examples of additional network parameters that you can use.
 ## Config information for wlan0:
 #IFNAME[4]="wlan0"              # Use a different interface name instead of
                                 # the default 'eth4'
+#IFNAME[4]="eth0:1"             # Set up an IP alias.
 #HWADDR[4]="00:01:23:45:67:89"  # Overrule the card's hardware MAC address
 #MTU[4]=""                      # The default MTU is 1500, but you might need
                                 # 1360 when you use NAT'ed IPSec traffic.
+#DHCP_TIMEOUT[4]=15             # The default timeout for the DHCP client to
+                                # wait for server resonse is 15 seconds, but
+                                # you might want a shorter or longer wait.
 #DHCP_KEEPRESOLV[4]="yes"       # If you don't want /etc/resolv.conf overwritten
 #DHCP_KEEPNTP[4]="yes"          # If you don't want ntp.conf overwritten
 #DHCP_KEEPGW[4]="yes"           # If you don't want the DHCP server to change
                                 # your default gateway
 #DHCP_IPADDR[4]=""              # Request a specific IP address from the DHCP
                                 # server
-#WLAN_ESSID[4]=DARKSTAR         # Here, you can override _any_ parameter
-                                # defined in rc.wireless.conf, by prepending
-                                # 'WLAN_' to the parameter's name. Useful for
-                                # those with multiple wireless interfaces.
+#DHCP_DEBUG[4]="yes"            # Make dhcpcd show verbose diagnostics
+#DHCP_NOIPV4LL[4]="yes"         # Do not assign an ipv4ll address when a DHCP
+                                # server is not found (ipv4ll link-local
+                                # adresses in the IP range 169.254.0.0/16 are
+                                # also known as "zeroconf" addresses)
+#WLAN_ESSID[4]=DARKSTAR         # An example of how you can override _any_
+                                # parameter defined in rc.wireless.conf, by
+                                # prepending 'WLAN_' to the parameter's name.
+                                # Useful with multiple wireless interfaces.
 #WLAN_IWPRIV[4]="set AuthMode=WPAPSK | set EncrypType=TKIP | set WPAPSK=thekey"
                                 # Some drivers require a private ioctl to be
                                 # set through the iwpriv command. If more than
                                 # one is required, you can place them in the
                                 # IWPRIV parameter (separated with the pipe (|)
                                 # character, see the example).
+#WLAN_WPA[4]="wpa_supplicant"   # Run wpa_supplicant for WPA support
+#WLAN_WPADRIVER[4]="ndiswrapper"# Tell wpa_supplicant to specifically use the
+                                # ndiswrapper driver (if you leave this empty
+                                # the 'wext' driver is used by default)
+#WLAN_WPAWAIT[4]=30             # In case it takes long for the WPA association
+                                # to finish, you can increase the wait time
+                                # (defaults to 10 seconds)
 ENDFILE
 #
 ############################################################################

@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2008  Robby Workman  Northport, AL, USA
 # Copyright 2012, 2013  Eric Hameleers, Eindhoven, NL
-# Copyright 2012, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2014, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,6 +29,8 @@
 # If ./languages is missing and this script is called without options, the
 # default is to create an up-to-date ./languages list and build all the
 # language packs.
+
+cd $(dirname $0) ; CWD=$(pwd)
 
 if [ ! -r ./languages ]; then
   for file in calligra-l10n*.xz ; do
@@ -61,8 +63,7 @@ fi
 # Set the config option variables if they are not already set:
 [ -r ../KDE.options ] && . ../KDE.options
 
-CWD=$(pwd)
-TMP=${TMP:-/tmp/kde-build}
+TMP=${TMP:-/tmp/kde_build}
 
 make_language_pack() {
 rm -rf $PKG
@@ -104,6 +105,13 @@ cd $PKG
 if [ -z $PKGLANG ]; then
   for PKGLANG in $(cat languages) ; do
     PKGNAM=calligra-l10n-$PKGLANG
+    # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+    # the name of the created package would be, and then exit. This information
+    # could be useful to other scripts.
+    if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+      echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+      continue
+    fi
     PKG=$TMP/package-calligra-l10n-$PKGLANG
     # The global options may be overridden here (if needed):
     [ -r ./local.options/$PKGLANG ] && . ./local.options/$PKGLANG
@@ -111,6 +119,13 @@ if [ -z $PKGLANG ]; then
   done
 else
   PKGNAM=calligra-l10n-$PKGLANG
+  # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+  # the name of the created package would be, and then exit. This information
+  # could be useful to other scripts.
+  if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+    echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+    exit 0
+  fi
   PKG=$TMP/package-calligra-l10n-$PKGLANG
   # The global options may be overridden here (if needed):
   [ -r ./local.options/$PKGLANG ] && . ./local.options/$PKGLANG

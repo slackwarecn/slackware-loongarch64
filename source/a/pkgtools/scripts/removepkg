@@ -1,6 +1,50 @@
 #!/bin/sh
 # Slackware remove package script
 #
+# Copyright 1994, 1995, 1998  Patrick Volkerding, Moorhead, Minnesota USA
+# Copyright 2001, Slackware Linux, Inc., Concord, CA USA
+# Copyright 2009, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+# Sun May 27 18:02:23 UTC 2018
+# Added --terse mode to print one line per removed package.
+#
+# Wed May 23 17:31:23 UTC 2018
+# Use file locking to prevent more than one copy of ldconfig from running at
+# a time.
+#
+# Thu Sep 15 17:46:28 UTC 2016 <volkerdi>
+# If removepkg is called with a short package name (no -$VERSION-$ARCH-$BUILD),
+# remove the most recently installed matching package, not the oldest one.
+#
+# Thu Sep 15 08:09:01 BST 2016 <mozes>
+# - Handle finding >1 match for a package.  Thanks to SeB on LQ for the feedback.
+#
+# Wed Sep 14 20:44:00 BST 2016 <mozes>
+# - Modify package_name function to cater for package file names that contain
+#   >=4 hyphens.
+#   Thanks to coralfang on LQ for the report and to Jim Hawkins for the patch.
+# - Modified to handle packages that contain file names with backslashes
+#   Thanks to aaazen on LQ for the report and the patch.
+#
 # Thu Sep 24 03:31:58 UTC 2015 <alphageek>
 # extract_links() sed adjusted to handle symlinks with spaces.
 #
@@ -76,28 +120,8 @@
 # Original Version from Slackware 3.0
 #
 
-# Copyright 1994, 1995, 1998  Patrick Volkerding, Moorhead, Minnesota USA
-# Copyright 2001, Slackware Linux, Inc., Concord, CA USA
-# Copyright 2009, 2015  Patrick J. Volkerding, Sebeka, MN, USA
-# All rights reserved.
-#
-# Redistribution and use of this script, with or without modification, is 
-# permitted provided that the following conditions are met:
-#
-# 1. Redistributions of this script must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#
-#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
-#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
-#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
-#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
-#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
-#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# Needed to find package names within the 'remove_packages' function:
+shopt -s extglob
 
 # Return a package name that has been stripped of the dirname portion
 # and any of the valid extensions (only):
@@ -120,6 +144,13 @@ fi
 ADM_DIR=$ROOT/var/log
 PRES_DIR=$TMP/preserved_packages
 
+# Lock directory for ldconfig... share it with installpkg so that upgradepkg
+# becomes properly ldconfig-locked, too.
+INSTLOCKDIR=${INSTLOCKDIR:-/run/installpkg-lock}
+if [ ! -d $INSTLOCKDIR ]; then
+  mkdir -p $INSTLOCKDIR
+fi
+
 # This simple cat_except() should be used on the installer,
 # since the busybox "find" can't handle the complex find
 # syntax:
@@ -131,8 +162,8 @@ PRES_DIR=$TMP/preserved_packages
 # removed when ROOT= is used:
 cat_except() {
   ( cd "$1" && \
-    if [ $(find . -type f -maxdepth 1 | wc -l) -ne 1 ]; then
-      cat $(find . -type f -maxdepth 1 | grep -v "$2")
+    if [ $(find . -type f -maxdepth 1 2> /dev/null | wc -l) -ne 1 ]; then
+      cat $(find . -type f -maxdepth 1 2> /dev/null | grep -v "$2") 2> /dev/null
     fi
   )
 }
@@ -166,11 +197,11 @@ keep_files() {
  while read FILE ; do
   if [ ! -d "$ROOT/$FILE" ]; then
    if [ -r "$ROOT/$FILE" ]; then
-    echo "  --> $ROOT/$FILE was found in another package. Skipping."
+    ! [ $TERSE ] && echo "  --> $ROOT/$FILE was found in another package. Skipping."
     preserve_file "$FILE"
    else
     if [ "$(echo $FILE | cut -b1-8)" != "install/" ]; then
-     echo "WARNING: Nonexistent $ROOT/$FILE was found in another package. Skipping."
+     ! [ $TERSE ] && echo "WARNING: Nonexistent $ROOT/$FILE was found in another package. Skipping."
     fi
    fi
   else
@@ -182,29 +213,31 @@ keep_files() {
 keep_links() {
  while read LINK ; do
   if [ -L "$ROOT/$LINK" ]; then
-   echo "  --> $ROOT/$LINK (symlink) was found in another package. Skipping."
+   ! [ $TERSE ] && echo "  --> $ROOT/$LINK (symlink) was found in another package. Skipping."
   else
-   echo "WARNING: Nonexistent $ROOT/$LINK (symlink) was found in another package. Skipping."
+   ! [ $TERSE ] && echo "WARNING: Nonexistent $ROOT/$LINK (symlink) was found in another package. Skipping."
   fi
  done
 }
 
 delete_files() {
- while read FILE ; do
+ local unset LC_ALL         # Locally (within this delete_files function) allow handling of backslashes
+ while read -r AFILE ; do   # do not expand backslashes on read
+  FILE=$(printf "%b" "$AFILE")   # unescape octal characters
   if [ ! -d "$ROOT/$FILE" ]; then
    if [ -r "$ROOT/$FILE" ]; then
     if [ "$ROOT/$FILE" -nt "$ADM_DIR/packages/$PKGNAME" ]; then
-     echo "WARNING: $ROOT/$FILE changed after package installation."
+     ! [ $TERSE ] && echo "WARNING: $ROOT/$FILE changed after package installation."
     fi
     if [ ! "$WARN" = "true" ]; then
-     echo "  --> Deleting $ROOT/$FILE"
+     ! [ $TERSE ] && echo "  --> Deleting $ROOT/$FILE"
      preserve_file "$FILE" && rm -f "$ROOT/$FILE"
     else
-     echo "  --> $ROOT/$FILE would be deleted"
+     ! [ $TERSE ] && echo "  --> $ROOT/$FILE would be deleted"
      preserve_file "$FILE"
     fi
    else
-    echo "  --> $ROOT/$FILE no longer exists. Skipping."
+    ! [ $TERSE ] && echo "  --> $ROOT/$FILE no longer exists. Skipping."
    fi
   else
    preserve_dir "$FILE"
@@ -216,13 +249,13 @@ delete_links() {
  while read LINK ; do
   if [ -L "$ROOT/$LINK" ]; then
    if [ ! "$WARN" = "true" ]; then
-    echo "  --> Deleting symlink $ROOT/$LINK"
+    ! [ $TERSE ] && echo "  --> Deleting symlink $ROOT/$LINK"
     rm -f "$ROOT/$LINK"
    else
-    echo "  --> $ROOT/$LINK (symlink) would be deleted"
+    ! [ $TERSE ] && echo "  --> $ROOT/$LINK (symlink) would be deleted"
    fi
   else
-   echo "  --> $ROOT/$LINK (symlink) no longer exists. Skipping."
+   ! [ $TERSE ] && echo "  --> $ROOT/$LINK (symlink) no longer exists. Skipping."
   fi
  done
 }
@@ -233,13 +266,13 @@ delete_dirs() {
   if [ -d "$ROOT/$DIR" ]; then
     if [ ! "$WARN" = "true" ]; then
       if [ $(ls -a "$ROOT/$DIR" | wc -l) -eq 2 ]; then
-        echo "  --> Deleting empty directory $ROOT/$DIR"
+        ! [ $TERSE ] && echo "  --> Deleting empty directory $ROOT/$DIR"
         rmdir "$ROOT/$DIR"
       else
-        echo "WARNING: Unique directory $ROOT/$DIR contains new files"
+        ! [ $TERSE ] && echo "WARNING: Unique directory $ROOT/$DIR contains new files"
       fi
     else
-     echo "  --> $ROOT/$DIR (dir) would be deleted if empty"
+     ! [ $TERSE ] && echo "  --> $ROOT/$DIR (dir) would be deleted if empty"
     fi
   fi
  done
@@ -250,33 +283,21 @@ delete_cats() {
  while read FILE ; do
    if [ -f "$ROOT/$FILE" ]; then
      if [ ! "$WARN" = "true" ]; then
-       echo "  --> Deleting $ROOT/$FILE (fmt man page)"
+       ! [ $TERSE ] && echo "  --> Deleting $ROOT/$FILE (fmt man page)"
        rm -f $ROOT/$FILE
      else
-       echo "  --> $ROOT/$FILE (fmt man page) would be deleted"
+       ! [ $TERSE ] && echo "  --> $ROOT/$FILE (fmt man page) would be deleted"
      fi
    fi
  done
 }
 
-package_name() {
-  STRING=$(pkgbase $1 | sed 's?-[^-]*-[^-]*-[^-]*$??')
-  # If we don't do this, commands run later will take the '-' to be an option
-  # and will destroy the package database.  Packages should not contain spaces
-  # in them.  Normally this type of problem results from a command line typo.
-  if [ "$(echo $STRING | cut -b 1)" = "-" ]; then
-    STRING="malformed-package-name-detected"
-  fi
-  echo $STRING
-}
-
 # Conversion to 'comm' utility by Mark Wisdom.
 # is pretty nifty! :^)
 remove_packages() {
- for PKGLIST in $* 
+ for PKGLIST in $*
  do
   PKGNAME=$(pkgbase $PKGLIST)
-  echo
   # If we don't have a package match here, then we will attempt to find
   # a package using the long name format (name-version-arch-build) for
   # which the base package name was given.  On a properly-managed machine,
@@ -285,24 +306,22 @@ remove_packages() {
   # be removed.  If you want to remove them all, you'll need to run
   # removepkg again until it removes all the same-named packages.
   if [ ! -e $ADM_DIR/packages/$PKGNAME ]; then
-   SHORT="$(package_name $PKGNAME)"
-   for long_package in $ADM_DIR/packages/${PKGNAME}* ; do
-    if [ "$SHORT" = "$(package_name $long_package)" ]; then
-     PKGNAME="$(basename $long_package)"
+    # Short name not found - finally try looking for full name - e.g. foo-1.0-arm-1
+    pushd $ADM_DIR/packages > /dev/null
+    # Don't set PKGNAME if there are no matches:
+    if [ ! "$( ls -1 $PKGNAME-+([^-])-+([^-])-+([^-]) 2>/dev/null | wc -l  )" = "0" ]; then
+      # If there is more than one package with the same name, set PKGNAME to the
+      # most recently installed version.  This does not affect the behavior of
+      # upgradepkg, which always removes all other existing versions of the
+      # same package.
+      PKGNAME=$( ls -1t $PKGNAME-+([^-])-+([^-])-+([^-]) 2> /dev/null | head -n1 )
     fi
-   done
-  fi
-
-  if [ ! -e $ADM_DIR/packages/$PKGNAME ]; then
-    long_package=$(ls -1 $ADM_DIR/packages/${PKGNAME}* | grep -m 1 "^${PKGNAME}-[^-]*-[^-]*-[^-]*$")
-    if [ -e "$long_package" ]; then
-      PKGNAME=$(basename $long_package)
-    fi
+    popd > /dev/null
   fi
 
   if [ -r $ADM_DIR/packages/$PKGNAME ]; then
    if [ ! "$WARN" = true ]; then
-    echo "Removing package $ADM_DIR/packages/$PKGNAME..."
+    echo "Removing package: $(basename $ADM_DIR/packages/$PKGNAME)"
    fi
    if fgrep "./" $ADM_DIR/packages/$PKGNAME 1> /dev/null 2>&1; then
     TRIGGER="^\.\/"
@@ -310,7 +329,7 @@ remove_packages() {
     TRIGGER="FILE LIST:"
    fi
    if [ ! "$WARN" = true ]; then
-    echo "Removing files:"
+    ! [ $TERSE ] && echo "Removing files:"
    fi
    sed -n "/$TRIGGER/,/^$/p" < $ADM_DIR/packages/$PKGNAME | \
     fgrep -v "FILE LIST:" | sort -u > $TMP/delete_list$$
@@ -325,7 +344,7 @@ remove_packages() {
     comm -12 $TMP/del_link_list$$ $TMP/required_list$$ | keep_links
     comm -23 $TMP/del_link_list$$ $TMP/required_list$$ | delete_links
    else
-    cat $ADM_DIR/scripts/* | extract_links | \
+    cat $ADM_DIR/scripts/* 2> /dev/null | extract_links | \
      sort -u > $TMP/required_links$$
     mv $TMP/required_list$$ $TMP/required_files$$
     sort -u $TMP/required_links$$ $TMP/required_files$$ >$TMP/required_list$$
@@ -348,22 +367,27 @@ remove_packages() {
     fi
    fi
    if [ ! "$WARN" = "true" ]; then
-    for DIR in $ADM_DIR/removed_packages $ADM_DIR/removed_scripts ; do
-     if [ ! -d $DIR ] ; then mkdir -p $DIR ; chmod 755 $DIR ; fi
-    done
+    mkdir -p $ADM_DIR/removed_packages $ADM_DIR/removed_scripts
     mv $ADM_DIR/packages/$PKGNAME $ADM_DIR/removed_packages
     if [ -r $ADM_DIR/scripts/$PKGNAME ]; then
      mv $ADM_DIR/scripts/$PKGNAME $ADM_DIR/removed_scripts
     fi
    fi
   else
-   echo "No such package: $ADM_DIR/packages/$PKGNAME. Can't remove."
+   echo "No such package: $(basename $ADM_DIR/packages/$PKGNAME). Can't remove."
+  fi
+  # In the case where a library and symlink are removed but an earlier version
+  # remains on the machine, this will link it up and save potential problems:
+  if [ "$ROOT" = "" ] && [ -x /sbin/ldconfig ]; then
+   ( flock 9 || exit 11
+    /sbin/ldconfig 2> /dev/null
+   ) 9> $INSTLOCKDIR/ldconfig.lock
   fi
  done
 }
 
 if [ "$#" = "0" ]; then
-  echo "Usage: $(basename $0) [-copy] [-keep] [-preserve] [-warn] packagename ..."; exit 1
+  echo "Usage: $(basename $0) [--copy] [--keep] [--preserve] [--terse] [--warn] packagename ..."; exit 1
 fi
 
 while : ; do
@@ -371,6 +395,7 @@ while : ; do
   -copy | --copy) WARN=true; PRESERVE=true; shift;;
   -keep | --keep) KEEP=true; shift;;
   -preserve | --preserve) PRESERVE=true; shift;;
+  -terse | --terse) TERSE=0; shift;;
   -warn | --warn) WARN=true; shift;;
   -* | --*) echo "Usage: $(basename $0) [-copy] [-keep] [-preserve] [-warn] packagename ..."; exit 1;;
   *) break
@@ -378,6 +403,7 @@ while : ; do
 done
 
 if [ "$WARN" = "true" ]; then
+ unset TERSE
  echo "Only warning... not actually removing any files."
  if [ "$PRESERVE" = "true" ]; then
   echo "Package contents is copied to $PRES_DIR."
@@ -392,4 +418,3 @@ else
 fi
 
 remove_packages $*
-

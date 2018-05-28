@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2011, 2012, 2014  Eric Hameleers, Eindhoven, NL
-# Copyright 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2011, 2012, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -22,11 +22,12 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=phonon-gstreamer
 SRCNAM=phonon-backend-gstreamer
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:" -j7 "}
 
@@ -34,7 +35,7 @@ NUMJOBS=${NUMJOBS:" -j7 "}
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -42,8 +43,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -59,7 +68,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -90,9 +98,9 @@ cd build
     -DMAN_INSTALL_DIR=/usr/man \
     -DSYSCONF_INSTALL_DIR=/etc \
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    ..
-  make $NUMJOBS
-  make DESTDIR=$PKG install
+    .. || exit 1
+  make $NUMJOBS || exit 1
+  make DESTDIR=$PKG install || exit 1
 cd -
 
 # Conditional build of Qt5 support:
@@ -110,9 +118,9 @@ if qtpaths-qt5 --qt-version 1>/dev/null 2>/dev/null ; then
       -DSYSCONF_INSTALL_DIR=/etc \
       -DLIB_SUFFIX=${LIBDIRSUFFIX} \
       -DPHONON_BUILD_PHONON4QT5=ON \
-      ..
-    make $NUMJOBS
-    make DESTDIR=$PKG install
+      .. || exit 1
+    make $NUMJOBS || exit 1
+    make DESTDIR=$PKG install || exit 1
   cd -
 fi
 

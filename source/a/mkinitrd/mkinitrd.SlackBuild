@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,12 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-1.4.8}
-BB=1.20.2
-BUILD=${BUILD:-8}
+PKGNAM=mkinitrd
+VERSION=${VERSION:-1.4.11}
+BB=1.28.3
+BUILD=${BUILD:-6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -35,8 +37,15 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:--j7}
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mkinitrd
 
@@ -51,8 +60,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf busybox-$BB
-tar xvf $CWD/busybox-$BB.tar.?z* || exit 1
-cd busybox-$BB
+tar xvf $CWD/busybox-$BB.tar.bz2 || exit 1
+cd busybox-$BB || exit 1
 
 if [ -d $CWD/fixes-$BB ]; then
   for pfile in $CWD/fixes-$BB/*.patch ; do 
@@ -64,7 +73,7 @@ chown -R root:root .
 sed -e \
   's#^CONFIG_PREFIX=.*#CONFIG_PREFIX="'$PKG'/usr/share/mkinitrd/initrd-tree"#' \
   $CWD/busybox-dot-config > .config
-make oldconfig
+make oldconfig || exit 1
 make $NUMJOBS || make || exit 1
 
 mkdir -p $PKG/usr/share/mkinitrd/initrd-tree/{bin,sbin}

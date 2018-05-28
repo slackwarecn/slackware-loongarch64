@@ -19,6 +19,7 @@ fi
 
 config etc/auto.master.new
 config etc/auto.misc.new
+config etc/autofs.conf.new
 config etc/autofs_ldap_auth.conf.new
 config etc/default/autofs.new
 

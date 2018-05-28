@@ -26,3 +26,8 @@ config etc/my.cnf.d/mysql-clients.cnf.new
 config etc/my.cnf.d/server.cnf.new
 config etc/logrotate.d/mysql.new
 
+# Not supported in every $ARCH:
+if [ -r etc/my.cnf.d/tokudb.cnf.new ]; then
+  config etc/my.cnf.d/tokudb.cnf.new
+fi
+

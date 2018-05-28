@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,29 +20,39 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 # Sources:
 # ftp://ftp.pal.xgw.fi/pub/gnu/alpha/gnu/p2c-1.21alpha2.tar.gz
 # ftp://ftp.clara.net/pub/mirrors/gnu/hurd/p2c-1.21alpha2.tar.gz
 # ftp://ftp.obspm.fr/pub1/computing/gnu/hurd/p2c-1.21alpha2.tar.gz
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=p2c
 VERSION=${VERSION:-1.21alpha2}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -55,7 +65,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-p2c
 
@@ -80,6 +89,8 @@ find . \
 
 zcat $CWD/p2c_1.21alpha2-2.1.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 zcat $CWD/p2c_time.diff.gz | patch -p0 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/p2c.getline.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+
 find . -name "*.orig" | xargs rm --verbose
 # Fix library paths:
 sed -i -e "s#/lib #/lib${LIBDIRSUFFIX} #g" \
@@ -89,7 +100,7 @@ sed -i -e "s#/lib #/lib${LIBDIRSUFFIX} #g" \
 
 cd src
 make OPT="$SLKCFLAGS" || exit 1
-make p2cc
+make p2cc || exit 1
 
 mv $PKG/usr/lib $PKG/usr/lib${LIBDIRSUFFIX} 2>/dev/null
 cat p2c > $PKG/usr/bin/p2c

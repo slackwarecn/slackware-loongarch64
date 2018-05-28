@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gdb
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -37,13 +38,20 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gdb
 
@@ -61,16 +69,24 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Currently broken in this version, but keep trying:
+if [ "$VERSION" = "8.0.1" -o "$VERSION" = "8.1" ]; then
+  GUILE_OPTION="--without-guile"
+else
+  # Might as well try it to see if it compiles this time:
+  GUILE_OPTION="--with-guile"
+fi
+
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --with-guile \
-  --with-python \
+  $GUILE_OPTION \
+  --with-python=/usr/bin/python3 \
+  --with-system-readline \
+  --with-system-zlib \
   --build=$ARCH-slackware-linux || exit 1
-
-( cd readline ; make )
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -80,10 +96,6 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/{libbfd*,libiberty*,libopcodes*}
 rmdir $PKG/usr/lib${LIBDIRSUFFIX} 2> /dev/null
 rm -f $PKG/usr/info/{annotate*,bfd*,configure*,standards*}
 rm -rf $PKG/usr/include
-
-# Use the -tui option if you want this.
-# Including a whole extra copy of the gdb binary is obnoxious:
-rm -f $PKG/usr/bin/gdbtui $PKG/usr/man/man1/gdbtui.1*
 
 mkdir -p $PKG/usr/doc/gdb-$VERSION/gdb
 cp -a COPYING* README $PKG/usr/doc/gdb-$VERSION

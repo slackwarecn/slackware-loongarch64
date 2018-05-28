@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=gnuplot
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -50,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gnuplot
 
@@ -58,7 +67,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf gnuplot-$VERSION
-tar xvf $CWD/gnuplot-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/gnuplot-$VERSION.tar.?z || exit 1
 cd gnuplot-$VERSION || exit 1
 
 chown -R root:root .
@@ -67,6 +76,16 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Fix default source location; use the GDFONTPATH variable to modify at runtime.
+# Thanks to the arch-folks.
+sed -i 's|/usr/X11R6/lib/X11/fonts/truetype|/usr/share/fonts/TTF|' src/variable.c
+sed -i -e 's|/usr/X11R6/lib/X11/fonts/Type1|/usr/share/fonts/Type1|' \
+  -e 's|$(X11ROOT)/X11R6/lib/X11/fonts/Type1|$(X11ROOT)/usr/share/fonts/Type1|' \
+  src/variable.c
+
+# Fix failure in building info file:
+zcat $CWD/gnuplot.fix.info.generation.diff.gz | patch -p1 --verbose || exit 1
 
 # To distribute gnuplot binaries, you can not use GNU readline, as
 # gnuplot does not use a GPL compatible free license.
@@ -78,13 +97,16 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --with-gd \
   --with-caca \
+  --with-qt=no \
+  --without-libcerf \
+  --with-texdir=/usr/share/texmf-dist/tex/latex/gnuplot \
   --datadir=/usr/share/gnuplot \
   --with-readline=builtin \
   --build=${ARCH}-slackware-linux || exit 1
 
 #
 # I think most people would rather not have a Qt dependency here.
-# --enable-qt
+# --with-qt=yes
 # 
 
 make $NUMJOBS || make || exit 1
@@ -119,7 +141,7 @@ fi
 
 mkdir -p $PKG/usr/doc/gnuplot-$VERSION
 cp -a \
-  BUGS CodeStyle Copyright FAQ.bloat INSTALL NEWS PATCHLEVEL PGPKEYS PORTING \
+  BUGS CodeStyle Copyright INSTALL NEWS PATCHLEVEL PGPKEYS PORTING \
   README* TODO VERSION \
   $PKG/usr/doc/gnuplot-$VERSION
 cp -a demo $PKG/usr/doc/gnuplot-$VERSION

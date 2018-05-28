@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,21 +20,30 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=getty-ps
 VERSION=2.1.0b
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-getty-ps
 
@@ -42,16 +51,16 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-tar xzvf $CWD/getty_ps-$VERSION.tar.gz
-cd getty_ps-$VERSION
+tar xvf $CWD/getty_ps-$VERSION.tar.gz || exit 1
+cd getty_ps-$VERSION || exit 1
 zcat $CWD/getty.bugfixes.diff.gz | patch -p1 --verbose || exit
 # Prevent "error: conflicting types for 'send'"
 # because send is already defined in <sys/net.h>
 sed -i -e "s/send/gettysend/g" funcs.c
 chown -R root:root .
-make clean
+make clean || exit 1
 rm getty uugetty
-make
+make || exit 1
 strip getty uugetty
 mkdir $PKG/sbin
 cat getty > $PKG/sbin/getty
@@ -81,8 +90,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 cd $PKG
 makepkg -l y -c n $TMP/getty-ps-$VERSION-$ARCH-$BUILD.txz
 
-# Clean up the extra stuff:
-if [ "$1" = "--cleanup" ]; then
-  rm -rf $TMP/getty_ps-$VERSION
-  rm -rf $PKG
-fi

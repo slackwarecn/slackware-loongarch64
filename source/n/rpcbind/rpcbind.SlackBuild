@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2015, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rpcbind
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,6 +35,14 @@ if [ -z "$ARCH" ]; then
     *) ARCH=$(uname -m) ;;
   esac
   export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -64,7 +73,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -73,18 +81,25 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
-zcat $CWD/0001-security.c-removed-warning.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0002-Fix-memory-corruption-in-PMAP_CALLIT-code.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0003-handle_reply-Don-t-use-the-xp_auth-pointer-directly.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0004-Delete-the-unix-socket-only-if-we-have-created-it.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/01.rpcbind-manpage-statefile-explanation.patch.gz | patch -p1 --verbose || exit 1
+# CVE-2017-8779
+zcat $CWD/0002-rpcbind-pair-all-svc_getargs-calls-with-svc_freeargs.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/0003-pmapproc_dump-Fixed-typo-in-memory-leak-patch.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/0004-rpcbind-fix-building-without-enable-debug.patch.gz | patch -p1 --verbose || exit 1
+
+# Fixes from git master
+zcat $CWD/0005-rpcbproc_callit_com-Stop-freeing-a-static-pointer.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/0006-rpcbproc_callit_com-No-need-to-allocate-output-buffe.patch.gz | patch -p1 --verbose || exit 1
+
+zcat $CWD/0001-man-rpcibind.8-Clarify-state-file-usage-and-history.patch | patch -p1 --verbose || exit 1
 zcat $CWD/rpcbind.lwrap.needs.lnsl.diff.gz | patch -p1 --verbose || exit 1
 
-# This is needed after the patch above:
+
+# This is needed after the libwrap patch above:
 autoreconf -vif || exit 1
+./autogen.sh
 
 chown -R root:root .
 find . \
@@ -103,8 +118,8 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-libwrap \
   --enable-warmstarts \
-  --with-statedir=/var/state/rpcbind \
-  --with-rpcuser=bin \
+  --with-statedir=/var/run/rpcbind \
+  --with-rpcuser=rpc \
   --with-nss-modules="files" \
   --without-systemdsystemunitdir \
   --build=$ARCH-slackware-linux || exit 1
@@ -113,13 +128,17 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Make state directory:
-mkdir -p $PKG/var/state/rpcbind
-chown bin:root $PKG/var/state/rpcbind
+# Make state directory (not really needed as rpcbind does this on startup)
+mkdir -p $PKG/var/run/rpcbind
+chown rpc:root $PKG/var/run/rpcbind
 
 # Install init script:
 mkdir -p $PKG/etc/rc.d
 zcat $CWD/rc.rpc.gz > $PKG/etc/rc.d/rc.rpc.new
+
+# Install defaults file:
+mkdir -p $PKG/etc/default
+cat $CWD/rpc.default > $PKG/etc/default/rpc.new
 
 # Strip binaries:
 ( cd $PKG

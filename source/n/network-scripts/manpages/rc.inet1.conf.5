@@ -7,7 +7,7 @@
 .ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
 .el .TP "\\$1"
 ..
-.TH RC.INET1.CONF 5 "03 Dec 2008" "Slackware Version 12.2.0"
+.TH RC.INET1.CONF 5 "12 Nov 2017" "Slackware Version 15.0"
 .SH NAME
 rc.inet1.conf \- Slackware network configuration file.
 .SH DESCRIPTION
@@ -34,6 +34,8 @@ IPADDR[0]=""
 .br
 NETMASK[0]=""
 .br
+IPALIASES[0]=""
+.br
 USE_DHCP[0]="yes"
 .br
 DHCP_HOSTNAME[0]=""
@@ -45,7 +47,8 @@ has a non-default name (
 .I ath0
 instead of
 .I eth1
-). The array index is [1] in this case.
+), as well as an additional IP address configured on the interface.
+The array index is [1] in this case.
 .LP
 # Config information for ath0 (using static IP address):
 .br
@@ -55,11 +58,50 @@ IPADDR[1]="192.168.3.11"
 .br
 NETMASK[1]="255.255.255.0"
 .br
+IPALIASES[1]="192.168.3.100"
+.br
 USE_DHCP[1]=""
 .br
 DHCP_HOSTNAME[1]=""
 .br
 GATEWAY="192.168.3.1"
+.br
+.SH EXAMPLE VIRTUAL INTERFACE CREATION AND SETUP
+Virtual interfaces are created before any address configuration or bridge 
+setup is done, so you may use these interfaces as IFNAME or BRNICS values.
+These can be tun or tap interfaces: adjust VIRTIFNAME and VIRTIFTYPE as
+needed.
+.LP
+# Virtual tap interface example
+.br
+#VIRTIFNAME[0]="tap0"
+.br
+#VIRTIFTYPE[0]="tap"
+.br
+#VIRTIFUSER[0]="root"
+.br
+#VIRTIFGROUP[0]="root"
+.br
+.SH EXAMPLE BRIDGE CREATION AND SETUP
+Note the added "BRNICS" variable which contains a space-separated list
+of the physical or virtual network interfaces you want to add to the bridge.
+Note that the array index can not be a duplicate of that defined for some
+other interface (e.g. eth0 will be index 0 by default).
+.LP
+IFNAME[0]="br0"
+.br
+BRNICS[0]="eth0 eth1 tun0"
+.br
+IPADDR[0]="192.168.0.1"
+.br
+NETMASK[0]="255.255.255.0"
+.br
+IPALIASES[0]=""
+.br
+USE_DHCP[0]=""
+.br
+DHCP_HOSTNAME[0]=""
+.br
 .SH GENERAL PARAMETERS
 This is a list of network parameters you can set for any card (wired as well
 as wired).  The example section is for `eth0' by default, i.e.
@@ -75,6 +117,12 @@ NETMASK[0]=""
 # With a static IP address, you are required to also set a netmask
 (255.255.255.0 is common)
 .TP
+IPALIASES[0]=""
+# Space separated list of additional IP addresses to bind to the 
+interface after initial configuration is complete. If USE_DHCP is
+set to `yes' then additional addresses will only be added if the
+dhcp client invocation is successful in obtaining a primary address.
+.TP
 USE_DHCP[0]="yes"
 # If set to "yes", we will run a DHCP client and have the IP address
 dynamically assigned
@@ -86,15 +134,16 @@ DHCP_TIMEOUT[0]=15
 # The default timeout for the DHCP client to wait for server response is
 30 seconds, but you might want a shorter wait.
 .TP
-IFNAME[0]="eth0:1"
-# Set up an IP alias.
+IFNAME[0]="usb0"
+# Use this to define configuration blocks for interfaces with non-standard
+names (this should be rare these days)
 .TP
 HWADDR[0]="00:01:23:45:67:89"
 # Overrule the card's hardware MAC address
 .TP
 MTU[0]=""
 # The default MTU is 1500, but you might need 1360 when you use NAT'ed
-IPSec traffic.
+IPSec traffic. IPv6 will likely require smaller MTUs as well
 .TP
 DHCP_KEEPRESOLV[0]="yes"
 # If you do
@@ -171,7 +220,7 @@ failed (defaults to 10 seconds)
 network configuration script
 .TP
 .I /etc/rc.d/rc.inet1.conf
-configuration parameter file (is being read by rc.inet1 andrc.wireless)
+configuration parameter file (is being read by rc.inet1 and rc.wireless)
 .TP
 .I /etc/rc.d/rc.wireless
 wireless configuration script
@@ -196,7 +245,9 @@ have to edit the file
 and change the value `6' in the line
 .B MAXNICS=${MAXNICS:-6}
 to the number of network interfaces you wish to use.
-.SH AUTHOR
+.SH AUTHORS
+Patrick J. Volkerding <volkerdi@slackware.com>
 Eric Hameleers <alien@slackware.com>
+Robby Workman <rworkman@slackware.com>
 .SH "SEE ALSO"
 .BR rc.inet1(8)

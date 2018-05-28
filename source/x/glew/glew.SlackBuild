@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2009, 2010, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,11 @@
 
 # Slackware build script for glew
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=glew
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -36,9 +38,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:--j8}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -73,6 +82,12 @@ find . \
 TEMPFILE=$(mktemp)
 fromdos < config/config.guess > $TEMPFILE
 cat $TEMPFILE > config/config.guess ; rm -f $TEMPFILE
+
+# Fix libdir so that it doesn't include /tmp/package-glew:
+sed -i "s|@libdir@|/usr/lib${LIBDIRSUFFIX}|g" glew.pc.in
+
+# Use lib${LIBDIRSUFFIX} (if needed) in Makefile:
+sed -i "s,/lib,/lib${LIBDIRSUFFIX},g" Makefile
 
 make $NUMJOBS OPT="$SLKCFLAGS" || make OPT="$SLKCFLAGS" || exit 1
 make install.all GLEW_DEST=$PKG/usr || exit 1

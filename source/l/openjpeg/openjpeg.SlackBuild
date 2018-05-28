@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for openjpeg
 
 # Copyright 2008-2014 Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2014  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2014, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,9 +23,11 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=openjpeg
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -33,7 +35,7 @@ NUMJOBS=${NUMJOBS:--j7}
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
   case "$MARCH" in
-    i?86)    export ARCH=i486 ;;
+    i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -41,8 +43,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -58,7 +68,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-openjpeg
 
@@ -75,6 +84,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+zcat $CWD/openjpeg2_remove-thirdparty.patch.gz | patch -p1 --verbose || exit 1
+
 mkdir -p build
 cd build
   cmake \
@@ -89,7 +100,7 @@ cd build
     -DBUILD_MJ2:BOOL=ON \
     -DBUILD_JPIP:BOOL=ON \
     -DBUILD_JP3D:BOOL=ON \
-    ..
+    .. || exit 1
 
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
@@ -109,7 +120,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 find $PKG/usr/man -type f -exec gzip -9 {} \;
 
 mkdir -p $PKG/usr/doc/openjpeg-$VERSION
-cp -a AUTHORS CHANGES INSTALL LICENSE NEWS README THANKS \
+cp -a AUTHORS* CHANGES* INSTALL* LICENSE* NEWS* README* THANKS* \
   $PKG/usr/doc/openjpeg-$VERSION
 
 mkdir -p $PKG/install

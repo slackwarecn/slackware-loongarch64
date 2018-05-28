@@ -23,6 +23,5 @@ preserve_perms() {
 }
 
 config etc/cups/cups-browsed.conf.new
-config etc/fonts/conf.d/99pdftoopvp.conf.new
 preserve_perms etc/rc.d/rc.cups-browsed.new
 

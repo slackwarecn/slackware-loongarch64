@@ -1,5 +1,5 @@
-#!/bin/sh
-# Copyright 2007-2014  Patrick J. Volkerding, Sebeka, MN, USA
+#!/bin/bash
+# Copyright 2007-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,11 +26,11 @@
 # ./x11.SlackBuild lib libX11
 
 # Upgrade packages as they are built.
-# Default is to upgrade new packages (UPGRADE_PACKAGES=yes).
-# To install ALL newly built packages (even if they are already installed),
-# use UPGRADE_PACKAGES=always
-# To not upgrade, pass UPGRADE_PACKAGES=no
-UPGRADE_PACKAGES=${UPGRADE_PACKAGES:-yes}
+# Default is to always upgrade newly-built packages (UPGRADE_PACKAGES=always).
+# To install newly built packages only if a package with the exact name is not
+# already installed, use UPGRADE_PACKAGES=yes
+# To not upgrade as packages are built, pass UPGRADE_PACKAGES=no
+UPGRADE_PACKAGES=${UPGRADE_PACKAGES:-always}
 
 pkgbase() {
   PKGEXT=$(echo $1 | rev | cut -f 1 -d . | rev)
@@ -55,8 +55,18 @@ pkgbase() {
 }
 
 # Set initial variables:
-CWD=$(pwd)
-TMP=${TMP:-/tmp}
+cd $(dirname $0) ; CWD=$(pwd)
+if [ -z "$TMP" ]; then
+  TMP=/tmp
+  # Old default output directory. If $TMP wasn't predefined, we'll default to
+  # using it unless a different value is provided:
+  SLACK_X_BUILD_DIR=${SLACK_X_BUILD_DIR:-/tmp/x11-build}
+else
+  # $TMP already set. We'll also use it for the output directory unless
+  # a different value is provided:
+  SLACK_X_BUILD_DIR=${SLACK_X_BUILD_DIR:-$TMP}
+fi
+mkdir -p $TMP $SLACK_X_BUILD_DIR
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -130,9 +140,6 @@ no_usr_share_doc() {
 # Set the compile options for the $ARCH being used:
 . $CWD/arch.use.flags
 
-SLACK_X_BUILD_DIR=$TMP/x11-build
-mkdir -p $SLACK_X_BUILD_DIR
-
 # Better have some binaries installed first, as this may not be
 # in the "magic order".  I built mine by hand through trial-and-error
 # before getting this script to work.  It wasn't that hard...  I think.  ;-)
@@ -171,9 +178,11 @@ mkdir -p $SLACK_X_BUILD_DIR
             continue
           fi
         else
-          echo
-          echo "Building from source ${x_pkg}"
-          echo
+          if [ -z "$PRINT_PACKAGE_NAME" ]; then
+            echo
+            echo "Building from source ${x_pkg}"
+            echo
+          fi
         fi
         if grep -wq "^$PKGNAME" ${CWD}/modularize ; then
           # Set $PKG to a private dir for the modular package build:
@@ -184,6 +193,25 @@ mkdir -p $SLACK_X_BUILD_DIR
 
         # Let's figure out the version number on the modular package:
         MODULAR_PACKAGE_VERSION=$(echo $x_pkg | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+
+        # If this variable is passed to the script, nothing will be built.
+        # Instead, a list of packages to be built will be output.
+        if [ ! -z "$PRINT_PACKAGE_NAME" ]; then
+          if [ -r $CWD/build/${PKGNAME} ]; then
+            MODBUILD=$(cat $CWD/build/${PKGNAME})
+          else
+            MODBUILD=$BUILD
+          fi
+          if [ ! "${PKGNAME}" = "xorg-server" ]; then
+            echo "${PKGNAME}-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz"
+          else
+            echo "xorg-server-xnest-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz"
+            echo "xorg-server-xvfb-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz"
+            echo "xorg-server-xephyr-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz"
+            echo "xorg-server-${MODULAR_PACKAGE_VERSION}-${PKGARCH}-${MODBUILD}.txz"
+          fi
+          continue
+        fi
 
         rm -rf $(pkgbase $x_pkg)
         tar xf $CWD/src/${x_source_dir}/${x_pkg} || exit 1
@@ -207,12 +235,18 @@ mkdir -p $SLACK_X_BUILD_DIR
           . $CWD/configure/configure
         fi
 
-        if ! make $NUMJOBS ; then
-          touch ${SLACK_X_BUILD_DIR}/${PKGNAME}.failed
-          continue
-        fi
+        # Run make, using custom make script if needed:
+        if [ -r $CWD/make/${PKGNAME} ]; then
+          . $CWD/make/${PKGNAME}
+        else
+          # This is the default make && make install routine:
+          if ! make $NUMJOBS ; then
+            touch ${SLACK_X_BUILD_DIR}/${PKGNAME}.failed
+            continue
+          fi
 
-        make install DESTDIR=$PKG
+          make install DESTDIR=$PKG
+        fi
 
         mkdir -p $PKG/usr/doc/${PKGNAME}-${MODULAR_PACKAGE_VERSION}
         cp -a \
@@ -237,6 +271,9 @@ mkdir -p $SLACK_X_BUILD_DIR
           find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
           find . | xargs file | grep "current ar archive" | grep ELF | cut -f 1 -d : | xargs strip -g 2> /dev/null
         )
+
+        # Don't ship .la files:
+        rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
         # If there's any special post-install things to do, do them:
         if [ -r $CWD/post-install/${PKGNAME}.post-install ]; then

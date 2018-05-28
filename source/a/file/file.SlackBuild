@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2008, 2009, 2010, 2013, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2008, 2009, 2010, 2013, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,6 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=file
 VERSION=${VERSION:-$(echo file-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
 BUILD=${BUILD:-1}
 
@@ -33,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -49,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-file
 
@@ -69,7 +79,7 @@ find . \
 # Make the default data directory /etc/file like it has always been:
 zcat $CWD/file.etc.file.diff.gz | patch -p1 --verbose || exit 1
 # This is needed after the patch above:
-autoreconf || exit 1
+autoreconf -vif || exit 1
 
 # Since we're going to include the compiled magic database now (otherwise
 # there seem to be libmagic related crashes), this patch probably doesn't
@@ -97,7 +107,7 @@ CFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/file-$VERSION \
   --enable-fsect-man5 \
   --disable-static \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 # The generated $TMP/file-$VERSION/libtool is buggy.  I don't know if this is supposed
 # to work, but it certainly does, so... :-)
@@ -105,6 +115,9 @@ cat $(which libtool) > libtool
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Ignore for now - still labeled as experimental
 # Actually, let's ignore it until something needs it  :)  <volkerdi>
@@ -121,6 +134,7 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libmagic.a
 rm -f $PKG/etc/file/magic.mgc
 mkdir -p $PKG/etc/file/magic
 cp -a magic/Magdir/* $PKG/etc/file/magic
+chmod 644 $PKG/etc/file/magic/*
 
 # Add a script to recompile the flat files in the obvious location.
 # The package install script will compile the flat files initially.

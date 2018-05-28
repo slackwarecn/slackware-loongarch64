@@ -1,0 +1,61 @@
+diff -ur net-snmp-5.7.3.save/apps/Makefile.in net-snmp-5.7.3/apps/Makefile.in
+--- net-snmp-5.7.3.save/apps/Makefile.in	2014-12-08 15:23:22.000000000 -0500
++++ net-snmp-5.7.3/apps/Makefile.in	2017-09-19 11:52:48.993729966 -0400
+@@ -204,7 +204,7 @@
+ 	$(LINK) ${CFLAGS} -o $@ snmpdf.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+ 
+ libnetsnmptrapd.$(LIB_EXTENSION)$(LIB_VERSION): $(LLIBTRAPD_OBJS)
+-	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(USELIBS) $(PERLLDOPTS_FOR_LIBS) $(LIB_LD_LIBS)
++	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(USELIBS) $(PERLLDOPTS_FOR_LIBS) $(LIB_LD_LIBS) $(MYSQL_LIBS)
+ 	$(RANLIB) $@
+ 
+ snmpinforminstall:
+diff -ur net-snmp-5.7.3.save/apps/snmptrapd_sql.c net-snmp-5.7.3/apps/snmptrapd_sql.c
+--- net-snmp-5.7.3.save/apps/snmptrapd_sql.c	2014-12-08 15:23:22.000000000 -0500
++++ net-snmp-5.7.3/apps/snmptrapd_sql.c	2017-09-19 11:56:10.127008022 -0400
+@@ -50,10 +50,16 @@
+ #undef PACKAGE_STRING
+ #undef PACKAGE_TARNAME
+ #undef PACKAGE_VERSION
+-#include <my_global.h>
+-#include <my_sys.h>
+ #include <mysql.h>
+ #include <errmsg.h>
++#ifndef MYSQL_VERSION_ID
++#include <mysql_version.h>
++#endif
++#if MYSQL_VERSION_ID < 100000
++#include <my_config.h>
++#include <my_global.h>
++#include <my_sys.h>
++#endif
+ 
+ netsnmp_feature_require(container_fifo)
+ 
+@@ -437,6 +443,7 @@
+         return -1;
+     }
+ 
++#if MYSQL_VERSION_ID < 100000
+ #ifdef HAVE_BROKEN_LIBMYSQLCLIENT
+     my_init();
+ #else
+@@ -445,6 +452,7 @@
+ 
+     /** load .my.cnf values */
+     load_defaults ("my", _sql.groups, &not_argc, &not_argv);
++#endif
+     for(i=0; i < not_argc; ++i) {
+         if (NULL == not_argv[i])
+             continue;
+@@ -542,6 +550,10 @@
+         return -1;
+     }
+ 
++#if MYSQL_VERSION_ID > 100000
++    mysql_options(_sql.conn, MYSQL_READ_DEFAULT_GROUP, "snmptrapd");
++#endif
++
+     /** try to connect; we'll try again later if we fail */
+     (void) netsnmp_mysql_connect();
+ 

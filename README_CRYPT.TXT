@@ -57,7 +57,7 @@ left unencrypted. This partition must contain the kernel(s) you want to boot
 from, and the initrd image that is needed with encrypted volumes. You need
 to install LILO either to the MBR - or if that is not possible, into the
 root sector of this small unencrypted partition. You will probably guess
-why we can not use an encrypted partition for this...
+why we cannot use an encrypted partition for this...
 
 
 Using cryptsetup during Slackware installation
@@ -140,10 +140,12 @@ an ordinary disk partition when we get to the TARGET selection in 'setup'. The
 mapped device nodes will be created in the directory '/dev/mapper'. The command
 will ask you for the passphrase which you entered during the "luksFormat"
 operation. The last argument that the command takes is the name of the mapped
-device. We will call our mapped device 'crypthome' (any name will do). It
-will be available for use as the block device '/dev/mapper/crypthome'.
+device. We will call our mapped device 'lukssdx2' (note that LUKS expects the
+mapped device name to be in the format of "luks<rawdevname>"). It will be 
+available for use as the block device '/dev/mapper/lukssdx2', e.g. if the raw
+device name is "/dev/sda2", then the mapped name will be "/dev/mapper/lukssda2".
 
-  # cryptsetup luksOpen /dev/sdx2 crypthome
+  # cryptsetup luksOpen /dev/sdx2 lukssdx2
 
 * We've now finished our preparations, and it is time to start the 'setup'
 program and install Slackware.  This setup does not differ at all from the
@@ -151,7 +153,7 @@ setup you have become used to.  The only notable difference lies in the
 names of the devices you will select for your target partitions.  Be sure
 to read until the end of the story though, because we will have to do some
 postprocessing in order to make your encrypted partitions available after
-reboot (setup can not yet do all of this automatically).
+reboot (setup cannot yet do all of this automatically).
 
 * In setup, under "ADDSWAP", proceed as usual and configure a normal
 unencrypted swap partition, even if you want to have your swap encrypted.
@@ -160,8 +162,8 @@ finishes.
 
 * In setup, when you choose "TARGET" in the main menu, you will notice that
 the mapped device is available in the 'Linux partition' selection as
-"/dev/mapper/crypthome".  Select the partition you designated for your
-root ('/') filesystem, and next select "/dev/mapper/crypthome" for your
+"/dev/mapper/lukssdx2".  Select the partition you designated for your
+root ('/') filesystem, and next select "/dev/mapper/lukssdx2" for your
 '/home' filesystem.  Create any filesystem you like on them.  My favorite
 fstype is ext4, but you can choose xfs or jfs for stability and speed.
 
@@ -179,14 +181,14 @@ it to the correct device name.  The file '/etc/crypttab' contains lines of the
 format: "mappedname devicename password options".  Since we are still inside
 the installer, the root filesystem of our fresh Slackware installation is
 still mounted under '/mnt'.  For our example where we encrypted '/dev/sdx2'
-and mapped the unlocked device to '/dev/mapper/crypthome', we need this
+and mapped the unlocked device to '/dev/mapper/lukssdx2', we need this
 single line in '/etc/crypttab':
 
-crypthome     /dev/sdx2
+lukssdx2	/dev/sdx2
 
 So, we need to run the command:
 
-  # echo "crypthome   /dev/sdx2" > /mnt/etc/crypttab
+  # echo "lukssdx2   /dev/sdx2" > /mnt/etc/crypttab
 
 in order to create the file with the required content (I am assuming here
 that the file did not yet exist... the above command will overwrite the
@@ -244,7 +246,7 @@ NOTE: the swap partition is encrypted with a new randomly generated key every
       There is no need to ever enter a passphrase!
 
 NOTE: having an encrypted swap like this causes a re-format of the swap
-      partition on avery boot-up and shutdown.  This is perfectly OK as long
+      partition on every boot-up and shutdown.  This is perfectly OK as long
       as you do not change the order of your hard disks.  If you add a disk,
       or move this disk to another computer, the device name may change (for
       instance from sda to sdb) and if you forget to modify '/etc/crypttab'
@@ -286,8 +288,8 @@ the /boot partition then.
 * Perform a Slackware install just like I described above, creating
 additional encrypted partitions and mapping them to appropriate names -
 for this example I assume that you map the encrypted root partition
-'/dev/sdx1' to 'cryptroot'.  When the LILO configuration pops up, tell lilo
-that your root partition is '/dev/mapper/cryptroot'.  Lilo will try to
+'/dev/sdx2' to 'lukssdx2'.  When the LILO configuration pops up, tell lilo
+that your root partition is '/dev/mapper/lukssdx2'.  Lilo will try to
 install and fail, and will tell you so.  It will however have written a
 'lilo.conf' file which we can edit in a follow-up action.  Proceed with
 the installation and at the end, exit the setup program but do _not_
@@ -311,7 +313,7 @@ image I assume that the root filesystem is 'ext4', we used the mapped device
 and are running the Slackware 14.2 default SMP kernel '4.4.14-smp'
 and we did not use Logical Volumes (more about that in the next section):
 
-  # mkinitrd -c -k 4.4.14-smp -m ext4 -f ext4 -r cryptroot -C /dev/sdx1
+  # mkinitrd -c -k 4.4.14-smp -m ext4 -f ext4 -r lukssdx2 -C /dev/sdx2
 
 * The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd. Open the
@@ -329,7 +331,7 @@ range of computers and that is why they are 'huge'.  The linux part of
 
 image = /boot/vmlinuz-generic-smp-4.4.14-smp
   initrd = /boot/initrd.gz
-  root = /dev/mapper/cryptroot
+  root = /dev/mapper/lukssdx2
   label = linux
   read-only
 
@@ -337,17 +339,17 @@ If you add the above section as an extra instead of editing what's already
 present, make sure that the label you use ('linux' in the example above)
 is unique in the configuration file.
 
-* If you have another OS on your computer and can not install lilo to the
+* If you have another OS on your computer and cannot install lilo to the
 MBR, you will have selected "Install to superblock (Root)" instead.  In
 that case, we have one additional change to make, and that is almost at the
-top of the file.  Look up the line that says "boot = /dev/mapper/cryptroot"
+top of the file.  Look up the line that says "boot = /dev/mapper/lukssdx2"
 which is the device for your root partition and which was the reason for
 lilo failing to install.  Change the boot device to the name of the small
 *unencrypted* partition you've created at the beginning and which is
-mounted under '/boot'.  Assuming the name of that partition is '/dev/sdx4',
+mounted under '/boot'.  Assuming the name of that partition is '/dev/sdx1',
 the "boot =" line must become like this:
 
-  boot = /dev/sdx4
+  boot = /dev/sdx1
 
 We are done.  Write the changes, exit the editor and run the command 'lilo'.
 Lilo will issue a couple of warnings concerning a difference in what
@@ -378,7 +380,7 @@ passphrase to unlock and allows for hibernation (suspend-to-disk).
 
     We are assuming that Slackware will be the only Operating System on your
 computer.  In case you already have an OS installed (such as MS Windows), the
-procedure may be a little different because you can not always install lilo to
+procedure may be a little different because you cannot always install lilo to
 the MBR.  After booting from the Slackware installation medium, we will
 create a small unencrypted partition that will contain the Linux kernels and
 the initrd image(s).  The rest of the disk's free space will be dedicated to
@@ -409,26 +411,22 @@ default cipher is 'aes', with mode 'cbc-essiv:sha256' which is safe enough.
 which exposes the partition as an unencrypted block device.  The command
 will ask you for the passphrase which you entered during the "luksFormat"
 operation.  The last argument that the command takes is the name of the mapped
-device.  We will call our mapped device 'slackluks' because I am not feeling
-original today.  The mapped device which we will be using for unencrypted
-operations will therefore be '/dev/mapper/slackluks'.  However, note that the
-installed system will name it 'lukssdx2' instead - it doesn't really matter
-what you call it right now, but it's worth knowing for potential later
-troubleshooting.
+device.  We will call our mapped device 'lukssdx2' because the installed 
+system will use that name (predictability is a good thing).
 
-  # cryptsetup luksOpen /dev/sdx2 slackluks
+  # cryptsetup luksOpen /dev/sdx2 lukssdx2
 
 * The LVM part is next.  Create a Physical Volume (PV) on device
-'/dev/mapper/slackluks', a Volume Group (VG) called 'cryptvg' - any name will
+'/dev/mapper/lukssdx2', a Volume Group (VG) called 'cryptvg' - any name will
 do - on the PV, and three Logical Volumes (LV's) in the VG, one for your
 root partition (7 GB in size), one for the /home partition (10 GB in size)
 and a third which we will use for swap (1 GB in size).  You will probably
 use different sizes depending on your environment and wishes, but keep the
 sum of the LV sizes less than the total size of the Physical Volume:
 
-  # pvcreate /dev/mapper/slackluks
+  # pvcreate /dev/mapper/lukssdx2
 
-  # vgcreate cryptvg /dev/mapper/slackluks
+  # vgcreate cryptvg /dev/mapper/lukssdx2
 
   # lvcreate -L 7G -n root cryptvg
 
@@ -660,6 +658,8 @@ Good luck with your fresh Slackware installion on encrypted partition(s)!
 ==============================================================================
 Author:
   Eric Hameleers <alien@slackware.com> 18-sep-2012
+Edits by:
+  Robby Workman <rworkman@slackware.com> 9 March 2017
 URLs:
   http://www.slackware.com/~alien/dokuwiki/doku.php?id=slackware:setup
 

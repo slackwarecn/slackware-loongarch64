@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for sqlite
 
 # Copyright 2006  Martin Lefebvre <dadexter@gmail.com>
-# Copyright 2008, 2009, 2010, 2012, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,10 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=sqlite
+BUILD=${BUILD:-2}
 
 # First, convert the .zip file if needed:
 if ls *.zip 1> /dev/null 2> /dev/null ; then
@@ -36,13 +39,11 @@ if ls *.zip 1> /dev/null 2> /dev/null ; then
 fi
 
 VERSION=${VERSION:-$(echo $PKGNAM-src-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-OLD_STYLE=$(printf %d $(echo $VERSION | cut -b 1)).$(printf %d $(echo $VERSION | cut -b 2,3)).$(printf %d $(echo $VERSION | cut -b 4,5))
 OLD_STYLE=$(printf "%1.f" $(echo $VERSION | cut -b 1)).$(printf "%1.f" $(echo $VERSION | cut -b 2,3)).$(printf "%1.f" $(echo $VERSION | cut -b 4,5))
 PATCHLEVEL=$(printf "%1.f" $(echo $VERSION | cut -b 6,7))
 if [ ! "$PATCHLEVEL" = "0" ]; then
   OLD_STYLE=${OLD_STYLE}.${PATCHLEVEL}
 fi
-BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -56,7 +57,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$OLD_STYLE-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -74,8 +82,40 @@ else
   LIBDIRSUFFIX=""
 fi
 
-# Enable some features:
-SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_ICU -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_DISABLE_DIRSYNC=1 -DSQLITE_ENABLE_RTREE=1 -DSQLITE_ENABLE_STAT2=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_SECURE_DELETE=1"
+# Define C preprocessor feature switches
+# https://www.sqlite.org/compile.html
+
+# Enable AND, NOT and nested parenthesis in FTS3
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_FTS3_PARENTHESIS=1"
+
+# Enable the ICU extension
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_ICU"
+
+# Enables the retrieval of column metadata
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_COLUMN_METADATA=1"
+
+# Disable directory syncs
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_DISABLE_DIRSYNC=1"
+
+# Add additional logic to the ANALYZE command and to the query planner
+# to chose better query plans under certain situations
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_STAT4=1"
+
+# Enable the sqlite3_unlock_notify() interface and its associated functionality
+# https://www.sqlite.org/unlock_notify.html
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_UNLOCK_NOTIFY=1"
+
+# The secure_delete setting causes deleted content to be overwritten with zeros
+# https://www.sqlite.org/pragma.html#pragma_secure_delete
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_SECURE_DELETE=1"
+
+# Enable the "Resumable Bulk Update" extension
+# https://www.sqlite.org/rbu.html
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_RBU=1"
+
+# Enable the DBSTAT Virtual Table
+# https://www.sqlite.org/dbstat.html
+SLKCFLAGS="$SLKCFLAGS -DSQLITE_ENABLE_DBSTAT_VTAB=1"
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -90,7 +130,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-configure() {
+if [ ! -f configure ]; then
+  # Try regenerating configure:
+  autoreconf -vif
+fi
+
+# Fix a bug in ./configure that discards all but the last considered option:
+sed -i "s|\$(OPT_FEATURE_FLAGS)|\${OPT_FEATURE_FLAGS}|g" ./configure
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS $(icu-config --cppflags)" \
 LDFLAGS="$(icu-config --ldflags)" \
@@ -101,22 +148,22 @@ LDFLAGS="$(icu-config --ldflags)" \
   --localstatedir=/var \
   --mandir=/usr/man \
   --enable-threadsafe \
-  --enable-cross-thread-connections \
   --enable-tempstore=yes \
   --enable-load-extension \
+  --enable-fts3 \
+  --enable-fts4 \
+  --enable-fts5 \
+  --enable-json1 \
+  --enable-rtree \
+  --enable-session \
   --enable-static=no \
-  --build=$ARCH-slackware-linux 
-  return $?
-}
-
-if ! configure ; then
-  # Try regenerating configure:
-  autoconf
-  configure || exit 1
-fi
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for llvm
 
-# Copyright 2008-2015 Heinz Wiesinger, Amsterdam, The Netherlands
+# Copyright 2008-2016 Heinz Wiesinger, Amsterdam, The Netherlands
 # Copyright 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
@@ -23,6 +23,8 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=llvm
 VERSION=${VERSION:-$(echo llvm-*.tar.xz | rev | cut -f 4- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
@@ -37,7 +39,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -64,6 +73,8 @@ tar xvf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
 cd $PKGNAM-${VERSION}/tools || cd $PKGNAM-${VERSION}.src/tools || exit 1
   tar xvf $CWD/cfe-$VERSION.src.tar.xz || exit 1
   mv cfe-${VERSION} clang 2>/dev/null || mv cfe-${VERSION}.src clang || exit 1
+  tar xvf $CWD/lldb-$VERSION.src.tar.xz || exit 1
+  mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
 cd ../
 
 cd tools/clang/tools || exit 1
@@ -76,14 +87,25 @@ cd projects || exit 1
   tar xvf $CWD/compiler-rt-$VERSION.src.tar.xz || exit 1
   mv compiler-rt-${VERSION} compiler-rt 2>/dev/null \
     || mv compiler-rt-${VERSION}.src compiler-rt || exit 1
+  tar xvf $CWD/openmp-$VERSION.src.tar.xz || exit 1
+  mv openmp-${VERSION} openmp 2>/dev/null \
+    || mv openmp-${VERSION}.src openmp || exit 1
+  tar xvf $CWD/libcxx-${VERSION}.src.tar.xz || exit 1
+  mv libcxx-${VERSION} libcxx 2>/dev/null \
+    || mv libcxx-${VERSION}.src libcxx || exit 1
+  tar xvf $CWD/libcxxabi-${VERSION}.src.tar.xz || exit 1
+  mv libcxxabi-${VERSION} libcxxabi 2>/dev/null \
+    || mv libcxxabi-${VERSION}.src libcxxabi || exit 1
 cd ../
 
 # Support GCC built for i586-slackware-linux:
 zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
 
-# Use i586 $ARCH on 32-bit x86:
-sed -r "/ifeq.*CompilerTargetArch/s#i386#i586#g" \
-  -i projects/compiler-rt/make/platform/clang_linux.mk
+## This seems obsolete, so commenting it out:
+#
+## Use i586 $ARCH on 32-bit x86:
+#sed -r "/ifeq.*CompilerTargetArch/s#i386#i586#g" \
+#  -i projects/compiler-rt/make/platform/clang_linux.mk
 
 chown -R root:root .
 find . \
@@ -91,6 +113,10 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# disable value profiling until https://llvm.org/bugs/show_bug.cgi?id=30587
+# is fixed.
+zcat $CWD/clang_disable_pgo.patch.gz | patch -p1 --verbose || exit 1
 
 # need to disable assertions to make llvm thread-safe
 # clang resource dir is a relative path based on the location of the clang binary
@@ -112,7 +138,7 @@ cd build
     -DLLVM_ENABLE_ASSERTIONS=OFF \
     -DLLVM_BINUTILS_INCDIR=/usr/include \
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/${VERSION}" \
-    ..
+    .. || exit 1
 
   # breaks with one of the patches above. Maybe revisit later
   # -DBUILD_SHARED_LIBS=ON \
@@ -133,26 +159,25 @@ for i in ccc c++; do
     $PKG/usr/bin/$i-analyzer || exit 1
 done
 
-## Fix paths in scan-build
-#sed -i "s|\$RealBin/bin|/usr/bin|" \
-#  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build
-#sed -i "s|\$RealBin/sorttable.js|/usr/lib${LIBDIRSUFFIX}/clang-analyzer/scan-build/sorttable.js|" \
-#  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build
-#sed -i "s|\$RealBin/scanview.css|/usr/lib${LIBDIRSUFFIX}/clang-analyzer/scan-build/scanview.css|" \
-#  $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build/scan-build
-#
-## fix strange permissions
-#chmod 755 $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-build
-#chmod 755 $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-view
-#chmod 755 $PKG/usr/lib$LIBDIRSUFFIX/clang-analyzer/scan-view/Resources
+# Remove symlink to libgomp, which is already provided by gcc
+rm -f $PKG/usr/lib$LIBDIRSUFFIX/libgomp.so
 
 # Install Python bindings
 mkdir -p "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages"
 cp -a tools/clang/bindings/python/clang "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages/"
 
+# Remove bundled python-six
+rm -f "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages/six.py"
+
 # Compile Python scripts
 python -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages/clang"
 python -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages/clang"
+python -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages/lldb"
+python -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python2.7/site-packages/lldb"
+python -m compileall "$PKG/usr/share/scan-view"
+python -O -m compileall "$PKG/usr/share/scan-view"
+python -m compileall "$PKG/usr/share/clang"
+python -O -m compileall "$PKG/usr/share/clang"
 
 # Move man page directory:
 mv $PKG/usr/share/man $PKG/usr/
@@ -170,10 +195,18 @@ for i in $( find $PKG/usr/man -type l ) ; do
   rm $i
 done
 
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/clang
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/{clang,lldb,clang-tools-extra,compiler-rt,openmp}
 cp -a CREDITS* LICENSE* README* $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a tools/clang/{INSTALL,LICENSE,NOTES,README}* \
   $PKG/usr/doc/$PKGNAM-$VERSION/clang
+cp -a tools/lldb/{CODE_OWNERS,INSTALL,LICENSE}* \
+  $PKG/usr/doc/$PKGNAM-$VERSION/lldb
+cp -a tools/clang/tools/extra/{CODE_OWNERS,LICENSE,README}* \
+  $PKG/usr/doc/$PKGNAM-$VERSION/clang-tools-extra
+cp -a projects/compiler-rt/{CODE_OWNERS,CREDITS,LICENSE,README}* \
+  $PKG/usr/doc/$PKGNAM-$VERSION/compiler-rt
+cp -a projects/openmp/{CREDITS,LICENSE}* \
+  $PKG/usr/doc/$PKGNAM-$VERSION/openmp
 mv $PKG/usr/docs/llvm/* $PKG/usr/doc/$PKGNAM-$VERSION
 rm -rf $PKG/usr/docs
 

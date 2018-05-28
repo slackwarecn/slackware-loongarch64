@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=gucharmap
 VERSION=${VERSION:-$(echo gucharmap-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
 
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -50,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gucharmap
 rm -rf $PKG
@@ -75,10 +84,14 @@ CFLAGS="$SLKCFLAGS" \
   --localstatedir=/var/lib \
   --docdir=/usr/doc/gucharmap-$VERSION \
   --enable-static=no \
-  --build=$ARCH-slackware-linux
+  --with-unicode-data=download \
+  --build=$ARCH-slackware-linux || exit 1
 
-make -i $NUMJOBS || make || exit 1
-make -i install DESTDIR=$PKG || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # We don't want the gconf stuff
 rm -rf $PKG/etc
@@ -88,7 +101,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/gucharmap-$VERSION
 cp -a \
-  COPYING* NEWS README TODO \
+  COPYING* NEWS README* TODO \
   $PKG/usr/doc/gucharmap-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

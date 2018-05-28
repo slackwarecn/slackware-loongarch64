@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@
 # UEFI systems.
 
 # First, build bootx64.efi, which will be installed here in /EFI/BOOT:
-grub-mkimage --format=x86_64-efi --output=bootx64.efi --config=grub-embedded.cfg --compression=xz --prefix=/EFI/BOOT part_gpt part_msdos fat ext2 hfs hfsplus iso9660 udf ufs1 ufs2 zfs chain linux boot appleldr ahci configfile normal regexp minicmd reboot halt search search_fs_file search_fs_uuid search_label gfxterm gfxmenu efi_gop efi_uga all_video loadbios gzio echo true probe loadenv bitmap_scale font cat help ls png jpeg tga test at_keyboard usb_keyboard
+grub-mkimage --format=x86_64-efi --output=bootx64.efi --config=grub-embedded.cfg --compression=xz --prefix=/EFI/BOOT part_gpt part_msdos fat ext2 hfs hfsplus iso9660 udf ufs1 ufs2 zfs chain linux boot appleldr configfile normal regexp minicmd reboot halt search search_fs_file search_fs_uuid search_label gfxterm gfxmenu efi_gop efi_uga all_video loadbios gzio echo true probe loadenv bitmap_scale font cat help ls png jpeg tga test at_keyboard usb_keyboard
 
 # Then, create a FAT formatted image that contains bootx64.efi in the
 # /EFI/BOOT directory.  This is used to bootstrap GRUB from the ISO image.

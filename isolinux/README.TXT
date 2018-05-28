@@ -5,24 +5,23 @@ To make a bootable Slackware install DVD, get into the top level Slackware
 directory (The one with ChangeLog.txt in it) and issue a command like this
 to build the ISO image in /tmp:
 
-mkisofs -o /tmp/slackware-dvd.iso \
+xorriso -as mkisofs \
+  -iso-level 3 \
+  -full-iso9660-filenames \
   -R -J -A "Slackware Install" \
   -hide-rr-moved \
   -v -d -N \
+  -eltorito-boot isolinux/isolinux.bin \
+  -eltorito-catalog isolinux/boot.cat \
   -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -sort isolinux/iso.sort \
-  -b isolinux/isolinux.bin \
-  -c isolinux/isolinux.boot \
-  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
-  -eltorito-boot isolinux/efiboot.img \
+  -isohybrid-mbr /usr/share/syslinux/isohdpfx.bin \
+  -eltorito-alt-boot \
+  -e isolinux/efiboot.img \
+  -no-emul-boot -isohybrid-gpt-basdat \
   -m 'source' \
-  -V "SlackDVD" .
-
-As an additional step, the ISO image may be processed to make it bootable
-when written to a USB stick.  This processing will not impact the ISO's
-ability to boot from DVD media.  Use the following command to do this:
-
-isohybrid -u /tmp/slackware-dvd.iso
+  -volid "SlackDVD" \
+  -output /tmp/slackware-dvd.iso \
+  .
 
 On my system, here's the command I'd use to burn the resulting DVD ISO:
 
@@ -36,28 +35,31 @@ speeds, but you may see completely different results depending on media
 and burner type.  The -dvd-compat option is also used so that a complete
 lead-out is written to the media for maximum compatibility.
 
-To write the ISO image to a USB stick (process with isohybrid first, as
-shown above), use a command such as this (replace /dev/sdX with the device
-name for your USB stick):
+To write the ISO image to a USB stick use a command such as this (replace
+/dev/sdX with the device name for your USB stick):
 
 dd if=/tmp/slackware-dvd.iso of=/dev/sdX bs=1M
 
 Or, you can burn directly from the Slackware tree to a DVD(-/+)R(W):
 
-growisofs \
-  -Z /dev/sr0 \
+xorriso -as mkisofs \
+  -iso-level 3 \
+  -full-iso9660-filenames \
   -R -J -A "Slackware Install" \
   -hide-rr-moved \
   -v -d -N \
+  -eltorito-boot isolinux/isolinux.bin \
+  -eltorito-catalog isolinux/boot.cat \
   -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -sort isolinux/iso.sort \
-  -b isolinux/isolinux.bin \
-  -c isolinux/isolinux.boot \
-  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
-  -eltorito-boot isolinux/efiboot.img \
+  -isohybrid-mbr /usr/share/syslinux/isohdpfx.bin \
+  -eltorito-alt-boot \
+  -e isolinux/efiboot.img \
+  -no-emul-boot -isohybrid-gpt-basdat \
   -m 'source' \
-  -dvd-compat \
-  -V "SlackDVD" .
+  -volid "SlackDVD" \
+  -output - \
+  . \
+  | xorrecord -v dev=/dev/sr0 speed=2 fs=8m blank=as_needed -
 
 Note that the source code directory will not be included on these DVD
 images in order to keep them under the limit for a single-layer disc.
@@ -88,26 +90,35 @@ directory where the disc tree is.  Let's say the directory is 'd1' and you
 wish to output the ISO image in /tmp:
 
 cd d1
-mkisofs -o /tmp/slackware-install-1.iso \
+xorriso -as mkisofs \
+  -iso-level 3 \
+  -full-iso9660-filenames \
   -R -J -A "Slackware Install 1" \
   -hide-rr-moved \
   -v -d -N \
+  -eltorito-boot isolinux/isolinux.bin \
+  -eltorito-catalog isolinux/boot.cat \
   -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -sort isolinux/iso.sort \
-  -b isolinux/isolinux.bin \
-  -c isolinux/isolinux.boot \
-  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
-  -eltorito-boot isolinux/efiboot.img \
-  -V "SlackCD1" .
+  -isohybrid-mbr /usr/share/syslinux/isohdpfx.bin \
+  -eltorito-alt-boot \
+  -e isolinux/efiboot.img \
+  -no-emul-boot -isohybrid-gpt-basdat \
+  -volid "SlackCD1" \
+  -output /tmp/slackware-install-1.iso \
+  .
 
 Making a non-bootable disc is similar.  Just omit a few options:
 
 cd d2
-mkisofs -o /tmp/slackware-install-2.iso \
+xorriso -as mkisofs \
+  -iso-level 3 \
+  -full-iso9660-filenames \
   -R -J -A "Slackware Install 2" \
   -hide-rr-moved \
   -v -d -N \
-  -V "SlackCD2" .
+  -volid "SlackCD2" \
+  -output /tmp/slackware-install-2.iso \
+  .
 
 To burn an ISO image to CD-R(W), the cdrecord command is used.  For complete
 instructions, see the man page ('man cdrecord').  On my own machine where
@@ -116,21 +127,26 @@ the burner is /dev/cdrw, disc one would be burned with the following command:
 cat /tmp/slackware-install-1.iso | cdrecord -v dev=/dev/cdrw speed=10 fs=8m -tao -eject -data -
 
 As before, it's possible to burn from the disc trees without the intermediate
-step of creating iso images by omitting the -o option to mkisofs and piping
-the output directly to cdrecord:
+step of creating iso images by piping the output directly to cdrecord:
 
 cd d1
-mkisofs \
+xorriso -as mkisofs \
+  -iso-level 3 \
+  -full-iso9660-filenames \
   -R -J -A "Slackware Install 1" \
   -hide-rr-moved \
   -v -d -N \
+  -eltorito-boot isolinux/isolinux.bin \
+  -eltorito-catalog isolinux/boot.cat \
   -no-emul-boot -boot-load-size 4 -boot-info-table \
-  -sort isolinux/iso.sort \
-  -b isolinux/isolinux.bin \
-  -c isolinux/isolinux.boot \
-  -eltorito-alt-boot -no-emul-boot -eltorito-platform 0xEF \
-  -eltorito-boot isolinux/efiboot.img \
-  -V "SlackCD1" . | cdrecord -v dev=/dev/cdrw speed=10 fs=8m -tao -eject -data -
+  -isohybrid-mbr /usr/share/syslinux/isohdpfx.bin \
+  -eltorito-alt-boot \
+  -e isolinux/efiboot.img \
+  -no-emul-boot -isohybrid-gpt-basdat \
+  -volid "SlackCD1" \
+  -output - \
+  . | cdrecord -v dev=/dev/cdrw speed=10 fs=8m -tao -eject -data -
+
 
 -----
 

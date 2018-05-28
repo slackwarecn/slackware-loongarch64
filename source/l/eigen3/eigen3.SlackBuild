@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2014, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2014  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 
@@ -21,9 +21,11 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=eigen
-VERSION=3.2.7
-SRCVER="eigen-b30b87236a1b"
+VERSION=3.2.10
+SRCVER="eigen-b9cd8366d4e8"
 BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
@@ -36,6 +38,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "${PKGNAM}3-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -55,7 +65,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -83,7 +92,7 @@ cd build
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DEIGEN_INCLUDE_INSTALL_DIR=/usr/include/eigen3 \
-    ..
+    .. || exit 1
   make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..

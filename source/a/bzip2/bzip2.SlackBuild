@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2005-2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
@@ -20,22 +20,31 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=bzip2
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 SOLIB=1.0.6
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-bzip2
 
@@ -62,11 +71,13 @@ cp -a bzlib.h $PKG/usr/include
 chown root:root $PKG/usr/include/bzlib.h
 chmod 644 $PKG/usr/include/bzlib.h
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
-cp -a libbz2.a $PKG/usr/lib${LIBDIRSUFFIX}/libbz2.a
+#cp -a libbz2.a $PKG/usr/lib${LIBDIRSUFFIX}/libbz2.a
+#chmod 644 $PKG/usr/lib${LIBDIRSUFFIX}/libbz2.a
 mkdir -p $PKG/lib${LIBDIRSUFFIX}
 cp -a libbz2.so.$SOLIB $PKG/lib${LIBDIRSUFFIX}/libbz2.so.$SOLIB
-chmod 644 $PKG/usr/lib${LIBDIRSUFFIX}/libbz2.a
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/libbz2.so.$SOLIB
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+cat $CWD/bzip2.pc | sed "s|libdir=|libdir=/usr/lib${LIBDIRSUFFIX}|g" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/bzip2.pc
 mkdir -p $PKG/bin
 cat bzip2-shared > $PKG/bin/bzip2
 cat bzip2recover > $PKG/bin/bzip2recover
@@ -114,8 +125,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 cd $PKG
 makepkg -l y -c n $TMP/bzip2-$VERSION-$ARCH-$BUILD.txz
 
-# Clean up the extra stuff:
-if [ "$1" = "--cleanup" ]; then
-  rm -rf $TMP/bzip2-$VERSION
-  rm -rf $PKG
-fi

@@ -1,0 +1,71 @@
+--- ./rshd/rshd.c.orig	2000-07-22 23:16:24.000000000 -0500
++++ ./rshd/rshd.c	2018-04-10 02:02:57.995981067 -0500
+@@ -331,7 +331,8 @@
+ static void
+ doit(struct sockaddr_in *fromp)
+ {
+-	char cmdbuf[ARG_MAX+1];
++       char *cmdbuf;
++       long cmdbuflen;
+ 	const char *theshell, *shellname;
+ 	char locuser[16], remuser[16];
+ 	struct passwd *pwd;
+@@ -340,6 +341,18 @@
+ 	u_short port;
+ 	int pv[2], pid, ifd;
+ 
++       cmdbuflen = sysconf (_SC_ARG_MAX);
++       if (!(cmdbuflen > 0)) {
++               syslog (LOG_ERR, "sysconf (_SC_ARG_MAX) failed");
++               exit (1);
++       }
++
++       cmdbuf = malloc (++cmdbuflen);
++       if (cmdbuf == NULL) {
++               syslog (LOG_ERR, "Could not allocate space for cmdbuf");
++               exit (1);
++       }
++
+ 	signal(SIGINT, SIG_DFL);
+ 	signal(SIGQUIT, SIG_DFL);
+ 	signal(SIGTERM, SIG_DFL);
+--- ./rexecd/rexecd.c.orig	2000-07-22 23:16:22.000000000 -0500
++++ ./rexecd/rexecd.c	2018-04-10 02:04:52.629979848 -0500
+@@ -223,7 +223,8 @@
+ static void
+ doit(struct sockaddr_in *fromp)
+ {
+-	char cmdbuf[ARG_MAX+1];
++	char *cmdbuf;
++	long cmdbuflen;
+ 	char user[16], pass[16];
+ 	struct passwd *pwd;
+ 	int s = -1;
+@@ -242,6 +243,18 @@
+ #endif
+ #endif /* USE_PAM */
+ 
++       cmdbuflen = sysconf (_SC_ARG_MAX);
++       if (!(cmdbuflen > 0)) {
++               syslog (LOG_ERR, "sysconf (_SC_ARG_MAX) failed");
++               fatal ("sysconf (_SC_ARG_MAX) failed\n");
++       }
++
++       cmdbuf = malloc (++cmdbuflen);
++       if (cmdbuf == NULL) {
++               syslog (LOG_ERR, "Could not allocate space for cmdbuf");
++               fatal ("Could not allocate space for cmdbuf\n");
++       }
++
+ 	signal(SIGINT, SIG_DFL);
+ 	signal(SIGQUIT, SIG_DFL);
+ 	signal(SIGTERM, SIG_DFL);
+@@ -291,7 +304,7 @@
+ 
+ 	getstr(user, sizeof(user), "username too long\n");
+ 	getstr(pass, sizeof(pass), "password too long\n");
+-	getstr(cmdbuf, sizeof(cmdbuf), "command too long\n");
++       getstr(cmdbuf, cmdbuflen, "command too long\n");
+ #ifdef USE_PAM
+        #define PAM_BAIL if (pam_error != PAM_SUCCESS) { \
+ 	       pam_end(pamh, pam_error); exit(1); \

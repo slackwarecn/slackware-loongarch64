@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright  2015  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -24,6 +24,9 @@
 # a WebKit-less Qt, builds a WebKit package, merges the two packages, and
 # finally upgrades the machine to a combined package.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=qt
 QTVERSION=$(ls qt-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 # Adjust the combined package $BUILD in qt-nowebkit.SlackBuild:
 QTBUILD=$(grep BUILD= qt-nowebkit.SlackBuild | cut -f 2 -d - | cut -f 1 -d \})
@@ -41,6 +44,20 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-${QTVERSION}-${ARCH}-${QTBUILD}.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+else
+  LIBDIRSUFFIX=""
 fi
 
 TMP=${TMP:-/tmp}
@@ -74,6 +91,15 @@ mkdir -p $TMP/package-qt
   /sbin/explodepkg $TMP/qt-${QTVERSION}-${ARCH}-${QTBUILD}.txz
   cat $TMP/package-qtwebkit/install/doinst.sh | grep '^(' >> install/doinst.sh
   mv usr/doc/qtwebkit-* usr/doc/qt-*
+  # Remove rpaths:
+  for file in $(find . | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : 2> /dev/null) ; do
+    if [ ! "$(patchelf --print-rpath $file 2> /dev/null)" = "" ]; then
+      patchelf --remove-rpath $file
+    fi
+  done
+  # Don't ship .la files:
+  rm -f usr/lib${LIBDIRSUFFIX}/*.la
+  rm -f usr/lib${LIBDIRSUFFIX}/qt/lib/*.la
   /sbin/makepkg -l y -c n ../qt-${QTVERSION}-${ARCH}-${QTBUILD}.txz
 )
 

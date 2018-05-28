@@ -1,7 +1,5 @@
-if [ ! -r etc/httpd/mod_php.conf ]; then
-  cp -a etc/httpd/mod_php.conf.example etc/httpd/mod_php.conf
-elif [ "`cat etc/httpd/mod_php.conf 2> /dev/null`" = "" ]; then
-  cp -a etc/httpd/mod_php.conf.example etc/httpd/mod_php.conf
+if [ "`cat etc/httpd/mod_php.conf 2> /dev/null`" = "" ]; then
+  cp -a etc/httpd/mod_php.conf.new etc/httpd/mod_php.conf
 fi
 
 config() {
@@ -28,3 +26,4 @@ cp -a etc/php-fpm.conf.default etc/php-fpm.conf.new
 config etc/php-fpm.conf.new
 cp -a etc/php-fpm.conf.default etc/php-fpm.conf.new
 config etc/php-fpm.conf.new
+config etc/httpd/mod_php.conf.new

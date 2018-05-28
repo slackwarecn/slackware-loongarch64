@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2014, 2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2014, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,11 @@
 
 # Modified by Matteo Bernardini <ponce@slackbuilds.org> (2014)
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=cgmanager
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -52,7 +62,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -71,7 +80,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/cgmanager-0.39-remove-pam-requirement.patch.gz | patch -p1 || exit 1
+./bootstrap.sh
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -85,11 +94,16 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --enable-static=no \
   --with-distro=slackware \
-  --build=$ARCH-slackware-linux
+  --with-pamdir=none \
+  --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Install compat symlink
+mkdir -p $PKG/usr/sbin
+ln -s /usr/libexec/cgmanager/cgm-release-agent $PKG/usr/sbin/cgm-release-agent
 
 # Remove .la files:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
@@ -100,7 +114,10 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-# Add init scripts
+# Remove broken init scripts:
+rm -f $PKG/etc/rc.d/rc.*
+
+# Add good init scripts:
 mkdir -p $PKG/etc/rc.d
 cat $CWD/config/rc.cgmanager > $PKG/etc/rc.d/rc.cgmanager.new
 cat $CWD/config/rc.cgproxy > $PKG/etc/rc.d/rc.cgproxy.new 

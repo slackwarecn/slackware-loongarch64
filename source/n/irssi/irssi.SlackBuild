@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,14 +20,15 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-CWD=$(pwd)
+PKGNAM=irssi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-irssi
 
-VERSION=0.8.19
-DIRCD=0.8.19
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo irssi-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+DIRCD=${VERSION}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -37,6 +38,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -76,11 +85,11 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --sysconfdir=/etc \
   --docdir=/usr/doc/irssi-$VERSION \
-  --enable-ipv6 \
+  --enable-true-color \
   --with-textui \
-  --with-proxy \
   --with-perl-lib=vendor \
-  --build=$ARCH-slackware-linux
+  --with-proxy \
+  --build=$ARCH-slackware-linux || exit 1
 
 make \
   docdir=/usr/doc/irssi-$VERSION \
@@ -102,7 +111,7 @@ done
 mv $PKG/etc/irssi.conf $PKG/etc/irssi.conf.new
 
 find $PKG -name perllocal.pod | xargs rm -f
-eval $(perl '-V:archlib') ; rmdir -p $PKG/$archlib
+eval $(perl '-V:archlib') ; rmdir -p $PKG/$archlib 2> /dev/null
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -123,7 +132,7 @@ if [ -d $PKG/usr/man ]; then
 fi
 
 cp -a \
-  AUTHORS COPYING INSTALL NEWS README TODO \
+  AUTHORS COPYING* INSTALL NEWS README* TODO \
   $PKG/usr/doc/irssi-$VERSION
 ( cd $PKG/usr/doc/irssi-$VERSION ; ln -sf /usr/share/irssi/help . )
 

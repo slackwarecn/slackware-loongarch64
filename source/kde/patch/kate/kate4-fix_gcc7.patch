@@ -1,0 +1,54 @@
+--- a/part/search/kateregexp.cpp
++++ b/part/search/kateregexp.cpp
+@@ -96,7 +96,7 @@
+ 
+         case L'n':
+           stillMultiLine = true;
+-          // FALLTROUGH
++          __attribute__((fallthrough));
+ 
+         default:
+           // copy "\?" unmodified
+@@ -164,7 +164,7 @@
+ 
+         case L'n':
+           stillMultiLine = true;
+-          // FALLTROUGH
++          __attribute__((fallthrough));
+ 
+         default:
+           // copy "\?" unmodified
+--- a/part/view/kateview.cpp
++++ b/part/view/kateview.cpp
+@@ -310,7 +310,7 @@
+   if (factory())
+     factory()->removeClient (this);
+ 
+-    KTextEditor::ViewBarContainer *viewBarContainer=qobject_cast<KTextEditor::ViewBarContainer*>( KateGlobal::self()->container() );
++  KTextEditor::ViewBarContainer *viewBarContainer=qobject_cast<KTextEditor::ViewBarContainer*>( KateGlobal::self()->container() );
+     if (viewBarContainer) {
+      viewBarContainer->deleteViewBarForView(this,KTextEditor::ViewBarContainer::BottomBar);
+       m_bottomViewBar=0;
+--- a/part/view/kateviewaccessible.h
++++ b/part/view/kateviewaccessible.h
+@@ -248,7 +248,8 @@
+ 
+         virtual int navigate(QAccessible::RelationFlag relation, int entry, QAccessibleInterface **target) const
+         {
+-            if ((relation == QAccessible::Child || QAccessible::FocusChild) && entry == KateCursorAccessible::ChildId) {
++            if ((relation == QAccessible::Child || relation == QAccessible::FocusChild) &&
++                    entry == KateCursorAccessible::ChildId) {
+                 *target = new KateCursorAccessible(view());
+                 return KateCursorAccessible::ChildId;
+             }
+--- a/part/view/kateviewhelpers.cpp
++++ b/part/view/kateviewhelpers.cpp
+@@ -1703,7 +1703,7 @@
+       if (realLine > -1) {
+         if (m_viewInternal->cache()->viewLine(z).startCol() == 0) {
+           if (m_viRelLineNumbersOn && m_view->viInputMode()) {
+-            int diff = abs(realLine - currentLine);
++            int diff = abs(static_cast<int>(realLine - currentLine));
+             if (diff > 0) {
+               p.drawText( lnX + m_maxCharWidth / 2, y, lnWidth - m_maxCharWidth, h,
+                           Qt::TextDontClip|Qt::AlignRight|Qt::AlignVCenter, QString("%1").arg(diff) );

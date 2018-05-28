@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2002-2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2002-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,20 +20,29 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=seyon
 VERSION=2.20c
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i486 ;;
+    i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
   export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i386" ]; then
@@ -62,7 +71,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-seyon
 
@@ -80,6 +88,7 @@ find . \
   -exec chmod 644 {} \;
 
 zcat $CWD/seyon_2.20c-16.diff.gz | patch -p1 --verbose || exit 1
+sed -i "s/getline/seyon_getline/g" *
 
 chmod 755 makever.sh
 xmkmf
@@ -112,7 +121,7 @@ cat seyon.man | gzip -9c > $PKG/usr/man/man1/seyon.1.gz
 
 mkdir -p $PKG/install
 cat << EOF > $PKG/install/doinst.sh
-#!/bin/sh
+#!/bin/bash
 config() {
   NEW="\$1"
   OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"

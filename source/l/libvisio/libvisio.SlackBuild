@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for libvisio
 
 # Copyright 2015  Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,9 +23,11 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=libvisio
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-4}
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -39,6 +41,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -58,7 +68,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-libvisio
 
@@ -89,6 +98,16 @@ CXXFLAGS="$SLKCFLAGS" \
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# In honor of the above kludge, let's at least add an extra check against
+# creating a bad package:
+if [ ! /bin/ls $PKG/usr/lib${LIBDIRSUFFIX}/libvisio-* ]; then
+  echo "FATAL: no built libvisio in package"
+  exit 1
+fi
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a AUTHORS ChangeLog COPYING* NEWS README* \

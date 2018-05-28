@@ -1,0 +1,30 @@
+From alex14641 on LQ:
+http://www.linuxquestions.org/questions/slackware-14/requests-for-current-20151216-a-4175561577/page142.html#post5686598
+
+On my system, the Sandisk Cruzer USB Stick has file names in /dev/disk/by-id/, that contain
+colons: this causes lilo to fail when using one of these files as a boot disk. This patch
+replaces the failure with a warning.
+
+--- ./src/geometry.c.orig	2015-11-21 17:50:18.000000000 -0600
++++ ./src/geometry.c	2017-03-23 15:30:53.925990587 -0500
+@@ -1357,16 +1357,12 @@
+ 
+ int geo_open(GEOMETRY *geo,const char *name,int flags)
+ {
+-    char *here;
+-    int user_dev,block_size;
++    int user_dev = -1,block_size;
+     struct stat st;
+ 
+-    if ((here = strrchr(name,':')) == NULL) user_dev = -1;
+-    else {
+-	*here++ = 0;
+-        warn("%s:BIOS syntax is no longer supported.\n    Please use a "
+-	  "DISK section.", name);
+-	user_dev = to_number(here);
++    if (strrchr(name,':') != NULL) {
++        warn("%s:BIOS syntax is no longer supported: "
++                        "Treating as a device file.", name);
+     }
+     if ((geo->fd = open(name,flags)) < 0)
+ 	die("open %s: %s",name,strerror(errno));

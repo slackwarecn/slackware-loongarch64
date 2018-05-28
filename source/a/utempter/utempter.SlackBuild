@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008-2010, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008-2010, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,8 +24,11 @@
 # calls itself "libutempter".  We'll keep the same old package name
 # to avoid confusing upgrades.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=utempter
 VERSION=1.1.6
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -35,6 +38,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -51,7 +62,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-utempter
 
@@ -59,8 +69,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 cd $TMP
 rm -rf libutempter-$VERSION
-tar xvf $CWD/libutempter-$VERSION.tar.bz2
-cd libutempter-$VERSION
+tar xvf $CWD/libutempter-$VERSION.tar.bz2 || exit 1
+cd libutempter-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -71,8 +81,8 @@ find . \
 # Fix libdir for x86_64:
 sed -i -e "s#/usr/lib#/usr/lib${LIBDIRSUFFIX}#g" Makefile
 
-make RPM_OPT_FLAGS="$SLKCFLAGS" mandir=/usr/man
-make install mandir=/usr/man DESTDIR=$PKG
+make RPM_OPT_FLAGS="$SLKCFLAGS" mandir=/usr/man || exit 1
+make install mandir=/usr/man DESTDIR=$PKG || exit 1
 
 # A static libutempter seems like a bad idea, since it wouldn't work without
 # the making utempter binary. That and the shared lib are a closely matched set.

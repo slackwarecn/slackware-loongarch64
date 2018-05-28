@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,20 +20,30 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=elvis
 VERSION=2.2_0
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-elvis
 
@@ -41,8 +51,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 cd $TMP
 rm -rf elvis-$VERSION
-tar xjvf $CWD/elvis-$VERSION.tar.bz2
-cd elvis-$VERSION
+tar xvf $CWD/elvis-$VERSION.tar.bz2 || exit 1
+cd elvis-$VERSION || exit 1
 
 # Fix redefined getline() with glibc > 2.9 by changing the
 # local function to elv_getline():
@@ -60,19 +70,19 @@ chown -R root:root .
   --bindir=$PKG/usr/bin \
   --datadir=$PKG/usr/share/elvis-$VERSION \
   --docdir=$PKG/usr/share/elvis-$VERSION/doc \
-  --verbose
-make
-make install
+  --verbose || exit 1
+make || exit 1
+make install || exit 1
 # Now we make the real binaries:
-make clean
+make clean || exit 1
 ./configure \
   --without-x \
   --without-gnome \
   --bindir=/usr/bin \
   --datadir=/usr/share/elvis-$VERSION \
   --docdir=/usr/share/elvis-$VERSION/doc \
-  --verbose
-make
+  --verbose || exit 1
+make || exit 1
 # And install them:
 cat elvis > $PKG/usr/bin/elvis
 cat elvtags > $PKG/usr/bin/elvtags

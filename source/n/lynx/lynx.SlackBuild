@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2012, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-PKGVER=2.8.8rel.2
-DIRVER=2-8-8
+PKGNAM=lynx
+PKGVER=2.8.9dev.19
+DIRVER=2.8.9dev.19
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -35,6 +37,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$PKGVER-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -51,7 +61,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-lynx
 
@@ -70,7 +79,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Apply recolorizing patch:
+zcat $CWD/lynx-CVE-2008-4690.patch.gz | patch -p1 --verbose || exit 1
+
+# Change default colors:
 zcat $CWD/lynx.cfg.diff.gz | patch -p1 --verbose --backup || exit 1
 
 CFLAGS="$SLKCFLAGS" \
@@ -117,6 +128,9 @@ make install DESTDIR=$PKG || exit 1
 make install-help DESTDIR=$PKG || exit 1
 make install-doc DESTDIR=$PKG || exit 1
 
+# Make lynx.cfg a preserved config file:
+mv $PKG/etc/lynx.cfg $PKG/etc/lynx.cfg.new
+
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
@@ -144,6 +158,7 @@ fi
 gzip -9 $PKG/usr/man/man?/*.?
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

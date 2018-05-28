@@ -1,0 +1,226 @@
+From 4eac1dbb5f70a652d31847eec7c28d245f36cdbb Mon Sep 17 00:00:00 2001
+From: Martin Sehnoutka <msehnout@redhat.com>
+Date: Thu, 17 Nov 2016 10:48:28 +0100
+Subject: [PATCH 21/33] Introduce support for DHE based cipher suites.
+
+---
+ parseconf.c   |  1 +
+ ssl.c         | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ tunables.c    |  5 +++-
+ tunables.h    |  1 +
+ vsftpd.conf.5 |  6 ++++
+ 5 files changed, 104 insertions(+), 2 deletions(-)
+
+diff --git a/parseconf.c b/parseconf.c
+index 3e0dba4..38e3182 100644
+--- a/parseconf.c
++++ b/parseconf.c
+@@ -176,6 +176,7 @@ parseconf_str_array[] =
+   { "email_password_file", &tunable_email_password_file },
+   { "rsa_cert_file", &tunable_rsa_cert_file },
+   { "dsa_cert_file", &tunable_dsa_cert_file },
++  { "dh_param_file", &tunable_dh_param_file },
+   { "ssl_ciphers", &tunable_ssl_ciphers },
+   { "rsa_private_key_file", &tunable_rsa_private_key_file },
+   { "dsa_private_key_file", &tunable_dsa_private_key_file },
+diff --git a/ssl.c b/ssl.c
+index c362983..22b69b3 100644
+--- a/ssl.c
++++ b/ssl.c
+@@ -28,6 +28,8 @@
+ #include <openssl/err.h>
+ #include <openssl/rand.h>
+ #include <openssl/bio.h>
++#include <openssl/dh.h>
++#include <openssl/bn.h>
+ #include <errno.h>
+ #include <limits.h>
+ 
+@@ -38,6 +40,7 @@ static void setup_bio_callbacks();
+ static long bio_callback(
+   BIO* p_bio, int oper, const char* p_arg, int argi, long argl, long retval);
+ static int ssl_verify_callback(int verify_ok, X509_STORE_CTX* p_ctx);
++static DH *ssl_tmp_dh_callback(SSL *ssl, int is_export, int keylength);
+ static int ssl_cert_digest(
+   SSL* p_ssl, struct vsf_session* p_sess, struct mystr* p_str);
+ static void maybe_log_shutdown_state(struct vsf_session* p_sess);
+@@ -51,6 +54,60 @@ static int ssl_read_common(struct vsf_session* p_sess,
+ static int ssl_inited;
+ static struct mystr debug_str;
+ 
++
++// Grab prime number from OpenSSL; <openssl/bn.h>
++// (get_rfc*) for all available primes.
++// wraps selection of comparable algorithm strength
++#if !defined(match_dh_bits)
++  #define match_dh_bits(keylen) \
++    keylen >= 8191 ? 8192 : \
++    keylen >= 6143 ? 6144 : \
++    keylen >= 4095 ? 4096 : \
++    keylen >= 3071 ? 3072 : \
++    keylen >= 2047 ? 2048 : \
++    keylen >= 1535 ? 1536 : \
++    keylen >= 1023 ? 1024 : 768
++#endif
++
++#if !defined(DH_get_prime)
++  BIGNUM *
++  DH_get_prime(int bits)
++  {
++    switch (bits) {
++      case 768:  return get_rfc2409_prime_768(NULL);
++      case 1024: return get_rfc2409_prime_1024(NULL);
++      case 1536: return get_rfc3526_prime_1536(NULL);
++      case 2048: return get_rfc3526_prime_2048(NULL);
++      case 3072: return get_rfc3526_prime_3072(NULL);
++      case 4096: return get_rfc3526_prime_4096(NULL);
++      case 6144: return get_rfc3526_prime_6144(NULL);
++      case 8192: return get_rfc3526_prime_8192(NULL);
++      // shouldn't happen when used match_dh_bits; strict compiler
++      default:   return NULL;
++    }
++}
++#endif
++
++#if !defined(DH_get_dh)
++  // Grab DH parameters
++  DH *
++  DH_get_dh(int size)
++  {
++    DH *dh = DH_new();
++    if (!dh) {
++      return NULL;
++    }
++    dh->p = DH_get_prime(match_dh_bits(size));
++    BN_dec2bn(&dh->g, "2");
++    if (!dh->p || !dh->g)
++    {
++      DH_free(dh);
++      return NULL;
++    }
++    return dh;
++  }
++#endif
++
+ void
+ ssl_init(struct vsf_session* p_sess)
+ {
+@@ -65,7 +122,7 @@ ssl_init(struct vsf_session* p_sess)
+     {
+       die("SSL: could not allocate SSL context");
+     }
+-    options = SSL_OP_ALL;
++    options = SSL_OP_ALL | SSL_OP_SINGLE_DH_USE;
+     if (!tunable_sslv2)
+     {
+       options |= SSL_OP_NO_SSLv2;
+@@ -111,6 +168,25 @@ ssl_init(struct vsf_session* p_sess)
+         die("SSL: cannot load DSA private key");
+       }
+     }
++    if (tunable_dh_param_file)
++    {
++      BIO *bio;
++      DH *dhparams = NULL;
++      if ((bio = BIO_new_file(tunable_dh_param_file, "r")) == NULL)
++      {
++        die("SSL: cannot load custom DH params");
++      }
++      else
++      {
++        dhparams = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
++        BIO_free(bio);
++
++        if (!SSL_CTX_set_tmp_dh(p_ctx, dhparams))
++	{
++          die("SSL: setting custom DH params failed");
++	}
++      }
++    }
+     if (tunable_ssl_ciphers &&
+         SSL_CTX_set_cipher_list(p_ctx, tunable_ssl_ciphers) != 1)
+     {
+@@ -165,6 +241,9 @@ ssl_init(struct vsf_session* p_sess)
+       /* Ensure cached session doesn't expire */
+       SSL_CTX_set_timeout(p_ctx, INT_MAX);
+     }
++    
++    SSL_CTX_set_tmp_dh_callback(p_ctx, ssl_tmp_dh_callback);
++
+     p_sess->p_ssl_ctx = p_ctx;
+     ssl_inited = 1;
+   }
+@@ -702,6 +781,18 @@ ssl_verify_callback(int verify_ok, X509_STORE_CTX* p_ctx)
+   return 1;
+ }
+ 
++#define UNUSED(x) ( (void)(x) )
++
++static DH *
++ssl_tmp_dh_callback(SSL *ssl, int is_export, int keylength)
++{
++  // strict compiler bypassing
++  UNUSED(ssl);
++  UNUSED(is_export);
++  
++  return DH_get_dh(keylength);
++}
++
+ void
+ ssl_add_entropy(struct vsf_session* p_sess)
+ {
+diff --git a/tunables.c b/tunables.c
+index c737465..1ea7227 100644
+--- a/tunables.c
++++ b/tunables.c
+@@ -140,6 +140,7 @@ const char* tunable_user_sub_token;
+ const char* tunable_email_password_file;
+ const char* tunable_rsa_cert_file;
+ const char* tunable_dsa_cert_file;
++const char* tunable_dh_param_file;
+ const char* tunable_ssl_ciphers;
+ const char* tunable_rsa_private_key_file;
+ const char* tunable_dsa_private_key_file;
+@@ -288,7 +289,9 @@ tunables_load_defaults()
+   install_str_setting("/usr/share/ssl/certs/vsftpd.pem",
+                       &tunable_rsa_cert_file);
+   install_str_setting(0, &tunable_dsa_cert_file);
+-  install_str_setting("ECDHE-RSA-AES256-GCM-SHA384", &tunable_ssl_ciphers);
++  install_str_setting(0, &tunable_dh_param_file);
++  install_str_setting("AES128-SHA:DES-CBC3-SHA:DHE-RSA-AES256-SHA",
++                      &tunable_ssl_ciphers);
+   install_str_setting(0, &tunable_rsa_private_key_file);
+   install_str_setting(0, &tunable_dsa_private_key_file);
+   install_str_setting(0, &tunable_ca_certs_file);
+diff --git a/tunables.h b/tunables.h
+index 9553038..3995472 100644
+--- a/tunables.h
++++ b/tunables.h
+@@ -142,6 +142,7 @@ extern const char* tunable_user_sub_token;
+ extern const char* tunable_email_password_file;
+ extern const char* tunable_rsa_cert_file;
+ extern const char* tunable_dsa_cert_file;
++extern const char* tunable_dh_param_file;
+ extern const char* tunable_ssl_ciphers;
+ extern const char* tunable_rsa_private_key_file;
+ extern const char* tunable_dsa_private_key_file;
+diff --git a/vsftpd.conf.5 b/vsftpd.conf.5
+index fb6324e..ff94eca 100644
+--- a/vsftpd.conf.5
++++ b/vsftpd.conf.5
+@@ -893,6 +893,12 @@ to be in the same file as the certificate.
+ 
+ Default: (none)
+ .TP
++.B dh_param_file
++This option specifies the location of the custom parameters used for
++ephemeral Diffie-Hellman key exchange in SSL.
++
++Default: (none - use built in parameters appropriate for certificate key size)
++.TP
+ .B email_password_file
+ This option can be used to provide an alternate file for usage by the
+ .BR secure_email_list_enable
+-- 
+2.7.4
+

@@ -1,0 +1,178 @@
+From 5046e5605cf7420d9a11de49bd9fe4851a4ca1d2 Mon Sep 17 00:00:00 2001
+From: Saleem Rashid <dev@saleemrashid.com>
+Date: Thu, 5 Apr 2018 22:48:25 +0100
+Subject: [PATCH] Refuse to apply ed scripts by default
+
+* src/patch.c, src/pch.c: Warn that ed scripts are potentially
+dangerous, unless patch is invoked with --force
+* tests/dangerous-ed-scripts: New test case
+* tests/crlf-handling, tests/need-filename: Add -f to patch invokation to
+avoid ed scripts warning
+
+This fixes an issue where ed scripts could be included in a patch, executing
+arbitrary shell commands without the user's knowledge.
+
+Original bug report:
+https://savannah.gnu.org/bugs/index.php?53566
+---
+ src/patch.c                | 13 +++++++++++--
+ src/pch.c                  | 11 +++++++++++
+ tests/Makefile.am          |  1 +
+ tests/crlf-handling        |  4 ++--
+ tests/dangerous-ed-scripts | 36 ++++++++++++++++++++++++++++++++++++
+ tests/need-filename        |  2 +-
+ 6 files changed, 62 insertions(+), 5 deletions(-)
+ create mode 100644 tests/dangerous-ed-scripts
+
+diff --git a/src/patch.c b/src/patch.c
+index 0fe6d72..e14a9c4 100644
+--- a/src/patch.c
++++ b/src/patch.c
+@@ -781,7 +781,7 @@ static char const *const option_help[] =
+ "  -l  --ignore-whitespace  Ignore white space changes between patch and input.",
+ "",
+ "  -c  --context  Interpret the patch as a context difference.",
+-"  -e  --ed  Interpret the patch as an ed script.",
++"  -e  --ed  Interpret the patch as a potentially dangerous ed script.  This could allow arbitrary command execution!",
+ "  -n  --normal  Interpret the patch as a normal difference.",
+ "  -u  --unified  Interpret the patch as a unified difference.",
+ "",
+@@ -825,7 +825,7 @@ static char const *const option_help[] =
+ "Miscellaneous options:",
+ "",
+ "  -t  --batch  Ask no questions; skip bad-Prereq patches; assume reversed.",
+-"  -f  --force  Like -t, but ignore bad-Prereq patches, and assume unreversed.",
++"  -f  --force  Like -t, but ignore bad-Prereq patches, apply potentially dangerous ed scripts, and assume unreversed.",
+ "  -s  --quiet  --silent  Work silently unless an error occurs.",
+ "  --verbose  Output extra information about the work being done.",
+ "  --dry-run  Do not actually change any files; just print what would happen.",
+@@ -1068,6 +1068,15 @@ get_some_switches (void)
+ 	}
+     }
+ 
++    if (! force && diff_type == ED_DIFF)
++     {
++      ask ("Apply potentially dangerous ed script?  This could allow arbitrary command execution!  [n] ");
++      if (*buf != 'y')
++       {
++	  fatal ("Refusing to apply potentially dangerous ed script.");
++       }
++     }
++
+     /* Process any filename args.  */
+     if (optind < Argc)
+       {
+diff --git a/src/pch.c b/src/pch.c
+index bc6278c..ab34dd4 100644
+--- a/src/pch.c
++++ b/src/pch.c
+@@ -1001,6 +1001,17 @@ intuit_diff_type (bool need_header, mode_t *p_file_type)
+ 	instat = st[i];
+       }
+ 
++    if (! force && retval == ED_DIFF)
++     {
++      ask ("Apply potentially dangerous ed script?  This could allow arbitrary command execution!  [n] ");
++      if (*buf != 'y')
++       {
++	  if (verbosity != SILENT)
++	      say ("Skipping potentially dangerous ed script.\n");
++	  skip_rest_of_patch = true;
++       }
++     }
++
+     return retval;
+ }
+ 
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 6b6df63..d888804 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -30,6 +30,7 @@ TESTS = \
+ 	create-directory \
+ 	criss-cross \
+ 	crlf-handling \
++	dangerous-ed-scripts \
+ 	dash-o-append \
+ 	deep-directories \
+ 	empty-files \
+diff --git a/tests/crlf-handling b/tests/crlf-handling
+index c192cac..f9e654e 100644
+--- a/tests/crlf-handling
++++ b/tests/crlf-handling
+@@ -46,7 +46,7 @@ if ! have_ed ; then
+ else
+     diff -e a b > ab.ed | lf2crlf > ab.ed
+     echo 1 > c
+-    ncheck 'patch c < ab.ed'
++    ncheck 'patch -f c < ab.ed'
+ fi
+ 
+ # ==============================================================
+@@ -95,7 +95,7 @@ if ! have_ed ; then
+ else
+     diff -e a b > ab.diff
+     cp a c
+-    ncheck 'patch c < ab.diff'
++    ncheck 'patch -f c < ab.diff'
+ fi
+ 
+ check 'cat -ve c' <<EOF
+diff --git a/tests/dangerous-ed-scripts b/tests/dangerous-ed-scripts
+new file mode 100644
+index 0000000..3465d4e
+--- /dev/null
++++ b/tests/dangerous-ed-scripts
+@@ -0,0 +1,36 @@
++# Copyright (C) 2018 Free Software Foundation, Inc.
++#
++# Copying and distribution of this file, with or without modification,
++# in any medium, are permitted without royalty provided the copyright
++# notice and this notice are preserved.
++
++. $srcdir/test-lib.sh
++
++require cat
++use_local_patch
++use_tmpdir
++
++# ==============================================================
++# Test for arbitrary command execution found in CVE-2018-0492 patch.
++# GNU patch bug report can be found at http://savannah.gnu.org/bugs/index.php?53566
++
++cat > beep.patch <<EOF
++--- /dev/null	2018-13-37 13:37:37.000000000 +0100
+++++ b/beep.c	2018-13-37 13:38:38.000000000 +0100
++1337a
++1,112d
++!id>~/pwn.lol;beep # 13-21 12:53:21.000000000 +0100
++.
++EOF
++
++check 'patch < beep.patch; echo "Status: $?"' <<EOF
++Apply potentially dangerous ed script?  This could allow arbitrary command execution!  [n] 
++Skipping potentially dangerous ed script.
++Status: 1
++EOF
++
++check 'patch -e; echo "Status: $?"' <<EOF
++Apply potentially dangerous ed script?  This could allow arbitrary command execution!  [n] $PATCH: **** Refusing to apply potentially dangerous ed script.
++
++Status: 2
++EOF
+diff --git a/tests/need-filename b/tests/need-filename
+index 8b92848..c15951f 100644
+--- a/tests/need-filename
++++ b/tests/need-filename
+@@ -61,7 +61,7 @@ EOF
+ 
+     rm -f f
+     touch f
+-    ncheck 'patch f < e.diff'
++    ncheck 'patch -f f < e.diff'
+ 
+     check 'cat f' <<EOF
+ one
+-- 
+2.16.3
+

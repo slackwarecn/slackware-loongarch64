@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2005-2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,23 +20,32 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=kbd
 VERSION=1.15.3
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:--j6}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-kbd
 
@@ -50,7 +59,7 @@ cd $TMP
 # Extract source:
 rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/sources/$PKGNAM-$VERSION.tar.?z* || exit 1
-cd $PKGNAM-$VERSION
+cd $PKGNAM-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -119,9 +128,9 @@ make install DESTDIR=$PKG || exit 1
 
 # Build/install resizecons:
 ( cd src
-  make resizecons
+  make resizecons || exit 1
   cp resizecons $PKG/usr/bin
-)
+) || exit 1
 
 # ro_win.map.gz is useless
 rm -fv $PKG/usr/share/kbd/keymaps/i386/qwerty/ro_win.map.gz
@@ -165,7 +174,7 @@ tar xvf $CWD/sources/speakup-jfw.tar.gz
 # For that reason, default the script to non-executable.
 mkdir -pm755 $PKG/etc/rc.d
 cat << EOF > $PKG/etc/rc.d/rc.font.new
-#!/bin/sh
+#!/bin/bash
 #
 # This selects your default screen font from among the ones in
 # /usr/share/kbd/consolefonts.

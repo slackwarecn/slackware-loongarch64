@@ -1,0 +1,28 @@
+--- ./src/prog/gpm-root.y.orig	2012-10-26 16:21:38.000000000 -0500
++++ ./src/prog/gpm-root.y	2018-02-03 14:52:27.229309044 -0600
+@@ -1196,11 +1196,7 @@
+                                                         LOG_DAEMON : LOG_USER);
+    /* reap your zombies */
+    childaction.sa_handler=reap_children;
+-#if defined(__GLIBC__)
+-   __sigemptyset(&childaction.sa_mask);
+-#else /* __GLIBC__ */
+-   childaction.sa_mask=0;
+-#endif /* __GLIBC__ */
++   sigemptyset(&childaction.sa_mask);
+    childaction.sa_flags=SA_INTERRUPT; /* need to break the select() call */
+    sigaction(SIGCHLD,&childaction,NULL);
+ 
+--- ./src/daemon/open_console.c.orig	2018-02-03 14:49:24.586310986 -0600
++++ ./src/daemon/open_console.c	2018-02-03 14:53:03.347308660 -0600
+@@ -24,6 +24,10 @@
+ #include <sys/ioctl.h>              /* ioctl             */
+ #include <sys/types.h>
+ 
++#ifdef HAVE_SYS_SYSMACROS_H
++#include <sys/sysmacros.h>          /* major() w/newer glibc */
++#endif
++
+ /* Linux specific (to be outsourced in gpm2 */
+ #include <linux/serial.h>           /* for serial console check */
+ #include <asm/ioctls.h>            /* for serial console check */

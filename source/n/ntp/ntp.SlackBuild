@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=ntp
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -46,7 +56,6 @@ else
   SLKCFLAGS="-O2"
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-ntp
 
@@ -80,12 +89,13 @@ CFLAGS="$SLKCFLAGS" \
   --htmldir=/usr/doc/ntp-$VERSION \
   --enable-ipv6 \
   --with-crypto \
+  --enable-ntp-signd \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
-make -i install DESTDIR=$PKG || exit 1
+make install DESTDIR=$PKG || exit 1
 
 # Since the Makefile's install pays no heed to the --bindir settings,
 # we'll move things to where they've always been ourselves:
@@ -98,11 +108,23 @@ rmdir $PKG/usr/lib/pkgconfig
 # This should be empty.  Try to remove it, and error out if it's not actually empty:
 rmdir $PKG/usr/libexec || exit 1
 
-mkdir -p $PKG/etc/ntp
+# Install default conf and keys files:
+mkdir -p $PKG/etc
 cat $CWD/ntp.conf > $PKG/etc/ntp.conf.new
-cat $CWD/ntp.keys > $PKG/etc/ntp/ntp.keys.new
-chmod 600 $PKG/etc/ntp/ntp.keys.new
-touch $PKG/etc/ntp/step-tickers
+cat $CWD/ntp.keys > $PKG/etc/ntp.keys.new
+chown root:ntp $PKG/etc/ntp.keys.new
+chmod 640 $PKG/etc/ntp.keys.new
+
+# Location for the drift and stats files:
+mkdir -p $PKG/var/lib/ntp
+chown ntp:ntp $PKG/var/lib/ntp
+chmod 0775 $PKG/var/lib/ntp
+
+# This is deprecated and no longer used by anything:
+#touch $PKG/etc/ntp/step-tickers
+
+mkdir -p $PKG/etc/logrotate.d
+cat $CWD/ntp.logrotate > $PKG/etc/logrotate.d/ntp.new
 
 mkdir -p $PKG/etc/rc.d
 cat $CWD/rc.ntpd > $PKG/etc/rc.d/rc.ntpd.new

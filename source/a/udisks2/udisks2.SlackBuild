@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for udisks
 
@@ -24,6 +24,8 @@
 
 # Modified 2012 by Eric Hameleers <alien at slackware.com> for ARM port.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=udisks2
 SRCNAM=udisks
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
@@ -41,6 +43,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -65,7 +75,6 @@ case "$ARCH" in
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -92,6 +101,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-static \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --enable-lvm2 \
   --build=$TARGET || exit 1
 
 make $NUMJOBS || make || exit 1

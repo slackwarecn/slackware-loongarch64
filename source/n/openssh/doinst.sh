@@ -21,6 +21,7 @@ preserve_perms() {
   config ${NEW}
 }
 
+config etc/default/sshd.new
 config etc/ssh/ssh_config.new
 config etc/ssh/sshd_config.new
 preserve_perms etc/rc.d/rc.sshd.new

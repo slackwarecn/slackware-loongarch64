@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,6 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=seamonkey
 TARBALLVER=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
 # Strip the end from beta versions:
 VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
@@ -35,44 +38,72 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$TARBALLVER-$ARCH-$BUILD.txz"
+  echo "$PKGNAM-solibs-$TARBALLVER-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 if [ "$ARCH" = "i586" ]; then
   LIBDIRSUFFIX=""
-  OPTIMIZE_FLAG="-O2"
-  # On IA32, use gold since GNU ld runs out of memory linking libxul.so:
-  PATH="$(pwd)/gold:$PATH"
-  export CC="gcc -B$(pwd)/gold"
-  export CXX="g++ -B$(pwd)/gold"
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
+elif [ "$ARCH" = "i686" ]; then
+  LIBDIRSUFFIX=""
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
-  OPTIMIZE_FLAG="-O2"
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
 else
   LIBDIRSUFFIX=""
-  OPTIMIZE_FLAG="-O2"
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
 fi
+
+# Link using gold.  This avoids running out of memory on 32-bit systems, and
+# avoids a recurring build failure with GNU ld on other systems.
+PATH="$(pwd)/gold:$PATH"
+export CC=${CC:-"gcc -B$(pwd)/gold"}
+export CXX=${CXX:-"g++ -B$(pwd)/gold -fno-delete-null-pointer-checks"}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-# Workaround to prevent unidentified crashes when compiling with recent gcc.
-# Presumably a newer version will fix this (as it did with Firefox), so only
-# enable the workaround for known crashing versions.
-# Test page to check for crash:  http://onet.pl
-if [ $VERSION = 2.39 -o \
-     $VERSION = 2.40 ]; then
-  OPTIMIZE_FLAG="$(echo "$OPTIMIZE_FLAG" | sed 's/O2/Os/g')"
-  echo "Detected Seamonkey $VERSION...  enabling crash workaround O2 -> Os."
-  sleep 1
-fi
-
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-seamonkey
+
+# If there is a private Google API key available at compile time, use
+# it to enable support for Google Safe Browsing. For Slackware builds,
+# we use a private key issued for the Slackware project. If you are
+# rebuilding and need this support, or you are producing your own
+# distribution, you may obtain your own Google API key at no charge by
+# following these instructions:
+# https://bugzilla.mozilla.org/show_bug.cgi?id=1377987#c0
+if [ -r /root/google-api-key ]; then
+  GOOGLE_API_KEY="--with-google-api-keyfile=/root/google-api-key"
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 
+# We need to use the incredibly ancient autoconf-2.13 for this  :/
+( cd $CWD/autoconf ; ./autoconf.build )
+PATH=$TMP/autoconf-tmp/usr/bin:$PATH
+
 cd $TMP
 rm -rf seamonkey-${TARBALLVER}
+# Unpack this in a subdirectory to prevent changing permissions on /tmp:
+rm -rf seamonkey-unpack
+mkdir seamonkey-unpack
+cd seamonkey-unpack
 tar xvf $CWD/seamonkey-${TARBALLVER}.source.tar.?z* || exit 1
+mv * ..
+cd ..
+rm -rf seamonkey-unpack
 cd seamonkey-${TARBALLVER} || exit 1
+
+# Retain GTK+ v2 scrolling behavior:
+zcat $CWD/sm.ui.scrollToClick.diff.gz | patch -p1 --verbose || exit 1
 
 # Make sure the perms/ownerships are sane:
 chown -R root:root .
@@ -88,35 +119,28 @@ chown -R root:root .
 OPTIONS="\
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-optimize=$OPTIMIZE_FLAG \
   --enable-cpp-rtti \
-  --enable-default-toolkit=cairo-gtk2 \
+  --enable-default-toolkit=cairo-gtk3 \
   --enable-startup-notification \
+  --enable-alsa \
   --disable-debug \
   --with-default-mozilla-five-home=/usr/lib${LIBDIRSUFFIX}/seamonkey-${VERSION} \
   --enable-strip \
   --disable-tests \
   --disable-crashreporter \
-  --enable-svg \
-  --enable-canvas \
-  --enable-gstreamer=1.0 \
-  --disable-short-wchar \
-  --enable-nspr-autoconf \
+  --enable-accessibility \
+  $GOOGLE_API_KEY \
+  --enable-safe-browsing \
+  --disable-updater \
+  --enable-chrome-format=omni \
+  --disable-necko-wifi \
   --enable-extensions=default,irc \
-  --enable-crypto \
-  --enable-libxul \
-  --disable-xprint \
   --without-system-nspr \
   --with-system-zlib \
-  --with-system-mng \
   --enable-application=suite \
-  --enable-xft \
+  --with-pthreads \
   --host=$ARCH-slackware-linux \
-  --target=$ARCH-slackware-linux \
-  --build=$ARCH-slackware-linux"
-
-  # --enable-system-cairo \
-  # --with-system-png
+  --target=$ARCH-slackware-linux"
 
 export BUILD_OFFICIAL=1
 export MOZILLA_OFFICIAL=1
@@ -129,6 +153,10 @@ unset DBUS_SESSION_BUS_ADDRESS ORBIT_SOCKETDIR SESSION_MANAGER \
 # Assemble our .mozconfig:
 echo > .mozconfig
 
+# Tell .mozconfig about the selected compiler:
+echo "export CC=\"${CC}\"" >> .mozconfig
+echo "export CXX=\"${CXX}\"" >> .mozconfig
+
 # Mozilla devs enforce using an objdir for building
 # https://developer.mozilla.org/en/Configuring_Build_Options#Building_with_an_objdir
 mkdir obj
@@ -136,12 +164,21 @@ echo "mk_add_options MOZ_OBJDIR=$(pwd)/obj" >> .mozconfig
 # This directory is also needed or the build will fail:
 mkdir -p mozilla/obj
 
-# Write in it the options above
+# Set options for $OPTIMIZE_FLAG:
+echo "ac_add_options --enable-optimize=\"${OPTIMIZE_FLAG}\"" >> .mozconfig
+
+# Add the $OPTIONS above to .mozconfig:
 for option in $OPTIONS; do echo "ac_add_options $option" >> .mozconfig; done
 
 echo "ac_add_options --disable-tests" >> .mozconfig
 make -f client.mk build || exit 1
 make -f client.mk install DESTDIR=$PKG || exit 1
+
+# Keep the "obsolete" nspr headers:
+if [ ! -d mozilla/dist/include/nspr/obsolete ]; then
+  mkdir -p mozilla/dist/include/nspr/obsolete
+  cp -a mozilla/nsprpub/pr/include/obsolete/*.h mozilla/dist/include/nspr/obsolete
+fi
 
 # Install nspr/nss headers.
 for includedir in nspr nspr/obsolete nspr/private ; do

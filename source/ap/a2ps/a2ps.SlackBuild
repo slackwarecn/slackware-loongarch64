@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,33 +20,40 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=a2ps
-PKGNAM2=psutils
-VERSION=${VERSION:-4.14}
-A2PS=${A2PS:-4.14}
-PSUTILS=${PSUTILS:-1.17}
-BUILD=${BUILD:-5}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-7}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -56,46 +63,15 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 fi
 
-# First, build and install psutils:
 cd $TMP
-tar xvf $CWD/$PKGNAM2-${PSUTILS}.tar.gz || exit 1
-cd $PKGNAM2
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
-# Make sure ownerships and permissions are sane:
-chown -R root:root .
-find . \
-  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \; -o \
-  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-  -exec chmod 644 {} \;
-
-zcat $CWD/psutils.diff.gz | patch -p1 --verbose -E --backup --suffix=.orig || exit 1
-zcat $CWD/psutils.destdir.diff.gz | patch -p1 --verbose -E --backup --suffix=.orig || exit 1
-
-# Build and install:
-make -f Makefile.unix || exit 1
-make -f Makefile.unix install DESTDIR=$PKG || exit 1
-
-# Add a documentation directory for psutils:
-mkdir -p $PKG/usr/doc/$PKGNAM2-$PSUTILS
-cp -a \
-  LICENSE README \
-  $PKG/usr/doc/$PKGNAM2-$PSUTILS
-
-# Build, install and delete temporary psutils package for a2ps
-cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM2-${PSUTILS}-$ARCH-$BUILD.txz || exit 1
-echo "Installing temporary $PKGNAM2 package (this will be removed when the SlackBuild finishes)"
-/sbin/installpkg $TMP/$PKGNAM2-${PSUTILS}-$ARCH-$BUILD.txz || exit 1
-rm $TMP/$PKGNAM2-${PSUTILS}-$ARCH-$BUILD.txz || exit 1
-
-# Then, build a2ps:
-cd $TMP
-tar xvf $CWD/$PKGNAM-$VERSION.tar.bz2 || exit 1
-cd $PKGNAM-$A2PS
-
-zcat $CWD/a2ps.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/a2ps.a2ps_cfg.in.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/a2ps.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/a2ps.a2ps_cfg.in.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/a2ps-4.14-texinfo-nodes.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/a2ps-texi-comments.patch.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -116,15 +92,14 @@ lispdir="/usr/share/emacs/site-lisp" \
   --mandir=/usr/man \
   --sysconfdir=/etc \
   --with-medium=letter \
-  $ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
-make || exit 1
+make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Remove temporary psutils package:
-echo "Removing temporary psutils package"
-/sbin/removepkg $PKGNAM2-${PSUTILS}-$ARCH-$BUILD || exit 1
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -132,8 +107,8 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/a2ps-$VERSION
-cp -a ABOUT-NLS ANNOUNCE AUTHORS COPYING \
-  FAQ INSTALL NEWS README THANKS TODO \
+cp -a \
+  ANNOUNCE AUTHORS COPYING* FAQ NEWS README* THANKS TODO \
   $PKG/usr/doc/a2ps-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

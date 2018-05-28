@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,8 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=cyrus-sasl
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | cut -f 3- -d - | rev | cut -f 3- -d . | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -34,7 +36,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-cyrus-sasl
 
@@ -57,11 +66,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf cyrus-sasl-$VERSION
 tar xvf $CWD/cyrus-sasl-$VERSION.tar.?z* || exit 1
-cd cyrus-sasl-$VERSION || exit 1
-
-# Fix for glibc-2.17 crypt() NULL return:
-zcat $CWD/cyrus-sasl-2.1.26-null-crypt.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/cyrus-sasl-2.1.26-size_t.patch.gz | patch -p1 --verbose || exit 1
+cd cyrus-sasl-$(echo $VERSION | cut -f 1 -d -) || exit 1
 
 chown -R root:root .
 find . -perm 777 -exec chmod 755 {} \;
@@ -81,33 +86,35 @@ CFLAGS="$SLKCFLAGS" \
   --without-ldap \
   --with-saslauthd \
   --with-gdbm \
-  --with-dblib=gdbm
+  --with-devrandom=/dev/urandom \
+  --with-dblib=gdbm || exit 1
+
 # How stupid that I need to specify 'sasldir' again for 'make' or else you get
 # the warning "Plugins are being installed into /usr/lib/sasl2, but the library
 # will look for them in /usr/lib64/sasl2" and advised to create a symlink...
 make sasldir=/usr/lib${LIBDIRSUFFIX}/sasl2 || exit 1
 make sasldir=/usr/lib${LIBDIRSUFFIX}/sasl2 install DESTDIR=$PKG || exit 1
 
-# NOTE:  I'd _like_ to get rid of these, but they are already tangled into
-# other .la files, and then those packages would need to be recompiled.  And
-# likely I'd want to get rid of those .la files, which would lead to more
-# fallout, etc, etc.  So we'll put these back and plan a giant .la eradication
-# effort early in a future development cycle.
-#
-# Don't ship .la files.
-#rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la $PKG/usr/lib${LIBDIRSUFFIX}/sasl2/*.la
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
+
 mkdir -p $PKG/var/state/saslauthd
 mkdir -p $PKG/etc/rc.d
+mkdir -p $PKG/etc/sasl2
+
 zcat $CWD/rc.saslauthd.gz > $PKG/etc/rc.d/rc.saslauthd.new
+
 # Fix sloppy man page installation:
 rm -r $PKG/usr/man/cat8
 cat saslauthd/saslauthd.mdoc > $PKG/usr/man/man8/saslauthd.8
 gzip -9 $PKG/usr/man/man?/*.?
+
+# Add other documentation:
 mkdir -p $PKG/usr/doc/cyrus-sasl-$VERSION
 cp -a \
   AUTHORS COPYING* INSTALL NEWS README* \
@@ -115,10 +122,11 @@ cp -a \
   $PKG/usr/doc/cyrus-sasl-$VERSION
 find $PKG/usr/doc/cyrus-sasl-$VERSION -type f -exec chmod 644 {} \;
 rm -f $PKG/usr/doc/cyrus-sasl-$VERSION/doc/*Makefile*
+
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-makepkg -l y -c n $TMP/cyrus-sasl-$VERSION-$ARCH-$BUILD.txz
+makepkg -l y -c n $TMP/cyrus-sasl-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
 

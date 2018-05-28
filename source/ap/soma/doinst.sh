@@ -11,7 +11,6 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/soma/dialogrc.new
 config etc/soma/stations.conf.new
 config etc/soma/options.conf.new
 

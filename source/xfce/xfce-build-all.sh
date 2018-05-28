@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2012, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2012, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -33,21 +33,21 @@ for package in \
   libxfce4ui \
   exo \
   garcon \
-  tumbler \
-  Thunar \
+  gtk-xfce-engine \
   xfce4-panel \
+  Thunar \
+  thunar-volman \
+  tumbler \
+  xfce4-appfinder \
+  xfce4-power-manager \
   xfce4-settings \
-  xfce4-session \
   xfdesktop \
   xfwm4 \
-  xfce4-appfinder \
-  gtk-xfce-engine \
+  xfce4-session \
   xfce4-terminal \
-  orage \
-  thunar-volman \
-  xfce4-power-manager \
-  xfce4-pulseaudio-plugin \
   xfce4-notifyd \
+  orage \
+  xfce4-pulseaudio-plugin \
   xfce4-clipman-plugin \
   xfce4-screenshooter \
   xfce4-systemload-plugin \

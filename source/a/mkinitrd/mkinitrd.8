@@ -52,6 +52,9 @@ mkinitrd \- create or rebuilt an initrd (initial ramdisk) using initramfs (simpl
 .B \-K luks_keyfile
 ]
 [
+.B \-P microcode_archive
+]
+[
 .B \-B
 ]
 [
@@ -68,15 +71,15 @@ mkinitrd \- create or rebuilt an initrd (initial ramdisk) using initramfs (simpl
 is used to build an initial ramdisk.  An initial ramdisk is a very small
 set of files that are loaded into RAM and "mounted" (as initramfs doesn't
 actually use a filesystem) as the kernel boots (before the main root
-filesystem is mounted).  The usual reason to use an initrd is because
-you need to load kernel modules before mounting the root partition.
-Usually these modules are required to support the filesystem used by the
-root partition (ext3, reiserfs, xfs), or perhaps the controller that the
-hard drive is attached to (SCSI, RAID, etc).  Essentially, there are so many
-different options available in modern Linux kernels that it isn't practical
-to try to ship many different kernels to try to cover everyone's needs.
-It's a lot more flexible to ship a generic kernel and a set of kernel
-modules for it.
+filesystem is mounted). The usual reason to use an initrd is to load kernel
+kernel modules in order to access the root partition. An initrd might also
+be required to unlock an encrypted device.  Usually these modules are
+required to support the filesystem used by the root partition (e.g., ext4,
+jfs, xfs), or perhaps the controller that the hard drive is attached to
+(SCSI, RAID, etc).  Essentially, there are so many different options
+available in modern Linux kernels that it isn't practical to try to ship
+many different kernels to try to cover everyone's needs. It's a lot more
+flexible to ship a generic kernel and a set of kernel modules for it.
 .SH OPTIONS
 .TP
 .B \-F
@@ -121,10 +124,12 @@ Additional options may be added to use when loading the kernel modules
 .B \-o output image
 The file to write the initrd to.  (default: /boot/initrd.gz)
 .TP
-.B \-r root partition
+.BI \-r \ root_device
 Specify the device to be used as the root partition.  If this isn't given, the
 kernel default will be used (which is usually fine).  This option must be used
 together with the \-f option in order to be beneficial.
+.I root_device
+can be a device node path, UUID, or LABEL. See examples for \fB\-C\fR below.
 .TP
 .B \-s source tree
 The directory to use as the source for the initrd.  (default: /boot/initrd-tree/)
@@ -136,16 +141,22 @@ Include udev in the initrd.
 The -w option specifies how long to wait in seconds before assuming that all the
 drives are spun up and ready to go.
 .TP
-.B \-C device list
+.BI \-C \ device_list
 A colon (:) delimited list of luks encrypted block devices to be unlocked by
-the initrd using cryptsetup.  All devices that must be unlocked in order to
-access the root filesystem must be specified. e.g.
+the initrd using cryptsetup.
+.I device_list
+may include any of: device node path, UUID, or LABEL.  All devices that must be
+unlocked in order to access the root filesystem must be specified. For example:
 
   -C /dev/sda2:/dev/sda3
+.br
+  -C UUID=ec6dea40-c8d8-4590-850a-a757be60e45a
+.br
+  -C LABEL=darkstar
 
 Each unlocked device will be assigned an automatically generated luks device
 name of the form luks<device> where '<device>' will be the basename of the
-encrypted device.  e.g.
+encrypted device node path. For example:
 
   /dev/mapper/lukssda2
 
@@ -173,6 +184,24 @@ For example, if your USB thumb drive has a FAT partition with label
 you need to set:
 
   -K LABEL=TRAVELSTICK:/keys/alien.luks
+.TP
+.B \-T device list
+A colon (:) delimited list of luks encrypted block devices to be passed the
+"--allow-discards" option when unlocked by the initrd using cryptsetup, e.g.
+
+  -T /dev/sda2:/dev/sda4
+
+This has the effect of allowing TRIM on SSD drives. Be sure your SSD supports 
+this feature (correctly) before enabling it.  See fstrim(8) for more information.
+.TP
+.B \-P microcode_archive
+This option specifies a cpio archive containing updated microcode for your CPU.
+CPU manufacturers occasionally release such updates to fix bugs in the microcode
+currently embedded in the CPU. The microcode archive will be prepended to the
+output initrd, where the kernel will find it for early patching:
+
+  -P /boot/intel-ucode.cpio
+
 .TP
 .B \-B
 This option adds the btrfs utility to the initrd so that multi-device filesystems

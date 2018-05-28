@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2013, 2016  Patrick Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2016, 2017  Patrick Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -75,9 +75,9 @@ if [ ! -d /sys/firmware/efi ]; then
   exit
 fi
 
-# If there's no vfat mounted on /boot/efi or /mnt/boot/efi, forget it:
+# If there's no vfat mounted on /boot/efi or $T_PX/boot/efi, forget it:
 if ! mount | grep vfat | grep -wq /boot/efi ; then
-  if ! mount | grep vfat | grep -wq /mnt/boot/efi ; then
+  if ! mount | grep vfat | grep -wq $T_PX/boot/efi ; then
     if [ "$T_PX" = "/" ]; then
       echo "ERROR:  No EFI System Partition mounted on /boot/efi."
     fi
@@ -86,12 +86,16 @@ if ! mount | grep vfat | grep -wq /boot/efi ; then
 fi
 
 # Figure out the device and partition number of the ESP:
+DEVLEN=8
+PARTLEN=9
 if mount | grep vfat | grep -wq /boot/efi ; then
-  EFI_DEVICE=$(mount | grep vfat | grep -w /boot/efi | cut -b 1-8)
-  EFI_PARTITION=$(mount | grep vfat | grep -w /boot/efi | cut -f 1 -d ' ' | cut -b 9- | tr -d [a-z])
+  mount | grep vfat | grep -w /boot/efi | grep -q -e nvme -e mmcblk && DEVLEN=12 && PARTLEN=14
+  EFI_DEVICE=$(mount | grep vfat | grep -w /boot/efi | cut -b 1-${DEVLEN})
+  EFI_PARTITION=$(mount | grep vfat | grep -w /boot/efi | cut -f 1 -d ' ' | cut -b ${PARTLEN}- | tr -d [a-z])
 else
-  EFI_DEVICE=$(mount | grep vfat | grep -w /mnt/boot/efi | cut -b 1-8)
-  EFI_PARTITION=$(mount | grep vfat | grep -w /mnt/boot/efi | cut -f 1 -d ' ' | cut -b 9- | tr -d [a-z])
+  mount | grep vfat | grep -w $T_PX/boot/efi | grep -q -e nvme -e mmcblk && DEVLEN=12 && PARTLEN=14
+  EFI_DEVICE=$(mount | grep vfat | grep -w $T_PX/boot/efi | cut -b 1-${DEVLEN})
+  EFI_PARTITION=$(mount | grep vfat | grep -w $T_PX/boot/efi | cut -f 1 -d ' ' | cut -b ${PARTLEN}- | tr -d [a-z])
 fi
 
 # There better be a kernel:

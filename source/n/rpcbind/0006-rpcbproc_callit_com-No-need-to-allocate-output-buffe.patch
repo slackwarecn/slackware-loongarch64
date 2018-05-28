@@ -1,0 +1,96 @@
+From 1e2ddd4ebd7a9266e6070f275fa35752752fdfd6 Mon Sep 17 00:00:00 2001
+From: Steve Dickson <steved@redhat.com>
+Date: Tue, 30 May 2017 11:29:58 -0400
+Subject: [PATCH 6/6] rpcbproc_callit_com: No need to allocate output buffer
+
+Now that sendz is a fixed size (UDPMSGSIZE) which
+is small then RPC_BUF_MAX, no need to check the
+sendz size.
+
+Signed-off-by: Steve Dickson <steved@redhat.com>
+---
+ src/rpcb_svc_com.c | 33 +++++----------------------------
+ 1 file changed, 5 insertions(+), 28 deletions(-)
+
+diff --git a/src/rpcb_svc_com.c b/src/rpcb_svc_com.c
+index 1fc2229..d36b090 100644
+--- a/src/rpcb_svc_com.c
++++ b/src/rpcb_svc_com.c
+@@ -612,8 +612,6 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
+ 	struct netconfig *nconf;
+ 	struct netbuf *caller;
+ 	struct r_rmtcall_args a;
+-	char *outbufp;
+-	char *outbuf_alloc = NULL;
+ 	char  outbuf[RPC_BUF_MAX];
+ 	struct netbuf *na = (struct netbuf *) NULL;
+ 	struct rpc_msg call_msg;
+@@ -674,7 +672,6 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
+ 
+ 	rpcbs_rmtcall(versnum - 2, reply_type, a.rmt_prog, a.rmt_vers,
+ 			a.rmt_proc, transp->xp_netid, rbl);
+-
+ 	if (rbl == (rpcblist_ptr)NULL) {
+ #ifdef RPCBIND_DEBUG
+ 		if (debugging)
+@@ -793,24 +790,10 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
+ 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
+ 	call_msg.rm_call.cb_prog = a.rmt_prog;
+ 	call_msg.rm_call.cb_vers = a.rmt_vers;
+-	if (sendsz > RPC_BUF_MAX) {
+-#ifdef	notyet
+-		outbuf_alloc = alloca(sendsz);	/* not in IDR2? */
+-#else
+-		outbuf_alloc = malloc(sendsz);
+-#endif	/* notyet */
+-		if (outbuf_alloc == NULL) {
+-			if (reply_type == RPCBPROC_INDIRECT)
+-				svcerr_systemerr(transp);
+-			if (debugging)
+-				xlog(LOG_DEBUG,
+-				"rpcbproc_callit_com:  No memory!\n");
+-			goto error;
+-		}
+-		xdrmem_create(&outxdr, outbuf_alloc, sendsz, XDR_ENCODE);
+-	} else {
+-		xdrmem_create(&outxdr, outbuf, sendsz, XDR_ENCODE);
+-	}
++
++	memset(outbuf, '\0', sendsz); /* Zero out the output buffer */
++	xdrmem_create(&outxdr, outbuf, sendsz, XDR_ENCODE);
++
+ 	if (!xdr_callhdr(&outxdr, &call_msg)) {
+ 		if (reply_type == RPCBPROC_INDIRECT)
+ 			svcerr_systemerr(transp);
+@@ -875,10 +858,6 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
+ 		goto error;
+ 	}
+ 	outlen = (int) XDR_GETPOS(&outxdr);
+-	if (outbuf_alloc)
+-		outbufp = outbuf_alloc;
+-	else
+-		outbufp = outbuf;
+ 
+ 	na = uaddr2taddr(nconf, local_uaddr);
+ 	if (!na) {
+@@ -887,7 +866,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
+ 		goto error;
+ 	}
+ 
+-	if (sendto(fd, outbufp, outlen, 0, (struct sockaddr *)na->buf, na->len)
++	if (sendto(fd, outbuf, outlen, 0, (struct sockaddr *)na->buf, na->len)
+ 	    != outlen) {
+ 		if (debugging)
+ 			xlog(LOG_DEBUG,
+@@ -912,8 +891,6 @@ out:
+ 	}
+ 	if (local_uaddr)
+ 		free(local_uaddr);
+-	if (outbuf_alloc)
+-		free(outbuf_alloc);
+ 	if (na) {
+ 		free(na->buf);
+ 		free(na);
+-- 
+2.13.2
+

@@ -12,11 +12,11 @@
 # Chris Willing for the initial work making this script lxc compatible.
 container="lxc"
 
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
+PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
 # Try to mount /proc:
 if [ -z "$container" ]; then
-/sbin/mount -v proc /proc -n -t proc 2> /dev/null
+  /sbin/mount -v proc /proc -n -t proc 2> /dev/null
 fi
 
 # Mount sysfs next, if the kernel supports it:
@@ -32,13 +32,13 @@ fi
 # initrd has already done so):
 if [ -d /run -a -z "$container" ]; then
   if ! grep -wq "tmpfs /run tmpfs" /proc/mounts ; then
-    /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755
+    /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755,size=32M,nodev,nosuid,noexec
   fi
 fi
 
 # Load the loop device kernel module:
 if [ -x /etc/rc.d/rc.loop -a -z "$container" ]; then
-  . /etc/rc.d/rc.loop start
+  /etc/rc.d/rc.loop start
 fi
 
 # Initialize udev to manage /dev entries and hotplugging.
@@ -52,7 +52,7 @@ fi
 if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
     if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
-      /bin/sh /etc/rc.d/rc.udev start
+      /etc/rc.d/rc.udev start
     fi
   fi
 fi
@@ -193,7 +193,7 @@ fi
 
 # Start FUSE, if requested:
 if [ -x /etc/rc.d/rc.fuse -a -z "$container" ]; then
-  sh /etc/rc.d/rc.fuse start
+  /etc/rc.d/rc.fuse start
 fi
 
 # Set the tick and frequency for the system clock.
@@ -315,8 +315,8 @@ if [ -z "$container" ]; then
     echo "   read-only"
     echo
     echo "to the Linux section in your /etc/lilo.conf and type 'lilo' to reinstall it."
-  fi
-fi # Done checking root filesystem
+  fi # Done checking root filesystem
+fi
 
 # Any /etc/mtab that exists here is old, so we start with a new one:
 /bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
@@ -349,7 +349,7 @@ fi
 # Run the kernel module script.  This updates the module dependencies and
 # also supports manually loading kernel modules through rc.modules.local.
 if [ -x /etc/rc.d/rc.modules -a -z "$container" ]; then
-  . /etc/rc.d/rc.modules
+  /etc/rc.d/rc.modules
 fi
 
 # Configure kernel parameters:
@@ -408,7 +408,7 @@ fi
 
 # Start cgmanager (or cgproxy in a container):
 if [ -x /etc/rc.d/rc.cgmanager -a -d /sys/fs/cgroup ]; then
-  sh /etc/rc.d/rc.cgmanager start
+  /etc/rc.d/rc.cgmanager start
 fi
 
 # Clean up some temporary files:
@@ -448,7 +448,7 @@ fi
 
 # If there are SystemV init scripts for this runlevel, run them.
 if [ -x /etc/rc.d/rc.sysvinit ]; then
-  . /etc/rc.d/rc.sysvinit
+  /etc/rc.d/rc.sysvinit
 fi
 
 # Run serial port setup script:
@@ -456,7 +456,7 @@ fi
 # set up correctly.  If this happens, you may have to edit the file from a
 # boot disk, and/or set it as non-executable:
 if [ -x /etc/rc.d/rc.serial -a -z "$container" ]; then
-  sh /etc/rc.d/rc.serial start
+  /etc/rc.d/rc.serial start
 fi
 
 # Carry an entropy pool between reboots to improve randomness.

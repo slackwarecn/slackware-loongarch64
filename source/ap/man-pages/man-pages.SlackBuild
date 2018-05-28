@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008-2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,11 +20,21 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=man-pages
 VERSION=${VERSION:-$(echo man-pages-4.*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 ARCH=noarch
 BUILD=${BUILD:-1}
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-man-pages
 
@@ -83,18 +93,8 @@ gzip -9 $PKG/usr/man/man*/*.*
 # Some of the posix pages don't display correctly without this
 ( cd $PKG/usr/man ; ln -s man3 man3p )
 
-# This package has always provided the initial whatis sample
-# file, so we'll continue to have that here, too:
-cp -a $CWD/whatis.sample.xz $PKG/usr/man
-( cd $PKG/usr/man
-  chown root:root whatis.sample.xz
-  chmod 644 whatis.sample.xz
-  xz -d whatis.sample.xz || exit 1
-) || exit 1
-
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/man-pages-$VERSION-$ARCH-$BUILD.txz

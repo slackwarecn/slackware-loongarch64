@@ -1,8 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for hwdata
 
-# Copyright 2015  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2015, 2017  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,16 +23,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# tarball created from git repo - releases have git tags
-# e.g. "git checkout hwdata-0.283"
-# Remove the .git/ directory for size considerations
-#
-# Ready made tarballs are also available from this location:
-# https://git.fedorahosted.org/git/hwdata.git
- 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=hwdata
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -41,7 +37,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-noarch-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -74,6 +77,10 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
+
+# Grab latest copies of pci and usb ids:
+rm -f usb.ids pci.ids
+lftpget https://pci-ids.ucw.cz/v2.2/pci.ids https://usb-ids.gowdy.us/usb.ids
 
 ./configure --libdir=/lib || exit 1
 #make download # grab latest copies of everything

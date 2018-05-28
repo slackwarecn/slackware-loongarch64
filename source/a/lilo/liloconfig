@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# Copyright 1994, 1998, 1999 Patrick Volkerding, Moorhead, Minnesota USA
+# Copyright 1994, 1998, 1999  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2002, 2003  Slackware Linux, Inc, Concord, CA
-# Copyright 2007, 2008, 2011, 2013  Patrick Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007, 2008, 2011, 2013, 2018  Patrick Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,9 +27,9 @@ CONSOLETYPE=standard
 unset UTFVT
 
 # Most of the time LILO is not used on UEFI machines (in fact, it is useless
-# unless the machine is running in legacy BIOS mode).  So, we'll detect if
+# unless the machine is running in legacy BIOS mode). So, we'll detect if
 # this is a machine running UEFI and suggest skipping LILO installation.
-# We'll still allow it if the user wants it, though.  It won't hurt anything,
+# We'll still allow it if the user wants it, though. It won't hurt anything,
 # and might be useful for booting in Legacy BIOS mode later.
 if [ -d /sys/firmware/efi ]; then
   dialog --title "UEFI FIRMWARE DETECTED" \
@@ -37,7 +37,7 @@ if [ -d /sys/firmware/efi ]; then
 --menu \
 "Since LILO (the traditional Linux Loader) does not work with machines \
 running UEFI firmware (except in Legacy BIOS mode), you probably do not \
-need to install it.  Instead, you'll need ELILO, which is a version of \
+need to install it. Instead, you'll need ELILO, which is a version of \
 LILO designed to work with EFI/UEFI systems." \
 12 70 2 \
 "skip" "Skip installing LILO and proceed to ELILO installation" \
@@ -54,7 +54,7 @@ fi
 
 # Set the OS root directory (called T_PX for some unknown reason).
 # If an argument is given to this script and it is a directory, it
-# is taken to be the root directory.  First though, we check for a
+# is taken to be the root directory. First though, we check for a
 # directory named $T_PX, and that gets the first priority.
 if [ ! -d "$T_PX" ]; then
   if [ ! "$1" = "" ]; then
@@ -79,7 +79,7 @@ if [ ! -d "$T_PX" ]; then
 fi
 
 # If os-prober is availible, we will use it to filter out unbootable
-# FAT/NTFS partitions.  If it is not availble, we'll use /bin/true
+# FAT/NTFS partitions. If it is not availble, we'll use /bin/true
 # instead to avoid filtering.
 if which os-prober > /dev/null ; then
   OSPROBER=os-prober
@@ -100,7 +100,7 @@ if [ ! -r $T_PX/boot/boot_message.txt ]; then
 Welcome to the LILO Boot Loader!
 
 Please enter the name of the partition you would like to boot
-at the prompt below.  The choices are:
+at the prompt below. The choices are:
 
 EOF
 fi
@@ -111,29 +111,8 @@ DEFAULT=" --default-item MBR "
 # This is a different 'probe' than the function below.
 PROBE() {
   if [ -x /sbin/probe ]; then
-    /sbin/probe -l
-  elif fdisk -l | grep "Disk /dev/ide" 1> /dev/null 2> /dev/null ; then # no devfs yet
-    for devs in /dev/hda /dev/hdb /dev/hdc /dev/hdd /dev/hde /dev/hdf /dev/hdg \
-      /dev/hdh /dev/hdi /dev/hdj /dev/hdk /dev/hdl /dev/hdm /dev/hdn /dev/hdo /dev/hdp \
-      /dev/sda /dev/sdb /dev/sdc /dev/sdd /dev/sde /dev/sdf /dev/sdg /dev/sdh /dev/sdi \
-      /dev/sdj /dev/sdk /dev/sdl /dev/sdm /dev/sdn /dev/sdo /dev/sdp ; do
-      fdisk -l $devs 2> /dev/null
-    done
-  elif fdisk -l | grep "Disk /dev/scsi" 1> /dev/null 2> /dev/null ; then # no devfs yet
-    for devs in /dev/hda /dev/hdb /dev/hdc /dev/hdd /dev/hde /dev/hdf /dev/hdg \
-      /dev/hdh /dev/hdi /dev/hdj /dev/hdk /dev/hdl /dev/hdm /dev/hdn /dev/hdo /dev/hdp \
-      /dev/sda /dev/sdb /dev/sdc /dev/sdd /dev/sde /dev/sdf /dev/sdg /dev/sdh /dev/sdi \
-      /dev/sdj /dev/sdk /dev/sdl /dev/sdm /dev/sdn /dev/sdo /dev/sdp ; do
-      fdisk -l $devs 2> /dev/null
-    done
-  elif [ -z "`fdisk -l`" ]; then
-    for devs in /dev/hda /dev/hdb /dev/hdc /dev/hdd /dev/hde /dev/hdf /dev/hdg \
-      /dev/hdh /dev/hdi /dev/hdj /dev/hdk /dev/hdl /dev/hdm /dev/hdn /dev/hdo /dev/hdp \
-      /dev/sda /dev/sdb /dev/sdc /dev/sdd /dev/sde /dev/sdf /dev/sdg /dev/sdh /dev/sdi \
-      /dev/sdj /dev/sdk /dev/sdl /dev/sdm /dev/sdn /dev/sdo /dev/sdp ; do
-      fdisk -l $devs 2> /dev/null
-    done
-  else # We got output without /dev/ide or /dev/scsi, so it can probably be trusted:
+    /sbin/probe -c
+  else # use fdisk directly:
     fdisk -l 2> /dev/null | sed -e "s/Linux filesystem/Linux/g"
   fi
 }
@@ -143,7 +122,7 @@ ask_boot_splash() {
   dialog --title "OPTIONAL SLACKWARE LOGO BOOT SCREEN" \
   --yesno \
 "Would you like to use a boot screen with the Slackware logo \
-against a black background?  If you answer no here, the standard \
+against a black background? If you answer no here, the standard \
 LILO menu will be used.\n\
 " 7 65 2> $TMP/reply
   RETVAL=$?
@@ -161,7 +140,7 @@ boot_bmp() {
 # Location of the option table: location x, location y, number of
 # columns, lines per column (max 15), "spill" (this is how many
 # entries must be in the first column before the next begins to
-# be used.  We don't specify it here, as there's just one column.
+# be used. We don't specify it here, as there's just one column.
   bmp-table = 60,6,1,16
 # Timer location x, timer location y, foreground color,
 # background color, shadow color.
@@ -175,12 +154,12 @@ if cat /proc/devices | grep "29 fb" 1> /dev/null ; then
   dialog --title "CONFIGURE LILO TO USE FRAME BUFFER CONSOLE?" \
   --default-item standard \
   --menu "Looking at /proc/devices, it seems your kernel has support for \
-the VESA frame buffer console.  If we enable this in /etc/lilo.conf, it \
+the VESA frame buffer console. If we enable this in /etc/lilo.conf, it \
 will allow more rows and columns of text on the screen and give you a cool \
-penguin logo at boot time.  However, the frame buffer text console is \
-slower than a standard text console.  In addition, not every video card \
+penguin logo at boot time. However, the frame buffer text console is \
+slower than a standard text console. In addition, not every video card \
 or monitor supports all of these video modes, and some X drivers could be \
-confused by them.  Would you like to use the frame buffer console, \
+confused by them. Would you like to use the frame buffer console, \
 or the standard Linux console?" 0 0 0 \
   "standard" "Use the standard Linux console (the safe choice)" \
   "ask" "Ask about using VESA modes at boot; time out to standard" \
@@ -198,7 +177,7 @@ or the standard Linux console?" 0 0 0 \
     exit
   fi
 # Frame buffer modes above 1024x768 look terrible except
-# on LCD panels, and 32 bit color is slow.  Since we don't
+# on LCD panels, and 32 bit color is slow. Since we don't
 # even need to run a framebuffer console to run framebuffer
 # X anymore, these modes aren't of much real use.
 #  "1280x1024x256" "Frame buffer console, 1280x1024x256" \
@@ -262,21 +241,12 @@ ask_append() {
  dialog --title "OPTIONAL LILO append=\"<kernel parameters>\" LINE" --inputbox \
 "Some systems might require extra parameters to be passed to the kernel. \
 If you needed to pass parameters to the kernel when you booted the Slackware \
-bootdisk, you'll probably want to enter the same ones here.  Most \
-systems won't require any extra parameters.  If you don't need any, just \
+bootdisk, you'll probably want to enter the same ones here. Most \
+systems won't require any extra parameters. If you don't need any, just \
 hit ENTER to continue.\n\
 " 12 72 2> $TMP/reply
  RETVAL=$?
  return $RETVAL
-}
-
-ask_utf() {
- dialog --defaultno --title "USE UTF-8 TEXT CONSOLE?" --yesno \
-"Beginning with the 2.6.24 kernel, the text consoles default to UTF-8 mode.  \
-Unless you are using a UTF-8 locale (\$LANG setting), using the old default \
-of a non-UTF text console is safer until some issues with various console \
-programs are addressed.  This option has no effect on the use of UTF-8 with X.  \
-\"No\" is the safe choice here." 10 70
 }
 
 # This function scans for bootable partitions (making some assumptions along
@@ -292,87 +262,12 @@ simplelilo()
  fi
  APPEND="`cat $TMP/reply`"
 
- ask_utf;
- if [ $? = 1 -o $? = 255 ]; then
-  UTFVT="vt.default_utf8=0"
- else
-  UTFVT="vt.default_utf8=1"
- fi
-
- if PROBE -l | grep 'OS/2 Boot Manager' 1> /dev/null 2> /dev/null ; then
-  dialog --title "OS/2 BOOT MANAGER FOUND" --yesno \
-  "Your system appears to have Boot Manager, a boot menu system provided \
-with OS/2 and Partition Magic.  If you like, we can install a very simple \
-LILO boot block at the start of your Linux partition.  Then, you can \
-add the partition to the Boot Manager menu, and you'll be able to use \
-Boot Manager to boot Linux.  Would you like to install LILO in a Boot \
-Manager compatible way?" 11 65
-  FLAG=$?
-  if [ ! $FLAG = 0 -a ! $FLAG = 1 ]; then
-   exit 1
-  fi
-  if [ $FLAG = 0 ]; then # yes, use BM
-   if [ -r $T_PX/etc/lilo.conf ]; then
-    mv $T_PX/etc/lilo.conf $T_PX/etc/lilo.conf.orig
-   fi
-   cat << EOF > $T_PX/etc/lilo.conf
-# LILO configuration file
-# generated by 'liloconfig'
-#
-# Start LILO global section
-#
-EOF
-   if [ ! "$APPEND" = "" -o ! "$UTFVT" = "" ]; then
-     echo "# Append any additional kernel parameters:" >> $T_PX/etc/lilo.conf
-     echo "append=\"$APPEND $UTFVT\"" >> $T_PX/etc/lilo.conf
-   fi
-   cat << EOF >> $T_PX/etc/lilo.conf
-boot = $ROOT_DEVICE
-#delay = 5
-#compact        # faster, but won't work on all systems.
-EOF
-   if [ $CONSOLETYPE = standard ]; then
-     cat << EOF >> $T_PX/etc/lilo.conf
-# Normal VGA console
-vga = normal
-# Ask for video mode at boot (time out to normal in 30s)
-#vga = ask
-EOF
-   elif [ $CONSOLETYPE = ask ]; then
-     cat << EOF >> $T_PX/etc/lilo.conf
-# Ask for video mode at boot (time out to normal in 30s)
-vga = ask
-# Normal VGA console
-#vga = normal
-EOF
-   else
-     cat << EOF >> $T_PX/etc/lilo.conf
-# VESA framebuffer at $CONSOLETYPE
-vga = $CONSOLENUM
-# Ask for video mode at boot (time out to normal in 30s)
-#vga = ask
-# Normal VGA console
-#vga = normal
-EOF
-   fi
-   cat << EOF >> $T_PX/etc/lilo.conf
-# End LILO global section
-# Linux root partition section
-image = $KERNEL
- root = $ROOT_DEVICE
- label = Linux
- read-only
-# End root Linux partition section
-EOF
-   installcolor;
-   return
-  fi # Use Boot Manager
- fi # Boot Manager detected
  # If we got here, we either don't have boot manager or don't want to use it
+ # Note 3/2018: or OS/2 Boot Manager cruft was removed ;-)
  dialog --title "SELECT LILO DESTINATION" $DEFAULT --menu \
 "LILO can be installed to a variety of places:\n\
 \n\
-  1. The superblock of your root Linux partition.  (which could\n\
+  1. The superblock of your root Linux partition. (which could\n\
      be made the bootable partition with Windows or Linux fdisk, or\n\
      booted with a program like OS/2 Boot Manager)\n\
   2. A formatted floppy disk.\n\
@@ -391,6 +286,8 @@ Which option would you like?" \
  fi
  TG="`cat $TMP/reply`"
  rm -r $TMP/reply
+ dialog --infobox "\nScanning partitions and generating /etc/lilo.conf..." 5 57
+ sleep 1
  if [ "$TG" = "MBR" ]; then
   MBR_TARGET=/dev/sda
   echo $MBR_TARGET > $TMP/LILOMBR
@@ -410,6 +307,17 @@ Which option would you like?" \
     elif [ "$MAJOR" = "34" -a ! "$MBR_TARGET" = "/dev/hda" -a ! "$MBR_TARGET" = "/dev/hdc" -a ! "$MBR_TARGET" = "/dev/hde" ]; then
      MBR_TARGET=/dev/hdg
      echo $MBR_TARGET > $TMP/LILOMBR
+    elif [ "$MAJOR" = "259" -a ! "$MBR_TARGET" = "/dev/hda" -a ! "$MBR_TARGET" = "/dev/hdc" -a ! "$MBR_TARGET" = "/dev/hde" -a ! "$MBR_TARGET" = "/dev/hdg" ]; then
+     if [ "$(echo $LINE | cut -f 4 -d ' ' | cut -b 1-4)" = "nvme" ]; then
+      MBR_TARGET="/dev/$(echo $LINE | cut -f 4 -d ' ' | cut -f 1 -d p)"
+      echo $MBR_TARGET > $TMP/LILOMBR
+     fi
+    fi
+    if dmidecode 2> /dev/null | grep -q QEMU 2> /dev/null ; then
+     if [ -r /dev/vda ]; then
+       MBR_TARGET=/dev/vda
+       echo $MBR_TARGET > $TMP/LILOMBR
+     fi
     fi
    fi
   done
@@ -425,13 +333,17 @@ Which option would you like?" \
 #
 # Start LILO global section
 EOF
- if [ ! "$APPEND" = "" -o ! "$UTFVT" = "" ]; then
+ #if [ ! "$APPEND" = "" -o ! "$UTFVT" = "" ]; then
   echo "# Append any additional kernel parameters:" >> $T_PX/etc/lilo.conf
   echo "append=\"$APPEND $UTFVT\"" >> $T_PX/etc/lilo.conf
+  echo >> $T_PX/etc/lilo.conf
+ #fi
+
+ if echo $LILO_TARGET | grep -q vda 2>/dev/null ; then
+  echo "disk = /dev/vda bios=0x80 max-partitions=7" >> $T_PX/etc/lilo.conf
  fi
  cat << EOF >> $T_PX/etc/lilo.conf
 boot = $LILO_TARGET
-
 #compact        # faster, but won't work on all systems.
 
 # Boot BMP Image.
@@ -443,7 +355,7 @@ boot = $LILO_TARGET
 # Location of the option table: location x, location y, number of
 # columns, lines per column (max 15), "spill" (this is how many
 # entries must be in the first column before the next begins to
-# be used.  We don't specify it here, as there's just one column.
+# be used. We don't specify it here, as there's just one column.
   bmp-table = 60,6,1,16
 # Timer location x, timer location y, foreground color,
 # background color, shadow color.
@@ -514,7 +426,7 @@ EOF
  # OK, now let's look for Windows partitions:
  # If we have os-prober, use the Windows partition list from that:
  if which os-prober > /dev/null ; then
-  DOSP="$(os-prober 2> /dev/null | grep Windows | cut -f 1 -d :)"
+  DOSP="$(os-prober 2> /dev/null | grep :Windows: | cut -f 1 -d :)"
  else # use PROBE output:
   DOSP="$(PROBE -l | grep "DOS
 Win
@@ -636,7 +548,7 @@ checkbootsplash()
 installcolor()
 {
  checkbootsplash;
- dialog --infobox "\nInstalling the Linux Loader..." 5 40
+ dialog --infobox "\nInstalling the Linux Loader..." 5 35
  if [ "$T_PX" = "/" ]; then
   lilo 1> /dev/null 2> /etc/lilo-error.$$
   SUCCESS=$?
@@ -665,11 +577,11 @@ installcolor()
   echo >> /etc/lilo-error.$$
 cat << EOF >> /etc/lilo-error.$$
 Sorry, but the attempt to install LILO has returned an error, so LILO \
-has not been correctly installed.  You'll have to use a bootdisk \
+has not been correctly installed. You'll have to use a bootdisk \
 to start your \
-machine instead.  It should still be possible to get LILO working by \
-editing the /etc/lilo.conf and reinstalling LILO manually.  See the \
-LILO man page and documentation in $LILODOCDIR for more help.  \
+machine instead. It should still be possible to get LILO working by \
+editing the /etc/lilo.conf and reinstalling LILO manually. See the \
+LILO man page and documentation in $LILODOCDIR for more help. \
 The error message may be seen above.
 EOF
   dialog --msgbox "$(cat /etc/lilo-error.$$)" 0 0
@@ -710,8 +622,8 @@ installtext()
 LILO INSTALL ERROR # $SUCCESS
 
 Sorry, but the attempt to install LILO has returned an error, so LILO
-has not been correctly installed.  You'll have to use a bootdisk to
-start your machine instead.  It should still be possible to get LILO
+has not been correctly installed. You'll have to use a bootdisk to
+start your machine instead. It should still be possible to get LILO
 working by editing the /etc/lilo.conf and reinstalling LILO manually.
 See the LILO man page and documentation in $LILODOCDIR for more
 help.
@@ -770,8 +682,8 @@ fi
    if mount | grep " on /mnt " | grep umsdos 1> /dev/null 2> /dev/null ; then
      dialog --title "SKIP LILO CONFIGURATION? (RECOMMENDED)" --yesno "Since \
 you are installing to a FAT partition, it's suggested that you do not \
-configure LILO at this time.  (Instead, use your bootdisk.  For booting \
-off the hard drive from MS-DOS, you can use Loadlin.  You'll find \
+configure LILO at this time. (Instead, use your bootdisk. For booting \
+off the hard drive from MS-DOS, you can use Loadlin. You'll find \
 Loadlin on your hard drive in \LINUX\ROOT) Skip LILO configuration \
 (highly recommended)?" 10 70
      if [ $? = 0 ]; then
@@ -781,13 +693,13 @@ Loadlin on your hard drive in \LINUX\ROOT) Skip LILO configuration \
  fi
  # OK, now let's see if we should automate things:
  dialog --title "INSTALL LILO" --menu "LILO (Linux Loader) is a generic \
-boot loader.  There's a simple installation which tries to automatically \
-set up LILO to boot Linux (also Windows if found).  For \
+boot loader. There's a simple installation which tries to automatically \
+set up LILO to boot Linux (also Windows if found). For \
 more advanced users, the expert option offers more control over the \
-installation process.  Since LILO does not work in all cases (and can \
+installation process. Since LILO does not work in all cases (and can \
 damage partitions if incorrectly installed), there's the third (safe) \
-option, which is to skip installing LILO for now.  You can always install \
-it later with the 'liloconfig' command.  Which option would you like?" \
+option, which is to skip installing LILO for now. You can always install \
+it later with the 'liloconfig' command. Which option would you like?" \
  18 67 3 \
  "simple" "Try to install LILO automatically" \
  "expert" "Use expert lilo.conf setup menu" \
@@ -837,20 +749,20 @@ Which option would you like?" 21 73 8 \
    else
     APPEND="`cat $TMP/reply`"
    fi
-   ask_utf;
-   if [ $? = 1 -o $? = 255 ]; then
-    UTFVT="vt.default_utf8=0"
-   else
-    UTFVT="vt.default_utf8=1"
-   fi
+   #ask_utf;
+   #if [ $? = 1 -o $? = 255 ]; then
+   # UTFVT="vt.default_utf8=0"
+   #else
+   # UTFVT="vt.default_utf8=1"
+   #fi
    use_framebuffer;
    dialog --title "SELECT LILO TARGET LOCATION" $DEFAULT --menu "LILO can be installed \
 to a variety of places:  \
 the superblock of your root Linux partition (which could then be made the \
 bootable partition with fdisk), a formatted floppy disk, \
-or the master boot record of your first hard drive.  If you're using \
+or the master boot record of your first hard drive. If you're using \
 a boot system such as Boot Manager, you should use the "Root" \
-selection.  Please pick a target location:" 15 65 3 \
+selection. Please pick a target location:" 15 65 3 \
 "Root" "Install to superblock (not for use with XFS)" \
 "Floppy" "Use a formatted floppy disk in the boot drive" \
 "MBR" "Use the Master Boot Record (possibly unsafe)" \
@@ -887,8 +799,8 @@ selection.  Please pick a target location:" 15 65 3 \
     done
     LILO_TARGET=`cat $TMP/LILOMBR`
     dialog --title "CONFIRM LOCATION TO INSTALL LILO" --inputbox \
-"The auto-detected location to install the LILO boot block is shown below.  \
-If you need to make any changes, you can make them below.  Otherwise, hit \
+"The auto-detected location to install the LILO boot block is shown below. \
+If you need to make any changes, you can make them below. Otherwise, hit \
 ENTER to accept the target location shown." 11 60 $LILO_TARGET 2> $TMP/reply
     if [ $? = 0 ]; then
       LILO_TARGET="`cat $TMP/reply`"
@@ -903,7 +815,7 @@ ENTER to accept the target location shown." 11 60 $LILO_TARGET 2> $TMP/reply
     continue;
    fi
    dialog --title "CHOOSE LILO TIMEOUT" --menu "At boot time, how long would \
-you like LILO to wait for you to select an operating system?  If you \
+you like LILO to wait for you to select an operating system? If you \
 let LILO time out, it will boot the first OS in the configuration file by \
 default." 13 74 4 \
 "None" "Don't wait at all - boot straight into the first OS" \
@@ -962,10 +874,10 @@ message = /boot/boot_message.txt
 
 EOF
    fi
-   if [ ! "$APPEND" = "" -o ! "$UTFVT" = "" ]; then
+   #if [ ! "$APPEND" = "" -o ! "$UTFVT" = "" ]; then
      echo "# Append any additional kernel parameters:" >> $TMP/lilo.conf
      echo "append=\"$APPEND $UTFVT\"" >> $TMP/lilo.conf
-   fi
+   #fi
    cat << EOF >> $TMP/lilo.conf
 $PROMPT
 $TIMEOUT
@@ -1020,6 +932,8 @@ EOF
 EOF
     HDR="yes"
   elif [ "$REPLY" = "Linux" ]; then
+   dialog --infobox "\nScanning for Linux partitions..." 5 37
+   sleep 1
    if [ "$HDR" = "yes" ]; then
     if [ "$ROOT_DEVICE" != "" ]; then
      DEFROOT="--default-item $ROOT_DEVICE"
@@ -1131,9 +1045,11 @@ partitions unless you start over with a new LILO header." 6 60
    fi
    LNX="yes"
   elif [ "$REPLY" = "Windows" ]; then
+   dialog --infobox "\nScanning for Windows partitions..." 5 39
+   sleep 1
    if [ "$HDR" = "yes" ]; then
-    echo "These are possibly Windows or DOS partitions. They will be treated" > $TMP/tmpmsg
-    echo "as such if you install them using this menu." >> $TMP/tmpmsg
+    echo "These are possibly Windows partitions. They will be treated as" > $TMP/tmpmsg
+    echo "such if you install them using this menu." >> $TMP/tmpmsg
     echo >> $TMP/tmpmsg
     echo "   Device Boot      Start         End      Blocks   Id  System" >> $TMP/tmpmsg
     PROBE -l | grep "DOS
@@ -1141,7 +1057,7 @@ Win
 W95
 FAT12
 FAT16
-HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort | grep "$($OSPROBER 2> /dev/null | grep Windows | cut -f 1 -d :)" >> $TMP/tmpmsg
+HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort | grep "$($OSPROBER 2> /dev/null | grep :Windows: | cut -f 1 -d :)" >> $TMP/tmpmsg
     echo >> $TMP/tmpmsg
     echo "Which one would you like LILO to boot?" >> $TMP/tmpmsg
     dialog --title "SELECT WINDOWS PARTITION" --no-collapse --inputbox \

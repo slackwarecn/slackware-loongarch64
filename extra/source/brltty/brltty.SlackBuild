@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2010, 2012, 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2010, 2012, 2013, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Set initial variables:
-CWD=`pwd`
+cd $(dirname $0) ; CWD=$(pwd)
 if [ "$TMP" = "" ]; then
   TMP=/tmp
 fi
@@ -31,8 +31,8 @@ fi
 PKG=/tmp/package-brltty
 
 PKGNAM=brltty
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -42,6 +42,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "x86_64" ]; then
@@ -56,11 +64,10 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf brltty-$VERSION
-tar xvf $CWD/brltty-$VERSION.tar.?z* || exit 1
-cd brltty-$VERSION
+tar xvf $CWD/brltty-$VERSION.tar.?z || exit 1
+cd brltty-$VERSION || exit 1
 
 zcat $CWD/brltty.brlapi.pyx.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/brltty.fix.blanks.diff.gz | patch -p1 --verbose || exit 1
 
 sh autogen
 
@@ -89,7 +96,7 @@ chmod 755 $PKG/bin/* $PKG/lib${LIBDIRSUFFIX}/brltty/*
 
 # Add udev rules:
 mkdir -p $PKG/lib/udev/rules.d
-cp Autostart/Udev/udev.rules $PKG/lib/udev/rules.d/40-usb-brltty.rules
+cp Autostart/Udev/rules $PKG/lib/udev/rules.d/40-usb-brltty.rules || exit 1
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

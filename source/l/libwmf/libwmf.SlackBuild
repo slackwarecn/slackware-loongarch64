@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,22 +20,32 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=libwmf
 VERSION=0.2.8.4
-BUILD=${BUILD:-6}
+BUILD=${BUILD:-8}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -49,19 +59,17 @@ else
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 
-PKG1=$TMP/package-libwmf
-PKG2=$TMP/package-libwmf-docs
+PKG=$TMP/package-libwmf
 
-rm -rf $PKG1 $PKG2
-mkdir -p $PKG1 $PKG2
+rm -rf $PKG
+mkdir -p $PKG
 
 cd $TMP
 rm -rf libwmf-$VERSION
 tar xvf $CWD/libwmf-$VERSION.tar.?z* || exit 1
-cd libwmf-$VERSION
+cd libwmf-$VERSION || exit 1
 
 zcat $CWD/libwmf.png14.diff.gz | patch -p1 --verbose || exit 1
 
@@ -72,25 +80,68 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Miscellaneous patches from Fedora:
+zcat $CWD/libwmf-0.2.8.4-fallbackfont.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-pixbufloaderdir.patch.gz | patch -p1 --verbose || exit 1
+
+# Don't export the modified embedded GD library symbols, to avoid conflicts with
+# the system libgd:
+zcat $CWD/libwmf-0.2.8.4-reducesymbols.patch.gz | patch -p1 --verbose || exit 1
+
+# Patch security issues:
+zcat $CWD/libwmf-0.2.8.4-useafterfree.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2006-3376.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2004-0941.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2007-0455.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2007-2756.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2007-3472.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2007-3473.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2007-3477.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2009-3546.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2015-0848+CVE-2015-4588.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2015-4695.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2015-4696.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2016-10167.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2016-10168.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2016-9011.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2016-9317.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libwmf-0.2.8.4-CVE-2017-6362.patch.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-static=no \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG1 || exit 1
+make install DESTDIR=$PKG || exit 1
 
-find $PKG1 | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Symlink to system fonts. We're not going to just point the fontdir to the
+# system Type1 directory since libwmf still wants to use the obsolete fontdir,
+# and we don't want to put that there:
+( cd $PKG/usr/share/libwmf/fonts
+  for file in *.afm *.pfb ; do
+    # Check to see if the font exists on the system. It is required to have
+    # the ghostscript-fonts package installed during the build.
+    if [ -r /usr/share/fonts/Type1/$file ]; then
+      ln -sf ../../fonts/Type1/$file .
+    fi
+  done
+)
+
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mkdir -p $PKG2/usr/doc
-mv $PKG1/usr/share/doc/libwmf $PKG2/usr/doc/libwmf-$VERSION
-rmdir $PKG1/usr/share/doc
+mkdir -p $PKG/usr/doc
+mv $PKG/usr/share/doc/libwmf $PKG/usr/doc/libwmf-$VERSION
+rmdir $PKG/usr/share/doc
 cp -a \
   AUTHORS BUILDING COPYING CREDITS NEWS README TODO \
-  $PKG1/usr/doc/libwmf-$VERSION
+  $PKG/usr/doc/libwmf-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
@@ -100,13 +151,8 @@ if [ -r ChangeLog ]; then
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
-mkdir -p $PKG1/install
-cat $CWD/slack-desc > $PKG1/install/slack-desc
-mkdir -p $PKG2/install
-cat $CWD/slack-desc-docs > $PKG2/install/slack-desc
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
 
-cd $PKG1
+cd $PKG
 /sbin/makepkg -l y -c n $TMP/libwmf-$VERSION-$ARCH-$BUILD.txz
-cd $PKG2
-/sbin/makepkg -l y -c n $TMP/libwmf-docs-$VERSION-noarch-$BUILD.txz
-

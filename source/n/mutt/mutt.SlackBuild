@@ -1,5 +1,5 @@
-#!/bin/sh
-# Copyright 2002-2015  Patrick J. Volkerding, Sebeka, Minnesota, USA
+#!/bin/bash
+# Copyright 2002-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -19,8 +19,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=mutt
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -33,8 +35,15 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
-CWD=`pwd` 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i486" ]; then
@@ -54,7 +63,7 @@ rm -rf $PKG
 mkdir $PKG
 cd $TMP
 rm -rf mutt-$VERSION
-tar xvf $CWD/mutt-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/mutt-$VERSION.tar.?z || exit 1
 cd mutt-$VERSION || exit 1
 chown -R root:root .
 
@@ -73,7 +82,9 @@ CFLAGS="$SLKCFLAGS" \
   --enable-smtp \
   --enable-gpgme \
   --enable-hcache \
-  --build=$ARCH-slackware-linux
+  --enable-sidebar \
+  --enable-compressed \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

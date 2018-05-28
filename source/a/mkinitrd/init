@@ -44,6 +44,9 @@
 # /luksdev        Contains colon separated list of luks encrypted devices to
 #                 be unlocked.
 #
+# /lukstrim       Contains colon separated list of luks encrypted devices to
+#                 pass '--allow-discards' when unlocking
+#
 # /lukskey        Contains the path to a LUKS key-file for automatic unlock
 #                 Format: LABEL=<partition_label>:/path/to/file
 #                         UUID=<partition_uuid>:/path/to/file
@@ -74,6 +77,7 @@ INITRD=$(cat /initrd-name)
 ROOTDEV=$(cat /rootdev)
 ROOTFS=$(cat /rootfs)
 LUKSDEV=$(cat /luksdev)
+LUKSTRIM=$(cat /lukstrim 2>/dev/null)
 LUKSKEY=$(cat /lukskey)
 RESUMEDEV=$(cat /resumedev)
 WAIT=$(cat /wait-for-root)
@@ -85,11 +89,11 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin"
 # Mount /proc and /sys:
 mount -n proc /proc -t proc
 mount -n sysfs /sys -t sysfs
-mount -n tmpfs /run -t tmpfs -o mode=0755
+mount -n tmpfs /run -t tmpfs -o mode=0755,size=32M,nodev,nosuid,noexec
 
 if grep devtmpfs /proc/filesystems 1>/dev/null 2>/dev/null ; then
   DEVTMPFS=1
-  mount -n devtmpfs /dev -t devtmpfs
+  mount -n devtmpfs /dev -t devtmpfs -o size=8M
 fi	
 
 # Parse command line
@@ -124,6 +128,9 @@ for ARG in $(cat /proc/cmdline); do
     ;;
     rootfs=*|rootfstype=*)
       ROOTFS=$(echo $ARG | cut -f2 -d=)
+    ;;
+    rootflags=*)
+      ROOTFLAGS=$(echo $ARG | cut -f2- -d=)
     ;;
     waitforroot=*|rootdelay=*)
       WAIT=$(echo $ARG | cut -f2 -d=)
@@ -214,6 +221,9 @@ if [ "$RESCUE" = "" ]; then
     LUKSLIST_DEFERRED=""
     LUKSLIST=$(echo $LUKSDEV | tr -s ':' ' ')
     for LUKSDEV in $LUKSLIST ; do
+      if echo $LUKSDEV | grep -q "LABEL=" || echo $LUKSDEV | grep -q "UUID=" ; then
+        LUKSDEV=$(findfs $LUKSDEV)
+      fi
       if /sbin/cryptsetup isLuks ${LUKSDEV} 1>/dev/null 2>/dev/null ; then
         if echo $ROOTDEV | grep -q "LABEL=" || echo $ROOTDEV | grep -q "UUID=" ; then
           CRYPTDEV="luks$(basename $LUKSDEV)"
@@ -222,8 +232,17 @@ if [ "$RESCUE" = "" ]; then
         else
           CRYPTDEV="luks$(basename $LUKSDEV)"
         fi
-        echo "Unlocking LUKS encrypted device '${LUKSDEV}' as luks mapped device '$CRYPTDEV':"
-        /sbin/cryptsetup ${LUKSKEY} luksOpen ${LUKSDEV} ${CRYPTDEV} </dev/tty0 >/dev/tty0 2>&1
+        if echo $LUKSTRIM | grep -wq $LUKSDEV 2>/dev/null ; then 
+          LUKSOPTS="--allow-discards"
+        else
+          LUKSOPTS=""
+        fi
+        if [ -z "${LUKSOPTS}" ]; then
+          echo "Unlocking LUKS encrypted device '${LUKSDEV}' as luks mapped device '$CRYPTDEV':"
+        else
+          echo "Unlocking LUKS encrypted device '${LUKSDEV}' as luks mapped device '$CRYPTDEV' with '$LUKSOPTS':"
+        fi
+        /sbin/cryptsetup ${LUKSOPTS} ${LUKSKEY} luksOpen ${LUKSDEV} ${CRYPTDEV} </dev/tty0 >/dev/tty0 2>&1
         if [ "$ROOTDEV" = "$LUKSDEV" -o "$ROOTDEV" = "$CRYPTDEV" ] ; then
           ROOTDEV="/dev/mapper/$CRYPTDEV"
         fi
@@ -299,7 +318,7 @@ if [ "$RESCUE" = "" ]; then
   # Switch to real root partition:
   /sbin/udevadm settle --timeout=10
   echo 0x0100 > /proc/sys/kernel/real-root-dev
-  mount -o ro -t $ROOTFS $ROOTDEV /mnt
+  mount -o ro${ROOTFLAGS:+,$ROOTFLAGS} -t $ROOTFS $ROOTDEV /mnt
   
   if [ ! -r /mnt/sbin/init ]; then
     echo "ERROR:  No /sbin/init found on rootdev (or not mounted).  Trouble ahead."

@@ -20,9 +20,9 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PRGNAM=wicd
+PKGNAM=wicd
 VERSION=${VERSION:-1.7.4}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine architecture for build & packaging:
 if [ -z "$ARCH" ]; then
@@ -35,7 +35,7 @@ fi
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PRGNAM
+PKG=$TMP/package-$PKGNAM
 
 if [ "$ARCH" = "i586" ]; then
   LIBDIRSUFFIX=""
@@ -50,9 +50,9 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.xz || exit 1
-cd $PRGNAM-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -62,7 +62,7 @@ find . \
   -exec chmod 644 {} \;
 
 # Bypass the need for pybabel (thanks, dapal!)
-zcat $CWD/manually-compile-translations.diff.gz | patch -p1 || exit 1
+zcat $CWD/manually-compile-translations.diff.gz | patch -p1 --verbose || exit 1
 for pofile in $(find po/ -type f -name "*.po") ; do 
   mkdir -p translations/$(basename ${pofile} .po)/LC_MESSAGES
   msgfmt -o translations/$(basename ${pofile} .po)/LC_MESSAGES/wicd.mo ${pofile}
@@ -72,13 +72,16 @@ done
 # Might be useful someday, but for now since the only thing in Slackware that uses
 # urwid is wicd, just use a 1.0.x version.
 # Thanks to ArchLinux
-#zcat $CWD/wicd-1.7.3-urwid-1.3.0.patch.gz | patch -p0 || exit 1
+#zcat $CWD/wicd-1.7.3-urwid-1.3.0.patch.gz | patch -p0 --verbose || exit 1
 
 # Crash fix.  Thanks to ArchLinux.
-zcat $CWD/wicd-1421918.patch.gz | patch -p0 || exit 1
+zcat $CWD/wicd-1421918.patch.gz | patch -p0 --verbose || exit 1
 
 # Thanks to Void Linux
-zcat $CWD/curses_bitrate_fix.patch.gz | patch -p0 || exit 1
+zcat $CWD/curses_bitrate_fix.patch.gz | patch -p0 --verbose || exit 1
+
+# Fix settings save crash:
+zcat $CWD/wicd.netentry_curses.py.save.settings.patch.gz | patch -p1 --verbose || exit 1
 
 python setup.py configure \
   --lib=/usr/lib${LIBDIRSUFFIX}/wicd \
@@ -108,11 +111,11 @@ mv $PKG/etc/rc.d/rc.wicd $PKG/etc/rc.d/rc.wicd.new
   find . -type f -exec gzip -9 {} \;
   for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
 )
-cat $CWD/README.SLACKWARE > $PKG/usr/doc/$PRGNAM-$VERSION/README.SLACKWARE
+cat $CWD/README.SLACKWARE > $PKG/usr/doc/$PKGNAM-$VERSION/README.SLACKWARE
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -c n -l y $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -c n -l y $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

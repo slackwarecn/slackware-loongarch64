@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +20,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=mc
 VERSION=${VERSION:-$(echo mc-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
 BUILD=${BUILD:-2}
 
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -46,7 +56,6 @@ else
   SLKCFLAGS="-O2"
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mc
 rm -rf $PKG
@@ -69,8 +78,6 @@ zcat $CWD/mc.image.sh.geeqie.diff.gz | patch -p1 --verbose || exit 1
 
 # Upstream fixes:
 zcat $CWD/mc-3605-extfs.c-fix-buffer-overflow.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/mc-3611-fish-fix-perl-ls-helper.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/mc-syntax-error.patch.gz | patch -p0 --verbose || exit 1
 
 if [ ! -x ./configure ]; then
   ./autogen.sh

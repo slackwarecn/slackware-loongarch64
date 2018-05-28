@@ -1,0 +1,136 @@
+The build_installer.sh script
+=============================
+
+The 'build_installer.sh' script has the following characteristics:
+
+* It works for all Slackware ARCH'es (tested with i586 and x86_64)
+* It can be started from any directory, because resulting output files will
+  be written to the current directory.  This means that the script directory
+  can be on a read-only filesystem.
+* It can update a pre-existing initrd.img file with kernel modules
+  for a new kernel in one single command
+* It can build a complete Slackware installer set (initrd.img , usbboot.img
+  and pxelinux.cfg_default files) from scratch
+* It can create a tarball containing a 'skeleton' for an initrd, which does
+  not contain any ARCH specific binary code; only the directory structure,
+  symlinks, configuration files and scripts.  This skeleton can be used as a
+  base for creating a new initrd from scratch, in which case no previous
+  initrd.img file needs to be present to obtain the scripts etc from.  The
+  skeleton file will be called 'skeleton_initrd.tar.gz' and will be written to
+  the current directory.
+
+Command line parameters and detailed usage
+==========================================
+
+Running "./build_installer.sh -h" shows this message:
+
+# ----------------------------------------------------------------------------#
+Usage: build_installer.sh <parameters>
+Parameters:
+  -h|--help              Show this help
+  -c|--compressmods      Compress the kernel modules inside the initrd.img
+  -m|--multiple          Multiple initrd files (for SMP and non-SMP kernels)
+  -n|--netmods           Add network modules to the initrd
+  -nc|--no-compressmods  Do _not_ compress kernel modules
+  -nm|--no-multiple      Do _not_ create multiple initrd files
+  -nn|--no-netmods       Do _not_ add network modules to the initrd
+  -np|--no-pcmciamods    Do _not_ add pcmcia modules to the initrd
+  -nr|--no-recompile     Do _not_ recompile /re-add binaries
+  -nu|--no-usbboot       Do _not_ create a USB boot image
+  -p|--pcmciamods        Add pcmcia modules to the initrd
+  -q|--quiet             Be (fairly) quiet during progress
+  -r|--recompile         Recompile /re-add binaries (busybox,bash,dropbear as
+                         well as any required bin/lib from Slackware packages)
+  -s|--skeleton          Stop after creating a skeleton_initrd.tar.gz
+                         (which only contains directories and scripts) 
+  -u|--usbboot           Create a USB boot image
+  -v|--verbose           Be (very) verbose during progress
+  -I|--initrd <file>     Specify location of the initrd.img file
+  -S|--slackroot <dir>   Specify location of the Slackware directory tree
+
+Actions to be taken (ARCH=x86_64):
+* Be (very) verbose during progress
+* Recompile /re-add binaries
+* Add network modules to the initrd
+* Add pcmcia modules to the initrd
+* Compress all kernel modules
+* Do _not_ split the initrd
+* Create a USB boot image
+
+Use Slackware root: 
+  /mnt/nfs/door/non-public/slackware-current
+Use initrd file: 
+  /mnt/nfs/door/non-public/slackware-current/isolinux/initrd.img
+
+# Note: [1] If you want to build your own specific bash, busybox and dropbear #
+#           instead of using the sources provided by the Slackware tree,      #
+#           you should have these sources ready below                         #
+#           ./sources/{bash,busybox,dropbear}                                 #
+#           Delete the directory if you don't want to use it!                 #
+#       [2] If you want to use your own _skeleton_ initrd (containing only    #
+#           the directory layout plus all the scripts) you just make it       #
+#           available as ./sources/initrd/skeleton_initrd.tar.gz              #
+#                                                                             #
+#          The script will look for the directory 'sources' first in your     #
+#          working directory, and next in the script's directory (whatever is #
+#          found in your working directory takes precedence).                 #
+# ----------------------------------------------------------------------------#
+
+
+The default actions performed by the script may be different for each ARCH -
+they are parametrized in the script and can be modified by adding commandline
+switches to the script's invocation.  The examples below use explicit
+switches to make them are valid commands for all ARCHes.
+
+Examples of  usage
+==================
+
+(1) Specify a different ARCH than the default, and point the script to a
+    non-default root directory of the Slackware tree:
+
+    # ARCH=i486 SLACKROOT=~ftp/pub/slackware-current ./build_installer.sh
+
+(2) Slackware gets a new kernel, and the initrd needs to be updated with
+    new modules:
+
+    # ./build_installer.sh -n -p -nr -u
+
+    This command adds updated net/pcmcia modules to the initrd.img (and removes
+    old modules of course), will not recompile any of the binary software inside
+    (notably bash, busybox and dropbear) and will create a USB boot image as
+    the final action.  Output files are created in the current directory.
+
+(3) Strip Slackware's existing initrd.img until it's skeleton remains:
+
+    # ./build_installer.sh -s
+
+    This command takes the file '$SLACKROOT/isolinux/initrd.img' and writes
+    the resulting 'skeleton_initrd.tar.gz' to the current directory.
+    NOTE: If you ever need to create a skeleton tarball, be sure to use a 32bit
+          slackware tree's initrd.img file for this.  That way, the pathname
+          'slackware' will be present in the tarball, and the build_installer.sh
+          script will be able to translate that to an ARCH-specific directory
+          name like for instance "slackware64" for the x86_64 platform.
+          Even on x86_64 you can run this command:
+
+          # ARCH=i486 SLACKROOT=/stuff/slackware32 ./build_installer.sh -s
+
+          to use a 32bit initrd.img file as the source.
+
+(4) Create a new initrd.img file from scratch, using a pre-existing skeleton
+    initrd tarball, and my own busybox sources/patches (while using the sources
+    for bash and dropbear that are present in the slackware directory tree):
+
+    # mkdir -p ./sources/{busybox,initrd}
+    # cp /home/slackware64/installer/skeleton_initrd.tar.gz ./sources/initrd/
+    # cp -a my_busybox_stuff/* ./sources/busybox/
+    # ARCH=x86_64 ./build_installer.sh -c -n -p -u 
+
+    This will build initrd.img from the ground up, compiling binaries for bash,
+    busybox and dropbear (used in the installer) from their sources and
+    extracting library/binary files from several of the Slackware packages
+    found in the slackware directory tree. Network and pcmcia kernel modules
+    will be added and compressed (cutting down the client's RAM requirements
+    with 9 MB during installation), and finally a USB bootable image named
+    'usbboot.img' will be created.
+

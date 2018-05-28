@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2002-2009  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2002-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,21 +20,32 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=nn
 VERSION=6.7.3
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
   MFILE="m-i80386.h"
 elif [ "$ARCH" = "x86_64" ]; then
@@ -47,7 +58,6 @@ else
   MFILE="m-i80386.h"
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-nn
 
@@ -65,6 +75,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+zcat $CWD/nn_6.7.3-10.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/nn.diff.gz \
     | sed -e "s#m-sparc.h#${MFILE}#" \
     | sed -e "s#/usr/lib/nn#/usr/lib${LIBDIRSUFFIX}/nn#" \
@@ -73,22 +84,22 @@ if [ $ARCH = "x86_64" ]; then
 	zcat $CWD/m-x86_64.h.gz > conf/m-x86_64.h
 fi
 zcat $CWD/nn.badnntphost.diff.gz | patch -p1 --verbose || exit 1
-# Taken from slamd64 (who adapted an old Ubuntu patch);
-# Besides adding DESTDIR support, it gets rid of the hardlinks that are created:
-zcat $CWD/nn.destdir.diff.gz | patch -p1 --verbose  || exit 1
 
 cat config.h-dist | sed -e "s#m-sparc.h#${MFILE}#" > config.h
-make all
+make all || exit 1
 
-echo "*** USE install option 's'"
-sleep 5
+# We'll pipe the correct options to ./inst
+#echo "*** USE install option 's'"
+#sleep 5
+
 mkdir -p $PKG/etc $PKG/usr/bin $PKG/usr/lib${LIBDIRSUFFIX} $PKG/usr/man/man{1,8}
-DESTDIR=$PKG ./inst
+cat << EOF | DESTDIR=$PKG ./inst
+s
+q
+EOF
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-zcat $CWD/nntpserver.gz > $PKG/etc/nntpserver.new
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -122,7 +133,6 @@ mkdir -p $PKG/usr/doc/nn-$VERSION/contrib
   $PKG/usr/doc/nn-$VERSION/contrib )
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

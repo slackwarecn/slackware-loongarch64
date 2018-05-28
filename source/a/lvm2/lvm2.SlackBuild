@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,8 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=$(echo LVM2.*.tar.xz | cut -f 2- -d . | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+PKGNAM=lvm2
+VERSION=$(echo LVM2.*.tar.?z | cut -f 2- -d . | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -36,7 +38,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-lvm2
 
@@ -58,7 +67,7 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf LVM2.$VERSION
-tar xvf $CWD/LVM2.$VERSION.tar.xz || exit 1
+tar xvf $CWD/LVM2.$VERSION.tar.?z || exit 1
 cd LVM2.$VERSION || exit 1
 
 chown -R root:root .
@@ -96,7 +105,7 @@ CFLAGS="$SLKCFLAGS" \
   --with-clvmd-pidfile=/run/lvm/clvmd.pid \
   --with-cmirrord-pidfile=/run/lvm/cmirrord.pid \
   --with-dmeventd-pidfile=/run/lvm/dmeventd.pid \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

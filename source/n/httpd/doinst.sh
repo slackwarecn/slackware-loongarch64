@@ -29,12 +29,14 @@ if [ ! -e var/log/httpd ]; then
   chmod 755 var/log/httpd
 fi
 
-# Don't wipe out an existing document root:
-if [ ! -L srv/www -a -d srv/www ]; then
-  mv srv/www srv/www.bak.$$
+# Don't wipe out an existing document root with symlinks. If someone has
+# replaced the symlinks that are created on a fresh installation, assume
+# that they know what they are doing and leave things as-is.
+if [ ! -e srv/www ]; then
+  ( cd srv ; ln -sf /var/www www )
 fi
-if [ ! -L srv/httpd -a -d srv/httpd ]; then
-  mv srv/httpd srv/httpd.bak.$$
+if [ ! -e srv/httpd ]; then
+  ( cd srv ; ln -sf /var/www httpd )
 fi
 
 # Once again, our intent is not to wipe out anyone's

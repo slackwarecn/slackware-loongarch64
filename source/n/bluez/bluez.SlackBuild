@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2009, 2010, 2011, 2012, 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=bluez
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -34,6 +36,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -50,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -58,7 +67,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/${PKGNAM}-${VERSION}.tar.xz || exit 1
+tar xvf $CWD/${PKGNAM}-${VERSION}.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -69,9 +78,26 @@ find . \
 
 zcat $CWD/bluez-5.30-obexd_without_systemd-1.patch.gz | patch -p1 --verbose || exit 1
 
+# Fix bluetoothd crashes:
+zcat $CWD/gatt_fix_crash.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/refresh_adv_manager_for_non-LE_devices.diff.gz | patch -p1 --verbose || exit 1
+
 autoreconf -vif
 
 sed -i -e 's|-lreadline|\0 -lncursesw|g' Makefile.{in,tools}
+
+# We're adding --enable-deprecated due to this commit: 
+#
+# commit b1eb2c4cd057624312e0412f6c4be000f7fc3617
+#Author: Luiz Augusto von Dentz <luiz.von.dentz@intel.com>
+#Date:   Wed Jan 4 14:23:58 2017 +0200
+#
+#    build: Hide deprecated tools under --enable-deprecated
+#    
+#    This marks the following tools as deprecated as they are not longer
+#    maintained or have been replaced by other tools:
+#    
+#      hciattach hciconfig hcitool hcidump rfcomm sdptool ciptool gatttool
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -85,10 +111,14 @@ LDFLAGS="-L/usr/lib$LIBDIRSUFFIX" \
   --docdir=/usr/doc/${PKGNAM}-${VERSION} \
   --enable-library \
   --disable-systemd \
+  --enable-deprecated \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Use reset=1 for the btusb module, which supposedly fixes reconnect problems:
 mkdir -p $PKG/lib/modprobe.d
@@ -105,7 +135,6 @@ mkdir -p $PKG/etc/bluetooth $PKG/etc/default
 cat src/main.conf > $PKG/etc/bluetooth/main.conf.new
 cat profiles/input/input.conf > $PKG/etc/bluetooth/input.conf.new
 cat profiles/network/network.conf > $PKG/etc/bluetooth/network.conf.new
-cat profiles/proximity/proximity.conf > $PKG/etc/bluetooth/proximity.conf.new
 cat $CWD/config/uart.conf > $PKG/etc/bluetooth/uart.conf.new
 cat $CWD/config/defaultconfig > $PKG/etc/default/bluetooth.new
 
@@ -116,6 +145,13 @@ cat $CWD/config/rc.bluetooth > $PKG/etc/rc.d/rc.bluetooth.new
 # Let's go ahead and let that start by default, unless an existing init
 # script is not executable:
 chmod 755 $PKG/etc/rc.d/rc.bluetooth.new
+
+# If the deprecated utility gatttool was built, go ahead and install it:
+if [ -x attrib/gatttool ]; then
+  cp attrib/gatttool $PKG/usr/bin
+  chown root:root $PKG/usr/bin/gatttool
+  chmod 755 $PKG/usr/bin/gatttool
+fi
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then

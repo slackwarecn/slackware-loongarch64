@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 2004  Slackware Linux, Inc., Concord, CA, USA
 # Copyright 2004  Patrick J. Volkerding, Concord, CA, USA
-# Copyright 2007, 2008, 2009, 2010, 2011, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011, 2015, 2016, 2017  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -44,8 +44,17 @@
 #   Yada yada yada.
 # Modified by Patrick Volkerding <volkerdi@slackware.com> 21 August 2012
 #   Add Btrfs multi-device filesystem support option (-B).
+# Modified by Robby Workman <rworkman@slackware.com> 08 March 2017
+#   to add support for TRIM on LUKS root devs 
+# Modified by Patrick Volkerding <volkerdi@slackware.com> 29 June 2017
+#   Add support for prepending a microcode update archive (-P).
+# Modified by Patrick Volkerding <volkerdi@slackware.com> 12 July 2017
+#   Add support for including Slackware and kernel versions in the
+#   output filename. Thanks to SeB.
 
-MKINITRD_VERSION=1.4.8
+MKINITRD_VERSION=1.4.11
+
+COMMAND_LINE="$0 $*"
 
 # Don't include these things from /lib/udev/ in the initrd image
 LIBUDEV_BLACKLIST="\
@@ -55,6 +64,7 @@ LIBUDEV_BLACKLIST="\
   check-ptp-camera \
   udev-configure-printer \
   rules.d/60-openobex.rules \
+  rules.d/85-regulatory.rules \
   "
 
 print_usage() {
@@ -92,6 +102,11 @@ initrd, and the script is easy to modify.  Be creative.  :-)
           unlocked by the initrd using cryptsetup. All devices that must
           be unlocked in order to access the root filesystem must be
           specified. (Use with '-r' parameter).
+  -T      A colon (:) delimited list of luks encrypted block devices to be
+          passed the "--allow-discards" option when unlocked by the initrd 
+          using cryptsetup. This has the effect of allowing TRIM on SSD drives.
+          Be sure your SSD supports this feature (correctly) before enabling
+          it. See fstrim(8) for more information.
   -L      Add support for LVM partitions
   -K      Use a USB key (fat-formatted) to unlock the root LUKS volume
           The parameter value is filename of a keyfile, as well as the label
@@ -105,6 +120,7 @@ initrd, and the script is easy to modify.  Be creative.  :-)
   -B      Add /sbin/btrfs to enable scanning for a root filesystem that is
           part of a Btrfs multi-device filesystem.
   -M      Add the files in /etc/modprobe.d/ and /lib/modprobe.d/ to the initrd
+  -P      Prepend the output image with the microcode CPIO archive given in arguments.
   -R      Add support for RAID partitions
   -V      Display version number
 
@@ -183,6 +199,11 @@ build_initrd_image() {
     rm -f $OUTPUT_IMAGE
     find . | cpio -o -H newc | gzip -9c > $OUTPUT_IMAGE
   )
+
+  if [ ! -z "${MICROCODE_ARCH}" ] ; then
+    cat ${MICROCODE_ARCH} ${OUTPUT_IMAGE} > ${OUTPUT_IMAGE}.2
+    mv ${OUTPUT_IMAGE}.2 ${OUTPUT_IMAGE}
+  fi
   echo "$OUTPUT_IMAGE created."
   echo "Be sure to run lilo again if you use it."
 }
@@ -245,7 +266,19 @@ copy_modconf() {
   cp -a /etc/modprobe.d $SOURCE_TREE/etc
   cp -a /lib/modprobe.d $SOURCE_TREE/lib/
 }
-     
+
+# Normalize the string $1 by replacing occurences of 
+# recognized tags by their current values.
+#
+# this version take the following tags into account:
+#  %KVER% (kernel version)
+#  %SLACKVER% (slackware version)
+#
+function normalize_string() {
+  echo "$1" | sed -e "s?%KVER%?${KERNEL_VERSION}?g" \
+                  -e "s?%SLACKVER%?$(cat /etc/slackware-version|cut -f2 -d" ")?g"
+}
+
 # If --help is given, print_usage and exit:
 if echo $* | grep -wq '\--help' ; then
   print_usage
@@ -269,7 +302,7 @@ UDEV=1
 # Default actions without options:
 if [ -z "$1" ]; then
   # We need a sensible default for this special case:
-  OUTPUT_IMAGE=${OUTPUT_IMAGE:-/boot/initrd.gz}
+  OUTPUT_IMAGE=$(normalize_string ${OUTPUT_IMAGE:-/boot/initrd.gz})
   # If the output tree doesn't exist, create it and then exit:
   if [ ! -d $SOURCE_TREE ]; then
     echo "Nothing found at location $SOURCE_TREE, so we will create an"
@@ -362,6 +395,10 @@ while [ ! -z "$1" ]; do
       LUKSKEY="$2"
       shift 2
       ;;
+    -T)
+      LUKSTRIM="$2"
+      shift 2
+      ;;
     -L)
       LVM=1
       shift
@@ -374,6 +411,16 @@ while [ ! -z "$1" ]; do
       MODCONF=1
       shift
       ;;
+    -P)
+      # canonicalize filename:
+      MICROCODE_ARCH="$(readlink -m $2)"
+      if [ ! -e "${MICROCODE_ARCH}" ] ; then
+        echo "Error, the microcode cpio archive ${MICROCODE_ARCH} does not exist."
+        exit 1
+      fi
+      shift 2
+    ;;
+
     -R)
       RAID=1
       shift
@@ -383,6 +430,19 @@ while [ ! -z "$1" ]; do
       ;;
   esac
 done
+
+# Resolve TAGS (i.e %KVER%, %SLACKVER%) found in OUTPUT_IMAGE.
+#
+# Note:
+# ----
+# This must be done after all options have been handled and
+# not when handling case '-o' because -k can be passed after
+# -o in which case, the tag %KVER% would be replaced with the 
+# current kernel version instead of version passed with -k.
+#
+if echo "$OUTPUT_IMAGE" | grep -qE "%KVER%|%SLACKVER%" ; then
+  OUTPUT_IMAGE="$(normalize_string $OUTPUT_IMAGE)"
+fi
 
 # If kernel modules are needed but the kernel version is absent, exit now:
 if [ ! -d /lib/modules/$KERNEL_VERSION ]; then
@@ -420,6 +480,17 @@ if [ ! -z "$ROOTFS" ]; then
   echo $ROOTFS > $SOURCE_TREE/rootfs
 fi
 
+# Put a copy of the command line used to create this initrd in
+# initrd-tree/command_line:
+echo "$COMMAND_LINE" > $SOURCE_TREE/command_line
+
+# If /etc/mkinitrd.conf exists, put a copy of that in there as well.
+# (May or may not have been used according to the -F option, but we'll
+# save a copy anyway just in case):
+if [ -e /etc/mkinitrd.conf ]; then
+  cp -a /etc/mkinitrd.conf $SOURCE_TREE/mkinitrd.conf
+fi
+
 # If $WAIT is not set, assume we need only one second
 # to have all devices done
 # (unless we find that value is already set in the initrd-tree):
@@ -435,7 +506,7 @@ if [ ! -z "$WAIT" ]; then
 fi
 
 # If no OUTPUT_IMAGE was specified, read it from the SOURCE_TREE if possible:
-OUTPUT_IMAGE=${OUTPUT_IMAGE:-"$(cat $SOURCE_TREE/initrd-name)"}
+OUTPUT_IMAGE=$(normalize_string ${OUTPUT_IMAGE:-"$(cat $SOURCE_TREE/initrd-name)"})
 # If we still have no value, apply the default:
 OUTPUT_IMAGE=${OUTPUT_IMAGE:-"/boot/initrd.gz"}
 # Finally, write the image name into the SOURCE_TREE:
@@ -455,6 +526,11 @@ fi
 # If LUKSDEV was set in the config file, then we need to set CRYPT=1
 if [ ! -z "$LUKSDEV" ]; then
   CRYPT=1
+fi
+
+# Check for LUKSTRIM
+if [ ! -z "$LUKSTRIM" ]; then
+  echo $LUKSTRIM > $SOURCE_TREE/lukstrim
 fi
 
 # If LUKSKEY was set in the config file, then give it a warm welcome:
@@ -524,21 +600,12 @@ if [ ! -z "$LVM" ]; then
   if [ -f /sbin/lvm ]; then
     mkdir -p $SOURCE_TREE/sbin
     cp /sbin/lvm $SOURCE_TREE/sbin/lvm
-    cp /sbin/dmsetup $SOURCE_TREE/sbin/dmsetup
-    find /lib /lib64 -name "libdevmapper*so*" 2> /dev/null | xargs -I'{}' cp -P --parents '{}' $SOURCE_TREE/
     ( cd $SOURCE_TREE/sbin
       ln -s lvm vgchange 2>/dev/null
       ln -s lvm vgscan 2>/dev/null )
-    if [ -z "${MODULE_LIST}" ] ; then
-      MODULE_LIST="dm-mod"
-    elif ! echo ${MODULE_LIST} | grep -q dm-mod ; then
-      MODULE_LIST="$MODULE_LIST:dm-mod"
-    fi
-    mkdir -p $SOURCE_TREE/lib/udev/rules.d
-    echo 'KERNEL=="dm-[0-9]*", OPTIONS+="db_persist"' > \
-      $SOURCE_TREE/lib/udev/rules.d/95-dm-initrd.rules
   else
     echo "LVM binary is missing, LVM support isn't installed"
+    LVM=""
   fi
 fi
 
@@ -555,16 +622,26 @@ EOF
       chmod 0755 $SOURCE_TREE/sbin/udevadm
     fi
 
-    if [ -z "${MODULE_LIST}" ] ; then
-      MODULE_LIST="dm-mod"
-    elif ! echo ${MODULE_LIST} | grep -q dm-mod ; then
-      MODULE_LIST="$MODULE_LIST:dm-mod"
-    fi
     # Write the underlying luks device to the initrd-tree:
     echo $LUKSDEV > $SOURCE_TREE/luksdev
   else
     echo "Cryptsetup binary is missing, CRYPT support isn't installed"
+    CRYPT=""
   fi
+fi
+
+# Include device mapper in initrd (needed for LUKS and LVM)
+if [ ! -z "$CRYPT" -o ! -z "$LVM" ]; then
+  cp /sbin/dmsetup $SOURCE_TREE/sbin/dmsetup
+  find /lib /lib64 -name "libdevmapper*so*" 2> /dev/null | xargs -I'{}' cp -P --parents '{}' $SOURCE_TREE/
+  if [ -z "${MODULE_LIST}" ] ; then
+    MODULE_LIST="dm-mod"
+  elif ! echo ${MODULE_LIST} | grep -q dm-mod ; then
+    MODULE_LIST="$MODULE_LIST:dm-mod"
+  fi
+  mkdir -p $SOURCE_TREE/lib/udev/rules.d
+  echo 'KERNEL=="dm-[0-9]*", OPTIONS+="db_persist"' > \
+    $SOURCE_TREE/lib/udev/rules.d/95-dm-initrd.rules
 fi
 
 # Make module directory:

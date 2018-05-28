@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,21 +20,22 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VIMBRANCH=7.4
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=vim
+VIMBRANCH=8.1
 CTAGSVER=5.8
 BUILD=${BUILD:-1}
 
-CWD=$(pwd)
-
-if [ -r vim-${VIMBRANCH}*.tar.xz ]; then # if there's a source archive already, use the version number from it:
-  VERSION=$(echo vim-${VIMBRANCH}*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+if [ -r vim-${VIMBRANCH}*.tar.?z ]; then # if there's a source archive already, use the version number from it:
+  VERSION=$(echo vim-${VIMBRANCH}*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 else # need to fetch the latest source archive for this branch:
-  VERSION="$(echo $(basename $(wget -q -O - https://github.com/vim/vim/releases | grep v${VIMBRANCH} | head -n 1 | cut -f 2 -d \" )) | cut -b2- )"
+  VERSION="$(echo $(basename $(wget -q -O - https://github.com/vim/vim/releases | grep href.*v${VIMBRANCH} | head -n 1 | cut -f 2 -d \" )) | cut -b2- )"
   ( lftpget https://github.com/vim/vim/archive/v${VERSION}.tar.gz
     gzip -d v${VERSION}.tar.gz
     mv v${VERSION}.tar vim-${VERSION}.tar
-    xz -9 -v vim-${VERSION}.tar
-    if [ ! -r vim-${VERSION}.tar.xz ]; then
+    plzip -9 -n 6 vim-${VERSION}.tar
+    if [ ! -r vim-${VERSION}.tar.lz ]; then
       echo "ERROR:  Something went wrong trying to fetch https://github.com/vim/vim/archive/v${VERSION}.tar.gz"
       exit 1
     fi
@@ -49,6 +50,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -74,8 +83,8 @@ mkdir -p $TMP $PKG
 # but now we have to bundle it in
 cd $TMP
 rm -rf ctags-$CTAGSVER
-tar xvf $CWD/ctags-$CTAGSVER.tar.xz || exit 1
-cd ctags-$CTAGSVER
+tar xvf $CWD/ctags-$CTAGSVER.tar.?z || exit 1
+cd ctags-$CTAGSVER || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -100,7 +109,7 @@ chmod 644 $PKG/usr/doc/ctags-$CTAGSVER/*
 
 cd $TMP
 rm -rf vim-${VERSION}
-tar xvf $CWD/vim-${VERSION}.tar.xz || exit 1
+tar xvf $CWD/vim-${VERSION}.tar.?z || exit 1
 
 config_vim() {
 CFLAGS="$SLKCFLAGS" \
@@ -109,13 +118,15 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --enable-pythoninterp \
   --with-python-config-dir=/usr/lib${LIBDIRSUFFIX}/python$PYVER/config \
+  --enable-python3interp \
+  --with-python3-config-dir=$(python3-config --configdir) \
   --enable-perlinterp \
   --disable-tclinterp \
   --enable-multibyte \
   --enable-cscope \
   --with-features=huge \
   --with-compiledby="<volkerdi@slackware.com>" \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
   # I had been adding this, but got 100% complaints and 0% kudos:
   #  --enable-rubyinterp
@@ -130,7 +141,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-config_vim --without-x --disable-gui
+config_vim --without-x --disable-gui || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
@@ -183,7 +194,7 @@ find $PKG/usr/doc/vim-$VERSION -type f | xargs chmod 644
 mkdir -p $PKG/install
 cat $CWD/slack-desc.vim > $PKG/install/slack-desc
 cat << EOF > $PKG/install/doinst.sh
-#!/bin/sh
+#!/bin/bash
 config() {
   NEW="\$1"
   OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"

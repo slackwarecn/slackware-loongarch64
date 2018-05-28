@@ -1,5 +1,5 @@
-#!/bin/sh
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+#!/bin/bash
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -19,10 +19,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=aaa_elflibs
 VERSION=${VERSION:-14.2}
-BUILD=${BUILD:-23}
+BUILD=${BUILD:-39}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,13 +35,20 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
@@ -110,6 +118,13 @@ cat $CWD/tracked-files-tmp \
     cp -a $library .
   )
 done
+
+# Make sure shared libraries are executable:
+chmod 755 $PKG/lib${LIBDIRSUFFIX}/lib*.so.* $PKG/usr/lib${LIBDIRSUFFIX}/lib*.so.*
+
+# Don't ship symlinks in aaa_elflibs... it's just asking for trouble.
+# installpkg will create them if needed by running ldconfig.
+find $PKG -type l -exec rm --verbose "{}" \;
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

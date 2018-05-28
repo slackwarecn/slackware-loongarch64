@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 # Slackware build script for qtscriptgenerator
 
 # Copyright 2009  Heinz Wiesinger <pprkut@liwjatan.at>
-# Copyright 2009, 2012, 2013  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2012, 2013, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,46 +23,55 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=qtscriptgenerator
 VERSION=${VERSION:-0.2.0}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686 -fpermissive"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686 -fpermissive"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-O2 -fpermissive"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -fPIC -fpermissive"
   LIBDIRSUFFIX="64"
 elif [ "$ARCH" = "arm" ]; then
-  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
+  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale -fpermissive"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "armel" ]; then
-  SLKCFLAGS="-O2 -march=armv4t"
+  SLKCFLAGS="-O2 -march=armv4t -fpermissive"
   LIBDIRSUFFIX=""
 else
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-O2 -fpermissive"
   LIBDIRSUFFIX=""
 fi
 
@@ -88,15 +97,18 @@ find . \
 zcat $CWD/include-everything.patch.gz | patch -p1 --verbose || exit 1
 
 cd generator
-  qmake
-  make $NUMJOBS
-  ./generator --include-paths=/usr/lib${LIBDIRSUFFIX}/qt/include:/usr/include
+  echo "Building generator..."
+  qmake || exit 1
+  make $NUMJOBS || exit 1
+  ./generator --include-paths=/usr/lib${LIBDIRSUFFIX}/qt/include:/usr/include || exit 1
 cd -
 
+# Leaving off the || exit 1 in two make statements below, or we get nowhere :/
 cd qtbindings
+  echo "Building qtbindings..."
   sed -i "s|CONFIG += debug_and_release|CONFIG += release|" \
     qtbindingsbase.pri
-  qmake
+  qmake || exit 1
   make $NUMJOBS qmake_all
   sed -i "s|-I/usr/lib${LIBDIRSUFFIX}/qt/include/phonon|-I/usr/include/phonon|" \
     qtscript_phonon/Makefile
@@ -104,19 +116,21 @@ cd qtbindings
 cd -
 
 cd tools/qsexec/src
-  qmake
-  make $NUMJOBS
+  echo "Building tools/qsexec/src..."
+  qmake || exit 1
+  make $NUMJOBS || exit 1
 cd -
 
 cd qtbindings/qtscript_uitools
-  qmake
-  make $NUMJOBS all
+  echo "Building qtbindings/qtscript_uitools..."
+  qmake || exit 1
+  make $NUMJOBS all || exit 1
 cd -
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/qt/{bin,plugins/script}
 
-install -m 755 tools/qsexec/qsexec $PKG/usr/lib${LIBDIRSUFFIX}/qt/bin/qsexec
-install -m 755 generator/generator $PKG/usr/lib${LIBDIRSUFFIX}/qt/bin/generator
+install -m 755 tools/qsexec/qsexec $PKG/usr/lib${LIBDIRSUFFIX}/qt/bin/qsexec || exit 1
+install -m 755 generator/generator $PKG/usr/lib${LIBDIRSUFFIX}/qt/bin/generator || exit 1
 cp -a plugins/script/libqtscript* $PKG/usr/lib${LIBDIRSUFFIX}/qt/plugins/script/
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

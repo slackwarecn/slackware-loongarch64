@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -39,9 +39,11 @@
 # Modifications 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
 # qt 4.7.3, 4.7.4, 4.8.0, 4.8.1, 4.8.2, 4.8.4, 4.8.5, 4.8.6 are built from original nokia sources.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=qt
 VERSION=$(ls qt-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-10}
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -55,6 +57,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i486" ]; then
@@ -85,7 +95,6 @@ case "$ARCH" in
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
@@ -125,19 +134,51 @@ zcat $CWD/qt.glib-honor-ExcludeSocketNotifiers-flag.diff.gz | patch -p1 --verbos
 zcat $CWD/qt.qclipboard_fix_recursive.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/qt.qclipboard_delay.patch.gz | patch -p1 --verbose || exit 1
 
+# Fix for moc with glibc-2.25+:
+zcat $CWD/qt.QTBUG-22829.diff.gz | patch -p1 --verbose || exit 1
+
+# Another macro definition workaround with newer libraries:
+zcat $CWD/qt.QT_VERSION_CHECK.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix build with gcc 6 or gcc 7:
+zcat $CWD/qt.gcc6.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix test with ALSA 1.1.x:
+zcat $CWD/qt.alsa-1.1.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix QTreeView crash:
+zcat $CWD/qt.qtreeview.crash.diff.gz | patch -p1 --verbose || exit 1
+
+# Increase entity limit:
+zcat $CWD/qt.QTBUG-35459.diff.gz | patch -p1 --verbose || exit 1
+
+# Don't emit a misleading icu4c debug error:
+zcat $CWD/qt.icu4c.nodebug.diff.gz | patch -p1 --verbose || exit 1
+
+## Fix building with icu4c >= 59
+#zcat $CWD/qt.icu59.patch.gz | patch -p1 --verbose || exit 1
+
+# The header files for icu59+ require C++11, so compile only the source file
+# that uses them with that C++ standard:
+zcat $CWD/qt.icu59.c++11.diff.gz | patch -p1 --verbose || exit 1
+
+# Support OpenSSL 1.1.x:
+zcat $CWD/qt4.openssl-1.1.diff.gz | patch -p1 --verbose || exit 1
+
 # All other distros I checked build with -no-webkit. But this has the downside of
 # breaking the build when QtWebKit is present on the build system and some things
 # (assistant for one) are built without support for QtWebKit. So let's go with
 # -webkit and remove the built files later from the package. -HW
 
 export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
-export OPENSOURCE_CXXFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS -std=gnu++98 -fpermissive -fno-delete-null-pointer-checks"
+export OPENSOURCE_CXXFLAGS="$SLKCFLAGS -std=gnu++98 -fpermissive -fno-delete-null-pointer-checks"
 ./configure \
   -confirm-license \
   -opensource \
   -prefix /usr/lib${LIBDIRSUFFIX}/qt \
   -fast \
+  -release \
   -system-libpng \
   -system-libjpeg \
   -system-zlib \
@@ -192,8 +233,8 @@ EOF
 sed -i "s,-ljscore,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
 sed -i "s,-L../JavaScriptCore/release,,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
 
-# Make sure that .la and .pc files use the correct $LIBDIRSUFFIX:
-sed -i "s,-L/usr/X11R6/lib,-L/usr/X11R6/lib${LIBDIRSUFFIX},g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc
+# Make sure that .la, .pc, and .prl files use the correct $LIBDIRSUFFIX:
+sed -i "s,-L/usr/X11R6/lib ,-L/usr/X11R6/lib${LIBDIRSUFFIX} ,g" $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.la $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/pkgconfig/*.pc $PKG/usr/lib${LIBDIRSUFFIX}/qt/lib/*.prl
 
 # Link the shared libraries into /usr/lib:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}

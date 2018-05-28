@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2013, 2014, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2014, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=elilo
 VERSION=${VERSION:-$(echo $PKGNAM*.tar.?z* | rev | cut -f 2 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-6}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -32,7 +34,6 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -50,6 +51,14 @@ else
   LIBDIRSUFFIX=""
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP
@@ -58,11 +67,16 @@ mkdir elilo
 cd elilo
 tar xvf $CWD/${PKGNAM}-$VERSION-all.tar.?z* || exit 1
 tar xvf elilo-${VERSION}-source.tar.gz || exit 1
-# This is a rebuilt version of the x86_64 elilo (which is really the only
-# useful one), fetched from $TMP/elilo/elilo-${VERSION}-source/ after
-# running this script.  Elilo can be rather fragile, so we don't want to
-# rebuild it all the time and risk breaking it.
-tar xvf $CWD/elilo.x64.rebuilt.tar.xz || exit 1
+
+# The tarball extracted below contains rebuilt versions of the x86_64 and
+# ia32 elilo, which were extracted from $TMP/elilo/elilo-${VERSION}-source/
+# after building under both architectures. This approach simplifies making
+# changes to other parts of the package without needlessly complicating
+# things, as the loaders themselves seldom need to be rebuilt. Besides,
+# elilo can be rather fragile, so we don't want to rebuild it without a
+# good reason and risk breaking it.
+tar xvf $CWD/elilo.loader.binaries.tar.xz || exit 1
+
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 cd elilo-${VERSION}-source || cd elilo || exit
@@ -70,6 +84,9 @@ cd elilo-${VERSION}-source || cd elilo || exit
 sed -i "s,/usr/lib,/usr/lib${LIBDIRSUFFIX},g" Make.defaults
 sed -i "s,EFICRT0.*= /usr/lib${LIBDIRSUFFIX},EFICRT0    = /usr/lib${LIBDIRSUFFIX}/gnuefi,g" Make.defaults
 sed -i "s,dpkg-architecture -qDEB_BUILD_ARCH,uname -m,g" Make.defaults
+
+# Increase kernel size limit from 8MB to 16MB (nobody will ever need more than 640K ;-):
+zcat $CWD/elilo.double.kernel.size.limit.diff.gz | patch -p1 --verbose || exit 1
 
 # We will build this from source.
 # However, we will package the pre-built EFI binaries, since we would

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,12 +20,13 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-1.0.20}	# libusb version
+PKGNAM=libusb
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-2}
 
-BUILD=${BUILD:-1}
-
-NUMJOBS=${NUMJOBS:--j6}
+NUMJOBS=${NUMJOBS:--j7}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -35,7 +36,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-libusb
 
@@ -59,8 +67,8 @@ mkdir -p $TMP $PKG
 # First we'll do the main libusb stuff
 cd $TMP
 rm -rf libusb-$VERSION
-tar xvf $CWD/libusb-$VERSION.tar.xz
-cd libusb-$VERSION
+tar xvf $CWD/libusb-$VERSION.tar.?z || exit 1
+cd libusb-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -76,14 +84,17 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --docdir=/usr/doc/libusb-$VERSION \
   --disable-static \
-  --build=$ARCH-slackware-linux
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 mkdir -p $PKG/usr/doc/libusb-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL NEWS PORTING README THANKS TODO \
+  AUTHORS COPYING* INSTALL NEWS PORTING README* THANKS TODO \
   $PKG/usr/doc/libusb-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -94,7 +105,7 @@ if [ -r ChangeLog ]; then
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
-# Now handle the package-wide stuff
+# Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 

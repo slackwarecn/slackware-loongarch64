@@ -9,11 +9,6 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config etc/iproute2/ematch_map.new
-config etc/iproute2/group.new
-config etc/iproute2/rt_dsfield.new
-config etc/iproute2/rt_protos.new
-config etc/iproute2/rt_realms.new
-config etc/iproute2/rt_scopes.new
-config etc/iproute2/rt_tables.new
-config etc/iproute2/nl_protos.new
+for file in etc/iproute2/*.new ; do
+  config $file
+done

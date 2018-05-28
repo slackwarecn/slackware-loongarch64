@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,12 @@
 
 ## build glibc-$VERSION for Slackware
 
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=glibc
 VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
@@ -38,6 +41,17 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "glibc-$VERSION-$ARCH-$BUILD.txz"
+  echo "glibc-i18n-$VERSION-$ARCH-$BUILD.txz"
+  echo "glibc-profile-$VERSION-$ARCH-$BUILD.txz"
+  echo "glibc-solibs-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 # I'll break this out as an option for fun  :-)
@@ -97,10 +111,7 @@ CVSVER=${VERSION}${CHECKOUT}
 # Be sure the correct version of the headers package is installed BEFORE
 # building glibc!
 
-CWD=$(pwd)
-# Temporary build location.  This should not be a directory
-# path a non-root user could create later...
-TMP=${TMP:-/glibc-tmp-$(mcookie)}
+TMP=${TMP:-/tmp}
 mkdir -p $TMP
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -129,21 +140,12 @@ apply_patches() {
   # Use old-style locale directories rather than a single (and strangely
   # formatted) /usr/lib/locale/locale-archive file:
   zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
-  # The is_IS locale is causing a strange error about the "echn" command
-  # not existing.  This patch reverts is_IS to the version shipped in
-  # glibc-2.5:
-  zcat $CWD/is_IS.diff.gz | patch -p1 --verbose || exit 1
   # Support ru_RU.CP1251 locale:
   zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
-  # Fix resolver problem with glibc-2.9:
-  zcat $CWD/glibc-2.10-dns-no-gethostbyname4.diff.gz | patch -p0 --verbose || exit 1
-  # This reverts a patch that was made to glibc to fix "namespace leakage",
-  # which seems to cause some build failures (e.g. with conntrack):
-  zcat $CWD/glibc.revert.to.fix.build.breakages.diff.gz | patch -p1 -l --verbose || exit 1
-  # Make it harder for people to trick ldd into running code:
-  zcat $CWD/glibc.ldd.trace.through.dynamic.linker.diff.gz | patch -p1 --verbose || exit 1
   # Add a C.UTF-8 locale:
   zcat $CWD/glibc-c-utf8-locale.patch.gz | patch -p1 --verbose || exit 1
+  # Linux: use reserved name __key in pkey_get [BZ #22797]:
+  zcat $CWD/glibc.pkey_get.56170e0.diff.gz | patch -p1 --verbose || exit 1
 }
 
 # This is going to be the initial $DESTDIR:
@@ -220,6 +222,7 @@ CFLAGS="-g $OPTIMIZ" \
   --enable-kernel=2.6.32 \
   --with-headers=/usr/include \
   --enable-add-ons \
+  --enable-obsolete-nsl \
   --enable-obsolete-rpc \
   --enable-profile \
   $DISABLE_NSCD \
@@ -335,7 +338,8 @@ mkdir -p usr/lib${LIBDIRSUFFIX}
 mv $PKG/usr/lib${LIBDIRSUFFIX}/debug usr/lib${LIBDIRSUFFIX}
 mkdir install
 cp -a $CWD/slack-desc.glibc-debug install/slack-desc
-makepkg -l y -c n $TMP/glibc-debug-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
+## Don't package this:
+#makepkg -l y -c n $TMP/glibc-debug-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 ## INSTEAD, NUKE THESE LIBS
 #rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/debug
 
@@ -406,6 +410,11 @@ chown -R root:root etc
 chmod 755 etc/profile.d/*
 # Ditch links (these are in doinst.sh-glibc):
 find . -type l -exec rm {} \;
+# libm.so is *not* a linker script on all $ARCH.
+# If it's missing now, replace the symlink:
+if [ ! -r usr/lib${LIBDIRSUFFIX}/libm.so ]; then
+  ( cd usr/lib${LIBDIRSUFFIX} ; ln -sf ../../lib${LIBDIRSUFFIX}/libm.so.6 libm.so )
+fi
 mkdir install
 cp -a $CWD/slack-desc.glibc install/slack-desc
 cp -a $CWD/doinst.sh-glibc install/doinst.sh

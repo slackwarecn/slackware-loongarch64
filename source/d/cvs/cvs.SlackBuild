@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,24 +20,34 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=cvs
 VERSION=1.11.23
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
@@ -46,7 +56,6 @@ else
   SLKCFLAGS="-O2"
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-cvs
 rm -rf $PKG
@@ -55,7 +64,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf cvs-$VERSION
 tar xvf $CWD/cvs-$VERSION.tar.bz2 || exit 1
-cd cvs-$VERSION
+cd cvs-$VERSION || exit 1
 
 # Patch to handle recent glib crypt():
 zcat $CWD/cvs.crypt-2.diff.gz | patch -p1 --verbose || exit 1
@@ -73,7 +82,7 @@ CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --mandir=/usr/man \
-  --infodir=/usr/info
+  --infodir=/usr/info || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -86,14 +95,17 @@ gzip -9 $PKG/usr/info/*
 
 gzip -9 $PKG/usr/man/man?/*.?
 
-( cd doc ; make txt )
 mkdir -p $PKG/usr/doc/cvs-$VERSION
 cp -a \
   BUGS COPYING* DEVEL-CVS FAQ HACKING INSTALL MINOR-BUGS NEWS PROJECTS \
   README TESTS TODO \
   $PKG/usr/doc/cvs-$VERSION
-cat doc/cvs.txt | gzip -9c > $PKG/usr/doc/cvs-$VERSION/cvs.txt.gz
-cat doc/cvsclient.txt | gzip -9c > $PKG/usr/doc/cvs-$VERSION/cvsclient.txt.gz
+
+# This fails, but who cares in 2018
+#( cd doc ; make txt || exit 1 ) || exit 1
+#cat doc/cvs.txt | gzip -9c > $PKG/usr/doc/cvs-$VERSION/cvs.txt.gz
+#cat doc/cvsclient.txt | gzip -9c > $PKG/usr/doc/cvs-$VERSION/cvsclient.txt.gz
+
 chmod 644 $PKG/usr/doc/cvs-$VERSION/*
 gzip -9 $PKG/usr/doc/cvs-$VERSION/FAQ
 ( cd $PKG/usr/doc/cvs-$VERSION ; rm -rf contrib )

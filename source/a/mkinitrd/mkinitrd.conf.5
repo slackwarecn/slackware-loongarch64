@@ -58,6 +58,10 @@ image.
 This is the location for the initrd image that is created.
 .br
 Defaults to "/boot/initrd.gz"
+.br
+If %KVER% and/or %SLACKVER% are present in the string, they will be replaced 
+with $KERNEL_VERSION (e.g. "4.4.75-smp") and Slackware Version (e.g. "14.2") 
+respectively in the name of the generated file.
 
 .TP 5
 .I KERNEL_VERSION
@@ -90,10 +94,15 @@ Example: MODULE_LIST="module1:module2 option=1:module3"
 .TP 5
 .I LUKSDEV
 Contains a colon (:) delimited list of luks encrypted block devices to be
-unlocked by the initrd using cryptsetup.  All devices that must be unlocked
-in order to access the root filesystem must be specified.
-.br
+unlocked by the initrd using cryptsetup.  The list may include any of: device
+node path, UUID, or LABEL.  All devices that must be unlocked in order to
+access the root filesystem must be specified.
+.sp
 Example: LUKSDEV="/dev/sda2:/dev/sda3"
+.br
+Example: LUKSDEV="UUID=ec6dea40-c8d8-4590-850a-a757be60e45a"
+.br
+Example: LUKSDEV="LABEL=darkstar"
 
 Each unlocked device will be assigned an automatically generated luks device
 name of the form luks<device> where '<device>' will be the basename of the
@@ -113,6 +122,7 @@ then
 and
 .I "ROOTDEV=/dev/mapper/lukssda2"
 are equivalent.
+
 .TP 5
 .I LUKSKEY
 When using cryptsetup to encrypt your partition, you can use a keyfile instead
@@ -129,8 +139,20 @@ you need to set:
 LUKSKEY="LABEL=TRAVELSTICK:/keys/alien.luks"
 
 .TP 5
+.I LUKSTRIM
+Contains a colon (:) delimited list of luks encrypted block devices to be
+passed the "--allow-discards" option when unlocked by the initrd using
+cryptsetup. This has the effect of allowing TRIM on SSD drives. Be sure
+your SSD supports this feature (correctly) before enabling it.
+.br
+See fstrim(8) for more information.
+.br
+Example: LUKSTRIM="/dev/sda2:/dev/sda4"
+
+.TP 5
 .I ROOTDEV
 The device on which your root filesystem is located.
+May be a device node path, UUID, or LABEL. See LUKSDEV examples.
 .br
 Example: ROOTDEV="/dev/sda2"
 
@@ -205,6 +227,17 @@ Examples:
 MODCONF="0"	# Do not add /etc/modprobe.d/* to the initrd
 .br
 MODCONF="1"	# Add /etc/modprobe.d/* to the initrd
+
+.TP 5
+.I MICROCODE_ARCH
+This option specifies a cpio archive containing updated microcode for your CPU.
+CPU manufacturers occasionally release such updates to fix bugs in the microcode
+currently embedded in the CPU. The microcode archive will be prepended to the
+output initrd, where the kernel will find it for early patching.
+.br
+Examples:
+.br
+MICROCODE_ARCH="/boot/intel-ucode.cpio"
 
 .SH FILES
 .I /etc/mkinitrd.conf

@@ -3,7 +3,7 @@ mkdir -p $PKG/etc/X11/xorg.conf.d $PKG/usr/share/X11/xorg.conf.d
 
 # Create a sample keyboard layout 
 # Enable zapping by default
-cat << EOF > $PKG/usr/share/X11/xorg.conf.d/90-keyboard-layout.conf
+cat << EOF > $PKG/usr/share/X11/xorg.conf.d/90-keyboard-layout-evdev.conf
 Section "InputClass"
 	Identifier "keyboard-all"
 	MatchIsKeyboard "on"
@@ -47,6 +47,17 @@ EndSection
 
 EOF
 
+## Nope, we will not include 91-keyboard-layout-libinput.conf in the
+## xorg-server package.  It is better to put it into the xf86-input-libinput
+## package so that if that driver is removed, then X.Org will fall back to
+## using evdev.  Perhaps we'll revisit this arrangement when evdev is a little
+## bit more obsolete.  :-)
+##
+#sed -e 's,Identifier "keyboard-all",Identifier "libinput keyboard catchall",g' \
+#    -e 's,Driver "evdev",Driver "libinput",g' \
+#    $PKG/usr/share/X11/xorg.conf.d/90-keyboard-layout-evdev.conf > \
+#    $PKG/usr/share/X11/xorg.conf.d/91-keyboard-layout-libinput.conf
+
 # Add COPYING file:
 mkdir -p $PKG/usr/doc/xorg-server-$MODULAR_PACKAGE_VERSION
 cp -a COPYING $PKG/usr/doc/xorg-server-$MODULAR_PACKAGE_VERSION
@@ -57,7 +68,7 @@ rmdir $PKG/var
 
 # While I hate to have X11 take over another generic-sounding
 # piece of prime filesystem real estate, this symlink will
-# direct (for now) proprietary X drivers into the corrent
+# direct (for now) proprietary X drivers into the correct
 # location:
 
 ( cd $PKG/usr/lib

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2005, 2006, 2008, 2009, 2010, 2012  Eric Hameleers, Eindhoven, NL
-# Copyright 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2014, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -22,10 +22,12 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=mozilla-nss
 SRCNAM=nss
-VERSION=${VERSION:-3.23}
-NSPR=${NSPR:-4.12}
+VERSION=${VERSION:-3.37.1}
+NSPR=${NSPR:-4.19}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -38,6 +40,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -55,7 +65,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -68,10 +77,13 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf nss-${VERSION}
 rm -rf nspr-${NSPR}
-tar xvf $CWD/nss-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/nss-$VERSION.tar.?z || exit 1
 cd nss-$VERSION
-tar xvf $CWD/nspr-$NSPR.tar.?z* || exit 1
+tar xvf $CWD/nspr-$NSPR.tar.?z || exit 1
 mv nspr*/nspr .
+
+# -Werror is problematic with gcc7:
+sed -i "s|\ -Werror| |" nss/coreconf/Werror.mk || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -91,8 +103,8 @@ export NSS_USE_SYSTEM_SQLITE=1
 export NSS_ENABLE_ECC=1
 cd nss
   # Seems parallel build does not work with this.
-  #make $NUMJOBS nss_build_all export
-  make nss_build_all export
+  #make $NUMJOBS nss_build_all export || exit 1
+  make nss_build_all export || exit 1
 cd -
 
 # Install all the needed stuff to the package dir:

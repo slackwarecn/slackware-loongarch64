@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2012, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,6 +20,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=poppler
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
@@ -33,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
@@ -51,7 +60,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
@@ -69,21 +77,37 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --enable-xpdf-headers \
-  --enable-poppler-qt4 \
-  --enable-cairo-output \
-  --mandir=/usr/man \
-  --disable-static \
-  --enable-zlib \
-  --build=$ARCH-slackware-linux
+# At least for now, we will revert this patch since we have
+# things that depend on it:
+xzcat $CWD/poppler.remove.qt4.frontend.diff.xz | patch -p1 -R --verbose || exit 1
+
+# Revert a change to SplashPath.h (in 0.63.0) that breaks compiling the qt4 frontend:
+zcat $CWD/poppler.splashpath.h.revert.diff.gz | patch -p1 --verbose || exit 1
+
+mkdir build
+cd build
+
+CXXFLAGS="$SLKCFLAGS -std=c++11 -fpermissive" \
+cmake \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_MANDIR=/usr/man \
+  -DBUILD_SHARED_LIBS=ON \
+  -DENABLE_QT4=ON \
+  -DENABLE_QT5=OFF \
+  -DENABLE_XPDF_HEADERS=ON \
+  -DENABLE_CMS=lcms2 \
+  -DENABLE_DCTDECODER=libjpeg \
+  -DENABLE_GTK_DOC=ON \
+  -DENABLE_LIBOPENJPEG=openjpeg2 \
+  -DENABLE_XPDF_HEADERS=ON \
+  -DENABLE_ZLIB=ON \
+  .. || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Back to source tarball root directory:
+cd ..
 
 # Remove files that overlap with the xpdf package:
 rm -f $PKG/usr/bin/pdfdetach $PKG/usr/man/man1/pdfdetach.1
@@ -107,7 +131,7 @@ if [ -d $PKG/usr/man ]; then
 fi
 
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
-cp -a AUTHORS COPYING* INSTALL NEWS README README-XPDF TODO \
+cp -a AUTHORS COPYING* INSTALL NEWS README* TODO \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 ( cd $PKG/usr/doc/${PKGNAM}-$VERSION
   ln -s /usr/share/gtk-doc/html/poppler html )

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2000-2011, 2013, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2000-2011, 2013, 2014, 2015, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,26 +20,37 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=ncurses
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -f 2- -d - | cut -f 1,2 -d .)}
 BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-ncurses
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -59,12 +70,18 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
-  --with-gpm \
-  --disable-termcap \
-  --with-shared \
+  --enable-colorfgbg \
+  --enable-hard-tabs \
+  --enable-overwrite \
+  --enable-xmc-glitch \
   --with-cxx-shared \
-  --without-normal \
+  --with-ospeed=unsigned \
+  --with-termlib=tinfo \
+  --with-ticlib=tic \
+  --with-gpm \
+  --with-shared \
   --without-debug \
+  --disable-static \
   --without-profile \
   --enable-symlinks \
   --enable-pc-files \
@@ -86,51 +103,71 @@ tar xvf $CWD/ncurses-$VERSION.tar.?z || exit 1
 cd ncurses-$VERSION || exit 1
 chown -R root:root .
 
-# This allows some other patches to come first by making them bz2...  gz next
-if [ ! -z "$(ls $CWD/patches/ncurses*bz2 2> /dev/null)" ]; then
-  bzcat $CWD/patches/ncurses*bz2 > tmp-patch.sh
-  bash tmp-patch.sh || exit 1
-fi
-# Apply official upstream patches.
-if [ ! -z "$(ls $CWD/patches/ncurses-$VERSION-2*.patch.gz 2> /dev/null)" ]; then
-  for file in $CWD/patches/ncurses-$VERSION-2*.patch.gz ; do
-    zcat $file | patch -p1 --verbose || exit 1
-  done
-fi
-
-# Apply upstream patch collection:
-xzcat $CWD/ncurses-5.9-20141206-patch.sh.xz > ncurses-5.9-20141206-patch.sh
-sh ncurses-5.9-20141206-patch.sh
+## NOTE: nevermind trying this... patches have multiple failures. Use the
+## dated archive from upstream instead.
+#
+### No rollup (*.patch.sh) patch available yet for ncurses-6.1, so we'll
+### comment this out for now.
+## Apply upstream patch collection:
+#xzcat $CWD/ncurses-6.0-20160910-patch.sh.xz > ncurses-6.0-20160910-patch.sh
+#sh ncurses-6.0-20160910-patch.sh
+## Apply weekly ncurses patch updates:
+#for file in $CWD/patches/*.patch.gz ; do
+#  zcat $file | patch -p1 --verbose || exit 1
+#done
 
 zcat $CWD/ncurses.mkhashsize.diff.gz | patch -p1 --verbose || exit 1
 
-ncurses_configure
-make -j4 || exit 1
-# Spamming the partition.
-# Sorry, but it's about the only way to get a good 'tic'.
-make install
-# Install the package:
-make install DESTDIR=$PKG
+# Configure/build/install to package the standard ncurses libraries:
+ncurses_configure || exit 1
+make $NUMJOBS || exit 1
+make install DESTDIR=$PKG || exit 1
 
-# Build/install again with wide character support:
+# Configure/build/install again with wide character support:
 make clean
 WIDEC=--enable-widec
-ncurses_configure
-make -j4 || exit 1
-make install
-make install DESTDIR=$PKG
+ncurses_configure || exit 1
+make $NUMJOBS || exit 1
+make install DESTDIR=$PKG || exit 1
 
-if [ ! -d $PKG/usr/include/ncursesw -a ! -L $PKG/usr/include/ncursesw ]; then
-  ( cd $PKG/usr/include ; ln -sf ncurses ncursesw )
-fi
+# Make a termcap file in case anyone actually needs it:
+echo "#       /etc/termcap" > misc/termcap
+grep \$Revision: misc/terminfo.src >> misc/termcap
+grep \$Date: misc/terminfo.src >> misc/termcap
+echo "#" >> misc/termcap
+echo "#       Converted from terminfo.src for Slackware:" >> misc/termcap
+echo "#       tic -C -t terminfo.src > termcap" >> misc/termcap
+echo "#" >> misc/termcap
+echo "#       This file is included to support legacy applications using libtermcap." >> misc/termcap
+echo "#       Modern applications will use ncurses/terminfo instead." >> misc/termcap
+echo "#" >> misc/termcap
+echo "#------------------------------------------------------------------------------" >> misc/termcap
+echo "#" >> misc/termcap
+tic -C -t misc/terminfo.src >> misc/termcap
+touch -r misc/terminfo.src misc/termcap
+mkdir $PKG/etc
+cp -a misc/termcap $PKG/etc/termcap
 
 # Strip stuff:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Move the include files from /usr/include into
-# /usr/include/ncurses, then make symlinks back
-# into /usr/include.
+# Remove static libraries:
+for file in libform.a libformw.a libmenu.a libmenuw.a libncurses++.a \
+  libncurses++w.a libncurses.a libncursesw.a libpanel.a libpanelw.a \
+  libtic.a libtinfo.a libcurses.a ; do
+  rm -f $PKG/usr/lib${LIBDIRSUFFIX}/$file
+done
+
+# Check for new static residue:
+if ls $PKG/usr/lib${LIBDIRSUFFIX}/*.a 1> /dev/null 2> /dev/null ; then
+  echo "BAILING OUT.  A NEW STATIC LIBRARY HAS APPEARED:"
+  ls -l $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+  exit 1
+fi
+
+# Move the include files from /usr/include into /usr/include/ncurses,
+# then make symlinks back into /usr/include.
 ( cd $PKG/usr/include
   rm -rf ncurses
   mkdir ncurses
@@ -138,50 +175,54 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
   for file in ncurses/* ; do
     ln -sf $file .
   done
-  # This shouldn't clobber the real one:
-  mv termcap.h termcap-ncurses.h
 )
+
+# Make an ncursesw symlink to /usr/include/ncurses:
+if [ ! -d $PKG/usr/include/ncursesw -a ! -L $PKG/usr/include/ncursesw ]; then
+  ( cd $PKG/usr/include ; ln -sf ncurses ncursesw )
+fi
 
 # Move the ncurses libraries into /lib, since they're important:
 mkdir -p $PKG/lib${LIBDIRSUFFIX}
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
   chmod 755 *.so
   chmod 644 *.a
-  mv libncurses.so.5* $PKG/lib${LIBDIRSUFFIX}
-  mv libncursesw.so.5* $PKG/lib${LIBDIRSUFFIX}
-  rm -f libncurses.so
-  ln -sf /lib${LIBDIRSUFFIX}/libncurses.so.5 libncurses.so
-  rm -f libncursesw.so
-  ln -sf /lib${LIBDIRSUFFIX}/libncursesw.so.5 libncursesw.so
-  # Olde obsolete names, just in case
-  rm -f libcurses.so
-  ln -sf libncurses.so libcurses.so
-  rm -f libcursesw.so
-  ln -sf libncursesw.so libcursesw.so
+  mv libncurses.so.6* $PKG/lib${LIBDIRSUFFIX}
+  mv libncursesw.so.6* $PKG/lib${LIBDIRSUFFIX}
+  mv libtinfo.so.6* $PKG/lib${LIBDIRSUFFIX}
+  rm -f libtinfo.so.6
+  ln -sf ../../lib${LIBDIRSUFFIX}/libtinfo.so.6 .
 )
 
-# Set TERMINFO to point to the package:
+# Use linker loader scripts to make sure -tinfo dependency works:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  rm -f libcurses.so libcursesw.so libncurses.so libncursesw.so libtermcap.so
+  echo "INPUT(-lncurses)" > libcurses.so
+  echo "INPUT(-lncursesw)" > libcursesw.so
+  echo "INPUT(libncurses.so.6 -ltinfo)" > libncurses.so
+  echo "INPUT(libncursesw.so.6 -ltinfo)" > libncursesw.so
+  echo "INPUT(-ltinfo)" > libtermcap.so
+)
+
+# Use various upstream/fixed/better terminfo files to update the terminfo
+# database. Only *.terminfo files in $CWD/terminfo will be used.
 export TERMINFO=$PKG/usr/share/terminfo
-# Fix the xterm, screen, rxvt, and Eterm entries:
-for tfile in $CWD/xterm.terminfo $CWD/screeninfo.src $CWD/rxvt.terminfo $CWD/Eterm.ti ; do
+for tfile in $CWD/terminfo/*.terminfo ; do
   if [ -r $tfile ]; then
     progs/tic -v $tfile
   fi
 done
 unset TERMINFO
 
-# Then, add /usr/doc/ncurses-xxxxx with appropriate files.
+# Add /usr/doc/ncurses-xxxxx with appropriate files:
 mkdir -p $PKG/usr/doc/ncurses-$VERSION
 cp -a \
-  ANNOUNCE INSTALL MANIFEST NEWS README* TO-DO \
+  ANNOUNCE AUTHORS COPYING* INSTALL MANIFEST NEWS README* TO-DO VERSION \
   $PKG/usr/doc/ncurses-$VERSION
 mkdir -p $PKG/usr/doc/ncurses-$VERSION/c++
 cp -a \
   c++/NEWS c++/PROBLEMS c++/README-first \
   $PKG/usr/doc/ncurses-$VERSION/c++
-if [ -r $PKG/usr/man/man1/tack.1 ]; then
-  gzip -9 --force $PKG/usr/man/man1/tack.1
-fi
 
 # We don't need the log of every change here, but we'll take some.
 # If you need the whole thing probably you already extracted the
@@ -197,10 +238,10 @@ if [ -r NEWS ]; then
   touch -r NEWS $DOCSDIR/NEWS
 fi
 
-# desc file:
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz | sed "s,usr/lib,usr/lib${LIBDIRSUFFIX},g" > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/ncurses-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/ncurses-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
 

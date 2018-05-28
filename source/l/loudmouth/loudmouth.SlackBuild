@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2009 Eric Hameleers, Eindhoven, NL
-# Copyright 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2012, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -22,11 +22,13 @@
 #   SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=loudmouth
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
-NUMJOBS=${NUMJOBS:" -j4 "}
+NUMJOBS=${NUMJOBS:" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -36,6 +38,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -56,7 +66,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -101,7 +110,10 @@ LDFLAGS="$SLKLDFLAGS" \
 
 # Build and install:
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # --enable-static is often ignored
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a

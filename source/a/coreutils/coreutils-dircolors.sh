@@ -23,25 +23,15 @@ export LS_OPTIONS;
 unset COLOR
 unset OPTIONS
 
-# Set up aliases to use color ls by default.  A few additional
-# aliases like 'dir', 'vdir', etc, are some ancient artifacts
-# from 1992 or so...  possibly they should be disabled, but maybe
-# someone out there is actually using them?  :-)
-# Assume shell aliases are supported.
+# Set up aliases to use color ls by default:
 if [ "$SHELL" = "/bin/zsh" ] ; then
   # By default, zsh doesn't split parameters into separate words
   # when it encounters whitespace.  The '=' flag will fix this.
   # see zshexpn(1) man-page regarding SH_WORD_SPLIT.
   alias ls='/bin/ls ${=LS_OPTIONS}'
-  alias dir='/bin/ls ${=LS_OPTIONS} --format=vertical'
-  alias vdir='/bin/ls ${=LS_OPTIONS} --format=long'
 else
   alias ls='/bin/ls $LS_OPTIONS'
-  alias dir='/bin/ls $LS_OPTIONS --format=vertical'
-  alias vdir='/bin/ls $LS_OPTIONS --format=long'
 fi
-alias d=dir
-alias v=vdir
 
 # Set up the LS_COLORS environment:
 if [ -f $HOME/.dir_colors ]; then

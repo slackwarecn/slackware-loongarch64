@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,10 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=curl
-VERSION=${VERSION:-$(echo curl-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo curl-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -35,9 +36,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-curl
 
@@ -62,8 +70,8 @@ rm -rf $PKG
 mkdir -p $PKG
 cd $TMP
 rm -rf curl-$VERSION
-tar xvf $CWD/curl-$VERSION.tar.bz2 || exit 1
-cd curl-$VERSION
+tar xvf $CWD/curl-$VERSION.tar.xz || exit 1
+cd curl-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -78,11 +86,24 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --with-ca-bundle=/usr/share/curl/ca-bundle.crt \
+  --with-libssh2 \
   --enable-static=no \
-  $SSLOPT
+  $SSLOPT || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# We have always installed the man3 documentation, so we'll keep doing it
+# even though these are no longer installed by default. No || exit 1, if
+# it works, it works, and if it doesn't, we tried.
+( cd docs/libcurl
+  make install-man3 DESTDIR=$PKG
+  cd opts
+  make install-man3 DESTDIR=$PKG
+)
 
 mkdir -p $PKG/usr/share/curl
 cp -a $CWD/cacert.pem.bz2 $PKG/usr/share/curl
@@ -106,7 +127,6 @@ cp -a \
   COPYING* README* UPGRADE \
   $PKG/usr/doc/curl-$VERSION
 ( cd docs
-  rm -rf Makefile* curl-config.1 curl-config.html curl.1 curl.html libcurl
   cp -a \
     BUGS CONTRIBUTE FAQ FEATURES INSTALL INTERNALS MANUAL README* RESOURCES THANKS TODO examples \
     $PKG/usr/doc/curl-$VERSION )

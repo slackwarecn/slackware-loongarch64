@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,10 +23,11 @@
 # This script was written using the one from slackbuilds.org as a reference,
 # so thanks to Adis Nezirovic ( adis _at_ linux.org.ba ) for the original work.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=httpd
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.bz2 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -38,9 +39,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
@@ -63,7 +71,7 @@ fi
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.bz2 || exit 1
-cd ${PKGNAM}-$VERSION
+cd ${PKGNAM}-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -120,10 +128,12 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-cgi \
   --with-pcre \
   --enable-ssl \
+  --enable-http2 \
   --enable-rewrite \
   --enable-vhost-alias \
   --enable-proxy \
   --enable-proxy-http \
+  --enable-proxy-http2 \
   --enable-proxy-ftp \
   --enable-cache \
   --enable-mem-cache \
@@ -187,8 +197,16 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/
 cp -a \
-  ABOUT_APACHE Apache.dsw BuildBin.dsp CHANGES INSTALL InstallBin.dsp LAYOUT LICENSE NOTICE NWGNUmakefile README* ROADMAP VERSIONING \
+  ABOUT_APACHE CHANGES INSTALL LICENSE NOTICE README* ROADMAP VERSIONING \
   $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a CHANGES file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
 
 # Other distributions also strip the manual down to just English.
 # If this isn't your language of choice, mea culpa.
@@ -207,10 +225,15 @@ cp -a \
 # symlinks allowing access through the FHS-approved pathnames.  KDE, for example,
 # will look for htdig's htsearch here:  /var/www/cgi-bin/htsearch
 mv $PKG/srv/httpd $PKG/var/www
-( cd $PKG/srv
-  ln -sf /var/www .
-  ln -sf /var/www httpd
-)
+
+## DISABLED. Don't make these symlinks prior to packaging any more, as it is
+## possibly dangerous to an existing document root created in the place where
+## these symlinks are normally found. Instead, we make them in the install
+## script (only if nothing exists there already)
+#( cd $PKG/srv
+#  ln -sf /var/www .
+#  ln -sf /var/www httpd
+#)
 
 # OK, it's just not generally good form to put your web site in /var/www/htdocs,
 # but people do it every day.  Like all new .new files, this won't save them this

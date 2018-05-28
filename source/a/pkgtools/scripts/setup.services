@@ -10,12 +10,12 @@ rm -f $TMP/tmpscript
 
 cat << EOF > $TMP/tmpscript
 dialog --title "CONFIRM STARTUP SERVICES TO RUN" --item-help --checklist \\
-"The selected services will be started at boot time.  If you \\
+"The selected services will be started at boot time. If you \\
 don't need them, you may unselect them to turn them off (which may improve \\
-overall system security).  You may also choose to start services that are \\
-not run by default, but be aware that more services means less security.  \\
-Use the spacebar to select or unselect the services you wish to run.  \\
-Recommended choices have been preselected.  \\
+overall system security). You may also choose to start services that are \\
+not run by default, but be aware that more services means less security. \\
+Use the spacebar to select or unselect the services you wish to run. \\
+Recommended choices have been preselected. \\
 Press the ENTER key when you are finished." \\
 20 75 7 \\
 EOF
@@ -61,6 +61,17 @@ if [ -r etc/rc.d/rc.dnsmasq ]; then
   fi
   cat << EOF >> $TMP/tmpscript
     "rc.dnsmasq" "dnsmasq DHCP/DNS server" $RC_DNSMASQ "dnsmasq provides DNS and DHCP service to a LAN." \\
+EOF
+fi
+
+if [ -r etc/rc.d/rc.dovecot ]; then
+  if [ -x etc/rc.d/rc.dovecot ]; then
+    RC_DOVECOT=on
+  else
+    RC_DOVECOT=off
+  fi
+  cat << EOF >> $TMP/tmpscript
+    "rc.dovecot" "Dovecot IMAP/POP3 server" $RC_DOVECOT "Dovecot provides remote mailbox access for email clients." \\
 EOF
 fi
 
@@ -185,6 +196,17 @@ if [ -r etc/rc.d/rc.pcmcia ]; then
 EOF
 fi
 
+if [ -r etc/rc.d/rc.postfix ]; then
+  if [ -x etc/rc.d/rc.postfix ]; then
+    RC_POSTFIX=on
+  else
+    RC_POSTFIX=off
+  fi
+  cat << EOF >> $TMP/tmpscript
+    "rc.postfix" "The Postfix mail server" $RC_POSTFIX "The Postfix server allows your machine to send and receive mail." \\
+EOF
+fi
+
 if [ -r etc/rc.d/rc.rpc ]; then
   if [ -x etc/rc.d/rc.rpc ]; then
     RC_RPC=on
@@ -226,6 +248,17 @@ if [ -r etc/rc.d/rc.sendmail ]; then
   fi
   cat << EOF >> $TMP/tmpscript
     "rc.sendmail" "The Sendmail mail server" $RC_SENDMAIL "The Sendmail server allows your machine to send and receive mail." \\
+EOF
+fi
+
+if [ -r etc/rc.d/rc.smartd ]; then
+  if [ -x etc/rc.d/rc.smartd ]; then
+    RC_SMARTD=on
+  else
+    RC_SMARTD=off
+  fi
+  cat << EOF >> $TMP/tmpscript
+    "rc.smartd" "SMART monitoring daemon" $RC_SMARTD "The SMART daemon monitors your hard drives to help predict failures." \\
 EOF
 fi
 
@@ -273,7 +306,7 @@ if [ ! $? = 0 ]; then
   exit
 fi
 
-for service in rc.atalk rc.bind rc.cups rc.dnsmasq rc.fuse rc.hald rc.hplip rc.httpd rc.inetd rc.ip_forward rc.lprng rc.messagebus rc.mysqld rc.ntpd rc.pcmcia rc.rpc rc.samba rc.saslauthd rc.snmpd rc.sendmail rc.syslog rc.sshd ; do
+for service in rc.atalk rc.bind rc.cups rc.dovecot rc.dnsmasq rc.fuse rc.hald rc.hplip rc.httpd rc.inetd rc.ip_forward rc.lprng rc.messagebus rc.mysqld rc.ntpd rc.pcmcia rc.postfix rc.rpc rc.samba rc.saslauthd rc.smartd rc.snmpd rc.sendmail rc.syslog rc.sshd ; do
   if [ -f etc/rc.d/$service ]; then
     if grep -w $service $TMP/reply 1> /dev/null ; then
       chmod 755 etc/rc.d/$service

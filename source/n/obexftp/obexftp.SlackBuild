@@ -1,5 +1,5 @@
-#!/bin/sh
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+#!/bin/bash
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -19,10 +19,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=obexftp
 VERSION=${VERSION:-$(echo $PKGNAM-*-Source.tar.?z* | rev | cut -f 3- -d . | cut -f 2 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -36,7 +37,14 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-CWD=$(pwd)
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
@@ -53,6 +61,9 @@ else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+PYTHONLIB=$( python -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' )
+PYTHON3LIB=$( python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' )
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -71,9 +82,7 @@ find . \
 
 # Thanks to Fedora for these
 zcat $CWD/patches/obexftp-0.24-fix-absurd-install-path.patch.gz | patch -p1 || exit 1
-zcat $CWD/patches/obexftp-0.24-fuse.patch.gz | patch -p1 || exit 1
 zcat $CWD/patches/obexftp-norpath.patch.gz | patch -p1 || exit 1
-zcat $CWD/patches/obexftp-pkgconfig_requires.patch.gz | patch -p1 || exit 1
 
 mkdir -p build
 cd build
@@ -88,6 +97,21 @@ cd build
   make doc || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..
+
+mkdir -p build-python2
+cd build-python2
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DCMAKE_INSTALL_DOCDIR=/usr/doc/$PKGNAM-$VERSION \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPython_ADDITIONAL_VERSIONS=2.7 ..
+  cd swig/python
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ../../../
 
 # Relocate man pages:
 mv $PKG/usr/share/man $PKG/usr
@@ -107,6 +131,12 @@ fi
     ln -sf obexftp.1 ${link}.1
   done
 )
+
+# Generate .pyc files
+python -m compileall "${PKG}$PYTHONLIB"
+python -O -m compileall "${PKG}$PYTHONLIB"
+python3 -m compileall "${PKG}$PYTHON3LIB"
+python3 -O -m compileall "${PKG}$PYTHON3LIB"
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

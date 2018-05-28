@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2012, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,23 +20,32 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=bsd-games
 VERSION=${VERSION:-2.13}
-BUILD=${BUILD:-12}
+BUILD=${BUILD:-13}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i486 ;;
+    i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-bsdgames
 rm -rf $PKG
@@ -55,6 +64,7 @@ zcat $CWD/bsd-games.strfile.8.diff.gz | patch -p1 --backup --suffix=.orig || exi
 zcat $CWD/bsd-games.trek-gcc4.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
 zcat $CWD/bsd-games.phantasia_install_fix.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
 zcat $CWD/bsd-games.getline.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
+zcat $CWD/bsd-games.sail.no.union_wait.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
 
 # Fix typos in the quote database:
 for typofix in $CWD/fortune-fixes-sorry-no-additions-accepted-here/* ; do
@@ -73,9 +83,9 @@ zcat $CWD/bsd-games.pom.diff.gz | patch -p1 --verbose || exit 1
 cp fortune/datfiles/unamerican-o.real fortune/datfiles/unamerican-o.fake
 cp fortune/datfiles/unamerican-o.real unamerican-o
 ( cd fortune/datfiles ; strfile unamerican-o unamerican-o.dat )
-make
+make || exit 1
 # Does this go to $PKG?  I am perplexed.
-make install
+make install || exit 1
 
 mkdir -p $PKG/usr/doc/bsd-games-$VERSION
 cp -a \
@@ -128,7 +138,7 @@ chmod 644 $PKG/var/lib/bsdgames/phantasia/characs
 
 mkdir -p $PKG/install
 cat << EOF > $PKG/install/doinst.sh
-#!/bin/sh
+#!/bin/bash
 config() {
   NEW="\$1"
   OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"

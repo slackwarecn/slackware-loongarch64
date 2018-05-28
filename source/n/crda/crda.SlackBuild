@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2009  Robby Workman, Northport, AL, USA
-# Copyright 2009, 2010, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,9 +21,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=crda
 VERSION=${VERSION:-3.18}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-7}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -35,9 +37,16 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-REGDBVERS=2016.02.08
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
 
-CWD=$(pwd)
+REGDBVERS=2018.05.09
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-crda
 
@@ -71,12 +80,12 @@ find . \
  -exec chmod 644 {} \;
 
 # If this isn't installed on the system, crda will not build:
-mkdir -p /usr/lib/crda
-cat regulatory.bin > /usr/lib/crda/regulatory.bin
+make install MANDIR=/usr/man || exit 1
 
-mkdir -p $PKG/usr/lib/crda $PKG/usr/man/man5 $PKG/usr/doc/crda-$VERSION/regdb
-cat regulatory.bin > $PKG/usr/lib/crda/regulatory.bin
-gzip -9c regulatory.bin.5 > $PKG/usr/man/man5/regulatory.bin.5.gz
+# Install to the package directory:
+make install DESTDIR=$PKG MANDIR=/usr/man || exit 1
+
+mkdir -p $PKG/usr/doc/crda-$VERSION/regdb
 cp -a LICENSE README db.txt $PKG/usr/doc/crda-$VERSION/regdb
 
 # Now we'll do crda itself
@@ -91,16 +100,17 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# There's some weirdness going on here, but this seems to fix it:
-make ; make clean ; make
+# This thing uses our CFLAGS on its own, but if we specify them,
+# it fails to build. The build failure is wacky, as if it's not
+# linking libnl into crda.o -- the detection for libnl is broken,
+# but even if it's fixed, the errors still occur. This works, so...
+sed -i -e "s,-Werror ,,g" -e "s,fpic,fPIC,g" Makefile
 
 make \
-  CFLAGS="$SLKCFLAGS" \
   MANDIR=/usr/man \
   LIBDIR=/usr/lib${LIBDIRSUFFIX} \
   || exit 1
 make install \
-  CFLAGS="$SLKCFLAGS" \
   MANDIR=/usr/man \
   LIBDIR=/usr/lib${LIBDIRSUFFIX} \
   DESTDIR=$PKG \

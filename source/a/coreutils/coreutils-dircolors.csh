@@ -21,15 +21,8 @@ setenv LS_OPTIONS " $OPTIONS --color=$COLOR "
 unsetenv COLOR
 unsetenv OPTIONS
 
-# Set up aliases to use color ls by default.  A few additional
-# aliases like 'dir', 'vdir', etc, are some ancient artifacts
-# from 1992 or so...  possibly they should be disabled, but maybe
-# someone out there is actually using them?  :-)
+# Set up alias to use color ls by default:
 alias ls '/bin/ls $LS_OPTIONS';
-alias dir '/bin/ls $LS_OPTIONS --format=vertical';
-alias vdir '/bin/ls $LS_OPTIONS --format=long';
-alias d dir;
-alias v vdir;
 unsetenv noglob;
 
 # Set up the LS_COLORS environment:

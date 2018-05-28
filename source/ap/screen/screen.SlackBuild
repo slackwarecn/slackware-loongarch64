@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,9 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=screen
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -32,6 +34,14 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -44,7 +54,6 @@ else
   SLKCFLAGS="-O2"
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-screen
 
@@ -70,9 +79,12 @@ for pf in \
   26source_encoding.patch.gz \
   45suppress_remap.patch.gz \
   52fix_screen_utf8_nfd.patch.gz \
-  58-show-encoding-hardstatus.patch.gz \
   ; do zcat $CWD/$pf | patch --verbose -p1 || exit 1
 done
+
+# Revert a change to /etc/screenrc introduced in screen-4.3.x that prevents
+# the console from being properly cleared when detaching from a screen session:
+zcat $CWD/60-revert-screenrc-change.diff.gz | patch -p1 --verbose || exit 1
 
 # Do not link against libelf:
 zcat $CWD/screen.no_libelf.diff.gz | patch -p1 --verbose || exit 1
@@ -130,7 +142,7 @@ cp -a COPYING ChangeLog HACKING INSTALL NEWS README TODO \
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 cat << EOF > $PKG/install/doinst.sh
-#!/bin/sh
+#!/bin/bash
 config() {
   NEW="\$1"
   OLD="\$(dirname \$NEW)/\$(basename \$NEW .new)"

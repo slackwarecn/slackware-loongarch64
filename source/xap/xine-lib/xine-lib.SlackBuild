@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2011, 2012  Eric Hameleers, Eindhoven, NL
-# Copyright 2015  Heinz Wiesinger, Amsterdam, NL
+# Copyright 2017  Heinz Wiesinger, Amsterdam, NL
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,18 +22,17 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
+PKGNAM=xine-lib
 # Version on the tarball
-VERSION=1.2.6
+VERSION=1.2.9
 # Version used in the source directory to cd into
-DIRVER=1.2.6
+DIRVER=1.2.9
 # Version used for the Slackware package
-PKGVER=1.2.6
+PKGVER=1.2.9
 
-# Version used for statically linked ffmpeg
-FFMPEG_VERSION=${FFMPEG_VERSION:-$(echo ../MPlayer/ffmpeg-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-
-BUILD=${BUILD:-8}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -61,65 +60,40 @@ else
   FFARCHOPTS=""
 fi
 
-CWD=$(pwd)
+# If this package is being built for ALSA (no PulseAudio), use the _alsa $TAG:
+if [ ! -r /usr/lib${LIBDIRSUFFIX}/pkgconfig/libpulse.pc ]; then
+  TAG="_alsa"
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$PKGVER-$ARCH-$BUILD$TAG.txz"
+  exit 0
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-xine-lib
-FFMPEG_PKG=$TMP/package-ffmpeg
-rm -rf $PKG $FFMPEG_PKG
-mkdir -p $TMP $PKG/usr $FFMPEG_PKG
+rm -rf $PKG
+mkdir -p $TMP $PKG/usr
 
 cd $TMP
-rm -rf ffmpeg*
-tar xvf $CWD/../MPlayer/ffmpeg-$FFMPEG_VERSION.tar.xz || exit 1
-cd ffmpeg* || exit 1
-
-  chown -R root:root .
-  find . \
-   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-   -exec chmod 755 {} \; -o \
-   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-   -exec chmod 644 {} \;
-
-  echo Building static ffmpeg libs ...
-
-  FFMPEGDIR=/tmp/ff-$(mcookie)
-
-  CFLAGS="$SLKCFLAGS -fvisibility=hidden -I/usr/include/openmj2-2.1" \
-  CXXFLAGS="$SLKCFLAGS -fvisibility=hidden -I/usr/include/openmj2-2.1" \
-  ./configure \
-    --prefix=$FFMPEGDIR/usr \
-    --libdir=$FFMPEGDIR/usr/lib${LIBDIRSUFFIX} \
-    --shlibdir=$FFMPEGDIR/usr/lib${LIBDIRSUFFIX} \
-    --enable-gpl \
-    --enable-version3 \
-    --enable-libtheora \
-    --enable-postproc \
-    --disable-doc \
-    --disable-avfilter \
-    --disable-avdevice \
-    --disable-swresample \
-    --disable-ffserver \
-    --disable-ffplay \
-    --disable-ffmpeg \
-    --disable-ffprobe \
-    --enable-pthreads \
-    --disable-debug \
-    --disable-shared \
-    --enable-static \
-    --enable-hardcoded-tables \
-    --enable-memalign-hack \
-    --enable-bzlib \
-    --enable-zlib \
-    --enable-libopenjpeg \
-    ${FFARCHOPTS}
-
-    make $NUMJOBS V=1 || exit 1
-    make install # Note: no DESTDIR !!
-cd -
-
 rm -rf xine-lib-$VERSION
 tar xvf $CWD/xine-lib-$VERSION.tar.xz || exit 1
 cd xine-lib-$DIRVER || exit 1
+
+# # Fix source for ffmpeg-3.2.x:
+# sed -e 's/avcodec_alloc_frame/av_frame_alloc/'        \
+#     -e 's/avcodec_free_frame/av_frame_free/'          \
+#     -i src/combined/ffmpeg/ff_{audio,video}_decoder.c \
+#        src/dxr3/ffmpeg_encoder.c &&
+# #sed -e 's|wand/magick_wand.h|MagickWand/MagickWand.h|' \
+# #    -i src/video_dec/image.c &&
+# sed -e '/xineplug_vo_out_xcbxv_la_LIBADD/s/$(XCB_LIBS)/$(XCBSHM_LIBS) $(XCB_LIBS)/' \
+#     -i src/video_out/Makefile.in &&
+# sed -e 's/\(xcb-shape >= 1.0\)/xcb \1/' \
+#     -i m4/video_out.m4 &&
 
 chown -R root:root .
 find . \
@@ -127,11 +101,6 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
-
-export PKG_CONFIG_PATH="${FFMPEGDIR}/usr/lib${LIBDIRSUFFIX}/pkgconfig"
-export CFLAGS="-I${FFMPEGDIR}/usr/include $SLKCFLAGS"
-export CXXFLAGS="-I${FFMPEGDIR}/usr/include $SLKCFLAGS"
-export LDFLAGS="-L${FFMPEGDIR}/usr/lib${LIBDIRSUFFIX} $SLKLDFLAGS"
 
 XINE_BUILD=$TARGET \
 ./configure \
@@ -144,7 +113,8 @@ XINE_BUILD=$TARGET \
   --disable-nosefart \
   --disable-vcd \
   --without-speex \
-  --with-external-dvdnav
+  --without-xcb \
+  --with-external-dvdnav || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -172,5 +142,5 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/xine-lib-$PKGVER-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/xine-lib-$PKGVER-$ARCH-$BUILD$TAG.txz
 

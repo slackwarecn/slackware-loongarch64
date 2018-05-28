@@ -7,9 +7,9 @@ VERSION=${VERSION:-$(echo ghostscript-*.tar.?z* | rev | cut -f 3- -d . | cut -f 
 
 tar xf ghostscript-${VERSION}.tar.xz || exit 1
 mv ghostscript-${VERSION}.tar.xz ghostscript-${VERSION}.tar.xz.orig
-( cd ghostscript-${VERSION} && rm -rf freetype jpeg lcms2 libpng libtiff png tiff zlib )
+( cd ghostscript-${VERSION} && rm -rf freetype jpeg lcms2 lcms2art/doc/* libpng libtiff png tiff zlib )
 tar cf ghostscript-${VERSION}.tar ghostscript-${VERSION}
 rm -r ghostscript-${VERSION}
-xz -9 ghostscript-${VERSION}.tar
-touch -r ghostscript-${VERSION}.tar.xz.orig ghostscript-${VERSION}.tar.xz
+plzip -9 -n 6 ghostscript-${VERSION}.tar
+touch -r ghostscript-${VERSION}.tar.xz.orig ghostscript-${VERSION}.tar.lz
 rm ghostscript-${VERSION}.tar.xz.orig

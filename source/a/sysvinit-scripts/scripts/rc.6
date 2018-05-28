@@ -11,11 +11,11 @@
 #
 
 # Set the path.
-PATH=/sbin:/etc:/bin:/usr/bin
+PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
 # If there are SystemV init scripts for this runlevel, run them.
 if [ -x /etc/rc.d/rc.sysvinit ]; then
-  . /etc/rc.d/rc.sysvinit
+  /etc/rc.d/rc.sysvinit
 fi
 
 # Set linefeed mode to avoid staircase effect.
@@ -78,13 +78,13 @@ if [ -x /etc/rc.d/rc.httpd ]; then
 fi
 
 # Stop the MySQL database:
-if [ -r /var/run/mysql/mysql.pid ]; then
-  . /etc/rc.d/rc.mysqld stop
+if [ -x /etc/rc.d/rc.mysqld -a -r /var/run/mysql/mysql.pid ]; then
+  /etc/rc.d/rc.mysqld stop
 fi
 
 # Stop the Samba server:
 if [ -x /etc/rc.d/rc.samba ]; then
-  . /etc/rc.d/rc.samba stop
+  /etc/rc.d/rc.samba stop
 fi
 
 # Shut down the NFS server:
@@ -109,7 +109,7 @@ fi
 
 # Stop D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
-  sh /etc/rc.d/rc.messagebus stop
+  /etc/rc.d/rc.messagebus stop
 fi
 
 # Kill any processes (typically gam) that would otherwise prevent
@@ -118,7 +118,7 @@ unset FUSER_DELAY
 for dir in $(/bin/mount | grep 'type nfs ' | cut -d ' ' -f 3 ) ; do
   echo "Killing processes holding NFS mount $dir open..."
   # Background this to prevent fuser from also blocking shutdown:
-  /usr/bin/fuser -k -m $dir &
+  /usr/bin/fuser -k -M -m $dir &
   FUSER_DELAY=5
 done
 # If fuser was run, let it have some delay:
@@ -149,7 +149,7 @@ fi
 # isn't a diskless client with the / partition mounted via NFS:
 if ! /bin/mount | /bin/grep -q 'on / type nfs' ; then
   if [ -x /etc/rc.d/rc.inet1 ]; then
-    . /etc/rc.d/rc.inet1 stop
+    /etc/rc.d/rc.inet1 stop
   fi
 fi
 
@@ -164,7 +164,7 @@ fi
 
 # Shut down PCMCIA devices:
 if [ -x /etc/rc.d/rc.pcmcia ]; then
-  . /etc/rc.d/rc.pcmcia stop
+  /etc/rc.d/rc.pcmcia stop
   # The cards might need a little extra time here to deactivate:
   /bin/sleep 5
 fi
@@ -176,12 +176,12 @@ fi
 
 # Terminate acpid before syslog:
 if [ -x /etc/rc.d/rc.acpid -a -r /var/run/acpid.pid ]; then # quit
-  . /etc/rc.d/rc.acpid stop
+  /etc/rc.d/rc.acpid stop
 fi
 
 # Stop udev:
 if [ -x /etc/rc.d/rc.udev ]; then
-  sh /etc/rc.d/rc.udev force-stop
+  /etc/rc.d/rc.udev force-stop
 fi
 
 # Kill all remaining processes.
@@ -222,7 +222,7 @@ echo "Turning off swap."
 
 # Stop cgmanager and cgproxy:
 if [ -x /etc/rc.d/rc.cgmanager ]; then
-  sh /etc/rc.d/rc.cgmanager stop
+  /etc/rc.d/rc.cgmanager stop
 fi
 
 echo "Unmounting local file systems:"

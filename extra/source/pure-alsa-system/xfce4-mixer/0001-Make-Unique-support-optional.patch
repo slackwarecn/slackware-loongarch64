@@ -1,0 +1,87 @@
+From 7a18841c988edb593127842ec5c919df537f9ce0 Mon Sep 17 00:00:00 2001
+From: Andrzej <ndrwrdck@gmail.com>
+Date: Sat, 12 Apr 2014 08:53:09 +0100
+Subject: [PATCH] Make Unique support optional
+
+---
+ configure.ac.in    |  4 +++-
+ xfce4-mixer/main.c | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)
+
+--- ./configure.ac.in.orig	2014-04-09 14:44:50.000000000 -0500
++++ ./configure.ac.in	2018-04-24 12:36:10.442764602 -0500
+@@ -98,7 +98,6 @@
+ XDT_CHECK_PACKAGE([DBUS_GLIB], [dbus-glib-1], [0.84])
+ XDT_CHECK_PACKAGE([GST_PLUGINS_BASE], [gstreamer-plugins-base-0.10], [0.10.25])
+ XDT_CHECK_PACKAGE([GTK], [gtk+-2.0], [2.20.0])
+-XDT_CHECK_PACKAGE([UNIQUE], [unique-1.0], [1.1])
+ XDT_CHECK_PACKAGE([LIBXFCE4UTIL], [libxfce4util-1.0], [4.10.0])
+ XDT_CHECK_PACKAGE([LIBXFCE4UI], [libxfce4ui-1], [4.10.0])
+ XDT_CHECK_PACKAGE([LIBXFCE4PANEL], [libxfce4panel-1.0], [4.10.0])
+--- ./xfce4-mixer/main.c.orig	2014-04-09 14:44:50.000000000 -0500
++++ ./xfce4-mixer/main.c	2018-04-24 12:35:56.340763434 -0500
+@@ -30,7 +30,10 @@
+ #include <gst/gst.h>
+ 
+ #include <gtk/gtk.h>
++
++#ifdef HAVE_UNIQUE
+ #include <unique/unique.h>
++#endif
+ 
+ #include <libxfce4util/libxfce4util.h>
+ #include <libxfce4ui/libxfce4ui.h>
+@@ -42,6 +45,7 @@
+ 
+ 
+ 
++#ifdef HAVE_UNIQUE
+ static UniqueResponse
+ message_received (UniqueApp         *app,
+                   UniqueCommand      command,
+@@ -68,6 +72,7 @@
+ 
+   return response;
+ }
++#endif
+ 
+ 
+ 
+@@ -75,7 +80,9 @@
+ main (int    argc,
+       char **argv)
+ {
++#ifdef HAVE_UNIQUE
+   UniqueApp          *app;
++#endif
+   GtkWidget          *window;
+   GError             *error = NULL;
+   gboolean            debug_mode = FALSE;
+@@ -162,6 +169,7 @@
+   if (debug_mode)
+     xfce_mixer_dump_gst_data ();
+ 
++#ifdef HAVE_UNIQUE
+   /* Create unique application */
+   app = unique_app_new ("org.xfce.xfce4-mixer", NULL);
+   if (unique_app_is_running (app))
+@@ -192,6 +200,19 @@
+       /* Destroy the window */
+       gtk_widget_destroy (window);
+     }
++#else
++  /* Create the mixer window */
++  window = xfce_mixer_window_new ();
++
++  /* Display the mixer window */
++  gtk_widget_show (window);
++
++  /* Enter the GTK+ main loop */
++  gtk_main ();
++
++  /* Destroy the window */
++  gtk_widget_destroy (window);
++#endif
+ 
+   /* Shutdown the mixer library */
+   xfce_mixer_shutdown ();

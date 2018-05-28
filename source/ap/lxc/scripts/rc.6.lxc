@@ -11,7 +11,7 @@
 #
 
 # Set the path.
-PATH=/sbin:/etc:/bin:/usr/bin
+PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
 # Set $container variable since this is a modified version of rc.6 with
 # changes for running in an lxc container.  A check to see if this variable
@@ -22,7 +22,7 @@ container="lxc"
 
 # If there are SystemV init scripts for this runlevel, run them.
 if [ -x /etc/rc.d/rc.sysvinit ]; then
-  . /etc/rc.d/rc.sysvinit
+  /etc/rc.d/rc.sysvinit
 fi
 
 # Set linefeed mode to avoid staircase effect.
@@ -85,13 +85,13 @@ if [ -x /etc/rc.d/rc.httpd ]; then
 fi
 
 # Stop the MySQL database:
-if [ -r /var/run/mysql/mysql.pid ]; then
-  . /etc/rc.d/rc.mysqld stop
+if [ -x /etc/rc.d/rc.mysqld -a -r /var/run/mysql/mysql.pid ]; then
+  /etc/rc.d/rc.mysqld stop
 fi
 
 # Stop the Samba server:
 if [ -x /etc/rc.d/rc.samba ]; then
-  . /etc/rc.d/rc.samba stop
+  /etc/rc.d/rc.samba stop
 fi
 
 # Shut down the NFS server:
@@ -116,7 +116,7 @@ fi
 
 # Stop D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
-  sh /etc/rc.d/rc.messagebus stop
+  /etc/rc.d/rc.messagebus stop
 fi
 
 # Kill any processes (typically gam) that would otherwise prevent
@@ -156,7 +156,7 @@ fi
 # isn't a diskless client with the / partition mounted via NFS:
 if ! /bin/mount | /bin/grep -q 'on / type nfs' ; then
   if [ -x /etc/rc.d/rc.inet1 ]; then
-    . /etc/rc.d/rc.inet1 stop
+    /etc/rc.d/rc.inet1 stop
   fi
 fi
 
@@ -171,7 +171,7 @@ fi
 
 # Shut down PCMCIA devices:
 if [ -x /etc/rc.d/rc.pcmcia -a -z "$container" ]; then
-  . /etc/rc.d/rc.pcmcia stop
+  /etc/rc.d/rc.pcmcia stop
   # The cards might need a little extra time here to deactivate:
   /bin/sleep 5
 fi
@@ -183,12 +183,12 @@ fi
 
 # Terminate acpid before syslog:
 if [ -x /etc/rc.d/rc.acpid -a -r /var/run/acpid.pid -a -z "$container" ]; then # quit
-  . /etc/rc.d/rc.acpid stop
+  /etc/rc.d/rc.acpid stop
 fi
 
 # Stop udev:
 if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
-  sh /etc/rc.d/rc.udev force-stop
+  /etc/rc.d/rc.udev force-stop
 fi
 
 # Kill all remaining processes.
@@ -231,7 +231,7 @@ fi
 
 # Stop cgmanager and cgproxy:
 if [ -x /etc/rc.d/rc.cgmanager -a -z "$container" ]; then
-  sh /etc/rc.d/rc.cgmanager stop
+  /etc/rc.d/rc.cgmanager stop
 fi
 
 if [ -z "$container" ]; then

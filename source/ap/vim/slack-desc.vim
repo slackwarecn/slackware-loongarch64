@@ -1,15 +1,15 @@
 # HOW TO EDIT THIS FILE:
-# The "handy ruler" below makes it easier to edit a package description.  Line
+# The "handy ruler" below makes it easier to edit a package description. Line
 # up the first '|' above the ':' following the base package name, and the '|'
-# on the right side marks the last column you can put a character in.  You must
-# make exactly 11 lines for the formatting to be correct.  It's also
+# on the right side marks the last column you can put a character in. You must
+# make exactly 11 lines for the formatting to be correct. It's also
 # customary to leave one space after the ':'.
 
    |-----handy-ruler------------------------------------------------------|
 vim: vim (Vi IMproved)
 vim:
-vim: Vim is an almost compatible version of the UNIX editor vi.  Many new
-vim: features have been added:  multi level undo, command line history, 
+vim: Vim is an almost compatible version of the UNIX editor vi. Many new
+vim: features have been added: multi level undo, command line history, 
 vim: filename completion, block operations, and more.
 vim:
 vim: Vim's development is led by Bram Moolenaar.

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,8 +26,10 @@
 # Modified by Robby Workman <rworkman@slackbuilds.org>
 # Modified by Patrick Volkerding <volkerdi@slackware.com>
 
+cd $(dirname $0) ; CWD=$(pwd)
+
 PKGNAM=emacs
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 # Determine version number the tarball is labeled with:
 TARBALLVER=${TARBALLVER:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # OK, now what's being used as the source directory version number...  account
@@ -48,6 +50,14 @@ if [ -z "$ARCH" ]; then
   export ARCH
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$TARBALLVER-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
@@ -64,7 +74,6 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -95,8 +104,8 @@ CXXFLAGS="$SLKCFLAGS" \
   --without-gconf \
   --without-gsettings \
   --with-x \
-  --with-x-toolkit=gtk2 \
-  --build=${ARCH}-slackware-linux
+  --with-x-toolkit=gtk3 \
+  --build=${ARCH}-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -104,7 +113,6 @@ make install DESTDIR=$PKG || exit 1
 ( cd $PKG/usr/bin
   rm emacs
   mv emacs-${SRCDIRVER} emacs-${TARBALLVER}-with-x11
-  ln -sf emacs-${TARBALLVER}-with-x11 emacs
 )
 
 # Also add a version of the binary that is not linked to X11:
@@ -133,7 +141,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --without-gconf \
   --without-gsettings \
   --with-x=no \
-  --build=${ARCH}-slackware-linux
+  --build=${ARCH}-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 
@@ -142,9 +150,21 @@ cat src/emacs > $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
 chown root:root $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
 chmod 1755 $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
 
-# I don't care for broken permissions.
-chmod 755 $PKG/var/games/emacs
-chown -R games:root $PKG/var/games/emacs
+# Create unversioned symlinks for both versions of emacs:
+( cd $PKG/usr/bin
+  ln -sf emacs-${TARBALLVER}-with-x11 emacs-with-x11
+  ln -sf emacs-${TARBALLVER}-no-x11 emacs-no-x11
+  # Create a plain "emacs" symlink pointing to emacs-with-x11:
+  ln -sf emacs-with-x11 emacs
+)
+
+# Seems like this nonsense is finally obsolete:
+if [ -d $PKG/var/games/emacs ]; then
+  # I don't care for broken permissions.
+  chmod 755 $PKG/var/games/emacs
+  chown -R root:games $PKG/var/games/emacs
+  chmod 664 $PKG/var/games/emacs/*
+fi
 
 # This avoids a collision with Exuberant Ctags...
 mv $PKG/usr/bin/ctags $PKG/usr/bin/ctags-emacs

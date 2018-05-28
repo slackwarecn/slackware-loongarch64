@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2015, 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,10 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=glibc-zoneinfo
 ZONE_VERSIONS="$(echo tzdata* | cut -f1 -d . | cut -b7-11)"
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -36,35 +37,42 @@ if [ -z "$ARCH" ]; then
   export ARCH
 fi
 
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$ZONE_VERSIONS-noarch-$BUILD.txz"
+  exit 0
+fi
+
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
 if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2 -march=i386 -mcpu=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2 -march=i486 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2 -march=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2 -fPIC"
   LIBDIRSUFFIX="64"
 elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
 else
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-DHAVE_SNPRINTF=1 -O2"
   LIBDIRSUFFIX=""
 fi
 
-CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -76,8 +84,8 @@ cd $TMP
 rm -rf tzcodedata-build
 mkdir tzcodedata-build
 cd tzcodedata-build
-tar xzf $CWD/tzdata?????.tar.gz
-tar xzf $CWD/tzcode?????.tar.gz
+tar xzf $CWD/tzdata?????.tar.gz || exit 1
+tar xzf $CWD/tzcode?????.tar.gz || exit 1
 
 chown -R root:root .
 find . \
@@ -88,19 +96,25 @@ find . \
 
 sed -i "s,/usr/local,$(pwd),g" Makefile
 sed -i "s,/etc/zoneinfo,/zoneinfo,g" Makefile
-make
-make install
-mkdir -p $PKG/usr/share/zoneinfo
-cd etc
-cp -a zoneinfo/* $PKG/usr/share/zoneinfo
+sed -i "s,^CFLAGS=,CFLAGS=		$SLKCFLAGS,g" Makefile
+make || exit 1
+make install DESTDIR=$PKG/stage || exit 1
+
+# Install the primary zone files:
+mkdir -p $PKG/usr/share
+mv $PKG/stage/usr/share/zoneinfo $PKG/usr/share
 
 # These are all identical to the normal zoneinfo files, so let's hard link
 # them to save space:
 cp -al $PKG/usr/share/zoneinfo $PKG/usr/share/posix
 mv $PKG/usr/share/posix $PKG/usr/share/zoneinfo
 
+# Install the "right" files:
 mkdir -p $PKG/usr/share/zoneinfo/right
-cp -a zoneinfo-leaps/* $PKG/usr/share/zoneinfo/right
+cp -a $PKG/stage/usr/share/zoneinfo-leaps/* $PKG/usr/share/zoneinfo/right
+
+# Clean up staged file residue:
+rm -rf $PKG/stage
 
 # Remove $PKG/usr/share/zoneinfo/localtime -- the install script will
 # create it as a link to /etc/localtime.
@@ -127,7 +141,6 @@ if [ ! -r $PKG/usr/share/zoneinfo/localtime ]; then
   ( cd $PKG/usr/share/zoneinfo ; ln -sf /etc/localtime . )
 fi
 
-cd ..
 mkdir -p $PKG/usr/doc/glibc-zoneinfo-$ZONE_VERSIONS
 cp -a \
   CONTRIBUTING NEWS README Theory \

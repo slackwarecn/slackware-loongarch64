@@ -11,7 +11,7 @@ write_config_files() {
 #
 
 # If we're doing loopback, we don't want 127.0.0.1 and 255.255.255.0 in
-# rc.inet1.conf... it's better to leave the values null.  However, since
+# rc.inet1.conf... it's better to leave the values null. However, since
 # we use the IP in other places, we need to make a copy for here.
 RCIPCOPY=$IPADDR
 RCMASKCOPY=$NETMASK
@@ -68,7 +68,7 @@ DHCP_HOSTNAME[3]=""
 # Default gateway IP address:
 GATEWAY="$GATEWAY"
 
-# Change this to "yes" for debugging output to stdout.  Unfortunately,
+# Change this to "yes" for debugging output to stdout. Unfortunately,
 # /sbin/hotplug seems to disable stdout so you'll only see debugging output
 # when rc.inet1 is called directly.
 DEBUG_ETH_UP="no"
@@ -103,8 +103,8 @@ DEBUG_ETH_UP="no"
 #VIRTIFUSER[1]="someuser"
 #VIRTIFGROUP[1]="somegroup"
 
-## Example config information for wlan0.  Uncomment the lines you need and fill
-## in your data.  (You may not need all of these for your wireless network)
+## Example config information for wlan0. Uncomment the lines you need and fill
+## in your data. (You may not need all of these for your wireless network)
 #IFNAME[4]="wlan0"
 #IPADDR[4]=""
 #NETMASK[4]=""
@@ -128,10 +128,13 @@ DEBUG_ETH_UP="no"
 ## Config information for wlan0:
 #IFNAME[4]="wlan0"              # Use a different interface name instead of
                                 # the default 'eth4'
-#IFNAME[4]="eth0:1"             # Set up an IP alias.
+#IPALIASES[4]="192.168.5.10/24" # Set up an IP alias.  A netmask may be given
+                                # with a /<prefix> after the IP address - if
+                                # not supplied, /32 will be used as default.
 #HWADDR[4]="00:01:23:45:67:89"  # Overrule the card's hardware MAC address
 #MTU[4]=""                      # The default MTU is 1500, but you might need
                                 # 1360 when you use NAT'ed IPSec traffic.
+#PROMISCUOUS[4]="yes"           # Set promiscuous mode on the interface.
 #DHCP_TIMEOUT[4]=15             # The default timeout for the DHCP client to
                                 # wait for server resonse is 15 seconds, but
                                 # you might want a shorter or longer wait.
@@ -173,7 +176,7 @@ ENDFILE
 /bin/cat <<EOF >$ETCNETWORKS
 #
 # networks	This file describes a number of netname-to-address
-#		mappings for the TCP/IP subsystem.  It is mostly
+#		mappings for the TCP/IP subsystem. It is mostly
 #		used at boot time, when no name servers are running.
 #
 
@@ -192,14 +195,14 @@ chmod 644 $ETCNETWORKS
 /bin/cat << EOF > $HOSTS
 #
 # hosts		This file describes a number of hostname-to-address
-#		mappings for the TCP/IP subsystem.  It is mostly
+#		mappings for the TCP/IP subsystem. It is mostly
 #		used at boot time, when no name servers are running.
 #		On small systems, this file can be used instead of a
 #		"named" name server.  Just add the names, addresses
 #		and any aliases to this file...
 #
 # By the way, Arnt Gulbrandsen <agulbra@nvg.unit.no> says that 127.0.0.1
-# should NEVER be named with the name of the machine.  It causes problems
+# should NEVER be named with the name of the machine. It causes problems
 # for some (stupid) programs, irc and reputedly talk. :^)
 #
 
@@ -362,20 +365,21 @@ done
 
 # Write the hostname with domain to /etc/HOSTNAME:
 echo $HOSTNM.$DOMAIN > etc/HOSTNAME
-# Also make sure the hostname is written to /etc/NetworkManager/NetworkManager.conf:
-if [ -w etc/NetworkManager/NetworkManager.conf ]; then
-  sed -i "s/^hostname=.*$/hostname=$HOSTNM/g" etc/NetworkManager/NetworkManager.conf
-fi
+## OBSOLETE with recent NetworkManager:
+## Also make sure the hostname is written to /etc/NetworkManager/NetworkManager.conf:
+#if [ -w etc/NetworkManager/NetworkManager.conf ]; then
+#  sed -i "s/^hostname=.*$/hostname=$HOSTNM/g" etc/NetworkManager/NetworkManager.conf
+#fi
 
 dialog --title "CONFIGURATION TYPE FOR '$HOSTNM.$DOMAIN'" \
---default-item DHCP \
+--default-item NetworkManager \
 --menu \
 "Now we need to know how your machine connects to the network.\n\
 If you have an internal network card and an assigned IP address, gateway, \
-and DNS, use the 'static IP' choice to enter these values.  If your IP \
+and DNS, use the 'static IP' choice to enter these values. If your IP \
 address is assigned by a DHCP server (commonly used by cable modem and DSL \
-services), select 'DHCP'.  If you do not have a network card, select \
-the 'loopback' choice.  You may also select 'NetworkManager' if you would \
+services), select 'DHCP'. If you do not have a network card, select \
+the 'loopback' choice. You may also select 'NetworkManager' if you would \
 like to have the NetworkManager daemon automatically handle your wired and \
 wireless network interfaces (this is simple and usually works). \
 Which type of network setup would you like?"  20 70 4 \
@@ -393,10 +397,10 @@ rm -f $TMP/reply
 if [ "$REPLY" = "DHCP" ]; then
   USE_DHCP="yes"
   dialog --title "SET DHCP HOSTNAME"  --inputbox "Some network providers require \
-that the DHCP hostname be set in order to connect.  If so, they'll have assigned \
+that the DHCP hostname be set in order to connect. If so, they'll have assigned \
 a hostname to your machine, which may look something like CC-NUMBER-A (this \
-depends on your ISP).  If you were assigned a DHCP hostname, please enter it \
-below.  If you do not have a DHCP hostname, just hit ENTER or Cancel." 13 62 \
+depends on your ISP). If you were assigned a DHCP hostname, please enter it \
+below. If you do not have a DHCP hostname, just hit ENTER or Cancel." 13 62 \
 2> $TMP/SeTDHCPHOST
   NEW_DHCPHOST="`cat $TMP/SeTDHCPHOST`"
   rm -f $TMP/SeTDHCPHOST
@@ -446,7 +450,7 @@ EOF
    NETMASK=`cat $TMP/SeTnetmask`
   fi
   cat << EOF > $TMP/tempmsg
-Enter your netmask.  This will generally look something
+Enter your netmask. This will generally look something
 like this: 255.255.255.0
 Enter netmask (aaa.bbb.ccc.ddd):
 EOF
@@ -560,8 +564,8 @@ if [ -d lib/modules/`uname -r` \
   dialog --title "PROBE FOR NETWORK CARD?" --menu "If you like, we \
 can look to see what kind of network card you have in your machine, and \
 if we find one create an /etc/rc.d/rc.netdevice script to load the module \
-for it at boot time.  There's a slight bit of danger that the probing \
-can cause problems, but it almost always works.  If you'd rather configure \
+for it at boot time. There's a slight bit of danger that the probing \
+can cause problems, but it almost always works. If you'd rather configure \
 your system manually, you can skip the probing process and edit \
 /etc/rc.d/rc.modules or /etc/modules.conf later to have it load the right module." \
 16 68 2 \
@@ -605,7 +609,7 @@ the $card.o module has been detected." 5 72
      fi
      if [ ! -r /cardfound ]; then
        dialog --title "NO CARD DETECTED" --msgbox "Sorry, but no network \
-card could be probed for on your system.  Some cards (like non-PCI NE2000s) \
+card could be probed for on your system. Some cards (like non-PCI NE2000s) \
 must be supplied with the I/O address to use and can't be probed for safely. \
 You'll have to try to configure the card later by editing \
 /etc/rc.d/rc.modules or recompiling your kernel." 9 70
@@ -625,11 +629,11 @@ Is this correct?  Press 'Yes' to continue, or 'No' to reconfigure." 0 0
 elif [ "$LOOPBACK" = "yes" -a "$NETWORKMANAGER" = "yes" ]; then
   dialog --title "NETWORK SETUP COMPLETE" --yesno "Your networking \
 system is now configured to use NetworkManager for
-wired and wireless network management.  To set up wireless networks
+wired and wireless network management. To set up wireless networks
 and view status, add the Network Management control panel widget to
 your KDE desktop.
 
-Is this correct?  Press 'Yes' to confirm, or 'No' to reconfigure." 0 0
+Is this correct? Press 'Yes' to confirm, or 'No' to reconfigure." 0 0
   RETVAL=$?
 elif [ "$USE_DHCP" = "" ]; then
   while [ 0 ]; do
@@ -638,8 +642,8 @@ elif [ "$USE_DHCP" = "" ]; then
 --extra-label Edit \
 --cancel-label Restart \
 --inputmenu \
-"These are the settings you have entered.  To accept them and complete \
-the networking setup, press enter.  If you need to make any changes, you \
+"These are the settings you have entered. To accept them and complete \
+the networking setup, press enter. If you need to make any changes, you \
 can do that now (or reconfigure later using 'netconfig')." \
 22 60 12 \
 "Hostname:" "$HOSTNM" \
@@ -696,11 +700,11 @@ if [ "$RETVAL" = "0" ]; then
     chmod 755 etc/rc.d/rc.networkmanager
   fi
   if [ "$1" = "" ]; then
-    dialog --msgbox "Settings accepted.  Basic network configuration is complete." 6 40
+    dialog --msgbox "Settings accepted. Basic network configuration is complete." 6 40
   fi
 else
   if [ "$1" = "" ]; then
-    dialog --msgbox "Settings discarded.  Run the 'netconfig' command again if you need to reconfigure your network settings." 6 60
+    dialog --msgbox "Settings discarded. Run the 'netconfig' command again if you need to reconfigure your network settings." 6 60
   fi
 fi
 

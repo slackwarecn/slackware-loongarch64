@@ -584,7 +584,6 @@ gzip ./source/xap/fluxbox/fluxbox.keys.diff
 gzip ./source/xap/fluxbox/xinitrc.fluxbox
 gzip ./source/xap/fvwm/doinst.sh
 gzip ./source/xap/fvwm/xinitrc.fvwm2
-gzip ./source/xap/fvwm/fvwm-2.6.7-symlink-fix.patch
 gzip ./source/xap/fvwm/startfvwm2
 gzip ./source/xap/x3270/doinst.sh
 gzip ./source/xap/pidgin/doinst.sh
@@ -802,7 +801,6 @@ gzip ./source/a/mdadm/doinst.sh
 gzip ./source/a/smartmontools/doinst.sh
 gzip ./source/a/mcelog/mcelog.init.diff
 gzip ./source/a/mcelog/doinst.sh
-gzip ./source/a/mcelog/0001-mcelog-Change-name-of-skylake-interconnect-from-QPI-.patch
 gzip ./source/a/gpm/mouseconfig
 gzip ./source/a/gpm/gpm-1.20.1-select-1.patch
 gzip ./source/a/gpm/gpm.gcc7.diff

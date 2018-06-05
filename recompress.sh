@@ -127,7 +127,6 @@ gzip ./source/n/rpcbind/0003-pmapproc_dump-Fixed-typo-in-memory-leak-patch.patch
 gzip ./source/n/rpcbind/0004-rpcbind-fix-building-without-enable-debug.patch
 gzip ./source/n/rpcbind/0001-man-rpcibind.8-Clarify-state-file-usage-and-history.patch
 gzip ./source/n/rpcbind/rc.rpc
-gzip ./source/n/bluez/gatt_fix_crash.diff
 gzip ./source/n/bluez/doinst.sh
 gzip ./source/n/bluez/bluez-5.30-obexd_without_systemd-1.patch
 gzip ./source/n/bluez/refresh_adv_manager_for_non-LE_devices.diff

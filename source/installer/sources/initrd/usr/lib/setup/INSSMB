@@ -1,0 +1,120 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+if [ -f $TMP/Punattended ]; then
+ eval $(grep "^SMB_SERVER=" $TMP/Punattended)
+ eval $(grep "^SMB_ROOT=" $TMP/Punattended)
+fi
+
+if [ "$REMOTE_SHARE" = "" ]; then REMOTE_SHARE=${SMB_SERVER}; fi
+if [ "$REMOTE_PATH" = "" ]; then REMOTE_PATH=${SMB_ROOT}; fi
+
+# Load the cifs module:
+modprobe cifs 2>/dev/null
+
+while [ 0 ]; do
+ rm -f $TMP/SeTDS $TMP/SeTmount
+ UPNRUN=`cat $TMP/SeTupnrun`
+
+ cat << EOF > $TMP/tempmsg
+
+Good! We're all set on the local end, but now we need to know
+where to find the software packages to install. First, we need
+the share address of the Samba server where the Slackware sources
+are stored.
+Example share address: //192.168.0.1/public
+
+EOF
+ if [ "$UPNRUN" = "0" ]; then
+  cat << EOF >> $TMP/tempmsg
+Since you're already running on the network, you should be able
+to use the hostname instead of an IP address if you wish.
+
+EOF
+ fi
+ echo "What is the share address of your Samba server? " >> $TMP/tempmsg
+ dialog --title "ENTER SHARE ADDRESS OF SAMBA SERVER" --inputbox \
+ "`cat $TMP/tempmsg`" 15 70 $REMOTE_SHARE 2> $TMP/remote
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/remote
+  exit
+ fi
+ REMOTE_SHARE="`cat $TMP/remote`"
+ rm $TMP/remote
+
+ cat << EOF > $TMP/tempmsg
+
+ There must be a directory on the server with the Slackware
+ packages and files arranged in a tree like the FTP site.
+
+ The installation script needs to know the name of the
+ directory below your Samba share that contains the series
+ subdirectories. For example, if your A series is found at 
+ /slack/slackware/a, then you would respond: /slack/slackware
+ 
+ What is the Slackware source directory?
+EOF
+ dialog --title "SELECT SOURCE DIRECTORY" --inputbox "`cat $TMP/tempmsg`" \
+ 17 70 $REMOTE_PATH 2> $TMP/slacksrc
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/slacksrc
+  exit
+ fi
+ REMOTE_PATH="`cat $TMP/slacksrc`"
+ rm $TMP/slacksrc
+
+ echo "You should see no mount errors:" > $TMP/mntout
+ echo "Mounting $REMOTE_SHARE ..." >> $TMP/mntout
+ mount -t cifs -o ro,guest,sec=none $REMOTE_SHARE /var/log/mount \
+  >> $TMP/mntout 2>&1
+ RET=$?
+ if [ $RET != 0 ]; then
+  echo "Mount failed." >> $TMP/mntout
+  umount -f -t cifs /var/log/mount 1>/dev/null 2>&1
+  DEFANSW="yes"
+ else
+  echo "Mounted Samba share(s):" >> $TMP/mntout
+  mount -t cifs >> $TMP/mntout 2>/dev/null
+  echo "" >> $TMP/mntout
+  if [ -f /var/log/mount/$REMOTE_PATH/a/tagfile \
+       -o -f /var/log/mount/$REMOTE_PATH/slackware/a/tagfile ];
+  then
+   echo "A Slackware package tree was found! Ready to continue." >> $TMP/mntout
+   DEFANSW="no"
+  else
+   echo "No Slackware package tree found at the indicated path!" >> $TMP/mntout
+   DEFANSW="yes"
+  fi
+ fi
+ echo "" >> $TMP/mntout
+ echo "Do you want to try setting up Samba again?" >> $TMP/mntout
+ echo "" >> $TMP/mntout
+ if [ "$DEFANSW" = "no" ]; then
+  dialog --title "MOUNT RESULT" \
+    --defaultno --yesno "`cat $TMP/mntout`" 17 70
+  RET=$?
+ else
+  dialog --title "MOUNT RESULT" \
+    --yesno "`cat $TMP/mntout`" 12 68
+  RET=$?
+ fi
+ if [ $RET = 1 ]; then
+  rm -f $TMP/mntout
+  break
+ fi
+ rm -f $TMP/mntout
+ #if [ "$UPNRUN" = "1" ]; then
+ # route del $LOCAL_NETWORK
+ # ifconfig $ENET_DEVICE down 
+ #fi
+done
+
+if [ -f /var/log/mount/$REMOTE_PATH/a/tagfile ]; then
+ echo "/var/log/mount/$REMOTE_PATH" > $TMP/SeTDS 
+else
+ echo "/var/log/mount/${REMOTE_PATH}/slackware" > $TMP/SeTDS 
+fi
+echo "-source_mounted" > $TMP/SeTmount
+echo "/dev/null" > $TMP/SeTsource

@@ -1,0 +1,270 @@
+#!/bin/sh
+# FIXME: UDF fs support?
+RDIR=/dev/tty4
+NDIR=/dev/null
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+T_PX="`cat $TMP/SeTT_PX`"
+rm -f $TMP/SeTmount $TMP/SeTDS $TMP/SeTCDdev $TMP/reply
+
+dialog --title "SCANNING FOR CD or DVD DRIVE" --menu \
+"Make sure the Slackware disc is in your CD/DVD drive, \
+and then press ENTER to begin the scanning process. \
+Or, if you'd rather specify the device name manually \
+(experts only), choose that option below." \
+11 72 2 \
+"auto" "Scan for the CD or DVD drive (recommended)" \
+"manual" "Manually specify CD or DVD by device name" \
+2> $TMP/reply
+if [ ! -r $TMP/reply ]; then
+ # cancel or esc
+ rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+ exit
+fi
+
+if [ "`cat $TMP/reply`" = "manual" ]; then
+ dialog --title "MANUAL CD/DVD DEVICE SELECTION" --menu \
+ "Please select your CD/DVD device from the list below. \
+If you don't see your device listed, choose 'custom'. \
+This will let you type in any device name. (and if necessary, \
+will create the device)" \
+ 18 70 9 \
+ "custom" "Type in the CD or DVD device to use" \
+ "/dev/sr0" "First CD/DVD drive" \
+ "/dev/sr1" "Second CD/DVD drive" \
+ "/dev/sr2" "Third CD/DVD drive" \
+ "/dev/sr3" "Fourth CD/DVD drive" \
+ "/dev/hdb" "CD/DVD slave on first IDE bus" \
+ "/dev/hda" "CD/DVD master on first IDE bus (unlikely)" \
+ "/dev/hdc" "CD/DVD master on second IDE bus" \
+ "/dev/hdd" "CD/DVD slave on second IDE bus" \
+ "/dev/hde" "CD/DVD master on third IDE bus" \
+ "/dev/hdf" "CD/DVD slave on third IDE bus" \
+ "/dev/hdg" "CD/DVD master on fourth IDE bus" \
+ "/dev/hdh" "CD/DVD slave on fourth IDE bus" \
+ "/dev/pcd0" "First parallel port ATAPI CD" \
+ "/dev/pcd1" "Second parallel port ATAPI CD" \
+ "/dev/pcd2" "Third parallel port ATAPI CD" \
+ "/dev/pcd3" "Fourth parallel port ATAPI CD" \
+ "/dev/aztcd" "Non-IDE Aztech CD/DVD" \
+ "/dev/cdu535" "Sony CDU-535 CD/DVD" \
+ "/dev/gscd" "Non-IDE GoldStar CD/DVD" \
+ "/dev/sonycd" "Sony CDU-31a CD/DVD" \
+ "/dev/optcd" "Optics Storage CD/DVD" \
+ "/dev/sjcd" "Sanyo non-IDE CD/DVD" \
+ "/dev/mcdx0" "Non-IDE Mitsumi drive 1" \
+ "/dev/mcdx1" "Non-IDE Mitsumi drive 2" \
+ "/dev/sbpcd" "Old non-IDE SoundBlaster CD/DVD" \
+ "/dev/cm205cd" "Philips LMS CM-205 CD/DVD" \
+ "/dev/cm206cd" "Philips LMS CM-206 CD/DVD" \
+ "/dev/mcd" "Old non-IDE Mitsumi CD/DVD" \
+ 2> $TMP/reply
+ if [ ! -r $TMP/reply ]; then
+  # cancel or esc
+  rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+  exit
+ fi
+ REPLY="`cat $TMP/reply`"
+ if [ "$REPLY" = "custom" ]; then
+  dialog --title "ENTER CD/DVD DEVICE MANUALLY" --inputbox \
+"Please enter the name of the CD/DVD device (such as /dev/hdc) that \
+you wish to use to mount the Slackware CD/DVD:" \
+9 70 2> $TMP/reply
+  if [ ! -r $TMP/reply ]; then
+   # cancel or esc
+   rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+   exit
+  fi
+  DRIVE_FOUND="`cat $TMP/reply`"
+  if [ ! -r $DRIVE_FOUND ]; then # no such device
+   rm -f $TMP/majorminor
+   dialog --title "MKNOD CD/DVD DEVICE" --inputbox \
+   "There doesn't seem to be a device by the name of $DRIVE_FOUND in the \
+/dev directory, so we will have to create it using the major and minor \
+numbers for the device. If you're using a bootdisk with a custom CD/DVD \
+driver on it, you should be able to find these numbers in the \
+documentation. Also, see the 'devices.txt' file that comes with the \
+Linux kernel source. If you don't know the numbers, you'll have to hit \
+Esc to abort. Enter the major and minor numbers for the new device, \
+separated by one space:" \
+   15 72 2> $TMP/majorminor
+   if [ ! -r $TMP/majorminor ]; then
+    # cancel or esc
+    rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+    exit
+   fi
+   MAJOR="`cat $TMP/majorminor`"
+   dialog --title "MAKING DEVICE IN /dev" --infobox \
+   "mknod $DRIVE_FOUND b $MAJOR" 3 40
+   mknod $DRIVE_FOUND b $MAJOR 2> $RDIR
+   sleep 1
+   if [ ! -r $DRIVE_FOUND ]; then
+    dialog --title "MKNOD FAILED" --msgbox \
+    "Sorry, but the mknod command failed to make the device.  You'll need to \
+go back and try selecting your source media again. Press ENTER to abort \
+the source media selection process." 8 60
+    rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+    exit
+   fi
+  fi
+ else
+  DRIVE_FOUND=$REPLY
+ fi
+fi
+
+# Search for SCSI/PATA/SATA CD/DVD drives:
+if [ "$DRIVE_FOUND" = "" ]; then
+ dialog --title "SCANNING" --infobox "Scanning for a \
+CD/DVD drive containing a Slackware disc..." 4 50
+ sleep 1
+ for device in \
+  /dev/sr0 /dev/sr1 /dev/sr2 /dev/sr3 \
+  ; do
+  mount -o ro -t iso9660 $device /var/log/mount 1> $RDIR 2> $RDIR
+  if [ $? = 0 ]; then
+   DRIVE_FOUND=$device
+   umount /var/log/mount
+   break
+  fi
+ done
+fi
+
+# Search the old IDE interfaces:
+if [ "$DRIVE_FOUND" = "" ]; then
+ dialog --title "SCANNING" --infobox "Scanning for an IDE \
+CD/DVD drive containing a Slackware disc..." 4 56
+ sleep 1
+ for device in \
+  /dev/hdd /dev/hdc /dev/hdb /dev/hda \
+  /dev/hde /dev/hdf /dev/hdg /dev/hdh \
+  /dev/hdi /dev/hdj /dev/hdk /dev/hdl \
+  /dev/hdm /dev/hdn /dev/hdo /dev/hdp \
+  ; do
+  mount -o ro -t iso9660 $device /var/log/mount 1> $RDIR 2> $RDIR
+  if [ $? = 0 ]; then
+   DRIVE_FOUND=$device
+   umount /var/log/mount
+   break
+  fi
+ done
+fi
+
+# Search for parallel port ATAPI CD/DVD drives:
+if [ "$DRIVE_FOUND" = "" ]; then
+ dialog --title "SCANNING" --infobox "Scanning for a parallel port \
+ATAPI CD/DVD drive containing a Slackware disc..." 4 52
+ sleep 1
+ for device in \
+  /dev/pcd0 /dev/pcd1 /dev/pcd2 /dev/pcd3 \
+  ; do
+  mount -o ro -t iso9660 $device /var/log/mount 1> $RDIR 2> $RDIR
+  if [ $? = 0 ]; then
+   DRIVE_FOUND=$device
+   umount /var/log/mount
+   break
+  fi
+ done
+fi
+
+# Still not found? OK, we will search for CD/DVD drives on old, pre-ATAPI
+# proprietary interfaces. There aren't too many of these still around, and
+# the scan won't actually work unless a bootdisk that supports the drive is
+# used, and any necessary parameters have been passed to the kernel.
+if [ "$DRIVE_FOUND" = "" ]; then
+ dialog --title "SCANNING" --msgbox "No IDE/SCSI drive, so we will try \
+scanning for CD drives on \
+old proprietary interfaces, such as SoundBlaster pre-IDE CD drives, \
+Sony CDU-31a, Sony 535, old Mitsumi pre-IDE, old Optics, etc. For this \
+scan to work at all, you'll need to be using a bootdisk that supports \
+your CD drive. Please press ENTER to begin this last-chance scan \
+for old, obsolete hardware." 11 60
+ for device in \
+  /dev/sonycd /dev/gscd /dev/optcd /dev/sjcd /dev/mcdx0 /dev/mcdx1 \
+  /dev/cdu535 /dev/sbpcd /dev/aztcd /dev/cm205cd /dev/cm206cd \
+  /dev/bpcd /dev/mcd \
+  ; do
+  mount -o ro -t iso9660 $device /var/log/mount 1> $RDIR 2> $RDIR
+  if [ $? = 0 ]; then
+   DRIVE_FOUND=$device
+   umount /var/log/mount
+   break
+  fi
+ done
+fi
+
+if [ "$DRIVE_FOUND" = "" ]; then
+ dialog --title "CD/DVD DRIVE NOT FOUND" --msgbox \
+ "A CD/DVD drive could not be found on any of the devices that were \
+scanned. Possible reasons include using a bootdisk or kernel that \
+doesn't support your drive, failing to pass parameters needed by some \
+drives to the kernel, not having the Slackware disc in your CD/DVD \
+drive, or using a drive connected to a Plug and Play soundcard (in this \
+case, connecting the drive directly to the IDE interface often helps). \
+Please make sure you are using the correct bootdisk for your hardware, \
+consult the BOOTING file for possible information on \
+forcing the detection of your drive, and then reattempt installation. \
+If all else fails, see FAQ.TXT for information about copying \
+parts of this CD to your DOS partition and installing it from there.\n\
+\n\
+You will now be returned to the main menu. If you want to try looking \
+for the CD again, you may skip directly to the SOURCE menu selection." \
+ 0 0
+ rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+ exit
+fi
+
+while [ 0 ]; do # time to try to mount the CD/DVD device:
+ mount -o ro -t iso9660 $DRIVE_FOUND /var/log/mount 1> $RDIR 2> $RDIR
+ if [ $? = 0 ]; then # mounted successfully
+  dialog --title "CD/DVD DRIVE FOUND" --sleep 1 --infobox \
+  "A Slackware disc was found in device $DRIVE_FOUND." 3 52
+  break
+ else # failed to mount
+  dialog --title "MOUNT ERROR" --menu "There was an error \
+attempting to mount the CD/DVD on $DRIVE_FOUND.  \
+Maybe the device name is incorrect, the disc is not in the \
+drive, or the kernel you are using does not support the \
+device. (possibly an incorrect bootdisk) \
+What would you like to do now?" \
+  13 70 3 \
+  "1" "Abort CD installation" \
+  "2" "Attempt to mount the CD/DVD device again" \
+  "3" "Ignore the error and continue" 2> $TMP/errordo
+  if [ ! $? = 0 ]; then
+   rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+   exit;
+  fi
+  DOWHAT="`cat $TMP/errordo`"
+  rm -f $TMP/errordo
+  if [ $DOWHAT = 1 ]; then
+   rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev
+   exit
+  elif [ $DOWHAT = 2 ]; then
+   dialog --title "ATTEMPTING TO MOUNT CD/DVD on $DRIVE_FOUND" \
+   --infobox "Attempting to mount your CD/DVD again with the \
+following command: mount -o ro -t iso9660 $DRIVE_FOUND \
+/var/log/mount" 4 69 
+   umount /var/log/mount 1> $NDIR 2> $NDIR
+   sleep 1
+  elif [ $DOWHAT = 3 ]; then
+   # Ignore error, really bad plan but whatever
+   break
+  fi
+ fi
+done
+# since we should have mounted successfully, let's refresh 
+# the link for /dev/cdrom on the target partition:
+if [ ! -d $T_PX/dev ]; then
+ mkdir $T_PX/dev
+ chown root.root $T_PX/dev
+ chmod 755 $T_PX/dev
+fi
+( cd $T_PX/dev ; ln -sf $DRIVE_FOUND cdrom )
+
+# Pass information about the source directory to the next install stage:
+echo "/var/log/mount/slackware" > $TMP/SeTDS
+echo "-source_mounted" > $TMP/SeTmount
+echo "$DRIVE_FOUND" > $TMP/SeTCDdev
+echo "/dev/null" > $TMP/SeTsource

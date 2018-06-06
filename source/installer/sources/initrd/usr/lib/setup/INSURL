@@ -1,0 +1,241 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+if [ -f $TMP/Punattended ]; then
+ eval $(grep "^REMOTE_URL=" $TMP/Punattended)
+ eval $(grep "^REMOTE_PATH=" $TMP/Punattended)
+fi
+
+# Return a package name that has been stripped of the dirname portion
+# and any of the valid extensions (only):
+pkgbase() {
+  PKGEXT=$(echo $1 | rev | cut -f 1 -d . | rev)
+  case $PKGEXT in
+  'tgz' )
+    PKGRETURN=$(basename $1 .tgz)
+    ;;
+  'tbz' )
+    PKGRETURN=$(basename $1 .tbz)
+    ;;
+  'tlz' )
+    PKGRETURN=$(basename $1 .tlz)
+    ;;
+  'txz' )
+    PKGRETURN=$(basename $1 .txz)
+    ;;
+  *)
+    PKGRETURN=$(basename $1)
+    ;;
+  esac
+  echo $PKGRETURN
+}
+
+package_name() {
+  STRING=$(pkgbase $1)
+  # Check for old style package name with one segment:
+  if [ "$(echo $STRING | cut -f 1 -d -)" = "$(echo $STRING | cut -f 2 -d -)" ]; then
+    echo $STRING
+  else # has more than one dash delimited segment
+    # Count number of segments:
+    INDEX=1
+    while [ ! "$(echo $STRING | cut -f $INDEX -d -)" = "" ]; do
+      INDEX=$(expr $INDEX + 1)
+    done
+    INDEX=$(expr $INDEX - 1) # don't include the null value
+    # If we don't have four segments, return the old-style (or out of spec) package name:
+    if [ "$INDEX" = "2" -o "$INDEX" = "3" ]; then
+      echo $STRING
+    else # we have four or more segments, so we'll consider this a new-style name:
+      NAME=$(expr $INDEX - 3)
+      NAME="$(echo $STRING | cut -f 1-$NAME -d -)"
+      echo $NAME
+    fi
+  fi
+}
+
+while [ 0 ]; do
+ rm -f $TMP/SeTDS $TMP/SeTmount
+ UPNRUN=$(cat $TMP/SeTupnrun)
+
+ cat << EOF > $TMP/tempmsg
+
+Good! We're all set on the local end, but now we need to know
+where to find the software packages to install. First, we need
+the URL of the ftp or http server where the Slackware sources
+are stored.
+URL examples are: 'ftp://192.168.0.1' ; 'http://172.16.10.31'
+
+EOF
+ if [ "$UPNRUN" = "0" ]; then
+  cat << EOF >> $TMP/tempmsg
+Since you're already running on the network, you should be able
+to use the hostname instead of an IP address if you wish.
+
+EOF
+ fi
+ echo "What is the URL of your FTP/HTTP server? " >> $TMP/tempmsg
+ dialog --title "ENTER URL OF FTP/HTTP SERVER" --inputbox \
+ "$(cat $TMP/tempmsg)" 15 70 $REMOTE_URL 2> $TMP/remote
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/remote
+  exit
+ fi
+ REMOTE_URL="$(cat $TMP/remote)"
+ rm $TMP/remote
+
+ cat << EOF > $TMP/tempmsg
+
+ There must be a directory on the server with the Slackware
+ packages and files arranged in a tree like the FTP site.
+
+ The installation script needs to know the name of the 
+ directory on your server that contains the series
+ subdirectories. For example, if your A series is found at 
+ /slack/slackware/a, then you would respond: /slack/slackware
+ 
+ What is the Slackware source directory?
+EOF
+ dialog --title "SELECT SOURCE DIRECTORY" --inputbox "$(cat $TMP/tempmsg)" \
+ 17 65 $REMOTE_PATH 2> $TMP/slacksrc
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/slacksrc
+  exit
+ fi
+ REMOTE_PATH="$(cat $TMP/slacksrc)"
+ rm $TMP/slacksrc
+
+ cat << EOF > $TMP/tempmsg
+
+In the next screen you should watch for possible errors.
+
+First, we'll download the PACKAGES.TXT from the parent of the
+directory that you entered before (which should be the root
+of the remote Slackware tree). If that succeeds, then we use
+PACKAGES.TXT to reconstruct a local cache of the package tree
+(should take a minute or less on an average system).
+After that, we're all set to go!
+
+Downloading PACKAGES.TXT at the Slackware root starts
+after you press OK.
+That file is several hundreds of KB in size so it may
+take some time to get here...
+
+EOF
+ dialog --title "DOWNLOAD INFORMATION" --msgbox "$(cat $TMP/tempmsg)" 20 70
+ rm -f $TMP/tempmsg
+
+ REMOTE_ROOT=$(dirname $REMOTE_PATH)
+ mkdir -p $TMP/treecache 2>/dev/null
+ chmod 700 $TMP/treecache
+ rm -rf $TMP/treecache/* 2>/dev/null
+ ln -sf $TMP/treecache /var/log/mount/
+ cd /var/log/mount/treecache
+ echo "Downloading PACKAGES.TXT ..." >> $TMP/wgetout
+ echo "URL: $REMOTE_URL$REMOTE_ROOT" > $TMP/wgetout
+ wget -q $REMOTE_URL$REMOTE_ROOT/PACKAGES.TXT > /dev/null 2>&1
+ RET=$?
+ if [ $RET != 0 ]; then
+  echo "> Download failed. Going to try one directory lower." >> $TMP/wgetout
+  REMOTE_ROOT=$REMOTE_PATH
+  echo "URL: $REMOTE_URL$REMOTE_ROOT" >> $TMP/wgetout
+  wget -q $REMOTE_URL$REMOTE_ROOT/PACKAGES.TXT > /dev/null 2>&1
+  RET=$?
+  [ $RET != 0 ] && echo "> Download failed again." >> $TMP/wgetout
+ fi
+ echo "" >> $TMP/wgetout
+
+ if [ -r /var/log/mount/treecache/PACKAGES.TXT ]; then
+  if head /var/log/mount/treecache/PACKAGES.TXT | grep -q "PACKAGES.TXT" ; then
+   echo "A Slackware 'PACKAGES.TXT' is available. Ready to continue!" >> $TMP/wgetout
+   DEFANSW="no"
+  fi
+ else
+  echo "No file 'PACKAGES.TXT' was found. Wrong URL?" >> $TMP/wgetout
+  DEFANSW="yes"
+ fi
+ echo "" >> $TMP/wgetout
+ echo "Do you want to try setting up FTP/HTTP again?" >> $TMP/wgetout
+ echo "" >> $TMP/wgetout
+ if [ "$DEFANSW" = "no" ]; then
+  dialog --title "DOWNLOAD RESULT" \
+    --defaultno --yesno "$(cat $TMP/wgetout)" 12 68
+  RET=$?
+ else
+  dialog --title "DOWNLOAD RESULT" \
+    --yesno "$(cat $TMP/wgetout)" 12 68
+  RET=$?
+ fi
+ if [ $RET = 1 ]; then
+  rm -f $TMP/wgetout
+  break
+ fi
+ rm -f $TMP/wgetout
+ #if [ "$UPNRUN" = "1" ]; then
+ # route del $LOCAL_NETWORK
+ # ifconfig $ENET_DEVICE down 
+ #fi
+done
+
+if [ -r /var/log/mount/treecache/PACKAGES.TXT ]; then
+ echo "/var/log/mount/treecache/slackware" > $TMP/SeTDS 
+ echo "-source_mounted" > $TMP/SeTmount
+ echo "/dev/null" > $TMP/SeTsource
+ echo "${REMOTE_URL},${REMOTE_ROOT}" > $TMP/SeTremotesvr
+
+ dialog --title "INITIALIZING PACKAGE TREE" --infobox \
+  "\nSetting up local cache for the FTP/HTTP server's package tree ..." 5 72
+
+ mkdir slackware isolinux 2>/dev/null
+ wget -q -P ./isolinux $REMOTE_URL$REMOTE_ROOT/isolinux/setpkg
+
+ # Create a local package tree with zero-byte package placeholders:
+ TOTALP=$(grep "PACKAGE NAME:" PACKAGES.TXT | wc -l)
+ (
+ NUMPKG=0
+ GAUGE=0
+ grep "PACKAGE " PACKAGES.TXT | while read REPLY ; do
+  case "$REPLY" in
+  "PACKAGE NAME:"*)
+    TEMP=$(echo $REPLY | cut -d: -f2)
+    PKGNAME=$(echo $TEMP)
+    PKGBASE=$(pkgbase $PKGNAME)
+    PKGSHRT=$(package_name $PKGNAME)
+    let NUMPKG=NUMPKG+1
+    if [ $(( ((100 * $NUMPKG)/$TOTALP)/5 )) -gt $(( $GAUGE/5 )) ]; then
+      GAUGE=$(( (100 * $NUMPKG)/$TOTALP ))
+      echo "$GAUGE"
+    fi
+    ;;
+  "PACKAGE LOCATION:"*)
+    TEMP=$(echo $REPLY | cut -d: -f2)
+    PKGDIR=$(echo $TEMP)
+    mkdir -p $PKGDIR
+    touch ${PKGDIR}/${PKGNAME}
+    ;;
+  "PACKAGE SIZE (compressed):"*)
+    TEMP=$(echo $REPLY | cut -d: -f2)
+    PKGSIZE=$(echo $TEMP)
+    echo "$PKGSIZE" 1> ${PKGDIR}/${PKGBASE}.size
+    ;;
+  *)
+    ;;
+  esac
+ done \
+ ) |  dialog --title "INITIALIZING PACKAGE TREE" --gauge \
+       "\nProcessing ${TOTALP} Slackware packages..." 8 65
+ 
+ # Make sure we can select stuff from the package series:
+ dialog --title "INITIALIZING PACKAGE TREE" --infobox \
+  "\nRetrieving tagfile information for the package tree ..." 5 65
+
+ for series in $(ls -1 slackware) ; do
+  wget -q -P ./slackware/$series $REMOTE_URL$REMOTE_ROOT/slackware/$series/tagfile
+  wget -q -P ./slackware/$series $REMOTE_URL$REMOTE_ROOT/slackware/$series/maketag.ez
+  wget -q -P ./slackware/$series $REMOTE_URL$REMOTE_ROOT/slackware/$series/maketag
+ done
+else
+ dialog --title "REMOTE SERVER CONFIGURATION" --msgbox \
+  "\nFailed to configure for installation from remote server." 5 65
+fi

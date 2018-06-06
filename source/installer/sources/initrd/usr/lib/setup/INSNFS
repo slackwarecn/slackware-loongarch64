@@ -1,0 +1,121 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+# Include function to check for Slackware ISO images:
+. /usr/lib/setup/INCISO
+if [ -f $TMP/Punattended ]; then
+ eval $(grep "^NFS_SERVER=" $TMP/Punattended)
+ eval $(grep "^NFS_ROOT=" $TMP/Punattended)
+fi
+
+while [ 0 ]; do
+ rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTsource $TMP/nfsout
+ UPNRUN=`cat $TMP/SeTupnrun 2> /dev/null`
+
+ if [ "$REMOTE_IPADDR" = "" ]; then REMOTE_IPADDR=${NFS_SERVER}; fi
+ if [ "$REMOTE_PATH" = "" ]; then REMOTE_PATH=${NFS_ROOT}; fi
+
+ cat << EOF > $TMP/tempmsg
+
+Good! We're all set on the local end, but now we need to know
+where to find the software packages to install. First, we need
+the IP address of the machine where the Slackware sources are
+stored.
+
+EOF
+ if [ "$UPNRUN" = "0" ]; then
+  cat << EOF >> $TMP/tempmsg
+Since you're already running on the network, you should be able
+to use the hostname instead of an IP address if you wish.
+
+EOF
+ fi
+ echo "What is the IP address of your NFS server? " >> $TMP/tempmsg
+ dialog --title "ENTER IP ADDRESS OF NFS SERVER" --inputbox \
+ "`cat $TMP/tempmsg`" 14 70 $REMOTE_IPADDR 2> $TMP/remote
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/remote
+  exit
+ fi
+ REMOTE_IPADDR="`cat $TMP/remote`"
+ rm $TMP/remote
+
+ cat << EOF > $TMP/tempmsg
+
+ There must be a directory on the server with the Slackware
+ packages and files arranged in a tree like the FTP site.
+
+ The installation script needs to know the name of the 
+ directory on your server that contains the series'
+ subdirectories. For example, if your A series is found at 
+ /slack/slackware/a, then you would respond: /slack/slackware
+ 
+ What is the Slackware source directory?
+EOF
+ dialog --title "SELECT SOURCE DIRECTORY" --inputbox "`cat $TMP/tempmsg`" 18 \
+ 65 $REMOTE_PATH 2> $TMP/slacksrc
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/slacksrc
+  exit
+ fi
+ REMOTE_PATH="`cat $TMP/slacksrc`"
+ rm $TMP/slacksrc
+ cat << EOF > $TMP/tempmsg
+
+In the next screen you should watch for NFS mount errors.
+If you see errors and you don't see your NFS server listed,
+then try setting up NFS again.
+
+EOF
+ dialog --title "NFS MOUNT INFORMATION" --msgbox "`cat $TMP/tempmsg`" 10 65
+ rm -f $TMP/tempmsg
+ touch $TMP/nfsout
+ if [ ! "$UPNRUN" = "0" ]; then
+  if [ -x /etc/rc.d/rc.rpc ]; then
+   echo "Starting RPC services..." >> $TMP/nfsout
+   /etc/rc.d/rc.rpc restart >> $TMP/nfsout 2>&1
+  fi
+ fi
+ echo "Mounting $REMOTE_PATH:" >> $TMP/nfsout
+ echo "mount -r -t nfs -o vers=3 $REMOTE_IPADDR:$REMOTE_PATH /var/log/mount" >> $TMP/nfsout
+ mount -r -t nfs -o vers=3 $REMOTE_IPADDR:$REMOTE_PATH /var/log/mount
+ if [ ! $? = 0 ]; then
+  echo "Didn't work." >> $TMP/nfsout
+  echo "Maybe you should check that the directory name is correct?" >> $TMP/nfsout
+  DEFANSW="yes"
+ else
+  DEFANSW="no"
+ fi
+ echo "" >> $TMP/nfsout
+ echo "Current NFS mounts:" >> $TMP/nfsout
+ mount -t nfs >> $TMP/nfsout 2>&1
+ echo "" >> $TMP/nfsout
+
+ echo "Do you need to try setting up NFS again?" >> $TMP/nfsout
+ echo "" >> $TMP/nfsout
+ if [ "$DEFANSW" = "no" ]; then
+  dialog --title "NFS MOUNT RESULT" \
+    --defaultno --yesno "`cat $TMP/nfsout`" 21 70
+  RET=$?
+ else
+  dialog --title "NFS MOUNT RESULT" --yesno "`cat $TMP/nfsout`" 21 70
+  RET=$?
+ fi
+ rm -f $TMP/nfsout
+ if [ $RET = 1 ]; then
+  # OK with the NFS mount.
+  # First, check if a Slackware ISO image is present in /var/log/mount
+  if check_iso_image /var/log/mount /var/log/mntiso ; then
+   echo "/var/log/mntiso/slackware" > $TMP/SeTDS 
+  elif [ -r /var/log/mount/slackware/PACKAGES.TXT ]; then
+   echo "/var/log/mount/slackware" > $TMP/SeTDS 
+  else
+   echo "/var/log/mount" > $TMP/SeTDS
+  fi
+  echo "-source_mounted" > $TMP/SeTmount
+  echo "/dev/null" > $TMP/SeTsource
+  break
+ fi
+done

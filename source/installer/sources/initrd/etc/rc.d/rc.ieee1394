@@ -1,0 +1,48 @@
+#!/bin/sh
+# rc.ieee1394:  search for IEEE1394 (firewire) devices needed for installation.
+
+# This is a function to unload the IEEE1394 (firewire) modules:
+ieee1394_stop() {
+  modprobe -r sbp2 ohci1394
+  modprobe -r ieee1394
+}
+
+# This is a function to attempt to enable a IEEE1394 storage device.
+# If this causes problems for you, use "noieee1394" as a kernel
+# command line option at boot time.
+ieee1394_start() {
+  # If noieee1394 was given at boot, skip.
+  if ! cat /proc/cmdline | grep noieee1394 1> /dev/null 2> /dev/null ; then
+    # If there aren't even any modules for this kernel, skip.
+    if [ -d /lib/modules/`uname -r` ]; then
+      # If ieee1394 is already loaded, skip.
+      if ! grep ieee1394 /proc/modules 1> /dev/null 2> /dev/null ; then
+        echo "Probing for IEEE1394 (Firewire) controllers."
+        echo "(to skip, give a 'noieee1394' kernel option at boot)"
+        #sleep 5
+        modprobe -q ieee1394 >/dev/null 2>&1
+        # Try to load hub module:
+        modprobe -q ohci1394 >/dev/null 2>&1
+        # Attempt to load storage support.
+        modprobe -q sbp2 >/dev/null 2>&1
+      fi
+    fi
+  fi
+}
+
+case "$1" in
+'start')
+  ieee1394_start
+  ;;
+'stop')
+  ieee1394_stop
+  ;;
+'restart')
+  ieee1394_stop
+  sleep 5
+  ieee1394_start
+  ;;
+*)
+  echo "usage $0 start|stop|restart"
+esac
+

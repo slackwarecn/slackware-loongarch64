@@ -1,0 +1,146 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+# Include function to check for Slackware ISO images:
+. /usr/lib/setup/INCISO
+while [ 0 ]; do
+rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTsource
+# OK, at this point /var/log/mount should not have anything mounted on it,
+# but we will umount just in case.
+umount /var/log/mount 2> /dev/null
+# Anything mounted on /var/log/mount now is a fatal error:
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then
+  echo "Can't umount /var/log/mount.  Reboot machine and run setup again."
+  exit
+fi
+# If the mount table is corrupt, the above might not do it, so we will
+# try to detect Linux and FAT32 partitions that have slipped by:
+if [ -d /var/log/mount/lost+found -o -d /var/log/mount/recycled \
+     -o -r /var/log/mount/io.sys ]; then
+  echo "Mount table corrupt. Reboot machine and run setup again."
+  exit
+fi
+
+while [ 0 ]; do
+ cat << EOF > $TMP/tempmsg
+In order to install directly from the hard disk you must have a
+partition (such as /dev/sda1, /dev/sdb5, etc) with the Slackware
+distribution's slackware/ directory like you'd find it on the FTP
+site. It can be in another directory. For example, if the
+distribution is in /stuff/slackware/, then you have to have
+directories named /stuff/slackware/a, /stuff/slackware/ap, and so
+on each containing the files that would be in that directory on
+the FTP site. You may install from FAT or Linux partitions.
+
+Please enter the partition (such as /dev/sda1) where the Slackware
+sources can be found, or [enter] to see a partition list:
+EOF
+ dialog --title "INSTALLING FROM HARD DISK" --inputbox \
+"`cat $TMP/tempmsg`" 18 70 2> $TMP/source.part
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/source.part $TMP/tempmsg
+  exit
+ fi
+ rm -f $TMP/tempmsg
+ SLACK_DEVICE="`cat $TMP/source.part`"
+ rm -f $TMP/source.part
+ if [ "$SLACK_DEVICE" = "" ]; then
+  dialog --title "PARTITION LIST" --no-collapse --msgbox "`probe -l | grep -v cylind | grep dev | sort 2> /dev/null`" 22 75
+  continue;
+ fi
+ break;
+done
+
+dialog --title "SELECT SOURCE DIRECTORY" --inputbox \
+"Now we need to know the full path on this partition to the\n\
+slackware/ directory where the directories containing\n\
+installation files and packages to be installed are kept.\n\
+For example, if you downloaded Slackware into the /stuff\n\
+directory on your hard drive (so that you have the\n\
+directories /stuff/slackware/a, /stuff/slackware/ap, and so on\n\
+each containing the files that would be in that directory on\n\
+the FTP site), then the full path to enter here would be:\n\
+\n\
+      /stuff/slackware\n\
+\n\
+What directory are the Slackware sources in?" \
+19 65 2> $TMP/source.dir
+if [ ! $? = 0 ]; then
+ rm -f $TMP/source.dir
+ exit
+fi
+SLACK_SOURCE_LOCATION="`cat $TMP/source.dir`"
+rm -f $TMP/source.dir
+if mount | grep $SLACK_DEVICE 1> /dev/null 2> /dev/null ; then
+ # This partition is already mounted, so we will have to
+ # tweak things funny.
+ rm -f /var/log/mount 2> /dev/null
+ rmdir /var/log/mount 2> /dev/null
+ PREFIX="`mount | grep $SLACK_DEVICE | cut -f 3 -d ' '`"
+ ln -sf $PREFIX /var/log/mount 
+else
+ SUCCESS=false
+ for type in ext4 ext3 ext2 vfat reiserfs hpfs msdos ; do
+   mount -r -t $type $SLACK_DEVICE /var/log/mount 1> /dev/null 2> /dev/null
+   if [ $? = 0 ]; then # mounted successfully 
+     SUCCESS=true
+     break;
+   fi
+ done
+ if [ ! $SUCCESS = true ]; then # there was a mount error
+  cat << EOF > $TMP/tempmsg
+There was a problem mounting your partition. Would you like to:
+
+EOF
+  dialog --title "MOUNT ERROR" --menu "`cat $TMP/tempmsg`" 10 68 2 \
+"Restart" "Start over" \
+"Ignore " "Ignore the error and continue" 2> $TMP/dowhat
+  if [ ! $? = 0 ]; then
+   rm -f $TMP/dowhat
+   exit
+  fi
+  DOWHAT="`cat $TMP/dowhat`"
+  rm -f $TMP/dowhat
+  if [ "$DOWHAT" = "Restart" ]; then
+   umount /var/log/mount 2> /dev/null
+   continue;
+  fi
+  echo
+ fi # mount error
+fi
+
+# First, check if a Slackware ISO image is present in $SLACK_SOURCE_LOCATION
+if check_iso_image /var/log/mount/$SLACK_SOURCE_LOCATION /var/log/mntiso ; then
+ echo "/var/log/mntiso/slackware" > $TMP/SeTDS
+ echo "-source_mounted" > $TMP/SeTmount
+ echo "/dev/null" > $TMP/SeTsource
+ exit
+elif [ -f /var/log/mount/$SLACK_SOURCE_LOCATION/slackware/PACKAGES.TXT ]; then
+ echo "/var/log/mount/$SLACK_SOURCE_LOCATION/slackware" > $TMP/SeTDS
+ echo "-source_mounted" > $TMP/SeTmount
+ echo "/dev/null" > $TMP/SeTsource
+ exit
+elif [ -d /var/log/mount/$SLACK_SOURCE_LOCATION ]; then
+ echo "/var/log/mount/$SLACK_SOURCE_LOCATION" > $TMP/SeTDS
+ echo "-source_mounted" > $TMP/SeTmount
+ echo "/dev/null" > $TMP/SeTsource
+ exit
+else
+ cat << EOF > $TMP/tempmsg
+
+Sorry, but the directory $SLACK_SOURCE_LOCATION does not exist
+on partition $SLACK_DEVICE.
+
+Would you like to try again?
+EOF
+ dialog --title "SOURCE DIRECTORY NOT FOUND" --yesno "`cat $TMP/tempmsg`" 10 70
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg
+  exit
+ fi
+ rm -r $TMP/tempmsg
+fi
+
+done

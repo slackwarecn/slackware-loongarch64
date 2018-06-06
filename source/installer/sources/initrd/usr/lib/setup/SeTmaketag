@@ -1,0 +1,154 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+MOUNT=/tag
+mkdir -p $MOUNT
+dialog --title "CREATE CUSTOM TAGFILES" --yesno "Tagfiles are special files \
+found on the first disk of a series that can determine which packages are \
+installed and which are skipped. Deciding which files to install in advance \
+can speed up the installation process greatly. If you have not installed \
+Slackware Linux before, you should probably try installing using the \
+default tagfiles before you try making custom ones, because you won't see much \
+information about the package contents when creating your tagfiles. This \
+process assumes you already know which packages you want to install. \
+If you're not sure, back out now and just use the default tagfiles when \
+you install. \
+Do you want to create custom tagfiles?" 17 65
+if [ ! $? = 0 ]; then
+ exit
+fi
+dialog --title "ENTER CUSTOM TAGFILE EXTENSION" --inputbox "Now you must \
+enter a custom file extension. This will be used as the last part of the \
+filename for your new custom tagfiles. For example, I use '.pat' for my \
+custom extension, and my custom tagfiles on the first disk of each series \
+have the filename 'tagfile.pat'. Use any extension you like except .tgz or \
+.tar. The extension must consist of a period followed by exactly 3 \
+letters." 14 65 2> $TMP/SeTtagmake
+if [ ! $? = 0 -o ! "`cat $TMP/SeTtagmake | cut -b1`" = "." -o "`cat $TMP/SeTtagmake`" = "" ]; then
+ rm -f $TMP/SeTtagmake
+ exit
+fi
+TAGEXT="`cat $TMP/SeTtagmake`"
+dialog --title "USE EXPERT MENUS?" --menu "If you like, you may select your \
+packages from expert menus. Where the normal menu shows a choice like 'C \
+compiler system', the expert menus show you 'C libs', 'C compiler', 'C \
+include files', etc -- each individual package. Obviously, you should \
+know what you're doing if you use the expert menus since it's possible \
+to skip packages that are crucial to the functioning of a subsystem." \
+15 65 2 \
+"normal" "Use normal menus that select groups of packages" \
+"expert" "Use expert menus with a switch for each package" 2> $TMP/SeTreturn
+if [ ! $? = 0 ]; then
+ rm -f $TMP/SeTreturn
+ exit
+fi
+MENU="`cat $TMP/SeTreturn`"
+rm -f $TMP/SeTreturn
+if [ "$MENU" = "normal" ]; then
+ MAKETAG="maketag.ez"
+else
+ MAKETAG="maketag"
+fi
+while [ 0 ]; do
+ dialog --title "CUSTOMIZE A DISK SERIES" --menu "You may now \
+create a custom tagfile on the first disk of a disk series (make \
+sure it's not write protected!), or in the directory for such a \
+disk if you are installing from your hard drive. Select one of the \
+choices below." 13 65 3 \
+"/dev/fd0" "Create a custom tagfile on floppy drive 1" \
+"/dev/fd1" "Create a custom tagfile on floppy drive 2" \
+"Directory" "Create a tagfile in a disk's directory" 2> $TMP/SeTreturn
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/SeTreturn
+  break
+ fi
+ CHOICE="`cat $TMP/SeTreturn`"
+ rm -f $TMP/SeTreturn
+ if [ "$CHOICE" = "/dev/fd0" -o "$CHOICE" = "/dev/fd1" ]; then
+  dialog --title "INSERT DISK IN DRIVE $CHOICE" --msgbox "Please insert the first disk of \
+a disk series you would like to make a custom tagfile for and press \
+ENTER. Be sure this disk is not write protected." 7 60
+  if [ ! $? = 0 ]; then
+   continue
+  fi
+  mount $CHOICE $MOUNT -t msdos
+  if [ ! $? = 0 ]; then
+   dialog --title "MOUNT FAILURE" --msgbox "Sorry, the disk could not be \
+mounted in drive $CHOICE as type msdos." 6 60
+   umount $MOUNT 2> /dev/null
+   continue
+  fi
+  if [ -r $MOUNT/$MAKETAG -o $MOUNT/maketag ]; then
+   if [ -r $MOUNT/$MAKETAG ]; then
+    sh $MOUNT/$MAKETAG
+   else
+    sh $MOUNT/maketag
+   fi
+  else # no tagfile create script!
+   dialog --title "NO TAGFILE SCRIPT" --msgbox "Sorry, but a custom tagfile \
+cannot be created for this disk because it does not have a 'maketag' script. \
+The maketag script was introduced in Slackware 1.1.2, and provides the menu \
+of packages to select from. Currently there is no way to just look at the \
+disks and 'wing it', but maybe there will be eventually. You'll have to edit \
+the tagfile on this disk manually." 11 65
+   umount $MOUNT
+   continue 
+  fi
+  if [ ! -r $TMP/SeTnewtag ]; then
+   umount $MOUNT
+   continue
+  fi
+  cp $TMP/SeTnewtag $MOUNT/tagfile$TAGEXT
+  if [ $? = 0 ]; then
+   dialog --title "TAGFILE CREATED" --msgbox "Your custom \
+tagfile has been successfully created with the extension: \
+$TAGEXT" 8 40
+  else
+   dialog --title "COPY ERROR" --msgbox "Your custom tagfile could \
+not be copied to the disk. Please check to see if the disk is write \
+protected, or full, and then try again." 9 40
+  fi
+  umount $MOUNT
+ fi
+ if [ "$CHOICE" = "Directory" ]; then
+  dialog --title "CHOOSE DIRECTORY" --inputbox "Now you must enter the \
+directory for the first disk of the series for which you would like to \
+make a custom tagfile. This directory must be mounted somewhere under \
+the current filesystem." 11 65 2> $TMP/SeTreturn
+  if [ ! $? = 0 ]; then
+   rm -f $TMP/SeTreturn
+   continue
+  fi
+  DIR="`cat $TMP/SeTreturn`"
+  rm -f $TMP/SeTreturn
+  if [ ! -r $DIR/maketag -a ! -r $DIR/$MAKETAG ]; then
+   dialog --title "NO TAGFILE SCRIPT" --msgbox "Sorry, but a custom tagfile \
+cannot be created for this disk series because the directory you gave does \
+not have a 'maketag' script. \
+The maketag script was introduced in Slackware 1.1.2, and provides the menu \
+of packages to select from. Currently there is no way to just look at the \
+packages and 'wing it', but maybe there will be eventually. You'll have to \
+edit the tagfile in this directory manually." 11 65
+   continue
+  fi
+  if [ -r $DIR/$MAKETAG ]; then
+   sh $DIR/$MAKETAG
+  else
+   sh $DIR/maketag
+  fi
+  if [ ! -r $TMP/SeTnewtag ]; then
+   continue
+  fi
+  cp $TMP/SeTnewtag $DIR/tagfile$TAGEXT
+  if [ $? = 0 ]; then
+   dialog --title "TAGFILE CREATED" --msgbox "Your custom \
+tagfile has been successfully created with the extension: \
+$TAGEXT" 8 40
+  else
+   dialog --msgbox "I don't know what just happened, but something \
+screwed up." 6 40
+  fi
+ fi
+done

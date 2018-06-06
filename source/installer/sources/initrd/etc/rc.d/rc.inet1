@@ -1,0 +1,28 @@
+#! /bin/sh
+#
+# rc.inet1	This shell script boots up the base INET system.
+#
+# Version:	@(#)/etc/rc.d/rc.inet1	1.01	05/27/93
+#
+
+TMP=/var/log/setup/tmp
+mkdir -p $TMP/dhcpc
+
+HOSTNAME=`cat /etc/HOSTNAME`
+/bin/hostname `cat /etc/HOSTNAME | cut -f1 -d .`
+
+# Attach the loopback device.
+/sbin/ifconfig lo 127.0.0.1
+/sbin/route add -net 127.0.0.0 netmask 255.0.0.0 lo
+
+# In case we use udev -
+# Try to get information from a local DHCP server and store that for later:
+if ! grep -wq nodhcp /proc/cmdline ; then
+  for EDEV in $(cat /proc/net/dev | grep ':' | sed -e "s/^ *//" | cut -f1 -d: | grep -v lo) ; do
+   if grep -q $(echo ${EDEV}: | cut -f 1 -d :): /proc/net/wireless ; then
+     continue # skip wireless interfaces
+   fi
+   /sbin/dhcpcd -t 35 -L -T $EDEV 1>/etc/dhcpc/dhcpcd-${EDEV}.info 2>/dev/null &
+  done
+fi
+

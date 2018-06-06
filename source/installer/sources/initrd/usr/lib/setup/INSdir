@@ -1,0 +1,73 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+T_PX="`cat $TMP/SeTT_PX`"
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+# Include function to check for Slackware ISO images:
+. /usr/lib/setup/INCISO
+while [ 0 ]; do
+rm -f $TMP/SeTDS $TMP/SeTmount
+# OK, at this point /var/log/mount should not have anything mounted on it,
+# but we will umount just in case.
+umount /var/log/mount 2> /dev/null
+# Anything mounted on /var/log/mount now is a fatal error:
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then
+  echo "Can't umount /var/log/mount.  Reboot machine and run setup again."
+  exit
+fi
+# If the mount table is corrupt, the above might not do it, so we will
+# try to detect Linux and FAT32 partitions that have slipped by:
+if [ -d /var/log/mount/lost+found -o -d /var/log/mount/recycled \
+     -o -r /var/log/mount/io.sys ]; then
+  echo "Mount table corrupt. Reboot machine and run setup again."
+  exit
+fi
+cat << EOF > $TMP/tempmsg
+
+OK, we will install from a directory within the current
+filesystem. If you have mounted this directory yourself,
+you should not use ${T_PX} or /var/log/mount as mount points,
+since Setup might need to use these directories. You may
+install from any part of the current directory structure,
+no matter what the media is (including NFS). You will need
+to type in the name of the directory containing the 
+subdirectories for each source disk.
+
+Which directory would you like to install from?
+EOF
+dialog --title "INSTALL FROM THE CURRENT FILESYSTEM" \
+ --inputbox "`cat $TMP/tempmsg`" 19 67 2> $TMP/sourcedir
+if [ ! $? = 0 ]; then
+ rm -f $TMP/sourcedir $TMP/tempmsg
+ exit
+fi
+SOURCEDIR="`cat $TMP/sourcedir`"
+rm -f $TMP/sourcedir $TMP/tempmsg
+mkdir -p /var/log/mount
+# First, check if a Slackware ISO image is present in $SOURCEDIR
+if check_iso_image $SOURCEDIR ; then
+ echo "/var/log/mount/slackware" > $TMP/SeTDS
+else
+ rm -f /var/log/mount 2> /dev/null
+ rmdir /var/log/mount 2> /dev/null
+ ln -sf $SOURCEDIR /var/log/mount
+ echo "/var/log/mount" > $TMP/SeTDS
+fi
+echo "-source_mounted" > $TMP/SeTmount
+echo "/dev/null" > $TMP/SeTsource
+if [ ! -d $SOURCEDIR ]; then
+ cat << EOF > $TMP/tempmsg
+
+Sorry - the directory you specified is not valid. Please 
+check the directory and try again.
+
+(Directory given: $SOURCEDIR)
+
+EOF
+ dialog --title "INVALID DIRECTORY ENTERED" --msgbox "`cat $TMP/tempmsg`" 10 65
+ rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTsource $TMP/sourcedir $TMP/tempmsg
+else
+ exit
+fi
+done;

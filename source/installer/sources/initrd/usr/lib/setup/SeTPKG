@@ -1,0 +1,148 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+T_PX="`cat $TMP/SeTT_PX`"
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+# If the distribution source is already known, we can avoid listing
+# stuff that isn't there.
+if [ ! -r $TMP/SeTT_PX -o ! -r $TMP/SeTDS ]; then
+  unset T_PX
+  unset DS
+else
+  T_PX="`cat $TMP/SeTT_PX`"
+  DS="`cat $TMP/SeTDS`"
+fi
+# In /usr/lib/setup/slackinstall, $TMP/series is a directory.
+# Depending on how you use the 'setup' script, you can end up going
+# round in circles due to this script using 'series' as a text file but
+# not being able delete it due to an rm -f. Now we use rm -rf.
+# It's a toss up between accidentally wiping the series selection
+# (it only takes a few seconds to re-select the stuff) and getting
+# confused.
+rm -rf $TMP/SeTSERIES $TMP/tmpscript $TMP/series 
+
+cat << EOF > $TMP/tmpscript
+dialog --backtitle "Selecting software to install." \\
+--title "PACKAGE SERIES SELECTION" --item-help --output-separator "#" --checklist \\
+"Now it's time to select which general categories of software \\
+to install on your system. \\
+Use the spacebar to select or unselect the software you wish to \\
+install. \\
+You can use the up and down arrows to see all the possible choices. \\
+Recommended choices have been preselected. \\
+Press the ENTER key when you are finished." \\
+20 75 9 \\
+"A" "Base Linux system" on "The A (base) series contains the kernel and main system utilities." \\
+EOF
+
+if [ -d $DS/ap -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"AP" "Various Applications that do not need X" on "The AP series is a collection of useful applications." \\
+EOF
+fi
+
+if [ -d $DS/d -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"D" "Program Development (C, C++, Lisp, Perl, etc.)" on "The D series contains compilers, debuggers, and other programming tools." \\
+EOF
+fi
+
+if [ -d $DS/e -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"E" "GNU Emacs" on "The E series contains the GNU Emacs advanced real-time display editor." \\
+EOF
+fi
+
+if [ -d $DS/f -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"F" "FAQ lists, HOWTO documentation" on "The F series contains essential documentation for Linux system administrators." \\
+EOF
+fi
+
+if [ -d $DS/gnome -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"GNOME" "The GNOME desktop for X" on "The GNOME series contains the GNOME desktop environment and related libraries." \\
+EOF
+fi
+
+if [ -d $DS/k -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"K" "Linux kernel source" on "The K series contains the source code for the Linux kernel." \\
+EOF
+fi
+
+if [ -d $DS/kde -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"KDE" "Qt and the K Desktop Environment for X" on "The KDE series contains the K Desktop Environment and related libraries." \\
+EOF
+fi
+
+if [ -d $DS/kdei -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"KDEI" "International language support for KDE" off "The KDEI series provides support for languages other than US English in KDE." \\
+EOF
+fi
+
+if [ -d $DS/l -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"L" "System Libraries (some needed by both KDE and GNOME)" "on" "The L series contains libraries needed by GNOME, KDE, and other programs." \\
+EOF
+fi
+
+if [ -d $DS/n -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"N" "Networking (TCP/IP, UUCP, Mail, News)" on "The N series contains network related clients and servers." \\
+EOF
+fi
+
+if [ -d $DS/t -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"T" "TeX typesetting software" on "TeX is a typesetting system often used for mathematics and technical papers." \\
+EOF
+fi
+
+if [ -d $DS/tcl -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"TCL" "Tcl/Tk script languages" on "The TCL series contains the Tcl/Tk/TclX languages and programs that use them." \\
+EOF
+fi
+
+if [ -d $DS/x -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"X" "X Window System" on "This series contains X, the windowing system used by Linux." \\
+EOF
+fi
+
+if [ -d $DS/xap -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"XAP" "X Applications" on "The XAP series is a collection of applications for X." \\
+EOF
+fi
+
+if [ -d $DS/xfce -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"XFCE" "The Xfce Desktop Environment for X" on "Xfce is a fast and lightweight GTK+ based desktop environment for X." \\
+EOF
+fi
+
+if [ -d $DS/y -o "$DS" = "" ]; then
+cat << EOF >> $TMP/tmpscript
+"Y" "Games" on "The Y series is a collection of classic BSD text-based games." \\
+EOF
+fi
+
+cat << EOF >> $TMP/tmpscript
+  2> $TMP/series
+EOF
+. $TMP/tmpscript
+if [ ! $? = 0 ]; then
+  rm -rf $TMP/series $TMP/tmpscript
+  exit
+fi
+INSTSETS="`cat $TMP/series | tr -d " "`"
+INSTSETS="`echo $INSTSETS | tr "\042" "#" `"
+INSTSETS="`echo $INSTSETS | tr "," "#" `"
+INSTSETS="`echo $INSTSETS | tr -s "#" `"
+rm -rf $TMP/series $TMP/tmpscript
+echo "$INSTSETS" > $TMP/SeTSERIES

@@ -1,0 +1,107 @@
+#!/bin/sh
+RDIR=/dev/tty4
+NDIR=/dev/null
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+T_PX="`cat $TMP/SeTT_PX`"
+rm -f $TMP/SeTmount $TMP/SeTDS $TMP/SeTCDdev $TMP/reply
+
+dialog --title "SCANNING FOR USB STICK" --msgbox \
+"Make sure the USB stick containing the Slackware package directory \
+is inserted into a USB port, and then press ENTER to begin the scanning process." \
+7 66 \
+2> $TMP/reply
+if [ ! -r $TMP/reply ]; then
+ # cancel or esc
+ rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+ exit
+fi
+
+dialog --infobox "\nScanning for USB stick..." 5 30
+
+# Run "rescan-scsi-bus -l" to get an up to date overview of devices:
+/sbin/rescan-scsi-bus -l 1>$RDIR 2>$RDIR
+
+# Generate a list of removable devices:
+REMOVABLE_DEVICES=""
+for BDEV in $(ls --indicator-style none /sys/block | grep -E -v "loop|ram|^dm-|^sr|^md"); do
+  if [ -r /sys/block/$BDEV/removable -a "$(cat /sys/block/$BDEV/removable)" == "1" ]; then
+    REMOVEABLE_DEVICES="$REMOVEABLE_DEVICES $BDEV"
+  fi
+done
+
+if [ "$REMOVEABLE_DEVICES" = "" ]; then
+  dialog --title "NO REMOVABLE USB DEVICES FOUND" --msgbox \
+"Sorry, but no removable USB devices could be found.  Exiting back to the top menu." \
+6 55
+  rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+  exit
+fi
+
+# Make a mount location for the USB source:
+mkdir -p /usb-stick
+# Try to unmount it, just in case something strange is going on:
+umount /usb-stick 1> /dev/null 2> /dev/null
+
+# First, we will look for partitions on the USB stick. Not knowing whether the stick is
+# partitioned with MBR or GPT partitions (or indeed at all), we'll test for partitions
+# 1 through 4. Probably very few people will try to use a stick with the Slackware
+# packages in a directory on partition 5 or higher. If they do, it won't work. Sorry.
+unset DRIVE_FOUND INSTALL_PATH
+for DEVICE in $REMOVEABLE_DEVICES ; do
+  for PARTITION in 1 2 3 4 ; do
+    mount /dev/$DEVICE$PARTITION /usb-stick 1> /dev/null 2> /dev/null
+    if [ -d /usb-stick/slackware/a ]; then
+      DRIVE_FOUND="/dev/$DEVICE$PARTITION"
+      INSTALL_PATH="/usb-stick/slackware"
+      break
+    fi
+    if [ -d /usb-stick/slackware*-*/slackware/a ]; then
+      DRIVE_FOUND="/dev/$DEVICE$PARTITION"
+      INSTALL_PATH=$(echo /usb-stick/slackware*-*/slackware)
+      break
+    fi
+    umount /usb-stick 1> /dev/null 2> /dev/null
+  done
+done
+
+# Next, we will try mounting the devices as unpartitioned if nothing has been found yet:
+if [ "$DRIVE_FOUND" = "" ]; then
+  for DEVICE in $REMOVEABLE_DEVICES ; do
+    mount /dev/$DEVICE /usb-stick 1> /dev/null 2> /dev/null
+    if [ -d /usb-stick/slackware/a ]; then
+      DRIVE_FOUND="/dev/$DEVICE"
+      INSTALL_PATH="/usb-stick/slackware"
+      break
+    fi
+    if [ -d /usb-stick/slackware*-*/slackware/a ]; then
+      DRIVE_FOUND="/dev/$DEVICE$PARTITION"
+      INSTALL_PATH=$(echo /usb-stick/slackware*-*/slackware)
+      break
+    fi
+  done
+fi
+
+if [ "$DRIVE_FOUND" = "" ]; then
+  dialog --title "NO SLACKWARE DIRECTORY FOUND" --msgbox \
+"Sorry, but a Slackware directory could not be found on any USB devices. \
+Exiting back to the top menu." \
+6 55
+  rm -f $TMP/SeTDS $TMP/SeTmount $TMP/SeTCDdev $TMP/errordo
+  exit
+fi
+
+# Success!  Report back to the console:
+
+dialog --title "USB PACKAGE SOURCE FOUND" --sleep 1 --infobox \
+"A Slackware package directory was found on device $DRIVE_FOUND." 3 66
+
+# At this point, the stick has been found and is mounted on /usb-stick.
+# All that remains is to tell the installer about it, and we're done here.
+
+echo $INSTALL_PATH > $TMP/SeTDS
+echo "-source_mounted" > $TMP/SeTmount
+echo "/dev/null" > $TMP/SeTsource
+

@@ -1,0 +1,30 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+T_PX="`cat $TMP/SeTT_PX`"
+while [ "`cat $T_PX/etc/shadow | grep 'root:' | cut -f 2 -d :`" = "" ]; do
+  # There is no root password
+  dialog --title "WARNING: NO ROOT PASSWORD DETECTED" --yesno "There is \
+currently no password set on the system administrator account (root). \
+It is recommended that you set one now so that it is active the first \
+time the machine is rebooted. This is especially important if you're \
+using a network enabled kernel and the machine is on an Internet \
+connected LAN. Would you like to set a root password?" 10 68
+  if [ $? = 0 ] ; then
+    echo
+    echo
+    echo
+    chroot $T_PX /usr/bin/passwd root
+    echo
+    echo -n "Press [enter] to continue:"
+    read junk;
+    echo
+    # Here we drop through, and if there's still no password the menu
+    # runs again.
+  else
+    # Don't set a password:
+    break;
+  fi
+done

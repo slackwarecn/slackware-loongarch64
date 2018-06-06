@@ -1,0 +1,443 @@
+#!/bin/sh
+#
+# Copyright 1993, 1994, 1999  Patrick Volkerding, Moorhead, Minnesota USA
+# Copyright 2001, 2003, 2004  Slackware Linux, Inc., Concord, CA
+# Copyright 2006, 2007, 2018  Patrick Volkerding, Sebeka, Minnesota USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is 
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# As always, bug reports, suggestions, etc: volkerdi@slackware.com
+#
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+# Wipe the probe md5sum to force rescanning partitions if setup is restarted:
+rm -f $TMP/SeTpartition.md5
+## FLOPPY? Comment out this obsolete code. We ain't gonna need it.
+## Use /tmp on floppy for now:
+#/usr/lib/setup/unmigrate.sh
+rm -f $TMP/SeT*
+# If a keymap was set up, restore that data:
+if [ -r $TMP/Pkeymap ]; then
+  cp $TMP/Pkeymap $TMP/SeTkeymap
+fi
+echo "on" > $TMP/SeTcolor # turn on color menus
+PATH="$PATH:/usr/lib/setup"
+export PATH;
+export COLOR=on
+dialog --backtitle "Slackware Linux Setup" --infobox "\n
+Scanning your system for partition information...\n
+\n" 5 55
+# In case the machine is full of fast SSDs:
+sleep 1
+# Before probing, activate any LVM partitions
+# that may exist from before the boot:
+vgchange -ay 1> /dev/null 2> /dev/null
+if probe -l 2> /dev/null | grep -E 'Linux$' 1> /dev/null 2> /dev/null ; then
+ probe -l 2> /dev/null | grep -E 'Linux$' | sort 1> $TMP/SeTplist 2> /dev/null
+else
+ dialog --title "NO LINUX PARTITIONS DETECTED" \
+ --msgbox "There don't seem to be any partitions on this machine of type \
+Linux. You'll need to make at least one of these to install Linux. \
+To do this, you'll need to leave 'setup', and make the partitions using \
+'cfdisk' (MBR partitions) or 'cgdisk' (GPT partitions). For more \
+information, read the 'setup' help file from the next menu." 10 64
+fi
+if [ -d /sys/firmware/efi ]; then
+  if ! probe -l 2> /dev/null | grep "EFI System Partition" 1> /dev/null 2> /dev/null ; then
+     dialog --title "NO EFI SYSTEM PARTITION DETECTED" \
+ --msgbox "This machine appears to be using EFI/UEFI, but no EFI System \
+Partition was found. You'll need to make an EFI System Partition in order \
+to boot from the hard drive. To do this, leave 'setup', and \
+use 'cgdisk' to make a 100MB partition of type EF00. For more information, \
+read the 'setup' help file from the next menu." 10 64
+  fi
+fi
+T_PX="/mnt"
+echo "$T_PX" > $TMP/SeTT_PX
+ROOT_DEVICE="`mount | grep "on / " | cut -f 1 -d ' '`"
+echo "$ROOT_DEVICE" > $TMP/SeTrootdev
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then # clear source
+ umount /var/log/mount                                          # location
+fi
+# Anything mounted on /var/log/mount now is a fatal error:
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then
+  echo "Can't umount /var/log/mount. Reboot machine and run setup again."
+  exit
+fi
+# If the mount table is corrupt, the above might not do it, so we will
+# try to detect Linux and FAT32 partitions that have slipped by:
+if [ -d /var/log/mount/lost+found -o -d /var/log/mount/recycled \
+     -o -r /var/log/mount/io.sys ]; then
+  echo "Mount table corrupt. Reboot machine and run setup again."
+  exit
+fi
+rm -f /var/log/mount 2> /dev/null
+rmdir /var/log/mount 2> /dev/null
+mkdir /var/log/mount 2> /dev/null
+
+while [ 0 ]; do
+
+ dialog --title "Slackware Linux Setup (version 12.2)" \
+--menu \
+"Welcome to Slackware Linux Setup.\n\
+Select an option below using the UP/DOWN keys and SPACE or ENTER.\n\
+Alternate keys may also be used: '+', '-', and TAB." 18 72 9 \
+"HELP" "Read the Slackware Setup HELP file" \
+"KEYMAP" "Remap your keyboard if you're not using a US one" \
+"ADDSWAP" "Set up your swap partition(s)" \
+"TARGET" "Set up your target partitions" \
+"SOURCE" "Select source media" \
+"SELECT" "Select categories of software to install" \
+"INSTALL" "Install selected software" \
+"CONFIGURE" "Reconfigure your Linux system" \
+"EXIT" "Exit Slackware Linux Setup" 2> $TMP/hdset
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/hdset $TMP/SeT*
+  exit
+ fi
+ MAINSELECT="`cat $TMP/hdset`"
+ rm $TMP/hdset
+
+ # Start checking what to do. Some modules may reset MAINSELECT to run the
+ # next item in line.
+
+ if [ "$MAINSELECT" = "HELP" ]; then
+  SeTfdHELP
+ fi
+
+ if [ "$MAINSELECT" = "KEYMAP" ]; then
+  SeTkeymap
+  if [ -r $TMP/SeTkeymap ]; then
+   MAINSELECT="ADDSWAP" 
+  fi
+ fi
+ 
+ if [ "$MAINSELECT" = "MAKE TAGS" ]; then
+  SeTmaketag
+ fi
+ 
+ if [ "$MAINSELECT" = "ADDSWAP" ]; then
+  SeTswap
+  if [ -r $TMP/SeTswap ]; then
+   MAINSELECT="TARGET"
+  elif [ -r $TMP/SeTswapskip ]; then
+   # Go ahead to TARGET without swap space:
+   MAINSELECT="TARGET"
+  fi
+ fi
+
+ if [ "$MAINSELECT" = "TARGET" ]; then
+  SeTpartitions
+  SeTEFI
+  SeTDOS
+  if [ -r $TMP/SeTnative ]; then
+   MAINSELECT="SOURCE"
+  fi
+ fi
+
+ if [ "$MAINSELECT" = "SOURCE" ]; then
+  SeTmedia 
+  if [ -r $TMP/SeTsource ]; then
+   MAINSELECT="SELECT"
+  fi
+ fi
+
+ if [ "$MAINSELECT" = "SELECT" ]; then
+  if [ -r /var/log/mount/isolinux/setpkg ]; then
+    sh /var/log/mount/isolinux/setpkg
+  else
+    SeTPKG
+  fi
+  if [ -r $TMP/SeTSERIES ]; then
+   MAINSELECT="INSTALL"
+  fi
+ fi
+
+ if [ "$MAINSELECT" = "INSTALL" ]; then
+  if [ ! -r $TMP/SeTSERIES -o ! -r $TMP/SeTsource -o ! -r $TMP/SeTnative ]; then
+   dialog --title "CANNOT INSTALL SOFTWARE YET" --msgbox "\
+\n\
+Before you can install software, complete the following tasks:\n\
+\n\
+1. Select your source media.\n\
+2. Set up your target Linux partition(s).\n\
+3. Select which software categories to install.\n\
+\n\
+You may also optionally remap your keyboard and set up your\n\
+swap partition(s). \n\
+\n\
+Press ENTER to return to the main menu." 16 68
+   continue
+  fi
+  SERIES="`cat $TMP/SeTSERIES`"
+  SOURCE_DEVICE="`cat $TMP/SeTsource`"
+  IGNORE_TAGFILES=""
+  while [ 0 ]; do
+   dialog --title "SELECT PROMPTING MODE" --default-item "terse" --menu \
+   "Now you must select the type of prompts you'd like to see during the \
+installation process. If you have the drive space, the 'full' option \
+is quick, easy, and by far the most foolproof choice. The 'newbie' \
+mode provides the most information but is much more time-consuming \
+(presenting the packages one by one) than the menu-based choices. \
+Otherwise, you can pick packages from menus \
+using 'expert' or 'menu' mode. Which type of prompting would you like \
+to use?" \
+   20 76 7 \
+   "full" "Install everything (9+ GB of software, RECOMMENDED!)" \
+   "terse" "Like 'full', but display one line per package during install" \
+   "menu" "Choose individual packages from interactive menus" \
+   "expert" "This is actually the same as the \"menu\" option" \
+   "newbie" "Use verbose prompting (the X series takes one year)" \
+   "custom" "Use custom tagfiles in the package directories" \
+   "tagpath" "Use tagfiles in the subdirectories of a custom path" \
+   "help" "Read the prompt mode help file" 2> $TMP/SeTpmode
+   if [ ! $? = 0 ]; then
+    rm -f $TMP/SeTpmode
+    exit
+   fi
+   MODE="`cat $TMP/SeTpmode`"
+   rm -f $TMP/SeTtagext
+   if [ "$MODE" = "help" ]; then
+    dialog --title "PROMPT MODE HELP" --exit-label OK --textbox "/usr/lib/setup/PROMPThelp" 19 65
+   fi
+   if [ "$MODE" = "tagpath" ]; then
+    dialog --title "PROVIDE A CUSTOM PATH TO YOUR TAGFILES" --inputbox \
+    "If you're installing from CD or DVD, it's impossible to edit the \
+tagfiles that are in the package directories. In this case, you might \
+want to provide a path to your custom tagfiles. As an example, you \
+could create a /tagfiles directory and mount a floppy disk containing \
+the tagfiles on that directory. Then you'd enter '/tagfiles' at the \
+prompt below. The setup program will look for your tagfile in \
+SUBDIRECTORIES of the path you provide, such as /tagfiles/a, \
+/tagfiles/ap, /tagfiles/d, and so on. You only need to provide a \
+subdirectory and tagfile for the first disk of each series to be \
+installed. If a custom tagfile is not found at the path you provide, \
+setup will revert to the default tagfiles. Please enter the path to your \
+custom tagfiles:" \
+    19 71 2> $TMP/SeTtagpath
+    if [ ! $? = 0 ]; then
+     continue
+    fi
+    if [ -r $TMP/SeTtagpath ]; then
+     if [ "`cat $TMP/SeTtagpath`" = "" ]; then
+      rm -f $TMP/SeTtagpath
+     elif [ ! -d "$(cat $TMP/SeTtagpath)" ]; then
+       dialog --title "NOT A VALID DIRECTORY" --msgbox \
+"Sorry, but the $(cat $TMP/SeTtagpath) directory could not be located. \
+Press ENTER to go back to the SELECT PROMPTING MODE menu." \
+7 65
+      rm -f $TMP/SeTtagpath
+      continue
+     fi
+    fi
+    break;
+   fi
+   if [ "$MODE" = "newbie" ]; then 
+    dialog --infobox "'newbie' prompt mode selected.  Using default tagfiles \
+and verbose package prompting." 4 50
+    break;
+   fi 
+   if [ "$MODE" = "custom" ]; then
+    dialog --title "ENTER CUSTOM EXTENSION" --inputbox "Now, enter the custom \
+extension you have used for your tagfiles. This must be a valid MS-DOS format \
+file extension consisting of a period followed by three characters. For \
+example, I use '.pat'. You might see my tagfiles on your disks. :^)" \
+12 60 2> $TMP/SeTtagext
+    if [ ! $? = 0 ]; then
+     continue
+    fi
+    if [ -r $TMP/SeTtagext ]; then
+     if [ "`cat $TMP/SeTtagext`" = "" ]; then
+      rm -f $TMP/SeTtagext
+     fi
+    fi
+    dialog --infobox "'custom' prompt mode selected. Using prompting defaults \
+found in custom tagfiles." 4 50
+    break;
+   fi
+   if [ "$MODE" = "full" ]; then
+    IGNORE_TAGFILES="-ignore_tagfiles"
+    dialog --infobox "Full installation mode. Installing all software \
+packages without prompting." 4 45
+    break;
+   fi
+   if [ "$MODE" = "terse" ]; then
+    setterm -background cyan -foreground black -blank 0
+    clear
+    IGNORE_TAGFILES="-ignore_tagfiles"
+    echo
+    echo
+    echo "Full (terse display) installation mode."
+    echo
+    echo "A one-line description will be displayed as each package is installed."
+    echo
+    break;
+   fi
+   if [ "$MODE" = "menu" ]; then
+    dialog --infobox "'menu' prompt mode selected. Using interactive menus \
+to choose subsystems of related packages." 4 60
+    break;
+   fi
+   if [ "$MODE" = "expert" ]; then
+    dialog --infobox "'expert' prompt mode selected. Using interactive menus \
+to choose packages individually." 4 60
+    break;
+   fi 
+  done
+  export MAKETAG;
+  sleep 1
+  if [ -r $TMP/SeTCDdev ]; then # only try to remount media if it's a CD/DVD
+    slackinstall --device `cat $TMP/SeTCDdev` --promptmode $MODE --srcpath `cat $TMP/SeTDS` --mountpoint /var/log/mount --target $T_PX --series $SERIES
+  elif [ -r $TMP/SeTremotesvr ]; then
+    slackinstall --device noremount --promptmode $MODE --srcpath `cat $TMP/SeTDS` --mountpoint /var/log/mount --target $T_PX --series $SERIES --net `cat $TMP/SeTremotesvr`
+  else
+    slackinstall --device noremount --promptmode $MODE --srcpath `cat $TMP/SeTDS` --mountpoint /var/log/mount --target $T_PX --series $SERIES
+  fi
+  if [ $MODE = terse ]; then
+    # Let's pause a moment and then restore the terminal settings
+    sleep 1
+    setterm -background black -foreground white -blank 0
+  fi
+  MAINSELECT="CONFIGURE"
+ fi
+
+ if [ "$MAINSELECT" = "CONFIGURE" ]; then
+  SeTconfig
+  REPLACE_FSTAB=Y
+  if [ -r $TMP/SeTnative ]; then
+   if [ -r $T_PX/etc/fstab ]; then
+    dialog --title "REPLACE /etc/fstab?" --yesno "You already have an \
+/etc/fstab on your install partition. If you were just adding software, \
+you should probably keep your old /etc/fstab. If you've changed your \
+partitioning scheme, you should use the new /etc/fstab. Do you want \
+to replace your old /etc/fstab with the new one?" 10 58
+    if [ ! $? = 0 ]; then
+     REPLACE_FSTAB=N
+    fi
+   fi
+   if [ "$REPLACE_FSTAB" = "Y" ]; then
+    cat /dev/null > $T_PX/etc/fstab
+    if [ -r $TMP/SeTswap ]; then
+     cat $TMP/SeTswap > $T_PX/etc/fstab
+    fi
+    cat $TMP/SeTnative >> $T_PX/etc/fstab
+    if [ -r $TMP/SeTDOS ]; then
+     cat $TMP/SeTDOS >> $T_PX/etc/fstab
+    fi
+    printf "%-16s %-16s %-11s %-16s %-3s %s\n" "#/dev/cdrom" "/mnt/cdrom" "auto" "noauto,owner,ro,comment=x-gvfs-show" "0" "0" >> $T_PX/etc/fstab
+    printf "%-16s %-16s %-11s %-16s %-3s %s\n" "/dev/fd0" "/mnt/floppy" "auto" "noauto,owner" "0" "0" >> $T_PX/etc/fstab
+    printf "%-16s %-16s %-11s %-16s %-3s %s\n" "devpts" "/dev/pts" "devpts" "gid=5,mode=620" "0" "0" >> $T_PX/etc/fstab
+    printf "%-16s %-16s %-11s %-16s %-3s %s\n" "proc" "/proc" "proc" "defaults" "0" "0" >> $T_PX/etc/fstab
+    printf "%-16s %-16s %-11s %-16s %-3s %s\n" "tmpfs" "/dev/shm" "tmpfs" "nosuid,nodev,noexec" "0" "0" >> $T_PX/etc/fstab
+   fi
+   dialog --title "SETUP COMPLETE" --msgbox "System configuration \
+and installation is complete. \
+\n\nYou may now reboot your system." 7 55
+  fi
+ fi
+
+ if [ "$MAINSELECT" = "EXIT" ]; then
+  break
+ fi
+
+done # end of main loop
+sync
+
+chmod 755 $T_PX
+if [ -d $T_PX/tmp ]; then
+ chmod 1777 $T_PX/tmp
+fi
+if mount | grep /var/log/mntiso 1> /dev/null 2> /dev/null ; then
+ umount -f /var/log/mntiso
+fi
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then
+ umount /var/log/mount
+fi
+# Anything mounted on /var/log/mount now is a fatal error:
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then
+  exit
+fi
+# If the mount table is corrupt, the above might not do it, so we will
+# try to detect Linux and FAT32 partitions that have slipped by:
+if [ -d /var/log/mount/lost+found -o -d /var/log/mount/recycled \
+     -o -r /var/log/mount/io.sys ]; then
+  exit
+fi
+rm -f /var/log/mount 2> /dev/null
+rmdir /var/log/mount 2> /dev/null
+mkdir /var/log/mount 2> /dev/null
+chmod 755 /var/log/mount
+
+# An fstab file is indicative of an OS installation, rather than
+# just loading the "setup" script and selecting "EXIT"
+if [ -f ${T_PX}/etc/fstab ]; then
+  # umount CD:
+  if [ -r $TMP/SeTCDdev ]; then
+    if mount | grep iso9660 > /dev/null 2> /dev/null ; then
+      umount `mount | grep iso9660 | cut -f 1 -d ' '`
+    fi
+    eject -s `cat $TMP/SeTCDdev`
+    # Tell the user to remove the disc, if one had previously been mounted
+    # (it should now be ejected):
+    dialog \
+     --clear \
+     --title "Slackware Linux Setup is complete" "$@" \
+     --msgbox "\nPlease remove the installation disc.\n" 7 40
+  fi
+  # Offer to reboot or drop to shell:
+  dialog \
+     --title "Slackware Linux Setup is complete" "$@" \
+     --yesno \
+     "\nWould you like to reboot your system?\n\n\n\
+If you choose \"No\", you will be dropped to a shell.\n" 11 50
+    retval=$?
+    if [ $retval = 1 ]; then
+      clear
+      echo
+      echo "You may now reboot your system once you are ready."
+      echo "You can issue the 'reboot' command; or if your system has"
+      echo "a keyboard attached, you can use the key combination: control+alt+delete"
+      echo
+    else
+      touch /reboot
+    fi
+fi
+
+# Fix the date:
+/sbin/fixdate
+
+# final cleanup
+rm -f $TMP/tagfile $TMP/SeT* $TMP/tar-error $TMP/PKGTOOL_REMOVED
+rm -f /var/log/mount/treecache
+rmdir /var/log/mntiso 2>/dev/null
+rm -rf $TMP/treecache
+rm -rf $TMP/pkgcache
+rmdir ${T_PX}/tmp/orbit-root 2> /dev/null
+
+# If the OS had been installed and the user elected to reboot:
+if [ -f /reboot ]; then
+   clear
+   echo "** Starting reboot **"
+   sleep 1
+   reboot
+fi
+
+# end slackware setup script

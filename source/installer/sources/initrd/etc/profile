@@ -1,0 +1,35 @@
+# commands common to all logins
+PATH="$PATH:/bin:/sbin:/usr/bin:/usr/lib/setup"
+PATH="$PATH:/mnt/usr/local/bin:/mnt/usr/bin:/mnt/bin"
+PATH="$PATH:/mnt/usr/local/sbin:/mnt/usr/sbin:/mnt/sbin"
+PATH="$PATH:/mnt/linux/usr/local/bin:/mnt/linux/usr/bin:/mnt/linux/bin"
+PATH="$PATH:/mnt/linux/usr/local/sbin:/mnt/linux/usr/sbin:/mnt/linux/sbin"
+
+# Allow a user to set the default TERM entry by specifying TERM=<name>
+# as a kernel command line parameter:
+if cat /proc/cmdline | grep "TERM=[a-zA-Z0-9]" 1> /dev/null 2> /dev/null ; then
+   export TERM=$( sed 's/.*TERM=\([^ ]*\).*/\1/' < /proc/cmdline )
+elif cat /proc/cmdline | grep console=ttyS 1> /dev/null 2> /dev/null ; then
+  export TERM=vt100
+else
+  export TERM=linux
+fi
+HOME=/root
+LESS=-MM
+
+# Set command line prompt:
+PS1='\u@\h:\w# '
+PS2='> '
+
+ignoreeof=10
+export HOME PATH DISPLAY LESS TERM PS1 PS2 ignoreeof
+umask 022
+
+# Append any additional sh scripts found in /etc/profile.d/:
+for profile_script in /etc/profile.d/*.sh ; do
+  if [ -x $profile_script ]; then
+    . $profile_script
+  fi
+done
+unset profile_script
+

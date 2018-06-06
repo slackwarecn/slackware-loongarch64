@@ -1,0 +1,120 @@
+#!/bin/sh
+#
+# Copyright 2011  Eric Hameleers, Eindhoven, NL
+# Copyright 2011  Patrick Volkerding, Sebeka, Minnesota USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is 
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Bug reports, suggestions, etc for pxesetup: alien@slackware.com
+#
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+rm -f $TMP/SeT*
+# If a keymap was set up, restore that data:
+if [ -r $TMP/Pkeymap ]; then
+  cp $TMP/Pkeymap $TMP/SeTkeymap
+fi
+echo "on" > $TMP/SeTcolor # turn on color menus
+PATH="$PATH:/usr/lib/setup"
+export PATH;
+export COLOR=on
+# Before probing, activate any LVM partitions that may exist from
+# before the boot - perhaps the Slackware tree is on a local partition:
+vgchange -ay 1> /dev/null 2> /dev/null
+if probe -l 2> /dev/null | grep -E 'Linux$' 1> /dev/null 2> /dev/null ; then
+ probe -l 2> /dev/null | grep -E 'Linux$' | sort 1> $TMP/SeTplist 2> /dev/null
+fi
+
+while [ 0 ]; do
+
+ dialog --title "Slackware PXE Setup (version 13.37)" \
+--menu \
+"Welcome to Slackware PXE Setup.\n\
+Select an option below using the UP/DOWN keys and SPACE or ENTER.\n\
+Alternate keys may also be used: '+', '-', and TAB." 18 72 9 \
+"HELP" "Read the Slackware PXE Setup HELP file" \
+"NETWORK" "Configure your network parameters" \
+"SOURCE" "Select source media" \
+"ACTIVATE" "Activate the Slackware PXE Server" \
+"EXIT" "Exit Slackware PXE Setup" 2> $TMP/hdset
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/hdset $TMP/SeT*
+  exit
+ fi
+ MAINSELECT="`cat $TMP/hdset`"
+ rm $TMP/hdset
+
+ # Start checking what to do. Some modules may reset MAINSELECT to run the
+ # next item in line.
+
+ if [ "$MAINSELECT" = "HELP" ]; then
+  SeTPXEHELP
+ fi
+
+ if [ "$MAINSELECT" = "NETWORK" ]; then
+  SeTnet
+  SeTpxe
+  if [ -r $TMP/SeTpxe ]; then
+   MAINSELECT="SOURCE" 
+  fi
+ fi
+ 
+ if [ "$MAINSELECT" = "SOURCE" ]; then
+  SeTpxemedia 
+  if [ -r $TMP/SeTsource ]; then
+   MAINSELECT="ACTIVATE"
+  fi
+ fi
+ 
+ if [ "$MAINSELECT" = "ACTIVATE" ]; then
+  if [ ! -r $TMP/SeTpxe -o ! -r $TMP/SeTsource ]; then
+   dialog --title "CANNOT START PXE SERVER YET" --msgbox "\
+\n\
+Before you can start the PXE Server, complete the following tasks:\n\
+\n\
+1. Set up your computer's network parameters.\n\
+2. Select your source media.\n\
+\n\
+Press ENTER to return to the main menu." 14 68
+   continue
+  fi
+  # Time to start the BOOTP/TFTP/HTTP servers:
+  dnsmasq -C /etc/dnsmasq.conf
+  httpd -h /var/log/mount
+
+  dialog --backtitle "Slackware PXE Server." \
+   --title "PXE Client activity log" \
+   --ok-label "EXIT" \
+   --tailbox /var/log/dnsmasq.log 18 68
+
+  # Time to kill the BOOTP/TFTP/HTTP servers:
+  kill -TERM $(cat /var/run/dnsmasq.pid)
+  killall -TERM httpd
+ fi
+
+ if [ "$MAINSELECT" = "EXIT" ]; then
+  break
+ fi
+
+done # end of main loop
+
+# end slackware PXE setup script
+

@@ -1,0 +1,315 @@
+#!/bin/sh
+#
+# Copyright 2011  Eric Hameleers, Eindhoven, NL
+# Copyright 2011  Patrick Volkerding, Sebeka, Minnesota USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is 
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Bug reports, suggestions, etc for pxesetup: alien@slackware.com
+#
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+ mkdir -p $TMP
+fi
+
+# Function to convert the netmask from CIDR format to dot notation.
+cidr_cvt() {
+  inform=$1
+  if   [ $inform -ge 32 ]; then outform='255.255.255.255'
+  elif [ $inform -ge 31 ]; then outform='255.255.255.254'
+  elif [ $inform -ge 30 ]; then outform='255.255.255.252'
+  elif [ $inform -ge 29 ]; then outform='255.255.255.248'
+  elif [ $inform -ge 28 ]; then outform='255.255.255.240'
+  elif [ $inform -ge 27 ]; then outform='255.255.255.224'
+  elif [ $inform -ge 26 ]; then outform='255.255.255.192'
+  elif [ $inform -ge 25 ]; then outform='255.255.255.128'
+  elif [ $inform -ge 24 ]; then outform='255.255.255.0'
+  elif [ $inform -ge 23 ]; then outform='255.255.254.0'
+  elif [ $inform -ge 22 ]; then outform='255.255.252.0'
+  elif [ $inform -ge 21 ]; then outform='255.255.248.0'
+  elif [ $inform -ge 20 ]; then outform='255.255.240.0'
+  elif [ $inform -ge 19 ]; then outform='255.255.224.0'
+  elif [ $inform -ge 18 ]; then outform='255.255.192.0'
+  elif [ $inform -ge 17 ]; then outform='255.255.128.0'
+  elif [ $inform -ge 16 ]; then outform='255.255.0.0'
+  elif [ $inform -ge 15 ]; then outform='255.254.0.0'
+  elif [ $inform -ge 14 ]; then outform='255.252.0.0'
+  elif [ $inform -ge 13 ]; then outform='255.248.0.0'
+  elif [ $inform -ge 12 ]; then outform='255.240.0.0'
+  elif [ $inform -ge 11 ]; then outform='255.224.0.0'
+  elif [ $inform -ge 10 ]; then outform='255.192.0.0'
+  elif [ $inform -ge 9 ]; then outform='255.128.0.0'
+  elif [ $inform -ge 8 ]; then outform='255.0.0.0'
+  elif [ $inform -ge 7 ]; then outform='254.0.0.0'
+  elif [ $inform -ge 6 ]; then outform='252.0.0.0'
+  elif [ $inform -ge 5 ]; then outform='248.0.0.0'
+  elif [ $inform -ge 4 ]; then outform='240.0.0.0'
+  elif [ $inform -ge 3 ]; then outform='224.0.0.0'
+  elif [ $inform -ge 2 ]; then outform='192.0.0.0'
+  elif [ $inform -ge 1 ]; then outform='128.0.0.0'
+  elif [ $inform -ge 0 ]; then outform='0.0.0.0'
+  fi
+  echo $outform
+}
+
+# IP Address to integer conversion and back:
+ip_to_int() {
+ IFS=.
+ set -f
+ set -- $1
+ echo $(($1 << 24 | $2 << 16 | $3 << 8 | $4))
+}
+int_to_ip() {
+ echo $(($1>>24)).$(($1>>16&0xff)).$(($1>>8&0xff)).$(($1&0xff))
+}
+
+# PXE configuration file:
+echo "" > $TMP/SeTpxe
+
+# Find out what interface we are using.
+# Does the commandline have NIC information for us?
+# Format is 'nic=driver:interface:<dhcp|static>:ip:mask:gw'
+unset INTERFACE
+for CMDELEM in $(cat /proc/cmdline) ; do
+ if $(echo $CMDELEM | grep -q "^nic=") ; then
+  INTERFACE=$(echo $DRIVER | cut -f2 -d:)
+ fi
+done
+if [ "x$INTERFACE" = "x" ]; then # the cmdline did not provide a nic
+ INTERFACE=$(ip -f inet -o addr show |tr -s ' ' |grep -v " lo " |cut -f2 -d' ' |head -1)
+fi
+if [ "x$INTERFACE" = "x" ]; then # no network was configured at all?!?
+ cat <<EOF > $TMP/tempmsg
+
+Apparently you forgot to configure a network interface? \n\
+A PXE Server needs a configured network interface to work.\n\
+Please try again!
+
+EOF
+ dialog --title "UNCONFIGURED NETWORK DEVICE" --msgbox "$(cat $TMP/tempmsg)" 9 68
+ rm -f $TMP/tempmsg
+ exit 1
+fi
+
+# If there is a DHCP server on the network, we should not activate one now:
+if [ -r $TMP/Pdhcp ]; then
+ DHCP="no"
+elif [ -s /etc/dhcpc/dhcpcd-${INTERFACE}.info ]; then
+ DHCP="no"
+else
+ # Assume nothing... we will ask the user for confirmation later!
+ DHCP="yes"
+fi
+
+# Start the interactive part:
+dialog --backtitle "Slackware PXE Server." \
+ --title "WELCOME TO PXE CONFIGURATION" --msgbox "\
+We will be asking you a few questions now.\n\
+The answers will be used to start a PXE service on this computer \
+which does not interfere with other services in your network.\
+\n\
+The only assumption is, that there is NO PXE service running \
+on your local network at this moment.
+\n\
+If in doubt, leave the defaults." 0 0
+
+if [ "$DHCP" = "yes" ]; then
+ # Be extra safe. Do not start a DHCP server if the user denies it:
+ dialog --title "ENABLE DHCP SERVER" --yesno " \
+No active DHCP server was found on your local network. \
+The Slackware PXE server needs a working DHCP server.\n\
+Do you want this computer to start its own DHCP server \
+(you can control what IP addresses are used by the DHCP server)?\n\
+Say 'YES' if you are certain your network has no DHCP server." 9 68
+ if [ $? = 0 ]; then
+  DHCP="yes" 
+ else
+  DHCP="no" 
+ fi
+fi
+
+# Assemble the network parameters:
+LOCAL_IPADDR=$(ip -f inet -o addr show |tr -s ' ' |grep -v " lo " |head -1 |cut -f4 -d' ' |cut -f1 -d/)
+LOCAL_NETMASK=$(ip -f inet -o addr show |tr -s ' ' |grep -v " lo " |head -1 |cut -f4 -d' ' |cut -f2 -d/)
+LOCAL_GATEWAY=$(ip -f inet -o route show default |tr -s ' ' |cut -f3 -d' ')
+LOCAL_NETMASK=$(cidr_cvt $LOCAL_NETMASK)
+LOCAL_BROADCAST=$(ipmask $LOCAL_NETMASK $LOCAL_IPADDR |cut -f 1 -d ' ')
+LOCAL_NETWORK=$(ipmask $LOCAL_NETMASK $LOCAL_IPADDR |cut -f 2 -d ' ')
+
+if [ "$DHCP" = "yes" ]; then
+ # Find out a suitable IP address range for the DHCP server. Involves magic:
+ I_LOCAL_IPADDR=$(ip_to_int "$LOCAL_IPADDR")
+ I_LOCAL_NETMASK=$(ip_to_int "$LOCAL_NETMASK")
+ I_MINLEASE_IP=$(( ($I_LOCAL_IPADDR & $I_LOCAL_NETMASK) + 1 ))
+ I_MAXLEASE_IP=$(( ($I_LOCAL_IPADDR | ${I_LOCAL_NETMASK}^0xffffffff) - 1 ))
+ if [ $(($I_MAXLEASE_IP - $I_LOCAL_IPADDR)) -ge 10 ]; then
+  # Use ten IP addresses in the top of the address range:
+  I_MINLEASE_IP=$(($I_MAXLEASE_IP - 9))
+ elif [ $(($I_LOCAL_IPADDR - $I_MINLEASE_IP)) -ge 10 ]; then
+  # Use ten IP addresses in the bottom of the address range:
+  I_MAXLEASE_IP=$(($I_MINLEASE_IP + 9))
+ else
+  # Small range, use what we can get:
+  I_MINLEASE_IP=$(($I_LOCAL_IPADDR + 1))
+ fi
+ 
+ MINLEASE_IP=$(int_to_ip "$I_MINLEASE_IP")
+ MAXLEASE_IP=$(int_to_ip "$I_MAXLEASE_IP")
+
+ while [ 0 ]; do
+  ( dialog --stdout --backtitle "Slackware PXE Server." \
+     --title "DHCP SERVER CONFIGURATION" \
+     --cancel-label Restart \
+     --form "\
+The PXE Service is going to run on $INTERFACE with these values \
+(the defaults should be OK). \n\
+You can change the range of IP addresses used by the DHCP server, if \
+IP addresses in the proposed range are used by computers in your LAN. \
+For instance, your default gateway if you have one. \n\
+\n\
+Also note that we will not validate any changes you make:" \
+    18 68 0 \
+    "IP Address:"                  1 1 "$LOCAL_IPADDR"   1 30   0 0 \
+    "Netmask:"                     2 1 "$LOCAL_NETMASK"  2 30   0 0 \
+    "Gateway:"                     3 1 "$LOCAL_GATEWAY"  3 30   0 0 \
+    "Lowest DHCP Client Address:"  4 1 "$MINLEASE_IP"    4 30  15 0 \
+    "Highest DHCP Client Address:" 5 1 "$MAXLEASE_IP"    5 30  15 0 \
+  ) > $TMP/tempopts
+
+  if [ $? = 0 ]; then
+   # Remember... busybox ash is no good with arrays :/
+   local i=0
+   rm $TMP/tempkeys
+   cat $TMP/tempopts | while read VALUE ; do
+    if   [ $i = 0 ]; then echo "MINLEASE_IP=\"$VALUE\"" >> $TMP/tempkeys
+    elif [ $i = 1 ]; then echo "MAXLEASE_IP=\"$VALUE\"" >> $TMP/tempkeys
+    fi
+    i=$(expr $i + 1)
+   done
+   eval $(cat $TMP/tempkeys)
+   rm $TMP/tempopts
+   break
+  fi
+ done
+fi # [ "$DHCP" = "yes" ]
+
+echo "DHCP=${DHCP}" >> $TMP/SeTpxe
+echo "LOCAL_IPADDR=${LOCAL_IPADDR}" >> $TMP/SeTpxe
+echo "LOCAL_NETMASK=${LOCAL_NETMASK}" >> $TMP/SeTpxe
+echo "LOCAL_GATEWAY=${LOCAL_GATEWAY}" >> $TMP/SeTpxe
+echo "LOCAL_BROADCAST=${LOCAL_BROADCAST}" >> $TMP/SeTpxe
+echo "LOCAL_NETWORK=${LOCAL_NETWORK}" >> $TMP/SeTpxe
+echo "MINLEASE_IP=${MINLEASE_IP}" >> $TMP/SeTpxe
+echo "MAXLEASE_IP=${MAXLEASE_IP}" >> $TMP/SeTpxe
+
+# Write out a suitable dnsmasq configuration:
+cat <<EOF > /etc/dnsmasq.conf
+# We do not need dnsmasq to function as a DNS server:
+port=0
+
+# Write the pid file:
+pid-file=/var/run/dnsmasq.pid
+
+# Start a TFTP server:
+enable-tftp
+
+# Set the root directory for files available via FTP:
+tftp-root=/var/lib/tftpboot
+
+# The boot filename:
+dhcp-boot=/pxelinux.0
+
+# Disable re-use of the DHCP servername and filename fields as extra
+# option space. That's to avoid confusing some old or broken DHCP clients.
+dhcp-no-override
+
+# Log connections so that we can display them on the console:
+log-facility=/var/log/dnsmasq.log
+log-dhcp
+
+# Custom path for the leases file:
+dhcp-leasefile=$TMP/dnsmasq.leases
+
+# Craft a nice PXE menu:
+pxe-prompt="Press F8 for boot menu", 3
+
+# The known types are x86PC, PC98, IA64_EFI, Alpha, Arc_x86,
+# Intel_Lean_Client, IA32_EFI, BC_EFI, Xscale_EFI and X86-64_EFI
+pxe-service=X86PC, "Boot from network", /var/lib/tftpboot/pxelinux
+
+# A boot service type of 0 is special, and will abort the
+# net boot procedure and continue booting from local media.
+pxe-service=X86PC, "Boot from local hard disk", 0                               
+
+EOF
+
+if [ -n "$LOCAL_GATEWAY"  ]; then
+ cat <<EOF >> /etc/dnsmasq.conf
+# Override the default route supplied by dnsmasq, which assumes the
+# router is the same machine as the one running dnsmasq.
+#dhcp-option=option:router,${LOCAL_GATEWAY}
+dhcp-option=3,${LOCAL_GATEWAY}
+
+EOF
+else
+ cat <<EOF >> /etc/dnsmasq.conf
+# Override the default route supplied by dnsmasq and send no default
+# route at all.
+dhcp-option=3
+
+EOF
+fi
+
+if [ "$DHCP" = "yes" ]; then
+ cat <<EOF >> /etc/dnsmasq.conf
+# dnsmasq functions as a normal DHCP server, providing IP leases.
+dhcp-range=${MINLEASE_IP},${MAXLEASE_IP},${LOCAL_NETMASK},1h
+
+EOF
+else
+ cat <<EOF >> /etc/dnsmasq.conf
+# There is an existing DHCP server on this LAN, so dnsmasq functions
+# as a proxy DHCP server providing boot information but no IP leases.
+# Any ip in the subnet will do, so you may just put your server NIC ip here.
+dhcp-range=${LOCAL_IPADDR},proxy
+
+EOF
+fi
+
+# Create the pxelinux configuration file:
+cat <<EOF > /var/lib/tftpboot/pxelinux.cfg/default
+default huge.s
+prompt 1
+timeout 1200
+display message.txt
+F1 message.txt
+F2 f2.txt
+label huge.s
+  kernel kernels/huge.s/bzImage
+  append initrd=initrd.img load_ramdisk=1 prompt_ramdisk=0 rw printk.time=0 SLACK_KERNEL=huge.s cf=tftp,${LOCAL_IPADDR},/slackpxe.cfg
+label speakup.s
+  kernel kernels/huge.s/bzImage
+  append initrd=initrd.img load_ramdisk=1 prompt_ramdisk=0 rw printk.time=0 SLACK_KERNEL=huge.s cf=tftp,${LOCAL_IPADDR},/slackpxe.cfg
+label memtest
+  kernel kernels/memtest/memtest
+EOF
+
+# Update the slackpxe.cfg file:
+sed -i -e "s,^REMOTE_URL=.*,REMOTE_URL=http://$LOCAL_IPADDR," /var/lib/tftpboot/slackpxe.cfg
+

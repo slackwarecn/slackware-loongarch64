@@ -1,0 +1,524 @@
+#!/bin/sh
+# SeTpartition user-friendly rewrite Fri Dec 15 13:17:40 CST 1995 pjv
+# Rewrite to support filesystem plugins <david@slackware.com>, 07-May-2001
+# Don't use plugins, make it work, pjv, 18-May-2001.
+# Generalize tempscript creation and support JFS and XFS. pjv, 30-Mar-2002
+
+TMP=/var/log/setup/tmp
+NDIR=/dev/null
+REDIR=/dev/tty4
+T_PX="`cat $TMP/SeTT_PX`"
+
+# FUNCTIONS
+
+# crunch() -  remove extra whitespace
+crunch () {
+   read STRING;
+   echo $STRING
+}
+
+# make_btrfs( dev ) - Create a new btrfs filesystem on the named dev.
+# Parameters:  dev     Device node to format.
+make_btrfs() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem btrfs." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: btrfs " 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   mkfs.btrfs -f -d single -m single $1 1> $REDIR 2> $REDIR
+}
+
+# make_ext2( dev, check ) - Create a new ext2 filesystem on the named
+#                                device.
+# Parameters:  dev     Device node to format.
+#              check   Perform fs check (y or n)
+make_ext2() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem ext2." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: ext2" 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   if [ "$2" = "y" ]; then
+      mkfs.ext2 -F -F -c $1 1> $REDIR 2> $REDIR
+   else
+      mkfs.ext2 -F -F $1 1> $REDIR 2> $REDIR
+   fi
+}
+
+# make_ext3( dev, check ) - Create a new ext3 filesystem on the named
+#                                device.
+# Parameters:  dev     Device node to format.
+#              check   Perform fs check (y or n)
+make_ext3() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem ext3." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: ext3" 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   if [ "$2" = "y" ]; then
+      mkfs.ext3 -F -F -c $1 1> $REDIR 2> $REDIR
+   else
+      mkfs.ext3 -F -F $1 1> $REDIR 2> $REDIR
+   fi
+}
+
+# make_ext4( dev, check ) - Create a new ext4 filesystem on the named
+#                                device.
+# Parameters:  dev     Device node to format.
+#              check   Perform fs check (y or n)
+make_ext4() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem ext4." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: ext4" 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   if [ "$2" = "y" ]; then
+      mkfs.ext4 -F -F -c $1 1> $REDIR 2> $REDIR
+   else
+      mkfs.ext4 -F -F $1 1> $REDIR 2> $REDIR
+   fi
+}
+
+# make_jfs( dev, check ) - Create a new jfs filesystem on the named
+#                                device.
+# Parameters:  dev     Device node to format.
+#              check   Perform fs check (y or n)
+make_jfs() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem jfs." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: jfs" 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   if [ "$2" = "y" ]; then
+      mkfs.jfs -c -q $1 1> $REDIR 2> $REDIR
+   else
+      mkfs.jfs -q $1 1> $REDIR 2> $REDIR
+   fi
+}
+
+# make_reiserfs( dev ) - Create a new reiserfs filesystem on the named dev.
+# Parameters:  dev     Device node to format.
+make_reiserfs() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem reiserfs." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: reiserfs " 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   echo "y" | mkreiserfs $1 1> $REDIR 2> $REDIR
+}
+
+# make_xfs( dev ) - Create a new xfs filesystem on the named dev
+# Parameters:  dev     Device node to format.
+make_xfs() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem xfs." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: xfs " 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   mkfs.xfs -f $1 1> $REDIR 2> $REDIR
+}
+
+# gen_part_list() - Prints out a partition listing for the system into the
+gen_part_list() {
+   export COUNT=0
+   cat $TMP/SeTplist | while [ 0 ]; do
+      read PARTITION;
+      if [ "$PARTITION" = "" ]; then
+         break;
+      fi
+      # Variables, variables, variables
+      NAME=`echo $PARTITION | crunch | cut -f 1 -d ' '`
+      ALTNAME=""
+      DEVICE=`echo "$PARTITION" | tr -d "*" | crunch | cut -f 1 -d ' '`
+      SIZE=`get_part_size $DEVICE`
+      # See if this partition is in use already
+      if grep "$DEVICE " $TMP/SeTnative 1> $NDIR; then # it's been used
+         ON=`grep "$DEVICE " $TMP/SeTnative | crunch | cut -f 2 -d ' '`
+         ALTNAME="$DEVICE on $ON Linux ${SIZE}"
+      fi
+      # Add a menu item
+      if [ "$ALTNAME" = "" ]; then
+         echo "\"$NAME\" \"Linux ${SIZE}\" \\" >> $TMP/tempscript
+         echo "false" > $TMP/SeTSKIP # this flag is used for non-root parts
+      else
+         echo "\"(IN USE)\" \"$ALTNAME\" \\" >> $TMP/tempscript
+      fi
+   done
+   echo "\"---\" \"(done adding partitions, continue with setup)\" \\" >> $TMP/tempscript
+   echo "\"---\" \"(done adding partitions, continue with setup)\" \\" >> $TMP/tempscript
+   echo "\"---\" \"(done adding partitions, continue with setup)\" \\" >> $TMP/tempscript
+   echo "\"---\" \"(done adding partitions, continue with setup)\" \\" >> $TMP/tempscript
+   echo "\"---\" \"(done adding partitions, continue with setup)\" \\" >> $TMP/tempscript
+   echo "2> $TMP/return" >> $TMP/tempscript
+}
+
+# ask_format( dev ) - Asks the user if he/she wants to format the named device
+ask_format() {
+   dialog --backtitle "Do you want to format Linux partition ${1}?" \
+   --title "FORMAT PARTITION $1" --menu "If this partition has \
+not been formatted, you should format it. NOTE: This will erase all data on \
+it. Would you like \
+to format this partition?" 12 70 3 \
+   "Format" "Quick format with no bad block checking" \
+   "Check" "Slow format that checks for bad blocks" \
+   "No" "No, do not format this partition" 2> $TMP/return
+   if [ ! $? = 0 ]; then
+     rm -f $TMP/return
+     exit
+   fi
+}
+
+# ask_fs( dev ) - Asks the user the type of filesystem to use for the named
+#                 device.  Answer in $TMP/return
+ask_fs() {
+  unset BTRFS EXT2 EXT3 JFS REISERFS XFS
+  if grep -wq ext2 /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    EXT2="Ext2 is the traditional Linux file system and is fast and stable. "
+  fi
+  if grep -wq ext3 /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    EXT3="Ext3 is the journaling version of the Ext2 filesystem. "
+    DEFAULT=ext3
+  fi
+  if grep -wq ext4 /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    EXT4="Ext4 is the successor to the ext3 filesystem. "
+    DEFAULT=ext4
+  fi
+  if grep -wq reiserfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    REISERFS="ReiserFS is a journaling filesystem that stores all files and filenames in a balanced tree structure. "
+  fi
+  if grep -wq btrfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    BTRFS="Btrfs is a B-tree copy-on-write filesystem. "
+  fi
+  # These last two will only be present if the user asked for a special kernel.
+  # They should probably be the default in that case.
+  if grep -wq jfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    JFS="JFS is IBM's Journaled Filesystem, currently used in IBM enterprise servers. "
+  fi
+  if grep -wq xfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    XFS="XFS is SGI's journaling filesystem that originated on IRIX. "
+  fi
+  cat << EOF > $TMP/tempscript
+dialog --title "SELECT FILESYSTEM FOR $1" \\
+--backtitle "Partition $1 will be formatted." \\
+--default-item $DEFAULT --menu \\
+"Please select the type of filesystem to use for the specified \\
+device. Here are descriptions of the available filesystems: $EXT2 $EXT3 $EXT4 $JFS $REISERFS $XFS" \\
+0 0 0 \\
+EOF
+  if [ ! "$EXT2" = "" ]; then
+    echo "\"ext2\" \"Standard Linux Ext2 Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$EXT3" = "" ]; then
+    echo "\"ext3\" \"Ext3 Journaling Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$EXT4" = "" ]; then
+    echo "\"ext4\" \"Ext4 Journaling Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$JFS" = "" ]; then
+    echo "\"jfs\" \"IBM's Journaled Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$REISERFS" = "" ]; then
+    echo "\"reiserfs\" \"ReiserFS Journaling Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$BTRFS" = "" ]; then
+    echo "\"btrfs\" \"Btrfs Copy-on-Write B-tree Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$XFS" = "" ]; then
+    echo "\"xfs\" \"SGI's Journaling Filesystem\" \\" >> $TMP/tempscript
+  fi
+  echo "2> $TMP/return" >> $TMP/tempscript
+  . $TMP/tempscript
+  if [ ! $? = 0 ]; then
+    rm -f $TMP/return
+    exit
+  fi
+}
+
+# get_part_size( dev ) - Return the size in K, M, G, T, or P of the named partition.
+get_part_size() {
+  numfmt --to=iec $(blockdev --getsize64 $1)
+}
+
+# MAIN
+
+if [ ! -d $TMP ]; then
+   mkdir -p $TMP
+fi
+
+if [ ! -r $TMP/SeTplist ]; then
+   # Give warning?
+   exit
+fi
+
+cat /dev/null >> $TMP/SeTnative
+
+cat << EOF > $TMP/tempscript
+dialog --backtitle "Setting up root Linux partition." \\
+--title "Select Linux installation partition:" --ok-label Select --cancel-label Continue --menu \\
+"Please select a partition from the following list to use for your \\
+root (/) Linux partition." 13 70 5 \\
+EOF
+gen_part_list
+
+. $TMP/tempscript
+if [ ! $? = 0 ]; then
+   rm $TMP/tempscript
+   exit 255 # user abort
+fi
+
+ROOT_DEVICE="`cat $TMP/return`"
+rm $TMP/tempscript
+if [ "$ROOT_DEVICE" = "---" ]; then
+   exit 255
+fi
+
+# format root partition?
+ask_format $ROOT_DEVICE
+DOFORMAT="`cat $TMP/return`"
+rm -f $TMP/return
+if [ ! "$DOFORMAT" = "No" ]; then
+  ask_fs $ROOT_DEVICE
+  ROOT_SYS_TYPE="`cat $TMP/return`"
+  rm -f $TMP/return
+  # create the filesystem
+  if [ "$ROOT_SYS_TYPE" = "ext2" ]; then
+    if [ "$DOFORMAT" = "Check" ]; then
+      make_ext2 $ROOT_DEVICE "y"
+    else
+      make_ext2 $ROOT_DEVICE "n"
+    fi
+  elif [ "$ROOT_SYS_TYPE" = "ext3" ]; then
+    if [ "$DOFORMAT" = "Check" ]; then
+      make_ext3 $ROOT_DEVICE "y"
+    else
+      make_ext3 $ROOT_DEVICE "n"
+    fi
+  elif [ "$ROOT_SYS_TYPE" = "ext4" ]; then
+    if [ "$DOFORMAT" = "Check" ]; then
+      make_ext4 $ROOT_DEVICE "y"
+    else
+      make_ext4 $ROOT_DEVICE "n"
+    fi
+  elif [ "$ROOT_SYS_TYPE" = "reiserfs" ]; then
+    make_reiserfs $ROOT_DEVICE
+  elif [ "$ROOT_SYS_TYPE" = "btrfs" ]; then
+    make_btrfs $ROOT_DEVICE
+  elif [ "$ROOT_SYS_TYPE" = "jfs" ]; then
+    if [ "$DOFORMAT" = "Check" ]; then
+      make_jfs $ROOT_DEVICE "y"
+    else
+      make_jfs $ROOT_DEVICE "n"
+    fi
+  elif [ "$ROOT_SYS_TYPE" = "xfs" ]; then
+    make_xfs $ROOT_DEVICE
+  fi
+fi # DOFORMAT?
+
+# Sync before identifying and mounting the root device:
+sync
+
+# Determine the filesystem type using blkid:
+ROOT_SYS_TYPE=$(blkid -s TYPE $ROOT_DEVICE | cut -f 2 -d = | tr -d \")
+
+# Mount the root filesystem:
+mount $ROOT_DEVICE $T_PX -t $ROOT_SYS_TYPE 1> $REDIR 2> $REDIR
+
+#echo "$ROOT_DEVICE       /        $ROOT_SYS_TYPE        defaults   1   1" > $TMP/SeTnative
+printf "%-16s %-16s %-11s %-16s %-3s %s\n" "$ROOT_DEVICE" "/" "$ROOT_SYS_TYPE" "defaults" "1" "1" > $TMP/SeTnative
+echo $ROOT_DEVICE > $TMP/SeTrootdev
+
+# done mounting the target root partition
+
+# More than one Linux partition
+if [ ! "`cat $TMP/SeTplist | sed -n '2 p'`" = "" ]; then
+   while [ 0 ]; do # next partition loop
+      # OK, we will set this flag, and if we find an unused partition, we
+      # change it. If it doesn't get switched, we skip the next menu.
+      rm -f $TMP/SeTSKIP
+      echo "true" > $TMP/SeTSKIP
+
+      cat << EOF > $TMP/tempscript
+      dialog --backtitle "Setting up other Linux partitions." \\
+--title "Select other Linux partitions for /etc/fstab" \\
+--ok-label Select --cancel-label Continue \\
+--menu "You seem to have more than one partition tagged as type Linux. \\
+You may use these to distribute your Linux system across more than \\
+one partition. Currently, you have $ROOT_DEVICE mounted as your / partition. \\
+You might want to mount directories such as /home or /usr/local \\
+on separate partitions. You should not try to mount /etc, /sbin, or /bin on \\
+their own partitions since they contain utilities needed to bring the system \\
+up and mount partitions. Also, do not reuse a partition that you've already \\
+entered before. Please select one of the Linux partitions listed below, or \\
+if you're done, hit <Continue>." 20 70 4 \\
+EOF
+      gen_part_list
+
+      if [ "`cat $TMP/SeTSKIP`" = "true" ]; then
+         break;
+      fi
+      rm -rf $TMP/return
+
+      . $TMP/tempscript
+      if [ ! $? = 0 ]; then
+         break;
+      fi
+
+      NEXT_PARTITION=`cat $TMP/return`
+      if [ "$NEXT_PARTITION" = "---" ]; then
+         break;
+      elif [ "$NEXT_PARTITION" = "(IN USE)" ]; then
+         continue;
+      fi
+
+      # We now have the next partition, ask the user what to do with it:
+      ask_format $NEXT_PARTITION
+
+      DOFORMAT="`cat $TMP/return`"
+      rm -f $TMP/return
+
+      BACKT="Partition $NEXT_PARTITION will not be reformatted."
+      if [ ! "$DOFORMAT" = "No" ]; then
+        ask_fs $NEXT_PARTITION
+        NEXT_SYS_TYPE="`cat $TMP/return`"
+        rm -f $TMP/return
+        BACKT="Partition $NEXT_PARTITION will be formatted with $NEXT_SYS_TYPE."
+        # create the filesystem
+        if [ "$NEXT_SYS_TYPE" = "ext2" ]; then
+          if [ "$DOFORMAT" = "Check" ]; then
+            make_ext2 $NEXT_PARTITION "y"
+          else
+            make_ext2 $NEXT_PARTITION "n"
+          fi
+        elif [ "$NEXT_SYS_TYPE" = "ext3" ]; then
+          if [ "$DOFORMAT" = "Check" ]; then
+            make_ext3 $NEXT_PARTITION "y"
+          else
+            make_ext3 $NEXT_PARTITION "n"
+          fi
+        elif [ "$NEXT_SYS_TYPE" = "ext4" ]; then
+          if [ "$DOFORMAT" = "Check" ]; then
+            make_ext4 $NEXT_PARTITION "y"
+          else
+            make_ext4 $NEXT_PARTITION "n"
+          fi
+        elif [ "$NEXT_SYS_TYPE" = "reiserfs" ]; then
+          make_reiserfs $NEXT_PARTITION
+        elif [ "$NEXT_SYS_TYPE" = "btrfs" ]; then
+          make_btrfs $NEXT_PARTITION
+        elif [ "$NEXT_SYS_TYPE" = "jfs" ]; then
+          if [ "$DOFORMAT" = "Check" ]; then
+            make_jfs $NEXT_PARTITION "y"
+          else
+            make_jfs $NEXT_PARTITION "n"
+          fi
+        elif [ "$NEXT_SYS_TYPE" = "xfs" ]; then
+          make_xfs $NEXT_PARTITION
+        fi
+      fi # DOFORMAT?
+
+      # Now ask the user where to mount this new filesystem:
+      dialog --backtitle "$BACKT" --title \
+"SELECT MOUNT POINT FOR $NEXT_PARTITION" --inputbox \
+"OK, now you need to specify where you want the new partition mounted. \
+For example, if you want to put it under /usr/local, then respond: /usr/local\n\
+Where would you like to mount $NEXT_PARTITION?" 11 59 2> $TMP/return
+      if [ ! $? = 0 ]; then
+         continue
+      fi
+
+      MTPT=`cat $TMP/return`
+      if [ "$MTPT" = "" ]; then # abort if blank
+         continue
+      fi
+      if [ "`echo "$MTPT" | cut -b1`" = " " ]; then # bail if 1st char is space
+         continue
+      fi
+      if [ ! "`echo "$MTPT" | cut -b1`" = "/" ]; then # add / to start of path
+         MTPT="/$MTPT"
+      fi
+      rm $TMP/return
+
+      # Sync before identifying and mounting the partition:
+      sync
+      
+      # Create the mount point if it does not exist:
+      if [ ! -d ${T_PX}/$MTPT ]; then
+         mkdir -p ${T_PX}/$MTPT
+      fi
+
+      # Determine the filesystem type using blkid:
+      NEXT_SYS_TYPE=$(blkid -s TYPE $NEXT_PARTITION | cut -f 2 -d = | tr -d \")
+
+      # Mount the partition:
+      mount $NEXT_PARTITION ${T_PX}/$MTPT -t $NEXT_SYS_TYPE 1> $REDIR 2> $REDIR
+
+      #echo "$NEXT_PARTITION       $MTPT      $NEXT_SYS_TYPE        defaults   1   1" >> $TMP/SeTnative
+      printf "%-16s %-16s %-11s %-16s %-3s %s\n" "$NEXT_PARTITION" "$MTPT" "$NEXT_SYS_TYPE" "defaults" "1" "2" >> $TMP/SeTnative
+   done # next partition loop
+fi # more than one Linux partition
+
+# Done, report to the user:
+cat << EOF > $TMP/tempmsg
+
+Adding this information to your /etc/fstab:
+
+EOF
+cat $TMP/SeTnative >> $TMP/tempmsg
+dialog --backtitle "Finished setting up Linux partitions." \
+--title "DONE ADDING LINUX PARTITIONS TO /etc/fstab" \
+--exit-label OK \
+--textbox $TMP/tempmsg 15 72
+
+## More obsolete code from the floppy disk era:
+## Now, move our /tmp storage onto the target partition if possible:
+#/usr/lib/setup/migrate.sh
+

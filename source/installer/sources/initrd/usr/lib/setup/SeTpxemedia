@@ -1,0 +1,95 @@
+#!/bin/sh
+#
+# Copyright 2011  Eric Hameleers, Eindhoven, NL
+# Copyright 2011  Patrick Volkerding, Sebeka, Minnesota USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is 
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Bug reports, suggestions, etc for pxesetup: alien@slackware.com
+#
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+
+dialog --backtitle "Select Slackware installation source." \
+--title "SOURCE MEDIA SELECTION" --menu \
+"Please select the media which contains Slackware Linux:" \
+13 70 6 \
+"1" "Use a Slackware DVD" \
+"2" "Use a hard drive partition" \
+"3" "Use a pre-mounted directory" \
+2> $TMP/pxemedia
+if [ ! $? = 0 ]; then
+ rm $TMP/pxemedia
+ exit
+fi
+
+SOURCE_MEDIA="`cat $TMP/pxemedia`"
+rm -f $TMP/pxemedia
+if [ "$SOURCE_MEDIA" = "1" ]; then
+ INSCD
+elif [ "$SOURCE_MEDIA" = "2" ]; then
+ INShd
+elif [ "$SOURCE_MEDIA" = "3" ]; then
+ INSdir
+fi
+
+# Find out where the PXE boot files are on the medium.
+# Note: 'isolinux' will be used on the DVD and 'syslinux' on the USB stick.
+if [ -f $(readlink -f $(cat $TMP/SeTDS))/isolinux/initrd.img ]; then
+ SYSLINUXPATH="$(readlink -f $(cat $TMP/SeTDS))/isolinux"
+elif [ -f $(readlink -f $(cat $TMP/SeTDS))/../isolinux/initrd.img ]; then
+ SYSLINUXPATH="$(cd $(readlink -f $(cat $TMP/SeTDS))/../isolinux ; pwd)"
+elif [ -f $(readlink -f $(cat $TMP/SeTDS))/../syslinux/initrd.img ]; then
+ SYSLINUXPATH="$(cd $(readlink -f $(cat $TMP/SeTDS))/../syslinux ; pwd)"
+elif [ -f $(readlink -f $(cat $TMP/SeTDS))/../../syslinux/initrd.img ]; then
+ SYSLINUXPATH="$(cd $(readlink -f $(cat $TMP/SeTDS))/../../syslinux ; pwd)"
+else
+ SYSLINUXPATH=""
+fi
+
+if [ -d $(readlink -f $(cat $TMP/SeTDS))/../kernels ]; then
+ KERNELPATH="$(cd $(readlink -f $(cat $TMP/SeTDS))/../kernels ; pwd)"
+elif [ -d $(readlink -f $(cat $TMP/SeTDS))/../../kernels ]; then
+ KERNELPATH="$(cd $(readlink -f $(cat $TMP/SeTDS))/../../kernels ; pwd)"
+elif [ -d $(readlink -f $(cat $TMP/SeTDS))/../../syslinux/kernels ]; then
+ KERNELPATH="$(cd $(readlink -f $(cat $TMP/SeTDS))/../../syslinux/kernels ; pwd)"
+else
+ KERNELPATH=""
+fi
+
+# Found them... hopefully.
+if [ -n "$SYSLINUXPATH" -a -n "$KERNELPATH" ]; then
+ # Setup symlinks to initrd files and kernels for the PXE boot:
+ ( cd /var/lib/tftpboot
+   for FILE in $(find $SYSLINUXPATH -type f -maxdepth 1) ; do
+    ln -sf $FILE $(basename $FILE)
+   done
+   ln -sf $KERNELPATH kernels
+ ) 2>/dev/null
+ # Update the slackpxe.cfg file (need to strip off '/var/log/mount'):
+ sed -i -e "s,^REMOTE_PATH=.*,REMOTE_PATH=/$(cat $TMP/SeTDS | cut -d/ -f5-)," /var/lib/tftpboot/slackpxe.cfg
+else
+ dialog --title "FTP/HTTP DOWNLOAD FAILURE" --msgbox "\
+Could not find the kernel and/or initial ramdisk files. \n\
+These are required for booting the client computer.\n\
+Please try to setup the SOURCE location correctly." 7 68
+fi
+

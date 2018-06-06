@@ -1,0 +1,40 @@
+# /etc/inittab
+# Boot-time system configuration/initialization script.
+# This is run first except when booting in single-user mode.
+::sysinit:/etc/rc.d/rc.S
+
+# Login /bin/sh invocations on selected ttys.
+#
+# Start a shell on the console
+::respawn:-/bin/sh
+# Start an "askfirst" shell on tty2 and tty3
+tty2::askfirst:-/bin/sh
+tty3::askfirst:-/bin/sh
+
+# /sbin/getty invocations for selected ttys.
+#
+#tty1::respawn:/sbin/getty 38400 tty1
+#tty2::respawn:/sbin/getty 38400 tty2
+
+# Example of how to put a getty on a serial line (for a terminal)
+#
+#ttyS0::respawn:/sbin/getty -L ttyS0 9600 vt100
+#ttyS1::respawn:/sbin/getty -L ttyS1 9600 vt100
+#
+# Example how to put a getty on a modem line.
+#ttyS2::respawn:/sbin/getty -x0 -s 57600 ttyS2
+
+# Reboot when ctrl-alt-del keys are pressed. 
+::ctrlaltdel:/sbin/reboot 
+#::ctrlaltdel:/sbin/brc
+
+# Stuff to do before halting or rebooting.
+# Hopefully it does these things in order, so that we can fake the
+# system date one last time before umounting:
+::shutdown:/bin/sh /sbin/fakedate
+::shutdown:/sbin/swapoff -a >/dev/null 2>&1 
+::shutdown:/bin/umount -a -r >/dev/null 2>&1 
+::shutdown:/sbin/vgchange -an --ignorelockingfailure >/dev/null 2>&1 
+# Otherwise SSH logins are left lingering:
+::shutdown:/bin/killall dropbear > /dev/null 2>&1
+::shutdown:/bin/sh /sbin/fixdate

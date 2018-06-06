@@ -946,6 +946,7 @@ gzip ./source/a/os-prober/os-prober.reiserfs.diff
 gzip ./source/a/libcgroup/doinst.sh
 gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff
+gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/nano/doinst.sh
@@ -1051,7 +1052,6 @@ gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/dash/dash-0.5.7-format-security.patch
 gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
-gzip ./source/ap/cups/3cd7b5e053f8100da1ca8d8daf93976cca3516ef.patch
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/t/texlive/doinst.sh

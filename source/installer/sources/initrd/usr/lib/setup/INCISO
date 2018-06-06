@@ -1,0 +1,31 @@
+# Determine if there is an ISO image to loop-mount:
+check_iso_image () {
+ local IDIR=$1
+ local MNTDIR=$2
+ [ ! -d $IDIR ] && return 1
+ [ -z "$MNTDIR" ] && MNTDIR=/var/log/mount
+
+ IISO=$(ls --indicator-style=none "$IDIR"/slackwar*-install-dvd.iso 2>/dev/null |tail -1)
+
+ if [ -n "$IISO" ]; then
+  cat << EOF > $TMP/tempmsg
+
+An ISO image of Slackware's install DVD was found.
+Do you want me to mount the ISO image and use this as the package source?
+
+EOF
+  dialog --title "USE ISO IMAGE" --yesno "`cat $TMP/tempmsg`" 9 65
+  RET=$?
+  if [ ! $RET = 0 ]; then
+   rm -f $TMP/tempmsg
+   return 1
+  fi
+
+  rm -f $TMP/tempmsg
+  umount -f $MNTDIR 2>/dev/null
+  mkdir -p $MNTDIR
+  mount -o loop,ro $IISO $MNTDIR
+ else
+  return 1
+ fi
+}

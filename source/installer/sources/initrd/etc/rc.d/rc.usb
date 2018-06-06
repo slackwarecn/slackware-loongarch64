@@ -1,0 +1,71 @@
+#!/bin/sh
+# rc.usb:  search for USB devices needed for installation.
+
+# This is a function to unload the USB modules:
+usb_stop() {
+  modprobe -r usb-storage keybdev mousedev usbmouse hid usbkbd \
+   input uhci usb-uhci usb-ohci uhci-hcd ohci-hcd ehci-hcd 2> /dev/null
+  umount usbfs 2> /dev/null
+  modprobe -r usbcore 2> /dev/null
+}
+
+# This is a function to attempt to enable a USB keyboard,
+# mouse, and storage (CD or hard drive).
+# If this causes problems for you, use "nousb" as a kernel
+# command line option at boot time.
+usb_start() {
+  # If nousb was given at boot, skip.
+  if ! cat /proc/cmdline | grep nousb 1> /dev/null 2> /dev/null ; then
+    # If there aren't even any modules for this kernel, skip.
+    if [ -d /lib/modules/`uname -r` ]; then
+      # If usbcore is already loaded, skip.
+      if ! grep usbcore /proc/modules 1> /dev/null 2> /dev/null ; then
+        echo "Probing for USB controllers."
+        echo "(to skip, give a 'nousb' kernel option at boot)"
+        #sleep 5
+        modprobe -q usbcore >/dev/null 2>&1
+        # Try to mount usbfs:
+        if [ -d /proc/bus/usb -a ! -f /proc/bus/usb/devices ]; then
+          mount -t usbfs usbfs /proc/bus/usb
+        fi
+        # Try to load all the hub modules:
+        modprobe -q ehci-hcd >/dev/null 2>&1
+        modprobe -q ohci-hcd >/dev/null 2>&1
+        modprobe -q uhci-hcd >/dev/null 2>&1
+        modprobe -q usb-ohci >/dev/null 2>&1
+        # NOTE: this prefers "uhci"; you may prefer "usb-uhci".
+        #modprobe -q usb-uhci >/dev/null 2>&1 || modprobe -q uhci >/dev/null 2>&1
+        modprobe -q uhci >/dev/null 2>&1 || modprobe -q usb-uhci >/dev/null 2>&1
+        # Load input core:
+        modprobe -q input >/dev/null 2>&1
+        # Load USB keyboard:
+        modprobe -q usbkbd >/dev/null 2>&1
+        # Load Human Interface Device (HID) USB module:
+        modprobe -q hid >/dev/null 2>&1
+        # Load mouse (just in case (TM)) and keyboard USB input modules:
+        modprobe -q mousedev >/dev/null 2>&1
+        modprobe -q keybdev >/dev/null 2>&1
+        # Attempt to load storage support.  Some funny USB ports (non-0 LUN) might not work
+        # so well, but most are well-behaved.
+        modprobe -q usb-storage >/dev/null 2>&1
+      fi
+    fi
+  fi
+}
+
+case "$1" in
+'start')
+  usb_start
+  ;;
+'stop')
+  usb_stop
+  ;;
+'restart')
+  usb_stop
+  sleep 5
+  usb_start
+  ;;
+*)
+  echo "usage $0 start|stop|restart"
+esac
+

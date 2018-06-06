@@ -1,0 +1,254 @@
+#!/bin/sh
+# Copyright 2003  Slackware Linux, Inc.,  Concord, CA  USA
+# Copyright 2009  Patrick J. Volkerding, Sebeka, MN, USA
+#    All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+# globals
+
+TMP=/var/log/setup/tmp
+
+# functions
+
+get_pkg () {
+  # Download a package from a remote server.
+  # $1 == package series
+  # $2 == package base name
+  # $3 == additional options to the downloader (like, '-v')
+  # REMOTESVR points to the root of the slackware tree, and is composed of
+  # comma-separated values (protocol://remote_ipaddr[:portnumber],remote_root)
+  # like this example: 'ftp://192.168.0.22,/pub/slackware-12.1'
+  local REMOTE_URL=$(echo $REMOTESVR | cut -d, -f1)
+  local REMOTE_ROOT=$(echo $REMOTESVR | cut -d, -f2)
+  PKGBASE=$(basename $(basename $(basename $(basename $2 .tgz) .tbz) .tlz) .txz)
+  local PKGSIZE=`cat \`cat $TMP/SeTDS\`/${1}/${PKGBASE}.size`
+  # So Pat does not get a seizure ;-)
+  #dialog --title "FTP/HTTP DOWNLOAD ==> series '$1' <==" --infobox \
+  #  "Downloading ${2} ($PKGSIZE) ..." 3 72
+  mkdir -p `cat $TMP/SeTDS`/${1}
+  cat /dev/null > `cat $TMP/SeTDS`/${1}/${2}
+  cat /dev/null > `cat $TMP/SeTDS`/${1}/${PKGBASE}.txt
+  wget $3 -c -P `cat $TMP/SeTDS`/${1} \
+     $REMOTE_URL$REMOTE_ROOT/slackware/${1}/${PKGBASE}.txt
+  wget $3 -c -P `cat $TMP/SeTDS`/${1} \
+     $REMOTE_URL$REMOTE_ROOT/slackware/${1}/${2}
+  if [ $? -ne 0 ]; then # One retry for aborted transfers
+   wget $3 -c -P `cat $TMP/SeTDS`/${1} \
+     $REMOTE_URL$REMOTE_ROOT/slackware/${1}/${2}
+  fi
+  if [ $? -ne 0 ]; then
+   dialog --title "FTP/HTTP DOWNLOAD FAILURE" --msgbox \
+     "Downloading ${2} FAILED." 5 72
+  fi
+}
+
+zap_pkg () {
+  # Cleanup a download from a remote server.
+  # $1 == package series
+  # $2 == package name
+  PKGBASE=$(basename $(basename $(basename $(basename $2 .tgz) .tbz) .tlz) .txz)
+  cat /dev/null > `cat $TMP/SeTDS`/${1}/${2} # zero the local file
+  rm -f `cat $TMP/SeTDS`/${1}/${PKGBASE}.txt # remove the description file
+}
+
+updatetagfiles() {
+  if [ $MODE = newbie -o $MODE = full -o $MODE = terse ]; then
+    cat $TMP/series/series.in | while read series ; do
+      if [ -r $SRCPATH/$series/tagfile ]; then
+        mkdir -p $TMP/tagfiles/$series
+        cp -a $SRCPATH/$1/tagfile $TMP/tagfiles/$series
+      fi
+    done
+  elif [ $MODE = tagpath ]; then
+    cp -a `cat $TMP/SeTtagpath`/* $TMP/tagfiles
+  elif [ $MODE = custom ]; then
+    mkdir -p $TMP/tagfiles/$series
+    cp -a $SRCPATH/$series/tagfile`cat $TMP/SeTtagext` $TMP/tagfiles/$series/tagfile
+  elif [ $MODE = menu -o $MODE = expert ]; then
+    cat $TMP/series/series.in | while read series ; do
+      if [ $MODE = menu ]; then
+        if [ -r $SRCPATH/$series/maketag.ez ]; then
+          sh $SRCPATH/$series/maketag.ez
+        fi
+      else
+        if [ -r $SRCPATH/$series/maketag ]; then
+          sh $SRCPATH/$series/maketag
+        fi
+      fi
+      if [ -r $TMP/SeTnewtag ]; then
+        mkdir -p $TMP/tagfiles/$series
+        mv $TMP/SeTnewtag $TMP/tagfiles/$series/tagfile
+      fi
+    done
+  fi
+}
+
+errorcode() {
+  if [ $1 = 99 ]; then
+    # User aborted installation
+    exit 1
+  else
+    dialog --timeout 600 --title "installpkg error #$1" --msgbox \
+"There was a fatal error attempting to install $2. The package may \
+be corrupt, the installation media may be bad, one of the target \
+drives may be full, or something else \
+has caused the package to be unable to be read without error. You \
+may hit enter to continue if you wish, but if this is an important \
+required package then your installation may not work as-is." 11 70
+  fi
+}
+
+installseries() {
+  if [ -d $SRCPATH/$1 ]; then
+    # First, make sure our tagfiles are in order:
+    if [ ! -r $TMP/tagfiles/$1/tagfile -a ! $MODE = full -a ! $MODE = terse ]; then
+      updatetagfiles $1
+    fi
+    # First, make sure there's at least one package:
+    if ! ls $SRCPATH/$series/*.t?z 1> /dev/null 2> /dev/null ; then
+      return 1
+    fi
+    if [ "$MODE" = "terse" ]; then
+      echo "  >> Installing package series $(echo $1 | tr [a-z] [A-Z])"
+    else
+      dialog --infobox "
+Installing package series ==>$1<==
+" 5 45
+    fi
+    sleep 1
+    # Install the package series:
+    for package in $SRCPATH/$series/*.t?z ; do
+      if [ "$MODE" = "full" ]; then # install the package
+        [ "x$REMOTESVR" != "x" ] && get_pkg $series $(basename $package) '-q'
+        installpkg -root $ROOTDIR -infobox -priority ADD $package
+        ERROR=$?
+      elif [ "$MODE" = "terse" ]; then # install the package with terse description
+        [ "x$REMOTESVR" != "x" ] && get_pkg $series $(basename $package) '-q'
+        installpkg -root $ROOTDIR -terse -priority ADD $package
+        ERROR=$?
+      else
+	if [ "x$REMOTESVR" != "x" ]; then
+	  grep "^$(echo $(basename $package) | rev | cut -f4- -d '-' | rev):" \
+	  $TMP/tagfiles/$1/tagfile | grep -qw SKP \
+	  || get_pkg $series $(basename $package) '-q'
+	fi
+        installpkg -root $ROOTDIR -menu -tagfile $TMP/tagfiles/$1/tagfile $package
+        ERROR=$?
+      fi
+      if [ ! $ERROR = 0 ]; then
+        errorcode $ERROR $package
+      fi
+      [ "x$REMOTESVR" != "x" ] && zap_pkg $series $(basename $package)
+    done
+    # A "README_SPLIT.TXT" file means the series continues on another CD:
+    if [ -r $SRCPATH/$series/README_SPLIT.TXT -o -r $SRCPATH/$series/readme_split.txt ] ; then
+      # Defer until later.
+      echo $1 >> $TMP/series/series.out
+    fi
+  else # requested, but not on media.  defer until later.
+    echo $1 >> $TMP/series/series.out
+  fi 
+}
+
+remount_disc() {
+  umount $DEVICE 2> /dev/null
+  eject -s $DEVICE 2> /dev/null
+  dialog --title "INSERT NEXT DISC" --menu "Please insert the next Slackware disc and \
+press ENTER to continue installing packages." \
+10 62 2 \
+  "Continue" "Install packages from the next disc" \
+  "Quit" "Quit installing packages and finish up" 2> $TMP/reply
+  if [ ! $? = 0 ]; then
+    REPLY="Quit"
+  else
+    REPLY="`cat $TMP/reply`"
+  fi
+  rm -f $TMP/reply
+  if [ "$REPLY" = "Quit" ]; then
+    errorcode 99
+  fi;
+  # Recently, mounting has become unreliable at this point.
+  # Not sure if it's udev, or what, but we have seen
+  #   mount: /dev/sr0: unknown device
+  # We will attempt to mount several times to attempt to make
+  # this less likely to fail.
+  for attempt in 1 2 3 4 5 6 7 8 9 10 11 ; do
+    mount $DEVICE $MOUNTPOINT 2> /dev/null
+    if [ $? = 0 ]; then
+      break
+    fi
+    sleep 7
+  done
+  if [ "$MODE" = "terse" ]; then
+    setterm -background cyan -foreground black -blank 0
+  fi
+}
+
+# /* main */
+
+# Process command line:
+if [ $# -gt 0 ]; then # there are arguments to the command
+  while [ $# -gt 0 ]; do
+   case "$1" in
+   "--promptmode")
+     MODE=`echo $2` ; shift 2 ;;
+   "--srcpath")
+     SRCPATH=`echo $2` ; shift 2 ;;
+   "--mountpoint")
+     MOUNTPOINT=`echo $2` ; shift 2 ;;
+   "--target")
+     ROOTDIR=`echo $2` ; shift 2 ;;
+   "--device")
+     DEVICE=`echo $2` ; shift 2 ;;
+   "--series")
+     SERIES=`echo $2` ; shift 2 ;;
+   "--net")
+     REMOTESVR=`echo $2` ; shift 2 ;;
+   *)
+     echo "Unrecognized option $1" ; shift 1 ;; 
+   esac
+  done
+else
+  exit 1;
+fi
+# Empty out temporary directories:
+rm -rf $TMP/series $TMP/tagfiles
+mkdir -p $TMP/series $TMP/tagfiles
+# Create initial list of series to install:
+for series in `echo $SERIES | tr "#" " "` ; do
+  echo $series | tr A-Z a-z >> $TMP/series/series.in
+done
+# Main loop:
+while [ -r $TMP/series/series.in ]; do
+  cat $TMP/series/series.in | while read series ; do
+    installseries $series;
+  done
+  rm -f $TMP/series/series.in
+  if [ -r $TMP/series/series.out ]; then
+    mv $TMP/series/series.out $TMP/series/series.in
+    if [ "$DEVICE" = "noremount" ]; then
+      # we've done all we can here
+      break
+    else # see if there's anything we need on the next disc
+      remount_disc
+    fi
+  fi
+done
+

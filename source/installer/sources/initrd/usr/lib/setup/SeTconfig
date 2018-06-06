@@ -1,0 +1,138 @@
+#!/bin/sh
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+T_PX="`cat $TMP/SeTT_PX`"
+ROOT_DEVICE="`cat $TMP/SeTrootdev`"
+if [ ! -d $T_PX/bin -a ! -d $T_PX/etc ]; then # if there no Linux here, exit
+  exit
+fi
+
+# Check for disk full error:
+. /usr/lib/setup/SeTfull
+
+# These next lines are intended to clean up any permissions
+# problems that could be caused by a bad package. We don't
+# intend to make any bad packages here, but it never hurts
+# to be safe. :^)
+( cd $T_PX ; chmod 755 ./ )
+( cd $T_PX ; chmod 755 ./var )
+if [ -d $T_PX/usr/src/linux ]; then
+  chmod 755 $T_PX/usr/src/linux
+fi
+if [ ! -d $T_PX/proc ]; then
+  mkdir $T_PX/proc
+  chown root.root $T_PX/proc
+fi
+if [ ! -d $T_PX/sys ]; then
+  mkdir $T_PX/sys
+  chown root.root $T_PX/sys
+fi
+chmod 1777 $T_PX/tmp
+if [ ! -d $T_PX/var/spool/mail ]; then
+  mkdir -p $T_PX/var/spool/mail
+  chmod 755 $T_PX/var/spool
+  chown root.mail $T_PX/var/spool/mail
+  chmod 1777 $T_PX/var/spool/mail
+fi
+
+# Some of the install scripts need /proc and /sys.
+# Some disks will need /dev with module loaded devices.
+if [ ! "$T_PX" = "/" ]; then
+  mount --bind /proc $T_PX/proc 1> /dev/null 2> /dev/null
+  mount --bind /sys $T_PX/sys 1> /dev/null 2> /dev/null
+  mount --bind /dev $T_PX/dev 1> /dev/null 2> /dev/null
+fi
+# These will be left connected rather than unmounting them to
+# make it easier to set up LVM/LUKS.
+
+# Load keyboard map (if any) when booting
+if [ -r $TMP/SeTkeymap ]; then
+  MAPNAME="`cat $TMP/SeTkeymap`"
+  echo "#!/bin/sh" > $T_PX/etc/rc.d/rc.keymap
+  echo "# Load the keyboard map. More maps are in /usr/share/kbd/keymaps." \
+  >> $T_PX/etc/rc.d/rc.keymap
+  echo "if [ -x /usr/bin/loadkeys ]; then" >> $T_PX/etc/rc.d/rc.keymap
+  echo " /usr/bin/loadkeys $MAPNAME" >> $T_PX/etc/rc.d/rc.keymap
+  echo "fi" >> $T_PX/etc/rc.d/rc.keymap
+  chmod 755 $T_PX/etc/rc.d/rc.keymap
+fi
+
+# Only ask if we want to skip configuring if we suspect the user should
+# skip the step:
+if [ -r $T_PX/etc/fstab ]; then
+  dialog --title "CONFIGURE THE SYSTEM" --yesno "Now we can configure your \
+Linux system. If this is a new installation, you MUST configure it now or it \
+will not boot correctly. However, if you are just adding software to an \
+existing system, you can back out to the main menu and skip this step. \
+However (important exception) if you've installed a new kernel image, it's \
+important to reconfigure your system so that you can install LILO (the Linux \
+loader) or create a bootdisk using the new kernel. You want to CONFIGURE \
+your system, right?" 0 0
+  if [ ! $? = 0 ]; then
+    exit
+  fi
+else
+  dialog --title "DONE INSTALLING PACKAGES" --infobox  \
+"Preparing to configure your new Linux system..." 3 54
+  sleep 1
+fi
+
+# Post installation and setup scripts added by packages.
+if [ -d $T_PX/var/log/setup ]; then
+  # Prepare for LVM in a newly installed system
+  if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then # Available in local root
+    if [ ! -r $T_PX/etc/lvmtab -a ! -d $T_PX/etc/lvm/backup ]; then
+      #mount --bind /proc $T_PX/proc
+      #mount --bind /sys $T_PX/sys
+      chroot $T_PX /sbin/vgscan --mknodes --ignorelockingfailure 1> /dev/null 2> /dev/null
+      # First run does not always catch LVM on a LUKS partition:
+      chroot $T_PX /sbin/vgscan --mknodes --ignorelockingfailure 1> /dev/null 2> /dev/null
+    fi
+  fi
+  for INSTALL_SCRIPTS in $T_PX/var/log/setup/setup.* ; do
+    SCRIPT=`basename $INSTALL_SCRIPTS`
+    # Here, we call each script in /var/log/setup. Two arguments are provided:
+    # 1 -- the target prefix (normally /, but ${T_PX} from the bootdisk)
+    # 2 -- the name of the root device.
+    ( cd $T_PX 
+      if [ -x var/log/setup/$SCRIPT ]; then
+        ./var/log/setup/$SCRIPT $T_PX $ROOT_DEVICE
+      fi
+    )
+    if echo $SCRIPT | grep onlyonce 1> /dev/null 2> /dev/null; then # only run after first install
+      if [ ! -d $T_PX/var/log/setup/install ]; then
+        mkdir $T_PX/var/log/setup/install
+      fi
+      mv $INSTALL_SCRIPTS $T_PX/var/log/setup/install
+    fi
+  done
+fi
+
+# Figure out how to set the /dev/cdrom and/or /dev/dvd symlinks. Everything seems to
+# report itself as a DVD-ROM, so don't blame me. Without asking what's what, all we can
+# do here is guess. It's a better guess than before, though, as now it takes ide-scsi
+# into account. This won't really matter these days (2018), as everything uses udev to
+# create /dev, and it makes links like this...
+if dmesg | grep "ATAPI CD" 1> /dev/null 2> /dev/null ; then
+  dmesg | grep "ATAPI CD" | while read device ; do
+    shortdev=`echo $device | cut -f 1 -d :`
+    if grep -w "$shortdev=ide-scsi" $T_PX/etc/lilo.conf 1> /dev/null 2> /dev/null ; then
+      shortdev=sr0 
+    fi
+    ( cd $T_PX/dev
+      rm -f cdrom dvd
+      ln -sf /dev/$shortdev cdrom
+      ln -sf /dev/$shortdev dvd
+    )
+    # Rather than keep overwriting the devices, quit keeping only links to the first
+    # device found. "Real" users will use the actual devices instead of silly links
+    # anyway.  ;-)
+    break;
+  done
+fi
+
+# Set root password:
+/usr/lib/setup/SeTpasswd
+

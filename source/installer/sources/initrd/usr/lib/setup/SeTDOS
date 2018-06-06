@@ -1,0 +1,214 @@
+#!/bin/sh
+# SeTpartition user-friendly rewrite Fri Dec 15 13:17:40 CST 1995 pjv
+# More updates for Slackware 3.5: Wed Apr 29 22:43:28 CDT 1998
+# Updated for Slackware 7.x (new fdisk tags) Fri Sep 10 13:17:18 CDT 1999
+TMP=/var/log/setup/tmp
+T_PX="`cat $TMP/SeTT_PX`"
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+REDIR=/dev/tty4
+NDIR=/dev/null
+rm -f $TMP/SeTDOS
+touch $TMP/SeTDOS
+
+crunch () { # remove extra whitespace
+ read STRING;
+ echo $STRING
+}
+
+# get_part_size( dev ) - Return the size in K, M, G, T, or P of the named partition.
+get_part_size() {
+  numfmt --to=iec $(blockdev --getsize64 $1)
+}
+
+ntfs_security() {
+  rm -f $TMP/ntfs_security
+  dialog --backtitle "Setting permissions on NTFS partition $DOS_PART" \
+  --title "SET SECURITY FOR NTFS PARTITION $DOS_PART" \
+  --default-item "fmask=177,dmask=077" \
+  --menu "Because users could go snooping through (or destroy, depending on \
+the settings) your Windows partition, you should choose how much access would you \
+like your non-root users to have to partition $DOS_PART. The access level can \
+range from no access at all, to read-only for everyone, to read-write access \
+for every user on the machine. A reasonable default (read-write for root only) \
+is chosen, but you may set this any way that you like." \
+16 77 4 \
+"fmask=177,dmask=077" "Root has read/write access, users have no access (ntfs-3g)" \
+"fmask=333,dmask=222" "Everyone has read only access (built-in kernel ntfs driver)" \
+"fmask=133,dmask=022" "Everyone has read access, but only root can write (ntfs-3g)" \
+"fmask=111,dmask=000" "All users can read/write to any file (ntfs-3g)" \
+2> $TMP/ntfs_security
+  if [ ! $? = 0 ]; then
+    rm -f $TMP/ntfs_security $TMP/mount-point $TMP/SeTDOS
+    echo 1
+  fi
+}
+
+fat_security() {
+  rm -f $TMP/fat_security
+  dialog --backtitle "Setting permissions on FAT partition $DOS_PART" \
+  --title "SET SECURITY FOR FAT PARTITION $DOS_PART" \
+  --default-item "fmask=177,dmask=077" \
+  --menu "Because users could go snooping through (or destroy, depending on \
+the settings) your Windows partition, you should choose how much access would you \
+like your non-root users to have to partition $DOS_PART. The access level can \
+range from no access at all, to read-only for everyone, to read-write access \
+for every user on the machine. A reasonable default (read-write for root only) \
+is chosen, but you may set this any way that you like." \
+18 77 4 \
+"fmask=177,dmask=077" "Root has read/write access, users have no access" \
+"fmask=333,dmask=222" "Everyone has read only access" \
+"fmask=133,dmask=022" "Everyone has read access, but only root can write" \
+"fmask=111,dmask=000" "All users can read/write to any file" \
+2> $TMP/fat_security
+  if [ ! $? = 0 ]; then
+    rm -f $TMP/fat_security $TMP/mount-point $TMP/SeTDOS
+    echo 1
+  fi
+}
+
+# Since the USB installers (both usbboot.img and the ones created using
+# usbimg2disk.sh) present bogus FAT/NTFS partitions, we need a way to
+# filter these from the partition scan. To do this, we'll set a variable
+# $BANHAMMER that contains the name of the device the stick was found on.
+# First, we'll set that to contain some random nonsense that will never
+# be an actual device since reverse grepping for "" won't work.
+BANHAMMER="0xFE11C1A"
+# Look for the usbboot.img stick:
+if [ -L /dev/disk/by-label/USBSLACK ]; then
+  BANHAMMER="$(readlink -f /dev/disk/by-label/USBSLACK)"
+fi
+# Look for the usbimg2disk.sh stick:
+if [ -L /dev/disk/by-label/USBSLACKINS ]; then
+  BANHAMMER="$(readlink -f /dev/disk/by-label/USBSLACKINS | cut -b 1-8)"
+fi
+# Suggested new GPT partition type:  Microsoft basic data
+# More research needed...  could be FAT32, NTFS, or EXFAT
+DOSLIST="$(probe -l 2> /dev/null | grep -E "DOS|Win(95 F|98 F)|HPFS|W95 F|FAT(12|16)" | grep -Ev "Ext('d|end)" | grep -v "$BANHAMMER" | sort)"
+if [ "$DOSLIST" = "" ]; then # no FAT or NTFS partitions
+ exit
+fi
+dialog --backtitle "Setting up non-Linux partitions." \
+--title "FAT or NTFS PARTITIONS DETECTED" \
+--yesno "Partitions of type FAT or NTFS (commonly used by DOS and \
+Windows) have been found on your \
+system.  Would you like to add these partitions to your /etc/fstab \
+so that these partitions are visible from Linux?" \
+8 70
+if [ ! $? = 0 ]; then
+ exit
+fi
+while [ 0 ]; do # main partition selection loop
+ rm -f $TMP/SeTSKIP
+ echo "true" > $TMP/SeTSKIP
+ cat << EOF > $TMP/tempscript
+dialog --backtitle "Selecting non-Linux partitions." \\
+--title "SELECT PARTITION TO ADD TO /etc/fstab" \\
+--ok-label Select --cancel-label Continue \\
+--menu "In order to make these partitions visible from Linux, we \\
+need to add them to your /etc/fstab. Please pick a partition to \\
+add to /etc/fstab, or select '---' to continue with the installation \\
+process." \\
+15 70 5 \\
+EOF
+ echo "$DOSLIST" | while read PARTITION ; do
+  NAME=`echo $PARTITION | crunch | cut -f 1 -d ' '`
+  SIZE=`get_part_size $NAME`
+  if echo $PARTITION | grep Win9 1> $NDIR 2> $NDIR ; then
+   TYPE="FAT32"
+  elif echo $PARTITION | grep "W95 F" 1> $NDIR 2> $NDIR ; then
+   TYPE="FAT32"
+  elif echo $PARTITION | grep NTFS 1> $NDIR 2> $NDIR ; then
+   TYPE="NTFS"
+  elif echo $PARTITION | grep FAT 1> $NDIR 2> $NDIR ; then
+   TYPE="FAT16"
+  fi
+  if cat $TMP/SeTDOS | grep $NAME 1> $NDIR 2> $NDIR ; then
+   ON=`cat $TMP/SeTDOS | grep $NAME | crunch | cut -f 2 -d ' '`
+   echo "\"(IN USE)\" \"$NAME on $ON $TYPE ${SIZE}\" \\" >> $TMP/tempscript
+  else
+   echo "\"$NAME\" \"$TYPE ${SIZE}\" \\" >> $TMP/tempscript
+   echo "false" > $TMP/SeTSKIP
+  fi
+ done
+ echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
+ echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
+ echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
+ echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
+ echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
+ echo "2> $TMP/return" >> $TMP/tempscript
+ if [ "`cat $TMP/SeTSKIP`" = "true" ]; then
+  break
+ fi
+ . $TMP/tempscript
+ if [ ! $? = 0 ]; then
+  rm $TMP/tempscript
+  exit 255 # user abort
+ fi
+ DOS_PART="`cat $TMP/return`"
+ rm -f $TMP/tempscript
+ if [ "$DOS_PART" = "---" ]; then
+  break
+ elif [ "$DOS_PART" = "(IN USE)" ]; then
+  continue
+ fi
+ if echo "$DOSLIST" | grep -w $DOS_PART | grep NTFS 1> $NDIR 2> $NDIR ; then
+   ntfs_security
+   FS_UMASK="$(cat $TMP/ntfs_security)"
+   if [ "$FS_UMASK" = "1" ]; then
+     exit 1
+   else
+     if [ "$FS_UMASK" = "fmask=333,dmask=222" ]; then
+       FS_TYPE=ntfs
+     else
+       FS_TYPE=ntfs-3g
+     fi
+   fi
+ else
+   FS_TYPE=vfat
+   fat_security
+   FS_UMASK="$(cat $TMP/fat_security)"
+ fi
+ dialog --backtitle "Selecting a location to mount $DOS_PART." \
+ --title "PICK MOUNT POINT FOR $DOS_PART" \
+ --inputbox "Now this partition must be mounted somewhere in your \
+ directory tree. Please enter the directory under which \
+ you would like to put it. For instance, you might want to \
+ enter /fat-c or /fat-d or something similar. \
+ NOTE: This \
+ partition won't actually be mounted until you reboot. \
+ Where would you like to mount $DOS_PART?" \
+ 13 65 2> $TMP/mount-point
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tempmsg $TMP/mount-point $TMP/SeTDOS
+  exit
+ fi
+ NEW_DIR="`cat $TMP/mount-point`"
+ rm -f $TMP/mount-point
+ # If this was left blank or is '/', drop back to the first menu and start over.
+ if [ "$NEW_DIR" = "" -o "$NEW_DIR" = "/" ]; then
+   continue
+ fi
+ if [ ! "`echo $NEW_DIR | cut -b1`" = "/" ]; then
+  NEW_DIR="/$NEW_DIR"
+ fi
+ mkdir -p ${T_PX}$NEW_DIR
+ chmod 755 ${T_PX}$NEW_DIR
+ if echo "$DOSLIST" | grep $DOS_PART | grep NTFS 1> $NDIR 2> $NDIR ; then
+  printf "%-16s %-16s %-11s %-16s %-3s %s\n" "$DOS_PART" "$NEW_DIR" "$FS_TYPE" "$FS_UMASK" "1" "0" >> $TMP/SeTDOS
+ else
+  printf "%-16s %-16s %-11s %-16s %-3s %s\n" "$DOS_PART" "$NEW_DIR" "$FS_TYPE" "$FS_UMASK" "1" "0" >> $TMP/SeTDOS
+ fi
+done # partition adding loop
+rm -f $TMP/SeTSKIP
+cat << EOF > $TMP/tempmsg
+
+Adding this information to your /etc/fstab:
+
+EOF
+cat $TMP/SeTDOS >> $TMP/tempmsg
+dialog --backtitle "Finished setting up non-Linux partitions." \
+--title "DONE ADDING FAT or NTFS PARTITIONS" \
+--exit-label OK \
+--textbox $TMP/tempmsg 15 72

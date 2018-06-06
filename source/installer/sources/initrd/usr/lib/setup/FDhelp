@@ -1,0 +1,256 @@
+
+Slackware Linux Help
+____________________
+
+First, a little help on help. Whenever you encounter a text
+viewer like this during the installation, you can move around
+with these commands:
+
+PGDN/SPACE     - Move down one page
+PGUP/'b'       - Move up one page
+ENTER/DOWN/'j' - Move down one line
+UP/'k'         - Move up one line
+LEFT/'h'       - Scroll left
+RIGHT/'l'      - Scroll right
+'0'            - Move to beginning of line
+HOME/'g'       - Move to beginning of file
+END/'G'        - Move to end of file
+'/'            - Forward search
+'?'            - Backward search 
+'n'            - Repeat last search (forward) 
+
+Also, you're running a real multitasking operating system now, so
+you're not confined to the installation program. You can log into
+other consoles and look around at any time without disturbing the
+installation process. To do this, you need to learn the commands
+that control the Linux console. You'll use these commands all the
+time when you're logged into Linux.
+
+"Virtual" consoles and scrollback:
+
+Right now, the screen you're looking at is probably VIRTUAL CONSOLE
+NUMBER ONE, (or /dev/tty1 in Linux-speak). There are usually
+several virtual consoles available. When you log into the install
+disk, there are four consoles. To switch among them, use Alt-F1,
+Alt-F2, Alt-F3, or Alt-F4 to select which of the four consoles you
+wish to use. While you're using a console, you get a small amount
+of text scrollback buffer. To scroll the console back, hold down
+the right shift key and hit PageUp. To scroll the console forward,
+hit PageDown while holding the right shift key down. This can be
+especially useful for reading the boot messages, which can go by
+too fast to read otherwise.
+
+On the install disk, the first three consoles are login consoles.
+The fourth console is used to show informational messages during
+installation, such as disk formatting status, kernel messages, and
+so on.
+
+A useful trick is to log into the second virtual console during the
+installation. Then you can use commands such as 'df' to check how
+full your hard drive is getting. Also, once the Slackware CD-ROM
+has been mounted on /cdrom, most of the commands in the disc's live
+filesystem will be usable.
+
+
+PARTITIONING YOUR DRIVE (MBR SYSTEMS)
+
+If you have a newer machine that uses GPT (all UEFI machines do),
+or you wish to use GPT, skip to the section below on GPT PARTITIONING.
+
+Now lets take a look at how you progress through a typical Linux
+installation with the Slackware distribution. First, you'll have
+to make sure your hard drive has been partitioned to accept Linux.
+The setup program does not do this for you.
+
+You will need at least one type Linux partition, and optionally a
+swap partition. In my opinion, (if you have a fair amount of drive
+space) it's easiest to manage a system that's partitioned along these
+lines (ignoring any Windows or other partitions for the purposes
+of this illustration):
+
+    [ 8 gig or more for / ] 
+    [ whatever space users need for /home ]
+    [ swap space (match the size of your RAM) ]
+
+Some people like a separate partition for /usr/local, but I find that
+I usually regret dividing my free space when I don't have to... the
+partition I want to add to is always full that way. :^) Besides, when
+the time comes for an operating system upgrade you can always back up
+/usr/local regardless of whether it occupies its own partition. In
+fact, having a separate /home partition is also optional. Probably the
+simplest way to approach things initially is with just a single root
+Linux partition, and a swap partition of about 1-2 gigabytes.
+
+The amount of drive space you'll want to give Linux depends on what 
+software you plan to install, and how much space you have to spare. 
+My primary Linux partition is 23 gigabytes. If you've got that
+kind of room to spare, it will make it easier to compile and try out
+large pieces of software, or to work with large files such as might be
+used in desktop publishing or CD-ROM mastering applications.
+
+The entire Slackware system (everything - all the X servers, Emacs,
+the works) will use about 8 gigabytes of hard drive space,
+so 10 - 15 gigs is sufficient for a complete installation.
+
+In the past, I've actually done development work on a single / 
+partition of 110 MB. (Of course, that was back in the days of Linux
+version 0.99p11 or so...) Still, with careful selection you can still
+squeeze a small Linux system onto a system, but this is not recommended
+for beginners. It's more useful when utilizing Slackware as a base for
+an embedded system. Most people should be going a full installation.
+It's faster and easier, and less error-prone.
+
+Partitioning is done with a partitioning tool such as fdisk. There are
+two versions of Linux fdisk available now. 'fdisk' is the standard
+version, and 'cfdisk' is a friendlier full screen version. Most
+people will probably want to use 'cfdisk' now, unless they're used
+to the older version (like me). Either one will get the job done.
+
+Make sure you use Linux fdisk to tag partitions as type 83 (Linux, the
+default) or type 82 (Linux swap) so the Slackware setup program will 
+recognize them. Use the 't' command for that, and 'w' to write out the
+changes.
+
+If you prefer an easy to use graphical partitioning tool, you can make
+all your Linux partitions directly from Linux 'cfdisk'. Or you can
+make them with the older 'fdisk' using the 'n' command to create a
+partition and the 'w' command to write out the changes when you're done. 
+
+By default, 'fdisk' and 'cfdisk' will partition the first hard drive in
+your machine, which is /dev/sda. To partition other drives, you'll
+have to specify the drive to partition when you start 'cfdisk'. For
+example, to partition the second IDE drive:
+
+  # cfdisk /dev/sdb
+
+
+SWAP SPACE
+
+If your machine doesn't have much memory, you might have already
+learned how to activate a swap partition just to make it this far.
+Normally you won't need to format or activate your swap space by
+hand, but if you're installing on a machine with low memory you will
+need to format and activate a swap partition to be able to install. 
+Once you've made the partition with fdisk, you need to use 'mkswap'
+on it, and then activate it with 'swapon'. Checking the partition
+table with 'fdisk -l', we see these lines:
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sda8           16650       16898     2000061   82  Linux swap
+
+So, the command to format would be:
+
+  # mkswap /dev/sda8
+  # sync
+
+And to activate it:
+
+  # swapon /dev/sda8
+
+
+GPT PARTITIONING
+
+If you have a Windows partition that you'd like to keep and need to make
+free space for Linux, boot the machine into Windows. Move the mouse into
+the upper right corner, and select the search function (magnifying glass
+icon). Enter diskmgmt.msc to start up the Disk Management tool. The disk
+partitions will be displayed as a bar chart at the bottom of the window.
+Mouse over the main Windows partition (probably the largest NTFS partition)
+and right click to bring up a menu. Select "Shrink Volume..." from this
+menu. Shrink the partition to make enough free space for Slackware's root,
+swap, and other partitions.
+
+NOTE: Rather than creating true free space, this resizing operation may
+leave the extra space in the form of a generic (but allocated) partition.
+Take note of the size of the "free space". When it comes time to partition
+on Linux, you may need to delete this partition to make actual free space
+before you can install.
+
+If you are installing to a machine that has Windows installed, then you'll
+already have an EFI System Partition (this is used to store boot files on
+machines that use UEFI). To check this, you can use gdisk. We'll assume
+that you'll be installing to /dev/sda. If you'll be installing to some other
+device, use that in the command below.
+
+gdisk -l /dev/sda
+
+If you see a partition with Code EF00 listed, then you are good to go.
+If not, you will need to make one. To do that, use cgdisk:
+
+cgdisk /dev/sda
+
+Select the free space from the menu using the up/down keys, and then select
+"New" to make a new partition. Hit ENTER to accept the first sector. Then
+enter 100M as the partition size. Give the new partition a hex code of EF00.
+You make give the partition a name (such as "EFI System Partition"), or just
+hit ENTER to use no name. A name is not required.
+
+At this point, you've got a GPT disk with an EFI System partition (with or
+without Windows). The next step is to make the partitions for Linux. If
+you're not already in cgdisk, start that up with "cgdisk /dev/sda" (or
+whatever your install device is). Start by making a swap partition. A
+good rule of thumb is to make the swap partition equal to the amount of RAM
+in your machine. So, select the free space again, and then "New". Again,
+hit ENTER to accept the default first sector for the new partition. Then,
+enter an appropriate size, such as 2G. Enter the hex code for Linux swap,
+which is 8200. Give the partition a name if you like.
+
+Make your root Linux partition (optionally if you leave some space you can make
+any additional Linux partitions that you'll need). Select the free space, and
+"New". Accept the default first sector by hitting ENTER. To make the
+partition use the rest of the disk space, just hit ENTER again when asked for
+a size. Or, you may choose a smaller size if you're planning to make more
+Linux partitions. Hit ENTER to accept the default hex code, which is for a
+Linux filesystem. Name the partition (if you like), or hit ENTER again.
+
+If you have any more free space and partitions to make, now is the time to
+make them.
+
+When you're done, select "Write" to write the partition table changes to the
+disk (verify by typing "yes" when prompted), hit a key to continue, and then
+select "Quit" to leave cgdisk.
+
+
+RUNNING THE SETUP PROGRAM
+
+Setup has quite a few options, which can be slightly confusing the
+first time you look at the menu. It's not really that hard, though.
+You just need to start at the top of the screen and work towards 
+the bottom through the menu options. When I install, I usually do 
+these options in order:
+
+ADDSWAP   (set up my swapspace)
+TARGET    (set up my Linux/Windows partitions and /etc/fstab)
+SOURCE    (select the source location for the Slackware Linux
+           packages)
+SELECT    (pick the package categories to install)
+INSTALL   (install the software, generally with "full")
+CONFIGURE (configure the newly installed system)
+
+Note that after I select the SWAP option, setup will allow me to
+run through all of the other options without ever returning to the
+main menu. 
+
+I hope that these options will be mostly self-explanatory. Just read
+the screen carefully as you install and you should do just fine.
+
+
+REMAPPING YOUR KEYBOARD:
+
+KEYMAP: This option lets you remap your keyboard to one of the many
+international maps provided with Linux. If you are using a US 
+keyboard, you can skip this option.
+
+
+...WHEN YOU'RE DONE:
+
+
+EXIT: This leaves Slackware Linux setup.
+
+
+Have fun installing and running Linux!
+
+---
+Patrick Volkerding
+volkerdi@slackware.com
+

@@ -1,0 +1,45 @@
+#!/bin/sh
+# Load terminus font.  This is either to resize the terminal to be close to default,
+# or to simply load a better looking font for the installer.
+
+# In case udev has not yet prepared the tty devices, create them:
+create_tty() {
+  if [ ! -r /dev/tty1 ]; then
+    mknod /dev/tty1 c 4 1
+    chown root:tty /dev/tty1
+    chmod 620 /dev/tty1
+  fi
+  if [ ! -r /dev/tty2 ]; then
+    mknod /dev/tty2 c 4 2
+    chown root:tty /dev/tty2
+    chmod 620 /dev/tty2
+  fi
+  if [ ! -r /dev/tty3 ]; then
+    mknod /dev/tty3 c 4 3
+    chown root:tty /dev/tty3
+    chmod 620 /dev/tty3
+  fi
+  if [ ! -r /dev/tty4 ]; then
+    mknod /dev/tty4 c 4 4
+    chown root:tty /dev/tty4
+    chmod 620 /dev/tty4
+  fi
+}
+
+if ! grep -wq nofont /proc/cmdline ; then
+  if [ ! "$(cat /proc/fb)" = "" ] ; then
+    if [ -r /usr/share/kbd/consolefonts/ter-120b.psf.gz ]; then
+      create_tty
+      for tty in /dev/tty{1,2,3,4} ; do
+        setfont -C $tty /usr/share/kbd/consolefonts/ter-120b.psf.gz
+      done
+    fi
+  else
+    if [ -r /usr/share/kbd/consolefonts/ter-c14v.psf.gz ]; then
+      create_tty
+      for tty in /dev/tty{1,2,3,4} ; do
+        setfont -C $tty /usr/share/kbd/consolefonts/ter-c14v.psf.gz
+      done
+    fi
+  fi
+fi

@@ -1,0 +1,122 @@
+#!/bin/sh
+
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+  mkdir -p $TMP
+fi
+REDIR=/dev/tty4
+NDIR=/dev/null
+
+crunch() {
+ read STRING;
+ echo $STRING;
+}
+
+# get_part_size( dev ) - Return the size in K, M, G, T, or P of the named partition.
+get_part_size() {
+  numfmt --to=iec $(blockdev --getsize64 $1)
+}
+
+rm -f $TMP/SeTswap $TMP/SeTswapskip $TMP/SeTuseswap $TMP/tmpscript
+
+SWAPLIST="`probe -l 2> /dev/null | grep "Linux swap" | cut -f 1 -d ' ' | sort 2> $NDIR`" 
+
+if [ "$SWAPLIST" = "" ]; then
+ dialog --title "NO SWAP SPACE DETECTED" --yesno "You have not created \
+a swap partition with Linux fdisk. \
+Do you want to continue installing without one? " 6 60
+ if [ "$?" = "1" ]; then
+  dialog --title "ABORTING INSTALLATION" --msgbox "Create a swap partition with Linux fdisk, and then try this again." \
+6 40
+ else
+  touch $TMP/SeTswapskip
+ fi
+ exit
+else # there is at least one swap partition:
+ # Build the swap partition selection menu:
+ cat << EOF > $TMP/tmpscript
+dialog --backtitle "Setting up swap partitions." \\
+--title "SWAP SPACE DETECTED" --checklist \\
+"Slackware Setup has detected one or more swap partitions \\
+on your system. These partitions have been \\
+preselected to be set up as swap space. If there are any \\
+swap partitions that you \\
+do not wish to use with this installation, please unselect \\
+them with the up and down arrows and spacebar. If you wish \\
+to use all of them (this is recommended), simply hit \\
+the ENTER key." \\
+0 0 0 \\
+EOF
+ for swappartition in $SWAPLIST ; do
+  PARTSIZE=$(get_part_size $swappartition)
+  cat << EOF >> $TMP/tmpscript
+"$swappartition" "Linux swap partition, ${PARTSIZE}" on \\
+EOF
+ done
+ cat << EOF >> $TMP/tmpscript
+ 2> $TMP/SeTuseswap
+EOF
+ . $TMP/tmpscript
+ if [ ! $? = 0 ]; then
+  rm -f $TMP/tmpscript $TMP/SeTswap $TMP/SeTuseswap
+  touch $TMP/SeTswapskip
+ fi
+
+ if [ -r $TMP/SeTuseswap ]; then
+  # Remove extra quotes from SeTuseswap, if any:
+  cat $TMP/SeTuseswap | tr -d \" > $TMP/SeTfoo
+  mv $TMP/SeTfoo $TMP/SeTuseswap
+
+  # Were any swap partitions asked for?
+  if [ "$(cat $TMP/SeTuseswap)" = "" -a ! -r $TMP/SeTswapskip ]; then
+   rm -f $TMP/tmpscript $TMP/SeTswap $TMP/SeTuseswap
+   touch $TMP/SeTswapskip
+  fi
+ fi
+
+ if [ ! -r $TMP/SeTswapskip ]; then
+  dialog --backtitle "Setting up swap partitions." \
+ --title "CHECK SWAP PARTITIONS FOR BAD BLOCKS?" --defaultno --yesno \
+"Slackware Setup will now prepare your system's swap space. \
+When formatting swap partitions with mkswap you may also check \
+them for bad blocks. This is not the default since nearly all \
+modern hard drives check themselves for bad blocks anyway. \
+Would you like to check for bad blocks while running mkswap?" \
+10 60
+  if [ $? = 0 ]; then
+   CHECKBAD=yes
+  else
+   CHECKBAD=no
+  fi
+
+  # Run mkswap on swap partitions, unless they are already in use:
+  for swappartition in $(cat $TMP/SeTuseswap) ; do
+   if ! grep -w $swappartition /proc/swaps 1> $REDIR 2> $REDIR ; then
+    if [ "$CHECKBAD" = "no" ]; then
+     mkswap -v1 $swappartition 1> $REDIR 2> $REDIR
+    else
+     mkswap -c -v1 $swappartition 1> $REDIR 2> $REDIR
+    fi
+    echo "Activating swap partition ${swappartition}:"
+    echo "swapon ${swappartition}"
+    swapon $swappartition 1> $REDIR 2> $REDIR
+   fi
+  done
+
+  # This is so people don't ask what that output was that flashed
+  # by on the screen.  ;-)
+  sleep 1
+
+  # Add the swap partitions to the file that will go into /etc/fstab:
+  for swappartition in $(cat $TMP/SeTuseswap) ; do
+   printf "%-16s %-16s %-11s %-16s %-3s %s\n" "$swappartition" "swap" "swap" "defaults" "0" "0" >> $TMP/SeTswap
+  done
+
+  echo "Your swapspace has been configured. This information will" > $TMP/swapmsg
+  echo "be added to your /etc/fstab:" >> $TMP/swapmsg
+  echo >> $TMP/swapmsg
+  cat $TMP/SeTswap >> $TMP/swapmsg
+  dialog --title "SWAP SPACE CONFIGURED" --exit-label OK --textbox $TMP/swapmsg 10 72
+  rm $TMP/swapmsg
+ fi  
+fi

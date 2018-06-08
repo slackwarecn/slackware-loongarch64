@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright (C) 2002, 2005  Slackware Linux, Inc.
-# Copyright 2005, 2006, 2007, 2011, 2012  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005, 2006, 2007, 2011, 2012, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -35,30 +35,55 @@ if [ -d lib/tls ]; then
   mv lib/tls lib/obsolete
 fi
 if [ -x sbin/ldconfig ]; then
-  sbin/ldconfig -r .
+  sbin/ldconfig -r . 2> /dev/null
 fi
 
 # Install NPTL glibc libraries:
 if [ -x /sbin/ldconfig -a -d lib/incoming ]; then # swap on the fly
-  # First create copies of the incoming libraries:
-  ( cd lib/incoming
-    for file in * ; do
-      if [ ! -r ../${file}.incoming ]; then
-        cp -a $file ../${file}.incoming
-      fi
-    done
-  )
-  # Then switch to them all at once:
-  /sbin/ldconfig -l lib/*.incoming 2> /dev/null
-  # Finally, rename them and clean up:
-  ( cd lib
-    for file in *.incoming ; do
-      rm -f `basename $file .incoming`
-      cp -a $file `basename $file .incoming`
-      /sbin/ldconfig -l `basename $file .incoming`
-      rm -f $file
-    done
-  )
+  # Try to protect with flock against another installpkg/removepkg running
+  # ldconfig while we're doing the on-the-fly install:
+  mkdir -p run/lock/pkgtools
+  ( flock 9 || exit 11
+    # First create copies of the incoming libraries:
+    ( cd lib/incoming
+      for file in * ; do
+        if [ ! -r ../${file}.incoming ]; then
+          cp -a $file ../${file}.incoming
+        fi
+      done
+    )
+    # Then switch to them all at once:
+    /sbin/ldconfig -l lib/*.incoming 2> /dev/null
+    # Remove old versions of the glibc libraries. If you really don't want to
+    # do this for some reason, create a file /etc/glibc-nowipe.
+    if [ ! -r etc/glibc-nowipe ]; then
+      ( cd lib
+        for INCOMING in incoming/*-* ; do
+          LIBPREFIX=$(basename $INCOMING | cut -f 1 -d -)
+          for LIBRARY in ${LIBPREFIX}-* ; do
+            # Don't remove the library if it ends in .incoming:
+            if [ "$(echo $LIBRARY | rev | cut -f 1 -d .)" = "gnimocni" ]; then
+              continue
+            fi
+            # Don't remove symlinks:
+            if [ -L $LIBRARY ]; then
+              continue
+            fi
+            rm -f $LIBRARY
+          done
+        done
+      )
+    fi
+    # Finally, rename them and clean up:
+    ( cd lib
+      for file in *.incoming ; do
+        rm -f `basename $file .incoming`
+        cp -a $file `basename $file .incoming`
+        /sbin/ldconfig -l `basename $file .incoming` 2> /dev/null
+        rm -f $file
+      done
+    )
+  ) 9> run/lock/pkgtools/ldconfig.lock
 else # no ldconfig?  Good, it's safe to just jam it on home (and make links below):
   ( cd lib/incoming
     for file in * ; do

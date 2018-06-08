@@ -62,27 +62,24 @@ pkgbase() {
 usage() {
  cat << EOF
 
-Usage: upgradepkg newpackage [newpackage2 ... ]
-       upgradepkg oldpackage%newpackage [oldpackage2%newpackage2 ... ]
+Usage: upgradepkg [options] <newpackage> ...
+       upgradepkg [options] <oldpackage%newpackage> ...
 
-Upgradepkg upgrades a Slackware package (.tgz, .tbz, .tlz, .txz) from an
-older version to a newer one. It does this by INSTALLING the new package
-onto the system, and then REMOVING any files from the old package that
-aren't in the new package. If the old and new packages have the same
-name, a single argument is all that is required. If the packages have
-different names, supply the name of the old package followed by a percent
-symbol (%), then the name of the new package. Do not add any extra
-whitespace between pairs of old/new package names.
+Upgrade, install, or reinstall Slackware packages (.tgz, .tbz, .tlz, .txz).
 
-Before upgrading a package, save any configuration files (such as in /etc)
-that you wish to keep. Sometimes these will be preserved, but it depends
-on the package. If you want to force new versions of the config files
-to be installed, remove the old ones manually prior to running upgradepkg.
+To operate on an alternate directory, such as /mnt:
+   ROOT=/mnt upgradepkg package.txz
 
-To upgrade in a directory other than / (such as /mnt):
-
-   ROOT=/mnt upgradepkg package.tgz (or .tbz, .tlz, .txz)
-
+Options:
+ --dry-run              only display what would be done
+ --install-new          install new packages also
+ --reinstall            upgrade packages of the same version
+ --terse                display a single line for each package operation
+ --terselength <length> maximum line length of terse output
+ --verbose              display all the gory details of the upgrade
+ --help                 display this help
+ 
+For more details see upgradepkg(8).
 EOF
 }
 
@@ -106,7 +103,7 @@ else
 fi
 
 # --help or no args?
-if [ "$1" = "" -o "$1" = "--help" -o "$1" = "-?" ]; then
+if [ "$1" = "" -o "$1" = "-help" -o "$1" = "--help" -o "$1" = "-?" ]; then
   usage;
   exit 1;
 fi
@@ -208,7 +205,7 @@ for ARG; do
   # Simple package integrity check:
   if ! [ -f "$NEW" ]; then
     ERRCODE=4
-    ! [ $TERSE ] && echo "Cannot install $ARG:  file not found"
+    echo "Cannot install $NEW:  file not found"
     continue;
   fi
 
@@ -224,7 +221,7 @@ for ARG; do
   # Make sure the extension is valid:
   if [ "$NNAME" = "$NEW" ]; then
     # We won't throw an ERRCODE for this, but the package is skipped:
-    ! [ $TERSE ] && echo "Cannot install $OLD: invalid package extension"
+    echo "Cannot install $OLD: invalid package extension"
     continue;
   fi
 
@@ -250,7 +247,7 @@ for ARG; do
         echo "$OLD would not be upgraded (no installed package named $SHORT)."
       else
         ! [ $TERSE ] && echo
-        ! [ $TERSE ] && echo "Error: there is no installed package named $OLD."
+        echo "Error: there is no installed package named $OLD."
         ! [ $TERSE ] && echo "       (looking for $ROOT/var/log/packages/$OLD)"
         ! [ $TERSE ] && echo
       fi
@@ -286,7 +283,7 @@ EOF
       echo "$NEW incoming package not found (command line)."
     else
       ! [ $TERSE ] && echo
-      ! [ $TERSE ] && echo "Error: incoming package $INCOMINGDIR/$NNAME not found."
+      echo "Error: incoming package $INCOMINGDIR/$NNAME not found."
       ! [ $TERSE ] && echo
     fi
     ERRCODE=1

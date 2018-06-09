@@ -1053,6 +1053,7 @@ gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/dash/dash-0.5.7-format-security.patch
 gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
 gzip ./source/ap/cups/doinst.sh
+gzip ./source/ap/cups/455c52a027ab3548953372a0b7bdb0008420e9ba.patch
 gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.fig.ad.diff

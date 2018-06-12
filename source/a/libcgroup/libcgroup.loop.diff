@@ -1,0 +1,1595 @@
+diff --git a/doc/man/cgclassify.1 b/doc/man/cgclassify.1
+index db4e086..1facd2b 100644
+--- a/doc/man/cgclassify.1
++++ b/doc/man/cgclassify.1
+@@ -57,7 +57,25 @@ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ .TP
+ .B /etc/cgrules.conf
+ default libcgroup configuration file
++.TP
++.B /etc/cgrules.d
++default libcgroup configuration files directory
++
++.SH EXAMPLES
++.TP
++.B cgclassify -g cpu:student 1234
++moves process with pid number 1234 to control group student in cpu hierarchy.
+ 
++.TP
++.B cgclassify 1234
++moves process with pid number 1234 to control groups based on
++\fB/etc/cgrules.conf\fR configuration file.
++
++.TP
++.B cgclassify --sticky -g cpu:/student 1234
++moves process with pid number 1234 to control group student in cpu hierarchy.
++The daemon of service cgred does not change cgroups of pid 1234 and its children
++(based on \fB/etc/cgrules.conf\fR).
+ 
+ .SH SEE ALSO
+ cgrules.conf (5), cgexec (1)
+diff --git a/doc/man/cgclear.1 b/doc/man/cgclear.1
+index 318c925..241a095 100644
+--- a/doc/man/cgclear.1
++++ b/doc/man/cgclear.1
+@@ -43,5 +43,24 @@ option works only with \fB-l\fR or \fB-L\fR options.
+ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
++.SH FILES
++.TP
++.B /etc/cgconfig.conf
++default templates file
++.TP
++.B /etc/cgconfig.d/
++default templates files directory
++.RE
++
++
++.SH EXAMPLES
++.TP
++.B cgclear
++unload the whole cgroup filesystem
++
++.TP
++.B cgclear -l /etc/cgconfig.conf
++unload a subsystem of cgroup filesystem based on \fB/etc/cgconfig.conf\fR definition.
++
+ .SH SEE ALSO
+-cgconfigparser(1)
++cgconfigparser(1), cgconfig.conf(5)
+diff --git a/doc/man/cgconfig.conf.5 b/doc/man/cgconfig.conf.5
+index be80e4e..f3a4ba9 100644
+--- a/doc/man/cgconfig.conf.5
++++ b/doc/man/cgconfig.conf.5
+@@ -251,6 +251,9 @@ Templates does not use
+ .B default
+ section settings.
+ 
++.I /etc/cgconfig.d/
++directory can be used for additional configuration files. cgrulesengd searches this directory for additional templates.
++
+ .\"********************************************"
+ .SH EXAMPLES
+ .LP
+@@ -781,13 +784,12 @@ better to explicitly specify all groups and all controllers
+ related to them.
+ 
+ .SH FILES
+-.LP
+-.PD .1v
+-.TP 20
+-.B /etc/cgconfig.conf
+ .TP
++.B /etc/cgconfig.conf
+ default libcgroup configuration file
+-.PD 
++.TP
++.B /etc/cgconfig.d/
++default libcgroup configuration files directory
+ 
+ .SH SEE ALSO
+ cgconfigparser (8)
+diff --git a/doc/man/cgconfigparser.8 b/doc/man/cgconfigparser.8
+index 0a20f95..8fff95f 100644
+--- a/doc/man/cgconfigparser.8
++++ b/doc/man/cgconfigparser.8
+@@ -74,5 +74,19 @@ of this group have write access to the file.
+ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
++.SH FILES
++.TP
++.B /etc/cgconfig.conf
++default libcgroup configuration file
++.TP
++.B /etc/cgconfig.d/
++default libcgroup configuration files directory
++
++.SH EXAMPLES
++.TP
++.B cgconfigparser -l /etc/cgconfig.conf
++setup control group file system based on \fB/etc/cgconfig.conf\fR configuration file
++
++
+ .SH SEE ALSO
+ cgconfig.conf (5)
+diff --git a/doc/man/cgcreate.1 b/doc/man/cgcreate.1
+index 7068073..6ec1b27 100644
+--- a/doc/man/cgcreate.1
++++ b/doc/man/cgcreate.1
+@@ -38,7 +38,8 @@ others permissions to the owners permissions).
+ .TP
+ .B -g <controllers>:<path>
+ defines control groups to be added.
+-\fBcontrollers\fR is a list of controllers and
++\fBcontrollers\fR is a list of controllers. Character "*" can be used
++as a shortcut for "all mounted controllers".
+ \fBpath\fR is the relative path to control groups
+ in the given controllers list. This option can be specified
+ multiple times.
+@@ -69,9 +70,16 @@ The default value is the same as has the parent cgroup.
+ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
+-.SH FILES
++.SH EXAMPLES
++.TP
++.B cgcreate -g *:student devices:teacher
++create control group student in all mounted hierarchies and create
++control group teacher in hierarchy containing controller devices.
++
++
++
+ 
+ .SH SEE ALSO
+ cgrules.conf (5)
+ cgexec (1)
+-cgclassify (1)
++cgclassify (1)
+\ No newline at end of file
+diff --git a/doc/man/cgdelete.1 b/doc/man/cgdelete.1
+index 025a799..9572287 100644
+--- a/doc/man/cgdelete.1
++++ b/doc/man/cgdelete.1
+@@ -16,7 +16,7 @@ program removes all specified control groups.
+ 
+ .TP
+ .B [-g] <controllers>:<path>
+-Defines the control group to delete. Multiple control groups nay be
++Defines the control group to delete. Multiple control groups may be
+ specified.
+ .B -g
+ is optional.
+@@ -35,5 +35,11 @@ Recursively remove all subgroups.
+ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
++.SH EXAMPLES
++.TP
++.B cgdelete -g cpu,devices:/test
++remove control group test from hierarchies containing cpu and device controllers
++
++
+ .SH SEE ALSO
+ cgcreate (1), lscgroup (1), cgclear (1)
+diff --git a/doc/man/cgred.conf.5 b/doc/man/cgred.conf.5
+index 3fe760f..1c0922f 100644
+--- a/doc/man/cgred.conf.5
++++ b/doc/man/cgred.conf.5
+@@ -42,7 +42,7 @@ default libcgroup configuration file
+ 
+ .SH SEE ALSO
+ cgrules.conf (5),
+-cgconfig.conf (5)
++cgconfig.conf (5), cgrules.d (5)
+ 
+ 
+ 
+diff --git a/doc/man/cgrules.conf.5 b/doc/man/cgrules.conf.5
+index 7a89fb5..2d434e7 100644
+--- a/doc/man/cgrules.conf.5
++++ b/doc/man/cgrules.conf.5
+@@ -85,7 +85,7 @@ configuration file. See (\fBcgconfig.conf\fR (5)).
+ If the template definition is not found there created group have default
+ kernel setting.
+ 
+-
++To create a hierarchy of configuration files, use \fB/etc/cgrules.d\fR directory.
+ 
+ .SH EXAMPLES
+ .nf
+@@ -136,13 +136,19 @@ process.
+ .PD .1v
+ .TP 20
+ .B /etc/cgrules.conf
+-.TP
++.RS 6
+ default libcgroup configuration file
+-.PD .
++.RE
++.TP 20
++.B /etc/cgrules.d
++.RS 6
++default libcgroup configuration files directory
++.RE
++.PD
+ 
+ 
+ .SH SEE ALSO
+-cgconfig.conf (5), cgclassify (1), cgred.conf (5)
++cgconfig.conf (5), cgclassify (1), cgred.conf (5), cgrules.d (5)
+ 
+ .SH BUGS
+ 
+diff --git a/doc/man/cgrules.d.5 b/doc/man/cgrules.d.5
+new file mode 100644
+index 0000000..37717de
+--- /dev/null
++++ b/doc/man/cgrules.d.5
+@@ -0,0 +1,50 @@
++.\" Copyright (C) 2014 Red Hat, Inc. All Rights Reserved.
++.\" Written by Jan Chaloupka <jchaloup@redhat.com>
++
++.TH CGRULES.D  5 2014-07-14 "Linux" "libcgroup Manual"
++.SH NAME
++cgrules.d \- libcgroup configuration files directory
++.SH DESCRIPTION
++.B "cgrules.d"
++configuration files directory is used by
++.B libcgroups
++and contains additional configuration files with the same syntax as
++\fBcgconfig.conf\fR (5).
++
++Files are parsed in an arbitrary order.
++If the cache is disabled, the searching algorithm of  \fBcgrulesengd\fR (8)
++tries the first match.
++If there are two rules which match the criteria for a given process,
++and each rule is in a separate file, then there is no guarantee which one
++is chosen. If you want to control the given order of the rules, put them
++in one configuration file.
++
++
++\fB/etc/cgconfig.conf\fR is parsed as the first file. After success,
++all files from /etc/cgconfig.d are parsed as well (in an arbitrary order).
++If some file from the directory ends up with a parsing error,
++the process is stopped. With cache enabled, all successfully processed
++rules
++are kept in the cache. With cache disabled,
++matching is stopped and ends with a 'not found' result.
++
++If \fB/etc/cgrules.d\fR is empty, \fBcgrulesengd\fR (8) acts
++in a backwards compatibility mode.
++
++.SH FILES
++.LP
++.PD .1v
++.TP 20
++.B /etc/cgrules.d
++.RS 4
++default libcgroup configuration files directory
++.RE
++.B /etc/cgconfig.conf
++.RS 4
++default libcgroup configuration file
++.RE
++.PD .
++
++
++.SH SEE ALSO
++cgconfig.conf (5), cgrulesengd (8)
+diff --git a/doc/man/cgrulesengd.8 b/doc/man/cgrulesengd.8
+index 2e89c5b..cf45611 100644
+--- a/doc/man/cgrulesengd.8
++++ b/doc/man/cgrulesengd.8
+@@ -10,10 +10,11 @@ cgrulesengd \- control group rules daemon
+ .SH DESCRIPTION
+ \fBcgrulesengd\fR is a daemon, which distributes processes to control groups. When
+ any process changes its effective UID or GID, \fBcgrulesengd\fR inspects the list
+-of rules loaded from the \fIcgrules.conf\fR file and moves the process to
+-the appropriate control group.
++of rules loaded from the \fIcgrules.conf\fR file and files in \fIcgrules.d\fR
++(see \fBcgrules.d\fR (5) for potential conflicts) directory
++and moves the process to the appropriate control group.
+ 
+-The list of rules is read during the daemon startup is are cached in the daemon's memory.
++The list of rules is read during the daemon startup and cached in the daemon's memory.
+ The daemon reloads the list of rules when it receives SIGUSR2 signal.
+ The daemon reloads the list of templates when it receives SIGUSR1 signal.
+ 
+@@ -63,12 +64,21 @@ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
+ .SH FILES
+-.LP
+-.PD .1v
+-.TP 20
++.TP
+ .B /etc/cgrules.conf
++default libcgroup configuration file
++
++.TP
++.B /etc/cgrules.d
++default libcgroup configuration files directory
++
++.TP
++.B /etc/cgconfig.conf
++default templates file
++
+ .TP
+-the default libcgroup configuration file
++.B /etc/cgconfig.d
++default templates directory
+ 
+ .SH SEE ALSO
+-cgrules.conf (5)
++cgrules.conf (5), cgrules.d (5)
+diff --git a/doc/man/cgset.1 b/doc/man/cgset.1
+index be886c6..b05473f 100644
+--- a/doc/man/cgset.1
++++ b/doc/man/cgset.1
+@@ -36,5 +36,16 @@ copied to the input cgroup.
+ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
++.SH EXAMPLES
++.TP
++.B cgset -r cpuset.cpus=0-1 student
++set variable cpus in control group student (controller cpuset) to 0-1
++
++.TP
++.B cgset --copy-from group1/ group2/
++copy all parameters of group group1 to group group2
++(for all path where both cgroups are defined)
++
++
+ .SH SEE ALSO
+ cgrules.conf (1), cgcreate (1), cgget (1)
+diff --git a/doc/man/cgsnapshot.1 b/doc/man/cgsnapshot.1
+index 03c85f6..48a038e 100644
+--- a/doc/man/cgsnapshot.1
++++ b/doc/man/cgsnapshot.1
+@@ -8,7 +8,7 @@ cgsnapshot \- generate the configuration file for given controllers
+ 
+ .SH SYNOPSIS
+ \fBcgsnapshot\fR [\fB-h\fR] [\fB-s\fR] [\fB-t\fR] [\fB-b\fR \fIfile\fR]
+-[\fB-w\fR \fIfile\fR] [\fB-f\fR \fIoutput_file\fR]  [\fBcontroller\fR] [...]
++[\fB-w\fR \fIfile\fR] [\fB-f\fR \fIoutput_file\fR] [\fBcontroller\fR] [...]
+ 
+ .SH DESCRIPTION
+ \fBcgsnapshot\fR
+@@ -96,5 +96,18 @@ default whitelist
+ .B /etc/cgconfig.conf
+ default libcgroup configuration file
+ 
++.SH EXAMPLES
++.TP
++.B cgsnapshot -s -f /etc/cgconfig.conf.cgsnapshot
++create configuration file which contains all mounted controllers and all
++control groups which are on the actual system
++
++.TP
++.B cgsnapshot -s -f /etc/cgconfig.conf.cgsnapshot cpu
++create configuration file which contains hierarchy containing cpu controller and all its
++control groups on the actual system
++
++
++
+ .SH SEE ALSO
+ cgconfig.conf (5)
+diff --git a/doc/man/lscgroup.1 b/doc/man/lscgroup.1
+index 693fbbc..124379e 100644
+--- a/doc/man/lscgroup.1
++++ b/doc/man/lscgroup.1
+@@ -26,6 +26,21 @@ list all existing cgroups.
+ controls verbosity of the tool. Allowed values are \fBDEBUG\fR,
+ \fBINFO\fR, \fBWARNING\fR or \fBERROR\fR.
+ 
++.SH EXAMPLES
++.TP
++.B lscgroup -g cpu:/
++list all cgroups which are in hierarchy containing cpu controller
++
++.TP
++.B lscgroup -g cpu:/student
++list all cgroups which are in hierarchy containing cpu controller
++in subgroup student
++
++.TP
++.B lscgroup
++list all cgroups which in all hierarchies
++
++
+ .SH SEE ALSO
+ lssubsys (1), cgcreate (1), cgdelete (1),
+ cgconfig.conf (5)
+diff --git a/include/libcgroup/config.h b/include/libcgroup/config.h
+index 43568e1..9aaa390 100644
+--- a/include/libcgroup/config.h
++++ b/include/libcgroup/config.h
+@@ -83,12 +83,33 @@ int cgroup_init_templates_cache(char *pathname);
+  */
+ int cgroup_reload_cached_templates(char *pathname);
+ 
++/**
++ * Load the templates cache from files. Before calling this function,
++ * cgroup_templates_cache_set_source_files has to be called first.
++ * @param file_index index of file which was unable to be parsed
++ * @return 0 on success, > 0 on error
++ */
++int cgroup_load_templates_cache_from_files(int *file_index);
++
++/**
++ * Setting source files of templates. This function has to be called before
++ * any call of cgroup_load_templates_cache_from_files.
++ * @param tmpl_files
++ */
++struct cgroup_string_list;
++void cgroup_templates_cache_set_source_files(
++	struct cgroup_string_list *tmpl_files);
++
+ /**
+  * Physically create a new control group in kernel, based on given control
+  * group template and configuration file. If given template is not set in
+  * configuration file, then the procedure works create the control group
+  * using  cgroup_create_cgroup() function
+  *
++ * Templates are loaded using cgroup_load_templates_cache_from_files
++ * function, which must be preceded by cgroup_templates_cache_set_source_files
++ * call.
++ *
+  * The flags can alter the behavior of this function:
+  * CGFLAG_USE_TEMPLATE_CACHE: Use cached templates instead of
+  * parsing the config file
+diff --git a/include/libcgroup/groups.h b/include/libcgroup/groups.h
+index d5c87aa..201558f 100644
+--- a/include/libcgroup/groups.h
++++ b/include/libcgroup/groups.h
+@@ -149,6 +149,16 @@ struct cgroup *cgroup_new_cgroup(const char *name);
+ struct cgroup_controller *cgroup_add_controller(struct cgroup *cgroup,
+ 						const char *name);
+ 
++/**
++ * Attach all mounted controllers to given cgroup. This function just modifies
++ * internal libcgroup structure, not the kernel control group.
++ *
++ * @param cgroup
++ * @return zero or error number
++ */
++int cgroup_add_all_controllers(struct cgroup *cgroup);
++
++
+ /**
+  * Return appropriate controller from given group.
+  * The controller must be added before using cgroup_add_controller() or loaded
+diff --git a/src/api.c b/src/api.c
+index bfd0177..0bf0615 100644
+--- a/src/api.c
++++ b/src/api.c
+@@ -473,17 +473,19 @@ static char *cg_skip_unused_charactors_in_rule(char *rule)
+  * The cache parameter alters the behavior of this function.  If true, this
+  * function will read the entire configuration file and store the results in
+  * rl (global rules list).  If false, this function will only parse until it
+- * finds a rule matching the given UID or GID.  It will store this rule in rl,
++ * finds a rule matching the given UID or GID.  It will store this rule in trl,
+  * as well as any children rules (rules that begin with a %) that it has.
+  *
+  * This function is NOT thread safe!
++ *	@param filename configuration file to parse
+  *	@param cache True to cache rules, else false
+  *	@param muid If cache is false, the UID to match against
+  *	@param mgid If cache is false, the GID to match against
+  *	@return 0 on success, -1 if no cache and match found, > 0 on error.
+  * TODO: Make this function thread safe!
++ *
+  */
+-static int cgroup_parse_rules(bool cache, uid_t muid,
++static int cgroup_parse_rules_file(char *filename, bool cache, uid_t muid,
+ 					  gid_t mgid, const char *mprocname)
+ {
+ 	/* File descriptor for the configuration file */
+@@ -544,21 +546,19 @@ static int cgroup_parse_rules(bool cache, uid_t muid,
+ 	else
+ 		lst = &trl;
+ 
+-	/* If our list already exists, clean it. */
+-	if (lst->head)
+-		cgroup_free_rule_list(lst);
+-
+ 	/* Open the configuration file. */
+-	pthread_rwlock_wrlock(&rl_lock);
+-	fp = fopen(CGRULES_CONF_FILE, "re");
++	fp = fopen(filename, "re");
+ 	if (!fp) {
+ 		cgroup_warn("Warning: failed to open configuration file %s: %s\n",
+-				CGRULES_CONF_FILE, strerror(errno));
+-		goto unlock;
++				filename, strerror(errno));
++
++		ret = ECGRULESPARSEFAIL;  /* originally ret = 0, but */
++					  /* this is parse fail, not success */
++		goto finish;
+ 	}
+ 
+ 	/* Now, parse the configuration file one line at a time. */
+-	cgroup_dbg("Parsing configuration file.\n");
++	cgroup_dbg("Parsing configuration file %s.\n", filename);
+ 	while (fgets(buff, sizeof(buff), fp) != NULL) {
+ 		linenum++;
+ 
+@@ -804,8 +804,143 @@ parsefail:
+ 
+ close:
+ 	fclose(fp);
+-unlock:
++finish:
++	return ret;
++}
++
++/**
++ * Parse CGRULES_CONF_FILE and all files in CGRULES_CONF_FILE_DIR.
++ * If CGRULES_CONF_FILE_DIR does not exists or can not be read,
++ * parse only CGRULES_CONF_FILE. This way we keep the back compatibility.
++ *
++ * Original description of this function moved to cgroup_parse_rules_file.
++ * Also cloned and all occurences of file changed to files.
++ *
++ * Parse the configuration files that maps UID/GIDs to cgroups.  If ever the
++ * configuration files are modified, applications should call this function to
++ * load the new configuration rules.  The function caller is responsible for
++ * calling free() on each rule in the list.
++ *
++ * The cache parameter alters the behavior of this function.  If true, this
++ * function will read the entire content of all configuration files and store
++ * the results in rl (global rules list).  If false, this function will only
++ * parse until it finds a file and a rule matching the given UID or GID.
++ * The remaining files are skipped. It will store this rule in trl,
++ * as well as any children rules (rules that begin with a %) that it has.
++ *
++ * Files can be read in an random order so the first match must not be
++ * dependent on it. Thus construct the rules the way not to break
++ * this assumption.
++ *
++ * This function is NOT thread safe!
++ *	@param cache True to cache rules, else false
++ *	@param muid If cache is false, the UID to match against
++ *	@param mgid If cache is false, the GID to match against
++ *	@return 0 on success, -1 if no cache and match found, > 0 on error.
++ * TODO: Make this function thread safe!
++ */
++static int cgroup_parse_rules(bool cache, uid_t muid,
++					  gid_t mgid, const char *mprocname)
++{
++	int ret;
++
++	/* Pointer to the list that we're using */
++	struct cgroup_rule_list *lst = NULL;
++
++	/* Directory variables */
++	DIR *d;
++	struct dirent *item;
++	const char *dirname = CGRULES_CONF_DIR;
++	char *tmp;
++	int sret;
++
++	/* Determine which list we're using. */
++	if (cache)
++		lst = &rl;
++	else
++		lst = &trl;
++
++	/* If our list already exists, clean it. */
++	if (lst->head)
++		cgroup_free_rule_list(lst);
++
++	pthread_rwlock_wrlock(&rl_lock);
++
++	/* Parse CGRULES_CONF_FILE configuration file (back compatibility). */
++	ret = cgroup_parse_rules_file(CGRULES_CONF_FILE,
++		cache, muid, mgid, mprocname);
++
++	/*
++	 * if match (ret = -1), stop parsing other files, just return
++	 * or ret > 0 => error
++	 */
++	if (ret != 0) {
++		pthread_rwlock_unlock(&rl_lock);
++		return ret;
++	}
++
++	/* Continue parsing */
++	d = opendir(dirname);
++	if (!d) {
++		cgroup_warn("Warning: Failed to open directory %s: %s\n",
++				dirname, strerror(errno));
++
++		/*
++		 * Cannot read directory. However, CGRULES_CONF_FILE is
++		 * succesfully parsed. Thus return as a success
++		 * for back compatibility.
++		 */
++		pthread_rwlock_unlock(&rl_lock);
++
++		return 0;
++	}
++
++	/* read all files from CGRULES_CONF_FILE_DIR */
++	do {
++		item = readdir(d);
++		if (item && (item->d_type == DT_REG
++				|| item->d_type == DT_LNK)) {
++
++			sret = asprintf(&tmp, "%s/%s", dirname, item->d_name);
++			if (sret < 0) {
++				cgroup_err("Out of memory\n");
++
++				/*
++				 * Cannot read directory. However, CGRULES_CONF_FILE is
++				 * succesfully parsed. Thus return as a success
++				 * for back compatibility.
++				 */
++				ret = 0;
++				goto unlock_list;
++			}
++
++			cgroup_dbg("Parsing cgrules file: %s\n", tmp);
++			ret = cgroup_parse_rules_file(tmp,
++				cache, muid, mgid, mprocname);
++
++			free(tmp);
++
++			/* match with cache disabled? */
++			if (ret != 0)
++				goto unlock_list;
++		}
++		if (!item && errno) {
++			cgroup_warn("Warning: cannot read %s: %s\n",
++					dirname, strerror(errno));
++			/*
++			 * Cannot read an item. But continue for
++			 * back compatibility as a success.
++			 */
++			ret = 0;
++			goto unlock_list;
++		}
++	} while (item != NULL);
++
++unlock_list:
++	closedir(d);
++
+ 	pthread_rwlock_unlock(&rl_lock);
++
+ 	return ret;
+ }
+ 
+@@ -1360,13 +1495,18 @@ static int cg_create_control_group(const char *path)
+  */
+ static int cg_set_control_value(char *path, const char *val)
+ {
+-	FILE *control_file = NULL;
++	int ctl_file;
++	char *str_val;
++	char *str_val_start;
++	char *pos;
++	size_t len;
++
+ 	if (!cg_test_mounted_fs())
+ 		return ECGROUPNOTMOUNTED;
+ 
+-	control_file = fopen(path, "r+e");
++	ctl_file = open(path, O_RDWR | O_CLOEXEC);
+ 
+-	if (!control_file) {
++	if (ctl_file == -1) {
+ 		if (errno == EPERM) {
+ 			/*
+ 			 * We need to set the correct error value, does the
+@@ -1377,6 +1517,7 @@ static int cg_set_control_value(char *path, const char *val)
+ 			 */
+ 			char *path_dir_end;
+ 			char *tasks_path;
++			FILE *control_file;
+ 
+ 			path_dir_end = strrchr(path, '/');
+ 			if (path_dir_end == NULL)
+@@ -1408,15 +1549,47 @@ static int cg_set_control_value(char *path, const char *val)
+ 		return ECGROUPVALUENOTEXIST;
+ 	}
+ 
+-	if (fprintf(control_file, "%s", val) < 0) {
++	/* Split the multiline value into lines. */
++	/* One line is a special case of multiline value. */
++	str_val = strdup(val);
++	if (str_val == NULL) {
+ 		last_errno = errno;
+-		fclose(control_file);
++		close(ctl_file);
+ 		return ECGOTHER;
+ 	}
+-	if (fclose(control_file) < 0) {
++
++	str_val_start = str_val;
++	pos = str_val;
++
++	do {
++		str_val = pos;
++		pos = strchr(str_val, '\n');
++
++		if (pos) {
++			*pos = '\0';
++			++pos;
++		}
++
++		len = strlen(str_val);
++		if (len > 0) {
++			if (write(ctl_file, str_val, len) == -1) {
++				last_errno = errno;
++				free(str_val_start);
++				close(ctl_file);
++				return ECGOTHER;
++			}
++		} else
++			cgroup_warn("Warning: skipping empty line for %s\n",
++				path);
++	} while(pos);
++
++	if (close(ctl_file)) {
+ 		last_errno = errno;
++		free(str_val_start);
+ 		return ECGOTHER;
+ 	}
++
++	free(str_val_start);
+ 	return 0;
+ }
+ 
+@@ -1897,15 +2070,23 @@ static int cg_move_task_files(FILE *input_tasks, FILE *output_tasks)
+ 			break;
+ 
+ 		ret = fprintf(output_tasks, "%d", tids);
+-		if (ret < 0)
+-			break;
++		if (ret < 0) {
++			if (errno == ESRCH)
++				ret = 0;
++			else
++				break;
++		}
+ 
+ 		/*
+ 		 * Flush the file, we need only one process per write() call.
+ 		 */
+ 		ret = fflush(output_tasks);
+-		if (ret < 0)
+-			break;
++		if (ret < 0) {
++			if (errno == ESRCH)
++				ret = 0;
++			else
++				break;
++		}
+ 	}
+ 
+ 	if (ret < 0) {
+@@ -2594,13 +2775,17 @@ static struct cgroup_rule *cgroup_find_matching_rule_uid_gid(uid_t uid,
+ 			/* Get the group data. */
+ 			sp = &(rule->username[1]);
+ 			grp = getgrnam(sp);
+-			if (!grp)
++			if (!grp) {
++				rule = rule->next;
+ 				continue;
++			}
+ 
+ 			/* Get the data for UID. */
+ 			usr = getpwuid(uid);
+-			if (!usr)
++			if (!usr) {
++				rule = rule->next;
+ 				continue;
++			}
+ 
+ 			/* If UID is a member of group, we matched. */
+ 			for (i = 0; grp->gr_mem[i]; i++) {
+@@ -3108,10 +3293,13 @@ int cgroup_change_all_cgroups(void)
+ 		return -ECGOTHER;
+ 
+ 	while ((pid_dir = readdir(dir)) != NULL) {
+-		int err, pid;
++		int err, pid, tid;
+ 		uid_t euid;
+ 		gid_t egid;
+ 		char *procname = NULL;
++		DIR *tdir;
++		struct dirent *tid_dir = NULL;
++		char tpath[FILENAME_MAX] = { '\0' };
+ 
+ 		err = sscanf(pid_dir->d_name, "%i", &pid);
+ 		if (err < 1)
+@@ -3125,11 +3313,24 @@ int cgroup_change_all_cgroups(void)
+ 		if (err)
+ 			continue;
+ 
+-		err = cgroup_change_cgroup_flags(euid,
+-				egid, procname, pid, CGFLAG_USECACHE);
+-		if (err)
+-			cgroup_dbg("cgroup change pid %i failed\n", pid);
++		snprintf(tpath, FILENAME_MAX, "%s%d/task/", path, pid);
++
++		tdir = opendir(tpath);
++		if (!tdir)
++			continue;
++
++		while ((tid_dir = readdir(tdir)) != NULL) {
++			err = sscanf(tid_dir->d_name, "%i", &tid);
++			if (err < 1)
++				continue;
++
++			err = cgroup_change_cgroup_flags(euid,
++					egid, procname, tid, CGFLAG_USECACHE);
++			if (err)
++				cgroup_dbg("cgroup change tid %i failed\n", tid);
++		}
+ 
++		closedir(tdir);
+ 		free(procname);
+ 	}
+ 
+diff --git a/src/config.c b/src/config.c
+index da2c0dd..090bea5 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -41,6 +41,8 @@
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ 
++#include "tools/tools-common.h"
++
+ unsigned int MAX_CGROUPS = 64;	/* NOTE: This value changes dynamically */
+ unsigned int MAX_TEMPLATES = 64;
+ 				/* NOTE: This value changes dynamically */
+@@ -89,6 +91,7 @@ static int config_template_table_index;
+  */
+ static struct cgroup *template_table;
+ static int template_table_index;
++static struct cgroup_string_list *template_files;
+ 
+ 
+ /*
+@@ -1572,6 +1575,161 @@ int cgroup_init_templates_cache(char *pathname)
+ 
+ }
+ 
++/**
++ * Setting source files of templates. This function has to be called before
++ * any call of cgroup_load_templates_cache_from_files.
++ * @param tmpl_files
++ */
++void cgroup_templates_cache_set_source_files(
++	struct cgroup_string_list *tmpl_files)
++{
++	template_files = tmpl_files;
++}
++
++/**
++ * Appending cgroup templates parsed by parser to template_table
++ * @param offset number of templates already in the table
++ */
++int cgroup_add_cgroup_templates(int offset)
++{
++	int i, ti, ret;
++
++	for (i = 0; i < config_template_table_index; i++) {
++		ti = i + offset;
++		ret = cgroup_copy_cgroup(&template_table[ti],
++			&config_template_table[i]);
++		if (ret)
++			return ret;
++
++		strcpy((template_table[ti]).name,
++			(config_template_table[i]).name);
++		template_table[ti].tasks_uid =
++			config_template_table[i].tasks_uid;
++		template_table[ti].tasks_gid =
++			config_template_table[i].tasks_gid;
++		template_table[ti].task_fperm =
++			config_template_table[i].task_fperm;
++		template_table[ti].control_uid =
++			config_template_table[i].control_uid;
++		template_table[ti].control_gid =
++			config_template_table[i].control_gid;
++		template_table[ti].control_fperm =
++			config_template_table[i].control_fperm;
++		template_table[ti].control_dperm =
++			config_template_table[i].control_dperm;
++	}
++
++	return 0;
++}
++
++/**
++ * Expand template table based on new number of parsed templates, i.e.
++ * on value of config_template_table_index.
++ * Change value of template_table_index.
++ * @return 0 on success, < 0 on error
++ */
++int cgroup_expand_template_table(void)
++{
++	int i;
++
++	template_table = realloc(template_table,
++		(template_table_index + config_template_table_index)
++		*sizeof(struct cgroup));
++
++	if (template_table == NULL)
++		return -ECGOTHER;
++
++	for (i = 0; i < config_template_table_index; i++)
++		template_table[i + template_table_index].index = 0;
++
++	template_table_index += config_template_table_index;
++
++	return 0;
++}
++
++/**
++ * Load the templates cache from files. Before calling this function,
++ * cgroup_templates_cache_set_source_files has to be called first.
++ * @param file_index index of file which was unable to be parsed
++ * @return 0 on success, > 0 on error
++ */
++int cgroup_load_templates_cache_from_files(int *file_index)
++{
++	int ret;
++	int i, j;
++	int template_table_last_index;
++	char *pathname;
++
++	if (!template_files) {
++		/* source files has not been set */
++		cgroup_dbg("Template source files have not been set. ");
++		cgroup_dbg("Using only %s\n", CGCONFIG_CONF_FILE);
++
++		if (template_table_index == 0)
++			/* the rules cache is empty */
++			return cgroup_init_templates_cache(
++				CGCONFIG_CONF_FILE);
++		else
++			/* cache is not empty */
++			return cgroup_reload_cached_templates(
++				CGCONFIG_CONF_FILE);
++	}
++
++	if (template_table) {
++		/* template structures have to be free */
++		for (i = 0; i < template_table_index; i++)
++			cgroup_free_controllers(&template_table[i]);
++		free(template_table);
++		template_table = NULL;
++	}
++	template_table_index = 0;
++
++	if ((config_template_table_index != 0) || (config_table_index != 0)) {
++		/* config structures have to be clean before parsing */
++		cgroup_free_config();
++	}
++
++	for (j = 0; j < template_files->count; j++) {
++		pathname = template_files->items[j];
++
++		cgroup_dbg("Parsing templates from %s.\n", pathname);
++		/* Attempt to read the configuration file
++		 * and cache the rules. */
++		ret = cgroup_parse_config(pathname);
++		if (ret) {
++			cgroup_dbg("Could not initialize rule cache, ");
++			cgroup_dbg("error was: %d\n", ret);
++			*file_index = j;
++			return ret;
++		}
++
++		if (config_template_table_index > 0) {
++			template_table_last_index = template_table_index;
++			ret = cgroup_expand_template_table();
++			if (ret) {
++				cgroup_dbg("Could not expand template table, ");
++				cgroup_dbg("error was: %d\n", -ret);
++				*file_index = j;
++				return -ret;
++			}
++
++			/* copy template data to templates cache structures */
++			cgroup_dbg("Copying templates to template table ");
++			cgroup_dbg("from %s.\n", pathname);
++			ret = cgroup_add_cgroup_templates(
++				template_table_last_index);
++			if (ret) {
++				cgroup_dbg("Unable to copy cgroup\n");
++				*file_index = j;
++				return ret;
++			}
++			cgroup_dbg("Templates to template table copied\n");
++		}
++	}
++
++	return 0;
++}
++
+ /*
+  * Create a given cgroup, based on template configuration if it is present
+  * if the template is not present cgroup is creted using cgroup_create_cgroup
+@@ -1593,13 +1751,22 @@ int cgroup_config_create_template_group(struct cgroup *cgroup,
+ 	 * use CGCONFIG_CONF_FILE by default
+ 	 */
+ 	if (!(flags & CGFLAG_USE_TEMPLATE_CACHE)) {
+-		if (template_table_index == 0)
+-			/* the rules cache is empty */
+-			ret = cgroup_init_templates_cache(CGCONFIG_CONF_FILE);
+-		else
+-			/* cache is not empty */
+-			ret = cgroup_reload_cached_templates(
+-				CGCONFIG_CONF_FILE);
++		int fileindex;
++
++		/* the rules cache is empty */
++		ret = cgroup_load_templates_cache_from_files(
++			&fileindex);
++		if (ret != 0) {
++			if (fileindex < 0) {
++				cgroup_dbg("Error: Template source files ");
++				cgroup_dbg("have not been set\n");
++			} else {
++			    cgroup_dbg("Error: Failed to load template");
++			    cgroup_dbg("rules from %s. ",
++				    template_files->items[fileindex]);
++			}
++		}
++
+ 		if (ret != 0) {
+ 			cgroup_dbg("Failed initialize templates cache.\n");
+ 			return ret;
+@@ -1659,7 +1826,7 @@ int cgroup_config_create_template_group(struct cgroup *cgroup,
+ 		/* no template is present for given name x controller pair
+ 		 * add controller to result cgroup */
+ 		aux_cgroup = cgroup_new_cgroup(cgroup->name);
+-		if (aux_cgroup) {
++		if (!aux_cgroup) {
+ 			ret = ECGINVAL;
+ 			fprintf(stderr, "cgroup %s can't be created\n",
+ 				cgroup->name);
+diff --git a/src/daemon/Makefile.am b/src/daemon/Makefile.am
+index f3100ed..abbbe30 100644
+--- a/src/daemon/Makefile.am
++++ b/src/daemon/Makefile.am
+@@ -1,9 +1,9 @@
+-INCLUDES = -I $(top_srcdir)/include
++INCLUDES = -I$(top_srcdir)/src -I$(top_srcdir)/include
+ 
+ if WITH_DAEMON
+ 
+ sbin_PROGRAMS = cgrulesengd
+-cgrulesengd_SOURCES = cgrulesengd.c cgrulesengd.h
++cgrulesengd_SOURCES = cgrulesengd.c cgrulesengd.h ../tools/tools-common.h ../tools/tools-common.c
+ cgrulesengd_LDADD = $(top_builddir)/src/.libs/libcgroup.la -lrt
+ cgrulesengd_LDFLAGS = -L$(top_builddir)/src/.libs
+ 
+diff --git a/src/daemon/cgrulesengd.c b/src/daemon/cgrulesengd.c
+index 367b898..ea51f11 100644
+--- a/src/daemon/cgrulesengd.c
++++ b/src/daemon/cgrulesengd.c
+@@ -34,6 +34,7 @@
+ #include "libcgroup.h"
+ #include "cgrulesengd.h"
+ #include "../libcgroup-internal.h"
++#include "../tools/tools-common.h"
+ 
+ #include <errno.h>
+ #include <stdarg.h>
+@@ -59,6 +60,9 @@
+ 
+ #define NUM_PER_REALLOCATIOM	(100)
+ 
++/* list of config files from CGCONFIG_CONF_FILE and CGCONFIG_CONF_DIR */
++static struct cgroup_string_list template_files;
++
+ /* Log file, NULL if logging to file is disabled */
+ FILE* logfile;
+ 
+@@ -936,6 +940,8 @@ void cgre_flash_rules(int signum)
+ 	/* Current time */
+ 	time_t tm = time(0);
+ 
++	int fileindex;
++
+ 	flog(LOG_INFO, "Reloading rules configuration\n");
+ 	flog(LOG_DEBUG, "Current time: %s\n", ctime(&tm));
+ 
+@@ -949,7 +955,7 @@ void cgre_flash_rules(int signum)
+ 	}
+ 
+ 	/* Ask libcgroup to reload the template rules table. */
+-	cgroup_reload_cached_templates(CGCONFIG_CONF_FILE);
++	cgroup_load_templates_cache_from_files(&fileindex);
+ }
+ 
+ /**
+@@ -962,11 +968,13 @@ void cgre_flash_templates(int signum)
+ 	/* Current time */
+ 	time_t tm = time(0);
+ 
++	int fileindex;
++
+ 	flog(LOG_INFO, "Reloading templates configuration.\n");
+ 	flog(LOG_DEBUG, "Current time: %s\n", ctime(&tm));
+ 
+ 	/* Ask libcgroup to reload the templates table. */
+-	cgroup_reload_cached_templates(CGCONFIG_CONF_FILE);
++	cgroup_load_templates_cache_from_files(&fileindex);
+ }
+ 
+ /**
+@@ -1069,6 +1077,8 @@ int main(int argc, char *argv[])
+ 		{NULL, 0, NULL, 0}
+ 	};
+ 
++	int fileindex;
++
+ 	/* Make sure the user is root. */
+ 	if (getuid() != 0) {
+ 		fprintf(stderr, "Error: Only root can start/stop the control"
+@@ -1180,6 +1190,25 @@ int main(int argc, char *argv[])
+ 	}
+ 
+ 	/* Ask libcgroup to load the configuration rules. */
++	ret = cgroup_string_list_init(&template_files,
++		CGCONFIG_CONF_FILES_LIST_MINIMUM_SIZE);
++	if (ret) {
++		fprintf(stderr, "%s: cannot init file list, out of memory?\n",
++			argv[0]);
++		goto finished_without_temp_files;
++	}
++	/* first add CGCONFIG_CONF_FILE into file list */
++	ret = cgroup_string_list_add_item(&template_files, CGCONFIG_CONF_FILE);
++	if (ret) {
++		fprintf(stderr, "%s: cannot add file to list, out of memory?\n"
++			, argv[0]);
++		goto finished;
++	}
++
++	/* then read CGCONFIG_CONF_DIR directory for additional config files */
++	cgroup_string_list_add_directory(&template_files, CGCONFIG_CONF_DIR,
++		argv[0]);
++
+ 	if ((ret = cgroup_init_rules_cache()) != 0) {
+ 		fprintf(stderr, "Error: libcgroup failed to initialize rules"
+ 				"cache from %s. %s\n", CGRULES_CONF_FILE,
+@@ -1188,11 +1217,18 @@ int main(int argc, char *argv[])
+ 	}
+ 
+ 	/* ask libcgroup to load template rules as well */
+-	ret = cgroup_init_templates_cache(CGCONFIG_CONF_FILE);
++	cgroup_templates_cache_set_source_files(&template_files);
++	ret = cgroup_load_templates_cache_from_files(&fileindex);
+ 	if (ret != 0) {
+-		fprintf(stderr, "Error: libcgroup failed to initialize teplate"\
+-				"rules from %s. %s\n", CGCONFIG_CONF_FILE,
+-				cgroup_strerror(ret));
++		if (fileindex < 0) {
++			fprintf(stderr, "Error: Template source files ");
++			fprintf(stderr, "have not been set\n");
++		} else {
++			fprintf(stderr, "Error: Failed to initialize template");
++			fprintf(stderr, "rules from %s. ",
++				template_files.items[fileindex]);
++			fprintf(stderr, "%s\n", cgroup_strerror(-ret));
++		}
+ 		goto finished;
+ 	}
+ 
+@@ -1259,6 +1295,9 @@ int main(int argc, char *argv[])
+ 	ret =  cgre_create_netlink_socket_process_msg();
+ 
+ finished:
++	cgroup_string_list_free(&template_files);
++
++finished_without_temp_files:
+ 	if (logfile && logfile != stdout)
+ 		fclose(logfile);
+ 
+diff --git a/src/lex.l b/src/lex.l
+index 1b357db..ecd212c 100644
+--- a/src/lex.l
++++ b/src/lex.l
+@@ -42,8 +42,8 @@ jmp_buf parser_error_env;
+ "group"		{return GROUP;}
+ "namespace"	{return NAMESPACE;}
+ "template"	{return TEMPLATE;}
+-"default"	{return DEFAULT;}
+-[a-zA-Z0-9_\-\/\.\,\%\@]+ {yylval.name = strdup(yytext); return ID;}
++"default"	{yylval.name = strdup(yytext); return DEFAULT;}
++[a-zA-Z0-9_\-\/\.\,\%\@\\]+ {yylval.name = strdup(yytext); return ID;}
+ \"[^"]*\" {yylval.name = strdup(yytext+1); yylval.name[strlen(yylval.name)-1] = '\0'; return ID; }
+ .	{return yytext[0];}
+ %%
+diff --git a/src/libcgroup-internal.h b/src/libcgroup-internal.h
+index 4c0f46c..9875dd9 100644
+--- a/src/libcgroup-internal.h
++++ b/src/libcgroup-internal.h
+@@ -48,8 +48,12 @@ __BEGIN_DECLS
+ 
+ 
+ #define CGCONFIG_CONF_FILE		"/etc/cgconfig.conf"
++/* Minimum number of file in template file list for cgrulesengd */
++#define CGCONFIG_CONF_FILES_LIST_MINIMUM_SIZE   4
++#define CGCONFIG_CONF_DIR               "/etc/cgconfig.d"
+ 
+ #define CGRULES_CONF_FILE       "/etc/cgrules.conf"
++#define CGRULES_CONF_DIR        "/etc/cgrules.d"
+ #define CGRULES_MAX_FIELDS_PER_LINE		3
+ 
+ #define CGROUP_BUFFER_LEN (5 * FILENAME_MAX)
+diff --git a/src/libcgroup.map b/src/libcgroup.map
+index b0c162c..8fe1990 100644
+--- a/src/libcgroup.map
++++ b/src/libcgroup.map
+@@ -117,3 +117,15 @@ CGROUP_0.39 {
+ 	cgroup_log;
+ 	cgroup_parse_log_level_str;
+ } CGROUP_0.38;
++
++CGROUP_0.40 {
++	cgroup_templates_cache_set_source_files;
++	cgroup_load_templates_cache_from_files;
++} CGROUP_0.39;
++
++CGROUP_0.41 {
++} CGROUP_0.40;
++
++CGROUP_0.42 {
++	cgroup_add_all_controllers;
++} CGROUP_0.41;
+diff --git a/src/parse.y b/src/parse.y
+index 9adbc0e..98f7699 100644
+--- a/src/parse.y
++++ b/src/parse.y
+@@ -45,9 +45,9 @@ int yywrap(void)
+ 	int val;
+ 	struct cgroup_dictionary *values;
+ }
+-%type <name> ID
++%type <name> ID DEFAULT
+ %type <val> mountvalue_conf mount task_namevalue_conf admin_namevalue_conf
+-%type <val> admin_conf task_conf task_or_admin group_conf group start
++%type <val> admin_conf task_conf task_or_admin group_conf group start group_name
+ %type <val> namespace namespace_conf default default_conf
+ %type <values> namevalue_conf
+ %type <val> template template_conf
+@@ -99,7 +99,7 @@ default_conf
+ 	}
+ 	;
+ 
+-group   :       GROUP ID '{' group_conf '}'
++group   :       GROUP group_name '{' group_conf '}'
+ 	{
+ 		$$ = $4;
+ 		if ($$) {
+@@ -119,6 +119,16 @@ group   :       GROUP ID '{' group_conf '}'
+ 	}
+         ;
+ 
++group_name
++	:	ID
++	{
++		$$ = $1;
++	}
++	|	DEFAULT
++	{
++		$$ = $1;
++	}
++
+ group_conf
+         :       ID '{' namevalue_conf '}'
+ 	{
+diff --git a/src/tools/cgcreate.c b/src/tools/cgcreate.c
+index 73abd91..65b188a 100644
+--- a/src/tools/cgcreate.c
++++ b/src/tools/cgcreate.c
+@@ -54,7 +54,6 @@ static void usage(int status, const char *program_name)
+ 	printf("  -t <tuid>:<tgid>		Owner of the tasks file\n");
+ }
+ 
+-
+ int main(int argc, char *argv[])
+ {
+ 	int ret = 0;
+@@ -195,16 +194,29 @@ int main(int argc, char *argv[])
+ 		/* add controllers to the new cgroup */
+ 		j = 0;
+ 		while (cgroup_list[i]->controllers[j]) {
+-			cgc = cgroup_add_controller(cgroup,
+-				cgroup_list[i]->controllers[j]);
+-			if (!cgc) {
+-				ret = ECGINVAL;
+-				fprintf(stderr, "%s: "
+-					"controller %s can't be add\n",
+-					argv[0],
++			if (strcmp(cgroup_list[i]->controllers[j], "*") == 0) {
++				/* it is meta character, add all controllers */
++				ret = cgroup_add_all_controllers(cgroup);
++				if (ret != 0) {
++					ret = ECGINVAL;
++					fprintf(stderr, "%s: can't add ",
++						argv[0]);
++					fprintf(stderr, "all controllers\n");
++					cgroup_free(&cgroup);
++					goto err;
++				}
++			} else {
++				cgc = cgroup_add_controller(cgroup,
+ 					cgroup_list[i]->controllers[j]);
+-				cgroup_free(&cgroup);
+-				goto err;
++				if (!cgc) {
++					ret = ECGINVAL;
++					fprintf(stderr, "%s: ", argv[0]);
++					fprintf(stderr, "controller %s",
++						cgroup_list[i]->controllers[j]);
++					fprintf(stderr, "can't be add\n");
++					cgroup_free(&cgroup);
++					goto err;
++				}
+ 			}
+ 			j++;
+ 		}
+diff --git a/src/tools/cgdelete.c b/src/tools/cgdelete.c
+index 190310f..43cc47c 100644
+--- a/src/tools/cgdelete.c
++++ b/src/tools/cgdelete.c
+@@ -33,6 +33,13 @@ static struct option const long_options[] =
+ 	{NULL, 0, NULL, 0}
+ };
+ 
++struct ext_cgroup_record {
++	char name[FILENAME_MAX];	/* controller name */
++	char controller[FILENAME_MAX];	/* cgroup name */
++	int h_number;			/* hierarchy number */
++};
++
++
+ static void usage(int status, const char *program_name)
+ {
+ 	if (status != 0) {
+@@ -51,6 +58,69 @@ static void usage(int status, const char *program_name)
+ 		"all subgroups\n");
+ }
+ 
++/*
++ * Skip adding controller which points to the same cgroup when delete
++ * cgroup with specifying multi controllers. Just skip controller which
++ * cgroup and hierarchy number is same
++ */
++static int skip_add_controller(int counter, int *skip,
++		struct ext_cgroup_record *ecg_list)
++{
++	int k;
++	struct controller_data info;
++	void *handle;
++	int ret = 0;
++
++	/* find out hierarchy number of added cgroup */
++	ecg_list[counter].h_number = 0;
++	ret = cgroup_get_all_controller_begin(&handle, &info);
++	while (ret == 0) {
++		if (!strcmp(info.name, ecg_list[counter].name)) {
++			/* hierarchy number found out, set it */
++			ecg_list[counter].h_number = info.hierarchy;
++			break;
++		}
++		ret = cgroup_get_all_controller_next(&handle, &info);
++	}
++	cgroup_get_all_controller_end(&handle);
++
++	/* deal with cgroup_get_controller_begin/next ret values */
++	if (ret == ECGEOF)
++		ret = 0;
++	if (ret) {
++		fprintf(stderr, "cgroup_get_controller_begin/next failed(%s)\n",
++			cgroup_strerror(ret));
++		return ret;
++	}
++
++	/* found out whether the hierarchy should be skipped */
++	*skip = 0;
++	for (k = 0; k < counter; k++) {
++		if ((!strcmp(ecg_list[k].name, ecg_list[counter].name)) &&
++			(ecg_list[k].h_number == ecg_list[counter].h_number)) {
++			/* we found a control group in the same hierarchy */
++			if (strcmp(ecg_list[k].controller,
++				ecg_list[counter].controller)) {
++				/*
++				 * it is a different controller ->
++				 * if there is not one cgroup for the same
++				 * controller, skip it
++				 */
++				*skip = 1;
++			} else {
++				/*
++				 * there is the identical group,controller pair
++				 * don't skip it
++				 */
++				*skip = 0;
++				return ret;
++			}
++		}
++	}
++
++	return ret;
++}
++
+ 
+ int main(int argc, char *argv[])
+ {
+@@ -60,6 +130,11 @@ int main(int argc, char *argv[])
+ 	int flags = 0;
+ 	int final_ret = 0;
+ 
++	int counter = 0;
++	int max = 0;
++	struct ext_cgroup_record *ecg_list = NULL;
++	int skip;
++
+ 	struct cgroup_group_spec **cgroup_list = NULL;
+ 	struct cgroup *cgroup;
+ 	struct cgroup_controller *cgc;
+@@ -80,6 +155,13 @@ int main(int argc, char *argv[])
+ 		goto err;
+ 	}
+ 
++	ecg_list = calloc(argc, sizeof(struct ext_cgroup_record *));
++	if (cgroup_list == NULL) {
++		fprintf(stderr, "%s: out of memory\n", argv[0]);
++		ret = -1;
++		goto err;
++	}
++
+ 	/*
+ 	 * Parse arguments
+ 	 */
+@@ -138,6 +220,44 @@ int main(int argc, char *argv[])
+ 		/* add controllers to the cgroup */
+ 		j = 0;
+ 		while (cgroup_list[i]->controllers[j]) {
++			skip = 0;
++			/*
++			 * save controller name, cg name and hierarchy number
++			 * to determine whether we should skip adding controller
++			 */
++			if (counter == max) {
++				/*
++				 * there is not enough space to store them,
++				 * create it
++				 */
++				max = max + argc;
++				ecg_list = (struct ext_cgroup_record *)
++					realloc(ecg_list,
++					max * sizeof(struct ext_cgroup_record));
++				if (!ecg_list) {
++					fprintf(stderr, "%s: ", argv[0]);
++					fprintf(stderr, "not enough memory\n");
++					final_ret = -1;
++					goto err;
++				}
++			}
++
++			strncpy(ecg_list[counter].controller,
++				cgroup_list[i]->controllers[j], FILENAME_MAX);
++			ecg_list[counter].controller[FILENAME_MAX - 1] = '\0';
++			strncpy(ecg_list[counter].name,
++				cgroup_list[i]->path, FILENAME_MAX);
++			ecg_list[counter].name[FILENAME_MAX - 1] = '\0';
++
++			ret = skip_add_controller(counter, &skip, ecg_list);
++			if (ret)
++				goto err;
++
++			if (skip) {
++				/* don't add the controller, goto next one */
++				goto next;
++			}
++
+ 			cgc = cgroup_add_controller(cgroup,
+ 				cgroup_list[i]->controllers[j]);
+ 			if (!cgc) {
+@@ -149,6 +269,8 @@ int main(int argc, char *argv[])
+ 				cgroup_free(&cgroup);
+ 				goto err;
+ 			}
++next:
++			counter++;
+ 			j++;
+ 		}
+ 
+@@ -167,6 +289,9 @@ int main(int argc, char *argv[])
+ 
+ 	ret = final_ret;
+ err:
++	if (ecg_list)
++		free(ecg_list);
++
+ 	if (cgroup_list) {
+ 		for (i = 0; i < argc; i++) {
+ 			if (cgroup_list[i])
+diff --git a/src/tools/tools-common.h b/src/tools/tools-common.h
+index e05465f..c723eb4 100644
+--- a/src/tools/tools-common.h
++++ b/src/tools/tools-common.h
+@@ -20,7 +20,7 @@
+ 
+ #include "config.h"
+ #include <libcgroup.h>
+-#include <libcgroup-internal.h>
++#include "../libcgroup-internal.h"
+ 
+ #define cgroup_err(x...) cgroup_log(CGROUP_LOG_ERROR, x)
+ #define cgroup_warn(x...) cgroup_log(CGROUP_LOG_WARNING, x)
+diff --git a/src/wrapper.c b/src/wrapper.c
+index c03472a..3a9331f 100644
+--- a/src/wrapper.c
++++ b/src/wrapper.c
+@@ -92,6 +92,56 @@ struct cgroup_controller *cgroup_add_controller(struct cgroup *cgroup,
+ 	return controller;
+ }
+ 
++int cgroup_add_all_controllers(struct cgroup *cgroup)
++{
++	int ret;
++	void *handle;
++	struct controller_data info;
++	struct cgroup_controller *cgc;
++
++	/* go through the controller list */
++	ret = cgroup_get_all_controller_begin(&handle, &info);
++	if ((ret != 0) && (ret != ECGEOF)) {
++		fprintf(stderr, "cannot read controller data: %s\n",
++			cgroup_strerror(ret));
++		return ret;
++	}
++
++	while (ret == 0) {
++		if (info.hierarchy == 0) {
++			/* the controller is not attached to any hierarchy
++			   skip it */
++			goto next;
++		}
++
++		/* add mounted controller to cgroup structure */
++		cgc = cgroup_add_controller(cgroup, info.name);
++		if (!cgc) {
++			ret = ECGINVAL;
++			fprintf(stderr, "controller %s can't be add\n",
++				info.name);
++		}
++
++next:
++		ret = cgroup_get_all_controller_next(&handle, &info);
++		if (ret && ret != ECGEOF)
++			goto end;
++	}
++
++end:
++	cgroup_get_all_controller_end(&handle);
++
++	if (ret == ECGEOF)
++		ret = 0;
++
++	if (ret)
++		fprintf(stderr,
++			"cgroup_get_controller_begin/next failed (%s)\n",
++			cgroup_strerror(ret));
++
++	return ret;
++}
++
+ void cgroup_free_controllers(struct cgroup *cgroup)
+ {
+ 	int i, j;

@@ -39,7 +39,7 @@ SRCNAM=wqy-zenhei
 VERSION=${VERSION:-0.8.38}
 SUB=${SUB:-1}
 ARCH=noarch
-BUILD=${BUILD:-6}
+BUILD=${BUILD:-7}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -52,7 +52,7 @@ fi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-SOURCE="$CWD/${SRCNAM}-${VERSION}-${SUB}.tar.bz2"
+SOURCE="$CWD/${SRCNAM}-${VERSION}-${SUB}.tar.lz"
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -89,22 +89,26 @@ find . \
 # fonts, but it is harmless.  It's probably safer to leave the cp command the
 # way it is in case future versions include any ttf fonts.
 # Install font:
-cp -a *.ttf *.ttc $PKG$FONTDIR/
+cp -a *.ttf *.ttc $PKG$FONTDIR/ 2> /dev/null
 chmod 644 $PKG$FONTDIR/*
 chown root:root $PKG$FONTDIR/*
 
-# Add the fontconfig file and symlink. Renaming this file to 64- to
-# avoid taking priority over the font list in 60-latin.conf.
+# Add the fontconfig file and symlink.
 mkdir -p $PKG/etc/fonts/conf.{d,avail}
-cp -a 44-wqy-zenhei.conf $PKG/etc/fonts/conf.avail/64-wqy-zenhei.conf
+zcat $CWD/64-wqy-zenhei.conf.gz > $PKG/etc/fonts/conf.avail/64-wqy-zenhei.conf
 ( cd $PKG/etc/fonts/conf.d && \
   ln -sf ../conf.avail/64-wqy-zenhei.conf
 )
-# Two more fontconfig files which we do not activate by default:
-cp -a 66-wqy-zenhei-sharp.conf 66-wqy-zenhei-sharp-no13px.conf \
+
+# We install the upstream fontconfig files, but do not activate them with
+# symlinks.
+cp -a \
+  44-wqy-zenhei.conf 66-wqy-zenhei-sharp.conf 66-wqy-zenhei-sharp-no13px.conf \
   $PKG/etc/fonts/conf.avail/
 chmod 644 $PKG/etc/fonts/conf.avail/*
 chown root:root $PKG/etc/fonts/conf.avail/*
+# Rename this one to avoid confusion:
+mv $PKG/etc/fonts/conf.avail/44-wqy-zenhei.conf $PKG/etc/fonts/conf.avail/44-wqy-zenhei-upstream-orig.conf
 
 # Add a shell script that can set the Zen Hei default display styles:
 mkdir -p $PKG/usr/sbin

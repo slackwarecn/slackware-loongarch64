@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libcgroup
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -77,12 +77,17 @@ zcat $CWD/libcgroup.init.diff.gz | patch -p1 --verbose || exit 1
 # Slackware does not use /etc/sysconfig:
 zcat $CWD/libcgroup.conf.diff.gz | patch -p1 --verbose || exit 1
 
+# Apply combined patches from git, including for an infinate loop bug:
+zcat $CWD/libcgroup.loop.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+autoreconf -vif
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

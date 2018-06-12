@@ -1,6 +1,6 @@
 # Reload messagebus service
 if [ -x /etc/rc.d/rc.messagebus ]; then
-  sh /etc/rc.d/rc.messagebus reload
+  sh /etc/rc.d/rc.messagebus reload 1> /dev/null 2> /dev/null
 fi
 
 # Try to run these.  If they fail, no biggie.

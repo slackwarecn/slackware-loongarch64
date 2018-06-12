@@ -79,6 +79,7 @@ gzip ./source/x/ttf-tlwg/doinst.sh
 gzip ./source/x/scim-anthy/scim-anthy.gcc43.diff
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff
 gzip ./source/x/wqy-zenhei-font-ttf/fixup-fontconfig-file.diff
+gzip ./source/x/wqy-zenhei-font-ttf/64-wqy-zenhei.conf
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/n/ppp/radius.msdict
 gzip ./source/n/ppp/doinst.sh
@@ -943,6 +944,7 @@ gzip ./source/a/dbus/doinst.sh
 gzip ./source/a/dbus/dbus-1.12.x-allow_root_globally.diff
 gzip ./source/a/dbus/rc.messagebus
 gzip ./source/a/os-prober/os-prober.reiserfs.diff
+gzip ./source/a/libcgroup/libcgroup.loop.diff
 gzip ./source/a/libcgroup/doinst.sh
 gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff

@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=etc
 VERSION=15.0
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -60,8 +60,22 @@ if [ "$ARCH" = "x86_64" ]; then
 fi
 zcat $CWD/nsswitch.conf.gz > $PKG/etc/nsswitch.conf.new
 
+# Check to make sure that shadow has the same number of entries
+# as passwd:
+if [ ! "$(cat $CWD/passwd.new | wc -l)" = "$(cat $CWD/shadow.new | wc -l)" ]; then
+  echo "#######################################################################################"
+  echo "# WARNING: /etc/passwd.new and /etc/shadow.new don't have the same number of entries. #"
+  echo "#######################################################################################"
+  sleep 60
+fi
+# Install default passwd/shadow/group (sorted):
+sort -n -t ':' -k3 $CWD/passwd.new > $PKG/etc/passwd.new
+awk -F':' 'NR==FNR{z[$1]=$0;next}{print z[$1]}' $CWD/shadow.new $PKG/etc/passwd.new > $PKG/etc/shadow.new
+sort -n -t ':' -k3 $CWD/group.new > $PKG/etc/group.new
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 # Build the package:
 cd $PKG

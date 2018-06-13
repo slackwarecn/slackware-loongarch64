@@ -900,6 +900,7 @@ gzip ./source/a/unarj/Makefile
 gzip ./source/a/lrzip/doinst.sh
 gzip ./source/a/patch/0001-Refuse-to-apply-ed-scripts-by-default.patch
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
+gzip ./source/a/etc/doinst.sh
 gzip ./source/a/etc/nsswitch.conf
 gzip ./source/a/procps-ng/psmisc.3638cc55b4d08851faba46635d737b24d016665b.diff
 gzip ./source/a/bzip2/bzip2.saneso.diff

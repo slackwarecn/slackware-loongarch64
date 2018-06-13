@@ -94,6 +94,16 @@ if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   fi
 fi
 
+# Start the haveged entropy daemon:
+if [ -x /etc/rc.d/rc.haveged ]; then
+  /etc/rc.d/rc.haveged start
+fi
+
+# Start the rngd entropy daemon:
+if [ -x /etc/rc.d/rc.rngd ]; then
+  /etc/rc.d/rc.rngd start
+fi
+
 # Initialize the networking hardware.
 if [ -x /etc/rc.d/rc.inet1 ]; then
   /etc/rc.d/rc.inet1

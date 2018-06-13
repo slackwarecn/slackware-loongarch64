@@ -73,11 +73,6 @@ if grep -wq cgroup /proc/filesystems ; then
   fi
 fi
 
-# Start the haveged entropy daemon:
-if [ -x /etc/rc.d/rc.haveged ]; then
-  /etc/rc.d/rc.haveged start
-fi
-
 # Initialize the Logical Volume Manager.
 # This won't start unless we find /etc/lvmtab (LVM1) or
 # /etc/lvm/backup/ (LVM2).  This is created by /sbin/vgscan, so to
@@ -446,4 +441,3 @@ else
   dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
 fi
 chmod 600 /etc/random-seed
-

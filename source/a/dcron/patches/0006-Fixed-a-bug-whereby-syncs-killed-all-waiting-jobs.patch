@@ -1,0 +1,35 @@
+From 65d2649a7c8b72561eefcec239f97e7fd386114e Mon Sep 17 00:00:00 2001
+From: Corey Theiss <corey.theiss@maclaren.com>
+Date: Mon, 24 Mar 2014 16:25:31 -0400
+Subject: [PATCH 6/9] Fixed a bug whereby syncs killed all waiting jobs.
+
+---
+ database.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/database.c b/database.c
+index dd971ce..02c5c92 100644
+--- a/database.c
++++ b/database.c
+@@ -1232,8 +1232,17 @@ CheckJobs(void)
+ 					}
+ 				}
+ 			}
++			nStillRunning += file->cf_Running;
++		}
++		/* For the purposes of this check, increase the "still running" counter if a file has lines that are waiting */
++		if (file->cf_Running == 0) {
++			for (line = file->cf_LineBase; line; line = line->cl_Next) {
++				if (line->cl_Pid == -2) {
++					nStillRunning += 1;
++					break;
++				}
++			}
+ 		}
+-		nStillRunning += file->cf_Running;
+ 	}
+ 	return(nStillRunning);
+ }
+-- 
+2.13.2
+

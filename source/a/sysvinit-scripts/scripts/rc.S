@@ -73,6 +73,10 @@ if grep -wq cgroup /proc/filesystems ; then
   fi
 fi
 
+# Start the haveged entropy daemon:
+if [ -x /etc/rc.d/rc.haveged ]; then
+  /etc/rc.d/rc.haveged start
+fi
 
 # Initialize the Logical Volume Manager.
 # This won't start unless we find /etc/lvmtab (LVM1) or

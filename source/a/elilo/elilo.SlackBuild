@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=elilo
 VERSION=${VERSION:-$(echo $PKGNAM*.tar.?z* | rev | cut -f 2 -d - | rev)}
-BUILD=${BUILD:-6}
+BUILD=${BUILD:-7}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -84,6 +84,9 @@ cd elilo-${VERSION}-source || cd elilo || exit
 sed -i "s,/usr/lib,/usr/lib${LIBDIRSUFFIX},g" Make.defaults
 sed -i "s,EFICRT0.*= /usr/lib${LIBDIRSUFFIX},EFICRT0    = /usr/lib${LIBDIRSUFFIX}/gnuefi,g" Make.defaults
 sed -i "s,dpkg-architecture -qDEB_BUILD_ARCH,uname -m,g" Make.defaults
+
+# Fix collision with StrnCpy() function in both elilo and gnu-efi:
+grep -r -l StrnCpy * | xargs sed -i "s/StrnCpy/elilo_StrnCpy/g"
 
 # Increase kernel size limit from 8MB to 16MB (nobody will ever need more than 640K ;-):
 zcat $CWD/elilo.double.kernel.size.limit.diff.gz | patch -p1 --verbose || exit 1

@@ -141,7 +141,6 @@ fi
 
 # Remove stale locks and junk files (must be done after mount -a!)
 /bin/rm -f /var/lock/* /var/spool/uucp/LCK..* /tmp/.X*lock /tmp/core /core 2> /dev/null
-/bin/rm -rf /var/spool/cron/cron.?????? 2> /dev/null
 
 # Remove stale hunt sockets so the game can start.
 if [ -r /tmp/hunt -o -r /tmp/hunt.stats ]; then
@@ -272,15 +271,13 @@ if [ -x /sbin/accton -a -r /var/log/pacct ]; then
 fi
 
 # Start crond (Dillon's crond):
-# If you want cron to actually log activity to /var/log/cron, then change
-# -l notice to -l info to increase the logging level.
-if [ -x /usr/sbin/crond ]; then
-  /usr/sbin/crond -l notice
+if [ -x /etc/rc.d/rc.crond ]; then
+  /etc/rc.d/rc.crond start
 fi
 
 # Start atd (manages jobs scheduled with 'at'):
-if [ -x /usr/sbin/atd ]; then
-  /usr/sbin/atd -b 15 -l 1
+if [ -x /etc/rc.d/rc.atd ]; then
+  /etc/rc.d/rc.atd start
 fi
 
 # Slackware-Mini-Quota-HOWTO:

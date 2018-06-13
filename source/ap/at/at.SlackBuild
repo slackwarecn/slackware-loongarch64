@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=at
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -62,7 +62,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf at-$VERSION
-tar xvf $CWD/at-${VERSION}.tar.?z* || exit 1
+tar xvf $CWD/at-${VERSION}.tar.?z || exit 1
 cd at-$VERSION || exit 1
 
 chown -R root:root .
@@ -88,6 +88,15 @@ make install IROOT=$PKG || exit
 
 mv $PKG/etc/at.deny $PKG/etc/at.deny.new
 chown root:root $PKG/var $PKG/var/spool
+
+# Add the init script:
+mkdir -p $PKG/etc/rc.d
+cat $CWD/rc.atd > $PKG/etc/rc.d/rc.atd.new
+chmod 755 $PKG/etc/rc.d/rc.atd.new
+
+# Add the default file:
+mkdir -p $PKG/etc/default
+cat $CWD/atd.default > $PKG/etc/default/atd.new
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

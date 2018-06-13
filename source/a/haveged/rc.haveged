@@ -1,0 +1,46 @@
+#!/bin/sh
+# Start/stop/restart haveged.
+
+PIDFILE="/var/run/haveged.pid"
+HAVEGED_OPTS="-w 1024 -v 1 -p $PIDFILE"
+
+# Start haveged:
+haveged_start() {
+  if [ -f $PIDFILE ]; then
+    echo "haveged is already running as PID $(cat $PIDFILE) " >&2
+    exit 3
+  elif [ -x /sbin/haveged ]; then
+    echo "Starting haveged entropy daemon:  /sbin/haveged"
+    /sbin/haveged $HAVEGED_OPTS
+  fi
+}
+
+# Stop haveged:
+haveged_stop() {
+  if [ -r $PIDFILE ]; then
+    echo "Stopping haveged."
+    kill $(cat $PIDFILE)
+  fi
+}
+
+# Restart haveged:
+haveged_restart() {
+  haveged_stop
+  sleep 1
+  haveged_start
+}
+
+case "$1" in
+'start')
+  haveged_start
+  ;;
+'stop')
+  haveged_stop
+  ;;
+'restart')
+  haveged_restart
+  ;;
+*)
+  echo "usage $0 start|stop|restart"
+  exit 2
+esac

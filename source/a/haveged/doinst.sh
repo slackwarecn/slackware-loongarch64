@@ -24,7 +24,5 @@ preserve_perms() {
   config $NEW
 }
 
-preserve_perms etc/rc.d/rc.crond.new
-config etc/default/crond.new
-config var/spool/cron/crontabs/root.new
-rm -f var/spool/cron/crontabs/root.new
+preserve_perms etc/rc.d/rc.haveged.new
+

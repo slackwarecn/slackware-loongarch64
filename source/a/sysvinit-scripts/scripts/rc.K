@@ -117,5 +117,5 @@ echo
 
 # Now go to the single user level
 echo "Going to single user mode..."
-telinit -t 1 1
+/sbin/telinit -t 1 1
 

@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=slackpkg
 VERSION=${VERSION:-2.83.0}
 ARCH="noarch"
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -76,11 +76,6 @@ gzip -d $PKG/usr/libexec/slackpkg/functions.d/*
 chmod 755 $PKG/usr/libexec/slackpkg/functions.d/*
 chown root:root $PKG/usr/libexec/slackpkg/functions.d/*
 
-# Apply patch in case /var/log/packages is a symlink:
-( cd $PKG/usr/libexec/slackpkg
-  zcat $CWD/0001-Fix-for-var_log_packages-being-a-symlink.patch.gz | patch -p1 || exit 1
-) || exit 1
-
 # Install man pages:
 mkdir -pv $PKG/usr/man/man5
 cp -av slackpkg.conf.5.gz $PKG/usr/man/man5
@@ -123,6 +118,21 @@ gzip -d $PKG/usr/doc/slackpkg-$VERSION/*
 # Create additional directories needed by slackpkg:
 mkdir -pv $PKG/var/lib/slackpkg
 mkdir -pv $PKG/var/cache/packages
+
+# Apply patch in case /var/log/packages is a symlink:
+( cd $PKG/usr/libexec/slackpkg
+  zcat $CWD/0001-Fix-for-var_log_packages-being-a-symlink.patch.gz | patch -p1 --verbose || exit 1
+) || exit 1
+
+# Check for new Changelog.txt by checking CHECKSUMS.md5.asc first:
+( cd $PKG/usr/libexec/slackpkg
+  zcat $CWD/0002-Use-CHECKSUMS.md5.asc-to-determine-ChangeLog-newness.patch.gz | patch -p2 --verbose || exit 1
+) || exit 1
+
+# Remove dead mirrors:
+( cd $PKG/usr/doc/slackpkg-$VERSION
+  zcat $CWD/0003-mirrors-x86-.sample-Remove-bjtu.edu.cn-mirror.patch.gz | patch -p2 --verbose || exit 1
+) || exit 1
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz | sed -e "s/@VERSION@/$VERSION/g" > $PKG/install/doinst.sh

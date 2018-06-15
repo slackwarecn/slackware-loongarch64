@@ -960,6 +960,8 @@ gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/soma/doinst.sh
 gzip ./source/ap/slackpkg/0001-Fix-for-var_log_packages-being-a-symlink.patch
 gzip ./source/ap/slackpkg/doinst.sh
+gzip ./source/ap/slackpkg/0003-mirrors-x86-.sample-Remove-bjtu.edu.cn-mirror.patch
+gzip ./source/ap/slackpkg/0002-Use-CHECKSUMS.md5.asc-to-determine-ChangeLog-newness.patch
 gzip ./source/ap/slackpkg/files/dialog-functions.sh
 gzip ./source/ap/slackpkg/files/slackpkg
 gzip ./source/ap/slackpkg/files/post-functions.sh

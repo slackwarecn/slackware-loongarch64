@@ -958,6 +958,7 @@ gzip ./source/ap/cgmanager/doinst.sh
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/soma/doinst.sh
+gzip ./source/ap/slackpkg/0001-Fix-for-var_log_packages-being-a-symlink.patch
 gzip ./source/ap/slackpkg/doinst.sh
 gzip ./source/ap/slackpkg/files/dialog-functions.sh
 gzip ./source/ap/slackpkg/files/slackpkg

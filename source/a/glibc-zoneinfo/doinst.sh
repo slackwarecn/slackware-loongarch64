@@ -28,7 +28,7 @@
 #
 # If we see that the machine's localtime-copied-from symlink is pointing
 # to US/Pacific-New, change it to point to US/Pacific instead.
-if [ "$(/bin/ls -l etc/localtime-copied-from | rev | cut -f 1,2 -d / | rev)" = "US/Pacific-New" ]; then
+if [ "$(/bin/ls -l etc/localtime-copied-from 2> /dev/null | rev | cut -f 1,2 -d / | rev)" = "US/Pacific-New" ]; then
   ( cd etc ; rm -rf localtime-copied-from )
   ( cd etc ; ln -sf /usr/share/zoneinfo/US/Pacific localtime-copied-from )
 fi

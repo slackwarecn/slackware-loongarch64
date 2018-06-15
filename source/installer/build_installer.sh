@@ -793,6 +793,7 @@ a/cryptsetup \
 a/dialog \
 a/dosfstools \
 a/e2fsprogs \
+a/efivar \
 a/etc \
 a/gptfdisk \
 a/grep \
@@ -1107,6 +1108,7 @@ cp  -fa${VERBOSE1} \
 # Deal with /usr/lib stuff from the packages:
 cd $TMP/extract-packages/usr/lib${LIBDIRSUFFIX}
 cp  -fa${VERBOSE1} \
+        libefivar.so* \
         libgcc*.so* \
         libhistory*.so* \
         libidn2*.so* \

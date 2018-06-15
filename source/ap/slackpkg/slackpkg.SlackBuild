@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=slackpkg
 VERSION=${VERSION:-2.83.0}
 ARCH="noarch"
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -75,6 +75,11 @@ cp -av dialog-functions.sh.gz post-functions.sh.gz \
 gzip -d $PKG/usr/libexec/slackpkg/functions.d/*
 chmod 755 $PKG/usr/libexec/slackpkg/functions.d/*
 chown root:root $PKG/usr/libexec/slackpkg/functions.d/*
+
+# Apply patch in case /var/log/packages is a symlink:
+( cd $PKG/usr/libexec/slackpkg
+  zcat $CWD/0001-Fix-for-var_log_packages-being-a-symlink.patch.gz | patch -p1 || exit 1
+) || exit 1
 
 # Install man pages:
 mkdir -pv $PKG/usr/man/man5

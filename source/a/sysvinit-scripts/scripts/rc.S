@@ -381,6 +381,12 @@ if [ -x /etc/rc.d/rc.cgmanager -a -d /sys/fs/cgroup ]; then
   /etc/rc.d/rc.cgmanager start
 fi
 
+# Start libcgroup services:
+if [ -x /etc/rc.d/rc.cgconfig -a -x /etc/rc.d/rc.cgred -a -d /sys/fs/cgroup ]; then
+  /etc/rc.d/rc.cgconfig start ; echo " /usr/sbin/cgconfigparser -l /etc/cgconfig.conf"
+  /etc/rc.d/rc.cgred start
+fi
+
 # Clean up some temporary files:
 rm -f /var/run/* /var/run/*/* /var/run/*/*/* /etc/nologin \
   /etc/dhcpc/*.pid /etc/forcefsck /etc/fastboot \

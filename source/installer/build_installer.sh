@@ -480,7 +480,7 @@ echo "--- Unpacking the old initrd ---"
 mkdir -p -m755 $PKG/$ARCH-installer-filesystem
 cd $PKG/$ARCH-installer-filesystem
 
-zcat -f${VERBOSE1} $INITRDIMG | cpio -di${VERBOSE1}
+xzcat -f${VERBOSE1} $INITRDIMG | cpio -di${VERBOSE1}
 
 # Wipe the Kernel modules:
 echo "--- Removing old kernel modules ---"
@@ -535,7 +535,7 @@ cd $TMP/extract-packages
 
 # Unpack the real i586/current Slackware initrd.img (or a custom one specified
 # with the '-I' parameter):
-zcat -f${VERBOSE1} $INITRDIMG | cpio -di${VERBOSE1}
+xzcat -f${VERBOSE1} $INITRDIMG | cpio -di${VERBOSE1}
 
 # Wipe the binaries and x86 specific stuff.  This will leave us with
 # just the directories and shell scripts:
@@ -1572,7 +1572,7 @@ compress_modules()
   if [ $COMPRESS_MODS -eq 1 ]; then
     echo "--- Compressing kernel modules ---"
     cd $PKG/$ARCH-installer-filesystem
-    find ./lib/modules -type f -name "*.ko" -exec xz -9f {} \;
+    find ./lib/modules -type f -name "*.ko" -exec xz -9f -C crc32 {} \;
     for i in $(find ./lib/modules -type l -name "*.ko") ; do ln -s $( readlink $i).xz $i.xz ; rm $i ; done
     cd - 1>/dev/null
   fi
@@ -1778,7 +1778,7 @@ if [ $SPLIT_INITRD -eq 1 ]; then
       # Determine the size of the installer:
       echo "    Installer size (uncompressed): $( du -sh --exclude=$kv . )"
       find . -path ./lib/modules/$kv -prune -o -print \
-        | cpio -o -H newc | xz -9fv > $CWD/initrd${usek}.img
+        | cpio -o -H newc | xz -9fv -C crc32 > $CWD/initrd${usek}.img
       echo "    New installer image for kernel $KVER$usek is ${CWD}/initrd${usek}.img"
     done
   cat $SLACKROOT/isolinux/isolinux.cfg | sed \
@@ -1799,7 +1799,7 @@ fi
 if [ $SPLIT_INITRD -eq 0 ]; then
   # Determine the size of the installer:
   echo "    Installer size (uncompressed): $( du -sh . )"
-  find . | cpio -o -H newc | xz -9fv > $CWD/initrd.img
+  find . | cpio -o -H newc | xz -9fv -C crc32 > $CWD/initrd.img
   echo "    New installer image is ${CWD}/initrd.img"
   cp -a $SLACKROOT/isolinux/isolinux.cfg $CWD/
 fi

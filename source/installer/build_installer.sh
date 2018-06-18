@@ -1108,6 +1108,7 @@ cp  -fa${VERBOSE1} \
 # Deal with /usr/lib stuff from the packages:
 cd $TMP/extract-packages/usr/lib${LIBDIRSUFFIX}
 cp  -fa${VERBOSE1} \
+        libefiboot.so* \
         libefivar.so* \
         libgcc*.so* \
         libhistory*.so* \
@@ -1571,8 +1572,8 @@ compress_modules()
   if [ $COMPRESS_MODS -eq 1 ]; then
     echo "--- Compressing kernel modules ---"
     cd $PKG/$ARCH-installer-filesystem
-    find ./lib/modules -type f -name "*.ko" -exec gzip -9f {} \;
-    for i in $(find ./lib/modules -type l -name "*.ko") ; do ln -s $( readlink $i).gz $i.gz ; rm $i ; done
+    find ./lib/modules -type f -name "*.ko" -exec xz -9f {} \;
+    for i in $(find ./lib/modules -type l -name "*.ko") ; do ln -s $( readlink $i).xz $i.xz ; rm $i ; done
     cd - 1>/dev/null
   fi
 
@@ -1777,7 +1778,7 @@ if [ $SPLIT_INITRD -eq 1 ]; then
       # Determine the size of the installer:
       echo "    Installer size (uncompressed): $( du -sh --exclude=$kv . )"
       find . -path ./lib/modules/$kv -prune -o -print \
-        | cpio -o -H newc | gzip -9fv > $CWD/initrd${usek}.img
+        | cpio -o -H newc | xz -9fv > $CWD/initrd${usek}.img
       echo "    New installer image for kernel $KVER$usek is ${CWD}/initrd${usek}.img"
     done
   cat $SLACKROOT/isolinux/isolinux.cfg | sed \
@@ -1798,7 +1799,7 @@ fi
 if [ $SPLIT_INITRD -eq 0 ]; then
   # Determine the size of the installer:
   echo "    Installer size (uncompressed): $( du -sh . )"
-  find . | cpio -o -H newc | gzip -9fv > $CWD/initrd.img
+  find . | cpio -o -H newc | xz -9fv > $CWD/initrd.img
   echo "    New installer image is ${CWD}/initrd.img"
   cp -a $SLACKROOT/isolinux/isolinux.cfg $CWD/
 fi

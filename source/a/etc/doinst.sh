@@ -83,7 +83,7 @@ rm -f etc/HOSTNAME.new
 #rm -f etc/gshadow.new
 rm -f etc/shells.new
 rm -f etc/printcap.new
-rm -f etc/issue.new
+#rm -f etc/issue.new
 rm -f etc/issue.net.new
 #rm -f etc/profile.d/lang.csh.new
 #rm -f etc/profile.d/lang.sh.new

@@ -758,6 +758,7 @@ gzip ./source/kde/patch/kdelibs/coding-style-fixes.patch
 gzip ./source/kde/patch/kdelibs/return-application-icons-properly.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.docbook.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.upnp_conditional.patch
+gzip ./source/kde/patch/kdelibs/kdelibs-openssl-1.1.patch
 gzip ./source/kde/patch/krdc/krdc_freerdp-1.1.0.patch
 gzip ./source/kde/patch/kde-workspace/kde-workspace.kdm.server.timeout.diff
 gzip ./source/kde/patch/kde-workspace/kde-workspace.batteryapplet.diff

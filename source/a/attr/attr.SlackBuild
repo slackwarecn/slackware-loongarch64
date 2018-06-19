@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=attr
-VERSION=2.4.47
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -53,12 +53,14 @@ else
   LIBDIRSUFFIX=""
 fi
 
+NUMJOBS=${NUMJOBS:-" -j7 "}
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf attr-$(echo $VERSION | cut -f 1 -d '-')
-tar xvf $CWD/attr-$VERSION.src.tar.?z || exit 1
+tar xvf $CWD/attr-$VERSION.tar.?z || exit 1
 cd attr-$(echo $VERSION | cut -f 1 -d '-') || exit 1
 chown -R root:root .
 find . \
@@ -68,22 +70,39 @@ find . \
   -exec chmod 644 {} \;
 
 ./configure \
-  --prefix=/ \
-  --exec-prefix=/ \
-  --sbindir=/bin \
-  --bindir=/usr/bin \
-  --libdir=/lib${LIBDIRSUFFIX} \
-  --libexecdir=/usr/lib${LIBDIRSUFFIX} \
-  --includedir=/usr/include \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
   --mandir=/usr/man \
-  --datadir=/usr/share \
+  --infodir=/usr/info \
   --docdir=/usr/doc/attr-$VERSION \
+  --disable-static \
   --build=$ARCH-slackware-linux || exit 1
 
-make PKG_DOC_DIR=/usr/doc/attr-$VERSION || exit 1
-make install PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG || exit 1
-make install-dev PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG || exit 1
-make install-lib PKG_DOC_DIR=/usr/doc/attr-$VERSION DESTDIR=$PKG || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Install xattr.conf as a .new file:
+mv $PKG/etc/xattr.conf $PKG/etc/xattr.conf.new
+
+# Don't ship static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+
+# Don't ship .la files:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
+
+# Move libraries, as they might be needed by programs that bring a network
+# mounted /usr online:
+mkdir $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  for file in lib*.so.?.* ; do
+    mv $file ../../lib${LIBDIRSUFFIX}
+    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+  done
+  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
+)
 
 #It would be nice to keep the same timestamps that the files have in the source:
 rm -rf $PKG/usr/doc/attr-$VERSION/ea-conv
@@ -95,11 +114,6 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 strip -g $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
-# Remove bogus files:
-rm -f $PKG/lib${LIBDIRSUFFIX}/*.a $PKG/lib${LIBDIRSUFFIX}/libattr.so $PKG/lib${LIBDIRSUFFIX}/*.la $PKG/usr/lib${LIBDIRSUFFIX}/*.la
-# Make /usr/lib${LIBDIRSUFFIX}/libattr.so a symlink to /lib${LIBDIRSUFFIX}:
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
-ln -sf /lib${LIBDIRSUFFIX}/libattr.so.1 $PKG/usr/lib${LIBDIRSUFFIX}/libattr.so
 # Fix shared library perms:
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/*
 
@@ -111,6 +125,7 @@ chmod 755 $PKG/lib${LIBDIRSUFFIX}/*
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/attr-$(echo $VERSION | tr - _ )-$ARCH-$BUILD.txz

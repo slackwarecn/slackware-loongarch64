@@ -33,7 +33,6 @@ gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/ttf-indic-fonts/doinst.sh
-gzip ./source/x/x11/patch/xf86-input-mouse/3c8f243b750a92d5837a449d344ff884dbd02b57.patch
 gzip ./source/x/x11/patch/xpyb/xpyb-1.3.1-xcbproto-1.13.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
@@ -923,6 +922,7 @@ gzip ./source/a/logrotate/logrotate.conf
 gzip ./source/a/sysvinit-scripts/doinst.sh
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
 gzip ./source/a/glibc-zoneinfo/doinst.sh
+gzip ./source/a/attr/doinst.sh
 gzip ./source/a/lvm2/doinst.sh
 gzip ./source/a/lvm2/create-dm-run-dir.diff
 gzip ./source/a/tcsh/doinst.sh
@@ -1066,6 +1066,7 @@ gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
+gzip ./testing/source/pkgtools/doinst.sh
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/doinst.sh

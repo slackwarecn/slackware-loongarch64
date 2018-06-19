@@ -25,9 +25,9 @@
 # github, and then look at the revisions listed in the external_revisions
 # directory to fetch the proper glslang, SPIRV-Headers, and SPIRV-Tools.
 #
-# Example:  VERSION=1.1.70.0 ./fetch-sources.sh
+# Example:  VERSION=1.1.73.0 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.1.70.0}
+VERSION=${VERSION:-1.1.73.0}
 
 # Remove existing sources:
 rm -rf Vulkan-LoaderAndValidationLayers-sdk* glslang-* SPIRV-Headers-* SPIRV-Tools-*

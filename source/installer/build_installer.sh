@@ -695,8 +695,8 @@ else
   DROPBEARPATH=$SLACKROOT/source/installer/dropbear
 fi
 [ ! -d $DROPBEARPATH ] && ( echo "No directory '$DROPBEARPATH'" ; exit 1 )
-DROPBEARPKG=$(ls -1 $DROPBEARPATH/dropbear-*.tar.bz2 | head -1)
-DROPBEARVER=$(echo $DROPBEARPKG | sed -e "s#.*/dropbear-\(.*\).tar.bz2#\1#")
+DROPBEARPKG=$(ls -1 $DROPBEARPATH/dropbear-*.tar.lz | head -1)
+DROPBEARVER=$(echo $DROPBEARPKG | sed -e "s#.*/dropbear-\(.*\).tar.lz#\1#")
 tar x${VERBOSE2}f $DROPBEARPKG
 
 echo "--- Compiling DROPBEAR version '$DROPBEARVER' ---"
@@ -709,12 +709,12 @@ PROGS="dropbear dbclient dropbearkey dropbearconvert scp ssh"
 
 # Patch to allow empty passwords (used in Slackware's installer):
 patch -p1 ${VERBOSETXT} < $DROPBEARPATH/dropbear_emptypass.patch || exit 1
-# Apply xauth path patch
-patch -p0 ${VERBOSETXT} < $DROPBEARPATH/dropbear.xauth.patch || exit 1
-# Change the path used for dbclient because our prefix is '/' not '/usr':
-patch -p1 ${VERBOSETXT} < $DROPBEARPATH/dropbear_dbclientpath.patch || exit 1
-# Patch for new glibc crypt() that may return NULL:
-patch -p1 < $DROPBEARPATH/dropbear.glibc.crypt.diff
+
+# Set local options, such as dbclient is in /bin (due to prefix=/):
+cp $DROPBEARPATH/localoptions.h .
+
+autoconf || exit 1
+autoheader || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

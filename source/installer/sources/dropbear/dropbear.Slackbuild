@@ -23,13 +23,13 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PRGNAM=dropbear
-VERSION=2012.55
-BUILD=${BUILD:-11}
+VERSION=20171018_fa3b0dd3
+BUILD=${BUILD:-1}
 TAG=${TAG:-''}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) ARCH=i486 ;;
+    i?86) ARCH=i586 ;;
     arm*) ARCH=arm ;;
        *) ARCH=$( uname -m ) ;;
   esac
@@ -47,8 +47,8 @@ CWD=$(pwd)
 TMP=${TMP:-/tmp}
 PKG=$TMP/pkg-$PRGNAM
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
@@ -65,7 +65,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$PRGNAM-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/$PRGNAM-$VERSION.tar.?z || exit 1
 cd $PRGNAM-$VERSION || exit 1
 
 chown -R root:root .
@@ -76,13 +76,12 @@ find . \
  -exec chmod 644 {} \;
 
 # Patch to allow empty passwords (used in Slackware's installer):
-patch -p1 < $CWD/dropbear_emptypass.patch
-# Apply xauth path patch
-patch -p0 < $CWD/dropbear.xauth.patch
-# Change the path used for dbclient because our prefix is '/' not '/usr':
-patch -p1 < $CWD/dropbear_dbclientpath.patch
-# Patch for new glibc crypt() that may return NULL:
-patch -p1 < $CWD/dropbear.glibc.crypt.diff
+patch -p1 < $CWD/dropbear_emptypass.patch || exit 1
+
+autoconf || exit 1
+autoheader || exit 1
+
+cp $CWD/localoptions.h .
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -139,4 +138,4 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 cat $CWD/doinst.sh  > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.tgz
+/sbin/makepkg -l y -c n $TMP/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.txz

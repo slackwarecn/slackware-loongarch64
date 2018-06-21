@@ -403,7 +403,6 @@ gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
 gzip ./source/l/akonadi/doinst.sh
 gzip ./source/l/akonadi/mysql-global.conf.patch
 gzip ./source/l/akonadi/akonadi-mariadb-10.2.patch
-gzip ./source/l/pulseaudio/0001-memfd-wrappers-only-define-memfd_create-if-not-alrea.patch
 gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
 gzip ./source/l/pulseaudio/doinst.sh
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
@@ -885,6 +884,7 @@ gzip ./source/a/upower/patches/linux-Properly-detect-bluetooth-mice-and-keyboard
 gzip ./source/a/upower/patches/linux-Detect-docked-docking-stations-correctly.patch
 gzip ./source/a/upower/patches/linux-Clamp-percentage-for-overfull-batteries.patch
 gzip ./source/a/sysvinit/doinst.sh
+gzip ./source/a/sysvinit/sysvinit.use_dev_initctl_not_run_initctl.diff
 gzip ./source/a/sysvinit/sysvinit.paths.diff
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/eudev/doinst.sh
@@ -936,6 +936,7 @@ gzip ./source/a/shadow/login.defs
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/pcmciautils/doinst.sh
+gzip ./source/a/pkgtools/doinst.sh
 gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy
 gzip ./source/a/sysvinit-functions/doinst.sh
@@ -1066,7 +1067,6 @@ gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
-gzip ./testing/source/pkgtools/doinst.sh
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/doinst.sh

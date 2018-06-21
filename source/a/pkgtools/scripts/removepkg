@@ -3,7 +3,7 @@
 #
 # Copyright 1994, 1995, 1998  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2001, Slackware Linux, Inc., Concord, CA USA
-# Copyright 2009, 2015, 2016  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,6 +24,11 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Tue Jun  5 20:04:45 UTC 2018
+# Use /var/lib/pkgtools for the package database, not /var/log.
+# Logs of the removed packages and scripts will remain in /var/log, but moved
+# into /var/log/pkgtools.
+#
 # Sun May 27 18:02:23 UTC 2018
 # Added --terse mode to print one line per removed package.
 #
@@ -133,14 +138,19 @@ pkgbase() {
 # This makes "sort" run much faster:
 export LC_ALL=C
 
+# Set the prefix for the package database directories (packages, scripts).
+ADM_DIR="$ROOT/var/lib/pkgtools"
+
+# Set the prefix for the removed packages/scripts log files:
+LOG_DIR="$ROOT/var/log/pkgtools"
+
 # Make sure there's a proper temp directory:
-TMP=$ROOT/var/log/setup/tmp
+TMP=$ADM_DIR/setup/tmp
 # If the $TMP directory doesn't exist, create it:
 if [ ! -d $TMP ]; then
   mkdir -p $TMP
   chmod 700 $TMP # no need to leave it open
 fi
-ADM_DIR=$ROOT/var/log
 PRES_DIR=$TMP/preserved_packages
 
 # Lock directory for ldconfig... share it with installpkg so that upgradepkg
@@ -366,10 +376,19 @@ remove_packages() {
     fi
    fi
    if [ ! "$WARN" = "true" ]; then
-    mkdir -p $ADM_DIR/removed_packages $ADM_DIR/removed_scripts
-    mv $ADM_DIR/packages/$PKGNAME $ADM_DIR/removed_packages
+    # We won't assume that anything in /var/log can be trusted to remain there,
+    # so we'll remake the directories and symlinks first:
+    mkdir -p $LOG_DIR/removed_packages $LOG_DIR/removed_scripts
+    for symlink in removed_packages removed_scripts ; do
+      if [ ! -L $LOG_DIR/../$symlink ]; then
+        rm -rf $LOG_DIR/../$symlink
+        ( cd $LOG_DIR/.. ; ln -sf pkgtools/$symlink . )
+      fi
+    done
+    # Now that we know we have log directories, move the files:
+    mv $ADM_DIR/packages/$PKGNAME $LOG_DIR/removed_packages
     if [ -r $ADM_DIR/scripts/$PKGNAME ]; then
-     mv $ADM_DIR/scripts/$PKGNAME $ADM_DIR/removed_scripts
+     mv $ADM_DIR/scripts/$PKGNAME $LOG_DIR/removed_scripts
     fi
    fi
   else

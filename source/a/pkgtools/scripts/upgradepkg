@@ -22,6 +22,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Mon Jun  4 21:17:58 UTC 2018
+# Use /var/lib/pkgtools, not /var/log.
+#
 # Thu May 24 20:23:55 UTC 2018
 # Added --terselength option to set the line length in --terse mode.
 # Use a lockfile to prevent output collisions in --terse mode.
@@ -83,8 +86,11 @@ For more details see upgradepkg(8).
 EOF
 }
 
+# Set the prefix for the package database directories (packages, scripts).
+ADM_DIR="$ROOT/var/lib/pkgtools"
+
 # Make sure there's a proper temp directory:
-TMP=$ROOT/var/log/setup/tmp
+TMP=$ADM_DIR/setup/tmp
 # If the $TMP directory doesn't exist, create it:
 if [ ! -d $TMP ]; then
   mkdir -p $TMP
@@ -204,7 +210,7 @@ for ARG; do
   # Simple package integrity check:
   if ! [ -f "$NEW" ]; then
     ERRCODE=4
-    echo "Cannot install $NEW:  file not found"
+    echo "Cannot install $NEW: file not found"
     continue;
   fi
 
@@ -226,9 +232,9 @@ for ARG; do
 
   # Check and fix the old package name:
   SHORT="$(package_name $OLD)"
-  if [ ! -r $ROOT/var/log/packages/$OLD ]; then
-    if ls $ROOT/var/log/packages/$SHORT* 1> /dev/null 2> /dev/null ; then
-      for installed_package in $ROOT/var/log/packages/$SHORT* ; do
+  if [ ! -r $ADM_DIR/packages/$OLD ]; then
+    if ls $ADM_DIR/packages/$SHORT* 1> /dev/null 2> /dev/null ; then
+      for installed_package in $ADM_DIR/packages/$SHORT* ; do
         if [ "$(package_name $installed_package)" = "$SHORT" ]; then # found one
           OLD="${installed_package##*/}"
           break
@@ -240,14 +246,14 @@ for ARG; do
   # Test to see if both the old and new packages are where we expect them
   # to be - skip to the next package (or package pair) if anything's wrong:
 
-  if [ ! -r $ROOT/var/log/packages/$OLD ]; then
+  if [ ! -r $ADM_DIR/packages/$OLD ]; then
     if [ ! "$INSTALL_NEW" = "yes" ]; then
       if [ "$DRY_RUN" = "true" ]; then
         echo "$OLD would not be upgraded (no installed package named $SHORT)."
       else
         ! [ $TERSE ] && echo
         echo "Error: there is no installed package named $OLD."
-        ! [ $TERSE ] && echo "       (looking for $ROOT/var/log/packages/$OLD)"
+        ! [ $TERSE ] && echo "       (looking for $ADM_DIR/packages/$OLD)"
         ! [ $TERSE ] && echo
       fi
       ERRCODE=1
@@ -317,7 +323,7 @@ EOF
   SHORT="$(package_name $OLD)"
   if [ "$DRY_RUN" = "true" ]; then
     echo -n "$NEW would upgrade: "
-    for installed_package in $ROOT/var/log/packages/$SHORT* ; do
+    for installed_package in $ADM_DIR/packages/$SHORT* ; do
     if [ "$(package_name $installed_package)" = "$SHORT" ]; then
       echo -n "$(pkgbase $installed_package)"
     fi
@@ -325,12 +331,12 @@ EOF
     echo
     continue
   fi
-  for installed_package in $ROOT/var/log/packages/$SHORT* ; do
+  for installed_package in $ADM_DIR/packages/$SHORT* ; do
     if [ "$(package_name $installed_package)" = "$SHORT" ]; then
       mv $installed_package ${installed_package}-upgraded-$TIMESTAMP
     fi
   done
-  for installed_script in $ROOT/var/log/scripts/$SHORT* ; do
+  for installed_script in $ADM_DIR/scripts/$SHORT* ; do
     if [ "$(package_name $installed_script)" = "$SHORT" ]; then
       if [ -r $installed_script ]; then
         mv $installed_script ${installed_script}-upgraded-$TIMESTAMP
@@ -385,7 +391,7 @@ EOF
   fi
   # Now, the leftovers from the old package(s) can go.  Pretty simple, huh? :)
   ( flock 9 || exit 11
-    for rempkg in "$ROOT/var/log/packages/"*"-$TIMESTAMP"; do
+    for rempkg in "$ADM_DIR/packages/"*"-$TIMESTAMP"; do
       if [ "$VERBOSE" = "verbose" ]; then
         /sbin/removepkg "${rempkg##*/}"
       elif ! [ $TERSE ]; then

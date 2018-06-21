@@ -21,6 +21,15 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Mon Jun  4 21:17:58 UTC 2018
+# Migrate the package database and directories from /var/log to
+# /var/lib/pkgtools. /var/log was never a good place for this data, as it is
+# considered by many to be a directory that could be wiped to free up some
+# space. Originally the package database was in /var/adm, but the FSSTND
+# (later FHS) group decided that directory should be a symlink to /var/log,
+# and I went along with that since it was years ago and I was a n00b and didn't
+# know any better. /var/lib/pkgtools will be a better and safer location.
+#
 # Thu May 24 20:23:55 UTC 2018
 # Added --terselength option to set the line length in --terse mode.
 # Allow adding NOLOCK in an install script to allow it to run without locking.
@@ -254,12 +263,31 @@ while [ 0 ]; do
 done
 
 # Set the prefix for the package database directories (packages, scripts).
-ADM_DIR="$ROOT/var/log"
+ADM_DIR="$ROOT/var/lib/pkgtools"
+
+# Set the prefix for the removed packages/scripts log files:
+LOG_DIR="$ROOT/var/log/pkgtools"
+
 # If the directories don't exist, "initialize" the package database:
-for PKGDBDIR in packages removed_packages removed_scripts scripts setup ; do
+for PKGDBDIR in packages scripts setup ; do
   if [ ! -d $ADM_DIR/$PKGDBDIR ]; then
     mkdir -p $ADM_DIR/$PKGDBDIR
     chmod 755 $ADM_DIR/$PKGDBDIR 
+  fi
+done
+for PKGLOGDIR in removed_packages removed_scripts ; do
+ if [ ! -d $LOG_DIR/$PKGLOGDIR ]; then
+    rm -rf $LOG_DIR/$PKGLOGDIR # make sure it's not a symlink or something stupid
+    mkdir -p $LOG_DIR/$PKGLOGDIR
+    chmod 755 $LOG_DIR/$PKGLOGDIR
+  fi
+done
+# Likewise, make sure that the symlinks in /var/log exist. We no longer
+# trust anything to remain in /var/log. Let the admin wipe it if that's
+# what they like.
+for symlink in packages scripts setup ; do
+  if [ ! -L $LOG_DIR/../$symlink -a ! -d $LOG_DIR/../$symlink ]; then
+    ( cd $LOG_DIR/.. ; ln -sf ../lib/pkgtools/$symlink . )
   fi
 done
 

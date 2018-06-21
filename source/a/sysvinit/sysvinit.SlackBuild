@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sysvinit
-VERSION=${VERSION:-2.88dsf}
-BUILD=${BUILD:-5}
+VERSION=${VERSION:-2.90}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -54,20 +54,28 @@ cd $TMP
 rm -rf sysvinit-$VERSION
 tar xvf $CWD/sysvinit-$VERSION.tar.xz || exit 1
 cd sysvinit-$VERSION
+
 chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
 
 # Fix paths for /etc/forcefsck and /etc/fastboot:
 zcat $CWD/sysvinit.paths.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
 
-cd doc
-mkdir -p $PKG/usr/doc/sysvinit-$VERSION
-cp -a Install Propaganda sysvinit-2.86.lsm \
-  ../COPYING* ../COPYRIGHT ../README* \
-  $PKG/usr/doc/sysvinit-$VERSION
-chmod -R 644 $PKG/usr/doc/sysvinit-$VERSION/*
-chmod 755 $PKG/usr/doc/sysvinit-$VERSION
+# Use /dev/initctl instead of /run/initctl ; this is a named pipe and probably
+# should be in /dev anyway, but more importantly, having the upgraded package
+# expect it in /run breaks shutdown/reboot without manual intervention
+zcat $CWD/sysvinit.use_dev_initctl_not_run_initctl.diff.gz | patch -p1 --verbose || exit 1
 
-cd ../src
+mkdir -p $PKG/usr/doc/sysvinit-$VERSION
+cp -a COPYING* COPYRIGHT* README* \
+  doc/* \
+  $PKG/usr/doc/sysvinit-$VERSION
+
+cd src
 make clobber || exit 1
 make || exit 1
 
@@ -89,14 +97,6 @@ done
 mv $PKG/sbin/init $PKG/sbin/init.new
 chmod 755 $PKG/sbin/init.new
 chown root:root $PKG/sbin/init.new
-
-# This version is old.  We use genpower now.
-#cat wall > $PKG/usr/bin/wall
-#strip --strip-unneeded powerd
-#cat powerd > $PKG/sbin/powerd
-#chmod 755 $PKG/usr/bin/wall $PKG/sbin/powerd
-#chown root:root $PKG/usr/bin/wall $PKG/sbin/powerd
-cp initscript.sample $PKG/sbin/initscript.sample
 
 cd ../man
 mkdir -p $PKG/usr/man/man{1,5,8}

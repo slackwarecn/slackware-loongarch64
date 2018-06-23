@@ -20,16 +20,16 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# http://downloads.sourceforge.net/project/blackboxwm/blackboxwm/Blackbox%200.70.1/blackbox-0.70.1.tar.bz2
 # http://downloads.sourceforge.net/project/bbkeys/bbkeys/0.9.1/bbkeys-0.9.1.tar.gz
+# https://github.com/bbidulock/blackboxwm
 
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=blackbox
-VERSION=${VERSION:-0.70.1}
+SRCNAM=blackboxwm
+VERSION=${VERSION:-0.73}
 BBKEYSVER=${BBKEYSVER:-0.9.1}
-BUILD=${BUILD:-8}
-NUMJOBS=${NUMJOBS:-" -j7 "}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -48,6 +48,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Determine the CFLAGS for the known architectures:
 case $ARCH in
@@ -78,9 +80,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
-cd ${PKGNAM}-$VERSION || exit 1
+rm -rf ${SRCNAM}-${VERSION}
+tar xvf $CWD/${SRCNAM}-$VERSION.tar.?z || exit 1
+cd ${SRCNAM}-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -90,11 +92,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Build fix for gcc-4:
-zcat $CWD/blackbox-0.70.1-gcc-4.3.patch.gz | patch --verbose -p1 || exit 1
-
-# Build fix for libX11-1.5+
-zcat $CWD/textpropertytostring-unconditional.diff.gz | patch --verbose -p1 || exit 1
+autoreconf -vif
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -102,12 +100,9 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-shape \
-  --enable-slit \
-  --enable-interlace \
   --enable-nls \
   --enable-shared=yes \
   --enable-static=no \
-  --enable-timed-cache \
   --infodir=/usr/info \
   --mandir=/usr/man \
   --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
@@ -126,10 +121,14 @@ chmod 755 $PKG/etc/X11/xinit/xinitrc.blackbox
 zcat $CWD/startblackbox.gz > $PKG/usr/bin/startblackbox
 chmod 755 $PKG/usr/bin/startblackbox
 
+# Add a default menu that's not useless:
+rm -f $PKG/usr/share/blackbox/menu
+zcat $CWD/blackbox.menu.gz > $PKG/usr/share/blackbox/menu.new
+
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS INSTALL LICENSE README* TODO \
+  AUTHORS COMPLIANCE COPYING* NEWS* README* RELNOTES THANKS TODO \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -144,7 +143,7 @@ fi
 # Compile bbkeys program for blackbox:
 cd $TMP
 rm -rf bbkeys-${BBKEYSVER}
-tar xvf $CWD/bbkeys-${BBKEYSVER}.tar.xz
+tar xvf $CWD/bbkeys-${BBKEYSVER}.tar.?z
 cd bbkeys-${BBKEYSVER} || exit 1
 
 # Make sure ownerships and permissions are sane:
@@ -206,12 +205,9 @@ if [ -d $PKG/usr/man ]; then
   )
 fi
 
-# Set doc permissions:
-find $PKG/usr/doc -type f -print0 | xargs -0 chmod 644
-find $PKG/usr/doc -type d -print0 | xargs -0 chmod 755
-
 mkdir -p $PKG/install
-install -vpm644 $CWD/slack-desc $PKG/install/
+cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz

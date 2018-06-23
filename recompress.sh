@@ -572,9 +572,9 @@ gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
 gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
 gzip ./source/xap/xscreensaver/setuid.c
-gzip ./source/xap/blackbox/blackbox-0.70.1-gcc-4.3.patch
+gzip ./source/xap/blackbox/doinst.sh
+gzip ./source/xap/blackbox/blackbox.menu
 gzip ./source/xap/blackbox/xinitrc.blackbox
-gzip ./source/xap/blackbox/textpropertytostring-unconditional.diff
 gzip ./source/xap/blackbox/startblackbox
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff

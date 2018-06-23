@@ -833,6 +833,7 @@ ap/terminus-font \
 d/gcc \
 d/gcc-g++ \
 l/glibc \
+l/libaio \
 l/libcap \
 l/libidn2 \
 l/libunistring \
@@ -1082,6 +1083,7 @@ cp  -fa${VERBOSE1} $TMP/extract-packages/lib/udev \
 cd $TMP/extract-packages/lib${LIBDIRSUFFIX}
 cp  -fa${VERBOSE1} \
         e2initrd_helper \
+        libaio.so* \
         libblkid*so* \
         libcap*so* \
         libcrypto*so* \

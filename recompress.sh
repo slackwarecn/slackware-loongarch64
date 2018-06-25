@@ -450,7 +450,6 @@ gzip ./source/l/adwaita-icon-theme/doinst.sh
 gzip ./source/l/adwaita-icon-theme/inherit-hicolor-theme.diff
 gzip ./source/l/gnome-keyring/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
-gzip ./source/l/fribidi/fribidi.glib.h.diff
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-unused-deps.patch
@@ -591,7 +590,6 @@ gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
 gzip ./source/xap/windowmaker/wmaker.inst.diff
 gzip ./source/xap/windowmaker/xinitrc.wmaker
 gzip ./source/xap/network-manager-applet/doinst.sh
-gzip ./source/xap/network-manager-applet/fix-double-free.diff
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch

@@ -512,6 +512,7 @@ gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
+gzip ./source/l/glibc/glibc.libc.texinfo.no.utf8.patch
 gzip ./source/l/glibc/glibc.pkey_get.56170e0.diff
 gzip ./source/l/strigi/libstreams-0003-Build-fix-for-gcc-4.8.patch
 gzip ./source/l/strigi/libstreams-0005-use-rpath-only-when-needed.patch
@@ -1041,6 +1042,7 @@ gzip ./source/ap/alsa-utils/doinst.sh
 gzip ./source/ap/alsa-utils/rc.alsa-oss
 gzip ./source/ap/alsa-utils/rc.alsa
 gzip ./source/ap/texinfo/doinst.sh
+gzip ./source/ap/texinfo/texinfo.fix.unescaped.left.brace.diff
 gzip ./source/ap/texinfo/dir
 gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/terminus-font/terminus-font.Makefile.paths.diff

@@ -1,0 +1,25 @@
+From b90ec2dc463a134c7d3438c3b9b478fb0a6c5c94 Mon Sep 17 00:00:00 2001
+From: Patrick J. Volkerding <volkerdi@slackware.com>
+Date: Wed Jun 27 18:53:13 UTC 2018
+Subject: [PATCH] Fix hang when locale is not UTF-8
+
+This issue seems to have been exposed by the recent upgrade to perl-5.28.
+If the system supports UTF-8 in general, but makeinfo is called using a
+non-UTF-8 locale (and in this case, glibc calls it with LANG=C), then
+makeinfo will get into an infinite loop and hang. We'll work around this
+by removing the request for UTF-8 in the affected document.
+
+An alternate fix would be to call makeinfo like this instead:
+
+LANGUAGE=C.UTF-8 LC_ALL=C.UTF-8 makeinfo [...]
+
+--- ./manual/libc.texinfo.orig	2018-02-01 10:17:18.000000000 -0600
++++ ./manual/libc.texinfo	2018-06-27 13:34:48.901560769 -0500
+@@ -2,7 +2,6 @@
+ @comment %**start of header (This is for running Texinfo on a region.)
+ @setfilename libc.info
+ @settitle The GNU C Library
+-@documentencoding UTF-8
+ @c '@codequotebacktick on' and '@codequoteundirected on' require
+ @c Texinfo 5.0 or later, so use the older equivalent @set variables
+ @c supported in Texinfo 4.11 and later.

@@ -253,7 +253,6 @@ gzip ./source/n/openssl/doinst.sh-openssl-solibs
 gzip ./source/n/dhcpcd/COPYRIGHT
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/netatalk/doinst.sh
-gzip ./source/n/netatalk/netatalk.etc2ps.diff
 gzip ./source/n/procmail/procmail.lfs.diff
 gzip ./source/n/procmail/procmail_3.22-5.diff
 gzip ./source/n/dnsmasq/doinst.sh
@@ -387,6 +386,7 @@ gzip ./source/l/glib/glib-1.2.10-format.patch
 gzip ./source/l/glib/glib-1.2.10-isowarning.patch
 gzip ./source/l/glib/glib-1.2.10-underquoted.patch
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
+gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff
 gzip ./source/l/db42/patch.4.2.52.4
 gzip ./source/l/db42/patch.4.2.52.3
@@ -715,6 +715,7 @@ gzip ./source/d/doxygen/doxygen.9468ede.diff
 gzip ./source/d/automake/doinst.sh
 gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
+gzip ./source/d/nasm/0001-Remove-invalid-pure_func-qualifiers.patch
 gzip ./source/d/llvm/clang_disable_pgo.patch
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl2.hpp
@@ -937,6 +938,7 @@ gzip ./source/a/pkgtools/doinst.sh
 gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy
 gzip ./source/a/sysvinit-functions/doinst.sh
+gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/initrd_naming.patch
 gzip ./source/a/grub/doinst.sh
 gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff

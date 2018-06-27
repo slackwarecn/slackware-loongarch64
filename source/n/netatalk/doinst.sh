@@ -19,13 +19,6 @@ fi
 
 config etc/rc.d/rc.atalk.new
 
-config etc/netatalk/AppleVolumes.default.new
-config etc/netatalk/AppleVolumes.system.new
-config etc/netatalk/afp_ldap.conf.new
-config etc/netatalk/afpd.conf.new
-config etc/netatalk/afppasswd.new
-config etc/netatalk/atalkd.conf.new
-config etc/netatalk/netatalk.conf.new 
-config etc/netatalk/papd.conf.new
-# Don't need an empty file:
-rm -f etc/netatalk/afppasswd.new
+config etc/netatalk/afp.conf.new
+config etc/netatalk/dbus-session.conf.new
+config etc/netatalk/extmap.conf.new

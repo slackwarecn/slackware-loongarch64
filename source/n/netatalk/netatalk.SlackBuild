@@ -19,12 +19,14 @@
 #  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#  Script updated to package netatalk 3.1.11 by Matthew Schumacher
 
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=netatalk
 VERSION=${VERSION:-$(echo netatalk-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-7}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -76,26 +78,31 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Fixup some paths in etc2ps.sh
-zcat $CWD/netatalk.etc2ps.diff.gz | patch -p1 || exit 1
-
-autoreconf -vif
+# use the system libevent, because the internal one won't compile
+# with openssl 1.1.  Also skip pam and kerberos (for now).
 CFLAGS="$SLKCFLAGS" \
-CPPFLAGS="-D_IPP_PRIVATE_STRUCTURES" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
-  --sysconfdir=/etc \
+  --sysconfdir=/etc/netatalk \
   --libexecdir=/usr/sbin \
   --localstatedir=/var \
   --disable-static \
   --with-shadow \
-  --enable-ddp \
+  --disable-static \
+  --with-libevent=system \
+  --with-dbus-sysconf-dir=/etc/dbus-1/system.d/ \
+  --with-dbus-daemon=/usr/bin/dbus-daemon \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# At least make this unreadable to non-root users:
+if [ -u $PKG/usr/bin/afppasswd ]; then
+  chmod 4711 $PKG/usr/bin/afppasswd
+fi
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
@@ -103,15 +110,12 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-gzip -9 $PKG/usr/man/man?/*
-
-# This is normally installed setuid root, but I'm not 100% sure I trust it yet.
-# I see it uses strcpy() in a few places...
-chmod 755 $PKG/usr/bin/afppasswd
-
-# Install the afppasswd config file
-mkdir -p $PKG/etc/netatalk
-cat $CWD/afppasswd > $PKG/etc/netatalk/afppasswd
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Install an init script
 mkdir -p $PKG/etc/rc.d
@@ -123,28 +127,18 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 ( cd $PKG/etc/netatalk
-  for file in AppleVolumes.default AppleVolumes.system afpd.conf afp_ldap.conf afppasswd atalkd.conf netatalk.conf papd.conf ; do
+  for file in afp.conf dbus-session.conf extmap.conf ; do
     mv $file ${file}.new
   done
 )
 
 mkdir -p $PKG/usr/doc/netatalk-$VERSION
 cp -a \
-  CONTRIBUTORS COPYING COPYRIGHT NEWS README TODO VERSION doc/* \
+  AUTHORS CONTRIBUTORS COPYING* COPYRIGHT NEWS VERSION \
   $PKG/usr/doc/netatalk-$VERSION
-# -1, Redundant
-rm -rf $PKG/usr/doc/netatalk-$VERSION/doc/Makefile* \
-       $PKG/usr/doc/netatalk-$VERSION/doc/htmldocs \
-       $PKG/usr/doc/netatalk-$VERSION/doc/*.pdf
-
-# "make install" creates this directory with chmod 0777
-# I'd rather use 755, but I'll assume since this is a
-# new directory that it is needed for something.  This
-# will help it a bit anyway...
-chmod 1777 $PKG/var/spool/netatalk
-# If anyone can confirm that 755 would still work let me know.
+cp -a $CWD/examples $PKG/usr/doc/netatalk-$VERSION
+chown -R root:root $PKG/usr/doc/netatalk-$VERSION/examples
 
 # Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/netatalk-$VERSION-$ARCH-$BUILD.txz
-

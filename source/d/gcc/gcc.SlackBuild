@@ -55,8 +55,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gcc
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+SRCVER=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=$(echo $SRCVER | cut -f 1 -d _)
+BUILD=${BUILD:-1}
 
 # How many jobs to run in parallel:
 NUMJOBS=" -j 7 "
@@ -128,6 +129,11 @@ esac
 # Temporary build location:
 TMP=${TMP:-/tmp}
 
+# Extract the source code:
+cd $TMP
+rm -rf gcc-$SRCVER
+tar xvf $CWD/gcc-$SRCVER.tar.?z || exit 1
+
 # This is the main DESTDIR target:
 PKG1=$TMP/package-gcc
 # These are the directories to build other packages in:
@@ -155,11 +161,7 @@ cat $CWD/slack-desc.gcc-objc > $PKG6/install/slack-desc
 cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
 cat $CWD/slack-desc.gcc-brig > $PKG9/install/slack-desc
 
-cd $TMP
-rm -rf gcc-$VERSION
-tar xvf $CWD/gcc-$VERSION.tar.xz || exit 1
-
-( cd gcc-$VERSION || exit 1
+( cd gcc-$SRCVER || exit 1
 
   # Smite the fixincludes:
   zcat $CWD/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
@@ -187,7 +189,7 @@ tar xvf $CWD/gcc-$VERSION.tar.xz || exit 1
   fi
   if [ -r NEWS ]; then
     DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
-    cat NEWS | head -n 1000 > $DOCSDIR/NEWS
+    cat NEWS | head -n 1500 > $DOCSDIR/NEWS
     touch -r NEWS $DOCSDIR/NEWS
   fi
 
@@ -317,7 +319,7 @@ tar xvf $CWD/gcc-$VERSION.tar.xz || exit 1
  
   CFLAGS="$SLKCFLAGS" \
   CXXFLAGS="$SLKCFLAGS" \
-  ../gcc-$VERSION/configure --prefix=/usr \
+  ../gcc-$SRCVER/configure --prefix=/usr \
      --libdir=/usr/lib$LIBDIRSUFFIX \
      --mandir=/usr/man \
      --infodir=/usr/info \
@@ -330,11 +332,15 @@ tar xvf $CWD/gcc-$VERSION.tar.xz || exit 1
      --with-system-zlib \
      --enable-libstdcxx-dual-abi \
      --with-default-libstdcxx-abi=new \
+     --disable-libstdcxx-pch \
      --disable-libunwind-exceptions \
      --enable-__cxa_atexit \
-     --enable-libssp \
+     --disable-libssp \
+     --enable-gnu-unique-object \
+     --enable-plugin \
      --enable-lto \
      --disable-install-libiberty \
+     --disable-werror \
      --with-gnu-ld \
      --verbose \
      --with-arch-directory=$LIB_ARCH \
@@ -570,6 +576,8 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/libhsail* usr/lib${LIBDIRSUFFIX}
   mkdir -p usr/libexec/gcc/$TARGET/$VERSION
   mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/brig1 usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gccbrig.1.gz usr/man/man1
 )
 
 # Generate packages:

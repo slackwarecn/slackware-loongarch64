@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=texinfo
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -84,6 +84,9 @@ find . \
 # Fix for perl-5.28.0:
 zcat $CWD/texinfo.fix.unescaped.left.brace.diff.gz | patch -p1 --verbose || exit 1
 
+# The --disable-perl-xs below prevents some perl extensions from being replaced
+# by C versions which have been known to choke over UTF-8 issues:
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -93,6 +96,7 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --disable-static \
   --docdir=/usr/doc/texinfo-$VERSION \
+  --disable-perl-xs \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1

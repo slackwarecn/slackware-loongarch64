@@ -512,7 +512,6 @@ gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
-gzip ./source/l/glibc/glibc.libc.texinfo.no.utf8.patch
 gzip ./source/l/glibc/glibc.pkey_get.56170e0.diff
 gzip ./source/l/strigi/libstreams-0003-Build-fix-for-gcc-4.8.patch
 gzip ./source/l/strigi/libstreams-0005-use-rpath-only-when-needed.patch
@@ -817,8 +816,6 @@ gzip ./source/a/dcron/run-parts.8
 gzip ./source/a/dcron/patches/0007-Update-main.c.patch
 gzip ./source/a/dcron/patches/defs.h.TMPDIR.diff
 gzip ./source/a/dcron/patches/0006-Fixed-a-bug-whereby-syncs-killed-all-waiting-jobs.patch
-gzip ./source/a/dcron/patches/0008-Fix-3-every-Nth-day-of-week-syntax-not-working.patch
-gzip ./source/a/dcron/patches/0009-Updated-manpage.patch
 gzip ./source/a/dcron/patches/crontab.c.O_EXCL.diff
 gzip ./source/a/dcron/patches/0003-CHANGELOG-tweak.patch
 gzip ./source/a/dcron/patches/0002-README-var-spool-cron-crontabs-root.patch

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,24 +24,24 @@
 BRANCH=${1:-master}
 
 # Clear download area:
-rm -rf xf86-video-nouveau
+rm -rf xf86-video-r128
 
 # Clone repository:
-git clone git://anongit.freedesktop.org/git/nouveau/xf86-video-nouveau/
+git clone git://git.freedesktop.org/git/xorg/driver/xf86-video-r128/
 
 # checkout $BRANCH:
-( cd xf86-video-nouveau 
+( cd xf86-video-r128 
   git checkout $BRANCH || exit 1
 )
 
-HEADISAT="$( cd xf86-video-nouveau && git log -1 --format=%h )"
-DATE="$( cd xf86-video-nouveau && git log -1 --format=%ad --date=format:%Y%m%d )"
+HEADISAT="$( cd xf86-video-r128 && git log -1 --format=%h )"
+DATE="$( cd xf86-video-r128 && git log -1 --format=%ad --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
-( cd xf86-video-nouveau && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-mv xf86-video-nouveau xf86-video-nouveau-${DATE}_${HEADISAT}
-tar cf xf86-video-nouveau-${DATE}_${HEADISAT}.tar xf86-video-nouveau-${DATE}_${HEADISAT}
-xz -9 -f xf86-video-nouveau-${DATE}_${HEADISAT}.tar
-rm -rf xf86-video-nouveau-${DATE}_${HEADISAT}
+( cd xf86-video-r128 && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+mv xf86-video-r128 xf86-video-r128-${DATE}_${HEADISAT}
+tar cf xf86-video-r128-${DATE}_${HEADISAT}.tar xf86-video-r128-${DATE}_${HEADISAT}
+xz -9 -f xf86-video-r128-${DATE}_${HEADISAT}.tar
+rm -rf xf86-video-r128-${DATE}_${HEADISAT}
 echo
-echo "xf86-video-nouveau branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-nouveau-${DATE}_${HEADISAT}.tar.xz"
+echo "xf86-video-r128 branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-r128-${DATE}_${HEADISAT}.tar.xz"
 echo

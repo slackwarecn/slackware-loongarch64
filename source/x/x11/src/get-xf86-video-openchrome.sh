@@ -38,10 +38,10 @@ HEADISAT="$( cd xf86-video-openchrome && git log -1 --format=%h )"
 DATE="$( cd xf86-video-openchrome && git log -1 --format=%ad --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-openchrome && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-mv xf86-video-openchrome xf86-video-openchrome-git_${DATE}_${HEADISAT}
-tar cf xf86-video-openchrome-git_${DATE}_${HEADISAT}.tar xf86-video-openchrome-git_${DATE}_${HEADISAT}
-xz -9 -f xf86-video-openchrome-git_${DATE}_${HEADISAT}.tar
-rm -rf xf86-video-openchrome-git_${DATE}_${HEADISAT}
+mv xf86-video-openchrome xf86-video-openchrome-${DATE}_${HEADISAT}
+tar cf xf86-video-openchrome-${DATE}_${HEADISAT}.tar xf86-video-openchrome-${DATE}_${HEADISAT}
+xz -9 -f xf86-video-openchrome-${DATE}_${HEADISAT}.tar
+rm -rf xf86-video-openchrome-${DATE}_${HEADISAT}
 echo
-echo "xf86-video-openchrome branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-openchrome-git_${DATE}_${HEADISAT}.tar.xz"
+echo "xf86-video-openchrome branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-openchrome-${DATE}_${HEADISAT}.tar.xz"
 echo

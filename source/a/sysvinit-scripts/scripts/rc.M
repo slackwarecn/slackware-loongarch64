@@ -150,7 +150,7 @@ if [ -x /etc/rc.d/rc.ntpd ]; then
 fi
 
 # Remove stale locks and junk files (must be done after mount -a!)
-/bin/rm -f /var/lock/* /var/spool/uucp/LCK..* /tmp/.X*lock /tmp/core /core 2> /dev/null
+/bin/rm -f /var/lock/* /var/spool/uucp/LCK..* /tmp/.X*lock /tmp/.X11-unix/* 2> /dev/null
 
 # Remove stale hunt sockets so the game can start.
 if [ -r /tmp/hunt -o -r /tmp/hunt.stats ]; then

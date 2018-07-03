@@ -49,7 +49,6 @@ gzip ./source/x/x11/patch/xf86-video-xgixp/0002-Remove-symbol-lists-as-they-are-
 gzip ./source/x/x11/patch/xf86-video-xgixp/0003-shadow-shadowInit-shadowAdd-Remove.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0001-Remove-mibstore.h.patch
 gzip ./source/x/x11/patch/xf86-video-v4l/xf86-video-v4l-0.2.0-build-fix.patch
-gzip ./source/x/x11/patch/xf86-video-v4l/xorg-x11-drv-v4l-support_v4l2_only_drivers.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff

@@ -21,6 +21,9 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Mon  2 Jul 15:32:14 UTC 2018
+# Sort file lists and support SOURCE_DATE_EPOCH, for reproducibility.
+#
 # Mon May 21 18:31:20 UTC 2018
 # Add --compress option, usually used to change the preset compression level
 # or block size.
@@ -163,6 +166,11 @@ while [ 0 ]; do
   fi
 done
 
+unset MTIME
+if [ -n "${SOURCE_DATE_EPOCH}" ]; then
+  MTIME="--clamp-mtime --mtime=@${SOURCE_DATE_EPOCH}"
+fi
+
 PACKAGE_NAME="$1"
 TARGET_NAME="$(dirname $PACKAGE_NAME)"
 PACKAGE_NAME="$(basename $PACKAGE_NAME)"
@@ -171,14 +179,14 @@ PACKAGE_NAME="$(basename $PACKAGE_NAME)"
 if [ ! "$(basename $PACKAGE_NAME .tgz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tgz"
   COMPEXT="gz"
-  COMPRESSOR="gzip ${COMPRESS_OPTION} -c"
+  COMPRESSOR="gzip ${COMPRESS_OPTION} -cn"
   if ! which gzip 1> /dev/null 2> /dev/null ; then
     echo "ERROR:  gzip compression utility not found in \$PATH."
     exit 3
   fi
 elif [ ! "$(basename $PACKAGE_NAME .tar.gz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tar.gz"
-  COMPRESSOR="gzip ${COMPRESS_OPTION} -c"
+  COMPRESSOR="gzip ${COMPRESS_OPTION} -cn"
   if ! which gzip 1> /dev/null 2> /dev/null ; then
     echo "ERROR:  gzip compression utility not found in \$PATH."
     exit 3
@@ -290,7 +298,7 @@ echo
 echo "Searching for symbolic links:"
 # Get rid of possible pre-existing trouble:
 INST=$(mktemp $TMP/makepkg.XXXXXX)
-find . -type l -printf "%p\t%l\n" | sed 's,^\./,, ; s, ,\\ ,g' | tee $INST
+find . -type l -printf "%p\t%l\n" | LC_COLLATE=C sort | sed 's,^\./,, ; s, ,\\ ,g' | tee $INST
 if [ ! "$(cat $INST)" = "" ]; then
   echo
   echo "Making symbolic link creation script:"
@@ -404,7 +412,7 @@ rm -f ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
 # find ./ | sed '2,$s,^\./,,' | cpio --quiet -ovHustar > ${TARGET_NAME}/${TAR_NAME}.tar
 
 # Create the package:
-find ./ | sed '2,$s,^\./,,' | tar --no-recursion $ACLS $XATTRS  -T - -cvf - | $COMPRESSOR > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
+find ./ | LC_COLLATE=C sort | sed '2,$s,^\./,,' | tar --no-recursion $ACLS $XATTRS $MTIME -T - -cvf - | $COMPRESSOR > ${TARGET_NAME}/${TAR_NAME}.${EXTENSION}
 ERRCODE=$?
 if [ ! $ERRCODE = 0 ]; then
   echo "ERROR:  $COMPRESSOR returned error code $ERRCODE -- makepkg failed."

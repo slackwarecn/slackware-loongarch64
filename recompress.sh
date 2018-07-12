@@ -284,7 +284,6 @@ gzip ./source/n/htdig/htdig.conf.diff
 gzip ./source/n/netkit-rwho/rwhod_getloadavg.diff
 gzip ./source/n/netkit-rwho/netkit-rwho-0.17.diff
 gzip ./source/n/bind/doinst.sh
-gzip ./source/n/bind/bind.libidn.patch
 gzip ./source/n/bind/bind.so_bsdcompat.diff
 gzip ./source/n/net-tools/net-tools.config.h
 gzip ./source/n/netkit-rusers/netkit-rusers-0.17.diff

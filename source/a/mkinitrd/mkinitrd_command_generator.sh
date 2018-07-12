@@ -225,7 +225,7 @@ function add_usb_keyboard() {
   local USBMOD
   if cat /proc/bus/input/devices | sed -e 's/^$/\$/g' | \
      tr "\n$" " \n" | grep -q " Phys=.*usb.* .*Handlers=.*kbd.*B:"; then
-     USBMOD="xhci-pci:ohci-pci:ehci-pci:xhci-hcd:uhci-hcd:ehci-hcd:hid:usbhid:i2c-hid:hid_generic:hid-cherry:hid-logitech:hid-logitech-dj:hid-logitech-hidpp:hid-lenovo:hid-microsoft:hid_multitouch"
+     USBMOD="xhci-pci:ohci-pci:ehci-pci:xhci-hcd:uhci-hcd:ehci-hcd:hid:usbhid:i2c-hid:hid_generic:hid-asus:hid-cherry:hid-logitech:hid-logitech-dj:hid-logitech-hidpp:hid-lenovo:hid-microsoft:hid_multitouch"
      [ -n "$MLIST" ] && MLIST="$MLIST:$USBMOD" \
                      || MLIST="$USBMOD"
   fi

@@ -54,8 +54,10 @@ gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-consolekit.patch
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
+gzip ./source/x/x11/patch/xf86-video-tseng/xf86-video-tseng.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xcompmgr/xcompmgr-follow-icccm-spec.diff
 gzip ./source/x/x11/patch/xcompmgr/patch-XFixesSetPictureClipRegion-shadow-fix-xcompmgr.c.diff
+gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/luit/luit_use_system_extensions.diff
 gzip ./source/x/x11/post-install/xorg-cf-files/x11.tmpl.lib64.kludge.diff
 gzip ./source/x/x11/post-install/libX11/XKeysymDB
@@ -74,6 +76,7 @@ gzip ./source/x/urw-core35-fonts-otf/doinst.sh
 gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/xterm/doinst.sh
 gzip ./source/x/ttf-tlwg/doinst.sh
+gzip ./source/x/libvdpau/doinst.sh
 gzip ./source/x/scim-anthy/scim-anthy.gcc43.diff
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff
 gzip ./source/x/wqy-zenhei-font-ttf/fixup-fontconfig-file.diff

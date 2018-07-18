@@ -1,0 +1,54 @@
+From e205664ba8c25939f1678d1b078a67989c180046 Mon Sep 17 00:00:00 2001
+From: Beniamino Galvani <bgalvani@redhat.com>
+Date: Fri, 6 Jul 2018 15:54:16 +0200
+Subject: [PATCH] manager: accept non-null device for VPN activations
+
+Commit 10753c36168a ("manager: merge VPN handling into
+_new_active_connection()") added a check to fail the activation of
+VPNs when a device is passed to ActivateConnection(), since the device
+argument is ignored for VPNs.
+
+This broke activating VPNs from nm-applet as nm-applet sets both the
+specific_object (parent-connection) and device arguments in the
+activation request.
+
+Note that we already check in _new_active_connection() that when a
+device is supplied, it matches the device of the parent
+connection. Therefore, the check can be dropped.
+
+Reported-by: Michael Biebl <biebl@debian.org>
+Fixes: 10753c36168a82cd658df8a7da800960fddd78ed
+
+https://github.com/NetworkManager/NetworkManager/pull/159
+---
+ src/nm-manager.c | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)
+
+diff --git a/src/nm-manager.c b/src/nm-manager.c
+index 67c71fea91..4c4b6bb5a9 100644
+--- a/src/nm-manager.c
++++ b/src/nm-manager.c
+@@ -4611,21 +4611,7 @@ validate_activation_request (NMManager *self,
+ 		}
+ 	}
+ 
+-	if (is_vpn && device) {
+-		/* VPN's are treated specially. Maybe the should accept a device as well,
+-		 * however, later on during activation, we don't handle the device.
+-		 *
+-		 * Maybe we should, and maybe it makes sense to specify a device
+-		 * when activating a VPN. But for now, just error out.  */
+-		g_set_error_literal (error,
+-		                     NM_MANAGER_ERROR,
+-		                     NM_MANAGER_ERROR_UNKNOWN_DEVICE,
+-		                     "Cannot specify device when activating VPN");
+-		return NULL;
+-	}
+-
+-	nm_assert (   ( is_vpn && !device)
+-	           || (!is_vpn && NM_IS_DEVICE (device)));
++	nm_assert (is_vpn || NM_IS_DEVICE (device));
+ 
+ 	*out_device = device;
+ 	*out_is_vpn = is_vpn;
+

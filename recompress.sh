@@ -191,6 +191,7 @@ gzip ./source/n/netkit-ntalk/netkit-ntalk-0.17.diff
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch
 gzip ./source/n/NetworkManager/doinst.sh
+gzip ./source/n/NetworkManager/patches/NM-1.12.0-e205664ba8c25939f1678d1b078a67989c180046.patch
 gzip ./source/n/NetworkManager/patches/0000-slackware-use-fqdn.diff
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/samba/smb.conf.diff

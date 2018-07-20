@@ -71,7 +71,7 @@ cgdisk /dev/sda
 Select the free space from the menu using the up/down keys, and then select
 "New" to make a new partition.  Hit ENTER to accept the first sector.  Then
 enter 100M as the partition size.  Give the new partition a hex code of EF00.
-You make give the partition a name (such as "EFI System Partition"), or just
+You may give the partition a name (such as "EFI System Partition"), or just
 hit ENTER to use no name.  A name is not required.
 
 At this point, you've got a GPT disk with an EFI System partition (with or

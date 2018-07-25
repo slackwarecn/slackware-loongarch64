@@ -1010,8 +1010,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \
 cd $TMP/extract-packages/usr/share/kbd/consolefonts
 mkdir -p $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 cp --remove-destination -fa${VERBOSE1} \
-  ter-c14v.psf.gz \
-  ter-120b.psf.gz \
+  ter-v14v.psf.gz \
   $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 
 # Copy binaries from /usr/sbin into the installer's /usr/sbin/

@@ -60,10 +60,10 @@ fi
 # Kill any processes (typically gam) that would otherwise prevent
 # unmounting NFS volumes:
 unset FUSER_DELAY
-for dir in $(/bin/mount | grep 'type nfs ' | cut -d ' ' -f 3 ) ; do
+for dir in $(/bin/mount | grep 'type nfs ' | sed -e 's|.* on ||g' | cut -d ' ' -f 1) ; do
   echo "Killing processes holding NFS mount $dir open..."
   # Background this to prevent fuser from also blocking shutdown:
-  /usr/bin/fuser -k -M -m $dir &
+  /usr/bin/fuser -k -M -m "$dir" &
   FUSER_DELAY=5
 done
 # If fuser was run, let it have some delay:

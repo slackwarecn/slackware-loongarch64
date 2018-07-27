@@ -72,13 +72,14 @@
 #             * Removed bundled FLTK and libjpeg-turbo builds.
 #             * Reset build to -1 for inclusion in Slackware's /extra.
 # 1.6.0-1:    22/feb/2016 by Patrick Volkerding <volkerdi@slackware.com>
+# 1.9.0-1:    26/jul/2018 by Patrick Volkerding <volkerdi@slackware.com>
 # 
 # -----------------------------------------------------------------------------
 
 PKGNAM=tigervnc
-VERSION=${VERSION:-1.8.0}
+VERSION=${VERSION:-1.9.0}
 PVER=$(echo $VERSION | cut -f 1,2 -d . | tr -d .)
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 NUMJOBS=${NUMJOBS:" -j7 "}
 TAG=${TAG:-}
 
@@ -186,8 +187,8 @@ cd $PKGNAM-$VERSION || exit 1
 # HACK! Force protocol 3.3 for UVNCSC
 patch -p1 < $CWD/patches/force_protocol_3.3_for_UVNCSC.patch
 
-# Patch to support x.org 1.20
-cat $CWD/patches/tigervnc-support-xorg120.patch | patch -p1 --verbose || exit 1
+## Patch to support x.org 1.20 (already included in tigervnc-1.9.0):
+#cat $CWD/patches/tigervnc-support-xorg120.patch | patch -p1 --verbose || exit 1
 
 # Explicitly link against libpng to prevent linking errors:
 cat $CWD/patches/tigervnc13_link_png.patch | patch -p1 --verbose || exit 1
@@ -205,24 +206,21 @@ sed -e 's,set(MAN_DIR "${DATA_DIR}/man"),set(MAN_DIR "${MAN_INSTALL_DIR}"),' \
     -e 's,set(DOC_DIR "${CMAKE_INSTALL_PREFIX}/share/,set(DOC_DIR "${CMAKE_INSTALL_PREFIX}/,' \
     -i CMakeLists.txt
 
-mkdir -p build
-cd build
-  echo -e "\n*** Building vnc client ***\n"
-  cmake \
-    -G "Unix Makefiles" \
-    -Wno-dev \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DMAN_INSTALL_DIR=/usr/man \
-    -DSYSCONF_INSTALL_DIR=/etc \
-    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DENABLE_PAM:BOOL=OFF \
-    -DBUILD_JAVA:BOOL=${CMAKE_JAVA} \
-    ..
-  make V=1 $NUMJOBS || make || exit 1
-  make DESTDIR=$PKG install || exit 1
-cd -
+echo -e "\n*** Building vnc client ***\n"
+cmake \
+  -G "Unix Makefiles" \
+  -Wno-dev \
+  -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DMAN_INSTALL_DIR=/usr/man \
+  -DSYSCONF_INSTALL_DIR=/etc \
+  -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+  -DENABLE_PAM:BOOL=OFF \
+  -DBUILD_JAVA:BOOL=${CMAKE_JAVA} \
+  .
+make V=1 $NUMJOBS || make || exit 1
+make DESTDIR=$PKG install || exit 1
 
 # Do we have a patch for X.Org which tigervnc does not have?
 if [ ! -f unix/xserver${MAXPATCHVER}.patch -a -f $CWD/patches/xserver${MAXPATCHVER}.patch ]

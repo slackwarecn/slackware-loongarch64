@@ -1071,6 +1071,9 @@ gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
+gzip ./testing/source/glibc/glibc.locale.no-archive.diff
+gzip ./testing/source/glibc/glibc-c-utf8-locale.patch
+gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/doinst.sh

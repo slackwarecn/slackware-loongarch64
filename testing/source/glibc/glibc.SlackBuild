@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=glibc
 VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
@@ -247,6 +247,25 @@ make $NUMJOBS || make || exit 1
 make install install_root=$PKG || exit 1
 make localedata/install-locales install_root=$PKG || exit 1
 
+# We've always had an sln symlink in /bin, so let's make sure it
+# remains there so as not to break any scripts that might need it:
+mkdir -p $PKG/bin
+( cd $PKG/bin ; ln -sf /sbin/sln sln )
+
+# This bit was mostly copped from Fedora Rawhide's .spec file. I'm not
+# entirely sure how important it is, since I'm not aware of anything
+# we ship trying to link libpthread as static. What it does is make sure
+# that anything linking libpthread static includes all of the functions
+# so that the resulting binary doesn't rely on parts of the library that
+# were not linked in. Optimizing actually working over binary size, so
+# to speak.
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  gcc -r -nostdlib -o libpthread.o -Wl,--whole-archive ./libpthread.a
+  rm libpthread.a
+  ar rcs libpthread.a libpthread.o
+  rm libpthread.o
+)
+
 # The prevailing standard seems to be putting unstripped libraries in
 # /usr/lib/debug/ and stripping the debugging symbols from all the other
 # libraries.
@@ -390,9 +409,6 @@ mkdir -p usr/lib${LIBDIRSUFFIX}
 # The gconv directory has a lot of stuff, but including it here will save some problems.
 # Seems standard elsewhere.
 cp -a $PKG/usr/lib${LIBDIRSUFFIX}/gconv usr/lib${LIBDIRSUFFIX}
-# Another manpage abandoned by GNU...
-#mkdir -p usr/man/man1
-#cp -a $PKG/usr/man/man1/ldd.1.gz usr/man/man1
 mkdir -p usr/libexec
 cp -a $PKG/usr/libexec/pt_chown usr/libexec
 # Same usr.bin deal:
@@ -403,10 +419,15 @@ mv ldconfig sbin
 mkdir install
 cp -a $CWD/slack-desc.glibc-solibs install/slack-desc
 cp -a $CWD/doinst.sh-glibc-solibs install/doinst.sh
-fix_doinst
+# Fix specific versioning for the symlink creation script. This part of the
+# script would only be used in the case where there is no ldconfig on the
+# running system that's used to install the package. That should never be the
+# case, but we'll leave the code in place anyway just in case.
 sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
-# Ditch links:
-find . -type l -exec rm {} \;
+# Call the function to fix doinst.sh where $LIBDIRSUFFIX is needed:
+fix_doinst
+# Only scrub the links in /lib{,64} that will be created by ldconfig:
+find lib${LIBDIRSUFFIX} -type l -exec rm {} \;
 # Build the package:
 makepkg -l y -c n $TMP/glibc-solibs-$VERSION-$SLACKWARE_ARCH-$BUILD.txz
 
@@ -418,18 +439,18 @@ mkdir -p etc/profile.d
 cp -a $CWD/profile.d/* etc/profile.d
 chown -R root:root etc
 chmod 755 etc/profile.d/*
-# Ditch links (these are in doinst.sh-glibc):
-find . -type l -exec rm {} \;
-# libm.so is *not* a linker script on all $ARCH.
-# If it's missing now, replace the symlink:
-if [ ! -r usr/lib${LIBDIRSUFFIX}/libm.so ]; then
-  ( cd usr/lib${LIBDIRSUFFIX} ; ln -sf ../../lib${LIBDIRSUFFIX}/libm.so.6 libm.so )
-fi
+# Only scrub the links in /lib{,64} that will be created by ldconfig:
+find lib${LIBDIRSUFFIX} -type l -exec rm {} \;
 mkdir install
 cp -a $CWD/slack-desc.glibc install/slack-desc
 cp -a $CWD/doinst.sh-glibc install/doinst.sh
-fix_doinst
+# Fix specific versioning for the symlink creation script. This part of the
+# script would only be used in the case where there is no ldconfig on the
+# running system that's used to install the package. That should never be the
+# case, but we'll leave the code in place anyway just in case.
 sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
+# Call the function to fix doinst.sh where $LIBDIRSUFFIX is needed:
+fix_doinst
 ( cd lib${LIBDIRSUFFIX}
   mkdir incoming
   mv *so* incoming
@@ -441,4 +462,3 @@ sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
 # Done!
 echo
 echo "glibc packages built in $TMP!"
-

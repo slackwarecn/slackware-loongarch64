@@ -620,6 +620,7 @@ gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/ddd/doinst.sh
 gzip ./source/xap/ddd/strclass.C.diff
 gzip ./source/xap/ddd/machine_code_window_fix.diff
+gzip ./source/xap/blueman/30-blueman-netdev-allow-access.rules
 gzip ./source/xap/blueman/doinst.sh
 gzip ./source/xap/blueman/dont-autostart-applet-in-kde.diff
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff

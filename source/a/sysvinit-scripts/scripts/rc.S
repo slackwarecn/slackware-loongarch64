@@ -392,8 +392,12 @@ rm -f /var/run/* /var/run/*/* /var/run/*/*/* /etc/nologin \
   /etc/dhcpc/*.pid /etc/forcefsck /etc/fastboot \
   /var/state/saslauthd/saslauthd.pid \
   /tmp/.Xauth* 1> /dev/null 2> /dev/null
+if [ -d /var/lib/pkgtools/setup/tmp ]; then
+  ( cd /var/lib/pkgtools/setup/tmp && rm -rf * )
+elif [ -d /var/log/setup/tmp ]; then
   ( cd /var/log/setup/tmp && rm -rf * )
-  ( cd /tmp && rm -rf kde-[a-zA-Z]* ksocket-[a-zA-Z]* hsperfdata_[a-zA-Z]* plugtmp* )
+fi
+( cd /tmp && rm -rf kde-[a-zA-Z]* ksocket-[a-zA-Z]* hsperfdata_[a-zA-Z]* plugtmp* )
 
 # Clear /var/lock/subsys:
 if [ -d /var/lock/subsys ]; then

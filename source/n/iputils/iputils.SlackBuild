@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=iputils
-VERSION=s20140519
-BUILD=${BUILD:-2}
+VERSION=s20180629
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -64,8 +64,11 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf iputils-$VERSION
-tar xvf $CWD/iputils-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/iputils-$VERSION.tar.?z || exit 1
 cd iputils-$VERSION || exit 1
+
+# Don't use nettle libraary for ping6:
+sed -i "s/USE_NETTLE=yes/USE_NETTLE=no/g" Makefile
 
 chown -R root:root .
 find . \
@@ -90,7 +93,7 @@ make VPATH=/usr/lib${LIBDIRSUFFIX} || exit 1
     make || exit 1
 ) || exit 1
 
-strip arping clockdiff ninfod/ninfod ping ping6 rarpd rdisc tracepath tracepath6 traceroute6
+strip arping clockdiff ninfod/ninfod ping rarpd rdisc tracepath traceroute6
 mkdir -p $PKG/sbin
 cat arping > $PKG/sbin/arping
 chmod 755 $PKG/sbin/arping
@@ -101,14 +104,14 @@ cat ninfod/ninfod > $PKG/usr/sbin/ninfod
 chmod 755 $PKG/usr/sbin/ninfod
 mkdir -p $PKG/bin
 cat ping > $PKG/bin/ping
-cat ping6 > $PKG/bin/ping6
-chmod 4711 $PKG/bin/ping $PKG/bin/ping6
+chmod 4711 $PKG/bin/ping
+( cd $PKG/bin ; ln -sf ping ping6 )
 cat rarpd > $PKG/usr/sbin/rarpd
 cat rdisc > $PKG/usr/sbin/rdisc
 chmod 755 $PKG/usr/sbin/rarpd $PKG/usr/sbin/rdisc
 mkdir -p $PKG/usr/bin
 cat tracepath > $PKG/usr/bin/tracepath
-cat tracepath6 > $PKG/usr/bin/tracepath6
+( cd $PKG/usr/bin ; ln -sf tracepath tracepath6 )
 cat traceroute6 > $PKG/usr/bin/traceroute6
 chmod 755 $PKG/usr/bin/tracepath*
 chmod 4711 $PKG/usr/bin/traceroute6
@@ -125,7 +128,7 @@ mkdir -p $PKG/usr/man/man8
 
 mkdir -p $PKG/usr/doc/iputils-$VERSION
 cp -a \
-  RELNOTES \
+  INSTALL* LICENSE* README* RELNOTES* \
   $PKG/usr/doc/iputils-$VERSION
 chmod 644 $PKG/usr/doc/iputils-$VERSION/*
 

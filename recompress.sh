@@ -999,6 +999,7 @@ gzip ./source/ap/a2ps/a2ps.a2ps_cfg.in.diff
 gzip ./source/ap/a2ps/a2ps.diff
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/doinst.sh
+gzip ./source/ap/hplip/hplip.libImageProcessor.diff
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/cups-filters/doinst.sh

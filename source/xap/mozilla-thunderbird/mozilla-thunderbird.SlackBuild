@@ -28,7 +28,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=mozilla-thunderbird
-VERSION=$(basename $(ls thunderbird-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
+VERSION=$(basename $(ls thunderbird-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
 RELEASEVER=$(echo $VERSION | cut -f 1 -d e | cut -f 1 -d b)
 BUILD=${BUILD:-1}
 
@@ -51,7 +51,7 @@ fi
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     armv7hl) export ARCH=armv7hl ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
@@ -93,11 +93,35 @@ else
   OPTIMIZE=${OPTIMIZE:-"-O1"}
 fi
 
-# Link using gold.  This avoids running out of memory on 32-bit systems, and
-# avoids a recurring build failure with GNU ld on other systems.
-PATH="$(pwd)/gold:$PATH"
-export CC=${CC:-"gcc -B$(pwd)/gold"}
-export CXX=${CXX:-"g++ -B$(pwd)/gold"}
+# Thunderbord has been requiring more and more memory, especially while linking
+# libxul. If it fails to build natively on x86 32-bit, it can be useful to
+# attempt the build using an x86_64 kernel and a 32-bit userspace. Detect this
+# situation and set the ARCH to i686. Later in the script we'll add some
+# options to the .mozconfig so that the compile will do the right thing.
+if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-bit)" != "" ]; then
+  COMPILE_X86_UNDER_X86_64=true
+  ARCH=i686
+  # Also use the gold linker for this:
+  PATH="$(pwd)/gold:$PATH"
+  export CC=${CC:-"gcc -B$(pwd)/gold"}
+  export CXX=${CXX:-"g++ -B$(pwd)/gold"}
+elif [ "$ARCH" = "i686" ]; then
+  # This might also help with the linker memory situation on some $ARCH. Feel free
+  # to match any other $ARCH that could benefit from this.
+  SLKLDFLAGS=" -Wl,--as-needed -Wl,--reduce-memory-overheads -Wl,--no-keep-memory -Wl,--stats"
+  export LDFLAGS="$SLKLDFLAGS"
+  export MOZ_LINK_FLAGS="$SLKLDFLAGS"
+else
+  # Link using gold.  This also helps prevent running out of memory on 32-bit
+  # systems, and avoids a recurring build failure with GNU ld on other systems.
+  PATH="$(pwd)/gold:$PATH"
+  export CC=${CC:-"gcc -B$(pwd)/gold"}
+  export CXX=${CXX:-"g++ -B$(pwd)/gold"}
+fi
+
+# Put Rust objects on a diet to keep the linker from running into memory
+# issues (especially on 32-bit):
+export RUSTFLAGS="-Cdebuginfo=0"
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mozilla-thunderbird
@@ -123,19 +147,19 @@ mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 PATH=$TMP/autoconf-tmp/usr/bin:$PATH
 
 cd $TMP
-rm -rf thunderbird-$VERSION
+rm -rf thunderbird-$RELEASEVER
 # Unpack this in a subdirectory to prevent changing permissions on /tmp:
 rm -rf thunderbird-unpack
 mkdir thunderbird-unpack
 cd thunderbird-unpack
-tar xvf $CWD/thunderbird-$VERSION.source.tar.?z* || exit 1
+tar xvf $CWD/thunderbird-$VERSION.source.tar.?z || exit 1
 mv * ..
 cd ..
 rm -rf thunderbird-unpack
-cd thunderbird-$VERSION || exit 1
+cd thunderbird-$RELEASEVER || exit 1
 
 # Retain GTK+ v2 scrolling behavior:
-zcat $CWD/tb.ui.scrollToClick.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/tb.ui.scrollToClick.diff.gz | patch -p2 --verbose || exit 1
 
 # Fetch localization, if requested:
 if [ ! -z $MOZLOCALIZE ]; then
@@ -168,10 +192,9 @@ OPTIONS="\
   --enable-official-branding \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --with-default-mozilla-five-home=/usr/lib${LIBDIRSUFFIX}/thunderbird-$RELEASEVER \
   --with-system-zlib \
   --enable-alsa \
-  --enable-application=mail \
+  --enable-application=comm/mail \
   $ENABLE_CALENDAR \
   --enable-default-toolkit=cairo-gtk3 \
   --enable-startup-notification \
@@ -228,11 +251,20 @@ mkdir -p mozilla/obj
 # Set options for $OPTIMIZE:
 echo "ac_add_options --enable-optimize=\"${OPTIMIZE}\"" >> .mozconfig
 
+if [ "$COMPILE_X86_UNDER_X86_64" = "true" ]; then
+  # Compile for i686 under an x86_64 kernel:
+  echo "ac_add_options --host=i686-pc-linux-gnu" >> .mozconfig
+  echo "ac_add_options --target=i686-pc-linux-gnu" >> .mozconfig
+fi
+
 # Add the $OPTIONS above to .mozconfig:
 for option in $OPTIONS; do echo "ac_add_options $option" >> .mozconfig; done
 
-make -f client.mk build || exit 1
-make -f client.mk install DESTDIR=$PKG || exit 1
+# Disable tests on standard build:
+echo "ac_add_options --disable-tests" >> .mozconfig
+./mach build || exit 1
+./mach buildsymbols || exit 1
+DESTDIR=$PKG ./mach install || exit 1
 
 # We don't need these (just symlinks anyway):
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$RELEASEVER
@@ -270,7 +302,7 @@ mkdir -p $PKG/usr/share/pixmaps
 
 # Need some default icons in the right place:
 for i in 16 22 24 32 48 256; do
-  install -m 0644 -D other-licenses/branding/thunderbird/mailicon${i}.png \
+  install -m 0644 -D comm/mail/branding/thunderbird/default${i}.png \
     $PKG/usr/share/icons/hicolor/${i}x${i}/apps/thunderbird.png
 done
 mkdir -p $PKG/usr/share/pixmaps

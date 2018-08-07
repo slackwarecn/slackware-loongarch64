@@ -215,7 +215,7 @@ fi
 if [ -x /usr/bin/update-gdk-pixbuf-loaders ]; then
   echo "Updating gdk-pixbuf.loaders:"
   echo "  /usr/bin/update-gdk-pixbuf-loaders &"
-  /usr/bin/update-gdk-pixbuf-loaders > /dev/null 2>&1 &
+  HOME=/root /usr/bin/update-gdk-pixbuf-loaders > /dev/null 2>&1 &
 fi
 if [ -x /usr/bin/update-pango-querymodules ]; then
   echo "Updating pango.modules:"

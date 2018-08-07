@@ -36,8 +36,6 @@ gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/x11/patch/xpyb/xpyb-1.3.1-xcbproto-1.13.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
-gzip ./source/x/x11/patch/xorg-server/xserver-1-2-glamor-Always-return-0-from-glamor_fds_from_pixmap-on-error.patch
-gzip ./source/x/x11/patch/xorg-server/xserver-2-2-glamor-Propagate-glamor_fds_from_pixmap-error-in-glamor_fd_from_pixmap.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
@@ -196,6 +194,7 @@ gzip ./source/n/netkit-ntalk/netkit-ntalk-0.17.diff
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch
 gzip ./source/n/NetworkManager/doinst.sh
+gzip ./source/n/NetworkManager/patches/version-fix-compile-error-due-to-NM_AVAILABLE_IN_1_12_2-m.patch
 gzip ./source/n/NetworkManager/patches/0000-slackware-use-fqdn.diff
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/samba/smb.conf.diff

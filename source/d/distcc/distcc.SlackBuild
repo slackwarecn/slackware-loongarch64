@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=distcc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -34,6 +34,20 @@ if [ -z "$ARCH" ]; then
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
+fi
+
+if [ "$ARCH" = "i586" ]; then
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  LIBDIRSUFFIX=""
+else
+  LIBDIRSUFFIX=""
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -63,10 +77,19 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Make sure we change code/docs to use lib64 if needed:
+if [ ! "$LIBDIRSUFFIX" = "" ]; then
+  grep -l -r usr/lib/distcc | while read file ; do
+    sed -i "s|usr/lib/distcc|usr/lib${LIBDIRSUFFIX}/distcc|g" $file
+  done
+fi
+sed -i "s|usr/lib/gcc|usr/lib${LIBDIRSUFFIX}/gcc|g" update-distcc-symlinks.py
+
 ./configure \
   --prefix=/usr \
   --datadir=/usr/share \
   --sysconfdir=/etc \
+  --mandir=/usr/man \
   --with-gtk \
   --without-gnome \
   --without-avahi \
@@ -75,6 +98,24 @@ find . \
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG docdir=/usr/doc/distcc-$VERSION || exit 1
+
+# Make a masquarade directory in /usr/lib${LIBDIRSUFFIX}:
+GCCVER=$(gcc -dumpversion)
+mkdir -p $PKG//usr/lib${LIBDIRSUFFIX}/distcc
+( cd $PKG//usr/lib${LIBDIRSUFFIX}/distcc 
+  ln -sf ../../bin/distcc c++
+  ln -sf ../../bin/distcc c89
+  ln -sf ../../bin/distcc c99
+  ln -sf ../../bin/distcc cc
+  ln -sf ../../bin/distcc clang
+  ln -sf ../../bin/distcc clang++
+  ln -sf ../../bin/distcc g++
+  ln -sf ../../bin/distcc gcc
+  ln -sf ../../bin/distcc gcc-$GCCVER
+  ln -sf ../../bin/distcc $ARCH-slackware-linux-g++
+  ln -sf ../../bin/distcc $ARCH-slackware-linux-gcc
+  ln -sf ../../bin/distcc $ARCH-slackware-linux-gcc-$GCCVER
+)
 
 # pkgdocdir=/usr/doc/distcc-$VERSION
 mkdir -p $PKG/usr/share/applications

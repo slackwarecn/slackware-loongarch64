@@ -613,6 +613,7 @@ gzip ./source/xap/xpdf/lang/xpdf-greek.diff
 gzip ./source/xap/xpdf/lang/xpdf-arabic.diff
 gzip ./source/xap/xpdf/lang/xpdf-japanese.diff
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
+gzip ./source/xap/mozilla-thunderbird/80754eac3809
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff

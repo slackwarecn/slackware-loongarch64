@@ -380,6 +380,18 @@ if [ -x /etc/rc.d/rc.gpm ]; then
   /etc/rc.d/rc.gpm start
 fi
 
+# Start the Icecream scheduler. This needs to run on only one machine that is
+# part of the compile cluster:
+if [ -x /etc/rc.d/rc.icecc-scheduler ]; then
+  /etc/rc.d/rc.icecc-scheduler start
+fi
+
+# Start the Icecream daemon. This needs to run on every machine that will be
+# part of the compile cluster (including the machine running the scheduler):
+if [ -x /etc/rc.d/rc.iceccd ]; then
+  /etc/rc.d/rc.iceccd start
+fi
+
 # If there are SystemV init scripts for this runlevel, run them.
 if [ -x /etc/rc.d/rc.sysvinit ]; then
   /etc/rc.d/rc.sysvinit

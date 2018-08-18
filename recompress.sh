@@ -51,7 +51,6 @@ gzip ./source/x/x11/patch/xf86-video-xgixp/0004-Stop-using-deprecated-xf86PciInf
 gzip ./source/x/x11/patch/xf86-video-xgixp/0002-Remove-symbol-lists-as-they-are-not-used-any-more.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0003-shadow-shadowInit-shadowAdd-Remove.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0001-Remove-mibstore.h.patch
-gzip ./source/x/x11/patch/xf86-video-v4l/xf86-video-v4l-0.2.0-build-fix.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
@@ -959,6 +958,7 @@ gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh
+gzip ./source/ap/jove/jove.getline.buffsiz.diff
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/nano/doinst.sh
 gzip ./source/ap/cgmanager/doinst.sh

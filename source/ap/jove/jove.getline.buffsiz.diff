@@ -1,5 +1,5 @@
 --- ./fp.h.orig	2002-03-20 15:49:38.000000000 -0600
-+++ ./fp.h	2018-08-16 12:43:15.763002319 -0500
++++ ./fp.h	2018-08-19 13:12:52.539005346 -0500
 @@ -17,7 +17,8 @@
  # define scr_putchar(c)	f_putc((c), jstdout)
  extern void		flushscreen proto((void));
@@ -10,9 +10,29 @@
  # else
  #  define MAXTTYBUF	512
  # endif
+--- ./recover.c.orig	2010-07-09 01:29:37.000000000 -0500
++++ ./recover.c	2018-08-19 13:13:12.904005347 -0500
+@@ -166,7 +166,7 @@
+ private char	*getblock proto((daddr atl));
+ 
+ void
+-getline(tl, buf)
++j_getline(tl, buf)
+ daddr	tl;
+ char	*buf;
+ {
+@@ -597,7 +597,7 @@
+ 	Nchars = Nlines = 0L;
+ 	while (--nlines >= 0) {
+ 		addr = getaddr(ptrs_fp);
+-		getline(addr, buf);
++		j_getline(addr, buf);
+ 		Nlines += 1;
+ 		Nchars += 1 + strlen(buf);
+ 		fputs(buf, out);
 --- ./insert.c.orig	2002-03-20 15:49:38.000000000 -0600
-+++ ./insert.c	2018-08-16 12:43:15.773002319 -0500
-@@ -504,7 +506,7 @@
++++ ./insert.c	2018-08-19 13:13:12.905005347 -0500
+@@ -504,7 +504,7 @@
  		atchar = 0;
  	}
  
@@ -22,7 +42,7 @@
  	linecopy(genbuf, atchar, save);
  	atline->l_dline = putline(genbuf);
 --- ./jove.h.orig	2002-03-20 15:49:38.000000000 -0600
-+++ ./jove.h	2018-08-16 12:43:15.797002319 -0500
++++ ./jove.h	2018-08-19 13:12:52.540005346 -0500
 @@ -267,7 +267,8 @@
  
  /* term.c: universal termcap-like declarations */
@@ -33,19 +53,30 @@
  
  extern int
  	SG,		/* number of magic cookies left by SO and SE */
---- ./io.h.orig	2002-03-20 15:49:38.000000000 -0600
-+++ ./io.h	2018-08-16 12:43:15.790002319 -0500
-@@ -40,7 +40,7 @@
- 	close_file proto((File *fp)),
- 	d_cache_init proto((void)),
- 	file_write proto((char *fname, bool app)),
--	getline proto((daddr addr, char *buf)),
-+	j_getline proto((daddr addr, char *buf)),
- 	lsave proto((void)),
- 	putreg proto((File *fp,LinePtr line1,int char1,LinePtr line2,int char2,bool makesure)),
- 	read_file proto((char *file, bool is_insert)),
+--- ./util.h.orig	2004-02-01 13:38:29.000000000 -0600
++++ ./util.h	2018-08-19 13:13:12.906005347 -0500
+@@ -18,7 +18,7 @@
+ #define eobp()		(lastp(curline) && eolp())
+ #define eolp()		(linebuf[curchar] == '\0')
+ #define firstp(line)	((line) == curbuf->b_first)
+-#define getDOT()	getline(curline->l_dline, linebuf)
++#define getDOT()	j_getline(curline->l_dline, linebuf)
+ #define lastp(line)	((line) == curbuf->b_last)
+ 
+ extern UnivPtr
+--- ./temp.h.orig	2002-03-20 15:49:39.000000000 -0600
++++ ./temp.h	2018-08-19 13:13:12.907005347 -0500
+@@ -12,7 +12,7 @@
+  * Yank and Kill are really easy; basically all we do is make copies
+  * of the disk addresses of the lines (as opposed to the contents).
+  * So, putline(char *buf) writes buf to the disk and returns a new
+- * disk address.  getline(daddr addr, char *buf) is the opposite of
++ * disk address.  j_getline(daddr addr, char *buf) is the opposite of
+  * putline().  f_getputl(LinePtr line, File fp) reads from open fp
+  * directly into the tmp file (into the buffer cache (see below))
+  * and stores the address in line.  This is used during read_file to
 --- ./io.c.orig	2010-04-16 00:41:46.000000000 -0500
-+++ ./io.c	2018-08-16 12:43:15.782002319 -0500
++++ ./io.c	2018-08-19 13:13:12.909005347 -0500
 @@ -1356,9 +1356,9 @@
  
  void
@@ -58,3 +89,14 @@
  daddr	addr;
  register char	*buf;
  #endif
+--- ./util.c.orig	2004-02-01 13:38:29.000000000 -0600
++++ ./util.c	2018-08-19 13:13:12.909005347 -0500
+@@ -280,7 +280,7 @@
+ 			strcpy(buf, linebuf);
+ 		Jr_Len = strlen(linebuf);
+ 	} else
+-		getline(line->l_dline, buf);
++		j_getline(line->l_dline, buf);
+ 	return buf;
+ }
+ 

@@ -251,7 +251,6 @@ gzip ./source/n/bsd-finger/bsd-finger-0.17.diff
 gzip ./source/n/epic5/openssl-1.1.patch
 gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff
-gzip ./source/n/openssl/openssl-1.1.0h.fix_c_rehash_quoting.diff
 gzip ./source/n/openssl/certwatch
 gzip ./source/n/openssl/doinst.sh-openssl
 gzip ./source/n/openssl/doinst.sh-openssl-solibs

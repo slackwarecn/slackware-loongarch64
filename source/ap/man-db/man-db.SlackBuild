@@ -8,7 +8,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=man-db
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 MAN2HTML=${MAN2HTML:-20180101}
 
@@ -101,6 +101,27 @@ else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+# Don't use icecream:
+for path_element in $(echo $PATH | tr ':' '\n') ; do
+  if [ "$path_element" = "/usr/libexec/icecc/bin" ]; then
+    continue
+  fi
+  if [ -z "$REVERSE_PATH" ]; then
+    REVERSE_PATH="$path_element"
+  else
+    REVERSE_PATH="${REVERSE_PATH}:$path_element"
+  fi
+done
+for path_element in $(echo $REVERSE_PATH | tr ':' '\n') ; do
+  if [ -z "$FORWARD_PATH" ]; then
+    FORWARD_PATH="$path_element"
+  else
+    FORWARD_PATH="${FORWARD_PATH}:$path_element"
+  fi
+done
+PATH=$FORWARD_PATH
+unset FORWARD_PATH REVERSE_PATH
 
 # By default, install binaries to /opt, so as not to stomp on Slackware's
 # man pkg. We will have to include a /etc/profile.d script to set PATH,

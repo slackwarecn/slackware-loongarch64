@@ -1,0 +1,44 @@
+From bc78aa61cfbddaa27dee275f639ba40de6981b17 Mon Sep 17 00:00:00 2001
+From: George V. Kouryachy (Fr. Br. George) <george@altlinux.ru>
+Date: Fri, 4 Aug 2017 18:37:33 +0300
+Subject: [PATCH] parse_displayname: use FamilyWild for *:0
+
+---
+ xauth/gethost.c  |    4 ++++
+ xauth/parsedpy.c |    4 ++++
+ 2 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/xauth/gethost.c b/xauth/gethost.c
+index 8cb58c5..598ac48 100644
+--- a/xauth/gethost.c
++++ b/xauth/gethost.c
+@@ -180,6 +180,10 @@ struct addrlist *get_address_info (
+      * information to be copied and set len to the number of bytes.
+      */
+     switch (family) {
++      case FamilyWild:			/* was :0 */
++	src = "\xff\xff";
++	len = strlen(src);
++	break;
+       case FamilyLocal:			/* hostname/unix:0 */
+ 					/* handle unix:0 and :0 specially */
+ 	if (prefix == 0 && (strncmp (fulldpyname, "unix:", 5) == 0 ||
+diff --git a/xauth/parsedpy.c b/xauth/parsedpy.c
+index 97988d3..6c98339 100644
+--- a/xauth/parsedpy.c
++++ b/xauth/parsedpy.c
+@@ -141,6 +141,10 @@ parse_displayname (const char *displayname,
+ 	    family = FamilyInternet;
+ 	}
+ #endif
++    } else if (len == 1 && *displayname == '*') {
++	/* ALT: wildcard cookie */
++	host = copystring("*", 1);
++	family = FamilyWild;
+     } else if (!dnet && (*displayname == '[') && (*(ptr - 1) == ']')) {
+ 	/* Allow RFC2732-like [<IPv6NumericAddress>]:display syntax */
+ 	family = FamilyInternet6;
+-- 
+1.7.3.3
+
+

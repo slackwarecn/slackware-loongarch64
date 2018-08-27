@@ -33,6 +33,7 @@ gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/ttf-indic-fonts/doinst.sh
+gzip ./source/x/x11/patch/xauth/xauth.bc78aa61cfbddaa27dee275f639ba40de6981b17.patch
 gzip ./source/x/x11/patch/xpyb/xpyb-1.3.1-xcbproto-1.13.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
@@ -100,7 +101,6 @@ gzip ./source/n/ntp/doinst.sh
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/openssh.no.openssl.version.check.diff
-gzip ./source/n/openssh/openssh.fix_tunnel_forwarding.diff
 gzip ./source/n/openssh/openssl-1.1.0.patch
 gzip ./source/n/ulogd/doinst.sh
 gzip ./source/n/yptools/yp-tools-2.14-glibc217-crypt.diff

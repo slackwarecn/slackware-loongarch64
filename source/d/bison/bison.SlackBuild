@@ -77,6 +77,27 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# Don't use icecream:
+for path_element in $(echo $PATH | tr ':' '\n') ; do
+  if [ "$path_element" = "/usr/libexec/icecc/bin" ]; then
+    continue
+  fi
+  if [ -z "$REVERSE_PATH" ]; then
+    REVERSE_PATH="$path_element"
+  else
+    REVERSE_PATH="${REVERSE_PATH}:$path_element"
+  fi
+done
+for path_element in $(echo $REVERSE_PATH | tr ':' '\n') ; do
+  if [ -z "$FORWARD_PATH" ]; then
+    FORWARD_PATH="$path_element"
+  else
+    FORWARD_PATH="${FORWARD_PATH}:$path_element"
+  fi
+done
+PATH=$FORWARD_PATH
+unset FORWARD_PATH REVERSE_PATH
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -121,6 +142,14 @@ if [ -r ChangeLog ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
+# If there's a NEWS file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r NEWS ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat NEWS | head -n 1000 > $DOCSDIR/NEWS
+  touch -r NEWS $DOCSDIR/NEWS
 fi
 
 mkdir -p $PKG/install

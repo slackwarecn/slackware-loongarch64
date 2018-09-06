@@ -1049,6 +1049,7 @@ gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/ghostscript/cidfmap
+gzip ./source/ap/ghostscript/ghostscript.fix.filter.failed.bc3df077.patch
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/squashfs-tools/0004-unsquashfs-add-support-for-LZMA-magics.patch
 gzip ./source/ap/squashfs-tools/0006-uptream-fix-race.patch

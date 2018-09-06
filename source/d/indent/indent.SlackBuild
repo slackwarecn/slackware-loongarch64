@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=indent
-VERSION=${VERSION:-2.2.10}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -65,7 +65,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf indent-$VERSION
-tar xvf $CWD/indent-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/indent-$VERSION.tar.?z || exit 1
 cd indent-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -90,13 +90,13 @@ CXXFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# I'm not sure why this man page fails, but...
-if find $PKG -type f -size 0c -name indent.1 ; then
-  ( cd man
-    ./texinfo2man ./indent.1.in ./../doc/indent.texinfo > indent.1
-    cat indent.1 > $PKG/usr/man/man1/indent.1
-  )
-fi
+## I'm not sure why this man page fails, but...
+#if find $PKG -type f -size 0c -name indent.1 ; then
+#  ( cd man
+#    ./texinfo2man ./indent.1.in ./../doc/indent.texinfo > indent.1
+#    cat indent.1 > $PKG/usr/man/man1/indent.1
+#  )
+#fi
 
 # Strip binaries and libraries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

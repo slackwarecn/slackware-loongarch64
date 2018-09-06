@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=tar
 VERSION=1.30
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:--j7}
 
@@ -49,6 +49,27 @@ fi
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-tar
+
+# Don't use icecream:
+for path_element in $(echo $PATH | tr ':' '\n') ; do
+  if [ "$path_element" = "/usr/libexec/icecc/bin" ]; then
+    continue
+  fi
+  if [ -z "$REVERSE_PATH" ]; then
+    REVERSE_PATH="$path_element"
+  else
+    REVERSE_PATH="${REVERSE_PATH}:$path_element"
+  fi
+done
+for path_element in $(echo $REVERSE_PATH | tr ':' '\n') ; do
+  if [ -z "$FORWARD_PATH" ]; then
+    FORWARD_PATH="$path_element"
+  else
+    FORWARD_PATH="${FORWARD_PATH}:$path_element"
+  fi
+done
+PATH=$FORWARD_PATH
+unset FORWARD_PATH REVERSE_PATH
 
 rm -rf $PKG
 mkdir -p $TMP $PKG

@@ -700,6 +700,7 @@ gzip ./source/xfce/xfce4-screenshooter/doinst.sh
 gzip ./source/d/python3/python3.no-static-library.diff
 gzip ./source/d/python3/python3.x86_64.diff
 gzip ./source/d/python3/python3.readline.set_pre_input_hook.diff
+gzip ./source/d/binutils/patches/binutils-2.31.1-verinfo-fix-corrupt-symbol-detect.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.25-version.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch
@@ -721,7 +722,7 @@ gzip ./source/d/automake/doinst.sh
 gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/nasm/0001-Remove-invalid-pure_func-qualifiers.patch
-gzip ./source/d/llvm/clang_disable_pgo.patch
+gzip ./source/d/llvm/n_clang_allow_BUILD_SHARED_LIBRARY.patch
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/cl.hpp
@@ -900,6 +901,7 @@ gzip ./source/a/upower/patches/linux-Detect-docked-docking-stations-correctly.pa
 gzip ./source/a/upower/patches/linux-Clamp-percentage-for-overfull-batteries.patch
 gzip ./source/a/sysvinit/doinst.sh
 gzip ./source/a/sysvinit/sysvinit.use_dev_initctl_not_run_initctl.diff
+gzip ./source/a/sysvinit/sysvinit.no.console.agetty.without.sysvinit_agetty.diff
 gzip ./source/a/sysvinit/sysvinit.paths.diff
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/eudev/doinst.sh

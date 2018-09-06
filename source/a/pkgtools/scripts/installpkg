@@ -493,7 +493,28 @@ for package in $* ; do
   fi
   # The stray cat reduces the frequency of the lack of reported size.
   # If it still fails, we hit it with a bigger hammer down below.
-  cat $package | $packagecompression -dc | LC_ALL=C dd 2> $TMP/tmpsize${MCOOKIE} | cat | tar tf - 2> /dev/null 1> $TMP/tmplist${MCOOKIE}
+  #
+  # SeB's proposed fix for this. Untested.
+  #cat $package | $packagecompression -dc | LC_ALL=C dd 2> $TMP/tmpsize${MCOOKIE} | ( tar tf - ; cat > /dev/null ) 2> /dev/null 1> $TMP/tmplist${MCOOKIE}
+  # Some background info from SeB's email:
+  # As you can see, when dd doesn't print anything, it returns 141,
+  # which means it has got a SIGPIPE. The problem is hence some tar
+  # archives cause tar to exit before having emptied stdin. That's
+  # why adding a cat before tar sometimes makes things better (tar
+  # causes it to get a SIGPIPE some ms before it causes itself dd to
+  # get one) 
+  #
+  # A fix is then to replace:
+  #
+  # cat ... | $decompressor ... | ... dd ...  | cat ... | tar tf - >...
+  #
+  # with:
+  #
+  # $decompressor ... | ... dd ...  | ( tar tf -; cat >/dev/null ) >...
+  #
+  # This way the last cat will either exit because there's nothing on
+  # stdin or purge this one properly so dd gets the EOF it needs.
+  cat $package | $packagecompression -dc | LC_ALL=C dd 2> $TMP/tmpsize${MCOOKIE} | cat 2> /dev/null | tar tf - 2> /dev/null 1> $TMP/tmplist${MCOOKIE}
   TARERROR=$?
   if [ ! "$TARERROR" = "0" ]; then
     EXITSTATUS=1 # tar file corrupt

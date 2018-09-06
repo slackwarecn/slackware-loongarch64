@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sysvinit
 VERSION=${VERSION:-2.90}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -61,6 +61,13 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# sysvinit-2.90 added an undocumented feature that tries to spawn agetty if
+# it sees console= in the kernel command line. Avoiding the debate about
+# whether this code belongs in init at all, at least such a change # should
+# be documented, and probably made opt-in. This patch disables the new behavior
+# unless "sysvinit_agetty" is also seen in the kernel command line.
+zcat $CWD/sysvinit.no.console.agetty.without.sysvinit_agetty.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1
 
 # Fix paths for /etc/forcefsck and /etc/fastboot:
 zcat $CWD/sysvinit.paths.diff.gz | patch -p1 -E --verbose --backup --suffix=.orig || exit 1

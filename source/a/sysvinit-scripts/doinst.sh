@@ -23,6 +23,7 @@ config etc/rc.d/rc.loop.new
 config etc/rc.d/rc.sysvinit.new
 config etc/rc.d/rc.modules.new
 config etc/rc.d/rc.modules.local.new
+config etc/default/cpufreq.new
 
 ( cd etc/rc.d ; rm -rf rc.0 )
 ( cd etc/rc.d ; ln -sf rc.6 rc.0 )

@@ -1049,6 +1049,8 @@ gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/ghostscript/cidfmap
+gzip ./source/ap/ghostscript/ghostscript.13418541a5ae19b15f51cbb87faf344902f5af98.patch
+gzip ./source/ap/ghostscript/ghostscript.c8c01f8c4164bc10281d9e8f87cf96314d93104b.patch
 gzip ./source/ap/ghostscript/ghostscript.fix.filter.failed.bc3df077.patch
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/squashfs-tools/0004-unsquashfs-add-support-for-LZMA-magics.patch

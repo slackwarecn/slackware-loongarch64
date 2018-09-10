@@ -73,6 +73,27 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
+# Don't use icecream:
+for path_element in $(echo $PATH | tr ':' '\n') ; do
+  if [ "$path_element" = "/usr/libexec/icecc/bin" ]; then
+    continue
+  fi
+  if [ -z "$REVERSE_PATH" ]; then
+    REVERSE_PATH="$path_element"
+  else
+    REVERSE_PATH="${REVERSE_PATH}:$path_element"
+  fi
+done
+for path_element in $(echo $REVERSE_PATH | tr ':' '\n') ; do
+  if [ -z "$FORWARD_PATH" ]; then
+    FORWARD_PATH="$path_element"
+  else
+    FORWARD_PATH="${FORWARD_PATH}:$path_element"
+  fi
+done
+PATH=$FORWARD_PATH
+unset FORWARD_PATH REVERSE_PATH
+
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.xz || exit 1
@@ -151,7 +172,7 @@ chmod 644 $PKG/etc/nanorc.new
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  ABOUT-NLS AUTHORS BUGS COPYING* INSTALL NEWS README* THANKS TODO UPGRADE \
+  ABOUT-NLS AUTHORS BUGS COPYING* IMPROVEMENTS INSTALL NEWS README* THANKS TODO UPGRADE \
   doc/faq.html doc/nanorc.sample \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 

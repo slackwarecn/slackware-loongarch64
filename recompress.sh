@@ -400,6 +400,7 @@ gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/libnl3/doinst.sh
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/parted/parted.configure.diff
+gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
@@ -414,6 +415,7 @@ gzip ./source/l/pulseaudio/020_no-parallel-make.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
+gzip ./source/l/freetype/freetype.this.is.not.a.windows.system.diff
 gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.illadvisederror.diff
 gzip ./source/l/freetype/freetype.sh
@@ -1049,16 +1051,7 @@ gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/ghostscript/cidfmap
-gzip ./source/ap/ghostscript/ghostscript.13418541a5ae19b15f51cbb87faf344902f5af98.patch
-gzip ./source/ap/ghostscript/ghostscript.c8c01f8c4164bc10281d9e8f87cf96314d93104b.patch
-gzip ./source/ap/ghostscript/ghostscript.fix.filter.failed.bc3df077.patch
 gzip ./source/ap/acct/acct.logdir.fhs.diff
-gzip ./source/ap/squashfs-tools/0004-unsquashfs-add-support-for-LZMA-magics.patch
-gzip ./source/ap/squashfs-tools/0006-uptream-fix-race.patch
-gzip ./source/ap/squashfs-tools/0007-fix-2GB-limit-in-mksquashfs.patch
-gzip ./source/ap/squashfs-tools/0001-kfreebsd.patch
-gzip ./source/ap/squashfs-tools/0003-CVE-2015-4645_and_CVE-2015-4646.patch
-gzip ./source/ap/squashfs-tools/0002-fix_phys_mem_calculation.patch
 gzip ./source/ap/alsa-utils/alsa-utils.alsaconf.diff
 gzip ./source/ap/alsa-utils/doinst.sh
 gzip ./source/ap/alsa-utils/rc.alsa-oss

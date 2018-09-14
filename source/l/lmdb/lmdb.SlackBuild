@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,18 +22,19 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=zsh
-VERSION=${VERSION:-$(echo ${PKGNAM}-5.*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=lmdb
+VERSION=${VERSION:-$(echo LMDB_*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d _ | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -49,27 +50,42 @@ NUMJOBS=${NUMJOBS:-" -j7 "}
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-zsh
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf zsh-$VERSION
-tar xvf $CWD/zsh-$VERSION.tar.xz || exit 1
-tar xvf $CWD/zsh-$VERSION-doc.tar.xz || exit 1
-cd zsh-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/LMDB_$VERSION.tar.?z || exit 1
+cd lmdb-LMDB_$VERSION || exit 1
+
+zcat $CWD/lmdb-make.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/lmdb-s390-check.patch.gz | patch -p1 --verbose || exit 1
+
+cd libraries/liblmdb
+
+sed -i "s|/usr/local|/usr|g" Makefile
+sed -i "s|\$(exec_prefix)/lib|\$(exec_prefix)/lib${LIBDIRSUFFIX}|g" Makefile
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -77,68 +93,47 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --infodir=/usr/info \
-  --docdir=/usr/doc/zsh-$VERSION \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
+make $NUMJOBS XCFLAGS="$SLKCFLAGS" || exit 1
 make install DESTDIR=$PKG || exit 1
 
-mv $PKG/usr/bin $PKG
-( cd $PKG/bin ; ln -sf zsh zsh-$VERSION )
+# Install pkgconfig file:
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+cat $CWD/lmdb.pc.in | sed "s|/usr/lib|/usr/lib${LIBDIRSUFFIX}|g" | sed "s|@PACKAGE_VERSION@|$VERSION|g" > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/lmdb.pc
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+mkdir -p $PKG/usr/man
+mv $PKG/usr/share/man/man1 $PKG/usr/man
+rmdir $PKG/usr/share/man $PKG/usr/share
 
-mkdir -p $PKG/etc
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-mkdir -p $PKG/usr/doc/zsh-$VERSION/html-docs
-cp -a INSTALL LICENCE META-FAQ README $PKG/usr/doc/zsh-$VERSION
-cp -a Doc/*.html $PKG/usr/doc/zsh-$VERSION/html-docs
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# If there's a ChangeLog, installing at least part of the recent history
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  CHANGES* COPYRIGHT* LICENSE* README* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a CHANGES file, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
+if [ -r CHANGES ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
 fi
 
-mkdir -p $PKG/usr/info
-cp -a Doc/*info* $PKG/usr/info
-
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
-
-# Compress info files, if any:
-if [ -d $PKG/usr/info ]; then
-  ( cd $PKG/usr/info
-    rm -f dir
-    gzip -9 *
-  )
-fi
-
-mkdir $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/zsh-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
 

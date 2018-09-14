@@ -455,6 +455,8 @@ gzip ./source/l/adwaita-icon-theme/doinst.sh
 gzip ./source/l/adwaita-icon-theme/inherit-hicolor-theme.diff
 gzip ./source/l/gnome-keyring/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
+gzip ./source/l/lmdb/lmdb-s390-check.patch
+gzip ./source/l/lmdb/lmdb-make.patch
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-unused-deps.patch
@@ -1017,6 +1019,7 @@ gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.libImageProcessor.diff
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
+gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/cups-filters/doinst.sh
 gzip ./source/ap/zsh/doinst.sh

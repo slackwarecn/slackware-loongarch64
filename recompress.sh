@@ -193,7 +193,6 @@ gzip ./source/n/netkit-ntalk/netkit-ntalk-0.17.diff
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch
 gzip ./source/n/NetworkManager/doinst.sh
-gzip ./source/n/NetworkManager/patches/version-fix-compile-error-due-to-NM_AVAILABLE_IN_1_12_2-m.patch
 gzip ./source/n/NetworkManager/patches/0000-slackware-use-fqdn.diff
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/samba/smb.conf.diff
@@ -1018,6 +1017,7 @@ gzip ./source/ap/a2ps/a2ps.diff
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.libImageProcessor.diff
+gzip ./source/ap/hplip/hplip.remove-ImageProcessor.diff
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff

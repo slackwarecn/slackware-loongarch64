@@ -98,6 +98,7 @@ gzip ./source/n/ppp/pppsetup-1.98.slack.diff
 gzip ./source/n/ppp/pppsetup-1.98.backupfiles.diff
 gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/doinst.sh
+gzip ./source/n/gnutls/gnutls-3.6.3-backport-upstream-fixes.patch
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/openssh.no.openssl.version.check.diff
@@ -982,8 +983,10 @@ gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/soma/doinst.sh
 gzip ./source/ap/slackpkg/0001-Fix-for-var_log_packages-being-a-symlink.patch
+gzip ./source/ap/slackpkg/0005-Clarify-that-a-press-of-Enter-is-needed-to-confirm-k.patch
 gzip ./source/ap/slackpkg/doinst.sh
 gzip ./source/ap/slackpkg/0003-mirrors-x86-.sample-Remove-bjtu.edu.cn-mirror.patch
+gzip ./source/ap/slackpkg/0006-Mention-possible-stale-mirror-if-CHECKSUMS.md5-gpg-v.patch
 gzip ./source/ap/slackpkg/0002-Use-CHECKSUMS.md5.asc-to-determine-ChangeLog-newness.patch
 gzip ./source/ap/slackpkg/files/dialog-functions.sh
 gzip ./source/ap/slackpkg/files/slackpkg

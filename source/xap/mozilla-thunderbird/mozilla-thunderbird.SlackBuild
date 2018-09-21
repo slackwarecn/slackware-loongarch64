@@ -137,7 +137,7 @@ if [ -r /root/google-api-key ]; then
   GOOGLE_API_KEY="--with-google-api-keyfile=/root/google-api-key"
 fi
 
-NUMJOBS=${NUMJOBS:-" -j7 "}
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
@@ -165,6 +165,9 @@ zcat $CWD/tb.ui.scrollToClick.diff.gz | patch -p2 --verbose || exit 1
 ( cd comm
   zcat $CWD/80754eac3809.gz | patch -p1 --verbose || exit 1
 )
+
+# Fix build when using Rust 1.29.0:
+zcat $CWD/mozilla.rust_1_29_0.patch.gz | patch -p1 --verbose || exit 1
 
 # Fetch localization, if requested:
 if [ ! -z $MOZLOCALIZE ]; then

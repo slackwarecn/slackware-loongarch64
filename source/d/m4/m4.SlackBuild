@@ -26,7 +26,7 @@ PKGNAM=m4
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
 
-NUMJOBS=${NUMJOBS:-" -j7 "}
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -73,6 +73,9 @@ cd $TMP
 rm -rf m4-$VERSION
 tar xvf $CWD/m4-$VERSION.tar.xz || exit 1
 cd m4-$VERSION || exit 1
+
+zcat $CWD/m4.glibc228.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \

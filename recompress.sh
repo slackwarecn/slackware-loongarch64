@@ -57,6 +57,7 @@ gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-consolekit.patch
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
+gzip ./source/x/x11/patch/pixman/pixman.remove.glyph-test.that.fails.to.compile.diff
 gzip ./source/x/x11/patch/xf86-video-tseng/xf86-video-tseng.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xcompmgr/xcompmgr-follow-icccm-spec.diff
 gzip ./source/x/x11/patch/xcompmgr/patch-XFixesSetPictureClipRegion-shadow-fix-xcompmgr.c.diff
@@ -95,6 +96,7 @@ gzip ./source/n/ppp/pppsetup-1.98.moredevs.diff
 gzip ./source/n/ppp/pppsetup-1.98.pppoff.diff
 gzip ./source/n/ppp/ppp.slack.diff
 gzip ./source/n/ppp/pppsetup-1.98.slack.diff
+gzip ./source/n/ppp/ppp.glibc228.diff
 gzip ./source/n/ppp/pppsetup-1.98.backupfiles.diff
 gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/doinst.sh
@@ -324,6 +326,7 @@ gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/gst-plugins-base0/gst-plugins-base-0.10.36-gcc_4_9_0_i686-1.patch
 gzip ./source/l/imagemagick/policy.xml.diff
 gzip ./source/l/imagemagick/doinst.sh
+gzip ./source/l/imagemagick/ImageMagick.fix.overloading.error.diff
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/gnome-themes-standard/doinst.sh
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
@@ -399,6 +402,7 @@ gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/libnl3/doinst.sh
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
+gzip ./source/l/parted/parted.glibc228.diff
 gzip ./source/l/parted/parted.configure.diff
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
@@ -488,7 +492,6 @@ gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-format.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-pixmapref.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-localecrash.patch
-gzip ./source/l/virtuoso-ose/doinst.sh
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/libvisual/libvisual.glib.h.diff
@@ -502,6 +505,7 @@ gzip ./source/l/GConf/doinst.sh
 gzip ./source/l/GConf/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch
 gzip ./source/l/GConf/patches/0003-gsettings-data-convert-Warn-and-fix-invalid-schema-p.patch
 gzip ./source/l/GConf/patches/0001-mconvert-enable-recursive-scheme-lookup-and-fix-a-cr.patch
+gzip ./source/l/v4l-utils/v4l-utils.glibc228.diff
 gzip ./source/l/system-config-printer/system-config-printer.auth.dialog.2766d74a.patch
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
@@ -516,10 +520,10 @@ gzip ./source/l/gtk+2/gtk.xid.nowarningflood.diff
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.am.diff
 gzip ./source/l/shared-mime-info/doinst.sh
+gzip ./source/l/alsa-oss/alsa-oss.glibc228.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
-gzip ./source/l/glibc/glibc.pkey_get.56170e0.diff
 gzip ./source/l/strigi/libstreams-0003-Build-fix-for-gcc-4.8.patch
 gzip ./source/l/strigi/libstreams-0005-use-rpath-only-when-needed.patch
 gzip ./source/l/strigi/libstreams-0004-Fix-Krazy-issues.patch
@@ -618,6 +622,7 @@ gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/mozilla-thunderbird/80754eac3809
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-thunderbird/mozilla.rust_1_29_0.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/ddd/doinst.sh
 gzip ./source/xap/ddd/strclass.C.diff
@@ -629,6 +634,7 @@ gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-firefox/mozilla.rust_1_29_0.patch
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/xaos/xaos.x86.registers.diff
 gzip ./source/xap/xaos/xaos.6
@@ -727,6 +733,7 @@ gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/nasm/0001-Remove-invalid-pure_func-qualifiers.patch
 gzip ./source/d/llvm/n_clang_allow_BUILD_SHARED_LIBRARY.patch
+gzip ./source/d/llvm/clang-tools-extra.no.clangd.diff
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/cl.hpp
@@ -736,6 +743,7 @@ gzip ./source/d/distcc/doinst.sh
 gzip ./source/d/autoconf/doinst.sh
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/rust/link_libffi.diff
+gzip ./source/d/m4/m4.glibc228.diff
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/DBD-mysql.net_buffer_length.diff
@@ -795,6 +803,7 @@ gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.soname.patch
 gzip ./source/tcl/tix/tix.tcl8.5.patch
 gzip ./source/tcl/hfsutils/hfsutils.errno.diff
+gzip ./source/a/sharutils/sharutils.glibc228.diff
 gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/tar/tar-1.13.bzip2.diff
 gzip ./source/a/less/lesspipe.sh
@@ -820,6 +829,7 @@ gzip ./source/a/gpm/gpm-1.20.1-lib-silent.patch
 gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/gpm/setup.mouse
 gzip ./source/a/udisks/udisks.no.pci-db.diff
+gzip ./source/a/udisks/udisks.glibc228.diff
 gzip ./source/a/findutils/findutils.nolocate.diff
 gzip ./source/a/findutils/findutils.no.default.options.warnings.diff
 gzip ./source/a/findutils/patches/findutils-4.4.2-xautofs.patch
@@ -846,6 +856,7 @@ gzip ./source/a/dcron/crontab.root
 gzip ./source/a/dcron/run-parts
 gzip ./source/a/usb_modeswitch/doinst.sh
 gzip ./source/a/usb_modeswitch/device_reference.txt
+gzip ./source/a/floppy/fdutils.glibc228.diff
 gzip ./source/a/floppy/fdutils-5.5-20081027.diff
 gzip ./source/a/floppy/fdutils.mediaprm.diff
 gzip ./source/a/rpm2tgz/patches/0008-Avoid-none-values-in-slack-desc.patch
@@ -880,6 +891,7 @@ gzip ./source/a/infozip/unzip.git.archive.fix.diff
 gzip ./source/a/elvis/elvis.ref.c.getline.diff
 gzip ./source/a/genpower/genpower.var.diff
 gzip ./source/a/genpower/genpower.halt.diff
+gzip ./source/a/lbzip2/lbzip2.glibc228.diff
 gzip ./source/a/lha/lha_1.14i-10.1.diff
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
 gzip ./source/a/acpid/default
@@ -888,10 +900,12 @@ gzip ./source/a/acpid/acpi_handler.sh
 gzip ./source/a/acpid/rc.acpid
 gzip ./source/a/e2fsprogs/doinst.sh
 gzip ./source/a/e2fsprogs/e2fsprogs.no.64bit.by.default.diff
+gzip ./source/a/reiserfsprogs/reiserfsprogs.glibc228.diff
 gzip ./source/a/minicom/doinst.sh
 gzip ./source/a/minicom/minicom.users
 gzip ./source/a/minicom/config.sub-x86_64.diff
 gzip ./source/a/minicom/lrzsz_0.12.21-5.diff
+gzip ./source/a/syslinux/syslinux.glibc228.diff
 gzip ./source/a/bash/doinst.sh
 gzip ./source/a/bash/bash_manpages.patch
 gzip ./source/a/upower/doinst.sh
@@ -907,6 +921,7 @@ gzip ./source/a/sysvinit/doinst.sh
 gzip ./source/a/sysvinit/sysvinit.use_dev_initctl_not_run_initctl.diff
 gzip ./source/a/sysvinit/sysvinit.no.console.agetty.without.sysvinit_agetty.diff
 gzip ./source/a/sysvinit/sysvinit.paths.diff
+gzip ./source/a/gzip/gzip.glibc228.diff
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/eudev/doinst.sh
 gzip ./source/a/eudev/60-cdrom_id.rules.diff
@@ -947,6 +962,8 @@ gzip ./source/a/lvm2/doinst.sh
 gzip ./source/a/lvm2/create-dm-run-dir.diff
 gzip ./source/a/tcsh/doinst.sh
 gzip ./source/a/tcsh/tcsh.nobuiltincolorls.diff
+gzip ./source/a/jfsutils/jfsutils.glibc228.diff
+gzip ./source/a/jfsutils/jfsutils.inttypes.h.diff
 gzip ./source/a/shadow/shadow.CVE-2005-4890.relax.diff
 gzip ./source/a/shadow/shadow.login.display.short.hostname.diff
 gzip ./source/a/shadow/useradd
@@ -961,6 +978,7 @@ gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy
 gzip ./source/a/sysvinit-functions/doinst.sh
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
+gzip ./source/a/grub/grub.xfs.sparse.inodes.patch
 gzip ./source/a/grub/initrd_naming.patch
 gzip ./source/a/grub/doinst.sh
 gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff
@@ -979,6 +997,7 @@ gzip ./source/ap/jove/jove.getline.buffsiz.diff
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/nano/doinst.sh
 gzip ./source/ap/cgmanager/doinst.sh
+gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.glibc228.diff
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/soma/doinst.sh
@@ -1048,6 +1067,7 @@ gzip ./source/ap/screen/screen.no_libelf.diff
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/45suppress_remap.patch
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
+gzip ./source/ap/dc3dd/dc3dd.glibc228.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/vim/vim.vimrc.diff
@@ -1058,6 +1078,7 @@ gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/ghostscript/cidfmap
 gzip ./source/ap/acct/acct.logdir.fhs.diff
+gzip ./source/ap/squashfs-tools/squashfs-tools.glibc228.diff
 gzip ./source/ap/alsa-utils/alsa-utils.alsaconf.diff
 gzip ./source/ap/alsa-utils/doinst.sh
 gzip ./source/ap/alsa-utils/rc.alsa-oss
@@ -1089,9 +1110,6 @@ gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
-gzip ./testing/source/glibc/glibc.locale.no-archive.diff
-gzip ./testing/source/glibc/glibc-c-utf8-locale.patch
-gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/doinst.sh

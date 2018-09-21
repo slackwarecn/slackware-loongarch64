@@ -84,7 +84,7 @@ if [ -x /sbin/ldconfig -a -d lib/incoming ]; then # swap on the fly
       done
     )
   ) 9> run/lock/pkgtools/ldconfig.lock
-else # no ldconfig?  Good, it's safe to just jam it on home (and make links below):
+else # no ldconfig? This is a broken situation, but we will do what we can:
   ( cd lib/incoming
     for file in * ; do
       cp -a $file ..
@@ -113,7 +113,11 @@ config etc/profile.d/glibc.sh.new
 rm -f etc/profile.d/glibc.csh.new
 rm -f etc/profile.d/glibc.sh.new
 
-# In case there's no ldconfig, make the links manually:
+# This block below *should* be dead code, but it's probably safer to leave it
+# here as a fallback. It no longer has complete coverage of all the links
+# that would be needed in /lib${LIBDIRSUFFIX}, but it covers enough that if
+# we did fall back on this the machine would boot until it reached the boot
+# time call to ldconfig, which would then take care of any missing links.
 if [ ! -x /sbin/ldconfig ]; then
 ( cd lib ; rm -rf libnss_nis.so.2 )
 ( cd lib ; ln -sf libnss_nis-@@VERSION@@.so libnss_nis.so.2 )
@@ -154,3 +158,4 @@ if [ ! -x /sbin/ldconfig ]; then
 ( cd lib ; rm -rf librt.so.1 )
 ( cd lib ; ln -sf librt-@@VERSION@@.so librt.so.1 )
 fi
+

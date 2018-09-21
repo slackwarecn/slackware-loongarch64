@@ -27,9 +27,9 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=llvm
 VERSION=${VERSION:-$(echo llvm-*.tar.xz | rev | cut -f 4- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:-" -j7 "}
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -101,11 +101,15 @@ cd ../
 # Support GCC built for i586-slackware-linux:
 zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
 
-## This seems obsolete, so commenting it out:
-#
-## Use i586 $ARCH on 32-bit x86:
-#sed -r "/ifeq.*CompilerTargetArch/s#i386#i586#g" \
-#  -i projects/compiler-rt/make/platform/clang_linux.mk
+# As of clang-tools-extra-7.0.0 we get the following error on i586 or i686:
+# CMakeFiles/clangDaemon.dir/Trace.cpp.o:Trace.cpp:function std::unique_ptr<clang::clangd::trace::(anonymous namespace)::JSONTracer::JSONSpan, std::default_delete<clang::clangd::trace::(anonymous namespace)::JSONTracer::JSONSpan> >::~unique_ptr(): error: undefined reference to '__atomic_load_8'
+# Attempts to try to fix this have failed here, so for now we will not build
+# clangd to avoid the failure. Any help with a proper fix is appreciated.
+# I have not reported this upstream since I suspect that it's an artifact
+# of our convoluted build method.
+if [ $ARCH = i586 ] || [ $ARCH = i686 ]; then
+  zcat $CWD/clang-tools-extra.no.clangd.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+fi
 
 chown -R root:root .
 find . \
@@ -134,6 +138,7 @@ cd build
     -DCLANG_BUILD_SHARED_LIBS=ON \
     -DLLVM_BUILD_LLVM_DYLIB=ON \
     -DLLVM_LINK_LLVM_DYLIB=ON \
+    -DLLVM_USE_LINKER=gold \
     -DLLVM_ENABLE_RTTI=ON \
     -DLLVM_ENABLE_FFI=ON \
     -DLLVM_ENABLE_ASSERTIONS=OFF \
@@ -142,10 +147,37 @@ cd build
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/${VERSION}" \
     .. || exit 1
 
-  # breaks with one of the patches above. Maybe revisit later
+  # Breaks with one of the patches above. Maybe revisit later?
   # -DBUILD_SHARED_LIBS=ON \
 
-  make $NUMJOBS VERBOSE=1 || make || exit 1
+  # This seems to not like a parallel build, at least as of 7.0.0. I don't have
+  # days to wait for the compile though, so let's just smack it with a hammer
+  # fifty times before dropping back to a single-threaded build:
+  for index in $(seq 1 50) ; do
+    #make $NUMJOBS VERBOSE=1
+    make $NUMJOBS
+    ERR_RESULT=$?
+    if [ $ERR_RESULT = 0 ]; then
+      break
+    fi
+    echo "*** PARALLEL MAKE RESTART NUMBER $index"
+  done
+  if [ ! $ERR_RESULT = 0 ]; then
+    # Fifty more for the single thread:
+    for index in $(seq 1 50) ; do
+      #make VERBOSE=1
+      make
+      ERR_RESULT=$?
+      if [ $ERR_RESULT = 0 ]; then
+        break
+      fi
+      echo "*** NON-PARALLEL MAKE RESTART NUMBER $index"
+    done
+  fi
+  if [ ! $ERR_RESULT = 0 ]; then
+    exit 1
+  fi
+
   make install DESTDIR=$PKG || exit 1
 cd ..
 

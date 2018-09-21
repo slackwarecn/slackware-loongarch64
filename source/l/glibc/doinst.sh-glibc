@@ -84,7 +84,7 @@ if [ -x /sbin/ldconfig -a -d lib/incoming ]; then # swap on the fly
       done
     )
   ) 9> run/lock/pkgtools/ldconfig.lock
-else # no ldconfig?  Good, it's safe to just jam it on home (and make links below):
+else # no ldconfig? This is a broken situation, but we will do what we can:
   ( cd lib/incoming
     for file in * ; do
       cp -a $file ..
@@ -114,6 +114,11 @@ config etc/profile.d/glibc.sh.new
 rm -f etc/profile.d/glibc.csh.new
 rm -f etc/profile.d/glibc.sh.new
 
+# This block below *should* be dead code, but it's probably safer to leave it
+# here as a fallback. It no longer has complete coverage of all the links
+# that would be needed in /lib${LIBDIRSUFFIX}, but it covers enough that if
+# we did fall back on this the machine would boot until it reached the boot
+# time call to ldconfig, which would then take care of any missing links.
 # In case there's no ldconfig, make the links manually:
 if [ ! -x /sbin/ldconfig ]; then
 ( cd lib ; rm -rf libnss_nis.so.2 )
@@ -157,43 +162,3 @@ if [ ! -x /sbin/ldconfig ]; then
 fi
 
 # More links:
-( cd usr/lib ; rm -rf libnss_nisplus.so )
-( cd usr/lib ; ln -sf ../../lib/libnss_nisplus.so.2 libnss_nisplus.so )
-# This is now a linker script:
-#( cd usr/lib ; rm -rf libpthread.so )
-#( cd usr/lib ; ln -sf ../../lib/libpthread.so.0 libpthread.so )
-( cd usr/lib ; rm -rf libresolv.so )
-( cd usr/lib ; ln -sf ../../lib/libresolv.so.2 libresolv.so )
-( cd usr/lib ; rm -rf libnsl.so )
-( cd usr/lib ; ln -sf ../../lib/libnsl.so.1 libnsl.so )
-( cd usr/lib ; rm -rf libnss_hesiod.so )
-( cd usr/lib ; ln -sf ../../lib/libnss_hesiod.so.2 libnss_hesiod.so )
-( cd usr/lib ; rm -rf libnss_files.so )
-( cd usr/lib ; ln -sf ../../lib/libnss_files.so.2 libnss_files.so )
-# This is now a linker script:
-#( cd usr/lib ; rm -rf libm.so )
-#( cd usr/lib ; ln -sf ../../lib/libm.so.6 libm.so )
-( cd usr/lib ; rm -rf libutil.so )
-( cd usr/lib ; ln -sf ../../lib/libutil.so.1 libutil.so )
-( cd usr/lib ; rm -rf libnss_compat.so )
-( cd usr/lib ; ln -sf ../../lib/libnss_compat.so.2 libnss_compat.so )
-( cd usr/lib ; rm -rf libthread_db.so )
-( cd usr/lib ; ln -sf ../../lib/libthread_db.so.1 libthread_db.so )
-( cd usr/lib ; rm -rf libcrypt.so )
-( cd usr/lib ; ln -sf ../../lib/libcrypt.so.1 libcrypt.so )
-( cd usr/lib ; rm -rf libBrokenLocale.so )
-( cd usr/lib ; ln -sf ../../lib/libBrokenLocale.so.1 libBrokenLocale.so )
-( cd usr/lib ; rm -rf libdl.so )
-( cd usr/lib ; ln -sf ../../lib/libdl.so.2 libdl.so )
-( cd usr/lib ; rm -rf libnss_dns.so )
-( cd usr/lib ; ln -sf ../../lib/libnss_dns.so.2 libnss_dns.so )
-( cd usr/lib ; rm -rf librt.so )
-( cd usr/lib ; ln -sf ../../lib/librt.so.1 librt.so )
-( cd usr/lib ; rm -rf libanl.so )
-( cd usr/lib ; ln -sf ../../lib/libanl.so.1 libanl.so )
-( cd usr/lib ; rm -rf libnss_nis.so )
-( cd usr/lib ; ln -sf ../../lib/libnss_nis.so.2 libnss_nis.so )
-( cd usr/share/zoneinfo ; rm -rf localtime )
-( cd usr/share/zoneinfo ; ln -sf /etc/localtime localtime )
-( cd bin ; rm -rf sln )
-( cd bin ; ln -sf /sbin/sln sln )

@@ -982,6 +982,7 @@ gzip ./source/a/grub/grub.xfs.sparse.inodes.patch
 gzip ./source/a/grub/initrd_naming.patch
 gzip ./source/a/grub/doinst.sh
 gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff
+gzip ./source/a/grub/grub.binutils.fix.diff
 gzip ./source/a/grub/0001-Fix-CVE-2015-8370-Grub2-user-pass-vulnerability.patch
 gzip ./source/a/dbus/doinst.sh
 gzip ./source/a/dbus/dbus-1.12.x-allow_root_globally.diff

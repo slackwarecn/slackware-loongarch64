@@ -41,11 +41,11 @@ touch -r $PKGNAM-$VERSION.tar.xz tmp-timestamp || exit 1
 rm -rf $PKGNAM-$VERSION
 tar xvf $PKGNAM-$VERSION.tar.xz || exit 1
 rm -f $PKGNAM-$VERSION/test/reference/*
-rm -f $PKGNAM-$VERSION.tar.xz
+rm -f $PKGNAM-$VERSION.tar.?z
 tar cvf $PKGNAM-$VERSION.tar $PKGNAM-$VERSION
 touch -r tmp-timestamp $PKGNAM-$VERSION.tar
-xz -9 -v $PKGNAM-$VERSION.tar
+plzip -9 -v $PKGNAM-$VERSION.tar
 rm -rf $PKGNAM-$VERSION tmp-timestamp
 
-echo "Repacking of $PKGNAM-$VERSION.tar.xz complete."
+echo "Repacking of $PKGNAM-$VERSION.tar.lz complete."
 

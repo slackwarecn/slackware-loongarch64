@@ -747,6 +747,7 @@ gzip ./source/d/m4/m4.glibc228.diff
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/DBD-mysql.net_buffer_length.diff
+gzip ./source/d/meson/meson.dont.exit.1.if.builddir.is.already.configured.patch
 gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/pmake/pmake_1.111-1.diff

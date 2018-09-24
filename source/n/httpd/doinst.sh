@@ -20,8 +20,7 @@ preserve_perms() {
     cat ${NEW} > ${NEW}.incoming
     mv ${NEW}.incoming ${NEW}
   fi
-  # Don't use config() -- we always want to install this, changed or unchanged.
-  #config ${NEW}
+  config ${NEW}
 }
 
 if [ ! -e var/log/httpd ]; then
@@ -55,8 +54,6 @@ fi
 
 # Keep same perms when installing rc.httpd.new:
 preserve_perms etc/rc.d/rc.httpd.new
-# Always install the new rc.httpd:
-mv etc/rc.d/rc.httpd.new etc/rc.d/rc.httpd
 
 # Handle config files.  Unless this is a fresh installation, the
 # admin will have to move the .new files into place to complete

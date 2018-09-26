@@ -100,7 +100,6 @@ gzip ./source/n/ppp/ppp.glibc228.diff
 gzip ./source/n/ppp/pppsetup-1.98.backupfiles.diff
 gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/doinst.sh
-gzip ./source/n/gnutls/gnutls-3.6.3-backport-upstream-fixes.patch
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/openssh.no.openssl.version.check.diff
@@ -109,6 +108,7 @@ gzip ./source/n/ulogd/doinst.sh
 gzip ./source/n/yptools/yp-tools-2.14-glibc217-crypt.diff
 gzip ./source/n/yptools/rc.yp
 gzip ./source/n/yptools/nsswitch.conf-nis
+gzip ./source/n/fetchmail/fetchmail.openssl111.diff
 gzip ./source/n/lynx/doinst.sh
 gzip ./source/n/lynx/lynx.cfg.diff
 gzip ./source/n/lynx/lynx-CVE-2008-4690.patch
@@ -927,6 +927,8 @@ gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/eudev/doinst.sh
 gzip ./source/a/eudev/60-cdrom_id.rules.diff
 gzip ./source/a/eudev/eudev.ignore_bind_unbind_events.diff
+gzip ./source/a/eudev/0001-fix-default-rules.patch
+gzip ./source/a/eudev/0002-slackware-rules-adjust
 gzip ./source/a/udisks2/doinst.sh
 gzip ./source/a/sysklogd/sysklogd.allow.repeated.messages.diff
 gzip ./source/a/sysklogd/doinst.sh

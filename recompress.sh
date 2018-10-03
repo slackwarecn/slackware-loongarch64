@@ -619,7 +619,6 @@ gzip ./source/xap/xpdf/lang/xpdf-greek.diff
 gzip ./source/xap/xpdf/lang/xpdf-arabic.diff
 gzip ./source/xap/xpdf/lang/xpdf-japanese.diff
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
-gzip ./source/xap/mozilla-thunderbird/80754eac3809
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/mozilla.rust_1_29_0.patch
@@ -634,7 +633,6 @@ gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./source/xap/mozilla-firefox/mozilla.rust_1_29_0.patch
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/xaos/xaos.x86.registers.diff
 gzip ./source/xap/xaos/xaos.6
@@ -927,8 +925,6 @@ gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/eudev/doinst.sh
 gzip ./source/a/eudev/60-cdrom_id.rules.diff
 gzip ./source/a/eudev/eudev.ignore_bind_unbind_events.diff
-gzip ./source/a/eudev/0001-fix-default-rules.patch
-gzip ./source/a/eudev/0002-slackware-rules-adjust
 gzip ./source/a/udisks2/doinst.sh
 gzip ./source/a/sysklogd/sysklogd.allow.repeated.messages.diff
 gzip ./source/a/sysklogd/doinst.sh
@@ -1041,9 +1037,8 @@ gzip ./source/ap/a2ps/a2ps-texi-comments.patch
 gzip ./source/ap/a2ps/a2ps.a2ps_cfg.in.diff
 gzip ./source/ap/a2ps/a2ps.diff
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
+gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
 gzip ./source/ap/hplip/doinst.sh
-gzip ./source/ap/hplip/hplip.libImageProcessor.diff
-gzip ./source/ap/hplip/hplip.remove-ImageProcessor.diff
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff

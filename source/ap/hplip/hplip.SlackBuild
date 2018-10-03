@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=hplip
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -96,20 +96,26 @@ sed -i.env-python -e 's,^#!/usr/bin/env python,#!/usr/bin/python3,' \
     prnt/filters/hpps \
     fax/filters/pstotiff
 
-# COMMENTED OUT: We aren't going to need this patch since the one below it
-# throws the blob into the bit bucket.
-## libImageProcessor installation is fubar in 3.18.7:
-#zcat $CWD/hplip.libImageProcessor.diff.gz | patch -p1 -l --verbose || exit 1
-
 # Forget it folks - this ImageProcessor closed-source blob is broken, and there
 # is no way to fix it. We will use this patch from Debian to remove it from
 # hplip, reverting to the way things worked in the 3.18.6 release. If HP ever
 # sees fit to make ImageProcessor mandatory, we'll likely stick with the last
 # hplip release that can be made to work without it, and any HP printers that
 # require a newer version of hplip will not be supported.
-#zcat $CWD/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch.gz | patch -p1 -l --verbose || exit 1
-# Use this version instead to patch Makefile.in rather than Makefile.am:
-zcat $CWD/hplip.remove-ImageProcessor.diff.gz | patch -p1 -l --verbose || exit 1
+zcat $CWD/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch.gz | patch -p1 -l --verbose || exit 1
+
+# Add a cups-2.2.x header since some definitions were moved:
+zcat $CWD/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch.gz | patch -p1 -l --verbose || exit 1
+
+# autoreconf will fail if these files do not exist:
+for file in NEWS README AUTHORS ChangeLog ; do
+  if [ ! -r $file ]; then
+    touch $file
+  fi
+done
+
+# Needed because Makefile.am was patched:
+autoreconf -vif || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \

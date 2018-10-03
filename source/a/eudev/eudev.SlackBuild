@@ -23,10 +23,10 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=eudev
-VERSION=${VERSION:-$(echo eudev-*.tar.?* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo eudev-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+BUILD=${BUILD:-4}
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -59,7 +59,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/lib/udev
 cd $TMP
 rm -rf eudev-$VERSION
-tar xvf $CWD/eudev-$VERSION.tar.?z || exit 1
+tar xvf $CWD/eudev-$VERSION.tar.xz || exit 1
 cd eudev-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -75,10 +75,6 @@ zcat $CWD/60-cdrom_id.rules.diff.gz | patch -p1 --verbose || exit 1
 # was also breaking MTP support in KDE.
 # See: https://bugs.kde.org/show_bug.cgi?id=387454
 zcat $CWD/eudev.ignore_bind_unbind_events.diff.gz | patch -p1 --verbose || exit 1
-
-# Fix issues with the default rules:
-zcat $CWD/0001-fix-default-rules.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0002-slackware-rules-adjust.gz | patch -p1 --verbose || exit 1
 
 ./configure \
   --prefix=/usr \

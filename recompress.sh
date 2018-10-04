@@ -171,6 +171,7 @@ gzip ./source/n/httpd/doinst.sh
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
 gzip ./source/n/dovecot/doinst.sh
 gzip ./source/n/dovecot/dovecot.config.README.diff
+gzip ./source/n/dovecot/dovecot.glibc228.patch
 gzip ./source/n/netwatch/netwatch.phonemyself.diff
 gzip ./source/n/netwatch/netwatch.makefile.diff
 gzip ./source/n/inetd/doinst.sh

@@ -26,10 +26,10 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=vulkan-sdk
-VERSION=${VERSION:-$(echo Vulkan-LoaderAndValidationLayers-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo Vulkan-ValidationLayers-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:--j7}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -71,64 +71,113 @@ fi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-vulkan-sdk
 
+GLSLANG_VERSION=$(echo glslang-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+SPIRV_HEADERS_VERSION=$(echo SPIRV-Headers-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+SPIRV_TOOLS_VERSION=$(echo SPIRV-Tools-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf Vulkan-LoaderAndValidationLayers-sdk-$VERSION
-tar xvf $CWD/Vulkan-LoaderAndValidationLayers-sdk-$VERSION.tar.?z || exit 1
-cd Vulkan-LoaderAndValidationLayers-sdk-$VERSION || exit 1
+rm -rf Vulkan-ValidationLayers-sdk-$VERSION Vulkan-Headers-sdk-$VERSION glslang-$GLSLANG_VERSION
 
-GLSLANG_VERSION=$(cat external_revisions/glslang_revision | head -n 1)
-SPIRV_HEADERS_VERSION=$(basename SPIRV-Headers-* .tar.?z | rev | cut -d - -f 1 | rev)
-SPIRV_TOOLS_VERSION=$(basename SPIRV-Tools-* .tar.?z | rev | cut -d - -f 1 | rev)
-
-mkdir external
-
-cd external
-  tar xf $CWD/glslang-${GLSLANG_VERSION}.tar.?z || exit 1
-  mv glslang-${GLSLANG_VERSION} glslang
-
-cd glslang/External
-tar xf $CWD/SPIRV-Tools-${SPIRV_TOOLS_VERSION}.tar.?z* || exit 1
-mv SPIRV-Tools-${SPIRV_TOOLS_VERSION} spirv-tools
-
-mkdir -p spirv-tools/external
+tar xvf $CWD/glslang-${GLSLANG_VERSION}.tar.?z || exit 1
+cd glslang-$GLSLANG_VERSION/External
+tar xvf $CWD/SPIRV-Tools-$SPIRV_TOOLS_VERSION.tar.?z || exit 1
+mv SPIRV-Tools-$SPIRV_TOOLS_VERSION spirv-tools
 cd spirv-tools/external
-  tar xvf $CWD/SPIRV-Headers-${SPIRV_HEADERS_VERSION}.tar.?z* || exit 1
-  mv SPIRV-Headers-${SPIRV_HEADERS_VERSION} spirv-headers
+tar xvf $CWD/SPIRV-Headers-$SPIRV_HEADERS_VERSION.tar.?z || exit 1
+mv SPIRV-Headers-$SPIRV_HEADERS_VERSION spirv-headers
 
-cd $TMP/Vulkan-LoaderAndValidationLayers-sdk-$VERSION
+cd $TMP/glslang-${GLSLANG_VERSION}
 
-# chown -R root:root .
+chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-mkdir -p external/{glslang,spirv-tools}/build
-mkdir -p build
-mkdir -p build-demos
-
 # Fix LIBDIRSUFFIX
-for i in $(find external -name CMakeLists.txt); do
+for i in $(find . -name CMakeLists.txt); do
   sed -i "s|DESTINATION lib|DESTINATION \${CMAKE_INSTALL_LIBDIR}|" "$i"
 done
 
-cd external/glslang/build
+mkdir -p build
+cd build
+cmake \
+  -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_INSTALL_PREFIX=$PKG \
+  -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
+  -DCMAKE_BUILD_TYPE=Release \
+  ..
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+cd $TMP
+
+tar xvf $CWD/Vulkan-Headers-sdk-$VERSION.tar.?z || exit 1
+cd Vulkan-Headers-sdk-$VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+mkdir -p build
+cd build
+cmake \
+  -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_INSTALL_PREFIX=/usr\
+  -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
+  -DCMAKE_BUILD_TYPE=Release \
+  ..
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+cd $TMP
+
+tar xvf $CWD/Vulkan-Loader-sdk-$VERSION.tar.?z || exit 1
+cd $TMP/Vulkan-Loader-sdk-$VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+mkdir -p build
+cd build
   cmake \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DGLSLANG_INSTALL_DIR=$PKG/usr \
+    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
+    -DBUILD_WSI_WAYLAND_SUPPORT=Off \
+    -DBUILD_WSI_MIR_SUPPORT=Off \
     ..
 
-  make $NUMJOBS VERBOSE=1 || make || exit 1
+  make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 
-cd -
+cd $TMP
 
+tar xvf $CWD/Vulkan-ValidationLayers-sdk-$VERSION.tar.?z || exit 1
+cd $TMP/Vulkan-ValidationLayers-sdk-$VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+
+mkdir -p build
 cd build
   cmake \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
@@ -138,40 +187,57 @@ cd build
     -DCMAKE_INSTALL_DATADIR=/share \
     -DCMAKE_SKIP_RPATH=True \
     -DBUILD_TESTS=Off \
-    -DBUILD_DEMOS=On \
     -DBUILD_WSI_XLIB_SUPPORT=On \
     -DBUILD_WSI_XCB_SUPPORT=On \
     -DBUILD_WSI_WAYLAND_SUPPORT=Off \
     -DBUILD_WSI_MIR_SUPPORT=Off \
     -DCMAKE_BUILD_TYPE=Release \
-    -DGLSLANG_VALIDATOR=../external/glslang/build/StandAlone/glslangValidator \
+    -DGLSLANG_INSTALL_DIR=$PKG/usr \
+    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
+    -DVULKAN_LOADER_INSTALL_DIR=$PKG/usr \
     ..
 
-  make $NUMJOBS VERBOSE=1 || make || exit 1
+  make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
-cd -
 
-mkdir -p $PKG/usr/share/vulkan/{explicit,implicit}_layer.d
+cd $TMP
 
-mv $PKG/etc/vulkan/explicit_layer.d/*.json $PKG/usr/share/vulkan/explicit_layer.d/
-mv $PKG/usr/bin/smoketest $PKG/usr/bin/vulkan-smoketest
+tar xvf $CWD/Vulkan-Tools-sdk-$VERSION.tar.?z || exit 1
+cd $TMP/Vulkan-Tools-sdk-$VERSION
 
-# Use headers from spirv-headers as they are newer than the ones installed by glslang
-for i in spirv.h spirv.hpp spirv.hpp11; do
-  install -m 0644 external/glslang/External/spirv-tools/external/spirv-headers/include/spirv/1.2/$i \
-    $PKG/usr/include/SPIRV/
-done
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
 
-## I don't know why this is here, so I'm commenting it out. ;-)
-#( cd $PKG/usr/include
-#  ln -sf SPIRV spirv
-#)
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
+    -DGLSLANG_INSTALL_DIR=$PKG/usr \
+    -DVULKAN_LOADER_INSTALL_DIR=$PKG/usr \
+    -DBUILD_WSI_WAYLAND_SUPPORT=Off \
+    -DBUILD_WSI_MIR_SUPPORT=Off \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+
+cd $TMP
 
 find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a *.md LICENSE.txt loader/LoaderAndLayerInterface.md \
+cp -a \
+  Vulkan-Loader-sdk-$VERSION/*.txt \
+  Vulkan-Loader-sdk-$VERSION/loader/LoaderAndLayerInterface.md \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/install

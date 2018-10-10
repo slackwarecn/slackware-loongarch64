@@ -752,6 +752,7 @@ gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/pmake/pmake_1.111-1.diff
 gzip ./source/d/icecream/doinst.sh
 gzip ./source/d/make/make.glibc-2.27.glob.diff
+gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
 gzip ./source/d/make/make.guile22.diff
 gzip ./source/d/pkg-config/doinst.sh
 gzip ./source/d/mercurial/doinst.sh

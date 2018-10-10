@@ -1429,7 +1429,11 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     mv staging staging.orig
     mv staging.orig/hv staging
     rm -rf${VERBOSE1} staging.orig
+    # Save the Hyper-V keyboard module:
+    mkdir -p input.orig/serio
+    cp -a input/serio/hyperv-keyboard.ko input.orig/serio
     rm -rf${VERBOSE1} ata atm bluetooth clocksource connector crypto dma idle infiniband input isdn kvm leds media memstick message mfd misc pci power rtc serial telephony uwb w1 watchdog
+    mv input.orig input
 
     if [ "$ADD_KMS" = "1" ]; then
       # Keep video.ko and button.ko, needed by some gpu drivers.
@@ -1466,11 +1470,16 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
 
       # Keep some video drivers:
       mv video video.orig
-      mkdir video
+      mkdir -p video/fbdev
       mv video.orig/{sis,syscopyarea.ko,sysfillrect.ko,sysimgblt.ko} video
+      mv video.orig/fbdev/hyperv_fb.ko video/fbdev
       rm -rf${VERBOSE1} video.orig
     else
-      rm -rf${VERBOSE1} acpi char cpufreq hwmon platform thermal video
+      # Save the Hyper-V framebuffer module:
+      mv video video.orig
+      mkdir -p video/fbdevmv
+      mv video.orig/fbdev/hyperv_fb.ko video/fbdev
+      rm -rf${VERBOSE1} acpi char cpufreq hwmon platform thermal video.orig
     fi
 
     # Needed to install on MMC:

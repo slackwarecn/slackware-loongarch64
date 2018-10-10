@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2017  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,78 +25,104 @@
 # github, and then look at the revisions listed in the external_revisions
 # directory to fetch the proper glslang, SPIRV-Headers, and SPIRV-Tools.
 #
-# Example:  VERSION=1.1.73.0 ./fetch-sources.sh
+# Example:  VERSION=1.1.85.0 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.1.73.0}
+VERSION=${VERSION:-1.1.85.0}
+BRANCH=${BRANCH:-sdk-1.1.85}
 
-# Remove existing sources:
-rm -rf Vulkan-LoaderAndValidationLayers-sdk* glslang-* SPIRV-Headers-* SPIRV-Tools-*
+rm -rf Vulkan-*-*.tar.?z glslang* SPIRV-Tools* SPIRV-Headers* \
+	Vulkan-Headers-sdk-${VERSION}* \
+	Vulkan-ValidationLayers-sdk-${VERSION}* \
+	Vulkan-Loader-sdk-${VERSION}* \
+	Vulkan-Tools-sdk-${VERSION}*
 
-# Fetch SDK:
-lftpget https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers/archive/sdk-${VERSION}/Vulkan-LoaderAndValidationLayers-sdk-${VERSION}.tar.gz
 
-GLSLANG_REVISION=$(tar xOf Vulkan-LoaderAndValidationLayers-sdk-${VERSION}.tar.gz Vulkan-LoaderAndValidationLayers-sdk-${VERSION}/external_revisions/glslang_revision)
+git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-Headers.git Vulkan-Headers-sdk-${VERSION}
+rm -rf Vulkan-Headers-sdk-${VERSION}/.git
+tar cf Vulkan-Headers-sdk-${VERSION}.tar Vulkan-Headers-sdk-${VERSION}
+rm -rf Vulkan-Headers-sdk-${VERSION}
+plzip -9 Vulkan-Headers-sdk-${VERSION}.tar
 
-git clone https://github.com/KhronosGroup/glslang.git glslang-$GLSLANG_REVISION
-cd glslang-$GLSLANG_REVISION
-git checkout $GLSLANG_REVISION
-SPIRV_TOOLS_REVISION=$(
-python3 - << EOF
+git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-ValidationLayers.git Vulkan-ValidationLayers-sdk-${VERSION}
+rm -rf Vulkan-ValidationLayers-sdk-${VERSION}/.git
+tar cf Vulkan-ValidationLayers-sdk-${VERSION}.tar Vulkan-ValidationLayers-sdk-${VERSION}
+rm -rf Vulkan-ValidationLayers-sdk-${VERSION}
+# Put this here since python's tarfile.open doesn't like tar.lz:
+GLSLANG_COMMIT=$(python3 - << EOF
 import json
-with open('known_good.json') as f:
-  known_good = json.load(f)
-commits = known_good['commits']
-print(commits[0]['commit'])
+import tarfile
+with tarfile.open('Vulkan-ValidationLayers-sdk-$VERSION.tar') as layers:
+        known_good = layers.extractfile('Vulkan-ValidationLayers-sdk-1.1.85.0/scripts/known_good.json')
+        known_good_info = json.loads(known_good.read())
+glslang = next(repo for repo in known_good_info['repos'] if repo['name'] == 'glslang')
+print(glslang['commit'])
 EOF
 )
-SPIRV_HEADERS_REVISION=$(
-python3 - << EOF
+# Now it's safe to compress:
+plzip -9 Vulkan-ValidationLayers-sdk-${VERSION}.tar
+
+git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-Loader.git Vulkan-Loader-sdk-${VERSION}
+rm -rf Vulkan-Loader-sdk-${VERSION}/.git
+tar cf Vulkan-Loader-sdk-${VERSION}.tar Vulkan-Loader-sdk-${VERSION}
+rm -rf Vulkan-Loader-sdk-${VERSION}
+plzip -9 Vulkan-Loader-sdk-${VERSION}.tar
+
+git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-Tools.git Vulkan-Tools-sdk-${VERSION}
+rm -rf Vulkan-Tools-sdk-${VERSION}/.git
+tar cf Vulkan-Tools-sdk-${VERSION}.tar Vulkan-Tools-sdk-${VERSION}
+rm -rf Vulkan-Tools-sdk-${VERSION}
+plzip -9 Vulkan-Tools-sdk-${VERSION}.tar
+
+git clone https://github.com/KhronosGroup/glslang.git
+cd glslang || exit
+git checkout "$GLSLANG_COMMIT"
+GLSLANG_VERSION=$(git rev-parse --short HEAD)
+rm -rf .git
+cd ..
+
+mv glslang "glslang-$GLSLANG_VERSION"
+
+SPIRV_TOOLS_COMMIT=$(python3 - << EOF
 import json
-with open('known_good.json') as f:
-  known_good = json.load(f)
-commits = known_good['commits']
-print(commits[1]['commit'])
+with open('glslang-$GLSLANG_VERSION/known_good.json') as f:
+	known_good = json.load(f)
+tools = next(commit for commit in known_good['commits'] if commit['name'] == 'spirv-tools')
+print(tools['commit'])
 EOF
 )
-# Cleanup.  We're not packing up the whole git repo.
-find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null
+
+git clone https://github.com/KhronosGroup/SPIRV-Tools.git
+cd SPIRV-Tools || exit
+git checkout "$SPIRV_TOOLS_COMMIT"
+SPIRV_TOOLS_VERSION="$(git rev-parse --short HEAD)"
+rm -rf .git
 cd ..
-tar cf glslang-${GLSLANG_REVISION}.tar glslang-${GLSLANG_REVISION}
-rm -rf glslang-${GLSLANG_REVISION}
-plzip -9 glslang-${GLSLANG_REVISION}.tar
+mv SPIRV-Tools SPIRV-Tools-$SPIRV_TOOLS_VERSION
+tar cf SPIRV-Tools-$SPIRV_TOOLS_VERSION.tar SPIRV-Tools-$SPIRV_TOOLS_VERSION
+rm -rf SPIRV-Tools-$SPIRV_TOOLS_VERSION
+plzip -9 SPIRV-Tools-$SPIRV_TOOLS_VERSION.tar
 
-git clone https://github.com/KhronosGroup/SPIRV-Headers.git SPIRV-Headers-${SPIRV_HEADERS_REVISION}
-cd SPIRV-Headers-${SPIRV_HEADERS_REVISION}
-git checkout ${SPIRV_HEADERS_REVISION}
-# Cleanup.  We're not packing up the whole git repo.
-find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null
+SPIRV_HEADERS_COMMIT=$(python3 - << EOF
+import json
+with open('glslang-$GLSLANG_VERSION/known_good.json') as f:
+	known_good = json.load(f)
+name = 'spirv-tools/external/spirv-headers'
+headers = next(commit for commit in known_good['commits'] if commit['name'] == name)
+print(headers['commit'])
+EOF
+)
+
+git clone https://github.com/KhronosGroup/SPIRV-Headers.git
+cd SPIRV-Headers || exit
+git checkout "$SPIRV_HEADERS_COMMIT"
+SPIRV_HEADERS_VERSION="$(git rev-parse --short HEAD)"
+rm -rf .git
 cd ..
-tar cf SPIRV-Headers-${SPIRV_HEADERS_REVISION}.tar SPIRV-Headers-${SPIRV_HEADERS_REVISION}
-rm -rf SPIRV-Headers-${SPIRV_HEADERS_REVISION}
-plzip -9 SPIRV-Headers-${SPIRV_HEADERS_REVISION}.tar
+mv SPIRV-Headers SPIRV-Headers-$SPIRV_HEADERS_VERSION
+tar cf SPIRV-Headers-$SPIRV_HEADERS_VERSION.tar SPIRV-Headers-$SPIRV_HEADERS_VERSION
+rm -rf SPIRV-Headers-$SPIRV_HEADERS_VERSION
+plzip -9 SPIRV-Headers-$SPIRV_HEADERS_VERSION.tar
 
-git clone https://github.com/KhronosGroup/SPIRV-Tools.git SPIRV-Tools-${SPIRV_TOOLS_REVISION}
-cd SPIRV-Tools-${SPIRV_TOOLS_REVISION}
-git checkout ${SPIRV_TOOLS_REVISION}
-# Only purge the .pack, since spirv_tools_commit_id.h needs to query the repo:
-rm -f .git/objects/pack/pack-*.pack
-cd ..
-tar cf SPIRV-Tools-${SPIRV_TOOLS_REVISION}.tar SPIRV-Tools-${SPIRV_TOOLS_REVISION}
-rm -rf SPIRV-Tools-${SPIRV_TOOLS_REVISION}
-plzip -9 SPIRV-Tools-${SPIRV_TOOLS_REVISION}.tar
-
-# Repack Vulkan-LoaderAndValidationLayers-sdk:
-gzip -d Vulkan-LoaderAndValidationLayers-sdk-${VERSION}.tar.gz
-plzip -9 Vulkan-LoaderAndValidationLayers-sdk-${VERSION}.tar
-
-# List URLs in vulkan-sdk.url:
-echo "https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers/archive/sdk-${VERSION}/Vulkan-LoaderAndValidationLayers-sdk-${VERSION}.tar.gz" > vulkan-sdk.url
-echo "https://github.com/KhronosGroup/glslang/archive/${GLSLANG_REVISION}/glslang-${GLSLANG_REVISION}.tar.gz" >> vulkan-sdk.url
-echo "https://github.com/KhronosGroup/SPIRV-Headers/archive/${SPIRV_HEADERS_REVISION}/SPIRV-Headers-${SPIRV_HEADERS_REVISION}.tar.gz" >> vulkan-sdk.url
-echo "https://github.com/KhronosGroup/SPIRV-Tools/archive/${SPIRV_TOOLS_REVISION}/SPIRV-Tools-${SPIRV_TOOLS_REVISION}.tar.gz" >> vulkan-sdk.url
-
-# Fix timestamps to be correct:
-for file in *.tar.?z ; do
-  TIMESTAMP="$(tar tvf $file | head -1 | cut -b 32-47)"
-  touch -d "$TIMESTAMP" $file
-done
+tar cf glslang-$GLSLANG_VERSION.tar glslang-$GLSLANG_VERSION
+rm -rf glslang-$GLSLANG_VERSION
+plzip -9 glslang-$GLSLANG_VERSION.tar

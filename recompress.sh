@@ -102,8 +102,6 @@ gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/doinst.sh
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
-gzip ./source/n/openssh/openssh.no.openssl.version.check.diff
-gzip ./source/n/openssh/openssl-1.1.0.patch
 gzip ./source/n/ulogd/doinst.sh
 gzip ./source/n/yptools/yp-tools-2.14-glibc217-crypt.diff
 gzip ./source/n/yptools/rc.yp
@@ -506,7 +504,6 @@ gzip ./source/l/GConf/doinst.sh
 gzip ./source/l/GConf/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch
 gzip ./source/l/GConf/patches/0003-gsettings-data-convert-Warn-and-fix-invalid-schema-p.patch
 gzip ./source/l/GConf/patches/0001-mconvert-enable-recursive-scheme-lookup-and-fix-a-cr.patch
-gzip ./source/l/v4l-utils/v4l-utils.glibc228.diff
 gzip ./source/l/system-config-printer/system-config-printer.auth.dialog.2766d74a.patch
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig

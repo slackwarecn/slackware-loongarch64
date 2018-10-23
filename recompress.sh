@@ -390,6 +390,7 @@ gzip ./source/l/glib/glib-1.2.10-no_undefined.patch
 gzip ./source/l/glib/glib-1.2.10-format.patch
 gzip ./source/l/glib/glib-1.2.10-isowarning.patch
 gzip ./source/l/glib/glib-1.2.10-underquoted.patch
+gzip ./source/l/alsa-plugins/alsa-plugins.revert.fc3f5d51062ff438780e568995792dc809c908cc.6b996865126dd559ef186002e45dc6e1594291e7.patch
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff

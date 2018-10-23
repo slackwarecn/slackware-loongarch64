@@ -1,0 +1,64 @@
+From fc3f5d51062ff438780e568995792dc809c908cc Mon Sep 17 00:00:00 2001
+From: Andre Guedes <andre.guedes@intel.com>
+Date: Fri, 28 Sep 2018 14:27:24 -0700
+Subject: [PATCH] a52: Fix leaks when a52_set_hw_constraint() fails
+
+If a52_set_hw_constraint() returns error, we leak 'rec' and
+'rec->slave'. This patch fixes the issue by jumping to 'error' label
+where the proper clean up is already done.
+
+Signed-off-by: Andre Guedes <andre.guedes@intel.com>
+Reviewed-by: Takashi Sakamoto <o-takashi@sakamocchi.jp>
+Signed-off-by: Takashi Iwai <tiwai@suse.de>
+---
+ a52/pcm_a52.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/a52/pcm_a52.c b/a52/pcm_a52.c
+index 29ce45f..e431fd0 100644
+--- a/a52/pcm_a52.c
++++ b/a52/pcm_a52.c
+@@ -978,7 +978,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(a52)
+ 
+ 	if ((err = a52_set_hw_constraint(rec)) < 0) {
+ 		snd_pcm_ioplug_delete(&rec->io);
+-		return err;
++		goto error;
+ 	}
+ 
+ 	*pcmp = rec->io.pcm;
+-- 
+1.7.11.7
+
+From 6b996865126dd559ef186002e45dc6e1594291e7 Mon Sep 17 00:00:00 2001
+From: Andre Guedes <andre.guedes@intel.com>
+Date: Fri, 28 Sep 2018 14:27:27 -0700
+Subject: [PATCH] usb_stream: Fix leaks when us_set_hw_constraint() fails
+
+If us_set_hw_constraint() returns error, we leak the 'us' object and all
+the resources referenced by it. This patch fixes the issue by calling
+us_free() before returning.
+
+Signed-off-by: Andre Guedes <andre.guedes@intel.com>
+Reviewed-by: Takashi Sakamoto <o-takashi@sakamocchi.jp>
+Signed-off-by: Takashi Iwai <tiwai@suse.de>
+---
+ usb_stream/pcm_usb_stream.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/usb_stream/pcm_usb_stream.c b/usb_stream/pcm_usb_stream.c
+index 94c83a7..eb4ca98 100644
+--- a/usb_stream/pcm_usb_stream.c
++++ b/usb_stream/pcm_usb_stream.c
+@@ -455,6 +455,7 @@ static int snd_pcm_us_open(snd_pcm_t **pcmp, const char *name,
+ 	err = us_set_hw_constraint(us);
+ 	if (err < 0) {
+ 		snd_pcm_ioplug_delete(&us->io);
++		us_free(us);
+ 		return err;
+ 	}
+ 
+-- 
+1.7.11.7
+
+

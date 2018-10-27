@@ -325,7 +325,6 @@ gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/gst-plugins-base0/gst-plugins-base-0.10.36-gcc_4_9_0_i686-1.patch
 gzip ./source/l/imagemagick/policy.xml.diff
 gzip ./source/l/imagemagick/doinst.sh
-gzip ./source/l/imagemagick/ImageMagick.fix.overloading.error.diff
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/gnome-themes-standard/doinst.sh
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch

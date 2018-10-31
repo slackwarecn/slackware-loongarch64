@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=autofs
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -94,12 +94,39 @@ CPPFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Add /run directory:
+mkdir -p $PKG/run
+
 # Referenced in the auto.master config file, but not created:
 mkdir -p $PKG/etc/auto.master.d
 
-mv $PKG/etc/init.d $PKG/etc/rc.d
-mv $PKG/etc/rc.d/autofs $PKG/etc/rc.d/rc.autofs.new
+# Install rc.autofs.new:
+mkdir -p $PKG/etc/rc.d
+cp -a samples/rc.autofs $PKG/etc/rc.d/rc.autofs.new
+chown root:root $PKG/etc/rc.d/rc.autofs.new
 chmod 644 $PKG/etc/rc.d/rc.autofs.new
+# Fix confdir:
+sed -i "s|/etc/sysconfig|/etc/default|g" $PKG/etc/rc.d/rc.autofs.new
+
+# Install sample config files:
+for file in auto.master auto.misc auto.net auto.smb autofs_ldap_auth.conf default/autofs ; do
+  cp -a samples/$file $PKG/etc/${file}
+  chown root:root $PKG/etc/${file}
+  chmod 644 $PKG/etc/${file}
+done
+cp -a samples/autofs.conf.default $PKG/etc/autofs.conf
+chown root:root $PKG/etc/autofs.conf
+chmod 644 $PKG/etc/autofs.conf
+mkdir -p $PKG/etc/default
+cp -a samples/autofs.init.conf $PKG/etc/default/autofs.new
+chown root:root $PKG/etc/default/autofs.new
+chmod 644 $PKG/etc/default/autofs.new
+# Fix typo:
+sed -i "s/syatem/system/g" $PKG/etc/default/autofs.new
+
+# Fix perms on some config files:
+chmod 755 $PKG/etc/auto.smb $PKG/etc/auto.net
+chmod 600 $PKG/etc/autofs_ldap_auth.conf
 
 # Prep the config files:
 for file in auto.master auto.misc autofs.conf autofs_ldap_auth.conf default/autofs ; do

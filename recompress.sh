@@ -933,7 +933,6 @@ gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qca/qca.tlsunittest.cpp.diff
 gzip ./source/l/qca/Add_support_for_OpenSSL_1.1.0.diff
 gzip ./source/xap/hexchat/doinst.sh
-gzip ./source/xap/mozilla-thunderbird/mozilla.rust_1_29_0.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch

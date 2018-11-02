@@ -307,6 +307,7 @@ gzip ./source/kde/patch/kdewebdev/include-tidy.patch
 gzip ./source/kde/patch/kate/kate4-fix_gcc7.patch
 gzip ./source/kde/patch/kgamma/kgamma.cmake.include.checkincludefiles.diff
 gzip ./source/kde/patch/kde-runtime/kde-runtime-4.14.3.nm.diff
+gzip ./source/kde/patch/kde-runtime/kde-runtime.fix.konqueror.manpage.infopage.display.diff
 gzip ./source/kde/patch/plasma-nm/plasma-nm.nm.diff
 gzip ./source/kde/patch/kopete/kopete-gcc6.patch
 gzip ./source/kde/patch/kdepimlibs/kdepimlibs.libical3.diff

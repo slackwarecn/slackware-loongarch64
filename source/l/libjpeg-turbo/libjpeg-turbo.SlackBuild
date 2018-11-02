@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libjpeg-turbo
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -91,20 +91,21 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Configure:
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --sysconfdir=/etc \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --includedir=/usr/include \
-  --mandir=/usr/man \
-  --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
-
-# Build and install:
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG docdir=/usr/doc/$PKGNAM-$VERSION || exit 1
+# Configure, build, and install:
+mkdir build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DCMAKE_INSTALL_DOCDIR=/usr/doc/libjpeg-turbo-${VERSION} \
+    -DCMAKE_INSTALL_MANDIR=/usr/man \
+    -DENABLE_STATIC=OFF \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

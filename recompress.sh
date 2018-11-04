@@ -733,6 +733,7 @@ gzip ./source/l/db44/patch.4.4.20.2
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/gnome-themes-standard/doinst.sh
 gzip ./source/l/libgpod/doinst.sh
+gzip ./source/l/alsa-lib/alsa-lib.fix.pcm.interval.patch
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff

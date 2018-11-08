@@ -569,11 +569,6 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
-gzip ./source/ap/cdrdao/cdrdao-1.2.3-stat.patch
-gzip ./source/ap/cdrdao/cdrdao.bitrate_table.diff
-gzip ./source/ap/cdrdao/cdrdao-1.2.3-format.patch
-gzip ./source/ap/cdrdao/cdrdao.narrowing.diff
-gzip ./source/ap/cdrdao/cdrdao-1.2.3-helpmansync.patch
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/dash/dash-0.5.7-format-security.patch
@@ -725,6 +720,7 @@ gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff
 gzip ./source/l/ncurses/ncurses.mkhashsize.diff
+gzip ./source/l/ncurses/linux-no-bce.diff
 gzip ./source/l/ncurses/doinst.sh
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
@@ -902,7 +898,6 @@ gzip ./source/l/libnl3/doinst.sh
 gzip ./source/l/PyQt/PyQt.phonon.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
-gzip ./source/l/libcap-ng/python3.patch
 gzip ./source/l/polkit/0015-polkitpermission-Fix-a-memory-leak-on-authority-chan.patch
 gzip ./source/l/polkit/0004-polkit-Add-g_autoptr-support-for-GObject-derived-pol.patch
 gzip ./source/l/polkit/0001-Fix-a-memory-leak-of-PolkitAgentListener-s-Server-ob.patch

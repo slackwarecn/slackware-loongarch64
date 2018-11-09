@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=nasm
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -44,6 +44,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+
 if [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
 else
@@ -60,9 +62,6 @@ rm -rf nasm-$VERSION
 tar xvf $CWD/nasm-$VERSION.tar.?z* || exit 1
 cd nasm-$VERSION || exit 1
 
-# Fix FTBFS with gcc8:
-zcat $CWD/0001-Remove-invalid-pure_func-qualifiers.patch.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -76,13 +75,15 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --build=${ARCH}-slackware-linux || exit 1
 
-make || exit 1
+make $NUMJOBS || make || exit 1
+
 ( cd doc
   make nasmdoc.txt || exit 1
   mkdir -p $PKG/usr/doc/nasm-$VERSION
   cp nasmdoc.txt $PKG/usr/doc/nasm-$VERSION
 ) || exit 1
-make install INSTALLROOT=$PKG || exit 1
+
+make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

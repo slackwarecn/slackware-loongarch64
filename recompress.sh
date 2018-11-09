@@ -78,7 +78,6 @@ gzip ./source/d/make/make.glibc-2.27.glob.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/DBD-mysql.net_buffer_length.diff
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
-gzip ./source/d/nasm/0001-Remove-invalid-pure_func-qualifiers.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -663,7 +662,6 @@ gzip ./source/ap/amp/amp-gcc34.diff
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/jove/jove.getline.buffsiz.diff
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
-gzip ./source/ap/cups/455c52a027ab3548953372a0b7bdb0008420e9ba.patch
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap

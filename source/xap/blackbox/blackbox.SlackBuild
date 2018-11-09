@@ -29,7 +29,7 @@ PKGNAM=blackbox
 SRCNAM=blackbox
 VERSION=${VERSION:-0.74}
 BBKEYSVER=${BBKEYSVER:-0.9.1}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -110,9 +110,6 @@ CFLAGS="$SLKCFLAGS" \
 # Build:
 make $NUMJOBS || make || exit 1
 
-# Install onto filesystem - needed for bbkeys to find libbt:
-make install || exit 1
-
 # Install into package:
 make install DESTDIR=$PKG || exit 1
 mkdir -p $PKG/etc/X11/xinit
@@ -153,6 +150,14 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# The blackbox's libbt won't be met. We could make the LIBBT_CFLAGS and
+# LIBBT_LIBS environment to point in the temporary root, but we will
+# rather try to keep going with pkg-config, in case the requirements are
+# updated in the future.
+export PKG_CONFIG_PATH="$(pwd)/pkgconfig.$$"
+mkdir "$PKG_CONFIG_PATH"
+sed "s,=/usr,=$PKG/usr," "$PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/libbt.pc" >"$PKG_CONFIG_PATH/libbt.pc"
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

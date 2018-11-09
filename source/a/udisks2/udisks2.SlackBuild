@@ -29,7 +29,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=udisks2
 SRCNAM=udisks
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -91,6 +91,16 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# Temporarily omit LVM2 support since it uses a removed API. We'll upgrade
+# udisks2 soon (and add newly required deps) to handle this, but since it
+# was broken after the LVM2 upgrade recently and nobody noticed yet it's
+# probably OK for it to be like this for a little while.
+if [ "$VERSION" = "2.6.5" ]; then
+  LVM2_SUPPORT="--disable-lvm2"
+else
+  LVM2_SUPPORT="--enable-lvm2"
+fi
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -101,7 +111,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-static \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --enable-lvm2 \
+  $LVM2_SUPPORT \
   --build=$TARGET || exit 1
 
 make $NUMJOBS || make || exit 1

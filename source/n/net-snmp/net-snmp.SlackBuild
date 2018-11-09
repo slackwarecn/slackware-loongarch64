@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=net-snmp
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-9}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -65,20 +65,8 @@ fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
-
-zcat $CWD/net-snmp.net-snmp-create-v3-user.etc.snmpd.conf.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/net-snmp-5.7.3-Fix-Makefile-PL.patch.gz | patch -p1 --verbose || exit 1
-
-# Replace a typedef that conflicts with perl:
-zcat $CWD/net-snmp-5.7.3-Remove-U64-typedef.patch.gz | patch -p1 --verbose || exit 1
-
-# Add support for mariadb:
-zcat $CWD/net-snmp-5.7.3-mariadb-10.2.8.diff.gz | patch -p1 --verbose || exit 1
-
-# Support OpenSSL-1.1.x:
-zcat $CWD/net-snmp-5.7.3-openssl.patch.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -88,9 +76,26 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+zcat $CWD/net-snmp-5.7.2-pie.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-dir-fix.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-multilib.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-test-debug.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.7.2-autoreconf.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-agentx-disconnect-crash.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.7.2-cert-path.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-cflags.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-Remove-U64-typedef.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-libnetsnmptrapd-against-MYSQL_LIBS.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.7.3-iterator-fix.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-autofs-skip.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/net-snmp-5.8-modern-rpm-api.patch.gz | patch -p1 --verbose || exit 1
+
+# Not sure about this one?
+#zcat $CWD/net-snmp-5.8-python3.patch.gz | patch -p1 --verbose || exit 1
+
 # Fix destdir for python modules
-sed -i "s|\$(PYMAKE) install|\$(PYMAKE) install --root=$PKG|" \
-  Makefile.in
+#sed -i "s|\$(PYMAKE) install|\$(PYMAKE) install --root=$PKG|" \
+#  Makefile.in
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

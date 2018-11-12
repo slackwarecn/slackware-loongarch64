@@ -142,6 +142,7 @@ gzip ./source/a/gpm/gpm.types.diff
 gzip ./source/a/gpm/mouseconfig
 gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
+gzip ./source/a/quota/quotad.fix.high.cpu.usage.diff
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/file/file.xz.magic
 gzip ./source/a/file/file.zisofs.magic
@@ -1109,6 +1110,7 @@ gzip ./source/x/x11/patch/xf86-video-intel/0001-Fix-build-on-F28-and-later.patch
 gzip ./source/x/x11/patch/xf86-video-intel/0001-Fix-build-on-i686.patch
 gzip ./source/x/x11/patch/xf86-video-intel/intel-gcc-pr65873.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
+gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

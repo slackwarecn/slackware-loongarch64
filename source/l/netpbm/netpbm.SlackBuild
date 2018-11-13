@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=netpbm
-VERSION=${VERSION:-10.66.02}
-BUILD=${BUILD:-5}
+VERSION=${VERSION:-10.84.02}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -43,6 +43,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -65,11 +67,51 @@ mkdir -p $TMP # Do not create $PKG or 'make package' fails
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION
 
+zcat $CWD/netpbm-security-scripts.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-security-code.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-ppmfadeusage.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/netpbm-noppmtompeg.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/netpbm-pnmtops.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-CVE-2017-2587.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-python3.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-time.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-gcc4.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-bmptopnm.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-CAN-2005-2471.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-xwdfix.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-multilib.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-glibc.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-docfix.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-fiasco-overflow.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-cmuwtopbm.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-pamtojpeg2k.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-manfix.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-manual-pages.patch.gz | patch -p1 --verbose || exit 1
+
+# Send blank lines to "configure" to just take defaults:
+./configure << EOF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+EOF
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -79,16 +121,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Configure:
-if [ "$ARCH" = "x86_64" ]; then
-  zcat $CWD/config.mk.gz \
-    | sed -e '/^CFLAGS/s/^CFLAGS = .*/& -fPIC/' > config.mk
-else
-  zcat $CWD/config.mk.gz > config.mk
-fi
-
-# Build and install (does not like parallel build):
-make || exit 1
+# Build and install:
+make $NUMJOBS || make || exit 1
 make package pkgdir=$PKG || exit 1
 
 # Strip binaries:
@@ -99,7 +133,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 ( cd $PKG
   rm README
   mkdir -p usr
-  mv * usr
+  mv * usr 2> /dev/null
   cd usr
   mkdir -p doc/netpbm-$VERSION
   mv VERSION bin/doc.url doc/netpbm-$VERSION
@@ -110,16 +144,33 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
     echo "Please edit the correct library major version into the build script"
     exit 1
   fi
-  mv lib lib${LIBDIRSUFFIX}
+  mv lib lib${LIBDIRSUFFIX} 2> /dev/null
   # Remove junk directories:
   rm -rf link misc
   # Remove manweb related files:
-  rm -rf bin/manweb man/man1/manweb.1* man/web
+  rm -rf bin/manweb man/web
   # Any other files in /usr are junk:
   rm --verbose * 2> /dev/null
 )
 
-# Compress and link manpages, if any:
+# Create and install man pages for existing utilities:
+( cd userguide
+  for i in *.html ; do
+    ../buildtools/makeman ${i}
+  done
+  for manpage in *.1 ; do
+    if [ ! -r $PKG/usr/bin/$(basename $manpage .1) ]; then
+      rm $manpage
+    fi
+  done
+  for i in 1 3 5 ; do
+    mkdir -p man/man${i}
+    mv *.${i} man/man${i}
+  done
+  mv man $PKG/usr
+)
+
+# Compress and link manpages:
 if [ -d $PKG/usr/man ]; then
   ( cd $PKG/usr/man
     for manpagedir in $(find . -type d -name "man*") ; do
@@ -134,16 +185,12 @@ if [ -d $PKG/usr/man ]; then
   )
 fi
 
-# Even out-of-date manpages are better than nothing.  IMHO.
-( cd $PKG/usr
-  tar xjf $CWD/netpbm-manpages.tar.bz2
-)
-
 # Add a documentation directory:
 ( cd doc
   cp -a \
-  COPYRIGHT.PATENT GPL_LICENSE.txt INSTALL Netpbm.programming \
-  README* USERDOC copyright_summary lgpl_v21.txt \
+  CONTRIBUTORS COPYRIGHT.PATENT GPL_LICENSE.txt HISTORY INSTALL \
+  Netpbm.programming USERDOC copyright_summary lgpl_v21.txt \
+  patent_summary \
   $PKG/usr/doc/${PKGNAM}-$VERSION
   if [ -r HISTORY ]; then
     DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)

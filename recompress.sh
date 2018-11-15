@@ -388,7 +388,6 @@ gzip ./source/n/slrn/doinst.sh
 gzip ./source/n/pidentd/pidentd.openssl-1.1.diff
 gzip ./source/n/pidentd/doinst.sh
 gzip ./source/n/pidentd/pidentd.conf.diff
-gzip ./source/n/cifs-utils/cifs-utils-6.7-talloc.patch
 gzip ./source/n/autofs/doinst.sh
 gzip ./source/n/net-snmp/net-snmp-5.7.2-cert-path.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-agentx-disconnect-crash.patch
@@ -466,15 +465,10 @@ gzip ./source/n/rp-pppoe/rp-pppoe-3.12-pluginpath.patch
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-bz1469960-new-kernel-header.patch
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/openvpn/doinst.sh
-gzip ./source/n/rpcbind/0006-rpcbproc_callit_com-No-need-to-allocate-output-buffe.patch
 gzip ./source/n/rpcbind/rpcbind.lwrap.needs.lnsl.diff
 gzip ./source/n/rpcbind/0001-man-rpcibind.8-Clarify-state-file-usage-and-history.patch
-gzip ./source/n/rpcbind/0004-rpcbind-fix-building-without-enable-debug.patch
-gzip ./source/n/rpcbind/0002-rpcbind-pair-all-svc_getargs-calls-with-svc_freeargs.patch
-gzip ./source/n/rpcbind/0003-pmapproc_dump-Fixed-typo-in-memory-leak-patch.patch
 gzip ./source/n/rpcbind/rc.rpc
 gzip ./source/n/rpcbind/doinst.sh
-gzip ./source/n/rpcbind/0005-rpcbproc_callit_com-Stop-freeing-a-static-pointer.patch
 gzip ./source/n/gpa/doinst.sh
 gzip ./source/n/netkit-rusers/netkit-rusers-0.17.diff
 gzip ./source/n/netkit-timed/netkit-timed-0.17.diff

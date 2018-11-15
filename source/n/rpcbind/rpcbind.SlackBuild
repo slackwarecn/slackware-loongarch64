@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rpcbind
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -84,18 +84,9 @@ rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
-# CVE-2017-8779
-zcat $CWD/0002-rpcbind-pair-all-svc_getargs-calls-with-svc_freeargs.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0003-pmapproc_dump-Fixed-typo-in-memory-leak-patch.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0004-rpcbind-fix-building-without-enable-debug.patch.gz | patch -p1 --verbose || exit 1
-
-# Fixes from git master
-zcat $CWD/0005-rpcbproc_callit_com-Stop-freeing-a-static-pointer.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/0006-rpcbproc_callit_com-No-need-to-allocate-output-buffe.patch.gz | patch -p1 --verbose || exit 1
-
+# Local patches:
 zcat $CWD/0001-man-rpcibind.8-Clarify-state-file-usage-and-history.patch | patch -p1 --verbose || exit 1
 zcat $CWD/rpcbind.lwrap.needs.lnsl.diff.gz | patch -p1 --verbose || exit 1
-
 
 # This is needed after the libwrap patch above:
 autoreconf -vif || exit 1
@@ -127,6 +118,10 @@ CFLAGS="$SLKCFLAGS" \
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Move rpcbind to /sbin:
+mv $PKG/usr/sbin/rpcbind $PKG/sbin/rpcbind
+rmdir $PKG/usr/sbin
 
 # Make state directory (not really needed as rpcbind does this on startup)
 mkdir -p $PKG/var/run/rpcbind

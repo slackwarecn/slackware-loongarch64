@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=shadow
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -78,16 +78,6 @@ done
 # breakage:
 zcat $CWD/shadow.CVE-2005-4890.relax.diff.gz | patch -p1 --verbose || exit 1
 
-# Patch a race condition that allows a user to kill processes that they don't
-# own.  Note that the bug requires that shadow is using PAM, which is not yet
-# the case on Slackware.  So we're unaffected, but patching this anyway in
-# -current, because you never know...
-zcat $CWD/shadow.CVE-2017-2616.diff.gz | patch -p1 --verbose || exit 1
-
-# Re-run automake because of r3299 patch to man/ru/Makefile.am:
-# (not used because it doesn't work...  above patch does the intended fix)
-#automake -f
-
 # Even if gethostname() returns the FQDN (long hostname), just display the
 # short version up to the first '.' on the login prompt:
 zcat $CWD/shadow.login.display.short.hostname.diff.gz | patch -p1 --verbose || exit 1
@@ -99,12 +89,17 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+if [ ! -r ./configure ]; then
+  ./autogen.sh
+fi
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --docdir=/usr/doc/shadow-$VERSION \
+  --enable-man \
   --enable-subordinate-ids \
   --disable-shared \
   --without-libcrack \
@@ -117,6 +112,7 @@ make install DESTDIR=$PKG || exit 1
 
 # Fix user group = 100:
 zcat $CWD/useradd.gz > $PKG/etc/default/useradd
+mv $PKG/etc/default/useradd $PKG/etc/default/useradd.new
 
 # /bin/groups is provided by coreutils.
 rm -f $PKG/bin/groups

@@ -191,7 +191,6 @@ gzip ./source/a/shadow/useradd
 gzip ./source/a/shadow/shadow.login.display.short.hostname.diff
 gzip ./source/a/shadow/login.defs
 gzip ./source/a/shadow/shadow.CVE-2005-4890.relax.diff
-gzip ./source/a/shadow/shadow.CVE-2017-2616.diff
 gzip ./source/a/shadow/doinst.sh
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff

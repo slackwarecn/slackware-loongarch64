@@ -10,6 +10,7 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
+config etc/default/useradd.new
 config etc/login.access.new
 config etc/login.defs.new
 config var/log/faillog.new

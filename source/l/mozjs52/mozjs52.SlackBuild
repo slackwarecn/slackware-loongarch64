@@ -2,7 +2,7 @@
 
 # Slackware build script for SpiderMonkey
 
-# Copyright 2011  Robby Workman, Northport, Alabama, USA
+# Copyright 2011, 2018  Robby Workman, Tuscaloosa, Alabama, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,12 +24,11 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=js185
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+PKGNAM=mozjs52
+SRCNAME=firefox
+VERSION=52.9.0esr
+BUILD=${BUILD:-1}
 
-TARNAME=js
-TARVERS=1.8.5
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -71,9 +70,16 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $TARNAME-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
-cd $TARNAME-$TARVERS || exit 1
+rm -rf $SRCNAME-$VERSION
+# Unpack this in a subdirectory to prevent changing permissions on /tmp:
+rm -rf firefox-unpack
+mkdir firefox-unpack
+cd firefox-unpack
+tar xvf $CWD/$SRCNAME-$VERSION.source.tar.?z || exit 1
+mv * ..
+cd ..
+rm -rf firefox-unpack
+cd $SRCNAME-$VERSION || exit 1
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -81,35 +87,69 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# We need to use the incredibly ancient autoconf-2.13 for this  :/                                                                                             
+( cd $CWD/autoconf ; ./autoconf.build )
+PATH=$TMP/autoconf-tmp/usr/bin:$PATH
+
+# Patches from Debian:
+zcat $CWD/patches/fix-soname.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/copy-headers.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/tests-increase-timeout.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/tests-snans-be.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/disable-mozglue.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/include-configure-script.patch.gz | patch -p1 --verbose || exit 1
+
+# Patches from Fedora:
+zcat $CWD/patches/xulrunner-24.0-jemalloc-ppc.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/xulrunner-24.0-s390-inlines.patch.gz | patch -p2 --verbose || exit 1
+#zcat $CWD/patches/build-icu-big-endian.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/build-missing-xlocale-h.patch.gz | patch -p2 --verbose || exit 1
+zcat $CWD/patches/mozilla-1253216.patch.gz | patch -p1 --verbose || exit 1
+
+# Remove bundled security libraries so that we don't link to them:
+rm -rf security
+
+# Remove bundled zlib directory and use system version:
+rm -rf modules/zlib
+
 cd js/src
 
-patch -p0 < $CWD/js185-destdir.patch || exit 1
+# We need to do this because patches above touch configure.in:
+autoconf-2.13
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS -std=gnu++98 -fpermissive -fno-delete-null-pointer-checks" \
+CFLAGS+="$SLKCFLAGS -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-tree-vrp " \
+CXXFLAGS+="$SLKCFLAGS -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-tree-vrp " \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --mandir=/usr/man \
-  --build=$ARCH-slackware-linux \
+  --disable-debug \
+  --disable-debug-symbols \
+  --disable-strip \
+  --enable-gold \
   --enable-optimize="-O2" \
   --enable-threadsafe \
-  --with-system-nspr \
-  --with-nspr-prefix=/usr || exit 1
+  --enable-pie \
+  --enable-posix-nspr-emulation \
+  --enable-readline \
+  --enable-release \
+  --enable-shared-js \
+  --enable-tests \
+  --with-intl-api \
+  --with-system-zlib \
+  --without-system-icu \
+  --build=$ARCH-slackware-linux \
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Oops, Makefile missed this:
-cp -a shell/js $PKG/usr/bin
-
-# No need for this:
-rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+# No need for the huge static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libjs_static.*
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp ../../README README.html $PKG/usr/doc/$PKGNAM-$VERSION
+cp ../../README.txt README.html $PKG/usr/doc/$PKGNAM-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

@@ -99,7 +99,9 @@ if [ ! -r $BUILDLIST -a ! -r ${BUILDLIST}.lock ]; then
       echo $script >> $BUILDLIST
     fi
   done
-  echo "${SLACKWARE_SOURCE_DIRECTORY}kde/kde.SlackBuild" >> $BUILDLIST
+  if [ -r ${SLACKWARE_SOURCE_DIRECTORY}kde/kde.SlackBuild ]; then
+    echo "${SLACKWARE_SOURCE_DIRECTORY}kde/kde.SlackBuild" >> $BUILDLIST
+  fi
   rm -f ${BUILDLIST}.lock
   # Set GEN_LIST_ONLY=yes if you'd like to exit after generating a build list.
   # You might want to do this to comment some build scripts out first, or if

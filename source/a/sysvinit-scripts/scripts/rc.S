@@ -176,11 +176,6 @@ fi
 # Enable swapping:
 /sbin/swapon -a 2> /dev/null
 
-# Start FUSE, if requested:
-if [ -x /etc/rc.d/rc.fuse ]; then
-  /etc/rc.d/rc.fuse start
-fi
-
 # Set the tick and frequency for the system clock.
 # Default values are: TICK=10000 and FREQ=0
 TICK=10000
@@ -297,22 +292,22 @@ else
   echo "to the Linux section in your /etc/lilo.conf and type 'lilo' to reinstall it."
 fi # Done checking root filesystem
 
-
-# Any /etc/mtab that exists here is old, so we start with a new one:
-/bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
-
-# Add entry for / to /etc/mtab:
-/sbin/mount -f -w /
-
-# Add /proc, /sys, and /dev/shm mounts to /etc/mtab:
-if [ -d /proc/sys ]; then
-  /sbin/mount -f -t proc proc /proc
-fi
-if [ -d /sys/bus ]; then
-  /sbin/mount -f -t sysfs sysfs /sys
-fi
-if grep -q '^[^ ]\+ /dev/shm ' /proc/mounts 2> /dev/null ; then
-  /sbin/mount -f -t tmpfs tmpfs /dev/shm
+# If /etc/mtab is a symlink (probably to /proc/mounts) then we don't want to mess with it.
+if [ ! -L /etc/mtab -o ! -r /etc/mtab ]; then
+  # /etc/mtab is a file (or doesn't exist), so we'll handle it the old way:
+  # Any /etc/mtab that exists here is old, so we start with a new one:
+  /bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
+  # Add /, /proc, /sys, and /dev/shm mounts to /etc/mtab:
+  /sbin/mount -f -w /
+  if [ -d /proc/sys ]; then
+    /sbin/mount -f -t proc proc /proc
+  fi
+  if [ -d /sys/bus ]; then
+    /sbin/mount -f -t sysfs sysfs /sys
+  fi
+  if grep -q '^[^ ]\+ /dev/shm ' /proc/mounts 2> /dev/null ; then
+    /sbin/mount -f -t tmpfs tmpfs /dev/shm
+  fi
 fi
 
 # Configure ISA Plug-and-Play devices:

@@ -162,12 +162,12 @@ do_build() {
   $buildscript &> $LOGDIR/$(basename $(echo $buildscript | cut -f 1 -d ' ')).log
   if [ ! $? = 0 ]; then
     # Exit code from SlackBuild indicated an error:
-    echo "failed to build."
+    echo "$(PRINT_PACKAGE_NAME=foo $buildscript | head -n 1) failed to build."
     mv $LOGDIR/$(basename $(echo $buildscript | cut -f 1 -d ' ')).log $LOGDIR/$(basename $(echo $buildscript | cut -f 1 -d ' ')).log.failed
   elif [ ! -r $OUTPUT_LOCATION/$(PRINT_PACKAGE_NAME=foo $buildscript | head -n 1) ]; then
     # No error code returned from SlackBuild, but the package(s) were not found.
     # Possibly the SlackBuild doesn't honor $TMP, and a non-/tmp $TMP variable was set?
-    echo "failed to build."
+    echo "$(PRINT_PACKAGE_NAME=foo $buildscript | head -n 1) failed to build."
     mv $LOGDIR/$(basename $(echo $buildscript | cut -f 1 -d ' ')).log $LOGDIR/$(basename $(echo $buildscript | cut -f 1 -d ' ')).log.failed
   else
     # Figure out a progress report to include with the successful build message:
@@ -178,7 +178,7 @@ do_build() {
     NUMTOTAL="$(cat $LOGDIR/tmp-pkgs-to-build.$$ | wc -l)"
     NUMBUILT="$(grep -x -f $LOGDIR/tmp-pkgs-built-or-building.$$ $LOGDIR/tmp-pkgs-to-build.$$ | wc -l)"
     rm -f $LOGDIR/tmp-pkgs-to-build.$$ $LOGDIR/tmp-pkgs-built-or-building.$$
-    echo "built successfully ($NUMBUILT/$NUMTOTAL)."
+    echo "$(PRINT_PACKAGE_NAME=foo $buildscript | head -n 1) built successfully ($NUMBUILT/$NUMTOTAL)."
     for package in $(PRINT_PACKAGE_NAME=foo $buildscript) ; do
       upgradepkg --install-new --reinstall $OUTPUT_LOCATION/$package > /dev/null 2>&1
     done

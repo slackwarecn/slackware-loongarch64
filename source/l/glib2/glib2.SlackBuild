@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=glib2
 VERSION=${VERSION:-$(echo glib-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -77,8 +77,12 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Silly upstream, using the bleeding edge.  Reconf:
-#autoreconf --force --install 
+# Get the local timezone link from /etc/localtime-copied-from:
+zcat $CWD/glib2.slackware.localtime.diff.gz | patch -p1 --verbose || exit 1
+
+if [ ! -r configure ]; then
+  NOCONFIGURE=1 ./autogen.sh
+fi
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -86,6 +90,7 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --mandir=/usr/man \
+  --enable-gtk-doc \
   --disable-libelf \
   --build=$ARCH-slackware-linux || exit 1
 

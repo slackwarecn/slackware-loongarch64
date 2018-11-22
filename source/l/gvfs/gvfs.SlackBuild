@@ -75,23 +75,36 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-if [ ! -x configure ]; then
-  autoreconf -vif || exit 1
-fi
-
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# EXAMPLE FOR MESON:
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --mandir=/usr/man \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --enable-gtk-doc \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+  --buildtype=release \
+  -Ddnssd=false \
+  -Dgoa=false \
+  -Dgoogle=false \
+  -Dlogind=false \
+  -Dman=true \
+  -Dnfs=false \
+  -Dsystemduserunitdir=no \
+  -Dtmpfilesdir=no \
+  .. || exit 1
+  ninja || exit 1
+  DESTDIR=$PKG ninja install || exit 1
+cd ..
 
 ## This was an issue in 2012, but we will try commenting this sed command out
 ## in 2017 hoping that the issue no longer occurs...

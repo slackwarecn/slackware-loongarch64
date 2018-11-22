@@ -26,9 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libcap
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-2}
-
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -47,6 +45,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -75,8 +75,6 @@ rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
-zcat $CWD/libcap.capability.h.fix.broken.includes.diff.gz | patch -p1 || exit 1
-
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -92,7 +90,7 @@ sed 's@^BUILD_GPERF@#\0@' -i Make.Rules
 
 
 make DYNAMIC=yes $NUMJOBS || make DYNAMIC=yes || exit 1
-make install FAKEROOT=$PKG man_prefix=/usr || exit 1
+make install RAISE_SETFCAP=no DESTDIR=$PKG man_prefix=/usr || exit 1
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/libcap.so*
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

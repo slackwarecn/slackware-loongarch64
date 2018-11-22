@@ -47,6 +47,8 @@ gzip ./source/d/llvm/clang-tools-extra.no.clangd.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/rust/link_libffi.diff
+gzip ./source/d/vala/disable-graphviz.patch
+gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
 gzip ./source/d/gcc/gcc-no_fixincludes.diff
 gzip ./source/d/doxygen/doxygen.9468ede.diff
@@ -211,6 +213,7 @@ gzip ./source/a/bin/scripts/diskcopy
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff
+gzip ./source/a/upower/patches/upower.glib_2_58_1.diff
 gzip ./source/a/upower/patches/linux-Clamp-percentage-for-overfull-batteries.patch
 gzip ./source/a/upower/patches/Update-UPower-HID-rules-supported-devices-list.patch
 gzip ./source/a/upower/patches/rules-Add-support-for-Logitech-G700s-G700-Gaming-Mou.patch
@@ -733,7 +736,6 @@ gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
-gzip ./source/l/libcap/libcap.capability.h.fix.broken.includes.diff
 gzip ./source/l/imagemagick/policy.xml.diff
 gzip ./source/l/imagemagick/doinst.sh
 gzip ./source/l/GConf/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch
@@ -806,6 +808,7 @@ gzip ./source/l/qt/qt.QTBUG-22829.diff
 gzip ./source/l/qt/qt.QTBUG-35459.diff
 gzip ./source/l/qt/qt.qclipboard_fix_recursive.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh
+gzip ./source/l/glib2/glib2.slackware.localtime.diff
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gtk+2/gtk.gtk-faq.diff
@@ -851,7 +854,6 @@ gzip ./source/l/mozjs52/patches/copy-headers.patch
 gzip ./source/l/mozjs52/patches/mozilla-1253216.patch
 gzip ./source/l/alsa-plugins/alsa-plugins.a4e7e1282c57a2f4e83afe9a4008042d8b4c5bb9.patch
 gzip ./source/l/gdk-pixbuf2/doinst.sh
-gzip ./source/l/gdk-pixbuf2/gdk-pixbuf.pnglz.diff
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/020_no-parallel-make.diff
@@ -1112,7 +1114,7 @@ gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-consolekit.patch
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
-gzip ./source/x/x11/patch/pixman/pixman.remove.glyph-test.that.fails.to.compile.diff
+gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch

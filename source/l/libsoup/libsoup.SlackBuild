@@ -72,19 +72,31 @@ cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# EXAMPLE FOR MESON:
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
-  --localstatedir=/var/lib \
-  --disable-static \
-  --with-gnome \
-  --enable-vala=no \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install-strip DESTDIR=$PKG || exit 1
+  --localstatedir=/var \
+  --buildtype=release \
+  -Dgssapi=false \
+  -Dvapi=true \
+  -Ddoc=true \
+  .. || exit 1
+  ninja || exit 1
+  DESTDIR=$PKG ninja install || exit 1
+cd ..
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

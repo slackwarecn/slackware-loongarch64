@@ -37,6 +37,7 @@ d/python-pip
 d/python3
 d/opencl-headers
 d/rust
+d/vala
 l/Mako
 l/SDL2
 l/SDL2_gfx
@@ -57,9 +58,13 @@ l/libbluray
 l/libclc
 l/libedit
 l/libidn2
+l/libopusenc
+l/libpsl
 l/libsodium
 l/libunwind
 l/libwebp
+l/lmdb
+l/mozjs52 (replaceds l/js185)
 l/ocl-icd
 l/opus
 l/opusfile
@@ -80,6 +85,7 @@ l/tdb
 l/tevent
 l/talloc
 l/utf8proc
+l/zstd
 n/dovecot
 n/libmilter
 n/nghttp2
@@ -126,8 +132,10 @@ l/libmcs
 l/libmsn
 l/libtermcap
 l/libwmf-docs (merged with l/libwmf)
+l/js185 (replaced with l/mozjs52)
 l/notify-python (replaced by python-notify2)
 l/pyrex
+l/virtuoso-ose
 n/dirmngr
 n/idnkit
 n/pth
@@ -214,15 +222,24 @@ The gnupg2 package has changed such that the gpg agent is autostarted on
 As mentioned earlier, n/postfix replaces n/sendmail as the default MTA.
   However, postfix is sendmail compatible with respect to function; in
   other words, any scripts or other applications expecting to *use*
-  sendmail should work just fine, as postfix installs a file at
-  /usr/sbin/sendmail.  This is all fine and wonderful unless you want
-  to *use* sendmail *instead* of postfix and thus decided to leave
-  sendmail installed on the system. The postfix package will overwrite
-  the /usr/sbin/sendmail file on the system. Long story short: if you
-  plan to use the sendmail MTA instead of postfix, you will need to
-  uninstall postfix *before* installing/reinstalling sendmail. You should
-  never have both sendmail and postfix installed on the same machine.
-  If you do, one of them will not work properly.
+  sendmail should work just fine, as postfix installs a sendmail binary
+  at /usr/sbin/sendmail. This is all fine and wonderful unless you want
+  to use sendmail *instead* of postfix and thus decided to leave sendmail
+  installed on the system. The postfix package will overwrite the
+  /usr/sbin/sendmail file on the system. Long story short: if you plan 
+  to use the sendmail MTA instead of postfix, you will need to reinstall 
+  sendmail after postfix. Many distros provide a means of having both MTAs 
+  (and even others, such as exim and courier) installed at the same time, 
+  but we don't see a reason to bother with that. If for some reason you 
+  DO want both:
+    1: First, install the MTA you do NOT plan to use
+    2. Rename the /usr/sbin/sendmail binary with a suffix, e.g.
+       # mv /usr/sbin/sendmail /usr/sbin/sendmail.postfix
+    3: Next, install the MTA you DO plan to use
+  Finally, you might want to configure the first-installed MTA to look at
+  the changed path for its sendmail binary. We're not going to cover that 
+  here. Also note that only one of the installed MTAs will be able to bind
+  the common SMTP ports, if you want to have both MTAs running.
 
 The cciss driver has been replaced by the hpsa driver, so if you're
   running an HP server, this may be relevant to you. This is mostly an
@@ -246,7 +263,7 @@ Use one of the provided generic kernels for daily use.  Do not report
   ATI proprietary drivers) if you use the SMP kernel.
 
   If you decide to use one of the non-SMP kernels, you will need to follow the
-  instructions in /extra/linux-4.14.68-nosmp-sdk/README.TXT to modify your
+  instructions in /extra/linux-4.19.3-nosmp-sdk/README.TXT to modify your
   kernel sources for non-SMP usage.  Note that this only applies if you are
   using the Slackware-provided non-SMP kernel - if you build a custom kernel,
   the symlinks at /lib/modules/$(uname -r)/{build,source} will point to the

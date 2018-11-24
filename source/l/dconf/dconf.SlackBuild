@@ -95,12 +95,19 @@ meson setup \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --buildtype=release \
-  -Denable-man=true \
-  -Denable-gtk-doc=true \
+  -Dbash_completion=false \
+  -Dgtk_doc=true \
+  -Dman=true \
   .. || exit 1
   ninja || exit 1
   DESTDIR=$PKG ninja install || exit 1
 cd ..
+
+# bash-completion is not available at build time, so install the file manually:
+mkdir -p $PKG/usr/share/bash-completion/completions
+cp -a bin/completion/dconf $PKG/usr/share/bash-completion/completions/dconf
+chown root:root $PKG/usr/share/bash-completion/completions/dconf
+chmod 644 $PKG/usr/share/bash-completion/completions/dconf
 
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \;

@@ -85,10 +85,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Don't use graphviz if it's not on the system. Unless you already have a Vala
-# compiler though, you'll need to build with graphviz the first time to use
-# the resulting package to bootstrap a non-graphviz build.
-# Sorry in advance to the Slackware From Scratch folks.
+# Don't use graphviz if it's not on the system.
 if ! /bin/ls /usr/man/man7/graphviz.7.gz 1> /dev/null 2> /dev/null ; then
   zcat $CWD/disable-graphviz.patch.gz | patch -p1 --verbose || exit 1
   # The last one doesn't quite do it for 0.42.3.
@@ -111,6 +108,12 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-static \
   $GRAPHVIZ_SUPPORT \
   --build=$ARCH-slackware-linux || exit 1
+
+# Hack to build if valac isn't already installed:
+if [ ! -r /usr/bin/valac ]; then
+  PATH=$(pwd)/compiler:$PATH
+fi
+
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 

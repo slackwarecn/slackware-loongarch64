@@ -519,10 +519,6 @@ gzip ./source/n/yptools/rc.yp
 gzip ./source/n/netkit-rsh/netkit-rsh.arg_max.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.auth.c.stddef.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.union_wait.diff
-gzip ./source/n/mailx/mailx-12.5-globname-Invoke-wordexp-with-WRDE_NOCMD-CVE-2004-277.patch
-gzip ./source/n/mailx/mailx-12.5-openssl.patch
-gzip ./source/n/mailx/mailx-12.5-outof-Introduce-expandaddr-flag.patch
-gzip ./source/n/mailx/doinst.sh
 gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/doinst.sh
 gzip ./source/n/lynx/lynx-CVE-2008-4690.patch
@@ -532,6 +528,7 @@ gzip ./source/n/netkit-routed/netkit-routed-0.17.diff
 gzip ./source/n/netkit-routed/routed.18.candidate.final.patch
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/doinst.sh
+gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/COPYRIGHT
 gzip ./source/n/dhcpcd/doinst.sh
@@ -545,7 +542,6 @@ gzip ./source/n/irssi/doinst.sh
 gzip ./source/n/httpd/httpd.runasapache.diff
 gzip ./source/n/httpd/doinst.sh
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
-gzip ./source/n/dovecot/dovecot.glibc228.patch
 gzip ./source/n/dovecot/doinst.sh
 gzip ./source/n/dovecot/dovecot.config.README.diff
 gzip ./source/n/biff+comsat/biff+comsat.badutmp.diff

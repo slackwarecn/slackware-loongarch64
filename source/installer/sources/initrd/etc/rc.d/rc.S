@@ -167,6 +167,10 @@ vgscan --mknodes 2> /tmp/foo
 cat /tmp/foo | uniq
 rm -f /tmp/foo
 
+# Activate LVM volumes:
+echo "Activating LVM volumes:"
+vgchange -ay
+
 if [ -x /etc/rc.d/rc.font ]; then
   /bin/sh /etc/rc.d/rc.font
 fi

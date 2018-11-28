@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright 2013, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=harfbuzz
+PKGNAM=graphite2
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -47,9 +47,6 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-$PKGNAM
-
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
@@ -64,11 +61,14 @@ else
   LIBDIRSUFFIX=""
 fi
 
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+tar xvf $CWD/${PKGNAM}-${VERSION}.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -77,23 +77,18 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --mandir=/usr/man \
-  --with-glib=yes \
-  --with-gobject=yes \
-  --with-graphite2=auto \
-  --enable-introspection=yes \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Wno-dev ..
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
@@ -103,7 +98,7 @@ find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | gr
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL NEWS README THANKS TODO \
+  COPYING* LICENSE* README* Todo* \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

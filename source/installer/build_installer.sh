@@ -795,6 +795,7 @@ a/dosfstools \
 a/e2fsprogs \
 a/efivar \
 a/etc \
+a/f2fs-tools \
 a/gptfdisk \
 a/grep \
 a/gzip \
@@ -1088,6 +1089,7 @@ cp  -fa${VERBOSE1} \
         libcrypto*so* \
         libcryptsetup*.so* \
         libdevmapper*so* \
+        libf2fs.so* \
         libfdisk.so* \
         libgcc*so* \
         libgcrypt*.so* \

@@ -229,8 +229,13 @@ if [ -r /etc/forcefsck ]; then
   FORCEFSCK="-f"
 fi
 
-# Check the root filesystem:
-if [ ! $READWRITE = yes ]; then
+# If we're using F2FS for the root filesystem, don't check it as it doesn't
+# allow checking a read-only filesystem:
+if [ "$(cat /etc/fstab | tr '\t' ' ' | tr -s ' ' | grep ' / ' | cut -f 3 -d ' ')" = "f2fs" ]; then
+  echo "Remounting root device with read-write enabled."
+  /sbin/mount -w -v -n -o remount /
+elif [ ! $READWRITE = yes ]; then
+  # Check the root filesystem:
   RETVAL=0
   if [ ! -r /etc/fastboot ]; then
     echo "Checking root filesystem:"

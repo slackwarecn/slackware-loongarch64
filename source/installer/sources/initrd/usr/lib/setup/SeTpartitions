@@ -17,6 +17,24 @@ crunch () {
    echo $STRING
 }
 
+# make_f2fs( dev ) - Create a new f2fs filesystem on the named dev.
+# Parameters:  dev     Device node to format.
+make_f2fs() {
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem f2fs." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Filesystem type: f2fs " 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   mkfs.f2fs -f $1 1> $REDIR 2> $REDIR
+}
+
 # make_btrfs( dev ) - Create a new btrfs filesystem on the named dev.
 # Parameters:  dev     Device node to format.
 make_btrfs() {
@@ -220,7 +238,7 @@ to format this partition?" 12 70 3 \
 # ask_fs( dev ) - Asks the user the type of filesystem to use for the named
 #                 device.  Answer in $TMP/return
 ask_fs() {
-  unset BTRFS EXT2 EXT3 JFS REISERFS XFS
+  unset BTRFS EXT2 EXT3 F2FS JFS REISERFS XFS
   if grep -wq ext2 /proc/filesystems 1> $NDIR 2> $NDIR ; then
     EXT2="Ext2 is the traditional Linux file system and is fast and stable. "
   fi
@@ -238,6 +256,9 @@ ask_fs() {
   if grep -wq btrfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
     BTRFS="Btrfs is a B-tree copy-on-write filesystem. "
   fi
+  if grep -wq f2fs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    F2FS="F2FS is a Flash-Friendly File System. "
+  fi
   # These last two will only be present if the user asked for a special kernel.
   # They should probably be the default in that case.
   if grep -wq jfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
@@ -251,7 +272,7 @@ dialog --title "SELECT FILESYSTEM FOR $1" \\
 --backtitle "Partition $1 will be formatted." \\
 --default-item $DEFAULT --menu \\
 "Please select the type of filesystem to use for the specified \\
-device. Here are descriptions of the available filesystems: $EXT2 $EXT3 $EXT4 $JFS $REISERFS $XFS" \\
+device. Here are descriptions of the available filesystems: $EXT2 $EXT3 $EXT4 $BTRFS $F2FS $JFS $REISERFS $XFS" \\
 0 0 0 \\
 EOF
   if [ ! "$EXT2" = "" ]; then
@@ -271,6 +292,9 @@ EOF
   fi
   if [ ! "$BTRFS" = "" ]; then
     echo "\"btrfs\" \"Btrfs Copy-on-Write B-tree Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$F2FS" = "" ]; then
+    echo "\"f2fs\" \"Flash-Friendly File System\" \\" >> $TMP/tempscript
   fi
   if [ ! "$XFS" = "" ]; then
     echo "\"xfs\" \"SGI's Journaling Filesystem\" \\" >> $TMP/tempscript
@@ -352,6 +376,8 @@ if [ ! "$DOFORMAT" = "No" ]; then
     make_reiserfs $ROOT_DEVICE
   elif [ "$ROOT_SYS_TYPE" = "btrfs" ]; then
     make_btrfs $ROOT_DEVICE
+  elif [ "$ROOT_SYS_TYPE" = "f2fs" ]; then
+    make_f2fs $ROOT_DEVICE
   elif [ "$ROOT_SYS_TYPE" = "jfs" ]; then
     if [ "$DOFORMAT" = "Check" ]; then
       make_jfs $ROOT_DEVICE "y"
@@ -454,6 +480,8 @@ EOF
           make_reiserfs $NEXT_PARTITION
         elif [ "$NEXT_SYS_TYPE" = "btrfs" ]; then
           make_btrfs $NEXT_PARTITION
+        elif [ "$NEXT_SYS_TYPE" = "f2fs" ]; then
+          make_f2fs $NEXT_PARTITION
         elif [ "$NEXT_SYS_TYPE" = "jfs" ]; then
           if [ "$DOFORMAT" = "Check" ]; then
             make_jfs $NEXT_PARTITION "y"

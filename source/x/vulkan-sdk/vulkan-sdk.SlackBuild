@@ -29,8 +29,6 @@ PKGNAM=vulkan-sdk
 VERSION=${VERSION:-$(echo Vulkan-ValidationLayers-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:--j7}
-
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
@@ -50,6 +48,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -77,8 +77,14 @@ SPIRV_TOOLS_VERSION=$(echo SPIRV-Tools-*.tar.?z | rev | cut -f 3- -d . | cut -f 
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
+
 cd $TMP
-rm -rf Vulkan-ValidationLayers-sdk-$VERSION Vulkan-Headers-sdk-$VERSION glslang-$GLSLANG_VERSION
+# Clear existing tmp sources:
+rm -rf glslang-${GLSLANG_VERSION} \
+  Vulkan-Headers-sdk-$VERSION \
+  Vulkan-Loader-sdk-$VERSION \
+  Vulkan-ValidationLayers-sdk-$VERSION \
+  Vulkan-Tools-sdk-$VERSION
 
 tar xvf $CWD/glslang-${GLSLANG_VERSION}.tar.?z || exit 1
 cd glslang-$GLSLANG_VERSION/External
@@ -116,7 +122,6 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 cd $TMP
-
 tar xvf $CWD/Vulkan-Headers-sdk-$VERSION.tar.?z || exit 1
 cd Vulkan-Headers-sdk-$VERSION
 
@@ -138,8 +143,21 @@ cmake \
   ..
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-cd $TMP
 
+# Make sure some SPIR-V headers are there:
+HEADER_SOURCE_DIR="$TMP/glslang-${GLSLANG_VERSION}/External/spirv-tools/external/spirv-headers/include/spirv/unified1"
+mkdir -p $PKG/usr/include/vulkan
+for file in GLSL.std.450.h spirv.h spirv.hpp spirv.hpp11 spirv.json \
+  spirv.lua spirv.py ; do
+  if [ -r $HEADER_SOURCE_DIR/$file -a ! -r $PKG/usr/include/vulkan/$file ]; then
+    cp -a --verbose $HEADER_SOURCE_DIR/$file $PKG/usr/include/vulkan/$file
+    chown root:root $PKG/usr/include/vulkan/$file
+    chmod 644 $PKG/usr/include/vulkan/$file
+  fi
+done
+unset HEADER_SOURCE_DIR
+
+cd $TMP
 tar xvf $CWD/Vulkan-Loader-sdk-$VERSION.tar.?z || exit 1
 cd $TMP/Vulkan-Loader-sdk-$VERSION
 
@@ -201,7 +219,6 @@ cd build
   make install DESTDIR=$PKG || exit 1
 
 cd $TMP
-
 tar xvf $CWD/Vulkan-Tools-sdk-$VERSION.tar.?z || exit 1
 cd $TMP/Vulkan-Tools-sdk-$VERSION
 

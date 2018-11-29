@@ -464,7 +464,6 @@ gzip ./source/n/rp-pppoe/rp-pppoe-3.12-plugin.patch
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-ip-allocation.patch
 gzip ./source/n/rp-pppoe/doinst.sh
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-pluginpath.patch
-gzip ./source/n/rp-pppoe/rp-pppoe-3.12-bz1469960-new-kernel-header.patch
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/openvpn/doinst.sh
 gzip ./source/n/rpcbind/rpcbind.lwrap.needs.lnsl.diff

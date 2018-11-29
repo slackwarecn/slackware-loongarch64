@@ -25,10 +25,10 @@
 # github, and then look at the revisions listed in the external_revisions
 # directory to fetch the proper glslang, SPIRV-Headers, and SPIRV-Tools.
 #
-# Example:  VERSION=1.1.85.0 ./fetch-sources.sh
+# Example:  VERSION=1.1.92.1 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.1.85.0}
-BRANCH=${BRANCH:-sdk-1.1.85}
+VERSION=${VERSION:-1.1.92.1}
+BRANCH=${BRANCH:-sdk-1.1.92}
 
 rm -rf Vulkan-*-*.tar.?z glslang* SPIRV-Tools* SPIRV-Headers* \
 	Vulkan-Headers-sdk-${VERSION}* \
@@ -52,7 +52,7 @@ GLSLANG_COMMIT=$(python3 - << EOF
 import json
 import tarfile
 with tarfile.open('Vulkan-ValidationLayers-sdk-$VERSION.tar') as layers:
-        known_good = layers.extractfile('Vulkan-ValidationLayers-sdk-1.1.85.0/scripts/known_good.json')
+        known_good = layers.extractfile('Vulkan-ValidationLayers-sdk-1.1.92.1/scripts/known_good.json')
         known_good_info = json.loads(known_good.read())
 glslang = next(repo for repo in known_good_info['repos'] if repo['name'] == 'glslang')
 print(glslang['commit'])

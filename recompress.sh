@@ -78,7 +78,6 @@ gzip ./source/d/make/make.guile22.diff
 gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
 gzip ./source/d/make/make.glibc-2.27.glob.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
-gzip ./source/d/perl/DBD-mysql.net_buffer_length.diff
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
@@ -567,7 +566,6 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
-gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/dash/dash-0.5.7-format-security.patch

@@ -26,7 +26,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=perl
-VERSION=5.28.0
+VERSION=5.28.1
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -57,10 +57,12 @@ PKG=$TMP/package-perl
 
 # Additional required modules:
 #
+# https://metacpan.org/release/Devel-CheckLib
+DEVELCHECKLIB=1.13
 # https://metacpan.org/release/DBD-mysql
-DBDMYSQL=4.046
+DBDMYSQL=4.049
 # https://metacpan.org/release/DBI
-DBI=1.641
+DBI=1.642
 # https://metacpan.org/release/gettext
 GETTEXT=1.07
 # https://metacpan.org/release/TermReadKey
@@ -76,7 +78,7 @@ AUTHENSASL=2.16
 # https://metacpan.org/release/MIME-Base64
 MIMEBASE64=3.15
 # https://metacpan.org/release/IO-Socket-SSL
-IOSOCKETSSL=2.056
+IOSOCKETSSL=2.060
 # https://metacpan.org/release/Net-SSLeay
 NETSSLEAY=1.85
 # https://metacpan.org/release/libnet
@@ -192,6 +194,20 @@ make install DESTDIR=$PKG || exit 1
 
 # Add additional modules:
 ( cd ext
+  ( tar xzvf $CWD/Devel-CheckLib-${DEVELCHECKLIB}.tar.gz
+    cd Devel-CheckLib-${DEVELCHECKLIB}
+    chown -R root:root .
+    perl Makefile.PL INSTALLDIRS=vendor
+    make || exit 1
+    if [ "$MAKETEST" = "yes" ]; then
+      make test || exit 1
+    fi
+    make install || exit 1
+    make install DESTDIR=$PKG || exit 1
+    mkdir -p $PKG/usr/doc/perl-$VERSION/Devel-CheckLib-${DEVELCHECKLIB}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/Devel-CheckLib-${DEVELCHECKLIB}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/Devel-CheckLib-${DEVELCHECKLIB}/README*
+  ) || exit 1
   ( tar xzvf $CWD/DBI-${DBI}.tar.gz
     cd DBI-${DBI}
     chown -R root:root .
@@ -208,7 +224,6 @@ make install DESTDIR=$PKG || exit 1
   ) || exit 1
   ( tar xzvf $CWD/DBD-mysql-${DBDMYSQL}.tar.gz
     cd DBD-mysql-${DBDMYSQL}
-    zcat $CWD/DBD-mysql.net_buffer_length.diff.gz | patch -p1 --verbose || exit 1
     chown -R root:root .
     perl Makefile.PL INSTALLDIRS=vendor
     make || exit 1

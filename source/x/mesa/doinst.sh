@@ -10,4 +10,8 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config etc/drirc.new
+# Don't mess with /etc/drirc. Mesa now installs the defaults as
+# /usr/share/drirc.d/00-mesa-defaults.conf. We won't protect that
+# as a .new file as it shouldn't be modified. Create /etc/drirc if
+# you need local overrides.
+#config etc/drirc.new

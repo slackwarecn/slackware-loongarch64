@@ -26,7 +26,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ca-certificates
-VERSION=${VERSION:-20180409}
+VERSION=${VERSION:-$(echo certdata-*.txt.xz | cut -f 2 -d - | cut -f 1 -d .)}
 ARCH=noarch
 BUILD=${BUILD:-1}
 
@@ -47,15 +47,12 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/usr/share/ca-certificates $PKG/usr/sbin
 cd $TMP
 
-# Need both $PKGNAM and $PKGNAM-$VERSION since upstream can't decide how
-# to package their tarball:
-rm -rf $PKGNAM $PKGNAM-$VERSION
+rm -rf $PKGNAM
 
 # Extract the tarball:
-tar xvf $CWD/${PKGNAM}_$TARVERSION.tar.?z || exit 1
+tar xvf $CWD/${PKGNAM}.tar.?z || exit 1
 
-# Again, both $PKGNAM and $PKGNAM-$VERSION are needed here:
-cd $PKGNAM-$VERSION 2> /dev/null || cd $PKGNAM || exit 1
+cd $PKGNAM || exit 1
 
 chown -R root:root .
 find . \
@@ -64,11 +61,11 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-# Obsolete?
-#zcat $CWD/patches/fixup_DESTDIR.diff.gz | patch -p1 || exit 1
-
 # Remove incompatible command operators used to call 'run-parts':
-zcat $CWD/patches/fixup_update-ca-certificates.diff.gz | patch -p1 || exit 1
+zcat $CWD/fixup_update-ca-certificates.diff.gz | patch -p1 || exit 1
+
+# Update to certdata.txt from $CWD:
+xzcat $CWD/certdata-${VERSION}.txt.xz > mozilla/certdata.txt
 
 make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -85,8 +82,7 @@ gzip -9c sbin/update-ca-certificates.8 > \
   $PKG/usr/man/man8/update-ca-certificates.8.gz
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-mv debian/NEWS debian/NEWS.Debian
-cp -a debian/NEWS.Debian debian/README.Debian $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a docs/* $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/var/log/setup
 cat $CWD/setup.11.cacerts > $PKG/var/log/setup/setup.11.cacerts

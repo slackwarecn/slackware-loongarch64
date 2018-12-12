@@ -425,8 +425,7 @@ gzip ./source/n/netkit-ntalk/netkit-ntalk-0.17.diff
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
 gzip ./source/n/popa3d/doinst.sh
 gzip ./source/n/popa3d/popa3d.diff
-gzip ./source/n/ca-certificates/patches/fixup_DESTDIR.diff
-gzip ./source/n/ca-certificates/patches/fixup_update-ca-certificates.diff
+gzip ./source/n/ca-certificates/fixup_update-ca-certificates.diff
 gzip ./source/n/ca-certificates/doinst.sh
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab

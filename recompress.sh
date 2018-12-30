@@ -183,7 +183,6 @@ gzip ./source/a/libcgroup/doinst.sh
 gzip ./source/a/lha/lha_1.14i-10.1.diff
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh
-gzip ./source/a/gzip/gzip.glibc228.diff
 gzip ./source/a/e2fsprogs/e2fsprogs.no.64bit.by.default.diff
 gzip ./source/a/e2fsprogs/doinst.sh
 gzip ./source/a/pkgtools/doinst.sh
@@ -1046,6 +1045,7 @@ gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
+gzip ./source/xap/xscreensaver/xscreensaver.fontglide.comment.style.diff
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
 gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/gnuchess/eboard.assert.diff

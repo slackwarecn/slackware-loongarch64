@@ -234,9 +234,14 @@ if [ -x /etc/rc.d/rc.cgmanager ]; then
   /etc/rc.d/rc.cgmanager stop
 fi
 
+# Umount all tmpfs mounts except /dev/shm and under /run:
+cat /proc/mounts | grep " tmpfs " | grep -v -e " /run " -e " /run/" -e " /dev/shm " | while read mount ; do
+  umount --recursive -v $(echo $mount | cut -f 2 -d ' ') 2> /dev/null
+done
+
 # Unmount local file systems:
 echo "Unmounting local file systems:"
-/bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse
+/bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
 
 # JFS needs a sync here or the / partition cannot be remounted read-only.
 # In spite of this, it seems that a JFS root partition will always be checked
@@ -273,7 +278,7 @@ fi
 # Deactivate LVM volume groups:
 if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
   echo "Deactivating LVM volume groups:"
-  /sbin/vgchange -an --ignorelockingfailure
+  /sbin/vgchange -an
 fi
 
 # This never hurts again (especially since root-on-LVM always fails

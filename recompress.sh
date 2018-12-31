@@ -69,6 +69,7 @@ gzip ./source/d/m4/m4.glibc228.diff
 gzip ./source/d/python/python.readline.set_pre_input_hook.diff
 gzip ./source/d/python/python.no-static-library.diff
 gzip ./source/d/python/python.x86_64.diff
+gzip ./source/d/cmake/cmake.doxygen-1.8.15.diff
 gzip ./source/d/distcc/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/libtool/doinst.sh
@@ -168,6 +169,7 @@ gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/genpower/genpower.halt.diff
 gzip ./source/a/genpower/genpower.var.diff
 gzip ./source/a/glibc-zoneinfo/doinst.sh
+gzip ./source/a/efibootmgr/efibootmgr.efi_set_verbose.diff
 gzip ./source/a/minicom/lrzsz_0.12.21-5.diff
 gzip ./source/a/minicom/config.sub-x86_64.diff
 gzip ./source/a/minicom/doinst.sh
@@ -531,7 +533,6 @@ gzip ./source/n/openldap-client/doinst.sh
 gzip ./source/n/bind/bind.so_bsdcompat.diff
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
-gzip ./source/n/wireless_tools/wireless_tools.static.diff
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
 gzip ./source/n/irssi/doinst.sh
 gzip ./source/n/httpd/httpd.runasapache.diff

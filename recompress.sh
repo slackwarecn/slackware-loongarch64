@@ -32,6 +32,7 @@ gzip ./source/d/python3/python3.x86_64.diff
 gzip ./source/d/python3/python3.no-static-library.diff
 gzip ./source/d/python3/python3.readline.set_pre_input_hook.diff
 gzip ./source/d/autoconf/doinst.sh
+gzip ./source/d/ccache/ccache.969a7d49d63f872b9c88661f432d4cfbfde074af.patch
 gzip ./source/d/pmake/pmake_1.111-1.diff
 gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
@@ -195,6 +196,7 @@ gzip ./source/a/shadow/doinst.sh
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff
 gzip ./source/a/util-linux/setserial-rc.serial.diff
+gzip ./source/a/util-linux/util-linux.do.not.list.ram.devices.diff
 gzip ./source/a/util-linux/bsdstrings-util-linux_overflow.diff
 gzip ./source/a/util-linux/util-linux.fdisk-no-solaris.diff
 gzip ./source/a/util-linux/adjtimex_1.29-2.2.diff
@@ -1000,7 +1002,6 @@ gzip ./source/xap/gv/gv-dat.patch
 gzip ./source/xap/gv/gv-resource.patch
 gzip ./source/xap/gv/gv-aarch64.patch
 gzip ./source/xap/gv/gv-bug1071238.patch
-gzip ./source/xap/rdesktop/02-Fix-OpenSSL-1.1-compability-issues.patch
 gzip ./source/xap/x3270/doinst.sh
 gzip ./source/xap/xaos/xaos.x86.registers.diff
 gzip ./source/xap/xaos/xaos.6

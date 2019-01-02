@@ -1,0 +1,79 @@
+From 969a7d49d63f872b9c88661f432d4cfbfde074af Mon Sep 17 00:00:00 2001
+From: Joel Rosdahl <joel@rosdahl.net>
+Date: Wed, 2 Jan 2019 16:24:56 +0100
+Subject: [PATCH] Fix getopt_long.c compilation warning in an easier way
+
+Fixes #340 in an alternative way (see also #341).
+---
+ Makefile.in       | 2 +-
+ configure.ac      | 5 -----
+ dev.mk.in         | 1 -
+ src/getopt_long.c | 6 +++++-
+ 4 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index 9e90755d..c113e815 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -51,7 +51,7 @@ non_3pp_sources = \
+ generated_sources = \
+     src/version.c
+ 3pp_sources = \
+-    @getopt_long_c@ \
++    src/getopt_long.c \
+     src/confitems_lookup.c \
+     src/envtoconfitems_lookup.c \
+     src/hashtable.c \
+diff --git a/configure.ac b/configure.ac
+index d354ee18..a2234127 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -18,7 +18,6 @@ esac
+ 
+ AC_SUBST(disable_man)
+ AC_SUBST(extra_libs)
+-AC_SUBST(getopt_long_c)
+ AC_SUBST(include_dev_mk)
+ AC_SUBST(more_warnings)
+ AC_SUBST(no_implicit_fallthrough_warning)
+@@ -91,10 +90,6 @@ AC_CHECK_FUNCS(strtok_r)
+ AC_CHECK_FUNCS(unsetenv)
+ AC_CHECK_FUNCS(utimes)
+ 
+-if test x"$ac_cv_func_getopt_long" != x"yes"; then
+-    getopt_long_c="src/getopt_long.c"
+-fi
+-
+ AC_CACHE_CHECK([for compar_fn_t in stdlib.h],ccache_cv_COMPAR_FN_T, [
+     AC_TRY_COMPILE(
+         [#include <stdlib.h>],
+diff --git a/dev.mk.in b/dev.mk.in
+index f5ce8b18..26c2a2c6 100644
+--- a/dev.mk.in
++++ b/dev.mk.in
+@@ -92,7 +92,6 @@ source_dist_files = \
+     src/confitems_lookup.c \
+     src/envtoconfitems.gperf \
+     src/envtoconfitems_lookup.c \
+-    src/getopt_long.c \
+     src/main.c \
+     src/zlib/*.c \
+     src/zlib/*.h \
+diff --git a/src/getopt_long.c b/src/getopt_long.c
+index 61141c23..3e321930 100644
+--- a/src/getopt_long.c
++++ b/src/getopt_long.c
+@@ -34,7 +34,11 @@
+ 
+ #include "config.h"
+ 
+-#ifndef HAVE_GETOPT_LONG
++#ifdef HAVE_GETOPT_LONG
++
++typedef int do_not_warn_about_empty_compilation_unit;
++
++#else
+ 
+ #include "getopt_long.h"
+ 
+

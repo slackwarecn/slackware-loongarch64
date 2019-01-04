@@ -52,6 +52,7 @@ gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
 gzip ./source/d/gcc/gcc-no_fixincludes.diff
+gzip ./source/d/doxygen/doxygen.9468ede.diff
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch
@@ -1129,6 +1130,7 @@ gzip ./testing/source/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-m
 gzip ./testing/source/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./testing/source/wpa_supplicant/patches/wpa_supplicant-flush-debug-output.patch
 gzip ./testing/source/wpa_supplicant/patches/wpa_supplicant-dbus-service-file-args.patch
+gzip ./testing/source/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./testing/source/wpa_supplicant/patches/wpa_supplicant-2.7-fix-undefined-remove-ie.patch
 gzip ./testing/source/wpa_supplicant/doinst.sh
 gzip ./pasture/source/php/php-fpm.conf.diff

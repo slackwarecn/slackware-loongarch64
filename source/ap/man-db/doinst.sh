@@ -12,6 +12,8 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 config etc/man_db.conf.new
+config etc/profile.d/man-db.csh.new
+config etc/profile.d/man-db.sh.new
 
 # Slackware change: commenting the stuff below out. We're not going to
 # generate a database during a package installation...  especially since

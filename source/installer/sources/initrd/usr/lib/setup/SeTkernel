@@ -42,17 +42,24 @@ to continue." \
   fi
 }
 
+# Determine if we need the .x64 suffix for x86_64 config files:
+if [ "$(uname -m)" = "x86_64" ]; then
+  CONFIGSUFFIX=".x64"
+else
+  unset CONFIGSUFFIX
+fi
+
 ( cd boot
   if [ "$SLACK_KERNEL" = "generic.s" ]; then
     if [ -r vmlinuz-generic-$VERSION ]; then
       ln -sf vmlinuz-generic-$VERSION vmlinuz
-      ln -sf config-generic-$VERSION config
+      ln -sf config-generic-${VERSION}${CONFIGSUFFIX} config
       ln -sf System.map-huge-$VERSION System.map
     fi
   elif [ "$SLACK_KERNEL" = "huge.s" ]; then
     if [ -r vmlinuz-huge-$VERSION ]; then
       ln -sf vmlinuz-huge-$VERSION vmlinuz
-      ln -sf config-huge-$VERSION config
+      ln -sf config-huge-${VERSION}${CONFIGSUFFIX} config
       ln -sf System.map-huge-$VERSION System.map
     fi
   elif [ "$SLACK_KERNEL" = "hugesmp.s" ]; then
@@ -86,13 +93,13 @@ before your system will be able to boot correctly." \
     else
       rm -f $T_PX/boot/vmlinuz $T_PX/boot/config $T_PX/boot/System.map
       cp -a /$PLINK/kernels/$SLACK_KERNEL/bzImage $T_PX/boot/vmlinuz-$SLACK_KERNEL-$VERSION
-      cp -a /$PLINK/kernels/$SLACK_KERNEL/config $T_PX/boot/config-$SLACK_KERNEL-$VERSION
+      cp -a /$PLINK/kernels/$SLACK_KERNEL/config $T_PX/boot/config-$SLACK_KERNEL-${VERSION}${CONFIGSUFFIX}
       cp -a /$PLINK/kernels/$SLACK_KERNEL/System.map.gz $T_PX/boot
       ( cd $T_PX/boot
         gzip -d System.map.gz
         mv System.map System.map-$SLACK_KERNEL-$VERSION
         ln -sf vmlinuz-$SLACK_KERNEL-$VERSION vmlinuz
-        ln -sf config-$SLACK_KERNEL-$VERSION config
+        ln -sf config-$SLACK_KERNEL-${VERSION}${CONFIGSUFFIX} config
         ln -sf System.map-$SLACK_KERNEL-$VERSION System.map
       )
     fi

@@ -92,6 +92,7 @@ gzip ./source/a/etc/doinst.sh
 gzip ./source/a/syslinux/syslinux.glibc228.diff
 gzip ./source/a/sysvinit/sysvinit.use_dev_initctl_not_run_initctl.diff
 gzip ./source/a/sysvinit/doinst.sh
+gzip ./source/a/sysvinit/sysvinit.version.2.93.diff
 gzip ./source/a/sysvinit/sysvinit.paths.diff
 gzip ./source/a/coreutils/coreutils-dircolors.csh
 gzip ./source/a/coreutils/no_ls_quoting.patch

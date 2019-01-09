@@ -20,9 +20,11 @@ if [ -x /sbin/ldconfig ]; then
   /sbin/ldconfig &
 fi
 
-# Screen blanks after 15 minutes idle time, and powers down in one hour
-# if the kernel supports APM or ACPI power management:
-/bin/setterm -blank 15 -powersave powerdown -powerdown 60
+# Call the setterm init script to set screen blanking and power management
+# defaults:
+if [ -x /etc/rc.d/rc.setterm ]; then
+  /etc/rc.d/rc.setterm
+fi
 
 # Set the hostname.
 if [ -r /etc/HOSTNAME ]; then

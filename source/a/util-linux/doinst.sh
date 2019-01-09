@@ -19,5 +19,6 @@ if [ -e etc/rc.d/rc.serial ]; then
 fi
 
 config etc/rc.d/rc.serial.new
+config etc/rc.d/rc.setterm.new
 config etc/serial.conf.new
 

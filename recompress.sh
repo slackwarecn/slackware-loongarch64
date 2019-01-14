@@ -925,8 +925,6 @@ gzip ./source/l/db42/patch.4.2.52.1
 gzip ./source/l/db42/patch.4.2.52.4
 gzip ./source/l/db42/patch.4.2.52.2
 gzip ./source/l/db42/patch.4.2.52.3
-gzip ./source/l/gtk+3/gtk.typo.fix.diff
-gzip ./source/l/gtk+3/gtk.e3a1593a0984cc0156ec1892a46af8f256a64878.patch
 gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/system-config-printer/system-config-printer.auth.dialog.2766d74a.patch
 gzip ./source/l/system-config-printer/doinst.sh

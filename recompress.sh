@@ -32,7 +32,6 @@ gzip ./source/d/python3/python3.x86_64.diff
 gzip ./source/d/python3/python3.no-static-library.diff
 gzip ./source/d/python3/python3.readline.set_pre_input_hook.diff
 gzip ./source/d/autoconf/doinst.sh
-gzip ./source/d/ccache/ccache.969a7d49d63f872b9c88661f432d4cfbfde074af.patch
 gzip ./source/d/pmake/pmake_1.111-1.diff
 gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff

@@ -274,7 +274,6 @@ elif [ ! $READWRITE = yes ]; then
     /sbin/umount -a -r
     /sbin/mount -n -o remount,ro /
     echo "Rebooting system."
-    sleep 2
     reboot -f
   fi
   # Remount the root filesystem in read-write mode
@@ -358,10 +357,7 @@ fi
 # because those have already been mounted.  Also check that
 # devpts is not already mounted before attempting to mount
 # it.  With a 2.6.x or newer kernel udev mounts devpts.
-# We also need to wait a little bit to let USB and other
-# hotplugged devices settle (sorry to slow down the boot):
 echo "Mounting non-root local filesystems:"
-sleep 3
 if /bin/grep -wq devpts /proc/mounts ; then
   # This pipe after the mount command is just to convert the new
   # mount verbose output back to the old format that contained

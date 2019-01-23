@@ -74,8 +74,13 @@ T_PX="/mnt"
 echo "$T_PX" > $TMP/SeTT_PX
 ROOT_DEVICE="`mount | grep "on / " | cut -f 1 -d ' '`"
 echo "$ROOT_DEVICE" > $TMP/SeTrootdev
-if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then # clear source
- umount /var/log/mount                                          # location
+if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then # clear source location:
+ # In case of bind mounts, try to unmount them first:
+ umount /var/log/mount/dev 2> /dev/null
+ umount /var/log/mount/proc 2> /dev/null
+ umount /var/log/mount/sys 2> /dev/null
+ # Unmount target partition:
+ umount /var/log/mount
 fi
 # Anything mounted on /var/log/mount now is a fatal error:
 if mount | grep /var/log/mount 1> /dev/null 2> /dev/null ; then
@@ -326,6 +331,10 @@ to choose packages individually." 4 60
  fi
 
  if [ "$MAINSELECT" = "CONFIGURE" ]; then
+  # Make bind mounts for /dev, /proc, and /sys:
+  mount -o bind /dev $T_PX/dev 2> /dev/null
+  mount -o bind /proc $T_PX/proc 2> /dev/null
+  mount -o bind /sys $T_PX/sys 2> /dev/null
   SeTconfig
   REPLACE_FSTAB=Y
   if [ -r $TMP/SeTnative ]; then

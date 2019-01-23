@@ -1,0 +1,38 @@
+#!/bin/sh
+#BLURB="Generate /boot/initrd.gz for the generic kernel"
+
+# First, clear the existing initrd-tree:
+if [ -f $(readlink -f boot/vmlinuz-generic) -o -f $(readlink -f boot/vmlinuz-generic-smp) ]; then
+  rm -rf boot/initrd-tree
+fi
+
+# Next, if boot/vmlinuz-generic is a symlink to a kernel, generate a ramdisk
+# using the modules for that kernel:
+if [ -f $(readlink -f boot/vmlinuz-generic) ]; then
+  KERNEL_SYMLINK="boot/vmlinuz-generic"
+  KERNEL_VERSION="$(readlink -f $KERNEL_SYMLINK | sed "s/-smp/_smp/g" | rev | cut -f 1 -d - | rev | sed "s/_smp/-smp/g")"
+dialog --title "GENERATING INITIAL RAMDISK" --infobox \
+  "Generating an initial ramdisk for use with the $KERNEL_VERSION generic \
+kernel. The initial ramdisk contains kernel modules needed to mount the \
+root partition, and must be regenerated whenever the kernel is updated. To \
+regenerate the initrd, select this setup script from within pkgtool, or run \
+'geninitrd' which will produce an initial ramdisk (/boot/initrd.gz) for the \
+kernel pointed to by the /$KERNEL_SYMLINK symlink." 9 68
+  chroot . /usr/share/mkinitrd/mkinitrd_command_generator.sh -k $KERNEL_VERSION | sed "s/-c -k/-k/g" | chroot . bash 1> /dev/null 2> /dev/null
+fi
+
+# If boot/vmlinuz-generic-smp is a symlink to a kernel, also include the
+# modules for that kernel:
+if [ -f $(readlink -f boot/vmlinuz-generic-smp) ]; then
+  KERNEL_SYMLINK="boot/vmlinuz-generic-smp"
+  KERNEL_VERSION="$(readlink -f $KERNEL_SYMLINK | sed "s/-smp/_smp/g" | rev | cut -f 1 -d - | rev | sed "s/_smp/-smp/g")"
+dialog --title "GENERATING INITIAL RAMDISK" --infobox \
+  "Generating an initial ramdisk for use with the $KERNEL_VERSION generic \
+kernel. The initial ramdisk contains kernel modules needed to mount the \
+root partition, and must be regenerated whenever the kernel is updated. To \
+regenerate the initrd, select this setup script from within pkgtool, or run \
+'geninitrd' which will produce an initial ramdisk (/boot/initrd.gz) for the \
+kernel pointed to by the /$KERNEL_SYMLINK symlink." 9 68
+  chroot . /usr/share/mkinitrd/mkinitrd_command_generator.sh -k $KERNEL_VERSION | sed "s/-c -k/-k/g" | chroot . bash 1> /dev/null 2> /dev/null
+fi
+

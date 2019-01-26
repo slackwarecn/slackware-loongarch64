@@ -1055,6 +1055,7 @@ gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/x/liberation-fonts-ttf/doinst.sh
+gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff

@@ -341,6 +341,10 @@ while [ ! -z "$1" ]; do
       shift
       ;;
     -k)
+      if [ "$2" = "" ]; then
+        echo "Error: -k requires a kernel version."
+        exit 1
+      fi
       KVER=$2
       shift 2
       ;;

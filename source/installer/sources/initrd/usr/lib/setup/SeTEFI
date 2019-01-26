@@ -4,27 +4,31 @@ T_PX="`cat $TMP/SeTT_PX`"
 if [ ! -d $TMP ]; then
   mkdir -p $TMP
 fi
+
+# If the kernel does not support EFI, then we shouldn't be trying to mount an
+# EFI partition. If we do, probably the only device found with an EFI structure
+# will be the installer, which we don't want added to /etc/fstab.
+if [ ! -d /sys/firmware/efi ]; then
+  exit
+fi
+
 rm -f $TMP/SeTefipartitions
 touch $TMP/SeTefipartitions
 
 # Scan for EFI partitions:
-# We accept at most 10 NVMe controllers, each controlling at most 4 SSDs
-for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp \
-  mmcblk0 mmcblk1 mmcblk2 mmcblk3 mmcblk4 mmcblk5 mmcblk6 mmcblk7 mmcblk8 mmcblk9 \
-  nvme0n1 nvme1n1 nvme2n1 nvme3n1 nvme4n1 nvme5n1 nvme6n1 nvme7n1 nvme8n1 nvme9n1 \
-  nvme0n2 nvme1n2 nvme2n2 nvme3n2 nvme4n2 nvme5n2 nvme6n2 nvme7n2 nvme8n2 nvme9n2 \
-  nvme0n3 nvme1n3 nvme2n3 nvme3n3 nvme4n3 nvme5n3 nvme6n3 nvme7n3 nvme8n3 nvme9n3 \
-  nvme0n4 nvme1n4 nvme2n4 nvme3n4 nvme4n4 nvme5n4 nvme6n4 nvme7n4 nvme8n4 nvme9n4  ; do
-  gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
-    p=""
-    echo $drive| grep -q nvme && p="p"
-    echo /dev/$drive$p$(expr $(echo "$efisp" | cut -b 1-4)) >> $TMP/SeTefipartitions
-  done
-done
+# The UEFI specification states that an EFI System partition should have 
+# a GUID of C12A7328-F81F-11D2-BA4B-00A0C93EC93B for a GPT disk layout.
+# In case of a MBR disk layout instead, an ESP should have an OS type of
+# 0xEF. lsblk writes these values in the same field: PARTTYPE.
+ESPGUID=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+OSTYPE=0xEF
+lsblk -l -o parttype,name | \
+grep -i -F -e "$ESPGUID" -e "$OSTYPE" | \
+sed "s,[^ ]* ,/dev/," > $TMP/SeTefipartitions
 
-if [ "$(cat $TMP/SeTefipartitions)" = "" ]; then # No EFI partitions
+if [ ! -s $TMP/SeTefipartitions ]; then # No EFI partitions
   rm -f $TMP/SeTefipartitions
- exit
+  exit
 fi
 
 # Initially, we will just take the first EFI partition found, which

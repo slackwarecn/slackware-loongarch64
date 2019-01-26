@@ -3,7 +3,7 @@
 # More updates for Slackware 3.5: Wed Apr 29 22:43:28 CDT 1998
 # Updated for Slackware 7.x (new fdisk tags) Fri Sep 10 13:17:18 CDT 1999
 TMP=/var/log/setup/tmp
-T_PX="`cat $TMP/SeTT_PX`"
+T_PX="$(cat $TMP/SeTT_PX)"
 if [ ! -d $TMP ]; then
   mkdir -p $TMP
 fi
@@ -85,7 +85,7 @@ if [ -L /dev/disk/by-label/USBSLACKINS ]; then
 fi
 # Suggested new GPT partition type:  Microsoft basic data
 # More research needed...  could be FAT32, NTFS, or EXFAT
-DOSLIST="$(probe -l 2> /dev/null | grep -E "DOS|Win(95 F|98 F)|HPFS|W95 F|FAT(12|16)" | grep -Ev "Ext('d|end)" | grep -v "$BANHAMMER" | sort)"
+DOSLIST="$(probe -l 2> /dev/null | grep -E "DOS|Win(95 F|98 F)|HPFS|W95 F|FAT(12|16)|Microsoft basic data" | grep -Ev "Ext('d|end)" | grep -v "$BANHAMMER" | sort)"
 if [ "$DOSLIST" = "" ]; then # no FAT or NTFS partitions
  exit
 fi
@@ -113,19 +113,11 @@ process." \\
 15 70 5 \\
 EOF
  echo "$DOSLIST" | while read PARTITION ; do
-  NAME=`echo $PARTITION | crunch | cut -f 1 -d ' '`
-  SIZE=`get_part_size $NAME`
-  if echo $PARTITION | grep Win9 1> $NDIR 2> $NDIR ; then
-   TYPE="FAT32"
-  elif echo $PARTITION | grep "W95 F" 1> $NDIR 2> $NDIR ; then
-   TYPE="FAT32"
-  elif echo $PARTITION | grep NTFS 1> $NDIR 2> $NDIR ; then
-   TYPE="NTFS"
-  elif echo $PARTITION | grep FAT 1> $NDIR 2> $NDIR ; then
-   TYPE="FAT16"
-  fi
+  NAME=$(echo $PARTITION | crunch | cut -f 1 -d ' ')
+  SIZE=$(get_part_size $NAME)
+  TYPE="$(blkid $NAME | tr ' ' '\n' | grep "^TYPE=" | cut -f 2- -d = | tr -d \")"
   if cat $TMP/SeTDOS | grep $NAME 1> $NDIR 2> $NDIR ; then
-   ON=`cat $TMP/SeTDOS | grep $NAME | crunch | cut -f 2 -d ' '`
+   ON=$(cat $TMP/SeTDOS | grep $NAME | crunch | cut -f 2 -d ' ')
    echo "\"(IN USE)\" \"$NAME on $ON $TYPE ${SIZE}\" \\" >> $TMP/tempscript
   else
    echo "\"$NAME\" \"$TYPE ${SIZE}\" \\" >> $TMP/tempscript
@@ -138,7 +130,7 @@ EOF
  echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
  echo "\"---\" \"(done, continue with setup)\" \\" >> $TMP/tempscript
  echo "2> $TMP/return" >> $TMP/tempscript
- if [ "`cat $TMP/SeTSKIP`" = "true" ]; then
+ if [ "$(cat $TMP/SeTSKIP)" = "true" ]; then
   break
  fi
  . $TMP/tempscript
@@ -146,7 +138,7 @@ EOF
   rm $TMP/tempscript
   exit 255 # user abort
  fi
- DOS_PART="`cat $TMP/return`"
+ DOS_PART="$(cat $TMP/return)"
  rm -f $TMP/tempscript
  if [ "$DOS_PART" = "---" ]; then
   break
@@ -184,13 +176,13 @@ EOF
   rm -f $TMP/tempmsg $TMP/mount-point $TMP/SeTDOS
   exit
  fi
- NEW_DIR="`cat $TMP/mount-point`"
+ NEW_DIR="$(cat $TMP/mount-point)"
  rm -f $TMP/mount-point
  # If this was left blank or is '/', drop back to the first menu and start over.
  if [ "$NEW_DIR" = "" -o "$NEW_DIR" = "/" ]; then
    continue
  fi
- if [ ! "`echo $NEW_DIR | cut -b1`" = "/" ]; then
+ if [ ! "$(echo $NEW_DIR | cut -b1)" = "/" ]; then
   NEW_DIR="/$NEW_DIR"
  fi
  mkdir -p ${T_PX}$NEW_DIR

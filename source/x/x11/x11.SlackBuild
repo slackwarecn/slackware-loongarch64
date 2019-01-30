@@ -326,55 +326,57 @@ no_usr_share_doc() {
 
       done
 
-      # Nothing here?  Must have been fully modular. :-)
-      if [ ! -d ${SLACK_X_BUILD_DIR}/package-${x_source_dir}/etc -a \
-        ! -d ${SLACK_X_BUILD_DIR}/package-${x_source_dir}/usr ]; then
-        continue
-      fi
+      # If we have anything here in /etc or /usr, then the build was not fully
+      # modular and we should package up whatever's there as an x11-<sourcedir>
+      # package:
+      if [ -d ${SLACK_X_BUILD_DIR}/package-${x_source_dir}/etc -o \
+        -d ${SLACK_X_BUILD_DIR}/package-${x_source_dir}/usr ]; then
 
-      # Build an "x11-<sourcedir>" package for anything that wasn't built modular:
-      # It's safer to consider these to have binaries in them. ;-)
-      PKGARCH=$ARCH
-      cd $PKG
-      process_man_pages
-      process_info_pages
-      no_usr_share_doc
-      # If there are post-install things to do for the combined package,
-      # we do them here.  This could be used for things like making a
-      # VERSION number for a combined package.  :-)
-      if [ -r $CWD/post-install/x11-${x_source_dir}.post-install ]; then
-        RUNSCRIPT=$(mktemp -p $TMP) || exit 1
-        cat $CWD/post-install/x11-${x_source_dir}.post-install \
-          | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" > $RUNSCRIPT
-        . $RUNSCRIPT
-        rm -f $RUNSCRIPT
-      fi
-      mkdir -p $PKG/install
-      if [ -r $CWD/slack-desc/x11-${x_source_dir} ]; then
-        cat $CWD/slack-desc/x11-${x_source_dir} > $PKG/install/slack-desc
-      else
-        touch $PKG/install/slack-desc-missing
-      fi
-      if [ -r $CWD/doinst.sh/x11-${x_source_dir} ]; then
-        cat $CWD/doinst.sh/x11-${x_source_dir} \
-          | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
-          >> $PKG/install/doinst.sh
-      fi
-      if [ -r $CWD/build/x11-${PKGNAME} ]; then
-        SRCDIRBUILD=$(cat $CWD/build/x11-${PKGNAME})
-      else
-        SRCDIRBUILD=$BUILD
-      fi
-      if [ -r $CWD/makepkg/${PKGNAME} ]; then
-        BUILD=$MODBUILD . $CWD/makepkg/${PKGNAME}
-      else
-        /sbin/makepkg -l y -c n ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
-        if [ "$UPGRADE_PACKAGES" = "yes" ]; then
-          /sbin/upgradepkg --install-new ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
-        elif [ "$UPGRADE_PACKAGES" = "always" ]; then
-          /sbin/upgradepkg --install-new --reinstall ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
+        # Build an "x11-<sourcedir>" package for anything that wasn't built modular:
+        # It's safer to consider these to have binaries in them. ;-)
+        PKGARCH=$ARCH
+        cd $PKG
+        process_man_pages
+        process_info_pages
+        no_usr_share_doc
+        # If there are post-install things to do for the combined package,
+        # we do them here.  This could be used for things like making a
+        # VERSION number for a combined package.  :-)
+        if [ -r $CWD/post-install/x11-${x_source_dir}.post-install ]; then
+          RUNSCRIPT=$(mktemp -p $TMP) || exit 1
+          cat $CWD/post-install/x11-${x_source_dir}.post-install \
+            | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" > $RUNSCRIPT
+          . $RUNSCRIPT
+          rm -f $RUNSCRIPT
         fi
-      fi
+        mkdir -p $PKG/install
+        if [ -r $CWD/slack-desc/x11-${x_source_dir} ]; then
+          cat $CWD/slack-desc/x11-${x_source_dir} > $PKG/install/slack-desc
+        else
+          touch $PKG/install/slack-desc-missing
+        fi
+        if [ -r $CWD/doinst.sh/x11-${x_source_dir} ]; then
+          cat $CWD/doinst.sh/x11-${x_source_dir} \
+            | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
+            >> $PKG/install/doinst.sh
+        fi
+        if [ -r $CWD/build/x11-${PKGNAME} ]; then
+          SRCDIRBUILD=$(cat $CWD/build/x11-${PKGNAME})
+        else
+          SRCDIRBUILD=$BUILD
+        fi
+        if [ -r $CWD/makepkg/${PKGNAME} ]; then
+          BUILD=$MODBUILD . $CWD/makepkg/${PKGNAME}
+        else
+          /sbin/makepkg -l y -c n ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
+          if [ "$UPGRADE_PACKAGES" = "yes" ]; then
+            /sbin/upgradepkg --install-new ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
+          elif [ "$UPGRADE_PACKAGES" = "always" ]; then
+            /sbin/upgradepkg --install-new --reinstall ${SLACK_X_BUILD_DIR}/x11-${x_source_dir}-${VERSION}-${PKGARCH}-${SRCDIRBUILD}.txz
+          fi
+        fi
+
+      fi # build x11-<sourcedir> package
     )
   done
 )

@@ -671,6 +671,7 @@ gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
+gzip ./source/l/glibc/glibc-2.29.en_US.no.am.pm.date.format.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/fuse/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch

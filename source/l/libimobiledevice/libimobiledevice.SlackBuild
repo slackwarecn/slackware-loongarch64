@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libimobiledevice
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -67,7 +67,7 @@ fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
 # Make sure ownerships and permissions are sane:
@@ -78,11 +78,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-# Fixes mounting issues with iOS 10:
-zcat $CWD/libimobiledevice.use_tlsv1_instead_of_sslv3.diff.gz | patch -p1 --verbose || exit 1
-
-# Fix for OpenSSL-1.1.x:
-zcat $CWD/02a0e03e24bc96bba2e5ea2438c30baf803fd137.patch.gz | patch -p1 --verbose || exit 1
+if [ ! -r configure ]; then
+  NOCONFIGURE=1 ./autogen.sh
+fi
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \

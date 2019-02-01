@@ -671,7 +671,6 @@ gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
-gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/fuse/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
@@ -931,8 +930,6 @@ gzip ./source/l/aalib/aalib-aclocal.patch
 gzip ./source/l/akonadi/mysql-global.conf.patch
 gzip ./source/l/akonadi/akonadi-mariadb-10.2.patch
 gzip ./source/l/akonadi/doinst.sh
-gzip ./source/l/libimobiledevice/libimobiledevice.use_tlsv1_instead_of_sslv3.diff
-gzip ./source/l/libimobiledevice/02a0e03e24bc96bba2e5ea2438c30baf803fd137.patch
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/glib-networking/doinst.sh

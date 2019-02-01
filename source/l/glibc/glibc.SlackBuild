@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=glibc
 VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
@@ -148,9 +148,6 @@ fix_doinst() {
 # This is a patch function to put all glibc patches in the build script
 # up near the top.
 apply_patches() {
-  # Use old-style locale directories rather than a single (and strangely
-  # formatted) /usr/lib/locale/locale-archive file:
-  zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
   # Support ru_RU.CP1251 locale:
   zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
   # Add a C.UTF-8 locale:
@@ -245,7 +242,7 @@ CFLAGS="-g $OPTIMIZ" \
 
 make $NUMJOBS || make || exit 1
 make install install_root=$PKG || exit 1
-make localedata/install-locales install_root=$PKG || exit 1
+make localedata/install-locale-files DESTDIR=$PKG || exit 1
 
 # We've always had an sln symlink in /bin, so let's make sure it
 # remains there so as not to break any scripts that might need it:

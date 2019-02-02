@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=binutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -50,22 +50,8 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-# Uncomment this to include the experimental gold linker:
-GOLD=" --enable-gold=yes --enable-ld=default "
-
 # Set to ld.gold or ld.bfd:
 DEFAULT_LD=ld.bfd
-
-# The --enable-initfini-array option was added in binutils-2.21.51.0.3.
-# This option currently causes a world of hurt trying to compile glibc,
-# and might break static libraries or cause other ill effects.  There
-# is an upstream patch for glibc but it does not avoid all of the known
-# problems (and there may be some unknown ones, too), so we will avoid
-# introducing this feature for now.
-# References:
-# http://sourceware.org/bugzilla/show_bug.cgi?id=12343
-# http://gcc.gnu.org/bugzilla/show_bug.cgi?id=46770
-NO_INITFINI=" --disable-initfini-array "
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -121,9 +107,6 @@ zcat $CWD/patches/binutils.export.demangle.h.diff.gz | patch -p1 --verbose || ex
 # Don't check to see if "config.h" was included in the installed headers:
 zcat $CWD/patches/binutils.no-config-h-check.diff.gz | patch -p1 --verbose || exit 1
 
-# Patch to Fix invalid version info and detect corrupted objects
-zcat $CWD/patches/binutils-2.31.1-verinfo-fix-corrupt-symbol-detect.patch.gz | patch -p2 --verbose || exit 1
-
 # Set %version to something halfway meaningful:
 sed -i -e 's/%''{release}/slack15/g' bfd/Makefile{.am,.in}
 
@@ -155,8 +138,9 @@ CFLAGS="$SLKCFLAGS" \
   --enable-threads \
   --enable-targets=i386-efi-pe,${TARGET} \
   --enable-install-libiberty \
-  $GOLD \
-  $NO_INITFINI \
+  --enable-gold=yes \
+  --enable-ld=default \
+  --enable-initfini-array \
   $WERROR \
   --build=$TARGET \
   || exit 1

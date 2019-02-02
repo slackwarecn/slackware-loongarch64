@@ -59,7 +59,6 @@ gzip ./source/d/binutils/patches/binutils.export.demangle.h.diff
 gzip ./source/d/binutils/patches/binutils-2.25.1-cleansweep.patch
 gzip ./source/d/binutils/patches/binutils-2.25-set-long-long.patch
 gzip ./source/d/binutils/patches/binutils.no-config-h-check.diff
-gzip ./source/d/binutils/patches/binutils-2.31.1-verinfo-fix-corrupt-symbol-detect.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-copy-osabi.patch
 gzip ./source/d/binutils/patches/binutils-2.25-version.patch
 gzip ./source/d/icecream/doinst.sh
@@ -70,7 +69,6 @@ gzip ./source/d/m4/m4.glibc228.diff
 gzip ./source/d/python/python.readline.set_pre_input_hook.diff
 gzip ./source/d/python/python.no-static-library.diff
 gzip ./source/d/python/python.x86_64.diff
-gzip ./source/d/cmake/cmake.doxygen-1.8.15.diff
 gzip ./source/d/distcc/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/libtool/doinst.sh

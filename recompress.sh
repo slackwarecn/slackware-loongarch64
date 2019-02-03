@@ -11,8 +11,6 @@ gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Make-Unique-support-option
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Use-datadir-xfce4-mixer-as-MIXER_DATADIR.patch
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/doinst.sh
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-icons-Makefile.am-Remove-unnecessary-gtk-update-icon.patch
-gzip ./extra/source/bittorrent/bittorrent-xterm.sh
-gzip ./extra/source/bittorrent/doinst.sh
 gzip ./extra/source/wicd/wicd-1421918.patch
 gzip ./extra/source/wicd/curses_bitrate_fix.patch
 gzip ./extra/source/wicd/manually-compile-translations.diff
@@ -529,6 +527,7 @@ gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
 gzip ./source/n/irssi/doinst.sh
 gzip ./source/n/httpd/httpd.runasapache.diff
 gzip ./source/n/httpd/doinst.sh
+gzip ./source/n/dovecot/fix-mysql-double-free.patch
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
 gzip ./source/n/dovecot/doinst.sh
 gzip ./source/n/dovecot/dovecot.config.README.diff

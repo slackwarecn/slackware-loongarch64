@@ -44,6 +44,7 @@ gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/llvm/clang-tools-extra.no.clangd.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
+gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff
 gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
@@ -494,6 +495,7 @@ gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.ini-development.diff
 gzip ./source/n/samba/smb.conf.diff
 gzip ./source/n/samba/doinst.sh
+gzip ./source/n/samba/samba.libsmbclient.h.ffmpeg.compat.diff
 gzip ./source/n/htdig/htdig-3.2.0b6.diff
 gzip ./source/n/htdig/htdig.conf.diff
 gzip ./source/n/htdig/doinst.sh
@@ -750,6 +752,7 @@ gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/poppler/poppler.splashpath.h.revert.diff
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
+gzip ./source/l/gst-plugins-good/gst-plugins-good.libvpx-1.8.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
 gzip ./source/l/netpbm/netpbm-glibc.patch

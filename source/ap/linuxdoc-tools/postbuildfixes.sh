@@ -22,18 +22,6 @@
 # Enter the package's contents:
 cd $SLACKTRACKFAKEROOT || exit 1
 
-# Remove .la files:
-echo "Deleting .la files..."
-find . -type f -name '*.la' -print | while read lafile ; do
-  # Remove it from the build box itself to prevent other packages potentially referencing it.
-  # This wouldn't be a problem if you removepkg linuxdoc-tools (the version created by slacktrack
-  # that contains everything prior to _this_ post build script running) before building any other
-  # packages; but in case you don't, let's remove it from the OS file system:
-  rm "/${lafile}"
-  # Remove it from the distributable package t?z file:
-  rm -fv "${lafile}"
-done
-
 # OpenSP creates this symlink; we delete it.
 if [ -L usr/share/doc ]; then
    rm -f usr/share/doc
@@ -43,11 +31,7 @@ fi
 rm -rf etc/cups etc/printcap
 # crond & mail (just incase you got a delivery!)
 rm -rf var/spool/{cron,mail}
-rmdir var/spool
-
-# perllocal.pod files don't belong in packages.
-# SGMLSPL creates this:
-find . -name perllocal.pod -print0 | xargs -0 rm -f
+rmdir var/spool 2>/dev/null
 
 # Some doc dirs have attracted setuid.
 # We don't need setuid for anything in this package:
@@ -77,6 +61,8 @@ find usr/doc -xtype l -print0 | xargs -0 rm -fv
 # Never mind: I think this stuff is surplus to requirements:
 rm -rf var/lib/texmf
 # Now to prevent deletion of anything else that lives in the package's '/var'
+echo "Errors from 'rmdir' below are harmless and are expected, but should be reviewed"
+echo "in case there are any files that have crept in there."
 rmdir var/lib
 rmdir var
 

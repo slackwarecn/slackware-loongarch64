@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libcap
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -92,6 +92,9 @@ sed 's@^BUILD_GPERF@#\0@' -i Make.Rules
 make DYNAMIC=yes $NUMJOBS || make DYNAMIC=yes || exit 1
 make install RAISE_SETFCAP=no DESTDIR=$PKG man_prefix=/usr || exit 1
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/libcap.so*
+
+# Don't ship static library:
+rm -f $PKG/lib*/libcap.a
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

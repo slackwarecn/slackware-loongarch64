@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=lxc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -86,7 +86,9 @@ cat $CWD/lxc-slackware.in > templates/lxc-slackware.in
 # Our python package is not split:
 sed -i "s|PKG_CHECK_MODULES(\[PYTHONDEV.*||" configure.ac || exit 1
 
-autoreconf -fi
+if [ ! -r configure ]; then
+  NOCONFIGURE=1 ./autogen.sh
+fi
 
 # Enable python stuff only if python3 is installed
 python=""
@@ -107,6 +109,8 @@ CFLAGS="$SLKCFLAGS" \
   --with-rootfs-path=/var/lib/rootfs-lxc \
   --enable-cgmanager=no \
   --disable-werror \
+  --disable-apparmor \
+  --disable-static \
   $python \
   --build=$ARCH-slackware-linux || exit 1
 

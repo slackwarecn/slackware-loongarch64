@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=giflib
-VERSION=${VERSION:-$(echo giflib-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo giflib-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -67,7 +67,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf giflib-$VERSION
-tar xvf $CWD/giflib-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/giflib-$VERSION.tar.?z || exit 1
 cd giflib-$VERSION
 chown -R root:root .
 find . \
@@ -76,17 +76,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --with-x=no \
-  --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
+make PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man/man1 $NUMJOBS || make || exit 1
+make PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man/man1 install DESTDIR=$PKG || exit 1
 
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Don't ship static library:
+rm $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
@@ -108,7 +102,7 @@ cp -a \
   AUTHORS BUGS COPYING DEVELOPERS INSTALL NEWS ONEWS README TODO \
   $PKG/usr/doc/giflib-$VERSION
 cp -a doc $PKG/usr/doc/giflib-$VERSION/html
-rm $PKG/usr/doc/giflib-$VERSION/html/Makefile*
+rm $PKG/usr/doc/giflib-$VERSION/html/{Makefile*,*.in,*.1,*.xml}
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

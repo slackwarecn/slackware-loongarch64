@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=bsd-games
-VERSION=${VERSION:-2.13}
-BUILD=${BUILD:-13}
+VERSION=${VERSION:-2.17}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -53,37 +53,49 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf bsd-games-$VERSION
-tar xvf $CWD/bsd-games-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/bsd-games-$VERSION.tar.?z || exit 1
 cd bsd-games-$VERSION || exit 1
-zcat $CWD/bsd-games.config.params.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-./configure
-zcat $CWD/bsd-games.ospeed.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.fortunepath.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.fortlen.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.strfile.8.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.trek-gcc4.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.phantasia_install_fix.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.getline.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
-zcat $CWD/bsd-games.sail.no.union_wait.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
 
-# Fix typos in the quote database:
-for typofix in $CWD/fortune-fixes-sorry-no-additions-accepted-here/* ; do
-  zcat $typofix | patch -p1 --verbose || exit 1
-done
+zcat $CWD/patches/bsd-games.config.params.diff.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0001-Replace-getline-with-get_line.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0002-robots-Refresh-screen.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0003-quiz-Update-presidents-capitals-fix-typos-in-murders.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0004-Define-__dead-for-GNU-GCC.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0005-rain-Update-default-delay.-Closes-579062.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0007-Unsorted-Debian-patches.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0008-quiz-Add-answers-to-adults-babies.-Closes-659528.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0009-hangman-Error-out-on-1000-unsuitable-words.-Closes-6.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0010-Fix-typos-spotted-by-Lintian.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0011-Fix-format-security-compiling-errors.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0012-Fix-include-stdio.h-C-incompatibility.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0013-Update-acronyms.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0015-primes-Update-to-NetBSD-CVS-2018-02-03.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0016-Better-explanation-how-to-read-the-documentation.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/0017-hack-Fix-segv-when-i-inventory-done-after-load-from-.patch.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/bsd-games.factor.no.ubig.diff.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+zcat $CWD/patches/bsd-games.fortunepath.diff.gz | patch -p1 --backup --suffix=.orig --verbose || exit 1
+
+./configure || exit 1
 
 ## Without the old default (with, of course, a command line switch), and an updated
 ## man page, even though PJV wrote this, it just doesn't make the cut.  I hope it's
 ## still of use to somebody though.  It increases the accuracy of pom by two orders
 ## of magnitude.  Enjoy!
-##zcat $CWD/bsd-games.pom.diff.gz | patch -p1 --verbose || exit 1
+##zcat $CWD/patches/bsd-games.pom.diff.gz | patch -p1 --verbose || exit 1
 
 # Now that Eric took my joke seriously...  heh.  It's a wonder any Work gets done here.
-zcat $CWD/bsd-games.pom.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/bsd-games.pom.diff.gz | patch -p1 --verbose || exit 1
 
-cp fortune/datfiles/unamerican-o.real fortune/datfiles/unamerican-o.fake
-cp fortune/datfiles/unamerican-o.real unamerican-o
-( cd fortune/datfiles ; strfile unamerican-o unamerican-o.dat )
+# I'm not in favor of censorship of any kind.  If you are, you'll
+# have to be the one to delete these:
+for bad in fortunes-o fortunes2-o limerick-o unamerican-o ; do
+  cp fortune/datfiles/${bad}.real fortune/datfiles/${bad}.fake
+  cp fortune/datfiles/${bad}.real ${bad}
+  ( cd fortune/datfiles ; strfile ${bad} ${bad}.dat )
+done
+
 make || exit 1
+
 # Does this go to $PKG?  I am perplexed.
 make install || exit 1
 
@@ -93,10 +105,10 @@ cp -a \
   TODO YEAR2000 $PKG/usr/doc/bsd-games-$VERSION
 cp -a fortune/README $PKG/usr/doc/bsd-games-$VERSION/README.fortune
 cp -a hunt/README $PKG/usr/doc/bsd-games-$VERSION/README.hunt
-cp -a hunt/README.linux $PKG/usr/doc/bsd-games-$VERSION/README.linux.hunt
 cp -a phantasia/README $PKG/usr/doc/bsd-games-$VERSION/README.phantasia
-cp -a trek/README.linux $PKG/usr/doc/bsd-games-$VERSION/README.linux.trek
 chown root.root $PKG/usr/doc/bsd-games-$VERSION/*
+mv $PKG/usr/share/doc/bsd-games/* $PKG/usr/doc/bsd-games-$VERSION
+rm -rf $PKG/usr/share/doc
 chmod 644 $PKG/usr/doc/bsd-games-$VERSION/*
 
 cd $PKG
@@ -108,11 +120,7 @@ chmod 755 etc/profile.d/bsd-games-login-fortune.*
 
 # Add some cool Linux related quotes:
 tar xvf $CWD/fortunes-linuxcookie.tar.gz || exit 1
-# I'm not in favor of censorship of any kind.  If you are, you'll
-# have to be the one to delete these:
-rm -f $PKG/usr/share/games/fortunes/limerick
-rm -f $PKG/usr/share/games/fortunes/limerick.dat
-tar xvf $CWD/fortunes-o.tar.gz || exit 1
+
 # Run strfile on all fortune files:
 ( cd $PKG/usr/share/games/fortunes
   for file in *.dat ; do
@@ -123,8 +131,10 @@ tar xvf $CWD/fortunes-o.tar.gz || exit 1
     $PKG/usr/bin/strfile -r -x $(basename $file .dat)
   done
 )
+
 # Strip binaries:
 strip $PKG/usr/games/* $PKG/usr/bin/* $PKG/usr/sbin/*
+
 # Fix perms:
 mkdir -p $PKG/usr/share/dict
 zcat $CWD/hangman-words.gz > $PKG/usr/share/dict/words
@@ -150,23 +160,25 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config var/lib/bsdgames/criblog.new
-config var/lib/bsdgames/saillog.new
-config var/lib/bsdgames/cfscores.new
 config var/lib/bsdgames/atc_score.new
-config var/lib/bsdgames/phantasia/gold.new
-config var/lib/bsdgames/phantasia/mess.new
-config var/lib/bsdgames/phantasia/motd.new
-config var/lib/bsdgames/phantasia/void.new
-config var/lib/bsdgames/phantasia/monsters.new
-config var/lib/bsdgames/phantasia/lastdead.new
-config var/lib/bsdgames/phantasia/characs.new
-config var/lib/bsdgames/phantasia/scoreboard.new
-config var/lib/bsdgames/battlestar.log.new
 config var/lib/bsdgames/robots_roll.new
+config var/lib/bsdgames/hack/perm.new
+config var/lib/bsdgames/hack/record.new
+config var/lib/bsdgames/phantasia/lastdead.new
+config var/lib/bsdgames/phantasia/scoreboard.new
+config var/lib/bsdgames/phantasia/monsters.new
+config var/lib/bsdgames/phantasia/mess.new
+config var/lib/bsdgames/phantasia/characs.new
+config var/lib/bsdgames/phantasia/motd.new
+config var/lib/bsdgames/phantasia/gold.new
+config var/lib/bsdgames/phantasia/void.new
 config var/lib/bsdgames/snakerawscores.new
+config var/lib/bsdgames/saillog.new
+config var/lib/bsdgames/battlestar.log.new
 config var/lib/bsdgames/snake.log.new
-rm -f var/lib/bsdgames/criblog.new var/lib/bsdgames/saillog.new var/lib/bsdgames/cfscores.new var/lib/bsdgames/atc_score.new var/lib/bsdgames/phantasia/gold.new var/lib/bsdgames/phantasia/mess.new var/lib/bsdgames/phantasia/motd.new var/lib/bsdgames/phantasia/void.new var/lib/bsdgames/phantasia/monsters.new var/lib/bsdgames/phantasia/lastdead.new var/lib/bsdgames/phantasia/characs.new var/lib/bsdgames/phantasia/scoreboard.new var/lib/bsdgames/battlestar.log.new var/lib/bsdgames/robots_roll.new var/lib/bsdgames/snakerawscores.new var/lib/bsdgames/snake.log.new
+config var/lib/bsdgames/criblog.new
+config var/lib/bsdgames/cfscores.new
+( cd var/lib/bsdgames ; find . -name "*.new" -exec rm -f "{}" \; )
 EOF
 cat $CWD/slack-desc > $PKG/install/slack-desc
 

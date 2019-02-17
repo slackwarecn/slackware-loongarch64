@@ -1,0 +1,43 @@
+From: Sven Joachim <svenjoac@gmx.de>
+Date: Wed, 1 Nov 2017 09:03:28 +0100
+Subject: Fix include/stdio.h C++ incompatibility
+
+I have seen the following error when building bsdgames with
+libncurses6:
+
+In file included from /usr/include/wchar.h:36:0,
+                 from /usr/include/curses.h:400,
+                 from dab/box.cc:48:
+include/stdio.h:38:14: error: conflicting declaration of 'char* fgetln(FILE*, size_t*)' with 'C' linkage
+ extern char *fgetln(FILE *stream, size_t *len);
+              ^~~~~~
+In file included from /usr/include/curses.h:183:0,
+                 from dab/box.cc:48:
+include/stdio.h:38:14: note: previous declaration with 'C++' linkage
+ extern char *fgetln(FILE *stream, size_t *len);
+              ^~~~~~
+GNUmakefile:298: recipe for target 'dab/box.o' failed
+
+Declaring fgetln as extern "C" fixes this.  The patch has been taken
+from the Fedora bsd-games package, see
+https://src.fedoraproject.org/rpms/bsd-games/blob/ac743bec7031199ec6fc09b6eb3760ffcfcfd277/f/bsd-games-2.17-stdio-c++.patch.
+---
+ include/stdio.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/include/stdio.h b/include/stdio.h
+index 32a4b71..b1ac049 100644
+--- a/include/stdio.h
++++ b/include/stdio.h
+@@ -35,5 +35,11 @@
+ #include_next <stdio.h>
+ 
+ #ifndef HAVE_fgetln
++#ifdef __cplusplus
++extern "C" {
++#endif
+ extern char *fgetln(FILE *stream, size_t *len);
++#ifdef __cplusplus
++}
++#endif
+ #endif

@@ -1,0 +1,813 @@
+From: "Dr. Tobias Quathamer" <toddy@debian.org>
+Date: Thu, 26 Apr 2018 15:42:07 +0200
+Subject: primes: Update to NetBSD CVS, 2018-02-03
+
+---
+ exec.objs           |   2 +-
+ primes/Makefile.bsd |   4 +-
+ primes/pattern.c    |  13 ++--
+ primes/pr_tbl.c     |  16 ++--
+ primes/primes.6     |  41 +++++++---
+ primes/primes.c     | 148 ++++++++++++++++++------------------
+ primes/primes.h     |  33 ++++++--
+ primes/spsp.c       | 215 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 362 insertions(+), 110 deletions(-)
+ create mode 100644 primes/spsp.c
+
+diff --git a/exec.objs b/exec.objs
+index f081d60..3c184cc 100644
+--- a/exec.objs
++++ b/exec.objs
+@@ -100,7 +100,7 @@ phantasia/setup		phantglobs.o setup.o
+ pig			pig.o
+ pom			pom.o
+ ppt			ppt.o
+-primes			pattern.o pr_tbl.o primes.o
++primes			pattern.o pr_tbl.o primes.o spsp.o
+ quiz			quiz.o rxp.o lib/fgetln.o
+ rain			rain.o lib/getprogname.o
+ random			random.o
+diff --git a/primes/Makefile.bsd b/primes/Makefile.bsd
+index 4235041..8ed845c 100644
+--- a/primes/Makefile.bsd
++++ b/primes/Makefile.bsd
+@@ -1,8 +1,8 @@
+-#	$NetBSD: Makefile,v 1.7 2004/02/08 13:16:25 jsm Exp $
++#	$NetBSD: Makefile,v 1.8 2014/10/02 21:36:37 ast Exp $
+ #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+ 
+ PROG=		primes
+-SRCS=		pattern.c pr_tbl.c primes.c
++SRCS=		pattern.c pr_tbl.c primes.c spsp.c
+ MAN=		primes.6
+ DPADD=		${LIBM}
+ LDADD=		-lm
+diff --git a/primes/pattern.c b/primes/pattern.c
+index 1196056..52784a5 100644
+--- a/primes/pattern.c
++++ b/primes/pattern.c
+@@ -1,4 +1,4 @@
+-/*	$NetBSD: pattern.c,v 1.6 2003/08/07 09:37:33 agc Exp $	*/
++/*	$NetBSD: pattern.c,v 1.7 2014/10/02 21:36:37 ast Exp $	*/
+ 
+ /*
+  * Copyright (c) 1989, 1993
+@@ -32,21 +32,20 @@
+  * SUCH DAMAGE.
+  */
+ 
+-#include <sys/cdefs.h>
++#include <sys/types.h>
++
+ #ifndef lint
+ #if 0
+ static char sccsid[] = "@(#)pattern.c	8.1 (Berkeley) 5/31/93";
+ #else
+-__RCSID("$NetBSD: pattern.c,v 1.6 2003/08/07 09:37:33 agc Exp $");
++__RCSID("$NetBSD: pattern.c,v 1.7 2014/10/02 21:36:37 ast Exp $");
+ #endif
+ #endif /* not lint */
+ 
+ /*
+  * pattern - the Eratosthenes sieve on odd numbers for 3,5,7,11 and 13
+  *
+- * By: Landon Curt Noll                             chongo@toad.com
+- *
+- *   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
++ * By Landon Curt Noll, http://www.isthe.com/chongo/index.html /\oo/\
+  *
+  * To avoid excessive sieves for small factors, we use the table below to 
+  * setup our sieve blocks.  Each element represents a odd number starting 
+@@ -440,4 +439,4 @@ const char pattern[] = {
+ 0,0,1,1,0,0,0,0,1,1,0,0,1,0,1,0,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,1,0,0,1,0,1,
+ 0,0,1,1,0,1,0,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,0,0,0,0,0,1
+ };
+-const int pattern_size = (sizeof(pattern)/sizeof(pattern[0]));
++const size_t pattern_size = (sizeof(pattern)/sizeof(pattern[0]));
+diff --git a/primes/pr_tbl.c b/primes/pr_tbl.c
+index d45204a..5e2f813 100644
+--- a/primes/pr_tbl.c
++++ b/primes/pr_tbl.c
+@@ -1,4 +1,4 @@
+-/*	$NetBSD: pr_tbl.c,v 1.7 2003/08/07 09:37:33 agc Exp $	*/
++/*	$NetBSD: pr_tbl.c,v 1.8 2014/10/02 21:36:37 ast Exp $	*/
+ 
+ /*
+  * Copyright (c) 1989, 1993
+@@ -37,24 +37,24 @@
+ #if 0
+ static char sccsid[] = "@(#)pr_tbl.c	8.1 (Berkeley) 5/31/93";
+ #else
+-__RCSID("$NetBSD: pr_tbl.c,v 1.7 2003/08/07 09:37:33 agc Exp $");
++__RCSID("$NetBSD: pr_tbl.c,v 1.8 2014/10/02 21:36:37 ast Exp $");
+ #endif
+ #endif /* not lint */
+ 
+ /*
+  * prime - prime table
+  *
+- * By: Landon Curt Noll   chongo@toad.com,   ...!{sun,tolsoft}!hoptoad!chongo
++ * By Landon Curt Noll, http://www.isthe.com/chongo/index.html /\oo/\
+  *
+- *   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
+- *
+- * We are able to sieve 2^32-1 because this table has primes up to 65537 
++ * We are able to sieve 2^32-1 because this table has primes up to 65537
+  * and 65537^2 > 2^32-1.
+  */
+ 
++#include <stddef.h>
++
+ #include "primes.h"
+ 
+-const ubig prime[] = {
++const uint64_t prime[] = {
+ 2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,
+ 107,109,113,127,131,137,139,149,151,157,163,167,173,179,181,191,193,197,199,
+ 211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,307,311,313,
+@@ -546,4 +546,4 @@ const ubig prime[] = {
+ };
+ 
+ /* pr_limit - largest prime in the prime table */
+-const ubig *pr_limit = &prime[(sizeof(prime)/sizeof(prime[0]))-1];
++const uint64_t *const pr_limit = &prime[(sizeof(prime)/sizeof(prime[0]))-1];
+diff --git a/primes/primes.6 b/primes/primes.6
+index 14d5101..aa000ef 100644
+--- a/primes/primes.6
++++ b/primes/primes.6
+@@ -1,4 +1,4 @@
+-.\"	$NetBSD: primes.6,v 1.2 2004/02/09 23:25:47 wiz Exp $
++.\"	$NetBSD: primes.6,v 1.6 2018/02/03 15:40:29 christos Exp $
+ .\"
+ .\" Copyright (c) 1989, 1993
+ .\"	The Regents of the University of California.  All rights reserved.
+@@ -33,11 +33,9 @@
+ .\"	@(#)factor.6	8.1 (Berkeley) 5/31/93
+ .\"
+ .\"
+-.\" By: Landon Curt Noll   chongo@toad.com,   ...!{sun,tolsoft}!hoptoad!chongo
++.\" By Landon Curt Noll, http://www.isthe.com/chongo/index.html /\oo/\
+ .\"
+-.\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
+-.\"
+-.Dd February 8, 2004
++.Dd February 2, 2018
+ .Dt PRIMES 6
+ .Os
+ .Sh NAME
+@@ -45,6 +43,7 @@
+ .Nd generate primes
+ .Sh SYNOPSIS
+ .Nm primes
++.Op Fl dh
+ .Op Ar start Op Ar stop
+ .Sh DESCRIPTION
+ The
+@@ -60,18 +59,18 @@ value must be at least 0 and not greater than
+ .Ar stop .
+ The
+ .Ar stop
+-value must not be greater than 4294967295.
++value must not be greater than 3825123056546413050.
+ The default value of
+ .Ar stop
+-is 4294967295.
++is 3825123056546413050.
+ .Pp
+ When the
+ .Nm
+ utility is invoked with no arguments,
+ .Ar start
+-is read from standard input.
++is read from standard input and
+ .Ar stop
+-is taken to be 4294967295.
++is taken to be 3825123056546413050.
+ The
+ .Ar start
+ value may be preceded by a single
+@@ -80,10 +79,28 @@ The
+ .Ar start
+ value is terminated by a non-digit character (such as a newline).
+ The input line must not be longer than 255 characters.
++.Pp
++When given the
++.Fl d
++argument,
++.Nm
++prints the difference between the current and the previous prime.
++.Pp
++When given the
++.Fl h
++argument,
++.Nm
++prints the prime numbers in hexadecimal.
+ .Sh DIAGNOSTICS
+ Out of range or invalid input results in
+-an appropriate error message
+-being written to standard error.
++an appropriate error message to standard error.
++.Sh AUTHORS
++.An -nosplit
++Originally by
++.An Landon Curt Noll ,
++extended to some 64-bit primes by
++.An Colin Percival .
+ .Sh BUGS
++This
+ .Nm
+-won't get you a world record.
++program won't get you a world record.
+diff --git a/primes/primes.c b/primes/primes.c
+index 2d93594..a022aa9 100644
+--- a/primes/primes.c
++++ b/primes/primes.c
+@@ -1,4 +1,4 @@
+-/*	$NetBSD: primes.c,v 1.12 2004/01/27 20:30:30 jsm Exp $	*/
++/*	$NetBSD: primes.c,v 1.22 2018/02/03 15:40:29 christos Exp $	*/
+ 
+ /*
+  * Copyright (c) 1989, 1993
+@@ -34,31 +34,31 @@
+ 
+ #include <sys/cdefs.h>
+ #ifndef lint
+-__COPYRIGHT("@(#) Copyright (c) 1989, 1993\n\
+-	The Regents of the University of California.  All rights reserved.\n");
++__COPYRIGHT("@(#) Copyright (c) 1989, 1993\
++ The Regents of the University of California.  All rights reserved.");
+ #endif /* not lint */
+ 
+ #ifndef lint
+ #if 0
+ static char sccsid[] = "@(#)primes.c	8.5 (Berkeley) 5/10/95";
+ #else
+-__RCSID("$NetBSD: primes.c,v 1.12 2004/01/27 20:30:30 jsm Exp $");
++__RCSID("$NetBSD: primes.c,v 1.22 2018/02/03 15:40:29 christos Exp $");
+ #endif
+ #endif /* not lint */
+ 
+ /*
+  * primes - generate a table of primes between two values
+  *
+- * By: Landon Curt Noll chongo@toad.com, ...!{sun,tolsoft}!hoptoad!chongo
+- *
+- * chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
++ * By Landon Curt Noll, http://www.isthe.com/chongo/index.html /\oo/\
+  *
+  * usage:
+- *	primes [start [stop]]
++ *	primes [-dh] [start [stop]]
+  *
+  *	Print primes >= start and < stop.  If stop is omitted,
+- *	the value 4294967295 (2^32-1) is assumed.  If start is
++ *	the value SPSPMAX is assumed.  If start is
+  *	omitted, start is read from standard input.
++ *		-d: print difference to previous prime, e.g. 3 (1)
++ *		-h: print primes in hexadecimal
+  *
+  * validation check: there are 664579 primes between 0 and 10^7
+  */
+@@ -66,11 +66,12 @@ __RCSID("$NetBSD: primes.c,v 1.12 2004/01/27 20:30:30 jsm Exp $");
+ #include <ctype.h>
+ #include <err.h>
+ #include <errno.h>
++#include <inttypes.h>
+ #include <limits.h>
+ #include <math.h>
+-#include <memory.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ #include <unistd.h>
+ 
+ #include "primes.h"
+@@ -80,49 +81,35 @@ __RCSID("$NetBSD: primes.c,v 1.12 2004/01/27 20:30:30 jsm Exp $");
+  *
+  * We only sieve the odd numbers.  The base of our sieve windows are always
+  * odd.  If the base of table is 1, table[i] represents 2*i-1.  After the
+- * sieve, table[i] == 1 if and only iff 2*i-1 is prime.
++ * sieve, table[i] == 1 if and only if 2*i-1 is prime.
+  *
+  * We make TABSIZE large to reduce the overhead of inner loop setup.
+  */
+-char table[TABSIZE];	 /* Eratosthenes sieve of odd numbers */
++static char table[TABSIZE];	 /* Eratosthenes sieve of odd numbers */
+ 
+-/*
+- * prime[i] is the (i-1)th prime.
+- *
+- * We are able to sieve 2^32-1 because this byte table yields all primes 
+- * up to 65537 and 65537^2 > 2^32-1.
+- */
+-extern const ubig prime[];
+-extern const ubig *pr_limit;		/* largest prime in the prime array */
++static int dflag, hflag;
+ 
+-/*
+- * To avoid excessive sieves for small factors, we use the table below to 
+- * setup our sieve blocks.  Each element represents a odd number starting 
+- * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
+- */
+-extern const char pattern[];
+-extern const int pattern_size;	/* length of pattern array */
++static void primes(uint64_t, uint64_t);
++static uint64_t read_num_buf(void);
++static void usage(void) __dead;
+ 
+-int	main(int, char *[]);
+-void	primes(ubig, ubig);
+-ubig	read_num_buf(void);
+-void	usage(void) __attribute__((__noreturn__));
+ 
+ int
+-main(argc, argv)
+-	int argc;
+-	char *argv[];
++main(int argc, char *argv[])
+ {
+-	ubig start;		/* where to start generating */
+-	ubig stop;		/* don't generate at or above this value */
++	uint64_t start;		/* where to start generating */
++	uint64_t stop;		/* don't generate at or above this value */
+ 	int ch;
+ 	char *p;
+ 
+-	/* Revoke setgid privileges */
+-	setregid(getgid(), getgid());
+-
+-	while ((ch = getopt(argc, argv, "")) != -1)
++	while ((ch = getopt(argc, argv, "dh")) != -1)
+ 		switch (ch) {
++		case 'd':
++			dflag++;
++			break;
++		case 'h':
++			hflag++;
++			break;
+ 		case '?':
+ 		default:
+ 			usage();
+@@ -131,10 +118,10 @@ main(argc, argv)
+ 	argv += optind;
+ 
+ 	start = 0;
+-	stop = BIG;
++	stop = (uint64_t)(-1);
+ 
+ 	/*
+-	 * Convert low and high args.  Strtoul(3) sets errno to
++	 * Convert low and high args.  Strtoumax(3) sets errno to
+ 	 * ERANGE if the number is too large, but, if there's
+ 	 * a leading minus sign it returns the negation of the
+ 	 * result of the conversion, which we'd rather disallow.
+@@ -146,14 +133,14 @@ main(argc, argv)
+ 			errx(1, "negative numbers aren't permitted.");
+ 
+ 		errno = 0;
+-		start = strtoul(argv[0], &p, 10);
++		start = strtoumax(argv[0], &p, 0);
+ 		if (errno)
+ 			err(1, "%s", argv[0]);
+ 		if (*p != '\0')
+ 			errx(1, "%s: illegal numeric format.", argv[0]);
+ 
+ 		errno = 0;
+-		stop = strtoul(argv[1], &p, 10);
++		stop = strtoumax(argv[1], &p, 0);
+ 		if (errno)
+ 			err(1, "%s", argv[1]);
+ 		if (*p != '\0')
+@@ -165,7 +152,7 @@ main(argc, argv)
+ 			errx(1, "negative numbers aren't permitted.");
+ 
+ 		errno = 0;
+-		start = strtoul(argv[0], &p, 10);
++		start = strtoumax(argv[0], &p, 0);
+ 		if (errno)
+ 			err(1, "%s", argv[0]);
+ 		if (*p != '\0')
+@@ -181,18 +168,18 @@ main(argc, argv)
+ 	if (start > stop)
+ 		errx(1, "start value must be less than stop value.");
+ 	primes(start, stop);
+-	exit(0);
++	return (0);
+ }
+ 
+ /*
+  * read_num_buf --
+- *	This routine returns a number n, where 0 <= n && n <= BIG.
++ *	This routine returns a number n, where 0 <= n && n <= ULONG_MAX.
+  */
+-ubig
+-read_num_buf()
++static uint64_t
++read_num_buf(void)
+ {
+-	ubig val;
+-	char *p, buf[100];		/* > max number of digits. */
++	uint64_t val;
++	char *p, buf[LINE_MAX];		/* > max number of digits. */
+ 
+ 	for (;;) {
+ 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
+@@ -200,13 +187,13 @@ read_num_buf()
+ 				err(1, "stdin");
+ 			exit(0);
+ 		}
+-		for (p = buf; isblank(*p); ++p);
++		for (p = buf; isblank((unsigned char)*p); ++p);
+ 		if (*p == '\n' || *p == '\0')
+ 			continue;
+ 		if (*p == '-')
+ 			errx(1, "negative numbers aren't permitted.");
+ 		errno = 0;
+-		val = strtoul(buf, &p, 10);
++		val = strtoumax(buf, &p, 0);
+ 		if (errno)
+ 			err(1, "%s", buf);
+ 		if (*p != '\n')
+@@ -218,28 +205,27 @@ read_num_buf()
+ /*
+  * primes - sieve and print primes from start up to and but not including stop
+  */
+-void
+-primes(start, stop)
+-	ubig start;	/* where to start generating */
+-	ubig stop;	/* don't generate at or above this value */
++static void
++primes(uint64_t start, uint64_t stop)
+ {
+ 	char *q;		/* sieve spot */
+-	ubig factor;		/* index and factor */
++	uint64_t factor;	/* index and factor */
+ 	char *tab_lim;		/* the limit to sieve on the table */
+-	const ubig *p;		/* prime table pointer */
+-	ubig fact_lim;		/* highest prime for current block */
+-	ubig mod;		/* temp storage for mod */
++	const uint64_t *p;	/* prime table pointer */
++	uint64_t fact_lim;	/* highest prime for current block */
++	uint64_t mod;		/* temp storage for mod */
++	uint64_t prev = 0;
+ 
+ 	/*
+ 	 * A number of systems can not convert double values into unsigned
+ 	 * longs when the values are larger than the largest signed value.
+-	 * We don't have this problem, so we can go all the way to BIG.
++	 * We don't have this problem, so we can go all the way to ULONG_MAX.
+ 	 */
+ 	if (start < 3) {
+-		start = (ubig)2;
++		start = 2;
+ 	}
+ 	if (stop < 3) {
+-		stop = (ubig)2;
++		stop = 2;
+ 	}
+ 	if (stop <= start) {
+ 		return;
+@@ -263,8 +249,13 @@ primes(start, stop)
+ 		for (p = &prime[0], factor = prime[0];
+ 		    factor < stop && p <= pr_limit; factor = *(++p)) {
+ 			if (factor >= start) {
+-				printf("%lu\n", (unsigned long) factor);
++				printf(hflag ? "%" PRIx64 : "%" PRIu64, factor);
++				if (dflag) {
++					printf(" (%" PRIu64 ")", factor - prev);
++				}
++				putchar('\n');
+ 			}
++			prev = factor;
+ 		}
+ 		/* return early if we are done */
+ 		if (p <= pr_limit) {
+@@ -298,11 +289,10 @@ primes(start, stop)
+ 		/* note highest useful factor and sieve spot */
+ 		if (stop-start > TABSIZE+TABSIZE) {
+ 			tab_lim = &table[TABSIZE]; /* sieve it all */
+-			fact_lim = (int)sqrt(
+-					(double)(start)+TABSIZE+TABSIZE+1.0);
++			fact_lim = sqrt(start+1.0+TABSIZE+TABSIZE);
+ 		} else {
+ 			tab_lim = &table[(stop-start)/2]; /* partial sieve */
+-			fact_lim = (int)sqrt((double)(stop)+1.0);
++			fact_lim = sqrt(stop+1.0);
+ 		}
+ 		/* sieve for factors >= 17 */
+ 		factor = 17;	/* 17 is first prime to use */
+@@ -315,26 +305,36 @@ primes(start, stop)
+ 			} else {
+ 				q = &table[mod ? factor-(mod/2) : 0];
+ 			}
+-			/* sive for our current factor */
++			/* sieve for our current factor */
+ 			for ( ; q < tab_lim; q += factor) {
+ 				*q = '\0'; /* sieve out a spot */
+ 			}
+-		} while ((factor=(ubig)(*(p++))) <= fact_lim);
++			factor = *p++;
++		} while (factor <= fact_lim);
+ 
+ 		/*
+ 		 * print generated primes
+ 		 */
+ 		for (q = table; q < tab_lim; ++q, start+=2) {
+ 			if (*q) {
+-				printf("%lu\n", (unsigned long) start);
++				if (start > SIEVEMAX) {
++					if (!isprime(start))
++						continue;
++				}
++				printf(hflag ? "%" PRIx64 : "%" PRIu64, start);
++				if (dflag && (prev || (start <= *pr_limit))) {
++					printf(" (%" PRIu64 ")", start - prev);
++				}
++				putchar('\n');
++				prev = start;
+ 			}
+ 		}
+ 	}
+ }
+ 
+-void
+-usage()
++static void
++usage(void)
+ {
+-	(void)fprintf(stderr, "usage: primes [start [stop]]\n");
++	(void)fprintf(stderr, "usage: primes [-dh] [start [stop]]\n");
+ 	exit(1);
+ }
+diff --git a/primes/primes.h b/primes/primes.h
+index a032c9b..2c00446 100644
+--- a/primes/primes.h
++++ b/primes/primes.h
+@@ -1,4 +1,4 @@
+-/*	$NetBSD: primes.h,v 1.5 2003/08/07 09:37:34 agc Exp $	*/
++/*	$NetBSD: primes.h,v 1.7 2018/02/03 15:40:29 christos Exp $	*/
+ 
+ /*
+  * Copyright (c) 1989, 1993
+@@ -37,14 +37,35 @@
+ /*
+  * primes - generate a table of primes between two values
+  *
+- * By: Landon Curt Noll chongo@toad.com, ...!{sun,tolsoft}!hoptoad!chongo
++ * By Landon Curt Noll, http://www.isthe.com/chongo/index.html /\oo/\
+  *
+- * chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
+  */
+ 
+-/* ubig is the type that holds a large unsigned value */
+-typedef unsigned long ubig;		/* must be >=32 bit unsigned value */
+-#define	BIG		ULONG_MAX	/* largest value will sieve */
++#include <stdint.h>
+ 
+ /* bytes in sieve table (must be > 3*5*7*11) */
+ #define	TABSIZE		256*1024
++
++/*
++ * prime[i] is the (i-1)th prime.
++ *
++ * We are able to sieve 2^32-1 because this byte table yields all primes
++ * up to 65537 and 65537^2 > 2^32-1.
++ */
++
++extern const uint64_t prime[];		/* must be >=32 bit unsigned values */
++extern const uint64_t *const pr_limit;	/* largest prime in the prime array */
++
++/* Maximum size sieving alone can handle. */
++#define	SIEVEMAX 4295098368ULL
++
++/*
++ * To avoid excessive sieves for small factors, we use the table below to
++ * setup our sieve blocks.  Each element represents an odd number starting
++ * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
++ */
++extern const char pattern[];
++extern const size_t pattern_size;	/* length of pattern array */
++
++/* Test for primality using strong pseudoprime tests. */
++int isprime(uint64_t);
+diff --git a/primes/spsp.c b/primes/spsp.c
+new file mode 100644
+index 0000000..998751c
+--- /dev/null
++++ b/primes/spsp.c
+@@ -0,0 +1,215 @@
++/*	$NetBSD: spsp.c,v 1.2 2018/02/03 15:40:29 christos Exp $	*/
++
++/*-
++ * Copyright (c) 2014 Colin Percival
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++#include <sys/cdefs.h>
++#ifndef lint
++__COPYRIGHT("@(#) Copyright (c) 1989, 1993\
++ The Regents of the University of California.  All rights reserved.");
++#endif /* not lint */
++
++#ifndef lint
++#if 0
++static char sccsid[] = "@(#)primes.c    8.5 (Berkeley) 5/10/95";
++#else
++__RCSID("$NetBSD: spsp.c,v 1.2 2018/02/03 15:40:29 christos Exp $");
++#endif
++#endif /* not lint */
++
++#include <assert.h>
++#include <stddef.h>
++#include <stdint.h>
++
++#include "primes.h"
++
++/* Return a * b % n, where 0 <= n. */
++static uint64_t
++mulmod(uint64_t a, uint64_t b, uint64_t n)
++{
++	uint64_t x = 0;
++	uint64_t an = a % n;
++
++	while (b != 0) {
++		if (b & 1) {
++			x += an;
++			if ((x < an) || (x >= n))
++				x -= n;
++		}
++		if (an + an < an)
++			an = an + an - n;
++		else if (an + an >= n)
++			an = an + an - n;
++		else
++			an = an + an;
++
++		b >>= 1;
++	}
++
++	return (x);
++}
++
++/* Return a^r % n, where 0 < n. */
++static uint64_t
++powmod(uint64_t a, uint64_t r, uint64_t n)
++{
++	uint64_t x = 1;
++
++	while (r != 0) {
++		if (r & 1)
++			x = mulmod(a, x, n);
++		a = mulmod(a, a, n);
++		r >>= 1;
++	}
++
++	return (x);
++}
++
++/* Return non-zero if n is a strong pseudoprime to base p. */
++static int
++spsp(uint64_t n, uint64_t p)
++{
++	uint64_t x;
++	uint64_t r = n - 1;
++	int k = 0;
++
++	/* Compute n - 1 = 2^k * r. */
++	while ((r & 1) == 0) {
++		k++;
++		r >>= 1;
++	}
++
++	/* Compute x = p^r mod n.  If x = 1, n is a p-spsp. */
++	x = powmod(p, r, n);
++	if (x == 1)
++		return (1);
++
++	/* Compute x^(2^i) for 0 <= i < n.  If any are -1, n is a p-spsp. */
++	while (k > 0) {
++		if (x == n - 1)
++			return (1);
++		x = powmod(x, 2, n);
++		k--;
++	}
++
++	/* Not a p-spsp. */
++	return (0);
++}
++
++/* Test for primality using strong pseudoprime tests. */
++int
++isprime(uint64_t _n)
++{
++	uint64_t n = _n;
++
++	/*
++	 * Values from:
++	 * C. Pomerance, J.L. Selfridge, and S.S. Wagstaff, Jr.,
++	 * The pseudoprimes to 25 * 10^9, Math. Comp. 35(151):1003-1026, 1980.
++	 */
++
++	/* No SPSPs to base 2 less than 2047. */
++	if (!spsp(n, 2))
++		return (0);
++	if (n < 2047ULL)
++		return (1);
++
++	/* No SPSPs to bases 2,3 less than 1373653. */
++	if (!spsp(n, 3))
++		return (0);
++	if (n < 1373653ULL)
++		return (1);
++
++	/* No SPSPs to bases 2,3,5 less than 25326001. */
++	if (!spsp(n, 5))
++		return (0);
++	if (n < 25326001ULL)
++		return (1);
++
++	/* No SPSPs to bases 2,3,5,7 less than 3215031751. */
++	if (!spsp(n, 7))
++		return (0);
++	if (n < 3215031751ULL)
++		return (1);
++
++	/*
++	 * Values from:
++	 * G. Jaeschke, On strong pseudoprimes to several bases,
++	 * Math. Comp. 61(204):915-926, 1993.
++	 */
++
++	/* No SPSPs to bases 2,3,5,7,11 less than 2152302898747. */
++	if (!spsp(n, 11))
++		return (0);
++	if (n < 2152302898747ULL)
++		return (1);
++
++	/* No SPSPs to bases 2,3,5,7,11,13 less than 3474749660383. */
++	if (!spsp(n, 13))
++		return (0);
++	if (n < 3474749660383ULL)
++		return (1);
++
++	/* No SPSPs to bases 2,3,5,7,11,13,17 less than 341550071728321. */
++	if (!spsp(n, 17))
++		return (0);
++	if (n < 341550071728321ULL)
++		return (1);
++
++	/* No SPSPs to bases 2,3,5,7,11,13,17,19 less than 341550071728321. */
++	if (!spsp(n, 19))
++		return (0);
++	if (n < 341550071728321ULL)
++		return (1);
++
++	/*
++	 * Value from:
++	 * Y. Jiang and Y. Deng, Strong pseudoprimes to the first eight prime
++	 * bases, Math. Comp. 83(290):2915-2924, 2014.
++	 */
++
++	/* No SPSPs to bases 2..23 less than 3825123056546413051. */
++	if (!spsp(n, 23))
++		return (0);
++	if (n < 3825123056546413051)
++		return (1);
++	/*
++	 * Value from:
++	 * J. Sorenson and J. Webster, Strong pseudoprimes to twelve prime
++	 * bases, Math. Comp. 86(304):985-1003, 2017.
++	 */
++
++       /* No SPSPs to bases 2..37 less than 318665857834031151167461. */
++       if (!spsp(n, 29))
++               return (0);
++       if (!spsp(n, 31))
++               return (0);
++       if (!spsp(n, 37))
++               return (0);
++
++       /* All 64-bit values are less than 318665857834031151167461. */
++       return (1);
++}

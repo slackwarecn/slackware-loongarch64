@@ -601,7 +601,6 @@ gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.glibc228.diff
 gzip ./source/ap/texinfo/dir
 gzip ./source/ap/texinfo/doinst.sh
-gzip ./source/ap/texinfo/texinfo.fix.unescaped.left.brace.diff
 gzip ./source/ap/vorbis-tools/ogg123.opus.diff
 gzip ./source/ap/sudo/doinst.sh
 gzip ./source/ap/soma/doinst.sh
@@ -670,6 +669,7 @@ gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
+gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-2.29.en_US.no.am.pm.date.format.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/fuse/doinst.sh

@@ -1125,6 +1125,7 @@ gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/php.ini-development.diff
 bzip2 ./source/n/curl/cacert.pem
+bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log
 bzip2 ./source/xap/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./source/xap/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./source/xap/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt

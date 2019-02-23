@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,16 +20,11 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Sources:
-# ftp://ftp.pal.xgw.fi/pub/gnu/alpha/gnu/p2c-1.21alpha2.tar.gz
-# ftp://ftp.clara.net/pub/mirrors/gnu/hurd/p2c-1.21alpha2.tar.gz
-# ftp://ftp.obspm.fr/pub1/computing/gnu/hurd/p2c-1.21alpha2.tar.gz
-
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=p2c
-VERSION=${VERSION:-1.21alpha2}
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-2.01}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -71,14 +66,10 @@ PKG=$TMP/package-p2c
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-# Explode the package framework:
-cd $PKG
-explodepkg $CWD/_p2c.tar.gz
-
 cd $TMP
-rm -rf p2c-1.21alpha-07.Dec.93
-tar xvf $CWD/p2c-1.21alpha2.tar.gz || exit 1
-cd p2c-1.21alpha-07.Dec.93 || exit 1
+rm -rf p2c-${VERSION}
+tar xvf $CWD/p2c-${VERSION}.tar.?z || exit 1
+cd p2c-${VERSION} || exit 1
 
 chown -R root:root .
 find . \
@@ -87,11 +78,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-zcat $CWD/p2c_1.21alpha2-2.1.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/p2c_time.diff.gz | patch -p0 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/p2c.getline.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-
 find . -name "*.orig" | xargs rm --verbose
+
 # Fix library paths:
 sed -i -e "s#/lib #/lib${LIBDIRSUFFIX} #g" \
        -e "s#/lib\$#/lib${LIBDIRSUFFIX}#g" \
@@ -99,12 +87,30 @@ sed -i -e "s#/lib #/lib${LIBDIRSUFFIX} #g" \
         $( grep -lr '/lib' * )
 
 cd src
+
+# Add includes to get rid of some warnings:
+sed -e '/^#include <stdio.h>/ a #include <stdlib.h>' -i 'makeproto.c'
+# expose conflicting declarations:
+sed -e '/^#include "trans.h"/ i #include <unistd.h>' -i 'trans.c'
+# Switch to built in link,unlink declarations:
+sed -e '/^int u*n*link / s:^.*$:/* & */:g' -i 'trans.h'
+
+# Switch from private to public build:
+sed -e '/private version/,/^$/ s:^[A-Z]:#&:g' \
+    -e '/public version/,/^$/ s:^#\([A-Z]\):\1:g' \
+    -i 'Makefile'
+
 make OPT="$SLKCFLAGS" || exit 1
 make p2cc || exit 1
 
-mv $PKG/usr/lib $PKG/usr/lib${LIBDIRSUFFIX} 2>/dev/null
+mkdir -p $PKG/usr/bin
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/p2c
+mkdir -p $PKG/usr/include/p2c
+mkdir -p $PKG/usr/man/man1
+
 cat p2c > $PKG/usr/bin/p2c
 cat p2cc > $PKG/usr/bin/p2cc
+chmod 755 $PKG/usr/bin/*
 cat libp2c.a > $PKG/usr/lib${LIBDIRSUFFIX}/libp2c.a
 cat p2c.man | gzip -9c > $PKG/usr/man/man1/p2c.1.gz
 cat p2cc.man | gzip -9c > $PKG/usr/man/man1/p2cc.1.gz
@@ -120,22 +126,23 @@ cd ..
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mkdir -p $PKG/usr/doc/p2c-1.21alpha2
+mkdir -p $PKG/usr/doc/p2c-${VERSION}
 cp -a \
   README ftp.README \
-  $PKG/usr/doc/p2c-1.21alpha2
+  $PKG/usr/doc/p2c-${VERSION}
 ( cd src
   for file in HISTORY NOTES COPYING INSTALL ; do
-    cp -a $file $PKG/usr/doc/p2c-1.21alpha2
+    cp -a $file $PKG/usr/doc/p2c-${VERSION}
   done
 )
-cp -a src/README $PKG/usr/doc/p2c-1.21alpha2/README.src
-cp -a examples $PKG/usr/doc/p2c-1.21alpha2
-( cd $PKG/usr/doc/p2c-1.21alpha2
-  zcat $CWD/p2c.examples.diff.gz | patch -p1 --verbose || exit 1
-) || exit 1
-rm -f $PKG/usr/doc/p2c-1.21alpha2/examples/Makefile~
-rm -rf $PKG/usr/doc/p2c-1.21alpha2/examples/c
+cp -a src/README $PKG/usr/doc/p2c-${VERSION}/README.src
+cp -a examples $PKG/usr/doc/p2c-${VERSION}
+# Fix examples Makefile:
+sed -i "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" $PKG/usr/doc/p2c-${VERSION}/examples/Makefile
+sed -i "s#../p2c#p2c#g" $PKG/usr/doc/p2c-${VERSION}/examples/Makefile
+sed -i "s#../home/libp2c.a#/usr/lib${LIBDIRSUFFIX}/libp2c.a#g" $PKG/usr/doc/p2c-${VERSION}/examples/Makefile
+sed -i "s#../home#/usr/include/p2c#g" $PKG/usr/doc/p2c-${VERSION}/examples/Makefile
+chmod 755 $PKG/usr/doc/p2c-${VERSION}/examples
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
@@ -143,4 +150,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 # Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/p2c-$VERSION-$ARCH-$BUILD.txz
-

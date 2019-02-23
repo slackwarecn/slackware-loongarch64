@@ -35,10 +35,6 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
-gzip ./source/d/p2c/p2c_time.diff
-gzip ./source/d/p2c/p2c_1.21alpha2-2.1.diff
-gzip ./source/d/p2c/p2c.examples.diff
-gzip ./source/d/p2c/p2c.getline.diff
 gzip ./source/d/llvm/n_clang_allow_BUILD_SHARED_LIBRARY.patch
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/llvm/clang-tools-extra.no.clangd.diff

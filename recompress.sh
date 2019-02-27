@@ -432,6 +432,7 @@ gzip ./source/n/ca-certificates/doinst.sh
 gzip ./source/n/ca-certificates/update-ca-certificates.c_rehash.diff
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
+gzip ./source/n/curl/curl.aabc7ae5ecf70973add429b5acbc86d6a57e4da5.patch
 gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/postfix/postfix.script.starting.message.diff
 gzip ./source/n/postfix/postfix.only.warn.regular.files.diff

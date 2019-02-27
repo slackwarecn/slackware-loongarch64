@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=ca-certificates
 VERSION=${VERSION:-$(echo certdata-*.txt.xz | cut -f 2 -d - | cut -f 1 -d .)}
 ARCH=noarch
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -63,6 +63,11 @@ find . \
 
 # Remove incompatible command operators used to call 'run-parts':
 zcat $CWD/fixup_update-ca-certificates.diff.gz | patch -p1 || exit 1
+
+# Use "c_rehash" rather than "openssl rehash". They act mostly the same, but
+# the openssl builtin is not available on older versions of Slackware, while
+# c_rehash will always be there.
+zcat $CWD/update-ca-certificates.c_rehash.diff.gz | patch -p1 || exit 1
 
 # Update to certdata.txt from $CWD:
 xzcat $CWD/certdata-${VERSION}.txt.xz > mozilla/certdata.txt

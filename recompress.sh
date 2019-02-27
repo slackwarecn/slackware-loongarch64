@@ -409,7 +409,6 @@ gzip ./source/n/net-snmp/net-snmp-5.8-dir-fix.patch
 gzip ./source/n/net-snmp/net-snmp-5.7.3-iterator-fix.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-modern-rpm-api.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-test-debug.patch
-gzip ./source/n/epic5/openssl-1.1.patch
 gzip ./source/n/uucp/policy.h.diff
 gzip ./source/n/ulogd/doinst.sh
 gzip ./source/n/openssl/doinst.sh-openssl-solibs
@@ -430,6 +429,7 @@ gzip ./source/n/popa3d/doinst.sh
 gzip ./source/n/popa3d/popa3d.diff
 gzip ./source/n/ca-certificates/fixup_update-ca-certificates.diff
 gzip ./source/n/ca-certificates/doinst.sh
+gzip ./source/n/ca-certificates/update-ca-certificates.c_rehash.diff
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh

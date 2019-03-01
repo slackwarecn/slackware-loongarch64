@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2015, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2015, 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=infozip
 VERSION=6.0
 ZIP=3.0
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -55,6 +55,15 @@ cd $TMP
 rm -rf zip$(echo $ZIP | tr -d .)
 tar xvf $CWD/zip$(echo $ZIP | tr -d .).tar.?z* || exit 1
 cd zip$(echo $ZIP | tr -d .)
+
+# Apply various patches:
+zcat $CWD/zip-patches/zip-3.0-exec-shield.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/zip-patches/zip-3.0-currdir.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/zip-patches/zip-3.0-time.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/zip-patches/man.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/zip-patches/zip-3.0-format-security.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/zip-patches/zipnote.patch.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 mkdir -p $PKG/usr/doc/zip-$ZIP
 cp -a BUGS CHANGES INSTALL LICENSE README* TODO US* WHATSNEW WHERE \
@@ -75,15 +84,43 @@ cd $TMP
 rm -rf unzip$(echo $VERSION | tr -d .)
 tar xvf $CWD/unzip$(echo $VERSION | tr -d .).tar.?z* || exit 1
 cd unzip$(echo $VERSION | tr -d .)
-zcat $CWD/unzip.use.system.libbz2.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/unzip.process.c.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/unzip.git.archive.fix.diff.gz | patch -p0 --verbose || exit 1
+
+# Apply various patches:
+zcat $CWD/unzip-patches/unzip-6.0-bzip2-configure.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-exec-shield.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-close.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-attribs-overflow.patch.gz | patch -p1 --verbose || exit 1
+# RH specific:
+#zcat $CWD/unzip-patches/unzip-6.0-configure.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-manpage-fix.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-fix-recmatch.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-symlink.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-caseinsensitive.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-format-secure.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-valgrind.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-x-option.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-overflow.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-cve-2014-8139.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-cve-2014-8140.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-cve-2014-8141.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-overflow-long-fsize.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-heap-overflow-infloop.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-alt-iconv-utf8.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-alt-iconv-utf8-print.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/0001-Fix-CVE-2016-9844-rhbz-1404283.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-timestamp.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-cve-2018-1000035-heap-based-overflow.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-cve-2018-18384.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/unzip-patches/unzip-6.0-COVSCAN-fix-unterminated-string.patch.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 mkdir -p $PKG/usr/doc/unzip-$VERSION
 cp -a BUGS COPYING* Contents History.* INSTALL LICENSE README ToDo WHERE \
       $PKG/usr/doc/unzip-$VERSION
 chmod 644 $PKG/usr/doc/unzip-$VERSION/*
-make -f unix/Makefile generic LOCAL_UNZIP=-DIZ_HAVE_UXUIDGID || exit 1
+# -DNO_LCHMOD because Linux systems do not have lchmod()
+# -DNOMEMCPY is slower, but prevents file corruption
+make -f unix/Makefile generic LOCAL_UNZIP="-DIZ_HAVE_UXUIDGID -DNOMEMCPY -DNO_LCHMOD" || exit 1
 cat unzip > $PKG/usr/bin/unzip
 cat unzipsfx > $PKG/usr/bin/unzipsfx
 cat funzip > $PKG/usr/bin/funzip

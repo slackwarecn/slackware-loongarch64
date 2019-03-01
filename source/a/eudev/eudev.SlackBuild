@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=eudev
 VERSION=${VERSION:-$(echo eudev-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j7 "}
 
@@ -59,7 +59,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG/lib/udev
 cd $TMP
 rm -rf eudev-$VERSION
-tar xvf $CWD/eudev-$VERSION.tar.xz || exit 1
+tar xvf $CWD/eudev-$VERSION.tar.?z || exit 1
 cd eudev-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -75,6 +75,9 @@ zcat $CWD/60-cdrom_id.rules.diff.gz | patch -p1 --verbose || exit 1
 # was also breaking MTP support in KDE.
 # See: https://bugs.kde.org/show_bug.cgi?id=387454
 zcat $CWD/eudev.ignore_bind_unbind_events.diff.gz | patch -p1 --verbose || exit 1
+
+# Don't require groups that we don't need:
+zcat $CWD/eudev.no.renderD.no.kvm.diff.gz | patch -p1 --verbose || exit 1
 
 ./configure \
   --prefix=/usr \

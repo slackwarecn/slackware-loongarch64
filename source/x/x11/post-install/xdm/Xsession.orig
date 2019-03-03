@@ -1,37 +1,66 @@
 #!/bin/sh
-# $XConsortium: Xsession /main/10 1995/12/18 18:21:28 gildea $
 #
-#
-# $XFree86: xc/programs/xdm/config/Xsession,v 1.2 1998/01/11 03:48:32 dawes Exp $
 
 # redirect errors to a file in user's home directory if we can
-for errfile in "$HOME/.xsession-errors" "${TMPDIR-/tmp}/xses-$USER" "/tmp/xses-$USER"
-do
-	if ( cp /dev/null "$errfile" 2> /dev/null )
-	then
-		chmod 600 "$errfile"
-		exec > "$errfile" 2>&1
-		break
-	fi
-done
+
+errfile="$HOME/.xsession-errors"
+if ( umask 077 && cp /dev/null "$errfile" 2> /dev/null )
+then
+	exec > "$errfile" 2>&1
+else
+    mktemp="/usr/bin/mktemp"
+    if [ "x$mktemp" != "x" -a -x "$mktemp" ]
+    then
+	for errfile in "${TMPDIR-/tmp}/xses-$USER" "/tmp/xses-$USER"
+	do
+		if ef="$( umask 077 && $mktemp "$errfile.XXXXXX" 2> /dev/null)"
+		then
+			exec > "$ef" 2>&1
+			mv "$ef" "$errfile" 2> /dev/null
+			break
+		fi
+	done
+    else
+# Since this system doesn't have a mktemp command to allow secure
+# creation of files in shared directories, no fallback error log
+# is being used.   See https://bugs.freedesktop.org/show_bug.cgi?id=5898
+#
+# 	for errfile in "${TMPDIR-/tmp}/xses-$USER" "/tmp/xses-$USER"
+#	do
+#		if ( umask 077 && cp /dev/null "$errfile" 2> /dev/null )
+#		then
+#			exec > "$errfile" 2>&1
+#			break
+#		fi
+#	done
+
+	exec > /dev/null 2>&1
+    fi
+fi
 
 case $# in
 1)
 	case $1 in
 	failsafe)
-		exec xterm -geometry 80x24-0-0
+		exec /usr/bin/xterm -geometry 80x24-0-0
 		;;
 	esac
 esac
 
+# The startup script is not intended to have arguments.
+
 startup=$HOME/.xsession
 resources=$HOME/.Xresources
 
-if [ -s "$startup" -a -x "$startup" ]; then
-	exec "$startup"
+if [ -s "$startup" ]; then
+	if [ -x "$startup" ]; then
+		exec "$startup"
+	else
+		exec /bin/sh "$startup"
+	fi
 else
 	if [ -r "$resources" ]; then
-		xrdb -load "$resources"
+		/usr/bin/xrdb -load "$resources"
 	fi
-	exec xsm
+	exec /usr/bin/xsm
 fi

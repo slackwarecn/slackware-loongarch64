@@ -72,7 +72,9 @@ basic_usage() {
 	  -i | --interactive        Navigate through menus instead of using
 	                            commandline arguments.  
 	  --longhelp                Show more detailed information/examples.
-	  -k <kernelversion>        Use specific kernel version.
+	  -k <kernelversion>        Use specific kernel version. Or, support
+	                            more than one kernel version by passing a
+	                            list of versions separated by colons (:).
 	  -m <"additional mods">    Additional modules to pass to mkinitrd,
 	                            separated by colons (:).
 	  -l | --lilo               Only show lilo.conf section
@@ -345,7 +347,7 @@ while [ ! -z "$1" ]; do
         echo "Error: -k requires a kernel version."
         exit 1
       fi
-      KVER=$2
+      KVERLIST=$2
       shift 2
       ;;
     -m)
@@ -411,6 +413,15 @@ fi
 
 # Determine kernel version to use,
 # and check if modules for this kernel are actually present:
+if [ ! -z $KVERLIST ]; then
+  for kernel_version in $(echo $KVERLIST | tr ":" "\n") ; do
+    KVER=$kernel_version
+    if [ ! -d /lib/modules/$KVER ]; then
+      echo "Modules for kernel $KVER aren't installed."
+      exit 1
+    fi
+  done
+fi
 if [ -z "$KVER" ]; then
   if [ -n "$KFILE" ]; then
     KVER="$(strings $KFILE | grep '([^ ]*@[^ ]*) #' | cut -f1 -d' ')"
@@ -775,7 +786,11 @@ if [ -n "$MKINIT_MODS" ]; then
 fi
 
 # Constructing the mkinitrd command:
-MKINIT="mkinitrd -c -k $KVER -f $ROOTFS -r $ROOTDEV"
+if [ -z $KVERLIST ]; then
+  MKINIT="mkinitrd -c -k $KVER -f $ROOTFS -r $ROOTDEV"
+else
+  MKINIT="mkinitrd -c -k $KVERLIST -f $ROOTFS -r $ROOTDEV"
+fi
 
 # If we have a module list, add them:
 if ! [ -z "$MLIST" -o "$MLIST" = ":" ]; then

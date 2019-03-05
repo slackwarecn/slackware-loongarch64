@@ -45,6 +45,14 @@ gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
+gzip ./source/d/gcc/patches/revert-asm-inline/3-8-c-Delete-a-stray-line-in-asm-inline.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/6-8-c-c-asm-Use-nicer-error-for-const-and-restrict.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/7-8-c-asm-Do-not-handle-any-asm-qualifiers-in-top-level-asm.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/5-8-c-c-asm-Use-nicer-error-for-duplicate-asm-qualifiers.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/8-8-c-Don-t-error-for-const-or-restrict-as-asm-qualifier.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/4-8-c-c-asm-Write-the-asm-qualifier-loop-without-done-boolean.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/2-8-asm-inline.patch
+gzip ./source/d/gcc/patches/revert-asm-inline/1-8-asm-qualifiers-PR55681.patch
 gzip ./source/d/gcc/gcc-no_fixincludes.diff
 gzip ./source/d/doxygen/doxygen.9468ede.diff
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch

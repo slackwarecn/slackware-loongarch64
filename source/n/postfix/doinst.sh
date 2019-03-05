@@ -67,10 +67,10 @@ fi
 # existing config files (/etc/postfix/{main,master}.cf).  It won't hurt
 # anything on a new install.
 if [ -x usr/sbin/postfix ]; then
-  chroot . /usr/sbin/postfix upgrade-configuration
+  chroot . /usr/sbin/postfix upgrade-configuration 1> /dev/null 2> /dev/null
 fi
 
 # Process /etc/aliases into a database:
 if [ -x usr/bin/newaliases ]; then
-  chroot . /usr/bin/newaliases
+  chroot . /usr/bin/newaliases 1> /dev/null 2> /dev/null
 fi

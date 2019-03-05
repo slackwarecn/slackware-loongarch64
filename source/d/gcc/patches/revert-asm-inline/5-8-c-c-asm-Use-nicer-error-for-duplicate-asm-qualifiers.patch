@@ -1,0 +1,269 @@
+From patchwork Thu Dec 27 14:59:10 2018
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: [5/8] c/c++, asm: Use nicer error for duplicate asm qualifiers
+X-Patchwork-Submitter: Segher Boessenkool <segher@kernel.crashing.org>
+X-Patchwork-Id: 13822
+Message-Id: <30a12d359164450406601e125d128fc43af4d605.1545922222.git.segher@kernel.crashing.org>
+To: gcc-patches@gcc.gnu.org
+Cc: Segher Boessenkool <segher@kernel.crashing.org>
+Date: Thu, 27 Dec 2018 14:59:10 +0000
+From: Segher Boessenkool <segher@kernel.crashing.org>
+List-Id: <gcc-patches.gcc.gnu.org>
+
+Also as suggested by Jason.
+
+Segher
+
+2018-12-10  Segher Boessenkool  <segher@kernel.crashing.org>
+
+c/
+	* c-parser.c (c_parser_asm_statement): Keep track of the location each
+	asm qualifier is first seen; use that to give nicer "duplicate asm
+	qualifier" messages.  Delete 'quals" variable, instead pass the
+	"is_volatile_ flag to build_asm_stmt directly.
+	* c-tree.h (build_asm_stmt): Make the first arg bool instead of tree.
+	* c-typeck.c (build_asm_stmt): Ditto; adjust.
+
+cp/
+	* parser.c (cp_parser_asm_definition): Rewrite the loop to work without
+	"done" boolean variable.
+	* parser.c (cp_parser_asm_definition): Keep track of the location each
+	asm qualifier is first seen; use that to give nicer "duplicate asm
+	qualifier" messages.
+---
+ gcc/c/c-parser.c | 57 ++++++++++++++++++++++++++++++++++++--------------------
+ gcc/c/c-tree.h   |  2 +-
+ gcc/c/c-typeck.c |  4 ++--
+ gcc/cp/parser.c  | 45 ++++++++++++++++++++++++++++++++------------
+ 4 files changed, 73 insertions(+), 35 deletions(-)
+
+-- 
+1.8.3.1
+
+diff --git a/gcc/c/c-parser.c b/gcc/c/c-parser.c
+index b632f68..ca04910 100644
+--- a/gcc/c/c-parser.c
++++ b/gcc/c/c-parser.c
+@@ -6292,41 +6292,54 @@ c_parser_for_statement (c_parser *parser, bool ivdep, unsigned short unroll,
+ static tree
+ c_parser_asm_statement (c_parser *parser)
+ {
+-  tree quals, str, outputs, inputs, clobbers, labels, ret;
+-  bool simple, is_volatile, is_inline, is_goto;
++  tree str, outputs, inputs, clobbers, labels, ret;
++  bool simple;
+   location_t asm_loc = c_parser_peek_token (parser)->location;
+   int section, nsections;
+ 
+   gcc_assert (c_parser_next_token_is_keyword (parser, RID_ASM));
+   c_parser_consume_token (parser);
+ 
+-  quals = NULL_TREE;
+-  is_volatile = false;
+-  is_inline = false;
+-  is_goto = false;
++  /* Handle the asm-qualifier-list.  */
++  location_t volatile_loc = UNKNOWN_LOCATION;
++  location_t inline_loc = UNKNOWN_LOCATION;
++  location_t goto_loc = UNKNOWN_LOCATION;
+   for (;;)
+     {
+-      switch (c_parser_peek_token (parser)->keyword)
++      c_token *token = c_parser_peek_token (parser);
++      location_t loc = token->location;
++      switch (token->keyword)
+ 	{
+ 	case RID_VOLATILE:
+-	  if (is_volatile)
+-	    break;
+-	  is_volatile = true;
+-	  quals = c_parser_peek_token (parser)->value;
++	  if (volatile_loc)
++	    {
++	      error_at (loc, "duplicate asm qualifier %qE", token->value);
++	      inform (volatile_loc, "first seen here");
++	    }
++	  else
++	    volatile_loc = loc;
+ 	  c_parser_consume_token (parser);
+ 	  continue;
+ 
+ 	case RID_INLINE:
+-	  if (is_inline)
+-	    break;
+-	  is_inline = true;
++	  if (inline_loc)
++	    {
++	      error_at (loc, "duplicate asm qualifier %qE", token->value);
++	      inform (inline_loc, "first seen here");
++	    }
++	  else
++	    inline_loc = loc;
+ 	  c_parser_consume_token (parser);
+ 	  continue;
+ 
+ 	case RID_GOTO:
+-	  if (is_goto)
+-	    break;
+-	  is_goto = true;
++	  if (goto_loc)
++	    {
++	      error_at (loc, "duplicate asm qualifier %qE", token->value);
++	      inform (goto_loc, "first seen here");
++	    }
++	  else
++	    goto_loc = loc;
+ 	  c_parser_consume_token (parser);
+ 	  continue;
+ 
+@@ -6336,6 +6349,10 @@ c_parser_asm_statement (c_parser *parser)
+       break;
+     }
+ 
++  bool is_volatile = (volatile_loc != UNKNOWN_LOCATION);
++  bool is_inline = (inline_loc != UNKNOWN_LOCATION);
++  bool is_goto = (goto_loc != UNKNOWN_LOCATION);
++
+   /* ??? Follow the C++ parser rather than using the
+      lex_untranslated_string kludge.  */
+   parser->lex_untranslated_string = true;
+@@ -6410,9 +6427,9 @@ c_parser_asm_statement (c_parser *parser)
+   if (!c_parser_require (parser, CPP_SEMICOLON, "expected %<;%>"))
+     c_parser_skip_to_end_of_block_or_statement (parser);
+ 
+-  ret = build_asm_stmt (quals, build_asm_expr (asm_loc, str, outputs, inputs,
+-					       clobbers, labels, simple,
+-					       is_inline));
++  ret = build_asm_stmt (is_volatile,
++			build_asm_expr (asm_loc, str, outputs, inputs,
++					clobbers, labels, simple, is_inline));
+ 
+  error:
+   parser->lex_untranslated_string = false;
+diff --git a/gcc/c/c-tree.h b/gcc/c/c-tree.h
+index 7f34bdc..aa66aa2 100644
+--- a/gcc/c/c-tree.h
++++ b/gcc/c/c-tree.h
+@@ -679,7 +679,7 @@ extern tree c_start_case (location_t, location_t, tree, bool);
+ extern void c_finish_case (tree, tree);
+ extern tree build_asm_expr (location_t, tree, tree, tree, tree, tree, bool,
+ 			    bool);
+-extern tree build_asm_stmt (tree, tree);
++extern tree build_asm_stmt (bool, tree);
+ extern int c_types_compatible_p (tree, tree);
+ extern tree c_begin_compound_stmt (bool);
+ extern tree c_end_compound_stmt (location_t, tree, bool);
+diff --git a/gcc/c/c-typeck.c b/gcc/c/c-typeck.c
+index 3ebb28e..7b90b5c 100644
+--- a/gcc/c/c-typeck.c
++++ b/gcc/c/c-typeck.c
+@@ -9979,9 +9979,9 @@ process_init_element (location_t loc, struct c_expr value, bool implicit,
+    (guaranteed to be 'volatile' or null) and ARGS (represented using
+    an ASM_EXPR node).  */
+ tree
+-build_asm_stmt (tree cv_qualifier, tree args)
++build_asm_stmt (bool is_volatile, tree args)
+ {
+-  if (!ASM_VOLATILE_P (args) && cv_qualifier)
++  if (is_volatile)
+     ASM_VOLATILE_P (args) = 1;
+   return add_stmt (args);
+ }
+diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
+index 7660565..44fdace 100644
+--- a/gcc/cp/parser.c
++++ b/gcc/cp/parser.c
+@@ -19106,12 +19106,9 @@ cp_parser_asm_definition (cp_parser* parser)
+   tree clobbers = NULL_TREE;
+   tree labels = NULL_TREE;
+   tree asm_stmt;
+-  bool volatile_p = false;
+   bool extended_p = false;
+   bool invalid_inputs_p = false;
+   bool invalid_outputs_p = false;
+-  bool inline_p = false;
+-  bool goto_p = false;
+   required_token missing = RT_NONE;
+ 
+   /* Look for the `asm' keyword.  */
+@@ -19125,29 +19122,50 @@ cp_parser_asm_definition (cp_parser* parser)
+     }
+ 
+   /* Handle the asm-qualifier-list.  */
++  location_t volatile_loc = UNKNOWN_LOCATION;
++  location_t inline_loc = UNKNOWN_LOCATION;
++  location_t goto_loc = UNKNOWN_LOCATION;
+   if (cp_parser_allow_gnu_extensions_p (parser))
+     for (;;)
+       {
++	cp_token *token = cp_lexer_peek_token (parser->lexer);
++	location_t loc = token->location;
+ 	switch (cp_lexer_peek_token (parser->lexer)->keyword)
+ 	  {
+ 	  case RID_VOLATILE:
+-	    if (volatile_p)
+-	      break;
+-	    volatile_p = true;
++	    if (volatile_loc)
++	      {
++		error_at (loc, "duplicate asm qualifier %qT", token->u.value);
++		inform (volatile_loc, "first seen here");
++	      }
++	    else
++	      volatile_loc = loc;
+ 	    cp_lexer_consume_token (parser->lexer);
+ 	    continue;
+ 
+ 	  case RID_INLINE:
+-	    if (inline_p || !parser->in_function_body)
++	    if (!parser->in_function_body)
+ 	      break;
+-	    inline_p = true;
++	    if (inline_loc)
++	      {
++		error_at (loc, "duplicate asm qualifier %qT", token->u.value);
++		inform (inline_loc, "first seen here");
++	      }
++	    else
++	      inline_loc = loc;
+ 	    cp_lexer_consume_token (parser->lexer);
+ 	    continue;
+ 
+ 	  case RID_GOTO:
+-	    if (goto_p || !parser->in_function_body)
++	    if (!parser->in_function_body)
+ 	      break;
+-	    goto_p = true;
++	    if (goto_loc)
++	      {
++		error_at (loc, "duplicate asm qualifier %qT", token->u.value);
++		inform (goto_loc, "first seen here");
++	      }
++	    else
++	      goto_loc = loc;
+ 	    cp_lexer_consume_token (parser->lexer);
+ 	    continue;
+ 
+@@ -19157,6 +19175,10 @@ cp_parser_asm_definition (cp_parser* parser)
+ 	break;
+       }
+ 
++  bool volatile_p = (volatile_loc != UNKNOWN_LOCATION);
++  bool inline_p = (inline_loc != UNKNOWN_LOCATION);
++  bool goto_p = (goto_loc != UNKNOWN_LOCATION);
++
+   /* Look for the opening `('.  */
+   if (!cp_parser_require (parser, CPP_OPEN_PAREN, RT_OPEN_PAREN))
+     return;
+@@ -19248,8 +19270,7 @@ cp_parser_asm_definition (cp_parser* parser)
+ 					     CPP_CLOSE_PAREN))
+ 	    clobbers = cp_parser_asm_clobber_list (parser);
+ 	}
+-      else if (goto_p
+-	       && cp_lexer_next_token_is (parser->lexer, CPP_SCOPE))
++      else if (goto_p && cp_lexer_next_token_is (parser->lexer, CPP_SCOPE))
+ 	/* The labels are coming next.  */
+ 	labels_p = true;
+ 

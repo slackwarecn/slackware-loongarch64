@@ -1,0 +1,351 @@
+From patchwork Thu Dec 27 14:59:06 2018
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: [1/8] asm qualifiers (PR55681)
+X-Patchwork-Submitter: Segher Boessenkool <segher@kernel.crashing.org>
+X-Patchwork-Id: 13818
+Message-Id: <2ea395426865aeb7b02f16facf70908a852e7fbc.1545922222.git.segher@kernel.crashing.org>
+To: gcc-patches@gcc.gnu.org
+Cc: Segher Boessenkool <segher@kernel.crashing.org>
+Date: Thu, 27 Dec 2018 14:59:06 +0000
+From: Segher Boessenkool <segher@kernel.crashing.org>
+List-Id: <gcc-patches.gcc.gnu.org>
+
+PR55681 observes that currently only one qualifier is allowed for
+inline asm, so that e.g. "volatile asm" is allowed, "const asm" is also
+okay (with a warning), but "const volatile asm" gives an error.  Also
+"goto" has to be last.
+
+This patch changes things so that only "asm-qualifiers" are allowed,
+that is "volatile" and "goto", in any combination, in any order, but
+without repetitions.
+
+2018-12-06  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	PR inline-asm/55681
+	* doc/extend.texi (Basic Asm): Update grammar.
+	(Extended Asm): Update grammar.
+
+gcc/c/
+	PR inline-asm/55681
+	* c-parser.c (c_parser_asm_statement): Update grammar.  Allow any
+	combination of volatile and goto, in any order, without repetitions.
+
+gcc/cp/
+	PR inline-asm/55681
+	* parser.c (cp_parser_asm_definition): Update grammar.  Allow any
+	combination of volatile and goto, in any order, without repetitions.
+
+gcc/testsuite/
+	PR inline-asm/55681
+	* gcc.dg/asm-qual-1.c: Test that "const" and "restrict" are refused.
+	* gcc.dg/asm-qual-2.c: New test, test that asm-qualifiers are allowed
+	in any order, but that duplicates are not allowed.
+---
+ gcc/c/c-parser.c                  | 74 +++++++++++++++++++++----------------
+ gcc/cp/parser.c                   | 77 ++++++++++++++++++++++++++-------------
+ gcc/doc/extend.texi               |  8 ++--
+ gcc/testsuite/gcc.dg/asm-qual-1.c | 10 +++--
+ gcc/testsuite/gcc.dg/asm-qual-2.c | 21 +++++++++++
+ 5 files changed, 127 insertions(+), 63 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.dg/asm-qual-2.c
+
+-- 
+1.8.3.1
+
+diff --git a/gcc/c/c-parser.c b/gcc/c/c-parser.c
+index 4772086..7ec53b3 100644
+--- a/gcc/c/c-parser.c
++++ b/gcc/c/c-parser.c
+@@ -6261,60 +6261,72 @@ c_parser_for_statement (c_parser *parser, bool ivdep, unsigned short unroll,
+ }
+ 
+ /* Parse an asm statement, a GNU extension.  This is a full-blown asm
+-   statement with inputs, outputs, clobbers, and volatile tag
++   statement with inputs, outputs, clobbers, and volatile and goto tag
+    allowed.
+ 
++   asm-qualifier:
++     volatile
++     goto
++
++   asm-qualifier-list:
++     asm-qualifier-list asm-qualifier
++     asm-qualifier
++
+    asm-statement:
+-     asm type-qualifier[opt] ( asm-argument ) ;
+-     asm type-qualifier[opt] goto ( asm-goto-argument ) ;
++     asm asm-qualifier-list[opt] ( asm-argument ) ;
+ 
+    asm-argument:
+      asm-string-literal
+      asm-string-literal : asm-operands[opt]
+      asm-string-literal : asm-operands[opt] : asm-operands[opt]
+-     asm-string-literal : asm-operands[opt] : asm-operands[opt] : asm-clobbers[opt]
+-
+-   asm-goto-argument:
++     asm-string-literal : asm-operands[opt] : asm-operands[opt] \
++       : asm-clobbers[opt]
+      asm-string-literal : : asm-operands[opt] : asm-clobbers[opt] \
+        : asm-goto-operands
+ 
+-   Qualifiers other than volatile are accepted in the syntax but
+-   warned for.  */
++   The form with asm-goto-operands is valid if and only if the
++   asm-qualifier-list contains goto, and is the only allowed form in that case.
++   Duplicate asm-qualifiers are not allowed.  */
+ 
+ static tree
+ c_parser_asm_statement (c_parser *parser)
+ {
+   tree quals, str, outputs, inputs, clobbers, labels, ret;
+-  bool simple, is_goto;
++  bool simple, is_volatile, is_goto;
+   location_t asm_loc = c_parser_peek_token (parser)->location;
+   int section, nsections;
+ 
+   gcc_assert (c_parser_next_token_is_keyword (parser, RID_ASM));
+   c_parser_consume_token (parser);
+-  if (c_parser_next_token_is_keyword (parser, RID_VOLATILE))
+-    {
+-      quals = c_parser_peek_token (parser)->value;
+-      c_parser_consume_token (parser);
+-    }
+-  else if (c_parser_next_token_is_keyword (parser, RID_CONST)
+-	   || c_parser_next_token_is_keyword (parser, RID_RESTRICT))
+-    {
+-      warning_at (c_parser_peek_token (parser)->location,
+-		  0,
+-		  "%E qualifier ignored on asm",
+-		  c_parser_peek_token (parser)->value);
+-      quals = NULL_TREE;
+-      c_parser_consume_token (parser);
+-    }
+-  else
+-    quals = NULL_TREE;
+ 
++  quals = NULL_TREE;
++  is_volatile = false;
+   is_goto = false;
+-  if (c_parser_next_token_is_keyword (parser, RID_GOTO))
+-    {
+-      c_parser_consume_token (parser);
+-      is_goto = true;
+-    }
++  for (bool done = false; !done; )
++    switch (c_parser_peek_token (parser)->keyword)
++      {
++      case RID_VOLATILE:
++	if (!is_volatile)
++	  {
++	    is_volatile = true;
++	    quals = c_parser_peek_token (parser)->value;
++	    c_parser_consume_token (parser);
++	  }
++	else
++	  done = true;
++	break;
++      case RID_GOTO:
++	if (!is_goto)
++	  {
++	    is_goto = true;
++	    c_parser_consume_token (parser);
++	  }
++	else
++	  done = true;
++	break;
++      default:
++	done = true;
++      }
+ 
+   /* ??? Follow the C++ parser rather than using the
+      lex_untranslated_string kludge.  */
+diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
+index 9907180..3bc5795 100644
+--- a/gcc/cp/parser.c
++++ b/gcc/cp/parser.c
+@@ -19067,22 +19067,34 @@ cp_parser_using_directive (cp_parser* parser)
+ 
+ /* Parse an asm-definition.
+ 
++  asm-qualifier:
++    volatile
++    goto
++
++  asm-qualifier-list:
++    asm-qualifier
++    asm-qualifier-list asm-qualifier
++
+    asm-definition:
+      asm ( string-literal ) ;
+ 
+    GNU Extension:
+ 
+    asm-definition:
+-     asm volatile [opt] ( string-literal ) ;
+-     asm volatile [opt] ( string-literal : asm-operand-list [opt] ) ;
+-     asm volatile [opt] ( string-literal : asm-operand-list [opt]
+-			  : asm-operand-list [opt] ) ;
+-     asm volatile [opt] ( string-literal : asm-operand-list [opt]
+-			  : asm-operand-list [opt]
++     asm asm-qualifier-list [opt] ( string-literal ) ;
++     asm asm-qualifier-list [opt] ( string-literal : asm-operand-list [opt] ) ;
++     asm asm-qualifier-list [opt] ( string-literal : asm-operand-list [opt]
++				    : asm-operand-list [opt] ) ;
++     asm asm-qualifier-list [opt] ( string-literal : asm-operand-list [opt]
++				    : asm-operand-list [opt]
+ 			  : asm-clobber-list [opt] ) ;
+-     asm volatile [opt] goto ( string-literal : : asm-operand-list [opt]
+-			       : asm-clobber-list [opt]
+-			       : asm-goto-list ) ;  */
++     asm asm-qualifier-list [opt] ( string-literal : : asm-operand-list [opt]
++				    : asm-clobber-list [opt]
++				    : asm-goto-list ) ;
++
++  The form with asm-goto-list is valid if and only if the asm-qualifier-list
++  contains goto, and is the only allowed form in that case.  No duplicates are
++  allowed in an asm-qualifier-list.  */
+ 
+ static void
+ cp_parser_asm_definition (cp_parser* parser)
+@@ -19111,23 +19123,36 @@ cp_parser_asm_definition (cp_parser* parser)
+     }
+ 
+   /* See if the next token is `volatile'.  */
+-  if (cp_parser_allow_gnu_extensions_p (parser)
+-      && cp_lexer_next_token_is_keyword (parser->lexer, RID_VOLATILE))
+-    {
+-      /* Remember that we saw the `volatile' keyword.  */
+-      volatile_p = true;
+-      /* Consume the token.  */
+-      cp_lexer_consume_token (parser->lexer);
+-    }
+-  if (cp_parser_allow_gnu_extensions_p (parser)
+-      && parser->in_function_body
+-      && cp_lexer_next_token_is_keyword (parser->lexer, RID_GOTO))
+-    {
+-      /* Remember that we saw the `goto' keyword.  */
+-      goto_p = true;
+-      /* Consume the token.  */
+-      cp_lexer_consume_token (parser->lexer);
+-    }
++  if (cp_parser_allow_gnu_extensions_p (parser))
++    for (bool done = false; !done ; )
++      switch (cp_lexer_peek_token (parser->lexer)->keyword)
++	{
++	case RID_VOLATILE:
++	  if (!volatile_p)
++	    {
++	      /* Remember that we saw the `volatile' keyword.  */
++	      volatile_p = true;
++	      /* Consume the token.  */
++	      cp_lexer_consume_token (parser->lexer);
++	    }
++	  else
++	    done = true;
++	  break;
++	case RID_GOTO:
++	  if (!goto_p && parser->in_function_body)
++	    {
++	      /* Remember that we saw the `goto' keyword.  */
++	      goto_p = true;
++	      /* Consume the token.  */
++	      cp_lexer_consume_token (parser->lexer);
++	    }
++	  else
++	    done = true;
++	  break;
++	default:
++	  done = true;
++	}
++
+   /* Look for the opening `('.  */
+   if (!cp_parser_require (parser, CPP_OPEN_PAREN, RT_OPEN_PAREN))
+     return;
+diff --git a/gcc/doc/extend.texi b/gcc/doc/extend.texi
+index afde889..40b1989 100644
+--- a/gcc/doc/extend.texi
++++ b/gcc/doc/extend.texi
+@@ -8147,7 +8147,7 @@ for a C symbol, or to place a C variable in a specific register.
+ A basic @code{asm} statement has the following syntax:
+ 
+ @example
+-asm @r{[} volatile @r{]} ( @var{AssemblerInstructions} )
++asm @var{asm-qualifiers} ( @var{AssemblerInstructions} )
+ @end example
+ 
+ The @code{asm} keyword is a GNU extension.
+@@ -8275,17 +8275,19 @@ Extended @code{asm} syntax uses colons (@samp{:}) to delimit
+ the operand parameters after the assembler template:
+ 
+ @example
+-asm @r{[}volatile@r{]} ( @var{AssemblerTemplate} 
++asm @var{asm-qualifiers} ( @var{AssemblerTemplate} 
+                  : @var{OutputOperands} 
+                  @r{[} : @var{InputOperands}
+                  @r{[} : @var{Clobbers} @r{]} @r{]})
+ 
+-asm @r{[}volatile@r{]} goto ( @var{AssemblerTemplate} 
++asm @var{asm-qualifiers} ( @var{AssemblerTemplate} 
+                       : 
+                       : @var{InputOperands}
+                       : @var{Clobbers}
+                       : @var{GotoLabels})
+ @end example
++where in the last form, @var{asm-qualifiers} contains @code{goto} (and in the
++first form, not).
+ 
+ The @code{asm} keyword is a GNU extension.
+ When writing code that can be compiled with @option{-ansi} and the
+diff --git a/gcc/testsuite/gcc.dg/asm-qual-1.c b/gcc/testsuite/gcc.dg/asm-qual-1.c
+index 5ec9a29..cb37283 100644
+--- a/gcc/testsuite/gcc.dg/asm-qual-1.c
++++ b/gcc/testsuite/gcc.dg/asm-qual-1.c
+@@ -1,4 +1,4 @@
+-/* Test that qualifiers other than volatile are ignored on asm.  */
++/* Test that qualifiers other than volatile are disallowed on asm.  */
+ /* Origin: Joseph Myers <joseph@codesourcery.com> */
+ /* { dg-do compile } */
+ /* { dg-options "-std=gnu99" } */
+@@ -7,6 +7,10 @@ void
+ f (void)
+ {
+   asm volatile ("");
+-  asm const (""); /* { dg-warning "const qualifier ignored on asm" } */
+-  asm restrict (""); /* { dg-warning "restrict qualifier ignored on asm" } */
++
++  asm const (""); /* { dg-error {expected '\(' before 'const'} } */
++  /* { dg-error {expected identifier} {} {target *-*-*} .-1 } */
++
++  asm restrict (""); /* { dg-error {expected '\(' before 'restrict'} } */
++  /* { dg-error {expected identifier} {} {target *-*-*} .-1 } */
+ }
+diff --git a/gcc/testsuite/gcc.dg/asm-qual-2.c b/gcc/testsuite/gcc.dg/asm-qual-2.c
+new file mode 100644
+index 0000000..37df2ad
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/asm-qual-2.c
+@@ -0,0 +1,21 @@
++/* Test that qualifiers on asm are allowed in any order.  */
++/* { dg-do compile } */
++/* { dg-options "-std=gnu99" } */
++
++void
++f (void)
++{
++  asm volatile goto ("" :::: lab);
++  asm goto volatile ("" :::: lab);
++
++  /* Duplicates are not allowed.  */
++  asm goto volatile volatile ("" :::: lab);  /* { dg-error "" } */
++  asm volatile goto volatile ("" :::: lab);  /* { dg-error "" } */
++  asm volatile volatile goto ("" :::: lab);  /* { dg-error "" } */
++  asm goto goto volatile ("" :::: lab);  /* { dg-error "" } */
++  asm goto volatile goto ("" :::: lab);  /* { dg-error "" } */
++  asm volatile goto goto ("" :::: lab);  /* { dg-error "" } */
++
++lab:
++  ;
++}

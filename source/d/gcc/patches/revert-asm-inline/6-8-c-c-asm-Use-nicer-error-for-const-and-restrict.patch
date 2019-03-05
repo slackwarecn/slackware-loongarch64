@@ -1,0 +1,167 @@
+From patchwork Thu Dec 27 14:59:11 2018
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: [6/8] c/c++, asm: Use nicer error for const and restrict
+X-Patchwork-Submitter: Segher Boessenkool <segher@kernel.crashing.org>
+X-Patchwork-Id: 13823
+Message-Id: <a46fb9bafc04d68b39d57a57a8923e3667526f44.1545922222.git.segher@kernel.crashing.org>
+To: gcc-patches@gcc.gnu.org
+Cc: Segher Boessenkool <segher@kernel.crashing.org>
+Date: Thu, 27 Dec 2018 14:59:11 +0000
+From: Segher Boessenkool <segher@kernel.crashing.org>
+List-Id: <gcc-patches.gcc.gnu.org>
+
+Not all qualifiers are asm qualifiers.  We can talk about that in a
+nicer way than just giving a generic parser error.
+
+This also adds two testcases for C++, that previously were for C only.
+
+2018-12-10  Segher Boessenkool  <segher@kernel.crashing.org>
+
+c/
+	* c-parser.c (c_parser_asm_statement) <RID_CONST, RID_RESTRICT>: Give
+	a more specific error message (instead of just falling through).
+
+cp/
+	* parser.c (cp_parser_asm_definition) <RID_CONST, RID_RESTRICT>: Give
+	a more specific error message (instead of just falling through).
+
+testsuite/
+	* g++.dg/asm-qual-1.C: New testcase.
+	* g++.dg/asm-qual-2.C: New testcase.
+	* gcc.dg/asm-qual-1.c: Update.
+---
+ gcc/c/c-parser.c                  |  6 +++++
+ gcc/cp/parser.c                   |  6 +++++
+ gcc/testsuite/g++.dg/asm-qual-1.C | 13 +++++++++++
+ gcc/testsuite/g++.dg/asm-qual-2.C | 46 +++++++++++++++++++++++++++++++++++++++
+ gcc/testsuite/gcc.dg/asm-qual-1.c |  6 ++---
+ 5 files changed, 73 insertions(+), 4 deletions(-)
+ create mode 100644 gcc/testsuite/g++.dg/asm-qual-1.C
+ create mode 100644 gcc/testsuite/g++.dg/asm-qual-2.C
+
+-- 
+1.8.3.1
+
+diff --git a/gcc/c/c-parser.c b/gcc/c/c-parser.c
+index ca04910..4baad62 100644
+--- a/gcc/c/c-parser.c
++++ b/gcc/c/c-parser.c
+@@ -6343,6 +6343,12 @@ c_parser_asm_statement (c_parser *parser)
+ 	  c_parser_consume_token (parser);
+ 	  continue;
+ 
++	case RID_CONST:
++	case RID_RESTRICT:
++	  error_at (loc, "%qE is not an asm qualifier", token->value);
++	  c_parser_consume_token (parser);
++	  continue;
++
+ 	default:
+ 	  break;
+ 	}
+diff --git a/gcc/cp/parser.c b/gcc/cp/parser.c
+index 44fdace..36d82b8 100644
+--- a/gcc/cp/parser.c
++++ b/gcc/cp/parser.c
+@@ -19169,6 +19169,12 @@ cp_parser_asm_definition (cp_parser* parser)
+ 	    cp_lexer_consume_token (parser->lexer);
+ 	    continue;
+ 
++	  case RID_CONST:
++	  case RID_RESTRICT:
++	    error_at (loc, "%qT is not an asm qualifier", token->u.value);
++	    cp_lexer_consume_token (parser->lexer);
++	    continue;
++
+ 	  default:
+ 	    break;
+ 	  }
+diff --git a/gcc/testsuite/g++.dg/asm-qual-1.C b/gcc/testsuite/g++.dg/asm-qual-1.C
+new file mode 100644
+index 0000000..3fba592
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/asm-qual-1.C
+@@ -0,0 +1,13 @@
++// Test that qualifiers other than volatile are disallowed on asm.
++// { dg-do compile }
++// { dg-options "-std=gnu++98" }
++
++void
++f ()
++{
++  asm volatile ("");
++
++  asm const (""); // { dg-error {'const' is not an asm qualifier} }
++
++  asm __restrict (""); // { dg-error {'__restrict' is not an asm qualifier} }
++}
+diff --git a/gcc/testsuite/g++.dg/asm-qual-2.C b/gcc/testsuite/g++.dg/asm-qual-2.C
+new file mode 100644
+index 0000000..52968bd
+--- /dev/null
++++ b/gcc/testsuite/g++.dg/asm-qual-2.C
+@@ -0,0 +1,46 @@
++// Test that qualifiers on asm are allowed in any order.
++// { dg-do compile }
++// { dg-options "-std=c++98" }
++
++void
++f ()
++{
++  asm volatile goto ("" :::: lab);
++  asm volatile inline ("" :::);
++  asm inline volatile ("" :::);
++  asm inline goto ("" :::: lab);
++  asm goto volatile ("" :::: lab);
++  asm goto inline ("" :::: lab);
++
++  asm volatile inline goto ("" :::: lab);
++  asm volatile goto inline ("" :::: lab);
++  asm inline volatile goto ("" :::: lab);
++  asm inline goto volatile ("" :::: lab);
++  asm goto volatile inline ("" :::: lab);
++  asm goto inline volatile ("" :::: lab);
++
++  /* Duplicates are not allowed.  */
++  asm goto volatile volatile ("" :::: lab);  /* { dg-error "" } */
++  asm volatile goto volatile ("" :::: lab);  /* { dg-error "" } */
++  asm volatile volatile goto ("" :::: lab);  /* { dg-error "" } */
++  asm goto goto volatile ("" :::: lab);  /* { dg-error "" } */
++  asm goto volatile goto ("" :::: lab);  /* { dg-error "" } */
++  asm volatile goto goto ("" :::: lab);  /* { dg-error "" } */
++
++  asm inline volatile volatile ("" :::);  /* { dg-error "" } */
++  asm volatile inline volatile ("" :::);  /* { dg-error "" } */
++  asm volatile volatile inline ("" :::);  /* { dg-error "" } */
++  asm inline inline volatile ("" :::);  /* { dg-error "" } */
++  asm inline volatile inline ("" :::);  /* { dg-error "" } */
++  asm volatile inline inline ("" :::);  /* { dg-error "" } */
++
++  asm goto inline inline ("" :::: lab);  /* { dg-error "" } */
++  asm inline goto inline ("" :::: lab);  /* { dg-error "" } */
++  asm inline inline goto ("" :::: lab);  /* { dg-error "" } */
++  asm goto goto inline ("" :::: lab);  /* { dg-error "" } */
++  asm goto inline goto ("" :::: lab);  /* { dg-error "" } */
++  asm inline goto goto ("" :::: lab);  /* { dg-error "" } */
++
++lab:
++  ;
++}
+diff --git a/gcc/testsuite/gcc.dg/asm-qual-1.c b/gcc/testsuite/gcc.dg/asm-qual-1.c
+index cb37283..eff6b45 100644
+--- a/gcc/testsuite/gcc.dg/asm-qual-1.c
++++ b/gcc/testsuite/gcc.dg/asm-qual-1.c
+@@ -8,9 +8,7 @@ f (void)
+ {
+   asm volatile ("");
+ 
+-  asm const (""); /* { dg-error {expected '\(' before 'const'} } */
+-  /* { dg-error {expected identifier} {} {target *-*-*} .-1 } */
++  asm const (""); /* { dg-error {'const' is not an asm qualifier} } */
+ 
+-  asm restrict (""); /* { dg-error {expected '\(' before 'restrict'} } */
+-  /* { dg-error {expected identifier} {} {target *-*-*} .-1 } */
++  asm restrict (""); /* { dg-error {'restrict' is not an asm qualifier} } */
+ }

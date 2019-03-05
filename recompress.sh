@@ -1135,7 +1135,10 @@ gzip ./source/x/x11/patch/xf86-video-xgixp/0005-Update-for-new-damage-API.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0003-shadow-shadowInit-shadowAdd-Remove.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0004-Stop-using-deprecated-xf86PciInfo.h.patch
 gzip ./source/x/x11/patch/luit/luit_use_system_extensions.diff
+gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
+gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-consolekit.patch
+gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch

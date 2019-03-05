@@ -1,9 +1,14 @@
---- ./configure.ac.orig	2019-03-02 16:06:13.000000000 -0600
-+++ ./configure.ac	2019-03-03 13:30:09.779278886 -0600
-@@ -395,6 +395,20 @@
- PKG_CHECK_MODULES(XLIB, x11)
- PKG_CHECK_MODULES(AUTH, xau)
- 
+http://bugs.gentoo.org/360987
+http://projects.archlinux.org/svntogit/packages.git/plain/trunk/xdm-consolekit.patch?h=packages/xorg-xdm
+http://lists.x.org/archives/xorg-devel/2011-February/019615.html
+http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=615020
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -362,6 +362,20 @@
+
+ AM_CONDITIONAL(DYNAMIC_GREETER, test x$DYNAMIC_GREETER = xyes)
+
 +# ConsoleKit support
 +AC_ARG_WITH(consolekit, AC_HELP_STRING([--with-consolekit], [Use ConsoleKit]),
 +	[USE_CONSOLEKIT=$withval], [USE_CONSOLEKIT=yes])
@@ -19,96 +24,26 @@
 +dnl AM_CONDITIONAL(USE_CONSOLEKIT, test$USE_CONSOLEKIT = xyes)
 +
  #
- # Greeter
+ #  XDM
  #
---- ./include/dm.h.orig	2019-03-02 16:06:13.000000000 -0600
-+++ ./include/dm.h	2019-03-03 13:30:09.788278885 -0600
-@@ -327,6 +327,9 @@
- extern char	*prngdSocket;
- extern int	prngdPort;
- # endif
-+#ifdef USE_CONSOLEKIT
-+extern int	use_consolekit;
-+#endif
- 
- extern char	*greeterLib;
- extern char	*willing;
---- ./man/xdm.man.orig	2019-03-02 16:06:13.000000000 -0600
-+++ ./man/xdm.man	2019-03-03 13:30:09.794278884 -0600
-@@ -48,6 +48,8 @@
- ] [
- .B \-session
- .I session_program
-+] [
-+.B \-noconsolekit
- ]
- .SH DESCRIPTION
- .I Xdm
-@@ -215,6 +217,10 @@
- .IP "\fB\-xrm\fP \fIresource_specification\fP"
- Allows an arbitrary resource to be specified, as in most
- X Toolkit applications.
-+.IP "\fB\-noconsolekit\fP"
-+Specifies ``false'' as the value for the \fBDisplayManager.consoleKit\fP
-+resource.
-+This suppresses the session management using ConsoleKit.
- .SH RESOURCES
- At many stages the actions of
- .I xdm
---- ./xdm/resource.c.orig	2019-03-02 16:06:13.000000000 -0600
-+++ ./xdm/resource.c	2019-03-03 13:30:09.792278885 -0600
-@@ -65,6 +65,9 @@
- char	*prngdSocket;
- int	prngdPort;
+--- a/xdm/session.c
++++ b/xdm/session.c
+@@ -66,6 +66,11 @@
  #endif
-+#ifdef USE_CONSOLEKIT
-+int	use_consolekit;
-+#endif
- 
- char	*greeterLib;
- char	*willing;
-@@ -192,6 +195,10 @@
- 				"false"} ,
- { "willing",	"Willing",	DM_STRING,	&willing,
- 				""} ,
-+#ifdef USE_CONSOLEKIT
-+{ "consoleKit",	"ConsoleKit",	DM_BOOL,	(char **) &use_consolekit,
-+				"true"} ,
-+#endif
- };
- 
- #define NUM_DM_RESOURCES	(sizeof DmResources / sizeof DmResources[0])
-@@ -377,7 +384,11 @@
- {"-debug",	"*debugLevel",		XrmoptionSepArg,	(caddr_t) NULL },
- {"-xrm",	NULL,			XrmoptionResArg,	(caddr_t) NULL },
- {"-daemon",	".daemonMode",		XrmoptionNoArg,		"true"         },
--{"-nodaemon",	".daemonMode",		XrmoptionNoArg,		"false"        }
-+{"-nodaemon",	".daemonMode",		XrmoptionNoArg,		"false"        },
-+#ifdef USE_CONSOLEKIT
-+{"-consolekit",	".consoleKit",		XrmoptionNoArg,		"true"  },
-+{"-noconsolekit", ".consoleKit",	XrmoptionNoArg,		"false" }
-+#endif
- };
- 
- static int	originalArgc;
---- ./xdm/session.c.orig	2019-03-02 16:06:13.000000000 -0600
-+++ ./xdm/session.c	2019-03-03 13:31:17.126272595 -0600
-@@ -73,6 +73,11 @@
- # endif
  #endif /* USE_PAM */
- 
+
 +#ifdef USE_CONSOLEKIT
 +#include <ck-connector.h>
 +#include <dbus/dbus.h>
 +#endif
 +
- #ifdef USE_SELINUX
- #include <selinux/selinux.h>
- #include <selinux/get_context_list.h>
-@@ -523,6 +528,97 @@
+ #ifdef __SCO__
+ #include <prot.h>
+ #endif
+@@ -472,6 +477,97 @@
      }
  }
- 
+
 +#ifdef USE_CONSOLEKIT
 +
 +static CkConnector *connector;
@@ -203,16 +138,16 @@
  void
  SessionExit (struct display *d, int status, int removeAuth)
  {
-@@ -537,6 +633,8 @@
+@@ -486,6 +580,8 @@
      }
  #endif
- 
+
 +    closeCKSession();
 +
      /* make sure the server gets reset after the session is over */
      if (d->serverPid >= 2 && d->resetSignal)
- 	kill (d->serverPid, d->resetSignal);
-@@ -614,6 +712,10 @@
+	kill (d->serverPid, d->resetSignal);
+@@ -568,6 +664,10 @@
  #ifdef USE_PAM
      if (pamh) pam_open_session(pamh, 0);
  #endif
@@ -222,4 +157,74 @@
 +
      switch (pid = fork ()) {
      case 0:
- 	CleanUpChild ();
+	CleanUpChild ();
+--- a/include/dm.h
++++ b/include/dm.h
+@@ -325,6 +325,9 @@
+ extern char	*prngdSocket;
+ extern int	prngdPort;
+ # endif
++#ifdef USE_CONSOLEKIT
++extern int	use_consolekit;
++#endif
+
+ extern char	*greeterLib;
+ extern char	*willing;
+--- a/xdm/resource.c
++++ b/xdm/resource.c
+@@ -68,6 +68,9 @@
+ char	*prngdSocket;
+ int	prngdPort;
+ #endif
++#ifdef USE_CONSOLEKIT
++int	use_consolekit;
++#endif
+
+ char	*greeterLib;
+ char	*willing;
+@@ -258,6 +261,10 @@
+				"false"} ,
+ { "willing",	"Willing",	DM_STRING,	&willing,
+				""} ,
++#ifdef USE_CONSOLEKIT
++{ "consoleKit",	"ConsoleKit",	DM_BOOL,	(char **) &use_consolekit,
++				"true"} ,
++#endif
+ };
+
+ # define NUM_DM_RESOURCES	(sizeof DmResources / sizeof DmResources[0])
+@@ -440,7 +447,11 @@
+ {"-debug",	"*debugLevel",		XrmoptionSepArg,	(caddr_t) NULL },
+ {"-xrm",	NULL,			XrmoptionResArg,	(caddr_t) NULL },
+ {"-daemon",	".daemonMode",		XrmoptionNoArg,		"true"         },
+-{"-nodaemon",	".daemonMode",		XrmoptionNoArg,		"false"        }
++{"-nodaemon",	".daemonMode",		XrmoptionNoArg,		"false"        },
++#ifdef USE_CONSOLEKIT
++{"-consolekit",	".consoleKit",		XrmoptionNoArg,		"true"  },
++{"-noconsolekit", ".consoleKit",	XrmoptionNoArg,		"false" }
++#endif
+ };
+
+ static int	originalArgc;
+--- a/man/xdm.man
++++ b/man/xdm.man
+@@ -51,6 +51,8 @@
+ ] [
+ .B \-session
+ .I session_program
++] [
++.B \-noconsolekit
+ ]
+ .SH DESCRIPTION
+ .I Xdm
+@@ -218,6 +220,10 @@
+ .IP "\fB\-xrm\fP \fIresource_specification\fP"
+ Allows an arbitrary resource to be specified, as in most
+ X Toolkit applications.
++.IP "\fB\-noconsolekit\fP"
++Specifies ``false'' as the value for the \fBDisplayManager.consoleKit\fP
++resource.
++This suppresses the session management using ConsoleKit.
+ .SH RESOURCES
+ At many stages the actions of
+ .I xdm

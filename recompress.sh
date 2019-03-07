@@ -1001,7 +1001,6 @@ gzip ./source/xap/xpdf/lang/xpdf-turkish.diff
 gzip ./source/xap/xpdf/lang/xpdf-greek.diff
 gzip ./source/xap/xpdf/patches/xpdfrc.diff
 gzip ./source/xap/xpdf/doinst.sh
-gzip ./source/xap/pavucontrol/replace-gtk-stock-lock-icon.diff
 gzip ./source/xap/pavucontrol/doinst.sh
 gzip ./source/xap/seyon/seyon_2.20c-16.diff
 gzip ./source/xap/xv/xv-3.10a.patch

@@ -1,7 +1,7 @@
 if [ -r bin/bash ]; then
   mv bin/bash bin/bash.old
 fi
-mv bin/bash4.new bin/bash
+mv bin/bash5.new bin/bash
 if [ -f bin/bash.old ]; then
   rm -f bin/bash.old
 fi

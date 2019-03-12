@@ -715,6 +715,7 @@ gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-2.29.en_US.no.am.pm.date.format.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/fuse/doinst.sh
+gzip ./source/l/at-spi2-core/at-spi2-core.44a812ea51223d82f21a098a2d45fcc5c329ce7a.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-expose.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-localecrash.patch
@@ -1021,6 +1022,7 @@ gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh
+gzip ./source/xap/gucharmap/gucharmap.sha512sums.diff
 gzip ./source/xap/gnuplot/gnuplot.fix.info.generation.diff
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
 gzip ./source/xap/windowmaker/wmaker.inst.diff

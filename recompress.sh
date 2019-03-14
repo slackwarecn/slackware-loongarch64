@@ -839,6 +839,7 @@ gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/glib2/glib2.slackware.localtime.diff
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
+gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff
 gzip ./source/l/gtk+2/gtk.gtk-faq.diff
 gzip ./source/l/gtk+2/gtk.xid.nowarningflood.diff
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.am.diff

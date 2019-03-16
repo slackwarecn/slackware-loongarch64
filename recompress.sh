@@ -902,7 +902,6 @@ gzip ./source/l/esound/doinst.sh
 gzip ./source/l/esound/esound-nospawn.patch
 gzip ./source/l/libffi/libffi.includedir.diff
 gzip ./source/l/freetype/freetype.sh
-gzip ./source/l/freetype/freetype.this.is.not.a.windows.system.diff
 gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh

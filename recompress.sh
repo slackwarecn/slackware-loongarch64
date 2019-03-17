@@ -306,6 +306,8 @@ gzip ./source/a/dbus/rc.messagebus
 gzip ./source/a/dbus/dbus-1.12.x-allow_root_globally.diff
 gzip ./source/a/mcelog/mcelog.init.diff
 gzip ./source/a/mcelog/doinst.sh
+gzip ./source/kde/patch/ktorrent/ktorrent.use.package.geoip.database.diff
+gzip ./source/kde/patch/ktorrent/geoip.dat
 gzip ./source/kde/patch/calligra/calligra.mariadb.diff
 gzip ./source/kde/patch/calligra/boost-1.65.0.patch
 gzip ./source/kde/patch/kde-workspace/kde-workspace.kdm.server.timeout.diff
@@ -1148,10 +1150,6 @@ gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
-gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Let-modestting-glamor-handle-gen9.patch
-gzip ./source/x/x11/patch/xf86-video-intel/0001-Fix-build-on-F28-and-later.patch
-gzip ./source/x/x11/patch/xf86-video-intel/0001-Fix-build-on-i686.patch
-gzip ./source/x/x11/patch/xf86-video-intel/intel-gcc-pr65873.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./pasture/source/php/php-fpm.conf.diff

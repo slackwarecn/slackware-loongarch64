@@ -1,0 +1,452 @@
+From b25d46bf9fa6d5b9ff34115edb4719592c191935 Mon Sep 17 00:00:00 2001
+From: Dag Andersen <danders@get2net.dk>
+Date: Tue, 23 Aug 2016 08:01:58 +0200
+Subject: [PATCH 69/80] Backport: Plan: Avoid crash in special cases
+
+Sometimes (eg. when New is pressed) the Project can be deleted before models
+and thus cause a crash.
+Added a Project::aboutToBeDeleted signal so models can adjust.
+
+BUG: 346976
+FIXED_IN: 2.9.12
+---
+ plan/libs/kernel/kptproject.cpp                   |  1 +
+ plan/libs/kernel/kptproject.h                     |  2 ++
+ plan/libs/models/kptaccountsmodel.cpp             |  2 ++
+ plan/libs/models/kptcalendarmodel.cpp             |  4 ++++
+ plan/libs/models/kptitemmodelbase.cpp             |  5 +++++
+ plan/libs/models/kptitemmodelbase.h               |  1 +
+ plan/libs/models/kptnodechartmodel.cpp            |  2 ++
+ plan/libs/models/kptnodeitemmodel.cpp             |  4 ++++
+ plan/libs/models/kptpertcpmmodel.cpp              |  4 ++++
+ plan/libs/models/kptrelationmodel.cpp             |  2 ++
+ plan/libs/models/kptresourceallocationmodel.cpp   |  2 ++
+ plan/libs/models/kptresourceappointmentsmodel.cpp |  8 ++++++++
+ plan/libs/models/kptresourcemodel.cpp             | 12 +++++++-----
+ plan/libs/models/kptschedulemodel.cpp             | 13 +++++++++++++
+ plan/libs/models/kptschedulemodel.h               |  2 ++
+ plan/libs/models/kpttaskstatusmodel.cpp           |  2 ++
+ 16 files changed, 61 insertions(+), 5 deletions(-)
+
+diff --git a/plan/libs/kernel/kptproject.cpp b/plan/libs/kernel/kptproject.cpp
+index 158040b..451e897 100644
+--- a/plan/libs/kernel/kptproject.cpp
++++ b/plan/libs/kernel/kptproject.cpp
+@@ -89,6 +89,7 @@ void Project::deref()
+     --m_refCount;
+     Q_ASSERT( m_refCount >= 0 );
+     if ( m_refCount <= 0 ) {
++        emit aboutToBeDeleted();
+         deleteLater();
+     }
+ }
+diff --git a/plan/libs/kernel/kptproject.h b/plan/libs/kernel/kptproject.h
+index 1dbea7d..db18d36 100644
+--- a/plan/libs/kernel/kptproject.h
++++ b/plan/libs/kernel/kptproject.h
+@@ -519,6 +519,8 @@ public Q_SLOTS:
+     void setMaxProgress( int max, ScheduleManager *sm = 0 );
+ 
+ Q_SIGNALS:
++    /// Emitted when the project is about to be deleted (The destroyed signal is disabled)
++    void aboutToBeDeleted();
+     /// Emitted when anything in the project is changed (use with care)
+     void projectChanged();
+     /// Emitted when the WBS code definition has changed. This may change all nodes.
+diff --git a/plan/libs/models/kptaccountsmodel.cpp b/plan/libs/models/kptaccountsmodel.cpp
+index 53f725a..4657979 100644
+--- a/plan/libs/models/kptaccountsmodel.cpp
++++ b/plan/libs/models/kptaccountsmodel.cpp
+@@ -533,6 +533,7 @@ void CostBreakdownItemModel::setProject( Project *project )
+         disconnect( acc, SIGNAL(accountRemoved(const Account*)), this, SLOT(slotAccountRemoved(const Account*)) );
+         disconnect( acc, SIGNAL(accountToBeRemoved(const Account*)), this, SLOT(slotAccountToBeRemoved(const Account*)) );
+ 
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project , SIGNAL(nodeChanged(Node*)), this, SLOT(slotDataChanged()) );
+         disconnect( m_project , SIGNAL(nodeAdded(Node*)), this, SLOT(slotDataChanged()) );
+         disconnect( m_project , SIGNAL(nodeRemoved(Node*)), this, SLOT(slotDataChanged()) );
+@@ -553,6 +554,7 @@ void CostBreakdownItemModel::setProject( Project *project )
+         connect( acc, SIGNAL(accountRemoved(const Account*)), this, SLOT(slotAccountRemoved(const Account*)) );
+         connect( acc, SIGNAL(accountToBeRemoved(const Account*)), this, SLOT(slotAccountToBeRemoved(const Account*)) );
+ 
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project , SIGNAL(nodeChanged(Node*)), this, SLOT(slotDataChanged()) );
+         connect( m_project , SIGNAL(nodeAdded(Node*)), this, SLOT(slotDataChanged()) );
+         connect( m_project , SIGNAL(nodeRemoved(Node*)), this, SLOT(slotDataChanged()) );
+diff --git a/plan/libs/models/kptcalendarmodel.cpp b/plan/libs/models/kptcalendarmodel.cpp
+index 6c0f017..401379c 100644
+--- a/plan/libs/models/kptcalendarmodel.cpp
++++ b/plan/libs/models/kptcalendarmodel.cpp
+@@ -74,10 +74,12 @@ void CalendarDayItemModelBase::setProject( Project *project )
+ {
+     setCalendar( 0 );
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(calendarToBeRemoved(const Calendar*)), this, SLOT(slotCalendarToBeRemoved(const Calendar*)) );
+     }
+     m_project = project;
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(calendarToBeRemoved(const Calendar*)), this, SLOT(slotCalendarToBeRemoved(const Calendar*)) );
+     }
+     reset();
+@@ -136,6 +138,7 @@ void CalendarItemModel::slotCalendarRemoved( const Calendar * )
+ void CalendarItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project , SIGNAL(calendarChanged(Calendar*)), this, SLOT(slotCalendarChanged(Calendar*)) );
+ 
+         disconnect( m_project, SIGNAL(calendarAdded(const Calendar*)), this, SLOT(slotCalendarInserted(const Calendar*)) );
+@@ -146,6 +149,7 @@ void CalendarItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(calendarChanged(Calendar*)), this, SLOT(slotCalendarChanged(Calendar*)) );
+ 
+         connect( m_project, SIGNAL(calendarAdded(const Calendar*)), this, SLOT(slotCalendarInserted(const Calendar*)) );
+diff --git a/plan/libs/models/kptitemmodelbase.cpp b/plan/libs/models/kptitemmodelbase.cpp
+index 499fcfe..ff74394 100644
+--- a/plan/libs/models/kptitemmodelbase.cpp
++++ b/plan/libs/models/kptitemmodelbase.cpp
+@@ -731,6 +731,11 @@ bool ItemModelBase::setData( const QModelIndex &index, const QVariant &value, in
+     return false;
+ }
+ 
++void ItemModelBase::projectDeleted()
++{
++    setProject(0);
++}
++
+ } //namespace KPlato
+ 
+ #include "kptitemmodelbase.moc"
+diff --git a/plan/libs/models/kptitemmodelbase.h b/plan/libs/models/kptitemmodelbase.h
+index 578c18e..5d3719d 100644
+--- a/plan/libs/models/kptitemmodelbase.h
++++ b/plan/libs/models/kptitemmodelbase.h
+@@ -309,6 +309,7 @@ protected Q_SLOTS:
+     virtual void slotLayoutToBeChanged();
+     virtual void slotLayoutChanged();
+ 
++    void projectDeleted();
+ protected:
+     Project *m_project;
+     ScheduleManager *m_manager;
+diff --git a/plan/libs/models/kptnodechartmodel.cpp b/plan/libs/models/kptnodechartmodel.cpp
+index 025da86..9b8d397 100644
+--- a/plan/libs/models/kptnodechartmodel.cpp
++++ b/plan/libs/models/kptnodechartmodel.cpp
+@@ -294,6 +294,7 @@ void ChartItemModel::setProject( Project *project )
+     m_bcws.clear();
+     m_acwp.clear();
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(projectCalculated(ScheduleManager*)), this, SLOT(setScheduleManager(ScheduleManager*)) );
+         disconnect( m_project, SIGNAL(nodeRemoved(Node*)), this, SLOT(slotNodeRemoved(Node*)) );
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+@@ -302,6 +303,7 @@ void ChartItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(projectCalculated(ScheduleManager*)), this, SLOT(setScheduleManager(ScheduleManager*)) );
+         connect( m_project, SIGNAL(nodeRemoved(Node*)), this, SLOT(slotNodeRemoved(Node*)) );
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+diff --git a/plan/libs/models/kptnodeitemmodel.cpp b/plan/libs/models/kptnodeitemmodel.cpp
+index 45b1650..e66277f 100644
+--- a/plan/libs/models/kptnodeitemmodel.cpp
++++ b/plan/libs/models/kptnodeitemmodel.cpp
+@@ -3122,6 +3122,7 @@ void NodeItemModel::slotWbsDefinitionChanged()
+ void NodeItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         disconnect( m_project, SIGNAL(wbsDefinitionChanged()), this, SLOT(slotWbsDefinitionChanged()) );
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+@@ -3139,6 +3140,7 @@ void NodeItemModel::setProject( Project *project )
+     kDebug(planDbg())<<this<<m_project<<"->"<<project;
+     m_nodemodel.setProject( project );
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         connect( m_project, SIGNAL(wbsDefinitionChanged()), this, SLOT(slotWbsDefinitionChanged()) );
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+@@ -4381,6 +4383,7 @@ void MilestoneItemModel::slotNodeMoved( Node *node )
+ void MilestoneItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         disconnect( m_project, SIGNAL(wbsDefinitionChanged()), this, SLOT(slotWbsDefinitionChanged()) );
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+@@ -4397,6 +4400,7 @@ void MilestoneItemModel::setProject( Project *project )
+     //kDebug(planDbg())<<m_project<<"->"<<project;
+     m_nodemodel.setProject( project );
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         connect( m_project, SIGNAL(wbsDefinitionChanged()), this, SLOT(slotWbsDefinitionChanged()) );
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+diff --git a/plan/libs/models/kptpertcpmmodel.cpp b/plan/libs/models/kptpertcpmmodel.cpp
+index 71745ef..7340c61 100644
+--- a/plan/libs/models/kptpertcpmmodel.cpp
++++ b/plan/libs/models/kptpertcpmmodel.cpp
+@@ -82,6 +82,7 @@ void CriticalPathItemModel::slotNodeRemoved( Node *node )
+ void CriticalPathItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+         disconnect( m_project, SIGNAL(nodeToBeAdded(Node*,int)), this, SLOT(slotNodeToBeInserted(Node*,int)) );
+         disconnect( m_project, SIGNAL(nodeToBeRemoved(Node*)), this, SLOT(slotNodeToBeRemoved(Node*)) );
+@@ -94,6 +95,7 @@ void CriticalPathItemModel::setProject( Project *project )
+     m_project = project;
+     m_nodemodel.setProject( project );
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+         connect( m_project, SIGNAL(nodeToBeAdded(Node*,int)), this, SLOT(slotNodeToBeInserted(Node*,int)) );
+         connect( m_project, SIGNAL(nodeToBeRemoved(Node*)), this, SLOT(slotNodeToBeRemoved(Node*)) );
+@@ -354,6 +356,7 @@ void PertResultItemModel::setProject( Project *project )
+ {
+     clear();
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+         disconnect( m_project, SIGNAL(nodeToBeAdded(Node*,int)), this, SLOT(slotNodeToBeInserted(Node*,int)) );
+         disconnect( m_project, SIGNAL(nodeToBeRemoved(Node*)), this, SLOT(slotNodeToBeRemoved(Node*)) );
+@@ -366,6 +369,7 @@ void PertResultItemModel::setProject( Project *project )
+     m_project = project;
+     m_nodemodel.setProject( project );
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+         connect( m_project, SIGNAL(nodeToBeAdded(Node*,int)), this, SLOT(slotNodeToBeInserted(Node*,int)) );
+         connect( m_project, SIGNAL(nodeToBeRemoved(Node*)), this, SLOT(slotNodeToBeRemoved(Node*)) );
+diff --git a/plan/libs/models/kptrelationmodel.cpp b/plan/libs/models/kptrelationmodel.cpp
+index b2617fb..a5acfb6 100644
+--- a/plan/libs/models/kptrelationmodel.cpp
++++ b/plan/libs/models/kptrelationmodel.cpp
+@@ -241,6 +241,7 @@ void RelationItemModel::slotLayoutChanged()
+ void RelationItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+         disconnect( m_project, SIGNAL(nodeToBeRemoved(Node*)), this, SLOT(slotNodeToBeRemoved(Node*)) );
+ 
+@@ -254,6 +255,7 @@ void RelationItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+         connect( m_project, SIGNAL(nodeToBeRemoved(Node*)), this, SLOT(slotNodeToBeRemoved(Node*)) );
+ 
+diff --git a/plan/libs/models/kptresourceallocationmodel.cpp b/plan/libs/models/kptresourceallocationmodel.cpp
+index 11f909e..500a24c 100644
+--- a/plan/libs/models/kptresourceallocationmodel.cpp
++++ b/plan/libs/models/kptresourceallocationmodel.cpp
+@@ -425,6 +425,7 @@ void ResourceAllocationItemModel::slotResourceGroupRemoved( const ResourceGroup
+ void ResourceAllocationItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(resourceChanged(Resource*)), this, SLOT(slotResourceChanged(Resource*)) );
+         disconnect( m_project, SIGNAL(resourceGroupChanged(ResourceGroup*)), this, SLOT(slotResourceGroupChanged(ResourceGroup*)) );
+ 
+@@ -447,6 +448,7 @@ void ResourceAllocationItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(resourceChanged(Resource*)), this, SLOT(slotResourceChanged(Resource*)) );
+         connect( m_project, SIGNAL(resourceGroupChanged(ResourceGroup*)), this, SLOT(slotResourceGroupChanged(ResourceGroup*)) );
+ 
+diff --git a/plan/libs/models/kptresourceappointmentsmodel.cpp b/plan/libs/models/kptresourceappointmentsmodel.cpp
+index b580dfe..f4700c6 100644
+--- a/plan/libs/models/kptresourceappointmentsmodel.cpp
++++ b/plan/libs/models/kptresourceappointmentsmodel.cpp
+@@ -220,7 +220,10 @@ void ResourceAppointmentsItemModel::setProject( Project *project )
+ {
+     kDebug(planDbg());
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         disconnect( m_project, SIGNAL(resourceChanged(Resource*)), this, SLOT(slotResourceChanged(Resource*)) );
++
+         disconnect( m_project, SIGNAL(resourceGroupChanged(ResourceGroup*)), this, SLOT(slotResourceGroupChanged(ResourceGroup*)) );
+ 
+         disconnect( m_project, SIGNAL(resourceGroupToBeAdded(const ResourceGroup*,int)), this, SLOT(slotResourceGroupToBeInserted(const ResourceGroup*,int)) );
+@@ -255,6 +258,7 @@ void ResourceAppointmentsItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(resourceChanged(Resource*)), this, SLOT(slotResourceChanged(Resource*)) );
+         connect( m_project, SIGNAL(resourceGroupChanged(ResourceGroup*)), this, SLOT(slotResourceGroupChanged(ResourceGroup*)) );
+ 
+@@ -1351,6 +1355,8 @@ void ResourceAppointmentsRowModel::setProject( Project *project )
+ {
+     //kDebug(planDbg())<<project;
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         disconnect( m_project, SIGNAL(resourceGroupToBeAdded(const ResourceGroup*,int)), this, SLOT(slotResourceGroupToBeInserted(const ResourceGroup*,int)) );
+ 
+         disconnect( m_project, SIGNAL(resourceGroupToBeRemoved(const ResourceGroup*)), this, SLOT(slotResourceGroupToBeRemoved(const ResourceGroup*)) );
+@@ -1379,6 +1385,8 @@ void ResourceAppointmentsRowModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         connect( m_project, SIGNAL(resourceGroupToBeAdded(const ResourceGroup*,int)), this, SLOT(slotResourceGroupToBeInserted(const ResourceGroup*,int)) );
+ 
+         connect( m_project, SIGNAL(resourceGroupToBeRemoved(const ResourceGroup*)), this, SLOT(slotResourceGroupToBeRemoved(const ResourceGroup*)) );
+diff --git a/plan/libs/models/kptresourcemodel.cpp b/plan/libs/models/kptresourcemodel.cpp
+index 81f3493..23242df 100644
+--- a/plan/libs/models/kptresourcemodel.cpp
++++ b/plan/libs/models/kptresourcemodel.cpp
+@@ -599,6 +599,7 @@ void ResourceItemModel::slotLayoutChanged()
+ void ResourceItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         disconnect( m_project, SIGNAL(resourceChanged(Resource*)), this, SLOT(slotResourceChanged(Resource*)) );
+         disconnect( m_project, SIGNAL(resourceGroupChanged(ResourceGroup*)), this, SLOT(slotResourceGroupChanged(ResourceGroup*)) );
+@@ -623,6 +624,7 @@ void ResourceItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         connect( m_project, SIGNAL(resourceChanged(Resource*)), this, SLOT(slotResourceChanged(Resource*)) );
+         connect( m_project, SIGNAL(resourceGroupChanged(ResourceGroup*)), this, SLOT(slotResourceGroupChanged(ResourceGroup*)) );
+@@ -711,7 +713,7 @@ QModelIndex ResourceItemModel::parent( const QModelIndex &index ) const
+     }
+     //kDebug(planDbg())<<index.internalPointer()<<":"<<index.row()<<","<<index.column();
+ 
+-    Resource *r = qobject_cast<Resource*>( object( index ) );
++    Resource *r = resource( index );
+     if ( r && r->parentGroup() ) {
+         // only resources have parent
+         int row = m_project->indexOf(  r->parentGroup() );
+@@ -732,8 +734,7 @@ QModelIndex ResourceItemModel::index( int row, int column, const QModelIndex &pa
+         }
+         return QModelIndex();
+     }
+-    QObject *p = object( parent );
+-    ResourceGroup *g = qobject_cast<ResourceGroup*>( p );
++    ResourceGroup *g = group( parent );
+     if ( g ) {
+         if ( row < g->numResources() ) {
+             return createIndex( row, column, g->resourceAt( row ) );
+@@ -782,8 +783,7 @@ int ResourceItemModel::rowCount( const QModelIndex &parent ) const
+     if ( ! parent.isValid() ) {
+         return m_project->numResourceGroups();
+     }
+-    QObject *p = object( parent );
+-    ResourceGroup *g = qobject_cast<ResourceGroup*>( p );
++    ResourceGroup *g = group( parent );
+     if ( g ) {
+         return g->numResources();
+     }
+@@ -1148,6 +1148,8 @@ QObject *ResourceItemModel::object( const QModelIndex &index ) const
+ {
+     QObject *o = 0;
+     if ( index.isValid() ) {
++        Q_ASSERT( m_project );
++        Q_ASSERT(m_project->resourceGroups().contains(static_cast<ResourceGroup*>(index.internalPointer())) || m_project->resourceList().contains(static_cast<Resource*>(index.internalPointer())));
+         o = static_cast<QObject*>( index.internalPointer() );
+         Q_ASSERT( o );
+     }
+diff --git a/plan/libs/models/kptschedulemodel.cpp b/plan/libs/models/kptschedulemodel.cpp
+index e3ce298..4d47ee5 100644
+--- a/plan/libs/models/kptschedulemodel.cpp
++++ b/plan/libs/models/kptschedulemodel.cpp
+@@ -171,6 +171,8 @@ void ScheduleItemModel::slotScheduleRemoved( const MainSchedule * )
+ void ScheduleItemModel::setProject( Project *project )
+ {
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         disconnect( m_project, SIGNAL(scheduleManagerChanged(ScheduleManager*)), this, SLOT(slotManagerChanged(ScheduleManager*)) );
+ 
+         disconnect( m_project, SIGNAL(scheduleManagerToBeAdded(const ScheduleManager*,int)), this, SLOT(slotScheduleManagerToBeInserted(const ScheduleManager*,int)) );
+@@ -197,6 +199,8 @@ void ScheduleItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         connect( m_project, SIGNAL(scheduleManagerChanged(ScheduleManager*)), this, SLOT(slotManagerChanged(ScheduleManager*)) );
+ 
+         connect( m_project, SIGNAL(scheduleManagerToBeAdded(const ScheduleManager*,int)), this, SLOT(slotScheduleManagerToBeInserted(const ScheduleManager*,int)) );
+@@ -1074,10 +1078,17 @@ void ScheduleLogItemModel::slotScheduleRemoved( const MainSchedule *sch )
+     kDebug(planDbg())<<m_schedule<<sch;
+ }
+ 
++void ScheduleLogItemModel::projectDeleted()
++{
++    setProject(0);
++}
++
+ void ScheduleLogItemModel::setProject( Project *project )
+ {
+     kDebug(planDbg())<<m_project<<"->"<<project;
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         disconnect( m_project, SIGNAL(scheduleManagerChanged(ScheduleManager*)), this, SLOT(slotManagerChanged(ScheduleManager*)) );
+ 
+         disconnect( m_project, SIGNAL(scheduleManagerToBeRemoved(const ScheduleManager*)), this, SLOT(slotScheduleManagerToBeRemoved(const ScheduleManager*)) );
+@@ -1096,6 +1107,8 @@ void ScheduleLogItemModel::setProject( Project *project )
+     }
+     m_project = project;
+     if ( m_project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
++
+         connect( m_project, SIGNAL(scheduleManagerChanged(ScheduleManager*)), this, SLOT(slotManagerChanged(ScheduleManager*)) );
+ 
+         connect( m_project, SIGNAL(scheduleManagerToBeRemoved(const ScheduleManager*)), this, SLOT(slotScheduleManagerToBeRemoved(const ScheduleManager*)) );
+diff --git a/plan/libs/models/kptschedulemodel.h b/plan/libs/models/kptschedulemodel.h
+index c09d8fb..acc75b4 100644
+--- a/plan/libs/models/kptschedulemodel.h
++++ b/plan/libs/models/kptschedulemodel.h
+@@ -203,6 +203,8 @@ protected Q_SLOTS:
+ 
+     void slotLogInserted( MainSchedule*, int firstrow, int lastrow );
+ 
++    void projectDeleted();
++
+ protected:
+     void addLogEntry( const Schedule::Log &log, int row );
+ 
+diff --git a/plan/libs/models/kpttaskstatusmodel.cpp b/plan/libs/models/kpttaskstatusmodel.cpp
+index e0693b8..9fb3b37 100644
+--- a/plan/libs/models/kpttaskstatusmodel.cpp
++++ b/plan/libs/models/kpttaskstatusmodel.cpp
+@@ -126,6 +126,7 @@ void TaskStatusItemModel::setProject( Project *project )
+ {
+     clear();
+     if ( m_project ) {
++        disconnect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         disconnect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         disconnect( m_project, SIGNAL(wbsDefinitionChanged()), this, SLOT(slotWbsDefinitionChanged()) );
+         disconnect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+@@ -140,6 +141,7 @@ void TaskStatusItemModel::setProject( Project *project )
+     m_project = project;
+     m_nodemodel.setProject( project );
+     if ( project ) {
++        connect(m_project, SIGNAL(aboutToBeDeleted()), this, SLOT(projectDeleted()));
+         connect( m_project, SIGNAL(localeChanged()), this, SLOT(slotLayoutChanged()) );
+         connect( m_project, SIGNAL(wbsDefinitionChanged()), this, SLOT(slotWbsDefinitionChanged()) );
+         connect( m_project, SIGNAL(nodeChanged(Node*)), this, SLOT(slotNodeChanged(Node*)) );
+-- 
+2.7.4
+

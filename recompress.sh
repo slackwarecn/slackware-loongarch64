@@ -308,6 +308,14 @@ gzip ./source/a/mcelog/mcelog.init.diff
 gzip ./source/a/mcelog/doinst.sh
 gzip ./source/kde/patch/ktorrent/ktorrent.use.package.geoip.database.diff
 gzip ./source/kde/patch/ktorrent/geoip.dat
+gzip ./source/kde/patch/calligra/calligra-2.9.11-gcc6_arm.patch
+gzip ./source/kde/patch/calligra/0067-Backport-Plan-Fix-insert-file.patch
+gzip ./source/kde/patch/calligra/0070-Plan-Guard-against-trying-to-move-a-task-into-the-sa.patch
+gzip ./source/kde/patch/calligra/0065-Backport-Plan-Fix-crash-due-to-accessing-deleted-obj.patch
+gzip ./source/kde/patch/calligra/0001-adapt-to-libwps-0.4.patch
+gzip ./source/kde/patch/calligra/0066-Backport-Plan-Do-not-crash-if-scheduler-plugins-not-.patch
+gzip ./source/kde/patch/calligra/0068-Backport-Plan-Fix-task-module-load-and-save.patch
+gzip ./source/kde/patch/calligra/0069-Backport-Plan-Avoid-crash-in-special-cases.patch
 gzip ./source/kde/patch/calligra/calligra.mariadb.diff
 gzip ./source/kde/patch/calligra/boost-1.65.0.patch
 gzip ./source/kde/patch/kde-workspace/kde-workspace.kdm.server.timeout.diff

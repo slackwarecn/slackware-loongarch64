@@ -1137,7 +1137,6 @@ gzip ./source/x/x11/patch/xauth/xauth.bc78aa61cfbddaa27dee275f639ba40de6981b17.p
 gzip ./source/x/x11/patch/xf86-video-tseng/xf86-video-tseng.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xpyb/xpyb-1.3.1-xcbproto-1.13.patch
 gzip ./source/x/x11/patch/xf86-video-voodoo/0001-don-t-use-PCITAG-in-struct-anymore.patch
-gzip ./source/x/x11/patch/xcompmgr/patch-XFixesSetPictureClipRegion-shadow-fix-xcompmgr.c.diff
 gzip ./source/x/x11/patch/xcompmgr/xcompmgr-follow-icccm-spec.diff
 gzip ./source/x/x11/patch/xf86-video-xgixp/0001-Remove-mibstore.h.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0002-Remove-symbol-lists-as-they-are-not-used-any-more.patch

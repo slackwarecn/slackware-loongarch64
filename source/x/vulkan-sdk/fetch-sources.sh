@@ -27,8 +27,8 @@
 #
 # Example:  VERSION=1.1.92.1 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.1.92.1}
-BRANCH=${BRANCH:-sdk-1.1.92}
+VERSION=${VERSION:-1.1.101.0}
+BRANCH=${BRANCH:-sdk-1.1.101}
 
 rm -rf Vulkan-*-*.tar.?z glslang* SPIRV-Tools* SPIRV-Headers* \
 	Vulkan-Headers-sdk-${VERSION}* \
@@ -52,7 +52,7 @@ GLSLANG_COMMIT=$(python3 - << EOF
 import json
 import tarfile
 with tarfile.open('Vulkan-ValidationLayers-sdk-$VERSION.tar') as layers:
-        known_good = layers.extractfile('Vulkan-ValidationLayers-sdk-1.1.92.1/scripts/known_good.json')
+        known_good = layers.extractfile('Vulkan-ValidationLayers-sdk-${VERSION}/scripts/known_good.json')
         known_good_info = json.loads(known_good.read())
 glslang = next(repo for repo in known_good_info['repos'] if repo['name'] == 'glslang')
 print(glslang['commit'])

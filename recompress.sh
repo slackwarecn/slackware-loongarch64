@@ -146,7 +146,6 @@ gzip ./source/a/gpm/gpm.types.diff
 gzip ./source/a/gpm/mouseconfig
 gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
-gzip ./source/a/quota/quotad.fix.high.cpu.usage.diff
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/file/file.xz.magic
 gzip ./source/a/file/file.zisofs.magic

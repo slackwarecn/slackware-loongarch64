@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2015, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=iputils
-VERSION=s20180629
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -67,9 +67,6 @@ rm -rf iputils-$VERSION
 tar xvf $CWD/iputils-$VERSION.tar.?z || exit 1
 cd iputils-$VERSION || exit 1
 
-# Don't use nettle libraary for ping6:
-sed -i "s/USE_NETTLE=yes/USE_NETTLE=no/g" Makefile
-
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -77,22 +74,30 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-make VPATH=/usr/lib${LIBDIRSUFFIX} || exit 1
-( cd doc ; make man || exit 1 ) || exit 1
+# Configure and build:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
+  --prefix=/usr \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --buildtype=release \
+  -DBUILD_TRACEROUTE6=true \
+  -DBUILD_RARPD=true \
+  .. || exit 1
+  ninja || exit 1
+cd ..
 
-( cd ninfod
-  CFLAGS="$SLKCFLAGS" \
-  ./configure \
-    --prefix=/usr \
-    --sysconfdir=/etc \
-    --libdir=/usr/lib${LIBDIRSUFFIX} \
-    --mandir=/usr/man \
-    --infodir=/usr/info \
-    --disable-static \
-    --build=$ARCH-slackware-linux || exit 1
-    make || exit 1
-) || exit 1
-
+cd meson-build
 strip arping clockdiff ninfod/ninfod ping rarpd rdisc tracepath traceroute6
 mkdir -p $PKG/sbin
 cat arping > $PKG/sbin/arping
@@ -126,9 +131,11 @@ mkdir -p $PKG/usr/man/man8
   ln -sf tracepath.8.gz tracepath6.8.gz
 )
 
+cd ..
 mkdir -p $PKG/usr/doc/iputils-$VERSION
 cp -a \
   INSTALL* LICENSE* README* RELNOTES* \
+  ninfod/COPYING* \
   $PKG/usr/doc/iputils-$VERSION
 chmod 644 $PKG/usr/doc/iputils-$VERSION/*
 

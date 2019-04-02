@@ -704,6 +704,10 @@ gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap
+gzip ./source/ap/ghostscript/ghostscript-cve-2019-3835.patch
+gzip ./source/ap/ghostscript/ghostscript-cve-2019-6116.patch
+gzip ./source/ap/ghostscript/ghostscript-subclassing-devices-fix-put_image-method.patch
+gzip ./source/ap/ghostscript/ghostscript-cve-2019-3838.patch
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch

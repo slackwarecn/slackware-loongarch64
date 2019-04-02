@@ -36,6 +36,9 @@
 ##########################################################################
 # History #
 ###########
+# v1.17 - 2019-04-01
+#       * Re-invoking input requests when human error causes failure. <ttk>
+#         qv: https://www.linuxquestions.org/questions/slackware-14/adduser-shell-script-error-4175650984/
 # v1.16 - 2018-07-22
 #       * Added input group. <pjv>
 # v1.15 - 2012-09-13
@@ -128,7 +131,7 @@ fi
 # This setting enables the 'recycling' of older unused UIDs.
 # When you userdel a user, it removes it from passwd and shadow but it will
 # never get used again unless you specify it expliticly -- useradd (appears to) just
-# look at the last line in passwd and increment the uid.  I like the idea of 
+# look at the last line in passwd and increment the uid. I like the idea of 
 # recycling uids but you may have very good reasons not to (old forgotten
 # confidential files still on the system could then be owned by this new user).
 # We'll set this to no because this is what the original adduser shell script
@@ -185,7 +188,7 @@ function check_group () {
 #: Read the login name for the new user :#
 #
 # Remember that most Mail Transfer Agents are case independant, so having
-# 'uSer' and 'user' may cause confusion/things to break.  Because of this,
+# 'uSer' and 'user' may cause confusion/things to break. Because of this,
 # useradd from shadow-4.0.3 no longer accepts usernames containing uppercase,
 # and we must reject them, too.
 
@@ -195,7 +198,9 @@ LOGIN="$1"
 needinput=yes
 while [ ! -z $needinput ]; do
   if [ -z "$LOGIN" ]; then 
-    while [ -z "$LOGIN" ]; do LOGIN="$(get_input "Login name for new user []:")" ; done
+    while [ -z "$LOGIN" ]; do
+      LOGIN="$(get_input "Login name for new user []:")"
+    done
   fi
   grep "^${LOGIN}:" $pfile >/dev/null 2>&1  # ensure it's not already used
   if [ $? -eq 0 ]; then
@@ -415,7 +420,7 @@ if [ $? -gt 0 ]; then
   exit 1
 fi
 
-# chown the home dir ?  We can only do this once the useradd has
+# chown the home dir? We can only do this once the useradd has
 # completed otherwise the user name doesn't exist.
 if [ ! -z "${CHOWNHOMEDIR}" ]; then
   chown "$LOGIN"."$( echo $GID | awk '{print $2}')" "${CHOWNHOMEDIR}"
@@ -423,17 +428,19 @@ fi
 
 # Set the finger information
 $chfn "$LOGIN"
-if [ $? -gt 0 ]; then
-  echo "- Warning: an error occurred while setting finger information"
-fi
+while [ $? -gt 0 ]; do
+  echo "- Warning: an error occurred while setting finger information."
+  echo "           Please try again."
+  $chfn "$LOGIN"
+done
 
 # Set a password
 $passwd "$LOGIN"
-if [ $? -gt 0 ]; then
-  echo "* WARNING: An error occured while setting the password for"
-  echo "           this account.  Please manually investigate this *"
-  exit 1
-fi
+while [ $? -gt 0 ]; do
+  echo "- Warning: An error occured while setting the password for"
+  echo "           this account. Please try again."
+  $passwd "$LOGIN"
+done
 
 # If it was created (it should have been!), set the permissions for that user's dir 
 HME="$(echo "$HME" | awk '{print $2}')"  # We have to remove the -g prefix

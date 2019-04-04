@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -59,7 +59,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 # Determine readline patchlevel:
-PATCHLEVEL="$( cd $CWD/readline-${VERSION}-patches ; /bin/ls readline7?-??? | tail -1 | cut -f 2 -d - 2> /dev/null )"
+PATCHLEVEL="$( cd $CWD/readline-${VERSION}-patches ; /bin/ls readline7?-??? 2> /dev/null | tail -1 | cut -f 2 -d - 2> /dev/null )"
 if [ "$PATCHLEVEL" = "" ]; then
   PATCHLEVEL=000
 fi
@@ -83,9 +83,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-for file in $CWD/readline-*-patches/readline*-??? ; do
-  cat $file | patch -p0 --verbose || exit 1
-done
+if [ ! "$PATCHLEVEL" = "000" ]; then
+  for file in $CWD/readline-*-patches/readline*-??? ; do
+    cat $file | patch -p0 --verbose || exit 1
+  done
+fi
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \

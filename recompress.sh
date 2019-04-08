@@ -120,6 +120,7 @@ gzip ./source/a/grub/initrd_naming.patch
 gzip ./source/a/grub/grub.binutils.fix.diff
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/doinst.sh
+gzip ./source/a/grub/grub.f2fs.patch
 gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff
 gzip ./source/a/devs/makedev_2.3.1.hd.diff
 gzip ./source/a/devs/makedev_2.3.1-46.2.diff

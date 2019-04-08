@@ -24,6 +24,14 @@ nfsd_start() {
     exit # no uncommented shares in /etc/exports
   fi
 
+  # Without this directory the logs will complain with
+  # 'NFSD: Unable to end grace period'.
+  NFSV4RECOVERYDIR=$(cat /proc/fs/nfsd/nfsv4recoverydir)
+  if [ -r /proc/fs/nfsd/nfsv4recoverydir -a ! -d "$NFSV4RECOVERYDIR" ]; then
+    mkdir "$NFSV4RECOVERYDIR"
+    chown -R rpc:rpc "$NFSV4RECOVERYDIR"
+  fi
+
   # If we do not detect nfsd support built into the kernel (or previously
   # loaded as a module), we will try to load the nfsd.ko kernel module:
   if [ ! -r /proc/1/net/rpc/nfsd ]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2016, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,7 +28,7 @@ PKGNAM=grub
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # Better to use _ than ~ in the package filenames version:
 PKGVER=$(echo $VERSION | tr '~' '_')
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -120,6 +120,12 @@ zcat $CWD/grub.xfs.sparse.inodes.patch.gz | patch -p1 --verbose || exit 1
 
 # Fix breakage when compiled with recent binutils:
 zcat $CWD/grub.binutils.fix.diff.gz | patch -p1 --verbose || exit 1
+
+# Support F2FS filesystem:
+zcat $CWD/grub.f2fs.patch.gz | patch -p1 --verbose || exit 1
+
+# Regenerate build system to fix dependency on outdated automake:
+autoreconf -vif
 
 build_grub() {
   EFI_DO="$*"

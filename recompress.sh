@@ -724,7 +724,6 @@ gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-2.29.en_US.no.am.pm.date.format.diff
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/fuse/doinst.sh
-gzip ./source/l/at-spi2-core/at-spi2-core.44a812ea51223d82f21a098a2d45fcc5c329ce7a.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-expose.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-localecrash.patch

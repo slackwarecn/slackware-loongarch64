@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=nfs-utils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -132,8 +132,15 @@ mkdir -p $PKG/sbin
 mv $PKG/usr/sbin/rpc.statd $PKG/sbin
 ( cd $PKG/usr/sbin ; ln -sf ../../sbin/rpc.statd . )
 
-# Make recovery directory:
-mkdir -p $PKG/var/lib/nfs/v4recovery
+# Make recovery directory. The location expected may be found in
+# /proc/fs/nfsd/nfsv4recoverydir, so if that file exists we will get the
+# location from there. If not, we'll use the usual directory path.
+if [ -r /proc/fs/nfsd/nfsv4recoverydir ]; then
+  NFSV4RECOVERYDIR="$(cat /proc/fs/nfsd/nfsv4recoverydir)"
+else
+  NFSV4RECOVERYDIR="/var/lib/nfs/v4recovery"
+fi
+mkdir -p ${PKG}${NFSV4RECOVERYDIR}
 
 # Chown /var/lib/nfs so that rpc.statd runs as rpc:rpc:
 chown -R rpc:rpc $PKG/var/lib/nfs

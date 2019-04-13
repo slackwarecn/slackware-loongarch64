@@ -584,6 +584,7 @@ gzip ./source/n/dovecot/fix-mysql-double-free.patch
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
 gzip ./source/n/dovecot/doinst.sh
 gzip ./source/n/dovecot/dovecot.config.README.diff
+gzip ./source/n/libgpg-error/libgpg-error.gawk5.diff
 gzip ./source/n/biff+comsat/biff+comsat.badutmp.diff
 gzip ./source/n/biff+comsat/biff+comsat.offset.diff
 gzip ./source/n/biff+comsat/biff+comsat-0.17.diff

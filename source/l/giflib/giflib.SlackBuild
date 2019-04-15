@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=giflib
 VERSION=${VERSION:-$(echo giflib-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -75,6 +75,12 @@ find . \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Include deprecated functions (including GifQuantizeBuffer) into the libgif.so
+# to fix older packages that require those functions. Really, when functions
+# were removed from the shared library this should have merited a shared
+# library .soname version bump.
+zcat $CWD/giflib.GifQuantizeBuffer.diff.gz | patch -p1 --verbose || exit 1
 
 make PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man $NUMJOBS || make || exit 1
 make PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man install DESTDIR=$PKG || exit 1

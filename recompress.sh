@@ -983,6 +983,7 @@ gzip ./source/l/aalib/aalib-aclocal.patch
 gzip ./source/l/akonadi/mysql-global.conf.patch
 gzip ./source/l/akonadi/akonadi-mariadb-10.2.patch
 gzip ./source/l/akonadi/doinst.sh
+gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/glib-networking/doinst.sh

@@ -804,7 +804,6 @@ gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/poppler/poppler.splashpath.h.revert.diff
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
-gzip ./source/l/gst-plugins-good/gst-plugins-good.libvpx-1.8.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
 gzip ./source/l/netpbm/netpbm-glibc.patch

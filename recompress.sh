@@ -872,6 +872,7 @@ gzip ./source/l/ConsoleKit2/patches/0001-Revert-Minor-code-refactoring.patch
 gzip ./source/l/ConsoleKit2/patches/0003-Filter-out-the-kdm-user.patch
 gzip ./source/l/ConsoleKit2/patches/0004-Apply-overlooked-prefix-lib-libdir-substitution.patch
 gzip ./source/l/ConsoleKit2/doinst.sh
+gzip ./source/l/qt-gstreamer/qt-gstreamer.gstreamer-1.16.x.diff
 gzip ./source/l/qt-gstreamer/doinst.sh
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/desktop-file-utils/doinst.sh

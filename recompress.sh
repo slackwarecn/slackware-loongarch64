@@ -932,6 +932,7 @@ gzip ./source/l/svgalib/svgalib.prefix.diff
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/ilmbase/ilmbase-2.2.0-no_undefined.patch
 gzip ./source/l/qtscriptgenerator/include-everything.patch
+gzip ./source/l/v4l-utils/v4l-utils.c82608ca1595427c2bdbd4abb9aca9163e1df60a.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch

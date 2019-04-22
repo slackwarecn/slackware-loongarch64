@@ -533,13 +533,10 @@ gzip ./source/n/vsftpd/vsftpd.builddefs.diff
 gzip ./source/n/net-tools/net-tools.config.h
 gzip ./source/n/nc/nc-110-21.diff
 gzip ./source/n/nc/nc.diff
-gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-assoc-timeout.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-message.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-flush-debug-output.patch
-gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-dbus-service-file-args.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
-gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-2.7-fix-undefined-remove-ie.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh

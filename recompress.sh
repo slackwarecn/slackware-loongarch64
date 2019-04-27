@@ -958,6 +958,7 @@ gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
 gzip ./source/l/SDL2/SDL2.SDL_syswm.h.diff
 gzip ./source/l/SDL2/SDL2.periodic.magnitude.patch
+gzip ./source/l/python-requests/requests.urllib3.version.diff
 gzip ./source/l/PyQt/PyQt.phonon.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff

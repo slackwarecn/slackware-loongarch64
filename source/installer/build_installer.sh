@@ -1770,14 +1770,14 @@ EOF
 fi
 ldconfig -r.
 
-# Find any remaining dangling symlinks.
-echo "--- Finding any dangling symlinks ---"
-echo "    Expect to see:"
-echo "    ./boot ./var/log/scripts ./var/log/packages"
-echo "    ./var/adm/scripts ./var/adm/packages ./cdrom ./nfs"
-echo ""
-find -L . -type l
-echo "-------------------------------------"
+## Find any remaining dangling symlinks.
+#echo "--- Finding any dangling symlinks ---"
+#echo "    Expect to see:"
+#echo "    ./boot ./var/log/scripts ./var/log/packages"
+#echo "    ./var/adm/scripts ./var/adm/packages ./cdrom ./nfs"
+#echo ""
+#find -L . -type l
+#echo "-------------------------------------"
 
 # Do we have to split the initrd (separate initrd for each kernel version)?
 if [ $SPLIT_INITRD -eq 1 ]; then

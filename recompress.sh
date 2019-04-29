@@ -1093,6 +1093,8 @@ gzip ./source/xap/gnuchess/eboard.png16.diff
 gzip ./source/xap/gnuchess/eboard.ldl.diff
 gzip ./source/xap/gnuchess/doinst.sh
 gzip ./source/xap/gnuchess/xboard.conf.diff
+gzip ./source/xap/easytag/easytag.revert.ogg.handle.patch
+gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff

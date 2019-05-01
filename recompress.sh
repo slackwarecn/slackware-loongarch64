@@ -577,7 +577,6 @@ gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
 gzip ./source/n/irssi/doinst.sh
 gzip ./source/n/httpd/httpd.runasapache.diff
 gzip ./source/n/httpd/doinst.sh
-gzip ./source/n/dovecot/fix-mysql-double-free.patch
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
 gzip ./source/n/dovecot/doinst.sh
 gzip ./source/n/dovecot/dovecot.config.README.diff

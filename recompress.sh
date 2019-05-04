@@ -154,6 +154,9 @@ gzip ./source/a/floppy/fdutils.mediaprm.diff
 gzip ./source/a/floppy/fdutils.glibc228.diff
 gzip ./source/a/smartmontools/doinst.sh
 gzip ./source/a/lbzip2/lbzip2.glibc228.diff
+gzip ./source/a/efivar/0dad6d78a7fb5f6c5fb4a1d646040539db6cf865.patch
+gzip ./source/a/efivar/c3c553db85ff10890209d0fe48fb4856ad68e4e0.patch
+gzip ./source/a/efivar/b98ba8921010d03f46704a476c69861515deb1ca.patch
 gzip ./source/a/lrzip/doinst.sh
 gzip ./source/a/sysklogd/sysklogd.allow.repeated.messages.diff
 gzip ./source/a/sysklogd/use_memmove_not_strcpy.diff
@@ -952,7 +955,6 @@ gzip ./source/l/svgalib/svgalib.prefix.diff
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/ilmbase/ilmbase-2.2.0-no_undefined.patch
 gzip ./source/l/qtscriptgenerator/include-everything.patch
-gzip ./source/l/v4l-utils/v4l-utils.c82608ca1595427c2bdbd4abb9aca9163e1df60a.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch

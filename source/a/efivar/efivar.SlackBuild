@@ -85,10 +85,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
+# GCC9 fixes for -Werror:
+zcat $CWD/0dad6d78a7fb5f6c5fb4a1d646040539db6cf865.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/b98ba8921010d03f46704a476c69861515deb1ca.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/c3c553db85ff10890209d0fe48fb4856ad68e4e0.patch.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
-make $NUMJOBS libdir=/usr/lib$LIBDIRSUFFIX/ mandir=/usr/man/
-make $NUMJOBS install DESTDIR=${PKG}/ libdir=/usr/lib$LIBDIRSUFFIX/ mandir=/usr/man/
+make $NUMJOBS libdir=/usr/lib$LIBDIRSUFFIX/ mandir=/usr/man/ || exit 1
+make $NUMJOBS install DESTDIR=${PKG}/ libdir=/usr/lib$LIBDIRSUFFIX/ mandir=/usr/man/ || exit 1
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

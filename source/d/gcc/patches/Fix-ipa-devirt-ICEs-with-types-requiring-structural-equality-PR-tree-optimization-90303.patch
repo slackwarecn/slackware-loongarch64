@@ -1,0 +1,146 @@
+From patchwork Fri May  3 07:16:10 2019
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: Jakub Jelinek <jakub@redhat.com>
+X-Patchwork-Id: 1094692
+Return-Path: <gcc-patches-return-500041-incoming=patchwork.ozlabs.org@gcc.gnu.org>
+X-Original-To: incoming@patchwork.ozlabs.org
+Delivered-To: patchwork-incoming@bilbo.ozlabs.org
+Authentication-Results: ozlabs.org;
+ spf=pass (mailfrom) smtp.mailfrom=gcc.gnu.org
+ (client-ip=209.132.180.131; helo=sourceware.org;
+ envelope-from=gcc-patches-return-500041-incoming=patchwork.ozlabs.org@gcc.gnu.org;
+ receiver=<UNKNOWN>)
+Authentication-Results: ozlabs.org;
+ dmarc=fail (p=none dis=none) header.from=redhat.com
+Authentication-Results: ozlabs.org; dkim=pass (1024-bit key;
+ unprotected) header.d=gcc.gnu.org header.i=@gcc.gnu.org
+ header.b="WhDk+9++"; dkim-atps=neutral
+Received: from sourceware.org (server1.sourceware.org [209.132.180.131])
+ (using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+ bits)) (No client certificate requested)
+ by ozlabs.org (Postfix) with ESMTPS id 44wNjB0t65z9s9y
+ for <incoming@patchwork.ozlabs.org>;
+ Fri,  3 May 2019 17:16:25 +1000 (AEST)
+DomainKey-Signature: a=rsa-sha1; c=nofws; d=gcc.gnu.org; h=list-id
+ :list-unsubscribe:list-archive:list-post:list-help:sender:date
+ :from:to:cc:subject:message-id:reply-to:mime-version
+ :content-type; q=dns; s=default; b=uX2JgPCp8IANMWcTrdn9eL5SE1PqS
+ sqRRWyzDFHfr5XjmeT/bE41babwrBZMo3eAKMUSJzX7sCNeXlBShJ8N9Eyr0qBLQ
+ aVoO8BR6BIFtuxaRSCwx6ZfbfbqJFNaW9mUT3OJiPTfQUB5NI3+bHtAQe6yKblqS
+ o0hVQUouhYIB24=
+DKIM-Signature: v=1; a=rsa-sha1; c=relaxed; d=gcc.gnu.org; h=list-id
+ :list-unsubscribe:list-archive:list-post:list-help:sender:date
+ :from:to:cc:subject:message-id:reply-to:mime-version
+ :content-type; s=default; bh=ag8hzhMIZOGnUlxqQa3qiM3TJHk=; b=WhD
+ k+9++fmj2KalPZ8GhtuS/sLcq86HQCOKhjzT6bPnNqcioGsePjnWWTzwSAfA3+xK
+ WMDKia8ClZB8Z66r8v5B/oqOBu/HKHsMXa4NIdSG/jWfFNqVNIGdZ8S43JGhxH5P
+ 9LGxwR99wkPOfnQMO1QmYZmiZiH0HdyNdyLhwV9w=
+Received: (qmail 38694 invoked by alias); 3 May 2019 07:16:18 -0000
+Mailing-List: contact gcc-patches-help@gcc.gnu.org; run by ezmlm
+Precedence: bulk
+List-Id: <gcc-patches.gcc.gnu.org>
+List-Unsubscribe: <mailto:gcc-patches-unsubscribe-incoming=patchwork.ozlabs.org@gcc.gnu.org>
+List-Archive: <http://gcc.gnu.org/ml/gcc-patches/>
+List-Post: <mailto:gcc-patches@gcc.gnu.org>
+List-Help: <mailto:gcc-patches-help@gcc.gnu.org>
+Sender: gcc-patches-owner@gcc.gnu.org
+Delivered-To: mailing list gcc-patches@gcc.gnu.org
+Received: (qmail 38270 invoked by uid 89); 3 May 2019 07:16:18 -0000
+Authentication-Results: sourceware.org; auth=none
+X-Spam-SWARE-Status: No, score=-7.1 required=5.0 tests=AWL, BAYES_00,
+ GIT_PATCH_2, GIT_PATCH_3,
+ SPF_HELO_PASS autolearn=ham version=3.3.1
+ spammy=HX-Languages-Length:2327
+X-HELO: mx1.redhat.com
+Received: from mx1.redhat.com (HELO mx1.redhat.com) (209.132.183.28) by
+ sourceware.org (qpsmtpd/0.93/v0.84-503-g423c35a) with ESMTP;
+ Fri, 03 May 2019 07:16:17 +0000
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com
+ [10.5.11.11])	(using TLSv1.2 with cipher AECDH-AES256-SHA
+ (256/256 bits))	(No client certificate requested)	by
+ mx1.redhat.com (Postfix) with ESMTPS id 6E4B730ADBC3;
+ Fri,  3 May 2019 07:16:15 +0000 (UTC)
+Received: from tucnak.zalov.cz (ovpn-116-81.ams2.redhat.com
+ [10.36.116.81])	by smtp.corp.redhat.com (Postfix) with ESMTPS
+ id C44F62B9CF; Fri,  3 May 2019 07:16:14 +0000 (UTC)
+Received: from tucnak.zalov.cz (localhost [127.0.0.1])	by tucnak.zalov.cz
+ (8.15.2/8.15.2) with ESMTP id x437GCxS021786;
+ Fri, 3 May 2019 09:16:12 +0200
+Received: (from jakub@localhost)	by tucnak.zalov.cz (8.15.2/8.15.2/Submit)
+ id x437GAVP021785; Fri, 3 May 2019 09:16:10 +0200
+Date: Fri, 3 May 2019 09:16:10 +0200
+From: Jakub Jelinek <jakub@redhat.com>
+To: Richard Biener <rguenther@suse.de>, Jan Hubicka <jh@suse.cz>
+Cc: gcc-patches@gcc.gnu.org
+Subject: [PATCH] Fix ipa-devirt ICEs with types requiring structural
+ equality (PR tree-optimization/90303)
+Message-ID: <20190503071610.GY2706@tucnak>
+Reply-To: Jakub Jelinek <jakub@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-IsSubscribed: yes
+
+Hi!
+
+The following two functions assume that all types (in the latter case only
+the TYPE_MAIN_VARIANT of it) have non-NULL TYPE_CANONICAL.  That is
+generally not something the FEs guarantee, if TYPE_CANONICAL is NULL, that
+is TYPE_STRUCTURAL_EQUALITY_P and generally the middle-end either punts on
+those, or does use more careful type comparison etc.  In the testcase
+we have a FUNCTION_TYPE for which TYPE_STRUCTURAL_EQUALITY_P is true and
+the C++ FE sets template types where any of the template parameters requires
+structural equality also to require structural equality.
+
+In the following functions, we already have a type (TYPE_MAIN_VARIANT),
+using its TYPE_CANONICAL instead when it is NULL means a certain ICE, but I
+don't see why we couldn't just use those types.
+
+Bootstrapped/regtested on x86_64-linux and i686-linux, ok for trunk and
+later for 9.2?
+
+2019-05-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/90303
+	* ipa-devirt.c (obj_type_ref_class, get_odr_type): Don't use
+	TYPE_CANONICAL for TYPE_STRUCTURAL_EQUALITY_P types in !in_lto_p mode.
+
+	* g++.target/i386/pr90303.C: New test.
+
+
+	Jakub
+
+--- gcc/ipa-devirt.c.jj	2019-04-15 19:45:28.796340266 +0200
++++ gcc/ipa-devirt.c	2019-05-02 10:46:03.077896176 +0200
+@@ -2020,7 +2020,7 @@ obj_type_ref_class (const_tree ref)
+   ref = TREE_VALUE (TYPE_ARG_TYPES (ref));
+   gcc_checking_assert (TREE_CODE (ref) == POINTER_TYPE);
+   tree ret = TREE_TYPE (ref);
+-  if (!in_lto_p)
++  if (!in_lto_p && !TYPE_STRUCTURAL_EQUALITY_P (ret))
+     ret = TYPE_CANONICAL (ret);
+   else
+     ret = get_odr_type (ret)->type;
+@@ -2042,7 +2042,7 @@ get_odr_type (tree type, bool insert)
+   int base_id = -1;
+ 
+   type = TYPE_MAIN_VARIANT (type);
+-  if (!in_lto_p)
++  if (!in_lto_p && !TYPE_STRUCTURAL_EQUALITY_P (type))
+     type = TYPE_CANONICAL (type);
+ 
+   gcc_checking_assert (can_be_name_hashed_p (type)
+--- gcc/testsuite/g++.target/i386/pr90303.C.jj	2019-05-02 10:51:42.208456515 +0200
++++ gcc/testsuite/g++.target/i386/pr90303.C	2019-05-02 10:52:15.300925960 +0200
+@@ -0,0 +1,8 @@
++// PR tree-optimization/90303
++// { dg-do compile { target ia32 } }
++// { dg-additional-options "-O2" }
++
++struct A { virtual void foo (); };
++template <class> class B : A {};
++typedef void (__attribute__((fastcall)) F) ();
++B<F> e;

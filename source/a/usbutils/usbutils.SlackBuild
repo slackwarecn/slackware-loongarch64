@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2015, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -81,6 +81,10 @@ find . \
 #rm -f usb.ids*
 #wget $(grep 'SRC=' update-usbids.sh.in | cut -d= -f2- | tr -d \")
 
+if [ ! -r configure ]; then
+  NOCONFIGURE=1 ./autogen.sh
+fi
+
 # Use --datadir=/usr/share/hwdata so usb.ids is expected to be there 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -95,7 +99,7 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Include the example usbreset program
-gcc ${SLKCFLAGS} -o $PKG/usr/bin/usbreset $CWD/usbreset.c || exit 1
+gcc ${SLKCFLAGS} -o $PKG/usr/bin/usbreset usbreset.c || exit 1
 chmod 0755 $PKG/usr/bin/usbreset
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -119,6 +123,7 @@ fi
 mkdir -p $PKG/usr/doc/usbutils-$VERSION
 cp -a \
   AUTHORS COPYING* NEWS README* \
+  LICENSES/* \
   $PKG/usr/doc/usbutils-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 #
 # Parts of this script are based on the gcc_release script by
 # Jeffrey Law, Bernd Schmidt, Mark Mitchell.
@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-BRANCH=${BRANCH:-gcc-8-branch}
+BRANCH=${BRANCH:-gcc-9-branch}
 
 rm -rf tmp-fetch
 mkdir tmp-fetch

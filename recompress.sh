@@ -563,6 +563,7 @@ gzip ./source/n/netkit-routed/routed.18.candidate.final.patch
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
+gzip ./source/n/iputils/iputils.docbook.revert.diff
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/COPYRIGHT
 gzip ./source/n/dhcpcd/doinst.sh
@@ -985,7 +986,6 @@ gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
 gzip ./source/l/SDL2/SDL2.SDL_syswm.h.diff
 gzip ./source/l/SDL2/SDL2.periodic.magnitude.patch
-gzip ./source/l/python-requests/requests.urllib3.version.diff
 gzip ./source/l/PyQt/PyQt.phonon.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff

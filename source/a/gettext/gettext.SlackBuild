@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gettext
-VERSION=0.19.8.1
-BUILD=${BUILD:-5}
+VERSION=0.20.1
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -93,9 +93,25 @@ CXXFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/gettext-$VERSION \
   --disable-static \
   --build=$ARCH-slackware-linux || exit 1
-
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+cd ../libtextstyle
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --infodir=/usr/info \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/gettext-$VERSION \
+  --disable-static \
+  --build=$ARCH-slackware-linux || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Back to gettext-runtime to fetch docs:
+cd ../gettext-runtime
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
@@ -119,6 +135,11 @@ gzip -9 $PKG/usr/man/man?/*
 cp -a \
   AUTHORS BUGS intl/COPYING* INSTALL NEWS README* \
   $PKG/usr/doc/gettext-$VERSION
+cd ../libtextstyle
+mkdir $PKG/usr/doc/gettext-$VERSION/libtextstyle
+cp -a \
+  AUTHORS COPYING* ChangeLog DEPENDENCIES HACKING INSTALL* NEWS README* \
+  $PKG/usr/doc/gettext-$VERSION/libtextstyle
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

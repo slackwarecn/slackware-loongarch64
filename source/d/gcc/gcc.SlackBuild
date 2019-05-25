@@ -57,7 +57,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=gcc
 SRCVER=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 VERSION=$(echo $SRCVER | cut -f 1 -d _)
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-6}
 
 # How many jobs to run in parallel:
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
@@ -174,6 +174,12 @@ cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
 
   # Fix std::variant friend declaration that broke clang (PR90397):
   zcat $CWD/patches/gcc.PR90397.patch.gz | patch -p1 --verbose || exit 1
+
+  # Fix format errors in es locale that can cause an internal compiler error:
+  zcat $CWD/patches/gcc.es.po.diff.gz | patch -p1 --verbose || exit 1
+
+  # Fix errors in sv locale:
+  zcat $CWD/patches/gcc.sv.po.diff.gz | patch -p1 --verbose || exit 1
 
   # Fix perms/owners:
   chown -R root:root .
@@ -324,7 +330,7 @@ cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
     fi
   )
 
-)
+) || exit 1
 
 # build gcc
 ( mkdir gcc.build.lnx;

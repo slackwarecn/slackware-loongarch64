@@ -967,6 +967,7 @@ gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch
 gzip ./source/l/glib/glib-1.2.10-autotools.patch
 gzip ./source/l/glib/glib-1.2.10-format.patch
+gzip ./source/l/glib/glib-1.2.10-gcc9.patch
 gzip ./source/l/glib/glib-1.2.10-isowarning.patch
 gzip ./source/l/glib/glib-1.2.10-underquoted.patch
 gzip ./source/l/glib/glib-1.2.10-unused-dep.patch

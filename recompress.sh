@@ -1183,7 +1183,6 @@ gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-consolekit.patch
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
-gzip ./source/x/x11/patch/xkeyboard-config/xkeyboard-config.fix_pt.patch
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch

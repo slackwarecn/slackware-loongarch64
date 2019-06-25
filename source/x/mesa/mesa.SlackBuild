@@ -30,9 +30,8 @@ BUILD=${BUILD:-1}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Be sure this list is up-to-date:
-DRI_DRIVERS="i915,i965,nouveau,r200,radeon,swrast"
-GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl"
-EGL_PLATFORMS="drm,x11"
+DRI_DRIVERS="i915,i965,r100,r200,nouveau"
+GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,swr,iris"
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -56,13 +55,9 @@ PKG=$TMP/package-mesa
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
-  # I've heard some reports as of late 2016 that Vulkan has some issues on
-  # 32-bit, but we'll try it anyway and see if anything is reported:
-  VULKAN=" --with-vulkan-drivers=intel,radeon "
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
-  VULKAN=" --with-vulkan-drivers=intel,radeon "
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -97,61 +92,52 @@ if /bin/ls $CWD/patches/*.patch 1> /dev/null 2> /dev/null ; then
   done
 fi
 
-# This doesn't fully do the trick.  See below.  ;-)
-#./autogen.sh
-
-# Fix detection of libLLVM when built with CMake
-sed -i 's/LLVM_SO_NAME=.*/LLVM_SO_NAME=LLVM/' configure.ac
-
-# Seems to need this to avoid tripping over a different libtool version:
-autoreconf -fi
-
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --sysconfdir=/etc \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
   --mandir=/usr/man \
-  --docdir=/usr/doc/${PKGNAM}-$VERSION \
-  --enable-autotools \
-  --with-dri-driverdir=/usr/lib${LIBDIRSUFFIX}/xorg/modules/dri \
-  --with-dri-drivers="$DRI_DRIVERS" \
-  --with-gallium-drivers="$GALLIUM_DRIVERS" \
-  --with-egl-platforms="$EGL_PLATFORMS" \
-  $VULKAN \
-  --enable-llvm \
-  --enable-llvm-shared-libs \
-  --enable-egl \
-  --enable-texture-float \
-  --enable-shared-glapi \
-  --enable-xa \
-  --enable-nine \
-  --enable-osmesa \
-  --enable-dri \
-  --enable-dri3 \
-  --enable-gbm \
-  --enable-glx \
-  --enable-glx-tls \
-  --enable-gles1 \
-  --enable-gles2 \
-  --enable-vdpau \
-  --enable-opencl \
-  --enable-opencl-icd \
-  --enable-libglvnd \
-  --build=$ARCH-slackware-linux || exit 1
-
-# This is autodetected anyway:
-#  --enable-va \
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --buildtype=release \
+  -Dplatforms=x11,drm,surfaceless \
+  -Dgallium-opencl=icd \
+  -Dgallium-nine=true \
+  -Dosmesa=gallium \
+  -Ddri-drivers=$DRI_DRIVERS \
+  -Dgallium-drivers=$GALLIUM_DRIVERS \
+  -Ddri-drivers-path=/usr/lib${LIBDIRSUFFIX}/xorg/modules/dri \
+  -Dglvnd=true \
+  -Dllvm=true \
+  -Dshared-llvm=true \
+  -Dshared-glapi=true \
+  -Degl=true \
+  -Dgles1=false \
+  -Dgles2=true \
+  .. || exit 1
+  ninja || exit 1
+  DESTDIR=$PKG ninja install || exit 1
+cd ..
 
 # Install /etc/drirc as a .new file:
 if [ -r $PKG/etc/drirc ]; then
   mv $PKG/etc/drirc $PKG/etc/drirc.new
+fi
+
+# Install glesv2.pc:
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+cat $CWD/glesv2.pc > $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/glesv2.pc
+if [ ! "${LIBDIRSUFFIX}" = "64" ]; then
+  sed -i "s/lib64/lib/g" $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/glesv2.pc
 fi
 
 # Now build/install a small subset of the demos:

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2015, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=giflib
 VERSION=${VERSION:-$(echo giflib-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -96,6 +96,13 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
   ln -s libgif.so.7 libungif.so.7
   ln -s libgif.so libungif.so
 )
+
+# Install these obsolete utilities if they were built:
+for obsolete in gifecho giffilter gifinto gifsponge ; do
+  if [ -r $obsolete ]; then
+    cp $obsolete $PKG/usr/bin/$obsolete
+  fi
+done
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

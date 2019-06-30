@@ -25,13 +25,13 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mesa
 VERSION=${VERSION:-$(echo $PKGNAM-1*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 DEMOVERS=${DEMOVERS:-8.4.0}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Be sure this list is up-to-date:
 DRI_DRIVERS="i915,i965,r100,r200,nouveau"
-GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,swr,iris"
+GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,iris"
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -48,6 +48,14 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+# Build swr for the following architectures (not for i?x6, as this will cause
+# an Illegal Instruction startup failure on many otherwise supported CPUs):
+for swr_arch in x86_64 ; do
+  if [ "$ARCH" = "x86_64" ]; then
+    GALLIUM_DRIVERS="$GALLIUM_DRIVERS,swr"
+  fi
+done
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mesa

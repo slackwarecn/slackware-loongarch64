@@ -1116,7 +1116,6 @@ gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
-gzip ./source/xap/xscreensaver/xscreensaver.fontglide.comment.style.diff
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
 gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/gnuchess/eboard.assert.diff
@@ -1193,6 +1192,9 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/xcm/xcm.udev.rules.diff
+gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
+gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules
+gzip ./testing/source/blueman/doinst.sh
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

@@ -30,7 +30,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=mariadb
 VERSION=${VERSION:-$(echo ${PKGNAM}-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # To reduce the package size, the embedded server may be omitted.  Currently
 # only amarok uses this.  To build without embedded support, set this to NO.
@@ -89,6 +89,11 @@ cd $TMP
 rm -rf ${PKGNAM}-$VERSION
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
+
+# Fix mysql_install_db if PAM is not installed:
+if [ ! -L /lib${LIBDIRSUFFIX}/libpam.so.0 ]; then
+  zcat $CWD/mysql_install_db.nopam.diff.gz | patch -p1 --verbose || exit 1
+fi
 
 chown -R root:root .
 find . \

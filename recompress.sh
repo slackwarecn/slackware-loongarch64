@@ -111,13 +111,9 @@ gzip ./source/a/udisks/udisks.glibc228.diff
 gzip ./source/a/getty-ps/getty.bugfixes.diff
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
 gzip ./source/a/haveged/doinst.sh
-gzip ./source/a/grub/0001-Fix-CVE-2015-8370-Grub2-user-pass-vulnerability.patch
-gzip ./source/a/grub/grub.xfs.sparse.inodes.patch
 gzip ./source/a/grub/initrd_naming.patch
-gzip ./source/a/grub/grub.binutils.fix.diff
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/doinst.sh
-gzip ./source/a/grub/grub.f2fs.patch
 gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff
 gzip ./source/a/devs/makedev_2.3.1.hd.diff
 gzip ./source/a/devs/makedev_2.3.1-46.2.diff
@@ -609,6 +605,7 @@ gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
+gzip ./source/ap/mariadb/mysql_install_db.nopam.diff
 gzip ./source/ap/dash/dash-0.5.7-format-security.patch
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/hplip.no.upgrade.diff

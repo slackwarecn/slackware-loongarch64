@@ -602,6 +602,7 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
+gzip ./source/xfce/garcon/0001-Fix-use-after-free-crash-Bug-15679.patch
 gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
@@ -1128,7 +1129,7 @@ gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
-gzip ./source/xap/mozilla-firefox/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/unbreakdocs.diff

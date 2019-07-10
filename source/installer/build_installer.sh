@@ -996,6 +996,20 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
 cp --remove-destination -fa${VERBOSE1} fdisk \
    $PKG/$ARCH-installer-filesystem/sbin/fdisk.bin
 
+# Hack reboot to call reboot -f:
+rm -f $PKG/$ARCH-installer-filesystem/sbin/reboot
+( cd $PKG/$ARCH-installer-filesystem/bin ; ln -sf busybox reboot )
+cat << EOF > $PKG/$ARCH-installer-filesystem/sbin/reboot
+#!/bin/sh
+sync
+if [ -z "\$*" ]; then
+  /bin/reboot -f
+else
+  /bin/reboot \$*
+fi
+EOF
+chmod 755 $PKG/$ARCH-installer-filesystem/sbin/reboot
+
 # Copy binaries from /usr/bin into the installer's /usr/bin/
 cd $TMP/extract-packages/usr/bin
 cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \

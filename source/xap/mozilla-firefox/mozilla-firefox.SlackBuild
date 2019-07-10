@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -75,8 +75,8 @@ if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
-export CC=${CC:-gcc}
-export CXX=${CXX:-g++}
+export CC=${CC:-clang}
+export CXX=${CXX:-clang++}
 
 # Keep memory usage as low as possible when linking:
 SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats"
@@ -160,9 +160,8 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 
-# We need to use the incredibly ancient autoconf-2.13 for this  :/
-( cd $CWD/autoconf ; ./autoconf.build )
-PATH=$TMP/autoconf-tmp/usr/bin:$PATH
+# Build or unpack build-time dependencies:
+. build-deps.sh
 
 cd $TMP
 rm -rf firefox-$RELEASEVER
@@ -175,6 +174,9 @@ mv * ..
 cd ..
 rm -rf firefox-unpack
 cd firefox-$RELEASEVER || exit 1
+
+# Delete object directory if it was mistakenly included in the tarball:
+rm -rf obj-x86_64-pc-linux-gnu
 
 # Prevent failures building gkrust by suppressing useless warnings:
 sed -i.allow-warnings -e '/#!\[deny(warnings)\]/a #![allow(unused_imports)]' \
@@ -302,6 +304,9 @@ fi
 
 ./mach buildsymbols || exit 1
 DESTDIR=$PKG ./mach install || exit 1
+
+# Clean up the build time dependencies:
+rm -rf $TMP/mozilla-firefox-build-deps
 
 # We don't need these (just symlinks anyway):
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/firefox-devel-$RELEASEVER

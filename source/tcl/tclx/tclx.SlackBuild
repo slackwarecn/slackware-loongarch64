@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2013, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2013, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,9 +23,10 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=tclx
-VERSION=${VERSION:-8.4.1}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -62,9 +63,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 fi
 
 cd $TMP
-rm -rf ${PKGNAM}8.?
-tar xvf $CWD/${PKGNAM}$VERSION.tar.xz || exit 1
-cd ${PKGNAM}8.4 || exit 1
+rm -rf ${PKGNAM}-${VERSION}
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
+cd ${PKGNAM}-${VERSION} || exit 1
 
 #zcat $CWD/tclx-8.4.configure.diff.gz | patch -p1 --verbose || exit 1
 #zcat $CWD/tclx-8.4.gcc4.diff.gz | patch -p1 --verbose || exit 1
@@ -83,8 +84,8 @@ CPPFLAGS="-DUSE_INTERP_RESULT" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
   --with-tcl=/usr/lib${LIBDIRSUFFIX} \
-  --enable-tk=YES \
   --enable-shared \
   --enable-threads \
   --enable-64bit \
@@ -95,8 +96,8 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  ln -sf tclx8.4/libtclx8.4.so .
-  ln -sf libtclx8.4.so libtclx.so
+  ln -sf tclx8.6/libtclx8.6.so .
+  ln -sf libtclx8.6.so libtclx.so
 )
 
 # Strip binaries:
@@ -121,7 +122,7 @@ fi
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  ChangeLog README license.terms \
+  ChangeLog README* license.terms \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
@@ -130,4 +131,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
-

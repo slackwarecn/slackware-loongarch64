@@ -1504,6 +1504,7 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     mv mmc/host.orig/sdhci.ko mmc/host
     mv mmc/host.orig/sdhci-acpi.ko mmc/host
     mv mmc/host.orig/sdhci-pci.ko mmc/host
+    mv mmc/host.orig/cqhci.ko mmc/host
     rm -rf${VERBOSE1} mmc/host.orig
 
     cd usb/

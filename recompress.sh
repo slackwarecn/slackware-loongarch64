@@ -77,6 +77,7 @@ gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
 gzip ./source/d/make/make.glibc-2.27.glob.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
+gzip ./source/e/emacs/emacs.35739.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -655,6 +656,7 @@ gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/diffutils.mkdir_p.diff
 gzip ./source/ap/diffutils/diffutils-sdiff-no-waitpid.patch
 gzip ./source/ap/diffutils/doinst.sh
+gzip ./source/ap/moc/moc-ffmpeg4.patch
 gzip ./source/ap/terminus-font/terminus-font.Makefile.paths.diff
 gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/slackpkg/0002-Use-CHECKSUMS.md5.asc-to-determine-ChangeLog-newness.patch
@@ -766,6 +768,7 @@ gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
+gzip ./source/l/libvisual-plugins/60_no-const-vispluginfo-in-nastyfft.patch
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
 gzip ./source/l/imagemagick/policy.xml.diff
 gzip ./source/l/imagemagick/doinst.sh

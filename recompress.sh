@@ -798,6 +798,7 @@ gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-3477.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-3472.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-2756.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2009-3546.patch
+gzip ./source/l/gvfs/0001-daemon-meson.build-define-gvfs_rpath-for-libgvfsdaem.patch
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/poppler/poppler.splashpath.h.revert.diff

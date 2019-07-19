@@ -44,6 +44,10 @@ case "$0" in
 		;;
 esac
 
+# Restart init. This prevents init from hanging on to file handles for removed
+# glibc shared libraries in the case that those were upgraded or reinstalled.
+/sbin/telinit u
+
 # Save the system time to the hardware clock using hwclock --systohc.
 # This will also create or update the timestamps in /etc/adjtime.
 if [ -x /sbin/hwclock -a -z "$container" ]; then
@@ -114,6 +118,11 @@ if [ -x /etc/rc.d/rc.openldap ]; then
   /etc/rc.d/rc.openldap stop
 fi
 
+# Stop the haveged entropy daemon:
+if [ -x /etc/rc.d/rc.haveged -a -z "$container" ]; then
+  /etc/rc.d/rc.haveged stop
+fi
+
 # Stop D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
   /etc/rc.d/rc.messagebus stop
@@ -122,10 +131,10 @@ fi
 # Kill any processes (typically gam) that would otherwise prevent
 # unmounting NFS volumes:
 unset FUSER_DELAY
-for dir in $(/bin/mount | grep 'type nfs ' | cut -d ' ' -f 3 ) ; do
+for dir in $(/bin/mount | grep 'type nfs ' | sed -e 's|.* on ||g' | cut -d ' ' -f 1) ; do
   echo "Killing processes holding NFS mount $dir open..."
   # Background this to prevent fuser from also blocking shutdown:
-  /usr/bin/fuser -k -m $dir &
+  /usr/bin/fuser -k -M -m "$dir" &
   FUSER_DELAY=5
 done
 # If fuser was run, let it have some delay:
@@ -236,7 +245,11 @@ fi
 
 if [ -z "$container" ]; then
   echo "Unmounting local file systems:"
-  /bin/umount -v -a -t no,proc,sysfs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g" 2> /dev/null
+  /bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
+  # JFS needs a sync here or the / partition cannot be remounted read-only.
+  # In spite of this, it seems that a JFS root partition will always be checked
+  # (and found to be clean) at boot:
+  /bin/sync
   echo "Remounting root filesystem read-only:"
   /bin/mount -v -n -o remount,ro /
 fi
@@ -269,7 +282,7 @@ fi
 if [ -z "$container" ]; then
   if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
     echo "Deactivating LVM volume groups:"
-    /sbin/vgchange -an --ignorelockingfailure
+    /sbin/vgchange -an
   fi
 fi
 

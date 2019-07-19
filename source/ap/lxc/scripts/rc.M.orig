@@ -20,9 +20,11 @@ if [ -x /sbin/ldconfig ]; then
   /sbin/ldconfig &
 fi
 
-# Screen blanks after 15 minutes idle time, and powers down in one hour
-# if the kernel supports APM or ACPI power management:
-/bin/setterm -blank 15 -powersave powerdown -powerdown 60
+# Call the setterm init script to set screen blanking and power management
+# defaults:
+if [ -x /etc/rc.d/rc.setterm ]; then
+  /etc/rc.d/rc.setterm
+fi
 
 # Set the hostname.
 if [ -r /etc/HOSTNAME ]; then
@@ -30,7 +32,7 @@ if [ -r /etc/HOSTNAME ]; then
 else
   # fall back on this old default:
   echo "darkstar.example.net" > /etc/HOSTNAME
-  /bin/hostname darkstar
+  /bin/hostname $(cat /etc/HOSTNAME)
 fi
 
 # Set the permissions on /var/log/dmesg according to whether the kernel
@@ -94,6 +96,16 @@ if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   fi
 fi
 
+# Start the haveged entropy daemon:
+if [ -x /etc/rc.d/rc.haveged ]; then
+  /etc/rc.d/rc.haveged start
+fi
+
+# Start the rngd entropy daemon:
+if [ -x /etc/rc.d/rc.rngd ]; then
+  /etc/rc.d/rc.rngd start
+fi
+
 # Initialize the networking hardware.
 if [ -x /etc/rc.d/rc.inet1 ]; then
   /etc/rc.d/rc.inet1
@@ -102,6 +114,11 @@ fi
 # Start D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
   /etc/rc.d/rc.messagebus start
+fi
+
+# Start console-kit-daemon:
+if [ -x /etc/rc.d/rc.consolekit ]; then
+  /etc/rc.d/rc.consolekit start
 fi
 
 # Start Bluetooth:
@@ -135,8 +152,7 @@ if [ -x /etc/rc.d/rc.ntpd ]; then
 fi
 
 # Remove stale locks and junk files (must be done after mount -a!)
-/bin/rm -f /var/lock/* /var/spool/uucp/LCK..* /tmp/.X*lock /tmp/core /core 2> /dev/null
-/bin/rm -rf /var/spool/cron/cron.?????? 2> /dev/null
+/bin/rm -f /var/lock/* /var/spool/uucp/LCK..* /tmp/.X*lock /tmp/.X11-unix/* 2> /dev/null
 
 # Remove stale hunt sockets so the game can start.
 if [ -r /tmp/hunt -o -r /tmp/hunt.stats ]; then
@@ -180,11 +196,6 @@ if [ -x /usr/bin/update-mime-database -a -d /usr/share/mime ]; then
   /usr/bin/update-mime-database /usr/share/mime 1> /dev/null 2> /dev/null &
 fi
 
-# Start console-kit-daemon:
-if [ -x /etc/rc.d/rc.consolekit ]; then
-  /etc/rc.d/rc.consolekit start
-fi
-
 # Start HAL:
 if [ -x /etc/rc.d/rc.hald ]; then
   /etc/rc.d/rc.hald start
@@ -206,7 +217,7 @@ fi
 if [ -x /usr/bin/update-gdk-pixbuf-loaders ]; then
   echo "Updating gdk-pixbuf.loaders:"
   echo "  /usr/bin/update-gdk-pixbuf-loaders &"
-  /usr/bin/update-gdk-pixbuf-loaders > /dev/null 2>&1 &
+  HOME=/root /usr/bin/update-gdk-pixbuf-loaders > /dev/null 2>&1 &
 fi
 if [ -x /usr/bin/update-pango-querymodules ]; then
   echo "Updating pango.modules:"
@@ -244,12 +255,10 @@ if [ -x /etc/rc.d/rc.atalk ]; then
 fi
 
 # Start smartd, which monitors the status of S.M.A.R.T. compatible
-# hard drives and reports any problems.  Note some devices (which aren't
-# smart, I guess ;) will hang if probed by smartd, so it's commented out
-# by default.
-#if [ -x /usr/sbin/smartd ]; then
-#  /usr/sbin/smartd
-#fi
+# hard drives and reports any problems:
+if [ -x /etc/rc.d/rc.smartd ]; then
+  /etc/rc.d/rc.smartd start
+fi
 
 # Monitor the UPS with genpowerd.
 # To use this, uncomment this section and edit your settings in
@@ -274,15 +283,13 @@ if [ -x /sbin/accton -a -r /var/log/pacct ]; then
 fi
 
 # Start crond (Dillon's crond):
-# If you want cron to actually log activity to /var/log/cron, then change
-# -l notice to -l info to increase the logging level.
-if [ -x /usr/sbin/crond ]; then
-  /usr/sbin/crond -l notice
+if [ -x /etc/rc.d/rc.crond ]; then
+  /etc/rc.d/rc.crond start
 fi
 
 # Start atd (manages jobs scheduled with 'at'):
-if [ -x /usr/sbin/atd ]; then
-  /usr/sbin/atd -b 15 -l 1
+if [ -x /etc/rc.d/rc.atd ]; then
+  /etc/rc.d/rc.atd start
 fi
 
 # Slackware-Mini-Quota-HOWTO:
@@ -373,6 +380,18 @@ fi
 # Start the GPM mouse server:
 if [ -x /etc/rc.d/rc.gpm ]; then
   /etc/rc.d/rc.gpm start
+fi
+
+# Start the Icecream scheduler. This needs to run on only one machine that is
+# part of the compile cluster:
+if [ -x /etc/rc.d/rc.icecc-scheduler ]; then
+  /etc/rc.d/rc.icecc-scheduler start
+fi
+
+# Start the Icecream daemon. This needs to run on every machine that will be
+# part of the compile cluster (including the machine running the scheduler):
+if [ -x /etc/rc.d/rc.iceccd ]; then
+  /etc/rc.d/rc.iceccd start
 fi
 
 # If there are SystemV init scripts for this runlevel, run them.

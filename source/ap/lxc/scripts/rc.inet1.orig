@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/bash
 # /etc/rc.d/rc.inet1
 # This script is used to bring up the various network interfaces.
 #
@@ -204,19 +204,28 @@ if_up() {
         # 15 seconds should be a reasonable default DHCP timeout.  30 was too much.
         echo "/etc/rc.d/rc.inet1:  /sbin/dhcpcd -L -t ${DHCP_TIMEOUT[$i]:-15} ${DHCP_OPTIONS} ${1}" | $LOGGER
         /sbin/dhcpcd -L -t ${DHCP_TIMEOUT[$i]:-15} ${DHCP_OPTIONS} ${1}
-        # If the dhcpcd call succeeds, add extra IP addresses, if defined, to interface
-        if [ "$?" == "0" ] && [ -n "${IPALIASES[$i]}" ]; then
-          num=0
-          for ipalias in ${IPALIASES[$i]}; do
-            /sbin/ip address add ${ipalias}/32 dev ${1} label ${1}:${num} ;
-            num=$(($num + 1))
-          done
+        if [ "$?" == "0" ]; then # the dhcp call has succeeded
+          if [ -n "${IPALIASES[$i]}" ]; then
+            # Add extra IP addresses, if defined, to interface
+            num=0
+            for ipalias in ${IPALIASES[$i]}; do
+              ip="${ipalias%/*}"
+              nm="${ipalias#*/}"
+              [ -z "$nm" ] || [ "$ip" == "$nm" ] && nm="32"
+              /sbin/ip address add ${ip}/${nm} dev ${1} label ${1}:${num}
+              num=$(($num + 1))
+            done
+          fi
+          if [ "${PROMISCUOUS[$i]}" = "yes" ]; then
+            # Set promiscuous mode on the interface
+            /sbin/ip link set dev ${1} promisc on
+          fi
         fi
       else # bring up interface using a static IP address
         if [ -n "${IPADDR[$i]}" ]; then # skip unconfigured interfaces
           # Set up the network card:
-          echo "/etc/rc.d/rc.inet1:  /sbin/ip address add ${IPADDR[$i]}/${NETMASK[$i]} dev ${1}" | $LOGGER
-          /sbin/ip address add ${IPADDR[$i]}/${NETMASK[$i]} dev ${1}
+          echo "/etc/rc.d/rc.inet1:  /sbin/ip address add ${IPADDR[$i]}/${NETMASK[$i]} broadcast + dev ${1}" | $LOGGER
+          /sbin/ip address add ${IPADDR[$i]}/${NETMASK[$i]} broadcast + dev ${1}
           if /sbin/ip link show dev ${1} | grep -wq "state DOWN" ; then
             /sbin/ip link set dev ${1} up  # Bring up interface
           fi
@@ -224,9 +233,16 @@ if_up() {
           if [ -n "${IPALIASES[$i]}" ]; then
             num=0
             for ipalias in ${IPALIASES[$i]}; do
-              /sbin/ip address add ${ipalias}/32 dev ${1} label ${1}:${num} ;
+              ip="${ipalias%/*}"
+              nm="${ipalias#*/}"
+              [ -z "$nm" ] || [ "$ip" == "$nm" ] && nm="32"
+              /sbin/ip address add ${ip}/${nm} dev ${1} label ${1}:${num}
               num=$(($num + 1))
             done
+          fi
+          if [ "${PROMISCUOUS[$i]}" = "yes" ]; then
+            # Set promiscuous mode on the interface
+            /sbin/ip link set dev ${1} promisc on
           fi
         else
           debug_log "${1} interface is not configured in /etc/rc.d/rc.inet1.conf"
@@ -268,6 +284,8 @@ if_down() {
     if [ -n "${BRNICS[$i]}" ]; then
       br_close $i
     fi
+    # Flush the address from the interface:
+    ip address flush dev ${1}
   fi
 }
 

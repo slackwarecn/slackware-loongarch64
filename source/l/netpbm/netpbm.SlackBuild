@@ -23,7 +23,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=netpbm
-VERSION=${VERSION:-10.84.02}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -89,6 +89,8 @@ zcat $CWD/netpbm-cmuwtopbm.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/netpbm-pamtojpeg2k.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/netpbm-manfix.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/netpbm-manual-pages.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-libdir-so.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/netpbm-userguide.patch.gz | patch -p1 --verbose || exit 1
 
 # Send blank lines to "configure" to just take defaults:
 ./configure << EOF
@@ -152,6 +154,9 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   # Any other files in /usr are junk:
   rm --verbose * 2> /dev/null
 )
+
+# Don't package the static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libnetpbm.a
 
 # Create and install man pages for existing utilities:
 ( cd userguide

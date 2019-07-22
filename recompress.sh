@@ -810,6 +810,7 @@ gzip ./source/l/netpbm/netpbm-manual-pages.patch
 gzip ./source/l/netpbm/netpbm-CAN-2005-2471.patch
 gzip ./source/l/netpbm/netpbm-bmptopnm.patch
 gzip ./source/l/netpbm/netpbm-multilib.patch
+gzip ./source/l/netpbm/netpbm-libdir-so.patch
 gzip ./source/l/netpbm/netpbm-manfix.patch
 gzip ./source/l/netpbm/netpbm-time.patch
 gzip ./source/l/netpbm/netpbm-python3.patch
@@ -817,6 +818,7 @@ gzip ./source/l/netpbm/netpbm-fiasco-overflow.patch
 gzip ./source/l/netpbm/netpbm-security-code.patch
 gzip ./source/l/netpbm/netpbm-pamtojpeg2k.patch
 gzip ./source/l/netpbm/netpbm-ppmfadeusage.patch
+gzip ./source/l/netpbm/netpbm-userguide.patch
 gzip ./source/l/netpbm/netpbm-cmuwtopbm.patch
 gzip ./source/l/netpbm/netpbm-CVE-2017-2587.patch
 gzip ./source/l/netpbm/netpbm-security-scripts.patch

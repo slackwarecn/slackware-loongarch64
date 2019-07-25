@@ -1,0 +1,215 @@
+From e5be4d4a1d9d08796c1b5a5c763379383b8c119a Mon Sep 17 00:00:00 2001
+From: Detlef Graef <detlef.graef@yahoo.de>
+Date: Fri, 19 Apr 2019 15:12:27 +0200
+Subject: [PATCH] Fix to build Pan with options --with-gmime30 and
+ --with-gmime-crypto
+
+---
+ pan/usenet-utils/gpg.cc        | 76 ++++++++++++++++++++++++++--------
+ pan/usenet-utils/mime-utils.cc | 35 ++++++++++++++++
+ 2 files changed, 94 insertions(+), 17 deletions(-)
+
+diff --git a/pan/usenet-utils/gpg.cc b/pan/usenet-utils/gpg.cc
+index f24e723..4df4525 100644
+--- a/pan/usenet-utils/gpg.cc
++++ b/pan/usenet-utils/gpg.cc
+@@ -70,6 +70,45 @@ namespace pan
+       signer.key_id = sig->cert->keyid ? sig->cert->keyid : "(null)";
+       signer.fpr = sig->cert->fingerprint ? sig->cert->fingerprint : "(null)";
+ 
++#ifdef HAVE_GMIME_30
++      switch (sig->cert->trust) {
++      case GMIME_TRUST_UNKNOWN:
++        signer.trust = "None";
++        break;
++      case GMIME_TRUST_NEVER:
++        signer.trust = "Never";
++        break;
++      case GMIME_TRUST_UNDEFINED:
++        signer.trust = "Undefined";
++        break;
++      case GMIME_TRUST_MARGINAL:
++        signer.trust = "Marginal";
++        break;
++      case GMIME_TRUST_FULL:
++        signer.trust = "Fully";
++        break;
++      case GMIME_TRUST_ULTIMATE:
++        signer.trust = "Ultimate";
++        break;
++      }
++
++      switch (sig->status) {
++      case GMIME_SIGNATURE_STATUS_GREEN:
++        signer.status = "GOOD";
++        break;
++      case GMIME_SIGNATURE_STATUS_RED:
++        signer.status = "BAD";
++        break;
++      case GMIME_SIGNATURE_STATUS_SYS_ERROR:
++        signer.status = "ERROR";
++        break;
++      }
++
++      signer.created = sig->created;
++      signer.expires = sig->expires;
++      if (sig->expires == (time_t) 0)
++        signer.never_expires = true;
++#else
+       switch (sig->cert->trust) {
+       case GMIME_CERTIFICATE_TRUST_NONE:
+         signer.trust = "None";
+@@ -102,25 +141,28 @@ namespace pan
+         signer.status = "ERROR";
+         break;
+       }
++#endif
+ 
+       signer.created = sig->created;
+       signer.expires = sig->expires;
+       if (sig->expires == (time_t) 0)
+         signer.never_expires = true;
+ 
+-      if (sig->errors) {
+-
+-        if (sig->errors & GMIME_SIGNATURE_ERROR_EXPSIG)
+-          signer.error = "Expired";
+-        if (sig->errors & GMIME_SIGNATURE_ERROR_NO_PUBKEY)
+-          signer.error = "No Pub Key";
+-        if (sig->errors & GMIME_SIGNATURE_ERROR_EXPKEYSIG)
+-          signer.error = "Key Expired";
+-        if (sig->errors & GMIME_SIGNATURE_ERROR_REVKEYSIG)
+-          signer.error = "Key Revoked";
+-      } else {
+-          signer.error = "No errors for this signer";
+-      }
++// https://developer.gnome.org/gmime/stable/gmime-changes-3-0.html
++// GMimeSignatureStatus and GMimeSignatureErrors have been merged into a single bitfield (GMimeSignatureStatus) ...
++//      if (sig->errors) {
++
++//        if (sig->errors & GMIME_SIGNATURE_ERROR_EXPSIG)
++//          signer.error = "Expired";
++//        if (sig->errors & GMIME_SIGNATURE_ERROR_NO_PUBKEY)
++//          signer.error = "No Pub Key";
++//        if (sig->errors & GMIME_SIGNATURE_ERROR_EXPKEYSIG)
++//          signer.error = "Key Expired";
++//        if (sig->errors & GMIME_SIGNATURE_ERROR_REVKEYSIG)
++//          signer.error = "Key Revoked";
++//      } else {
++//          signer.error = "No errors for this signer";
++//      }
+ 
+       info.signers.push_back(signer);
+     }
+@@ -128,11 +170,11 @@ namespace pan
+ 
+   void init_gpg()
+   {
+-    gpg_ctx = g_mime_gpg_context_new (request_passwd, "gpg2");
++//    gpg_ctx = g_mime_gpg_context_new (request_passwd, "gpg2");
+     if (!gpg_ctx) gpg_inited = false; else gpg_inited = true;
+-    g_mime_gpg_context_set_auto_key_retrieve(GMIME_GPG_CONTEXT(gpg_ctx),true);
+-    g_mime_gpg_context_set_always_trust(GMIME_GPG_CONTEXT(gpg_ctx),false);
+-    g_mime_gpg_context_set_use_agent(GMIME_GPG_CONTEXT(gpg_ctx), false);
++//    g_mime_gpg_context_set_auto_key_retrieve(GMIME_GPG_CONTEXT(gpg_ctx),true);
++//    g_mime_gpg_context_set_always_trust(GMIME_GPG_CONTEXT(gpg_ctx),false);
++//    g_mime_gpg_context_set_use_agent(GMIME_GPG_CONTEXT(gpg_ctx), false);
+   }
+ 
+ 
+diff --git a/pan/usenet-utils/mime-utils.cc b/pan/usenet-utils/mime-utils.cc
+index 135f469..881df7b 100644
+--- a/pan/usenet-utils/mime-utils.cc
++++ b/pan/usenet-utils/mime-utils.cc
+@@ -1634,12 +1634,20 @@ namespace pan
+   GMimeSignatureStatus
+   get_sig_status (GMimeSignatureList *signatures)
+   {
++#ifdef HAVE_GMIME_30
++	GMimeSignatureStatus status = GMIME_SIGNATURE_STATUS_VALID;
++#else
+     GMimeSignatureStatus status = GMIME_SIGNATURE_STATUS_GOOD;
++#endif
+     GMimeSignature *sig;
+     int i;
+ 
+     if (!signatures || signatures->array->len == 0)
++#ifdef HAVE_GMIME_30
++      return GMIME_SIGNATURE_STATUS_SYS_ERROR;
++#else
+       return GMIME_SIGNATURE_STATUS_ERROR;
++#endif
+ 
+     for (i = 0; i < g_mime_signature_list_length (signatures); i++) {
+       sig = g_mime_signature_list_get_signature (signatures, i);
+@@ -1673,18 +1681,30 @@ namespace pan
+ 
+     if (info.type == GPG_VERIFY)
+     {
++#ifdef HAVE_GMIME_30
++      GMimeSignatureList * sigs = g_mime_multipart_signed_verify (mps, GMIME_VERIFY_NONE, &info.err);
++#else
+       GMimeSignatureList * sigs = g_mime_multipart_signed_verify (mps, gpg_ctx, &info.err);
++#endif
+       if (info.err || !sigs) return false;
+       if (sigs) info.no_sigs = false;
+       fill_signer_info(info.signers, sigs);
++#ifdef HAVE_GMIME_30
++      bool status = get_sig_status(sigs) == GMIME_SIGNATURE_STATUS_VALID;
++#else
+       bool status = get_sig_status(sigs) == GMIME_SIGNATURE_STATUS_GOOD;
++#endif
+       g_object_unref(sigs);
+       return status;
+     }
+ 
+     if (info.type == GPG_DECODE)
+     {
++#ifdef HAVE_GMIME_30
++      info.decrypted = g_mime_multipart_encrypted_decrypt (mpe, GMIME_DECRYPT_NONE, NULL, &info.result, &info.err);
++#else
+       info.decrypted = g_mime_multipart_encrypted_decrypt (mpe, gpg_ctx, &info.result, &info.err);
++#endif
+       if (!info.decrypted)
+         if (info.err) return false;
+ 
+@@ -1693,7 +1713,11 @@ namespace pan
+       {
+         info.no_sigs = false;
+         fill_signer_info(info.signers, sigs);
++#ifdef HAVE_GMIME_30
++        bool status = get_sig_status(info.result->signatures) == GMIME_SIGNATURE_STATUS_VALID;
++#else
+         bool status = get_sig_status(info.result->signatures) == GMIME_SIGNATURE_STATUS_GOOD;
++#endif
+         g_object_unref(sigs);
+         return status;
+       }
+@@ -1722,7 +1746,13 @@ namespace pan
+     mps = g_mime_multipart_signed_new ();
+ 
+     /* sign the part */
++#ifdef HAVE_GMIME_30
++    GMimeObject *gmo;
++    gmo = g_mime_message_get_mime_part (body);
++    if (g_mime_multipart_signed_sign (gpg_ctx, gmo, uid.c_str(), &err) <0)
++#else
+     if (g_mime_multipart_signed_sign (mps, GMIME_OBJECT (part), gpg_ctx, uid.c_str(), GMIME_DIGEST_ALGO_SHA1, &err) <0)
++#endif
+     {
+       g_object_unref(mps);
+       g_object_unref(G_OBJECT(part));
+@@ -1752,8 +1782,13 @@ namespace pan
+ 
+     GMimeMultipartEncrypted * mpe = g_mime_multipart_encrypted_new();
+ 
++#ifdef HAVE_GMIME_30
++    if (g_mime_multipart_encrypted_encrypt(gpg_ctx, GMIME_OBJECT (part), sign, uid.c_str(),
++                                           GMIME_ENCRYPT_NONE, rcp, &err) < 0)
++#else
+     if (g_mime_multipart_encrypted_encrypt(mpe, GMIME_OBJECT (part), gpg_ctx, sign,
+                                            uid.c_str(), GMIME_DIGEST_ALGO_SHA1, rcp, &err) < 0)
++#endif
+     {
+       g_object_unref(mpe);
+       g_object_unref(G_OBJECT(part));

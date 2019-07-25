@@ -499,7 +499,6 @@ gzip ./source/n/nn/nn_6.7.3-10.diff
 gzip ./source/n/nn/nn.badnntphost.diff
 gzip ./source/n/nn/m-x86_64.h
 gzip ./source/n/nn/NNTP
-gzip ./source/n/NetworkManager/patches/0000-slackware-use-fqdn.diff
 gzip ./source/n/NetworkManager/doinst.sh
 gzip ./source/n/netwatch/netwatch.phonemyself.diff
 gzip ./source/n/netwatch/netwatch.makefile.diff
@@ -992,8 +991,6 @@ gzip ./source/l/gnome-keyring/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
-gzip ./source/l/SDL2/SDL2.SDL_syswm.h.diff
-gzip ./source/l/SDL2/SDL2.periodic.magnitude.patch
 gzip ./source/l/PyQt/PyQt.phonon.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
@@ -1131,6 +1128,11 @@ gzip ./source/xap/easytag/easytag.revert.ogg.handle.patch
 gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
+gzip ./source/xap/pan/patches/0004-476b5a62fcda711ce2d7412a310b8182cca6940e.patch
+gzip ./source/xap/pan/patches/0001-e5be4d4a1d9d08796c1b5a5c763379383b8c119a.patch
+gzip ./source/xap/pan/patches/0000-b9a4154942c932a493736d2292bbae16384e35df.patch
+gzip ./source/xap/pan/patches/0003-ddcd5761075a6fb3ef7b768f004fa1e6663cb65e.patch
+gzip ./source/xap/pan/patches/0002-50f6c43a698dcc0ba6b490c086a73eeedbdd8a80.patch
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff

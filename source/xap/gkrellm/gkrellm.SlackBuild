@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=gkrellm
 VERSION=${VERSION:-$(echo $PKGNAM-2*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 PKGVER=$VERSION
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -45,6 +45,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 else
@@ -59,7 +61,7 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf gkrellm-$VERSION
-tar xvf $CWD/gkrellm-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/gkrellm-$VERSION.tar.?z || exit 1
 cd gkrellm-$VERSION || exit 1
 # Fix library paths (works for all ARCHs):
 sed -i -e "s#lib/gkrellm2#lib${LIBDIRSUFFIX}/gkrellm2#g" $(grep -lr 'lib/gkrellm2' *)
@@ -74,7 +76,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
 
-make \
+make $NUMJOBS \
   INSTALLROOT=/usr \
   INSTALLDIR=/usr/bin \
   INCLUDEDIR=/usr/include \

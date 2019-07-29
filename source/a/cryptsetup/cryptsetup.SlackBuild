@@ -36,7 +36,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=cryptsetup
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -95,6 +95,7 @@ CFLAGS="$SLKCFLAGS" \
   --localstatedir=/var \
   --sysconfdir=/etc \
   --enable-cryptsetup-reencrypt \
+  --enable-libargon2 \
   --mandir=/usr/man \
   --docdir=/usr/doc/cryptsetup-$VERSION \
   --build=$ARCH-slackware-linux || exit 1
@@ -102,15 +103,19 @@ CFLAGS="$SLKCFLAGS" \
 make || exit 1
 make DESTDIR=$PKG install || exit 1
 
-# Move the shared library to $PKG/lib${LIBDIRSUFFIX}:
-mkdir -p $PKG/lib${LIBDIRSUFFIX}
-( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  for file in lib*.so.?.* ; do
-    mv $file ../../lib${LIBDIRSUFFIX}
-    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
-  done
-  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
-)
+# __DISABLED__
+# If libargon2 and libjson-c are both under /usr, there's very little reason to
+# move this. This continues a trend generally going on with Linux based OSes to
+# ignore weird /usr-is-a-separate-partition corner cases.
+## Move the shared library to $PKG/lib${LIBDIRSUFFIX}:
+#mkdir -p $PKG/lib${LIBDIRSUFFIX}
+#( cd $PKG/usr/lib${LIBDIRSUFFIX}
+#  for file in lib*.so.*.* ; do
+#    mv $file ../../lib${LIBDIRSUFFIX}
+#    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+#  done
+#  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
+#)
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

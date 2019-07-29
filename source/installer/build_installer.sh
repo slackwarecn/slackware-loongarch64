@@ -833,7 +833,9 @@ ap/lsscsi \
 ap/terminus-font \
 d/gcc \
 d/gcc-g++ \
+l/argon2 \
 l/glibc \
+l/json-c \
 l/libaio \
 l/libcap \
 l/libidn2 \
@@ -1125,11 +1127,13 @@ cp  -fa${VERBOSE1} \
 # Deal with /usr/lib stuff from the packages:
 cd $TMP/extract-packages/usr/lib${LIBDIRSUFFIX}
 cp  -fa${VERBOSE1} \
+        libargon2.so* \
         libefiboot.so* \
         libefivar.so* \
         libgcc*.so* \
         libhistory*.so* \
         libidn2*.so* \
+        libjson-c.so* \
         liblz.so* \
         liblzo*.so* \
         libparted*so* \

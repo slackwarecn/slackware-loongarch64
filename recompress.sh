@@ -156,9 +156,6 @@ gzip ./source/a/floppy/fdutils.mediaprm.diff
 gzip ./source/a/floppy/fdutils.glibc228.diff
 gzip ./source/a/smartmontools/doinst.sh
 gzip ./source/a/lbzip2/lbzip2.glibc228.diff
-gzip ./source/a/efivar/0dad6d78a7fb5f6c5fb4a1d646040539db6cf865.patch
-gzip ./source/a/efivar/c3c553db85ff10890209d0fe48fb4856ad68e4e0.patch
-gzip ./source/a/efivar/b98ba8921010d03f46704a476c69861515deb1ca.patch
 gzip ./source/a/lrzip/doinst.sh
 gzip ./source/a/sysklogd/sysklogd.allow.repeated.messages.diff
 gzip ./source/a/sysklogd/use_memmove_not_strcpy.diff
@@ -169,7 +166,6 @@ gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/genpower/genpower.halt.diff
 gzip ./source/a/genpower/genpower.var.diff
 gzip ./source/a/glibc-zoneinfo/doinst.sh
-gzip ./source/a/efibootmgr/efibootmgr.efi_set_verbose.diff
 gzip ./source/a/minicom/lrzsz_0.12.21-5.diff
 gzip ./source/a/minicom/config.sub-x86_64.diff
 gzip ./source/a/minicom/doinst.sh
@@ -602,7 +598,6 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
-gzip ./source/xfce/garcon/0001-Fix-use-after-free-crash-Bug-15679.patch
 gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh

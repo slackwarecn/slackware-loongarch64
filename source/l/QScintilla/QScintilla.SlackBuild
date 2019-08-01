@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 # Slackware build script for QScintilla
 
 # Copyright 2008  Robby Workman <rworkman@slackware.com> Northport, AL, USA
-# Copyright 2008, 2009, 2010, 2011, 2012, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,11 +23,13 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Modified 2018, 2019 by Eric Hameleers <alien@slackware.com> (add Qt5 support)
+
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=QScintilla
 VERSION=${VERSION:-$(echo ${PKGNAM}_*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -35,15 +37,14 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
 # Automatically determine the architecture we're building on:
-MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$MARCH" in
-    i?86)    export ARCH=i586 ;;
-    armv7hl) export ARCH=$MARCH ;;
-    arm*)    export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-    *)       export ARCH=$MARCH ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -77,6 +78,10 @@ cd $TMP
 rm -rf ${PKGNAM}_gpl-$VERSION
 tar xvf $CWD/${PKGNAM}_gpl-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}_gpl-$VERSION || exit 1
+
+# Fix compilation:
+zcat $CWD/QScintilla_qsciscintillabase_qurl.diff.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -84,7 +89,72 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# Define QMAKEFEATURES to that we can re-use already built libs
+# without spamming the harddisk:
+export QMAKEFEATURES=${PWD}/Qt4Qt5/features/
+
+# Conditional build of Qt5 support:
+if qtpaths-qt5 --qt-version 1>/dev/null 2>/dev/null ; then
+  echo "-- Compiling Qt5 support --"
+  # QT5 support first:
+  cd Qt4Qt5
+    echo "-- >> Qt4Qt5 --"
+    qmake-qt5 \
+      -o Makefile \
+      QMAKE_CFLAGS+="$SLKCFLAGS" \
+      QMAKE_CXXFLAGS+="$SLKCFLAGS -std=c++11" \
+      qscintilla.pro || exit 1
+    make $NUMJOBS || exit 1
+    make install DESTDIR=$PKG INSTALL_ROOT=$PKG || exit 1
+  cd -
+
+  cd designer-Qt4Qt5
+    echo "-- >> designer-Qt4Qt5 --"
+    qmake-qt5 \
+      -o Makefile \
+      INCLUDEPATH+=../Qt4Qt5 QMAKE_LIBDIR+=../Qt4Qt5 \
+      QMAKE_CFLAGS+="$SLKCFLAGS" \
+      QMAKE_CXXFLAGS+="$SLKCFLAGS -std=c++11" \
+      designer.pro || exit 1
+    make $NUMJOBS || exit 1
+    make install DESTDIR=$PKG INSTALL_ROOT=$PKG || exit 1
+  cd -
+
+  cd Python
+    echo "-- >> Python --"
+    python3 configure.py \
+      --verbose \
+      --qmake /usr/bin/qmake-qt5 \
+      --pyqt=PyQt5 \
+      -n ../Qt4Qt5/ -o ../Qt4Qt5/ -c \
+      || exit 1
+    make  || exit 1
+    make -j1 install DESTDIR=$PKG INSTALL_ROOT=$PKG || exit 1
+
+    make clean || exit 1
+
+    python2 configure.py \
+      --verbose \
+      --qmake /usr/bin/qmake-qt5 \
+      --pyqt=PyQt5 \
+      -n ../Qt4Qt5/ -o ../Qt4Qt5/ -c \
+      || exit 1
+    make  || exit 1
+    make -j1 install DESTDIR=$PKG INSTALL_ROOT=$PKG || exit 1
+  cd -
+
+  # In order to compile Qt4 support next, clean up first:
+  make clean -C Qt4Qt5 || exit 1
+  make clean -C designer-Qt4Qt5 || exit 1
+  make clean -C Python || exit 1
+fi
+
+# QT4 SUPPORT CURRENTLY DOES NOT COMPILE...
+# /usr/lib64/qt/include/QtCore/qglobal.h:2242:20: error: invalid application of 'sizeof' to incomplete type 'QUrl'
+# QT4 support:
+echo "-- Compiling Qt4 support --"
 cd Qt4Qt5
+  echo "-- >> Qt4Qt5 --"
   qmake \
     -o Makefile \
     QMAKE_CFLAGS+="$SLKCFLAGS" \
@@ -92,13 +162,13 @@ cd Qt4Qt5
     qscintilla.pro || exit 1
   make $NUMJOBS || exit 1
   make install INSTALL_ROOT=$PKG || exit 1
-  # Yes, we'll spam the dev environment so we can build the other parts.
-  make install || exit 1
 cd -
 
 cd designer-Qt4Qt5
+  echo "-- >> designer-Qt4Qt5 --"
   qmake \
     -o Makefile \
+    INCLUDEPATH+=../Qt4Qt5 QMAKE_LIBDIR+=../Qt4Qt5 \
     QMAKE_CFLAGS+="$SLKCFLAGS" \
     QMAKE_CXXFLAGS+="$SLKCFLAGS -std=c++11" \
     designer.pro || exit 1
@@ -107,20 +177,29 @@ cd designer-Qt4Qt5
 cd -
 
 cd Python
-  python3 configure.py || exit 1
-  make $NUMJOBS || exit 1
-  make install INSTALL_ROOT=$PKG || exit 1
+  echo "-- >> Python --"
+  python3 configure.py \
+      --verbose \
+      --qmake /usr/bin/qmake \
+      -n ../Qt4Qt5/ -o ../Qt4Qt5/ -c \
+      || exit 1
+  make -j1 || exit 1
+  make -j1 install INSTALL_ROOT=$PKG || exit 1
 
   make clean || exit 1
 
-  python configure.py || exit 1
-  make $NUMJOBS || exit 1
-  make install INSTALL_ROOT=$PKG || exit 1
+  python2 configure.py \
+      --verbose \
+      --qmake /usr/bin/qmake \
+      -n ../Qt4Qt5/ -o ../Qt4Qt5/ -c \
+      || exit 1
+  make -j1 || exit 1
+  make -j1 install INSTALL_ROOT=$PKG || exit 1
 cd -
 
-# Link the shared libraries into /usr/lib${LIBDIRSUFFIX}:
+# Link the shared qt4 libraries into /usr/lib${LIBDIRSUFFIX}:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  for file in qt/lib/*.so* ; do
+  for file in $(ls -1 qt/lib/*.so* 2>/dev/null) ; do
     ln -sf $file .
   done
 )
@@ -130,7 +209,8 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  *GPL* COPYING* LICENSE NEWS OPENSOURCE-NOTICE.TXT README* doc/html-Qt4 doc/Scintilla \
+  LICENSE NEWS README* \
+  doc/html-Qt4Qt5 doc/Scintilla \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/install
@@ -138,4 +218,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

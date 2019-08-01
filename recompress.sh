@@ -330,6 +330,7 @@ gzip ./source/kde/patch/kdevelop-pg-qt/kdevelop-pg-qt.ftbfs.diff
 gzip ./source/kde/patch/kdeconnect-kde/kdeconnect-kde.openssh7.diff
 gzip ./source/kde/patch/strigi-multimedia/strigi-multimedia_port.patch
 gzip ./source/kde/patch/kscreen/kscreen.broken.test.diff
+gzip ./source/kde/patch/pykde4/0004-Fix-build-with-sip-4.19.16.patch
 gzip ./source/kde/patch/pykde4/fix_kpythonpluginfactory_build.diff
 gzip ./source/kde/patch/pykde4/Annotate-KAutoMount-as-Abstract.patch
 gzip ./source/kde/patch/pykde4/0003-Fix-build-with-sip-4.19.patch
@@ -350,6 +351,7 @@ gzip ./source/kde/patch/kdepimlibs/kdepimlibs.libical3.diff
 gzip ./source/kde/patch/print-manager/print-manager.fix.build.against.cups22.diff
 gzip ./source/kde/patch/konsole/konsole.scrollup.diff
 gzip ./source/kde/patch/konsole/konsole.term.is.konsole.diff
+gzip ./source/kde/patch/smokeqt/smokeqt.qscintilla2.uintptr_t.diff
 gzip ./source/kde/patch/kuser/kuser.cmake.include.checkincludefiles.diff
 gzip ./source/y/bsd-games/hangman-words
 gzip ./source/y/bsd-games/patches/0008-quiz-Add-answers-to-adults-babies.-Closes-659528.patch
@@ -792,6 +794,7 @@ gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-3477.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-3472.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-2756.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2009-3546.patch
+gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/0001-daemon-meson.build-define-gvfs_rpath-for-libgvfsdaem.patch
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch

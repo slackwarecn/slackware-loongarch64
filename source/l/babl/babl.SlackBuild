@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2008, 2009  Robby Workman, Northport, Alabama, USA
 # All rights reserved.
 #
@@ -52,6 +52,7 @@ PKG=$TMP/package-babl
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  XTRA_OPTIONS=" -Denable-sse2=false "
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -78,26 +79,28 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
-if [ ! -r configure ]; then
-  NOCONFIGURE=1 ./autogen.sh
-fi
-
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --docdir=/usr/doc/babl-$VERSION \
-  --build=$ARCH-slackware-linux || exit 1
-  # Trust defaults:
-  #--enable-mmx \
-  #--disable-sse \
-  #--enable-introspection \
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --buildtype=release \
+  $XTRA_OPTIONS \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

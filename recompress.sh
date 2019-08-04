@@ -253,6 +253,7 @@ gzip ./source/a/elvis/elvis.ref.c.getline.diff
 gzip ./source/a/udisks2/doinst.sh
 gzip ./source/a/sysvinit-functions/doinst.sh
 gzip ./source/a/mdadm/doinst.sh
+gzip ./source/a/os-prober/os-prober.lvm2.diff
 gzip ./source/a/os-prober/os-prober.reiserfs.diff
 gzip ./source/a/tcsh/tcsh.nobuiltincolorls.diff
 gzip ./source/a/tcsh/doinst.sh

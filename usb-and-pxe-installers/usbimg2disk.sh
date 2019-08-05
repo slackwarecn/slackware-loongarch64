@@ -476,7 +476,7 @@ cleanup
 # Run syslinux and write a good MBR:
 echo "--- Making the USB drive '$TARGET' bootable..."
 ( makebootable $TARGET ) 1>>$LOGFILE 2>&1
-/usr/bin/syslinux -s $TARGETPART 1>>$LOGFILE 2>&1
+/usr/bin/syslinux $TARGETPART 1>>$LOGFILE 2>&1
 dd if=$MBRBIN of=$TARGET 1>>$LOGFILE 2>&1
 
 echo "--- Done."

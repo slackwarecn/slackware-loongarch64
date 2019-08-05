@@ -1909,7 +1909,7 @@ sync
 #   > Do "vi ~/.mtoolsrc" to add "mtools_skip_check=1",
 #   > if the next command gives an error:
 umount ${CWD}/usbmount
-syslinux -s ${CWD}/usbboot.img
+syslinux ${CWD}/usbboot.img
 
 #Clean up:
 rm -rf ${CWD}/usbmount

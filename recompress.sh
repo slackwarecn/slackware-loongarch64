@@ -324,6 +324,7 @@ gzip ./source/kde/patch/kdelibs/coding-style-fixes.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.docbook.patch
 gzip ./source/kde/patch/kdelibs/kdelibs-openssl-1.1.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.upnp_conditional.patch
+gzip ./source/kde/patch/kdelibs/kdelibs.2c3762feddf7e66cf6b64d9058f625a715694a00.patch
 gzip ./source/kde/patch/ktouch/ktouch.performance.diff
 gzip ./source/kde/patch/krdc/krdc_freerdp-1.1.0.patch
 gzip ./source/kde/patch/kdevelop-pg-qt/0011-fix-some-warnings.patch

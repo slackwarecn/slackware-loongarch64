@@ -27,8 +27,8 @@
 #
 # Example:  VERSION=1.1.92.1 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.1.108.0}
-BRANCH=${BRANCH:-sdk-1.1.108}
+VERSION=${VERSION:-1.1.114.0}
+BRANCH=${BRANCH:-sdk-1.1.114}
 
 rm -rf Vulkan-*-*.tar.?z glslang* SPIRV-Tools* SPIRV-Headers* \
 	Vulkan-Headers-sdk-${VERSION}* \

@@ -50,7 +50,6 @@ gzip ./source/d/gcc/patches/gcc.sv.po.diff
 gzip ./source/d/gcc/patches/gcc.PR90397.patch
 gzip ./source/d/gcc/patches/gcc.es.po.diff
 gzip ./source/d/gcc/gcc-no_fixincludes.diff
-gzip ./source/d/doxygen/doxygen.9468ede.diff
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch
@@ -694,6 +693,7 @@ gzip ./source/ap/alsa-utils/alsa-utils.alsaconf.diff
 gzip ./source/ap/alsa-utils/rc.alsa
 gzip ./source/ap/alsa-utils/doinst.sh
 gzip ./source/ap/alsa-utils/rc.alsa-oss
+gzip ./source/ap/amp/amp.do.not.overoptimize.diff
 gzip ./source/ap/amp/amp-gcc34.diff
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/jove/jove.getline.buffsiz.diff
@@ -1201,7 +1201,6 @@ gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
 gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules
 gzip ./testing/source/blueman/doinst.sh
-gzip ./testing/source/NetworkManager/doinst.sh
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

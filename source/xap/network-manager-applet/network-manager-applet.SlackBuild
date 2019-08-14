@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=network-manager-applet
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -96,6 +96,19 @@ make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# network-manager-applet-1.8.22 installs locale files with a different name
+# than what is expected causing localization to fail. To be on the safe side,
+# we'll symlink to the old name. This hack shouldn't hurt anything in the
+# future, but perhaps it should be revisited someday to see if it's still
+# required.
+for LOCALEDIR in $PKG/usr/share/locale/*/LC_MESSAGES ; do
+  ( cd $LOCALEDIR
+    if [ -r network-manager-applet.mo ]; then
+      ln -sf network-manager-applet.mo nm-applet.mo
+    fi
+  )
+done
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then

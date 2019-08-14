@@ -45,11 +45,7 @@ gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
-gzip ./source/d/gcc/patches/Fix-ipa-devirt-ICEs-with-types-requiring-structural-equality-PR-tree-optimization-90303.patch
-gzip ./source/d/gcc/patches/gcc.sv.po.diff
-gzip ./source/d/gcc/patches/gcc.PR90397.patch
-gzip ./source/d/gcc/patches/gcc.es.po.diff
-gzip ./source/d/gcc/gcc-no_fixincludes.diff
+gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch

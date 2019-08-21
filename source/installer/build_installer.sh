@@ -1103,7 +1103,6 @@ cp  -fa${VERBOSE1} \
         libblkid*so* \
         libcap*so* \
         libcrypto*so* \
-        libcryptsetup*.so* \
         libdevmapper*so* \
         libf2fs.so* \
         libfdisk.so* \
@@ -1128,6 +1127,7 @@ cp  -fa${VERBOSE1} \
 cd $TMP/extract-packages/usr/lib${LIBDIRSUFFIX}
 cp  -fa${VERBOSE1} \
         libargon2.so* \
+        libcryptsetup*.so* \
         libefiboot.so* \
         libefivar.so* \
         libgcc*.so* \

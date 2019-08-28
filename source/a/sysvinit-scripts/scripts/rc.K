@@ -60,7 +60,7 @@ fi
 # Kill any processes (typically gam) that would otherwise prevent
 # unmounting NFS volumes:
 unset FUSER_DELAY
-for dir in $(/bin/mount | grep 'type nfs ' | sed -e 's|.* on ||g' | cut -d ' ' -f 1) ; do
+for dir in $(/bin/mount | grep -e 'type nfs ' -e 'type nfs4 ' | sed -e 's|.* on ||g' | cut -d ' ' -f 1) ; do
   echo "Killing processes holding NFS mount $dir open..."
   # Background this to prevent fuser from also blocking shutdown:
   /usr/bin/fuser -k -M -m "$dir" &
@@ -73,7 +73,7 @@ fi
 
 # Unmount any NFS, SMB, or CIFS filesystems:
 echo "Unmounting remote filesystems:"
-/bin/umount -v -a -l -f -r -t nfs,smbfs,cifs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g"
+/bin/umount -v -a -l -f -r -t nfs,nfs4,smbfs,cifs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g"
 
 # Shut down PCMCIA devices:
 if [ -x /etc/rc.d/rc.pcmcia ] ; then

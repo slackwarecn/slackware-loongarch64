@@ -124,7 +124,7 @@ fi
 # Kill any processes (typically gam) that would otherwise prevent
 # unmounting NFS volumes:
 unset FUSER_DELAY
-for dir in $(/bin/mount | grep 'type nfs ' | sed -e 's|.* on ||g' | cut -d ' ' -f 1) ; do
+for dir in $(/bin/mount | grep -e 'type nfs ' -e 'type nfs4 ' | sed -e 's|.* on ||g' | cut -d ' ' -f 1) ; do
   echo "Killing processes holding NFS mount $dir open..."
   # Background this to prevent fuser from also blocking shutdown:
   /usr/bin/fuser -k -M -m "$dir" &
@@ -137,7 +137,7 @@ fi
 
 # Unmount any NFS, SMB, or CIFS filesystems:
 echo "Unmounting remote filesystems:"
-/bin/umount -v -a -l -f -r -t nfs,smbfs,cifs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g"
+/bin/umount -v -a -l -f -r -t nfs,nfs4,smbfs,cifs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g"
 
 # Try to shut down pppd:
 PS="$(ps ax)"
@@ -156,7 +156,7 @@ fi
 
 # Bring down the networking system, but first make sure that this
 # isn't a diskless client with the / partition mounted via NFS:
-if ! /bin/mount | /bin/grep -q 'on / type nfs' ; then
+if ! /bin/mount | /bin/grep -q -e 'on / type nfs' -e 'on / type nfs4' ; then
   if [ -x /etc/rc.d/rc.inet1 ]; then
     /etc/rc.d/rc.inet1 stop
   fi

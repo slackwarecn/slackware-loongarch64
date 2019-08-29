@@ -72,7 +72,6 @@ gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
 gzip ./source/d/make/make.glibc-2.27.glob.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
-gzip ./source/e/emacs/emacs.35739.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -1194,6 +1193,12 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/xcm/xcm.udev.rules.diff
+gzip ./testing/source/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./testing/source/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./testing/source/mozilla-thunderbird/tb.ui.scrollToClick.diff
+gzip ./testing/source/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
+gzip ./testing/source/mozilla-thunderbird/unbreakdocs.diff
+gzip ./testing/source/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
 gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules
 gzip ./testing/source/blueman/doinst.sh

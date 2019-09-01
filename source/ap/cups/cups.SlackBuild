@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=cups
 VERSION=${VERSION:-$(echo $PKGNAM-*-source.tar.?z | cut -f 2 -d -)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -89,7 +89,6 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-gnutls=yes \
   --enable-cdsassl=no \
   --docdir=/usr/doc \
-  --without-php \
   --disable-pam \
   --disable-avahi \
   --disable-dnssd \
@@ -159,6 +158,13 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
   mv man ..
 )
 
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \;
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
 # Adjust/expand docs:
 ( mkdir -p $PKG/usr/doc
   mv $PKG/usr/share/doc/cups $PKG/usr/doc/cups-$VERSION
@@ -192,41 +198,6 @@ fi
 # Strip stuff:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-# Use symlinks to certain binaries so that CUPS and LPRng can coexist:
-SUFFIX=cups
-for file in \
-usr/bin/cancel \
-usr/bin/lp \
-usr/bin/lpq \
-usr/bin/lpr \
-usr/bin/lprm \
-usr/bin/lpstat \
-usr/sbin/lpc ; do
-  ( cd $PKG
-    mv ${file} ${file}-${SUFFIX}
-    ( cd `dirname ${file}` ; ln -sf `basename ${file}`-${SUFFIX} `basename ${file}` )
-  )
-done
-# Now fix the associated man pages:
-mv $PKG/usr/man/man1/cancel.1.gz $PKG/usr/man/man1/cancel-${SUFFIX}.1.gz
-mv $PKG/usr/man/man1/lp.1.gz $PKG/usr/man/man1/lp-${SUFFIX}.1.gz
-mv $PKG/usr/man/man1/lpq.1.gz $PKG/usr/man/man1/lpq-${SUFFIX}.1.gz
-mv $PKG/usr/man/man1/lpr.1.gz $PKG/usr/man/man1/lpr-${SUFFIX}.1.gz
-mv $PKG/usr/man/man1/lprm.1.gz $PKG/usr/man/man1/lprm-${SUFFIX}.1.gz
-mv $PKG/usr/man/man1/lpstat.1.gz $PKG/usr/man/man1/lpstat-${SUFFIX}.1.gz
-mv $PKG/usr/man/man8/lpc.8.gz $PKG/usr/man/man8/lpc-${SUFFIX}.8.gz
-( cd $PKG/usr/man/man1
-  ln -sf cancel-${SUFFIX}.1.gz cancel.1.gz
-  ln -sf lp-${SUFFIX}.1.gz lp.1.gz
-  ln -sf lpq-${SUFFIX}.1.gz lpq.1.gz
-  ln -sf lpr-${SUFFIX}.1.gz lpr.1.gz
-  ln -sf lprm-${SUFFIX}.1.gz lprm.1.gz
-  ln -sf lpstat-${SUFFIX}.1.gz lpstat.1.gz
-)
-( cd $PKG/usr/man/man8
-  ln -sf lpc-${SUFFIX}.8.gz lpc.8.gz
-)
 
 # Add the doinst.sh that installs the .new conffiles:
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

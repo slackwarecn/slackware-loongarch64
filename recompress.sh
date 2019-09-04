@@ -680,7 +680,6 @@ gzip ./source/ap/alsa-utils/rc.alsa-oss
 gzip ./source/ap/amp/amp.do.not.overoptimize.diff
 gzip ./source/ap/amp/amp-gcc34.diff
 gzip ./source/ap/jove/jove.makefile.diff
-gzip ./source/ap/jove/jove.getline.buffsiz.diff
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh

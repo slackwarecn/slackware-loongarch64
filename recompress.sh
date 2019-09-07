@@ -631,7 +631,6 @@ gzip ./source/ap/texinfo/doinst.sh
 gzip ./source/ap/vorbis-tools/ogg123.opus.diff
 gzip ./source/ap/sudo/doinst.sh
 gzip ./source/ap/soma/doinst.sh
-gzip ./source/ap/cups-filters/cups-filters.qpdf9.diff
 gzip ./source/ap/cups-filters/doinst.sh
 gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/diffutils.mkdir_p.diff

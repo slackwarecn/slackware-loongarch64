@@ -64,7 +64,8 @@ config var/run/utmp.new
 
 if [ -r etc/ld.so.conf.new -a -r etc/ld.so.conf ]; then
   # Ensure that ld.so.conf contains the minimal set of paths:
-  cat etc/ld.so.conf | while read pathline ; do
+  # (eliminate ld.so.conf.d line when adding paths to avoid repeats)
+  cat etc/ld.so.conf | grep -v ld.so.conf.d | while read pathline ; do
     if ! grep "^${pathline}$" etc/ld.so.conf.new 1> /dev/null 2> /dev/null ; then
       echo "$pathline" >> etc/ld.so.conf.new
     fi

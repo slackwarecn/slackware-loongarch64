@@ -1,0 +1,40 @@
+From 8a80ee5e2bab17a1f8e1e78fab5c33ac7efa8b29 Mon Sep 17 00:00:00 2001
+From: Paul Eggert <eggert@cs.ucla.edu>
+Date: Wed, 21 Aug 2019 09:25:22 -0700
+Subject: [PATCH] Fix bad pointer / leak in regex code
+
+This was found by Coverity (CID 1484201).  [BZ#24844]
+* posix/regex_internal.c (create_cd_newstate): Fix use of bad
+pointer and/or memory leak when storage is exhausted.
+
+diff --git a/posix/regex_internal.c b/posix/regex_internal.c
+index 9004ce8..f53ded9 100644
+--- a/posix/regex_internal.c
++++ b/posix/regex_internal.c
+@@ -1716,15 +1716,19 @@ create_cd_newstate (const re_dfa_t *dfa, const re_node_set *nodes,
+ 	{
+ 	  if (newstate->entrance_nodes == &newstate->nodes)
+ 	    {
+-	      newstate->entrance_nodes = re_malloc (re_node_set, 1);
+-	      if (__glibc_unlikely (newstate->entrance_nodes == NULL))
++	      re_node_set *entrance_nodes = re_malloc (re_node_set, 1);
++	      if (__glibc_unlikely (entrance_nodes == NULL))
+ 		{
+ 		  free_state (newstate);
+ 		  return NULL;
+ 		}
++	      newstate->entrance_nodes = entrance_nodes;
+ 	      if (re_node_set_init_copy (newstate->entrance_nodes, nodes)
+ 		  != REG_NOERROR)
+-		return NULL;
++		{
++		  free_state (newstate);
++		  return NULL;
++		}
+ 	      nctx_nodes = 0;
+ 	      newstate->has_constraint = 1;
+ 	    }
+-- 
+2.9.3
+
+

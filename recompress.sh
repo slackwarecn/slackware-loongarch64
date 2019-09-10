@@ -446,6 +446,7 @@ gzip ./source/n/netkit-rwho/rwhod_getloadavg.diff
 gzip ./source/n/netkit-rwho/netkit-rwho-0.17.diff
 gzip ./source/n/ebtables/doinst.sh
 gzip ./source/n/ModemManager/WeDoNotHaveSystemD.patch
+gzip ./source/n/libmilter/sendmail-8.15.2-gethostbyname2.patch
 gzip ./source/n/obexftp/patches/obexftp-norpath.patch
 gzip ./source/n/obexftp/patches/obexftp-0.24-fix-absurd-install-path.patch
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch
@@ -460,6 +461,7 @@ gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/postfix/postfix.script.starting.message.diff
+gzip ./source/n/postfix/postfix.res-macros-fix.patch
 gzip ./source/n/postfix/postfix.only.warn.regular.files.diff
 gzip ./source/n/postfix/doinst.sh
 gzip ./source/n/fetchmail/fetchmail.openssl111.diff
@@ -476,6 +478,7 @@ gzip ./source/n/pssh/pssh-2.3.1-py3-str-bytes-encode.patch
 gzip ./source/n/pssh/pssh-2.3.1-py3-import.patch
 gzip ./source/n/pssh/pssh-2.3.1-py3-non-blocking.patch
 gzip ./source/n/pssh/pssh-2.3.1-py3-min-int-none.patch
+gzip ./source/n/nn/nn.glibc-2.30.diff
 gzip ./source/n/nn/nn.diff
 gzip ./source/n/nn/nn_6.7.3-10.diff
 gzip ./source/n/nn/nn.badnntphost.diff
@@ -528,6 +531,7 @@ gzip ./source/n/htdig/doinst.sh
 gzip ./source/n/netwrite/netwrite-0.17.diff
 gzip ./source/n/libtirpc/doinst.sh
 gzip ./source/n/stunnel/doinst.sh
+gzip ./source/n/yptools/ypbind-mt.gettid.diff
 gzip ./source/n/yptools/yp-tools-2.14-glibc217-crypt.diff
 gzip ./source/n/yptools/nsswitch.conf-nis
 gzip ./source/n/yptools/rc.yp
@@ -678,6 +682,7 @@ gzip ./source/ap/alsa-utils/doinst.sh
 gzip ./source/ap/alsa-utils/rc.alsa-oss
 gzip ./source/ap/amp/amp.do.not.overoptimize.diff
 gzip ./source/ap/amp/amp-gcc34.diff
+gzip ./source/ap/jove/jove.glibc-2.30.diff
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
@@ -700,6 +705,10 @@ gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/glibc-2.29.en_US.no.am.pm.date.format.diff
+gzip ./source/l/glibc/patches/glibc.b6d2c4475d5abc05dd009575b90556bdd3c78ad0.patch
+gzip ./source/l/glibc/patches/glibc.8a80ee5e2bab17a1f8e1e78fab5c33ac7efa8b29.patch
+gzip ./source/l/glibc/patches/glibc.e1df30fbc2e2167a982c0e77a7ebee28f4dd0800.patch
+gzip ./source/l/glibc/patches/glibc.b0f6679bcd738ea244a14acd879d974901e56c8e.patch
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/fuse/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
@@ -784,6 +793,7 @@ gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/poppler/poppler.splashpath.h.revert.diff
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
+gzip ./source/l/gst-plugins-good/gst-plugins-good-1.16.0-v4l2_fix-1.patch
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
 gzip ./source/l/netpbm/netpbm-glibc.patch
@@ -1007,6 +1017,7 @@ gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/unbreakdocs.diff
+gzip ./source/xap/mozilla-thunderbird/mozilla-thunderbird.gettid.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff
 gzip ./source/xap/xmms/xmms.wmxmms_vis_depth_workaround.diff
@@ -1043,6 +1054,7 @@ gzip ./source/xap/xgames/xcuckoo.diff
 gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/seamonkey/seamonkey.gettid.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/seamonkey/seamonkey.i686.triplet.fix.diff
@@ -1095,6 +1107,7 @@ gzip ./source/xap/blackbox/startblackbox
 gzip ./source/xap/blackbox/xinitrc.blackbox
 gzip ./source/xap/blackbox/doinst.sh
 gzip ./source/xap/gftp/gftp.desktop
+gzip ./source/xap/gftp/gftp.glibc-2.30.diff
 gzip ./source/xap/geeqie/doinst.sh
 gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh

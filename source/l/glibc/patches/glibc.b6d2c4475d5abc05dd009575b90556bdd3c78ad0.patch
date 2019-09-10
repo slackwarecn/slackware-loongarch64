@@ -1,0 +1,37 @@
+From b6d2c4475d5abc05dd009575b90556bdd3c78ad0 Mon Sep 17 00:00:00 2001
+From: =?utf8?q?Niklas=20Hamb=C3=BCchen?= <mail@nh2.me>
+Date: Thu, 8 Aug 2019 22:02:27 +0200
+Subject: [PATCH] malloc: Fix missing accounting of top chunk in malloc_info
+ [BZ #24026]
+
+Fixes `<total type="rest" size="..."> incorrectly showing as 0 most
+of the time.
+
+The rest value being wrong is significant because to compute the
+actual amount of memory handed out via malloc, the user must subtract
+it from <system type="current" size="...">. That result being wrong
+makes investigating memory fragmentation issues like
+<https://bugzilla.redhat.com/show_bug.cgi?id=843478> close to
+impossible.
+
+diff --git a/malloc/malloc.c b/malloc/malloc.c
+index 343d89f..0e65d63 100644
+--- a/malloc/malloc.c
++++ b/malloc/malloc.c
+@@ -5406,6 +5406,12 @@ __malloc_info (int options, FILE *fp)
+ 
+       __libc_lock_lock (ar_ptr->mutex);
+ 
++      /* Account for top chunk.  The top-most available chunk is
++	 treated specially and is never in any bin. See "initial_top"
++	 comments.  */
++      avail = chunksize (ar_ptr->top);
++      nblocks = 1;  /* Top always exists.  */
++
+       for (size_t i = 0; i < NFASTBINS; ++i)
+ 	{
+ 	  mchunkptr p = fastbin (ar_ptr, i);
+-- 
+2.9.3
+
+

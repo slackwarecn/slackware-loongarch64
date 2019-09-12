@@ -591,6 +591,7 @@ gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
+gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
 gzip ./source/ap/mariadb/mysql_install_db.nopam.diff
 gzip ./source/ap/dash/dash-0.5.7-format-security.patch
 gzip ./source/ap/dash/doinst.sh
@@ -1014,10 +1015,11 @@ gzip ./source/l/qca/qca.tlsunittest.cpp.diff
 gzip ./source/l/qca/Add_support_for_OpenSSL_1.1.0.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/unbreakdocs.diff
-gzip ./source/xap/mozilla-thunderbird/mozilla-thunderbird.gettid.diff
+gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff
 gzip ./source/xap/xmms/xmms.wmxmms_vis_depth_workaround.diff
@@ -1194,12 +1196,6 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/xcm/xcm.udev.rules.diff
-gzip ./testing/source/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./testing/source/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./testing/source/mozilla-thunderbird/tb.ui.scrollToClick.diff
-gzip ./testing/source/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
-gzip ./testing/source/mozilla-thunderbird/unbreakdocs.diff
-gzip ./testing/source/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
 gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules
 gzip ./testing/source/blueman/doinst.sh

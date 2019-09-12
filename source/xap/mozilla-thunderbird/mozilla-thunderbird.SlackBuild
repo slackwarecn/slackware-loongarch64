@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2016, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -36,7 +36,7 @@ BUILD=${BUILD:-1}
 # For example, to build a version of Thunderbird with Italian support, run
 # the build script like this:
 #
-# MOZLOCALIZE=it ./mozilla-firefox.SlackBuild
+# MOZLOCALIZE=it ./mozilla-thunderbird.SlackBuild
 #
 MOZLOCALIZE=${MOZLOCALIZE:-}
 
@@ -74,23 +74,23 @@ fi
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS=""
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O1"}
+  OPTIMIZE=${OPTIMIZE:-"-Os"}
 elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS=""
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O1"}
+  OPTIMIZE=${OPTIMIZE:-"-Os"}
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-fPIC"
   LIBDIRSUFFIX="64"
-  OPTIMIZE=${OPTIMIZE:-"-O1"}
+  OPTIMIZE=${OPTIMIZE:-"-O2"}
 elif [ "$ARCH" = "arm" ]; then
   SLKCFLAGS="-march=armv4 -mtune=xscale"
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O1"}
+  OPTIMIZE=${OPTIMIZE:-"-O2"}
 else
   SLKCFLAGS=""
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O1"}
+  OPTIMIZE=${OPTIMIZE:-"-O2"}
 fi
 
 # Thunderbird has been requiring more and more memory, especially while linking
@@ -101,27 +101,30 @@ fi
 if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-bit)" != "" ]; then
   COMPILE_X86_UNDER_X86_64=true
   ARCH=i686
-  # Also use the gold linker for this:
-  PATH="$(pwd)/gold:$PATH"
-  export CC=${CC:-"gcc -B$(pwd)/gold"}
-  export CXX=${CXX:-"g++ -B$(pwd)/gold"}
-elif [ "$ARCH" = "i686" ]; then
-  # This might also help with the linker memory situation on some $ARCH. Feel free
-  # to match any other $ARCH that could benefit from this.
-  SLKLDFLAGS=" -Wl,--as-needed -Wl,--reduce-memory-overheads -Wl,--no-keep-memory -Wl,--stats"
-  export LDFLAGS="$SLKLDFLAGS"
-  export MOZ_LINK_FLAGS="$SLKLDFLAGS"
-else
-  # Link using gold.  This also helps prevent running out of memory on 32-bit
-  # systems, and avoids a recurring build failure with GNU ld on other systems.
-  PATH="$(pwd)/gold:$PATH"
-  export CC=${CC:-"gcc -B$(pwd)/gold"}
-  export CXX=${CXX:-"g++ -B$(pwd)/gold"}
 fi
+
+# Choose a compiler (gcc/g++ or clang/clang++):
+export CC=${CC:-gcc}
+export CXX=${CXX:-g++}
+
+## Link using gold.  This avoids running out of memory on 32-bit systems, and
+## avoids a recurring build failure with GNU ld on other systems.
+#PATH="$(pwd)/gold:$PATH"
+#export CC="$CC -B$(pwd)/gold"
+#export CXX="$CXX -B$(pwd)/gold"
+
+# Keep memory usage as low as possible when linking:
+SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats"
+export LDFLAGS="$SLKLDFLAGS"
+export MOZ_LINK_FLAGS="$SLKLDFLAGS"
+
+# If you don't give this _something_ then it defaults to -g, causing more
+# link time memory issues:
+export MOZ_DEBUG_FLAGS="-g0"
 
 # Put Rust objects on a diet to keep the linker from running into memory
 # issues (especially on 32-bit):
-export RUSTFLAGS="-Cdebuginfo=0"
+export RUSTFLAGS="-Cdebuginfo=0 -Copt-level=0"
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mozilla-thunderbird
@@ -142,9 +145,8 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr/lib${LIBDIRSUFFIX}
 
-# We need to use the incredibly ancient autoconf-2.13 for this  :/
-( cd $CWD/autoconf ; ./autoconf.build )
-PATH=$TMP/autoconf-tmp/usr/bin:$PATH
+# Build or unpack build-time dependencies:
+. build-deps.sh
 
 cd $TMP
 rm -rf thunderbird-$RELEASEVER
@@ -158,14 +160,17 @@ cd ..
 rm -rf thunderbird-unpack
 cd thunderbird-$RELEASEVER || exit 1
 
+# Delete object directory if it was mistakenly included in the tarball:
+rm -rf obj-x86_64-pc-linux-gnu
+
 # Retain GTK+ v2 scrolling behavior:
-zcat $CWD/tb.ui.scrollToClick.diff.gz | patch -p2 --verbose || exit 1
+zcat $CWD/tb.ui.scrollToClick.diff.gz | patch -p1 --verbose || exit 1
 
 # Fix building with latest Rust:
 zcat $CWD/unbreakdocs.diff.gz | patch -p1 --verbose || exit 1
 
-# Fix for glibc-2.30's new gettid() definition:
-zcat $CWD/mozilla-thunderbird.gettid.diff.gz | patch -p1 --verbose || exit 1
+# Bypass a test that fails the build:
+zcat $CWD/gkrust.a.no.networking.check.diff.gz | patch -p1 --verbose || exit 1
 
 # Fetch localization, if requested:
 if [ ! -z $MOZLOCALIZE ]; then
@@ -179,7 +184,7 @@ fi
 # Arch-dependent patches:
 case "$ARCH" in
     armv7hl) ARCH_CONFIG="--with-arch=armv7-a --with-float-abi=hard --with-fpu=vfpv3-d16 --disable-elf-hack"
-             # Make firefox compile on ARM platforms lacking neon support:
+             # Make Thunderbird compile on ARM platforms lacking neon support:
              zcat $CWD/mozilla-firefox.xpcom_arm.patch.gz | patch -p1 --verbose || exit 1
              ;;
     *)       ARCH_CONFIG=" "
@@ -271,6 +276,9 @@ echo "ac_add_options --disable-tests" >> .mozconfig
 ./mach build || exit 1
 ./mach buildsymbols || exit 1
 DESTDIR=$PKG ./mach install || exit 1
+
+# Clean up the build time dependencies:
+rm -rf $TMP/mozilla-thunderbird-build-deps
 
 # We don't need these (just symlinks anyway):
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$RELEASEVER

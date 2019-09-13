@@ -167,7 +167,7 @@ extended_usage() {
 get_root_device() {
   if [ -e $FSTAB ]; then
     RD=$(cat $FSTAB |tr '\t' ' ' |grep -v '^ *#' |tr -s ' ' |grep ' / ' |cut -f1 -d' ')
-    if [ "$(echo $RD | cut -f1 -d=)" = "LABEL" -o "$(echo $RD | cut -f1 -d=)" = "UUID" ]; then
+    if [ "$(echo $RD | cut -f1 -d=)" = "LABEL" -o "$(echo $RD | cut -f1 -d=)" = "UUID" -o "$(echo $RD | cut -f1 -d=)" = "PARTUUID" ]; then
       DKEY=$(echo $RD | cut -f1 -d=)
       # The value can be LABEL=foo or LABEL='foo' or LABEL="foo"
       DVAL=$(echo $RD | cut -f2 -d= | tr -d "'\042")

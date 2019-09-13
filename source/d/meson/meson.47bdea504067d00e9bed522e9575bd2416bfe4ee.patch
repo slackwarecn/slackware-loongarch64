@@ -1,0 +1,48 @@
+From 47bdea504067d00e9bed522e9575bd2416bfe4ee Mon Sep 17 00:00:00 2001
+From: Daniel Mensinger <daniel@mensinger-ka.de>
+Date: Fri, 13 Sep 2019 12:23:06 +0200
+Subject: [PATCH] mconf: Fix meson configure crash (fixes #5909)
+
+---
+ mesonbuild/mconf.py | 4 ++--
+ run_unittests.py    | 4 ++++
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/mesonbuild/mconf.py b/mesonbuild/mconf.py
+index cac9d61ce4..4f8014014d 100644
+--- a/mesonbuild/mconf.py
++++ b/mesonbuild/mconf.py
+@@ -181,7 +181,7 @@ def print_default_values_warning():
+         core_options = {k: o for k, o in self.coredata.builtins.items() if k in core_option_names}
+ 
+         self.print_options('Core options', core_options)
+-        if self.build.environment.is_cross_build():
++        if self.default_values_only or self.build.environment.is_cross_build():
+             self.print_options('Core options (for host machine)', self.coredata.builtins_per_machine.host)
+             self.print_options(
+                 'Core options (for build machine)',
+@@ -190,7 +190,7 @@ def print_default_values_warning():
+             self.print_options('Core options', self.coredata.builtins_per_machine.host)
+         self.print_options('Backend options', self.coredata.backend_options)
+         self.print_options('Base options', self.coredata.base_options)
+-        if self.build.environment.is_cross_build():
++        if self.default_values_only or self.build.environment.is_cross_build():
+             self.print_options('Compiler options (for host machine)', self.coredata.compiler_options.host)
+             self.print_options(
+                 'Compiler options (for build machine)',
+diff --git a/run_unittests.py b/run_unittests.py
+index f06be23aef..8cc9811482 100755
+--- a/run_unittests.py
++++ b/run_unittests.py
+@@ -3624,6 +3624,10 @@ def test_introspect_buildoptions_without_configured_build(self):
+         self.maxDiff = None
+         self.assertListEqual(res_nb, res_wb)
+ 
++    def test_meson_configure_from_source_does_not_crash(self):
++        testdir = os.path.join(self.unit_test_dir, '59 introspect buildoptions')
++        self._run(self.mconf_command + [testdir])
++
+     def test_introspect_json_dump(self):
+         testdir = os.path.join(self.unit_test_dir, '57 introspection')
+         self.init(testdir)
+

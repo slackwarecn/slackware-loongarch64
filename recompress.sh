@@ -672,6 +672,7 @@ gzip ./source/ap/slackpkg/files/dialog-functions.sh
 gzip ./source/ap/slackpkg/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
 gzip ./source/ap/ksh93/ksh93.use.clang.for.tests.diff
+gzip ./source/ap/xfsdump/xfsdump.xfsprogs-5.2.1.diff
 gzip ./source/ap/dc3dd/dc3dd.glibc228.diff
 gzip ./source/ap/flac/flac.man.diff
 gzip ./source/ap/sqlite/COPYRIGHT

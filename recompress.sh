@@ -496,6 +496,7 @@ gzip ./source/n/rp-pppoe/doinst.sh
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-pluginpath.patch
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/openvpn/doinst.sh
+gzip ./source/n/rpcbind/0001-rpcinfo-Fix-stack-buffer-overflow.patch
 gzip ./source/n/rpcbind/rpcbind.lwrap.needs.lnsl.diff
 gzip ./source/n/rpcbind/0001-man-rpcibind.8-Clarify-state-file-usage-and-history.patch
 gzip ./source/n/rpcbind/rc.rpc

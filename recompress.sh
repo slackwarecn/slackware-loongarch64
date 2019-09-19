@@ -555,7 +555,6 @@ gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/COPYRIGHT
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/openldap-client/doinst.sh
-gzip ./source/n/bind/bind.so_bsdcompat.diff
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
@@ -756,7 +755,6 @@ gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/db44/patch.4.4.20.1
 gzip ./source/l/db44/patch.4.4.20.2
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
-gzip ./source/l/gnome-themes-standard/doinst.sh
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
@@ -792,7 +790,6 @@ gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-3472.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2007-2756.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2009-3546.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
-gzip ./source/l/gvfs/0001-daemon-meson.build-define-gvfs_rpath-for-libgvfsdaem.patch
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/poppler/poppler.splashpath.h.revert.diff
@@ -902,8 +899,10 @@ gzip ./source/l/ConsoleKit2/doinst.sh
 gzip ./source/l/qt-gstreamer/qt-gstreamer.gstreamer-1.16.x.diff
 gzip ./source/l/qt-gstreamer/doinst.sh
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
+gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/desktop-file-utils/doinst.sh
 gzip ./source/l/desktop-file-utils/desktop-file-utils.quiet.warnings.diff
+gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/mozjs52/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs52/patches/disable-mozglue.patch
 gzip ./source/l/mozjs52/patches/fix-soname.patch
@@ -1205,6 +1204,18 @@ gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/php.ini-development.diff
+gzip ./slackware64/l/gvfs/doinst.sh
+gzip ./slackware64/l/glib2/glib2.slackware.localtime.diff
+gzip ./slackware64/l/glib2/doinst.sh
+gzip ./slackware64/l/gsettings-desktop-schemas/doinst.sh
+gzip ./slackware64/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff
+gzip ./slackware64/l/gnome-themes-extra/doinst.sh
+gzip ./slackware64/l/adwaita-icon-theme/doinst.sh
+gzip ./slackware64/l/adwaita-icon-theme/inherit-hicolor-theme.diff
+gzip ./slackware64/l/dconf/doinst.sh
+gzip ./slackware64/l/at-spi2-atk/doinst.sh
+gzip ./slackware64/l/dconf-editor/doinst.sh
+gzip ./slackware64/l/glib-networking/doinst.sh
 bzip2 ./source/n/curl/cacert.pem
 bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log
 bzip2 ./source/xap/xv/xv-3.10a-enhancements.20070520-20081216.diff

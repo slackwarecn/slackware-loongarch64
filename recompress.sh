@@ -632,7 +632,8 @@ gzip ./source/ap/tmux/doinst.sh
 gzip ./source/ap/tmux/tmux.conf
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.glibc228.diff
-gzip ./source/ap/texinfo/dir
+gzip ./source/ap/texinfo/update-info-dir.8
+gzip ./source/ap/texinfo/update-info-dir
 gzip ./source/ap/texinfo/doinst.sh
 gzip ./source/ap/vorbis-tools/ogg123.opus.diff
 gzip ./source/ap/sudo/doinst.sh
@@ -794,7 +795,6 @@ gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/poppler/poppler.splashpath.h.revert.diff
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
-gzip ./source/l/gst-plugins-good/gst-plugins-good-1.16.0-v4l2_fix-1.patch
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
 gzip ./source/l/netpbm/netpbm-glibc.patch

@@ -148,7 +148,6 @@ PKG9=$TMP/package-gcc-brig
 PKG10=$TMP/package-gcc-gdc
 
 # Clear the build locations:
-rm -rf $TMP/gcc.build.lnx
 rm -rf $PKG{1,2,3,4,6,8,9,10}
 mkdir -p $PKG{1,2,3,4,6,8,9,10}/usr/doc/gcc-$VERSION
 
@@ -164,165 +163,165 @@ cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
 cat $CWD/slack-desc.gcc-brig > $PKG9/install/slack-desc
 cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
 
-( cd gcc-$SRCVER || exit 1
+cd gcc-$SRCVER || exit 1
 
-  # Smite the fixincludes:
-  zcat $CWD/patches/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+# Smite the fixincludes:
+zcat $CWD/patches/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
-  # Fix perms/owners:
-  chown -R root:root .
-  find . -perm 777 -exec chmod 755 {} \;
-  find . -perm 775 -exec chmod 755 {} \;
-  find . -perm 754 -exec chmod 755 {} \;
-  find . -perm 664 -exec chmod 644 {} \;
+# Fix perms/owners:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 754 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 664 \) \
+  -exec chmod 644 {} \;
 
-  # Install docs:
-  mkdir -p $PKG1/usr/doc/gcc-$VERSION
+# Install docs:
+mkdir -p $PKG1/usr/doc/gcc-$VERSION
+cp -a \
+  COPYING* ChangeLog* FAQ INSTALL \
+  LAST_UPDATED MAINTAINERS NEWS \
+  README* *.html \
+$PKG1/usr/doc/gcc-$VERSION
+
+# We will keep part of these, but they are really big...
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+if [ -r NEWS ]; then
+  DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
+  cat NEWS | head -n 1500 > $DOCSDIR/NEWS
+  touch -r NEWS $DOCSDIR/NEWS
+fi
+
+mkdir -p $PKG1/usr/doc/gcc-${VERSION}/gcc
+( cd gcc || exit 0
   cp -a \
-    COPYING* ChangeLog* FAQ INSTALL \
-    LAST_UPDATED MAINTAINERS NEWS \
-    README* *.html \
-  $PKG1/usr/doc/gcc-$VERSION
-
-  # We will keep part of these, but they are really big...
+    ABOUT* COPYING* DATESTAMP DEV-PHASE LANG* ONEWS README* SERVICE \
+  $PKG1/usr/doc/gcc-$VERSION/gcc
+)
+       
+mkdir -p $PKG3/usr/doc/gcc-${VERSION}/gcc/fortran
+( cd gcc/fortran || exit 0
   if [ -r ChangeLog ]; then
-    DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
-    cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-    touch -r ChangeLog $DOCSDIR/ChangeLog
+    cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
+    touch -r ChangeLog $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
   fi
-  if [ -r NEWS ]; then
-    DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
-    cat NEWS | head -n 1500 > $DOCSDIR/NEWS
-    touch -r NEWS $DOCSDIR/NEWS
+)
+
+mkdir -p $PKG4/usr/doc/gcc-${VERSION}/gcc/ada
+( cd gcc/ada || exit 0
+  cp -a \
+    ChangeLog.tree-ssa \
+  $PKG4/usr/doc/gcc-$VERSION/gcc/ada
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
+    touch -r ChangeLog $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
   fi
+)
 
-  mkdir -p $PKG1/usr/doc/gcc-${VERSION}/gcc
-  ( cd gcc || exit 0
-    cp -a \
-      ABOUT* COPYING* DATESTAMP DEV-PHASE LANG* ONEWS README* SERVICE \
-    $PKG1/usr/doc/gcc-$VERSION/gcc
-         
-    mkdir -p $PKG3/usr/doc/gcc-${VERSION}/gcc/fortran
-    ( cd fortran || exit 0
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
-        touch -r ChangeLog $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
-      fi
-    )
+mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
+( cd gcc/objc || exit 0
+  cp -a \
+    README* \
+  $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
+  if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
+    touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
+  fi
+)
 
-    mkdir -p $PKG4/usr/doc/gcc-${VERSION}/gcc/ada
-    ( cd ada || exit 0
-      cp -a \
-        ChangeLog.tree-ssa \
-      $PKG4/usr/doc/gcc-$VERSION/gcc/ada
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
-        touch -r ChangeLog $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
-      fi
-    )
+mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp
+( cd gcc/objcp || exit 0
+  cp -a \
+    README* \
+  $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp/ChangeLog
+    touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp/ChangeLog
+  fi
+)
 
-    mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
-    ( cd objc || exit 0
-      cp -a \
-        README* \
-      $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
-        touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
-      fi
-    )
-    ( cd objcp || exit 0
-      cp -a \
-        README* \
-      $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp/ChangeLog
-        touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp/ChangeLog
-      fi
-    )
+mkdir -p $PKG8/usr/doc/gcc-${VERSION}/gcc/go
+( cd gcc/go || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
+    touch -r ChangeLog $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
+  fi
+  cp -a \
+    README* THREADS* \
+    gofrontend/{LICENSE,PATENTS,README} \
+  $PKG8/usr/doc/gcc-${VERSION}/gcc/go
+)
 
-    mkdir -p $PKG8/usr/doc/gcc-${VERSION}/gcc/go
-    ( cd go || exit 0
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
-        touch -r ChangeLog $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
-      fi
-      cp -a \
-        README* THREADS* \
-        gofrontend/{LICENSE,PATENTS,README} \
-      $PKG8/usr/doc/gcc-${VERSION}/gcc/go
-    )
+mkdir -p $PKG9/usr/doc/gcc-${VERSION}/gcc/brig
+( cd gcc/brig || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
+    touch -r ChangeLog $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
+  fi
+)
 
-    mkdir -p $PKG9/usr/doc/gcc-${VERSION}/gcc/brig
-    ( cd brig || exit 0
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
-        touch -r ChangeLog $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
-      fi
-    )
+mkdir -p $PKG10/usr/doc/gcc-${VERSION}/gcc/d
+( cd gcc/d || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG10/usr/doc/gcc-${VERSION}/gcc/d/ChangeLog
+    touch -r ChangeLog $PKG10/usr/doc/gcc-${VERSION}/gcc/d/ChangeLog
+  fi
+)
 
-    mkdir -p $PKG10/usr/doc/gcc-${VERSION}/gcc/d
-    ( cd d || exit 0
-      if [ -r ChangeLog ]; then
-        cat ChangeLog | head -n 1000 > $PKG10/usr/doc/gcc-${VERSION}/gcc/d/ChangeLog
-        touch -r ChangeLog $PKG10/usr/doc/gcc-${VERSION}/gcc/d/ChangeLog
-      fi
-    )
+mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
+( cd libgfortran || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+    touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+  fi
+)
 
-  ) || exit 1
+mkdir -p $PKG4/usr/doc/gcc-${VERSION}/libada
+( cd libada || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
+    touch -r ChangeLog $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
+  fi
+)
 
-  mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
-  ( cd libgfortran || exit 0
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
-      touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
-    fi
-  )
-
-  mkdir -p $PKG4/usr/doc/gcc-${VERSION}/libada
-  ( cd libada || exit 0
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
-      touch -r ChangeLog $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
-    fi
-  )
-
-  mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libgomp
-  ( cd libgomp || exit 0
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
-      touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
-    fi
-  )
+mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libgomp
+( cd libgomp || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
+    touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
+  fi
+)
   
-  mkdir -p $PKG6/usr/doc/gcc-${VERSION}/libobjc
-  ( cd libobjc || exit 0
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
-      touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
-    fi
-    cp -a \
-      README* THREADS* \
-    $PKG6/usr/doc/gcc-${VERSION}/libobjc
-  )
+mkdir -p $PKG6/usr/doc/gcc-${VERSION}/libobjc
+( cd libobjc || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
+    touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
+  fi
+  cp -a \
+    README* THREADS* \
+  $PKG6/usr/doc/gcc-${VERSION}/libobjc
+)
     
-  mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
-  ( cd libstdc++-v3 || exit 0
-    cp -a \
-      README* \
-      doc/html/faq.html \
-    $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
-    if [ -r ChangeLog ]; then
-      cat ChangeLog | head -n 1000 > $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
-      touch -r ChangeLog $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
-    fi
-  )
-
-) || exit 1
+mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
+( cd libstdc++-v3 || exit 0
+  cp -a \
+    README* \
+    doc/html/faq.html \
+  $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
+    touch -r ChangeLog $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
+  fi
+)
 
 # build gcc
-( mkdir gcc.build.lnx;
-  cd gcc.build.lnx;
+( mkdir gcc.build.lnx
+  cd gcc.build.lnx
 
   # I think it's incorrect to include this option (as it'll end up set
   # to i586 on x86 platforms), and we want to tune the binary structure
@@ -339,7 +338,7 @@ cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
  
   CFLAGS="$SLKCFLAGS" \
   CXXFLAGS="$SLKCFLAGS" \
-  ../gcc-$SRCVER/configure --prefix=/usr \
+  ../configure --prefix=/usr \
      --libdir=/usr/lib$LIBDIRSUFFIX \
      --mandir=/usr/man \
      --infodir=/usr/info \
@@ -469,7 +468,7 @@ cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
   #)
 
 # keep a log:
-) 2>&1 | tee $TMP/gcc.build.log
+) 2>&1 | tee gcc.build.log
 
 # Filter all .la files (thanks much to Mark Post for the sed script):
 ( cd $PKG1

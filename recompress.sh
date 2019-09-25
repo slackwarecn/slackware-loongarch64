@@ -1181,6 +1181,7 @@ gzip ./source/x/x11/patch/xf86-video-xgixp/0002-Remove-symbol-lists-as-they-are-
 gzip ./source/x/x11/patch/xf86-video-xgixp/0005-Update-for-new-damage-API.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0003-shadow-shadowInit-shadowAdd-Remove.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0004-Stop-using-deprecated-xf86PciInfo.h.patch
+gzip ./source/x/x11/patch/libXvMC/libXvMC.restore.xv.to.xvmc.pc.diff
 gzip ./source/x/x11/patch/luit/luit_use_system_extensions.diff
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff

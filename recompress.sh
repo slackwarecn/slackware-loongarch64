@@ -35,9 +35,7 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
-gzip ./source/d/llvm/n_clang_allow_BUILD_SHARED_LIBRARY.patch
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
-gzip ./source/d/llvm/clang-tools-extra.no.clangd.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff

@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libglvnd
 VERSION=${VERSION:-$(echo libglvnd-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -81,10 +81,6 @@ if [ ! -r configure ]; then
   NOCONFIGURE=1 ./autogen.sh
 fi
 
-# We don't want libglvnd to include headers that stomp on the official ones
-# in the Mesa package:
-HEADERS=${HEADERS:-"--disable-headers"}
-
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -94,23 +90,11 @@ CXXFLAGS="$SLKCFLAGS" \
   --localstatedir=/var \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
-  $HEADERS \
   --disable-static \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
-
-# If we didn't package the headers then we should not package the pkgconfig
-# files either:
-if [ "$HEADERS" = "--disable-headers" ]; then
-  # Move this one out of the way temporarily:
-  mv $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/libglvnd.pc $PKG/usr/lib${LIBDIRSUFFIX}
-  # Remove the redundant .pc files:
-  rm -f $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/*
-  # Put this one back:
-  mv $PKG/usr/lib${LIBDIRSUFFIX}/libglvnd.pc $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
-fi
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

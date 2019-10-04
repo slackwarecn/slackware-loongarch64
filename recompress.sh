@@ -1198,6 +1198,8 @@ gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
 gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules
 gzip ./testing/source/blueman/doinst.sh
+gzip ./testing/source/rust/link_libffi.diff
+gzip ./testing/source/rust/0001-WIP-minimize-the-rust-std-component.patch
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

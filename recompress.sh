@@ -1034,6 +1034,7 @@ gzip ./source/xap/xpdf/lang/xpdf-arabic.diff
 gzip ./source/xap/xpdf/lang/xpdf-chinese-simplified.diff
 gzip ./source/xap/xpdf/lang/xpdf-turkish.diff
 gzip ./source/xap/xpdf/lang/xpdf-greek.diff
+gzip ./source/xap/xpdf/patches/xpdf-4.02.crash.fix.diff
 gzip ./source/xap/xpdf/patches/xpdfrc.diff
 gzip ./source/xap/xpdf/doinst.sh
 gzip ./source/xap/pavucontrol/doinst.sh

@@ -973,8 +973,6 @@ gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch
 gzip ./source/l/gamin/gaminrc
 gzip ./source/l/gamin/doinst.sh
 gzip ./source/l/gamin/no_g_const_return.patch
-gzip ./source/l/parted/parted.configure.diff
-gzip ./source/l/parted/parted.glibc228.diff
 gzip ./source/l/gst-plugins-base0/gst-plugins-base-0.10.36-gcc_4_9_0_i686-1.patch
 gzip ./source/l/pygtk/pygtk-fix-pango-object-leaks.patch
 gzip ./source/l/gnome-keyring/doinst.sh

@@ -85,13 +85,18 @@ gzip -9 $PKG/usr/man/man*/*.*
 # If a man page exists in some other package, assume that's the
 # newer, better version:
 echo "Pruning manpages found in other packages..."
-( cd $PKG
-  for file in usr/man/man*/*.gz ; do
-    if grep -l $file /var/log/packages/* | grep -v var/log/packages/man-pages ; then
-      rm -f --verbose $file
-    fi
-  done
+TEMPDIR=$(mktemp -d)
+chmod 700 $TEMPDIR
+( cd $PKG ; /bin/ls usr/man/man*/*.gz | sort > $TEMPDIR/man-pages-pages )
+( cd /var/log/packages
+  GLOBIGNORE="$(/bin/ls man-pages-*)"
+  cat * | grep usr/man | sort | uniq > $TEMPDIR/other-packages-pages
+  unset GLOBIGNORE
 )
+( cd $PKG
+  comm -12 $TEMPDIR/man-pages-pages $TEMPDIR/other-packages-pages | xargs rm --verbose
+)
+rm -r $TEMPDIR
 
 # Some of the posix pages don't display correctly without this
 ( cd $PKG/usr/man ; ln -s man3 man3p )

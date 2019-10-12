@@ -1182,9 +1182,11 @@ gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-consolekit.patch
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
+gzip ./source/x/x11/patch/xorg-server/c7486613b0dc586f93f6ba293d9b55c69995b05c.patch
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
+gzip ./source/x/x11/patch/xorg-server/e6ef2b12404dfec7f23592a3524d2a63d9d25802.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch

@@ -1122,11 +1122,6 @@ gzip ./source/xap/easytag/easytag.revert.ogg.handle.patch
 gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
-gzip ./source/xap/pan/patches/0004-476b5a62fcda711ce2d7412a310b8182cca6940e.patch
-gzip ./source/xap/pan/patches/0001-e5be4d4a1d9d08796c1b5a5c763379383b8c119a.patch
-gzip ./source/xap/pan/patches/0000-b9a4154942c932a493736d2292bbae16384e35df.patch
-gzip ./source/xap/pan/patches/0003-ddcd5761075a6fb3ef7b768f004fa1e6663cb65e.patch
-gzip ./source/xap/pan/patches/0002-50f6c43a698dcc0ba6b490c086a73eeedbdd8a80.patch
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff

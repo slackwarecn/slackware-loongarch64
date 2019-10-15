@@ -369,8 +369,8 @@ gzip ./source/n/rdist/rdist-6.1.5-04.bison.diff
 gzip ./source/n/rdist/rdist-6.1.5-03.hardlink.diff
 gzip ./source/n/rdist/rdist-6.1.5-12.stat64.diff
 gzip ./source/n/bluez/refresh_adv_manager_for_non-LE_devices.diff
+gzip ./source/n/bluez/bluez-5.51-obexd_without_systemd-1.patch
 gzip ./source/n/bluez/doinst.sh
-gzip ./source/n/bluez/bluez-5.30-obexd_without_systemd-1.patch
 gzip ./source/n/iproute2/doinst.sh
 gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff

@@ -11,6 +11,7 @@ config() {
 }
 
 config etc/default/useradd.new
+config etc/environment.new
 config etc/login.access.new
 config etc/login.defs.new
 config var/log/faillog.new

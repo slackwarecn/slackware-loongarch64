@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2007, 2008, 2009, 2012, 2018  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,9 +22,9 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=xfractint
-VERSION=${VERSION:-20.04p13}
-BUILD=${BUILD:-2}
+PKGNAM=lhasa
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -47,13 +47,7 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i586" ]; then
+if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
@@ -74,18 +68,16 @@ else
 fi
 
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-${PKGNAM}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/xfractint-${VERSION}.tar.xz || exit 1
-cd ${PKGNAM}-${VERSION} || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
-rm -f unix/calmanfx.o # contains i386 code
-
-# Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -93,55 +85,47 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-make OPT="$SLKCFLAGS" SRCDIR=/usr/share/xfractint SHRDIR=/usr/share/xfractint BINDIR=/usr/bin MANDIR=/usr/man/man1 || exit 1
+if [ ! -r configure ]; then
+  NOCONFIGURE=1 ./autogen.sh
+fi
 
-mkdir -p $PKG/usr/{bin,man/man1,share/xfractint}
-make install SRCDIR=$PKG/usr/share/xfractint SHRDIR=$PKG/usr/share/xfractint BINDIR=$PKG/usr/bin MANDIR=$PKG/usr/man/man1 || exit 1
+# Configure, build, and install:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --disable-static \
+  --build=$ARCH-slackware-linux || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Strip binaries:
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.*
-      )
-    done
-  )
-fi
-
-# Compress info files, if any:
-if [ -d $PKG/usr/info ]; then
-  ( cd $PKG/usr/info
-    rm -f dir
-    gzip -9 *
-  )
-fi
-
-# Add palette maps missing from latest sources:
-( cd $PKG/usr/share/${PKGNAM}/maps ; tar xf $CWD/palette.maps.tar.gz )
-
-# Fix all wrong permissions in /usr/share/xfractint
-( cd $PKG/usr/share
-  find . -perm 777 -exec chmod 755 {} \+
-  find . -perm 666 -exec chmod 644 {} \+
-)
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Add a documentation directory:
-mkdir -p ${PKG}/usr/doc/${PKGNAM}-$VERSION
-cp -a *.txt read.me $PKG/usr/doc/${PKGNAM}-$VERSION
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  AUTHORS COPYING* ChangeLog NEWS README* TODO  \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

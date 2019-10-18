@@ -5,6 +5,12 @@
 #
 gzip ./extra/source/emacspeak/emacspeak.tcl8.6.diff
 gzip ./extra/source/brltty/brltty.brlapi.pyx.diff
+gzip ./extra/source/xv/xv-3.10a.patch
+gzip ./extra/source/xv/xv-libpng-1.5.patch
+gzip ./extra/source/xv/xv.prefix_x86_64.diff
+gzip ./extra/source/xv/xv.jasper.diff
+gzip ./extra/source/xv/xv.prefix.diff
+gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/pure-alsa-system/xfce4-volumed/0001-Removed-deprecated-Encoding-entry-in-.desktop-file-t.patch
 gzip ./extra/source/pure-alsa-system/xfce4-volumed/0003-Removing-edge-case-memleaks.patch
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Make-Unique-support-optional.patch
@@ -101,7 +107,6 @@ gzip ./source/a/rpm2tgz/patches/0001-fix-d-handling.patch
 gzip ./source/a/rpm2tgz/patches/0009-Add-c-option-just-as-makepkg-c-y.patch
 gzip ./source/a/udisks/udisks.no.pci-db.diff
 gzip ./source/a/udisks/udisks.glibc228.diff
-gzip ./source/a/getty-ps/getty.bugfixes.diff
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/grub/initrd_naming.patch
@@ -170,7 +175,6 @@ gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff
 gzip ./source/a/libcgroup/libcgroup.loop.diff
 gzip ./source/a/libcgroup/doinst.sh
-gzip ./source/a/lha/lha_1.14i-10.1.diff
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh
 gzip ./source/a/e2fsprogs/e2fsprogs.no.64bit.by.default.diff
@@ -181,6 +185,7 @@ gzip ./source/a/shadow/shadow.login.display.short.hostname.diff
 gzip ./source/a/shadow/login.defs
 gzip ./source/a/shadow/shadow.CVE-2005-4890.relax.diff
 gzip ./source/a/shadow/doinst.sh
+gzip ./source/a/shadow/environment
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff
 gzip ./source/a/util-linux/setserial-rc.serial.diff
@@ -1037,11 +1042,6 @@ gzip ./source/xap/xpdf/patches/xpdfrc.diff
 gzip ./source/xap/xpdf/doinst.sh
 gzip ./source/xap/pavucontrol/doinst.sh
 gzip ./source/xap/seyon/seyon_2.20c-16.diff
-gzip ./source/xap/xv/xv-3.10a.patch
-gzip ./source/xap/xv/xv-libpng-1.5.patch
-gzip ./source/xap/xv/xv.prefix_x86_64.diff
-gzip ./source/xap/xv/xv.jasper.diff
-gzip ./source/xap/xv/xv.prefix.diff
 gzip ./source/xap/ddd/doinst.sh
 gzip ./source/xap/ddd/strclass.C.diff
 gzip ./source/xap/ddd/machine_code_window_fix.diff
@@ -1198,8 +1198,8 @@ gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
 gzip ./pasture/source/php/php.ini-development.diff
+bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
+bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
+bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt
 bzip2 ./source/n/curl/cacert.pem
 bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log
-bzip2 ./source/xap/xv/xv-3.10a-enhancements.20070520-20081216.diff
-bzip2 ./source/xap/xv/xv-3.10a-jumbo-additions.diff
-bzip2 ./source/xap/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt

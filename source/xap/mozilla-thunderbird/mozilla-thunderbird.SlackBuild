@@ -40,6 +40,16 @@ BUILD=${BUILD:-1}
 #
 MOZLOCALIZE=${MOZLOCALIZE:-}
 
+# Without LANG=C, building the Python environment may fail with:
+# "UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 36: ordinal not in range(128)"
+LANG=C
+
+# Add a shell script to start the thunderbird binary with MOZ_ALLOW_DOWNGRADE=1
+# to avoid backing up (and disabling) the user profile if a browser downgrade
+# is detected. If you want to build with the stock default behavior, set
+# this to something other than "YES":
+MOZ_ALLOW_DOWNGRADE=${MOZ_ALLOW_DOWNGRADE:-YES}
+
 # This can be set to YES or NO:
 ENABLE_CALENDAR=${ENABLE_CALENDAR:-YES}
 if [ "$ENABLE_CALENDAR" = "NO" ]; then
@@ -71,6 +81,16 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+# Thunderbird has been requiring more and more memory, especially while linking
+# libxul. If it fails to build natively on x86 32-bit, it can be useful to
+# attempt the build using an x86_64 kernel and a 32-bit userspace. Detect this
+# situation and set the ARCH to i686. Later in the script we'll add some
+# options to the .mozconfig so that the compile will do the right thing.
+if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-bit)" != "" ]; then
+  COMPILE_X86_UNDER_X86_64=true
+  ARCH=i686
+fi
+
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS=""
   LIBDIRSUFFIX=""
@@ -91,16 +111,6 @@ else
   SLKCFLAGS=""
   LIBDIRSUFFIX=""
   OPTIMIZE=${OPTIMIZE:-"-O2"}
-fi
-
-# Thunderbird has been requiring more and more memory, especially while linking
-# libxul. If it fails to build natively on x86 32-bit, it can be useful to
-# attempt the build using an x86_64 kernel and a 32-bit userspace. Detect this
-# situation and set the ARCH to i686. Later in the script we'll add some
-# options to the .mozconfig so that the compile will do the right thing.
-if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-bit)" != "" ]; then
-  COMPILE_X86_UNDER_X86_64=true
-  ARCH=i686
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
@@ -329,6 +339,26 @@ install -m 644 other-licenses/branding/thunderbird/mailicon16.png \
 
 # Copy over the LICENSE
 install -p -c -m 644 LICENSE $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-$RELEASEVER/
+
+# If MOZ_ALLOW_DOWNGRADE=YES, replace the /usr/bin/thunderbird symlink with a
+# shell script that sets the MOZ_ALLOW_DOWNGRADE=1 environment variable so
+# that a detected downgrade does not reset the user profile:
+if [ "$MOZ_ALLOW_DOWNGRADE" = "YES" ]; then
+  rm -f $PKG/usr/bin/thunderbird
+  cat << EOF > $PKG/usr/bin/thunderbird
+#!/bin/sh
+#
+# Shell script to start Mozilla Thunderbird.
+#
+# Don't reset the user profile on a detected downgrade:
+export MOZ_ALLOW_DOWNGRADE=1
+
+# Start Thunderbird:
+exec /usr/lib${LIBDIRSUFFIX}/thunderbird/thunderbird "\$@"
+EOF
+  chown root:root $PKG/usr/bin/thunderbird
+  chmod 755 $PKG/usr/bin/thunderbird
+fi
 
 mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

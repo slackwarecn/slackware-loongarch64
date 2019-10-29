@@ -1184,10 +1184,14 @@ gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-def
 gzip ./source/x/x11/patch/xorg-server/e6ef2b12404dfec7f23592a3524d2a63d9d25802.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
+gzip ./source/x/x11/patch/xorg-server/0001-replace-MESA_EGL_NO_X11_HEADERS-hack-with-upstream-E.patch
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
+gzip ./source/x/libglvnd/patches/6f52473dac08c44b081b792874b4ce73122096da.patch
+gzip ./source/x/libglvnd/patches/193.patch
+gzip ./source/x/libglvnd/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
 gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules

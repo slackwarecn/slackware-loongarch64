@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libglvnd
 VERSION=${VERSION:-$(echo libglvnd-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -77,9 +77,16 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
 
+# Fix headers:
+zcat $CWD/patches/6f52473dac08c44b081b792874b4ce73122096da.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/193.patch.gz | patch -p1 --verbose || exit 1
+
 if [ ! -r configure ]; then
   NOCONFIGURE=1 ./autogen.sh
 fi
+
+autoreconf -vif
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \

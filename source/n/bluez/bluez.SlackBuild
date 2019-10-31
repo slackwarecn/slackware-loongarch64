@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=bluez
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -81,9 +81,9 @@ zcat $CWD/bluez-5.51-obexd_without_systemd-1.patch.gz | patch -p1 --verbose || e
 # Fix bluetoothd crashes:
 zcat $CWD/refresh_adv_manager_for_non-LE_devices.diff.gz | patch -p1 --verbose || exit 1
 
-autoreconf -vif
-
 sed -i -e 's|-lreadline|\0 -lncursesw|g' Makefile.{in,tools}
+
+autoreconf -vif
 
 # We're adding --enable-deprecated due to this commit: 
 #
@@ -128,6 +128,11 @@ chmod 644 $PKG/lib/modprobe.d/btusb.conf
 # Add bluetoothd to /usr/sbin
 mkdir -p $PKG/usr/sbin
 ln -s ../libexec/bluetooth/bluetoothd $PKG/usr/sbin
+
+# Fix substitution in /usr/share/dbus-1/services/org.bluez.obex.service:
+if [ -x $PKG/usr/libexec/bluetooth/obexd ]; then
+  sed -i "s|@libexecdir@|/usr/libexec|g" $PKG/usr/share/dbus-1/services/org.bluez.obex.service
+fi
 
 # Install the configuration files
 mkdir -p $PKG/etc/bluetooth $PKG/etc/default

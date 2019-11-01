@@ -1193,9 +1193,6 @@ gzip ./source/x/libglvnd/patches/6f52473dac08c44b081b792874b4ce73122096da.patch
 gzip ./source/x/libglvnd/patches/193.patch
 gzip ./source/x/libglvnd/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff
-gzip ./testing/source/blueman/dont-autostart-applet-in-kde.diff
-gzip ./testing/source/blueman/30-blueman-netdev-allow-access.rules
-gzip ./testing/source/blueman/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
 gzip ./testing/source/rust/0001-WIP-minimize-the-rust-std-component.patch
 gzip ./pasture/source/php/php-fpm.conf.diff

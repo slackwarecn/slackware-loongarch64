@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=blueman
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -47,7 +47,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j7 "}
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
@@ -82,6 +82,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Apply git patches
+for i in $CWD/patches/*.patch ; do
+  cat $i | patch -p1 || exit 1
+done
+
 # Don't autostart blueman applet in KDE; it has its own bluetooth application
 zcat $CWD/dont-autostart-applet-in-kde.diff.gz | patch -p1 --verbose || exit 1
 
@@ -110,7 +115,7 @@ CYTHONEXEC=/usr/bin/cython3 \
 sed -i "s,nautilus,thunar,g" blueman/Constants.py*
 
 # https://github.com/blueman-project/blueman/issues/435
-sed -i "s,#!/usr/bin/env python,#!/usr/bin/python${PYTHON3VER},g" module/_blueman.pyx apps/*
+sed -i "s,#!/usr/bin/env python3,#!/usr/bin/python${PYTHON3VER},g" module/_blueman.pyx apps/*
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

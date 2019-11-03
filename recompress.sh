@@ -1045,6 +1045,7 @@ gzip ./source/xap/seyon/seyon_2.20c-16.diff
 gzip ./source/xap/ddd/doinst.sh
 gzip ./source/xap/ddd/strclass.C.diff
 gzip ./source/xap/ddd/machine_code_window_fix.diff
+gzip ./source/xap/xine-ui/02_FTBFS.diff
 gzip ./source/xap/xgames/maze.diff
 gzip ./source/xap/xgames/xlander.fixes.diff
 gzip ./source/xap/xgames/xlander-2009-07-18.diff
@@ -1190,6 +1191,7 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/libglvnd/patches/6f52473dac08c44b081b792874b4ce73122096da.patch
+gzip ./source/x/libglvnd/patches/update-gl-h-to-match-mesa.patch
 gzip ./source/x/libglvnd/patches/193.patch
 gzip ./source/x/libglvnd/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff

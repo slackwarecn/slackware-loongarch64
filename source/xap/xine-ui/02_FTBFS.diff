@@ -1,0 +1,63 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -91,6 +91,7 @@ PKG_CHECK_MODULES([XINE], [libxine >= 1.
+ XINE_LIB_SHIMS
+ XINE_LIB_OPEN_CLOEXEC
+ XINE_LIB_SOCKET_CLOEXEC
++XINE_LIB_LIST_NEXT_VALUE
+ 
+ CFLAGS="${CFLAGS} ${XINE_CFLAGS}"
+ 
+--- a/m4/_xine.m4
++++ b/m4/_xine.m4
+@@ -241,3 +241,21 @@ AC_DEFUN([XINE_LIB_SOCKET_CLOEXEC],
+     LIBS="$tmp_LIBS"
+     ])
+ 
++dnl Test for xine_list_next_value function
++AC_DEFUN([XINE_LIB_LIST_NEXT_VALUE],
++    [AC_MSG_CHECKING([for xine_list_next_value within xine-lib])
++    tmp_CFLAGS="$CFLAGS"
++    tmp_LIBS="$LIBS"
++     CFLAGS="$CFLAGS $XINE_CFLAGS"
++     LIBS="$LIBS $XINE_LIBS"
++     AC_LINK_IFELSE(
++         [AC_LANG_PROGRAM([
++         ],[
++xine_list_next_value ();
++         ])],
++         [AC_DEFINE([HAVE_XINE_LIST_NEXT_VALUE], [1], [Define if xine-lib supports xine_list_next_value])
++          AC_MSG_RESULT([yes])],
++         [AC_MSG_RESULT([no])])
++    CFLAGS="$tmp_CFLAGS"
++    LIBS="$tmp_LIBS"
++   ])
+--- a/src/xitk/setup.c
++++ b/src/xitk/setup.c
+@@ -32,6 +32,17 @@
+ 
+ #include <xine/list.h>
+ 
++#ifdef HAVE_XINE_LIST_NEXT_VALUE
++#  define _xine_list_next_value(_xlnv_list,_xlnv_ite) xine_list_next_value (_xlnv_list, _xlnv_ite)
++#else
++static inline void *_xine_list_next_value (xine_list_t *list, xine_list_iterator_t *ite) {
++  if (*ite)
++    *ite = xine_list_next (list, *ite);
++  else
++    *ite = xine_list_front (list);
++  return *ite ? xine_list_get_value (list, *ite) : NULL;
++}
++#endif
+ 
+ #define WINDOW_WIDTH             630
+ #define WINDOW_HEIGHT            530
+@@ -809,7 +820,7 @@ static void setup_change_section(xitk_wi
+     xitk_widget_t *sw;
+     xine_list_iterator_t ite = NULL;
+     while (1) {
+-      sw = xine_list_next_value (setup->widgets, &ite);
++      sw = _xine_list_next_value (setup->widgets, &ite);
+       if (!ite)
+         break;
+       xitk_destroy_widget (sw);

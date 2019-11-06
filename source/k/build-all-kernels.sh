@@ -29,13 +29,22 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 BUILD=${BUILD:-1}
 if [ -z "$VERSION" ]; then
-  # Get $VERSION from the newest kernel tarball:
-  VERSION=${VERSION:-$(/bin/ls -t linux-*.tar.?z | head -n 1 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+  # Get the filename of the newest kernel tarball:
+  KERNEL_SOURCE_FILE="$(/bin/ls -t linux-*.tar.?z | head -n 1 )"
+  if echo $KERNEL_SOURCE_FILE | grep -q rc ; then # need to get rc versions a bit differently
+    VERSION=$(/bin/ls -t linux-*.tar.?z | head -n 1 | rev | cut -f 3- -d . | cut -f 1,2 -d - | rev)
+  else # normal release version
+    VERSION=$(/bin/ls -t linux-*.tar.?z | head -n 1 | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+  fi
 fi
 TMP=${TMP:-/tmp}
 
 # By default, install the packages as we build them and update the initrd.
 INSTALL_PACKAGES=${INSTALL_PACKAGES:-YES}
+
+# Clean kernels before building them. Not doing so quit working some time
+# after 4.19.x.
+export KERNEL_CLEAN=YES
 
 # A list of recipes for build may be passed in the $RECIPES variable, otherwise
 # we have defaults based on uname -m:
@@ -131,12 +140,12 @@ for recipe in $RECIPES ; do
 
   # Update initrd:
   if [ "${INSTALL_PACKAGES}" = "YES" ]; then
-    # We should already have this...
-    #LOCALVERSION="$(cat $TMP/package-kernel-source/usr/src/linux/.config 2> /dev/null | grep CONFIG_LOCALVERSION= | cut -f 2 -d = | tr -d \")"
+    INITRD_VERSION="$(grep "Kernel Configuration" $TMP/package-kernel-source/usr/src/linux/.config | cut -f 3 -d ' ')"
+    INITRD_LOCALVERSION="$(cat $TMP/package-kernel-source/usr/src/linux/.config 2> /dev/null | grep CONFIG_LOCALVERSION= | cut -f 2 -d = | tr -d \")"
     if [ -r /etc/mkinitrd.conf ]; then
-      mkinitrd -F /etc/mkinitrd.conf -k ${VERSION}${LOCALVERSION}
+      mkinitrd -F /etc/mkinitrd.conf -k ${INITRD_VERSION}${INITRD_LOCALVERSION}
     else # try this?
-      sh /usr/share/mkinitrd/mkinitrd_command_generator.sh -k ${VERSION}${LOCALVERSION} | sed "s/-c -k/-k/g" | bash
+      sh /usr/share/mkinitrd/mkinitrd_command_generator.sh -k ${INITRD_VERSION}${INITRD_LOCALVERSION} | sed "s/-c -k/-k/g" | bash
     fi
   fi
 

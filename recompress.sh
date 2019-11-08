@@ -307,6 +307,7 @@ gzip ./source/kde/patch/kdelibs/return-not-break.-copy-paste-error.patch
 gzip ./source/kde/patch/kdelibs/return-application-icons-properly.patch
 gzip ./source/kde/patch/kdelibs/coding-style-fixes.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.docbook.patch
+gzip ./source/kde/patch/kdelibs/kde4libs-4.14.26.diff
 gzip ./source/kde/patch/kdelibs/kdelibs-openssl-1.1.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.upnp_conditional.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.2c3762feddf7e66cf6b64d9058f625a715694a00.patch
@@ -325,6 +326,7 @@ gzip ./source/kde/patch/pykde4/pykde4.solid.cmake.diff
 gzip ./source/kde/patch/pykde4/pykde4-4.14.3-checkstate-sip-4.19.5.patch
 gzip ./source/kde/patch/perlqt/perlqt.gcc6.diff
 gzip ./source/kde/patch/kdepim/kdepim-install_kleopatra_headers.patch
+gzip ./source/kde/patch/kdepim/libkf5ksieve-16.04.3.diff
 gzip ./source/kde/patch/libkscreen/libkscreen.broken.test.diff
 gzip ./source/kde/patch/kdeartwork/kdeartwork.cmake.include.checkincludefiles.diff
 gzip ./source/kde/patch/kdewebdev/include-tidy.patch
@@ -335,6 +337,7 @@ gzip ./source/kde/patch/kde-runtime/kde-runtime.fix.konqueror.manpage.infopage.d
 gzip ./source/kde/patch/plasma-nm/plasma-nm.nm.diff
 gzip ./source/kde/patch/kopete/kopete-gcc6.patch
 gzip ./source/kde/patch/kdepimlibs/kdepimlibs.libical3.diff
+gzip ./source/kde/patch/kdepimlibs/kimap-16.04.2.diff
 gzip ./source/kde/patch/print-manager/print-manager.fix.build.against.cups22.diff
 gzip ./source/kde/patch/konsole/konsole.scrollup.diff
 gzip ./source/kde/patch/konsole/konsole.term.is.konsole.diff
@@ -1194,6 +1197,7 @@ gzip ./source/x/libglvnd/patches/update-gl-h-to-match-mesa.patch
 gzip ./source/x/libglvnd/patches/193.patch
 gzip ./source/x/libglvnd/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff
+gzip ./testing/source/rust/hack.diff
 gzip ./testing/source/rust/link_libffi.diff
 gzip ./testing/source/rust/0001-WIP-minimize-the-rust-std-component.patch
 gzip ./pasture/source/php/php-fpm.conf.diff

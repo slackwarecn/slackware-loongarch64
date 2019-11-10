@@ -76,6 +76,7 @@ gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
 gzip ./source/d/make/make.glibc-2.27.glob.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
+gzip ./source/e/emacs/0001-Support-ImageMagick-version-7.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -851,6 +852,7 @@ gzip ./source/l/qt/patches/qt-everywhere-opensource-src-4.8.6-QTBUG-34614.patch
 gzip ./source/l/qt/patches/qt-cupsEnumDests.patch
 gzip ./source/l/qt/patches/qt-everywhere-opensource-src-4.8.7-alsa-1.1.patch
 gzip ./source/l/qt/patches/qt-everywhere-opensource-src-4.8.7-gcc8_qtscript.patch
+gzip ./source/l/qt/patches/qt-4.8-disable-sslv3.patch
 gzip ./source/l/qt/patches/qt-prefer_adwaita_on_gnome.patch
 gzip ./source/l/qt/patches/qt-everywhere-opensource-src-4.8.0-s390-atomic.patch
 gzip ./source/l/qt/patches/qt-everywhere-opensource-src-4.8.3-qdbusconnection_no_debug.patch
@@ -1059,6 +1061,7 @@ gzip ./source/xap/seamonkey/seamonkey.gettid.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/seamonkey/seamonkey.i686.triplet.fix.diff
+gzip ./source/xap/xine-lib/xine-lib-imagemagick7.patch
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/gnuplot/gnuplot.fix.info.generation.diff
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff

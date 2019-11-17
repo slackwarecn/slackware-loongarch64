@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=pulseaudio
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -98,34 +98,36 @@ zcat $CWD/pulseaudio-autostart.patch.gz | patch -p1 --verbose || exit 1
 # using the upstream default here.
 sed -i 's/; flat-volumes = yes/flat-volumes = no/g' ./src/daemon/daemon.conf.in
 
-# 0131-alsa-lib-1.1.9.patch.gz touches configure.ac, so:
-autoreconf -vif
-
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./bootstrap.sh \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --mandir=/usr/man \
-  --disable-tcpwrap \
-  --enable-orc \
-  --disable-static \
-  --disable-hal-compat \
-  --disable-bluez4 \
-  --with-system-user=pulse \
-  --with-system-group=pulse \
-  --with-access-group=audio \
-  --with-bash-completion-dir=/usr/share/bash-completion/completions \
-  --build=$ARCH-slackware-linux || exit 1
+  --buildtype=release \
+  -Dorc=enabled \
+  -Dhal-compat=false \
+  -Dsystem_user="pulse" \
+  -Dsystem_group="pulse" \
+  -Daccess_group="audio" \
+  -Dbashcompletiondir="/usr/share/bash-completion/completions" \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-make $NUMJOBS check || make check || exit 1
-make $NUMJOBS || make || exit 1
-make install-strip DESTDIR=$PKG || exit 1
-
-# Remove .la files:
-rm -f $PKG/usr/lib${LIBDIRSUFFIX}/lib*.la
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 # Move config files to .new:
 for f in $( find $PKG/etc/pulse/ -type f ) ; do mv $f $f.new ; done

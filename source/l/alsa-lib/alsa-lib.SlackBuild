@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=alsa-lib
 VERSION=${VERSION:-$(echo alsa-lib-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -81,6 +81,15 @@ if [ ! -r src/conf/smixer.conf ]; then
   cp -a $CWD/smixer.conf src/conf
 fi
 
+# Untar the configuration files. We'll install them later.
+( mkdir ucm-and-topology-configs
+  cd ucm-and-topology-configs
+  for file in $CWD/alsa-*conf*tar* ; do
+    tar xvf $file
+    mv README.md README-$(echo $(basename $file) | cut -f 1-3 -d -)
+  done
+)
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -93,6 +102,8 @@ CFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-mixer-modules \
   --enable-mixer-pymods \
+  --enable-topology \
+  --enable-ucm \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || exit 1
@@ -114,6 +125,9 @@ else
 fi
 chmod 644 $PKG/etc/asound.conf.new
 chown root:root $PKG/etc/asound.conf.new
+
+# Install ucm and topology configs:
+( cd ucm-and-topology-configs ; tar cf - . ) | ( cd $PKG/usr/share/alsa ; tar xf -)
 
 # TODO?
 # ( cd src/pcm/ext

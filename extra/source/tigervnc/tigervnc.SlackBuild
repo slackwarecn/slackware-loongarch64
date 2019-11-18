@@ -73,13 +73,14 @@
 #             * Reset build to -1 for inclusion in Slackware's /extra.
 # 1.6.0-1:    22/feb/2016 by Patrick Volkerding <volkerdi@slackware.com>
 # 1.9.0-1:    26/jul/2018 by Patrick Volkerding <volkerdi@slackware.com>
+# 1.10.0-1:   18/nov/2019 by Patrick Volkerding <volkerdi@slackware.com>
 # 
 # -----------------------------------------------------------------------------
 
 PKGNAM=tigervnc
-VERSION=${VERSION:-1.9.0}
+VERSION=${VERSION:-1.10.0}
 PVER=$(echo $VERSION | cut -f 1,2 -d . | tr -d .)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 TAG=${TAG:-}
 
@@ -163,6 +164,20 @@ cd $TMP/tmp-${PKGNAM}
 tar --owner=root --group=root -xvf $CWD/sources/$PKGNAM-$VERSION.tar.?z* || exit 1
 tar --owner=root --group=root -xvf $CWD/sources/xorg-server-${XORG}.tar.?z* || exit 1
 
+### BEGIN PATCHES FROM source/x/x11/patch
+( cd xorg-server-${XORG}
+  zcat $CWD/patches/xorg-server/x11.startwithblackscreen.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/fix-nouveau-segfault.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/0001-autobind-GPUs-to-the-screen.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/e6ef2b12404dfec7f23592a3524d2a63d9d25802.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/c7486613b0dc586f93f6ba293d9b55c69995b05c.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/patches/xorg-server/0001-replace-MESA_EGL_NO_X11_HEADERS-hack-with-upstream-E.patch.gz | patch -p1 --verbose || exit 1
+) || exit 1
+### END PATCHES FROM source/x/x11/patch
+
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
@@ -185,13 +200,13 @@ EOT
 cd $PKGNAM-$VERSION || exit 1
 
 # HACK! Force protocol 3.3 for UVNCSC
-patch -p1 < $CWD/patches/force_protocol_3.3_for_UVNCSC.patch
+zcat $CWD/patches/force_protocol_3.3_for_UVNCSC.patch.gz | patch -p1 || exit 1
 
 ## Patch to support x.org 1.20 (already included in tigervnc-1.9.0):
-#cat $CWD/patches/tigervnc-support-xorg120.patch | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/tigervnc-support-xorg120.patch.gz | patch -p1 --verbose || exit 1
 
 # Explicitly link against libpng to prevent linking errors:
-cat $CWD/patches/tigervnc13_link_png.patch | patch -p1 --verbose || exit 1
+zcat $CWD/patches/tigervnc13_link_png.patch.gz | patch -p1 --verbose || exit 1
 
 [ "$DO_APPLET" = "YES" ] && CMAKE_JAVA="ON" || CMAKE_JAVA="OFF"
 # Explicitly put the java applet into a directory named 'tigervnc':
@@ -223,19 +238,20 @@ make V=1 $NUMJOBS || make || exit 1
 make DESTDIR=$PKG install || exit 1
 
 # Do we have a patch for X.Org which tigervnc does not have?
-if [ ! -f unix/xserver${MAXPATCHVER}.patch -a -f $CWD/patches/xserver${MAXPATCHVER}.patch ]
+if [ ! -f unix/xserver${MAXPATCHVER}.patch.gz -a -f $CWD/patches/xserver${MAXPATCHVER}.patch.gz ]
 then
-  cp $CWD/patches/xserver${MAXPATCHVER}.patch unix/
+  cp $CWD/patches/xserver${MAXPATCHVER}.patch.gz unix/
 fi
 
 # Prepare the Xvnc sources (we are building out-of-tree, in ./build directory):
 mkdir -p build/unix
-cp -R unix/xserver unix/xserver${MAXPATCHVER}.patch build/unix/
+cp -R unix/xserver unix/xserver${MAXPATCHVER}.patch.gz build/unix/
 cp -R ../xorg-server-${XORG}/* build/unix/xserver/
 
 cd build/unix/xserver/
   # Patch the xorg-server source to include building vnc driver:
-  cat ../xserver${MAXPATCHVER}.patch | patch -p1 --verbose
+  zcat ../xserver${MAXPATCHVER}.patch.gz | patch -p1 --verbose
+
   echo -e "\n*** Building vnc server ***\n"
   autoreconf -vif
 

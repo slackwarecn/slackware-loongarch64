@@ -57,7 +57,9 @@ gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff
+gzip ./source/d/rust/hack.diff
 gzip ./source/d/rust/link_libffi.diff
+gzip ./source/d/rust/0001-WIP-minimize-the-rust-std-component.patch
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
@@ -1032,9 +1034,11 @@ gzip ./source/l/qca/Add_support_for_OpenSSL_1.1.0.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-thunderbird/thunderbird-rust-1.39.x.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/unbreakdocs.diff
+gzip ./source/xap/mozilla-thunderbird/firefox.node.py.patch
 gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff
@@ -1148,6 +1152,8 @@ gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/unbreakdocs.diff
+gzip ./source/xap/mozilla-firefox/firefox-rust-1.39.x.patch
+gzip ./source/xap/mozilla-firefox/firefox.node.py.patch
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/x/liberation-fonts-ttf/doinst.sh
@@ -1212,9 +1218,6 @@ gzip ./source/x/libglvnd/patches/update-gl-h-to-match-mesa.patch
 gzip ./source/x/libglvnd/patches/193.patch
 gzip ./source/x/libglvnd/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff
-gzip ./testing/source/rust/hack.diff
-gzip ./testing/source/rust/link_libffi.diff
-gzip ./testing/source/rust/0001-WIP-minimize-the-rust-std-component.patch
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

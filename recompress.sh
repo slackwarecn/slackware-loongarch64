@@ -175,6 +175,7 @@ gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/genpower/genpower.halt.diff
 gzip ./source/a/genpower/genpower.var.diff
 gzip ./source/a/glibc-zoneinfo/doinst.sh
+gzip ./source/a/efibootmgr/f862d860103511ae953cc2dd1283e1e95bf00376.patch
 gzip ./source/a/minicom/lrzsz_0.12.21-5.diff
 gzip ./source/a/minicom/config.sub-x86_64.diff
 gzip ./source/a/minicom/doinst.sh

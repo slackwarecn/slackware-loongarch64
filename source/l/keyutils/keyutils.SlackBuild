@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=keyutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -90,6 +90,12 @@ find . \
 #make install DESTDIR=$PKG || exit 1
 make LIBDIR=/lib${LIBDIRSUFFIX} USRLIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man $NUMJOBS || make || exit 1
 make install LIBDIR=/lib${LIBDIRSUFFIX} USRLIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man DESTDIR=$PKG || exit 1
+
+# Move the pkgconfig directory to /usr/lib${LIBDIRSUFFIX}:
+mv $PKG/lib${LIBDIRSUFFIX}/pkgconfig $PKG/usr/lib${LIBDIRSUFFIX} || exit 1
+
+# Don't package the static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
 # Strip binaries:
 ( cd $PKG

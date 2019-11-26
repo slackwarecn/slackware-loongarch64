@@ -691,7 +691,11 @@ gzip ./source/ap/slackpkg/files/dialog-functions.sh
 gzip ./source/ap/slackpkg/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
 gzip ./source/ap/ksh93/ksh93.use.clang.for.tests.diff
-gzip ./source/ap/xfsdump/xfsdump.xfsprogs-5.2.1.diff
+gzip ./source/ap/xfsdump/0005-xfsdump.xfsprogs-5.3.0.xfs_fsop_bulkreq_t.patch
+gzip ./source/ap/xfsdump/0002-xfsdump.xfsprogs-5.3.0.xfs_bstat_t.patch
+gzip ./source/ap/xfsdump/0001-xfsdump.xfsprogs-5.3.0.xfs_fsop_geom_v1_t.patch
+gzip ./source/ap/xfsdump/0004-xfsdump.xfsprogs-5.3.0.xfs_inogrp_t.patch
+gzip ./source/ap/xfsdump/0003-xfsdump.xfsprogs-5.3.0.UUID_STR_LEN.patch
 gzip ./source/ap/dc3dd/dc3dd.glibc228.diff
 gzip ./source/ap/flac/flac.man.diff
 gzip ./source/ap/sqlite/COPYRIGHT

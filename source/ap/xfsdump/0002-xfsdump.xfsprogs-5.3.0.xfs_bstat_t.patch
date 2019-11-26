@@ -1,0 +1,660 @@
+--- ./dump/content.c.orig	2017-09-21 16:21:55.000000000 -0500
++++ ./dump/content.c	2019-11-26 13:21:05.434817390 -0600
+@@ -262,30 +262,30 @@
+ /* file dumpers
+  */
+ static rv_t dump_dirs( ix_t strmix,
+-		       xfs_bstat_t *bstatbufp,
++		       struct xfs_bstat *bstatbufp,
+ 		       size_t bstatbuflen,
+ 		       void *inomap_contextp );
+ static rv_t dump_dir( ix_t strmix,
+ 		      jdm_fshandle_t *,
+ 		      int,
+-		      xfs_bstat_t * );
++		      struct xfs_bstat * );
+ static rv_t dump_file( void *,
+ 		       jdm_fshandle_t *,
+ 		       int,
+-		       xfs_bstat_t * );
++		       struct xfs_bstat * );
+ static rv_t dump_file_reg( drive_t *drivep,
+ 			   context_t *contextp,
+ 			   content_inode_hdr_t *scwhdrp,
+ 			   jdm_fshandle_t *,
+-			   xfs_bstat_t *,
++			   struct xfs_bstat *,
+ 			   bool_t *);
+ static rv_t dump_file_spec( drive_t *drivep,
+ 			    context_t *contextp,
+ 			    jdm_fshandle_t *,
+-			    xfs_bstat_t * );
++			    struct xfs_bstat * );
+ static rv_t dump_filehdr( drive_t *drivep,
+ 			  context_t *contextp,
+-			  xfs_bstat_t *,
++			  struct xfs_bstat *,
+ 			  off64_t,
+ 			  int );
+ static rv_t dump_extenthdr( drive_t *drivep,
+@@ -296,18 +296,18 @@
+ 			    off64_t );
+ static rv_t dump_dirent( drive_t *drivep,
+ 			 context_t *contextp,
+-			 xfs_bstat_t *,
++			 struct xfs_bstat *,
+ 			 xfs_ino_t,
+ 			 gen_t,
+ 			 char *,
+ 			 size_t );
+ static rv_t init_extent_group_context( jdm_fshandle_t *,
+-				       xfs_bstat_t *,
++				       struct xfs_bstat *,
+ 				       extent_group_context_t * );
+ static void cleanup_extent_group_context( extent_group_context_t * );
+ static rv_t dump_extent_group( drive_t *drivep,
+ 			       context_t *contextp,
+-			       xfs_bstat_t *,
++			       struct xfs_bstat *,
+ 			       extent_group_context_t *,
+ 			       off64_t,
+ 			       off64_t,
+@@ -352,15 +352,15 @@
+ static rv_t dump_extattrs( drive_t *drivep,
+ 			   context_t *contextp,
+ 	       		   jdm_fshandle_t *fshandlep,
+-			   xfs_bstat_t *statp);
++			   struct xfs_bstat *statp);
+ static rv_t dump_extattr_list( drive_t *drivep,
+ 			       context_t *contextp,
+ 	       		       jdm_fshandle_t *fshandlep,
+-			       xfs_bstat_t *statp,
++			       struct xfs_bstat *statp,
+ 			       attrlist_t *listp,
+ 			       int flag,
+ 			       bool_t *abortprp );
+-static char *dump_extattr_buildrecord( xfs_bstat_t *statp,
++static char *dump_extattr_buildrecord( struct xfs_bstat *statp,
+ 				       char *dumpbufp,
+ 				       char *dumpbufendp,
+ 				       char *namesrcp,
+@@ -369,7 +369,7 @@
+ 				       char **valuepp );
+ static rv_t dump_extattrhdr( drive_t *drivep,
+ 			     context_t *contextp,
+-			     xfs_bstat_t *statp,
++			     struct xfs_bstat *statp,
+ 			     size_t recsz,
+ 			     size_t valoff,
+ 			     ix_t flags,
+@@ -432,7 +432,7 @@
+ static int sc_fsfd = -1;
+ 	/* open file descriptor for root directory
+ 	 */
+-static xfs_bstat_t *sc_rootxfsstatp = 0;
++static struct xfs_bstat *sc_rootxfsstatp = 0;
+ 	/* pointer to loaded bulkstat for root directory
+ 	 */
+ static startpt_t *sc_startptp = 0;
+@@ -1382,7 +1382,7 @@
+ 	}
+ 
+ 	/* figure out the ino for the root directory of the fs
+-	 * and get its xfs_bstat_t for inomap_build().  This could
++	 * and get its struct xfs_bstat for inomap_build().  This could
+ 	 * be a bind mount; don't ask for the mount point inode,
+ 	 * find the actual lowest inode number in the filesystem.
+ 	 */
+@@ -1401,7 +1401,7 @@
+ 			return BOOL_FALSE;
+ 		}
+ 		sc_rootxfsstatp =
+-			( xfs_bstat_t * )calloc( 1, sizeof( xfs_bstat_t ));
++			( struct xfs_bstat * )calloc( 1, sizeof( struct xfs_bstat ));
+ 		assert( sc_rootxfsstatp );
+ 
+ 		/* Get the first valid (i.e. root) inode in this fs */
+@@ -2119,7 +2119,7 @@
+ 	bool_t empty_mediafile;
+ 	time_t elapsed;
+ 	inv_stmtoken_t inv_stmt;
+-	xfs_bstat_t *bstatbufp;
++	struct xfs_bstat *bstatbufp;
+ 	const size_t bstatbuflen = BSTATBUFLEN;
+ 	int rval;
+ 	rv_t rv;
+@@ -2130,8 +2130,8 @@
+ 
+ 	/* allocate a buffer for use by bstat_iter
+ 	 */
+-	bstatbufp = ( xfs_bstat_t * )calloc( bstatbuflen,
+-					     sizeof( xfs_bstat_t ));
++	bstatbufp = ( struct xfs_bstat * )calloc( bstatbuflen,
++					     sizeof( struct xfs_bstat ));
+ 	assert( bstatbufp );
+ 
+ 	/* allocate an inomap context */
+@@ -2806,7 +2806,7 @@
+ 
+ static rv_t
+ dump_dirs( ix_t strmix,
+-	   xfs_bstat_t *bstatbufp,
++	   struct xfs_bstat *bstatbufp,
+ 	   size_t bstatbuflen,
+ 	   void *inomap_contextp )
+ {
+@@ -2820,8 +2820,8 @@
+ 	 */
+ 	lastino = 0;
+ 	for ( bulkstatcallcnt = 0 ; ; bulkstatcallcnt++ ) {
+-		xfs_bstat_t *p;
+-		xfs_bstat_t *endp;
++		struct xfs_bstat *p;
++		struct xfs_bstat *endp;
+ 		__s32 buflenout;
+ 		int rval;
+ 
+@@ -2928,7 +2928,7 @@
+ dump_dir( ix_t strmix,
+ 	  jdm_fshandle_t *fshandlep,
+ 	  int fsfd,
+-	  xfs_bstat_t *statp )
++	  struct xfs_bstat *statp )
+ {
+ 	context_t *contextp = &sc_contextp[ strmix ];
+ 	drive_t *drivep = drivepp[ strmix ];
+@@ -3110,7 +3110,7 @@
+ 			 * if it's not there, we have to get it the slow way.
+ 			 */
+ 			if ( inomap_get_gen( NULL, p->d_ino, &gen) ) {
+-				xfs_bstat_t statbuf;
++				struct xfs_bstat statbuf;
+ 				int scrval;
+ 				
+ 				scrval = bigstat_one( fsfd,
+@@ -3169,7 +3169,7 @@
+ dump_extattrs( drive_t *drivep,
+ 	       context_t *contextp,
+ 	       jdm_fshandle_t *fshandlep,
+-	       xfs_bstat_t *statp)
++	       struct xfs_bstat *statp)
+ {
+ 	ix_t pass;
+ 	int flag;
+@@ -3269,7 +3269,7 @@
+ dump_extattr_list( drive_t *drivep,
+ 		   context_t *contextp,
+ 		   jdm_fshandle_t *fshandlep,
+-		   xfs_bstat_t *statp,
++		   struct xfs_bstat *statp,
+ 		   attrlist_t *listp,
+ 		   int flag,
+ 		   bool_t *abortprp )
+@@ -3572,7 +3572,7 @@
+ }
+ 
+ static char *
+-dump_extattr_buildrecord( xfs_bstat_t *statp,
++dump_extattr_buildrecord( struct xfs_bstat *statp,
+ 			  char *dumpbufp,
+ 			  char *dumpbufendp,
+ 			  char *namesrcp,
+@@ -3655,7 +3655,7 @@
+ static rv_t
+ dump_extattrhdr( drive_t *drivep,
+ 		 context_t *contextp,
+-		 xfs_bstat_t *statp,
++		 struct xfs_bstat *statp,
+ 		 size_t recsz,
+ 		 size_t valoff,
+ 		 ix_t flags,
+@@ -3712,7 +3712,7 @@
+ dump_file( void *arg1,
+ 	   jdm_fshandle_t *fshandlep,
+ 	   int fsfd,
+-	   xfs_bstat_t *statp )
++	   struct xfs_bstat *statp )
+ {
+ 	ix_t strmix = ( ix_t )arg1;
+ 	context_t *contextp = &sc_contextp[ strmix ];
+@@ -3942,7 +3942,7 @@
+ 	       context_t *contextp,
+ 	       content_inode_hdr_t *scwhdrp,
+ 	       jdm_fshandle_t *fshandlep,
+-	       xfs_bstat_t *statp,
++	       struct xfs_bstat *statp,
+ 	       bool_t *file_skippedp )
+ {
+ 	startpt_t *startptp = &scwhdrp->cih_startpt;
+@@ -4163,7 +4163,7 @@
+ dump_file_spec( drive_t *drivep,
+ 		context_t *contextp,
+ 		jdm_fshandle_t *fshandlep,
+-		xfs_bstat_t *statp )
++		struct xfs_bstat *statp )
+ {
+ 	int rval;
+ 	rv_t rv;
+@@ -4277,7 +4277,7 @@
+  */
+ static rv_t
+ init_extent_group_context( jdm_fshandle_t *fshandlep,
+-			   xfs_bstat_t *statp,
++			   struct xfs_bstat *statp,
+ 			   extent_group_context_t *gcp )
+ {
+ 	bool_t isrealtime;
+@@ -4340,7 +4340,7 @@
+ static rv_t
+ dump_extent_group( drive_t *drivep,
+ 		   context_t *contextp,
+-		   xfs_bstat_t *statp,
++		   struct xfs_bstat *statp,
+ 		   extent_group_context_t *gcp,
+ 		   off64_t maxcnt,
+ 		   off64_t stopoffset,
+@@ -4932,7 +4932,7 @@
+ 
+ /* Note: assumes the pad fields in dst have been zeroed. */
+ static void
+-copy_xfs_bstat(bstat_t *dst, xfs_bstat_t *src)
++copy_xfs_bstat(bstat_t *dst, struct xfs_bstat *src)
+ {
+ 	dst->bs_ino = src->bs_ino;
+ 	dst->bs_mode = src->bs_mode;
+@@ -4963,7 +4963,7 @@
+ static rv_t
+ dump_filehdr( drive_t *drivep,
+ 	      context_t *contextp,
+-	      xfs_bstat_t *statp,
++	      struct xfs_bstat *statp,
+ 	      off64_t offset,
+ 	      int flags )
+ {
+@@ -5086,7 +5086,7 @@
+ static rv_t
+ dump_dirent( drive_t *drivep,
+ 	     context_t *contextp,
+-	     xfs_bstat_t *statp,
++	     struct xfs_bstat *statp,
+ 	     xfs_ino_t ino,
+ 	     gen_t gen,
+ 	     char *name,
+--- ./dump/inomap.c.orig	2017-08-18 17:54:06.000000000 -0500
++++ ./dump/inomap.c	2019-11-26 13:21:05.442817390 -0600
+@@ -81,7 +81,7 @@
+ static void cb_context_free( void );
+ static int cb_count_inogrp( void *, int, xfs_inogrp_t *);
+ static int cb_add_inogrp( void *, int, xfs_inogrp_t * );
+-static int cb_add( void *, jdm_fshandle_t *, int, xfs_bstat_t * );
++static int cb_add( void *, jdm_fshandle_t *, int, struct xfs_bstat * );
+ static bool_t cb_inoinresumerange( xfs_ino_t );
+ static bool_t cb_inoresumed( xfs_ino_t );
+ static void cb_accuminit_sz( void );
+@@ -89,14 +89,14 @@
+ static int cb_startpt( void *,
+ 			    jdm_fshandle_t *,
+ 			    int,
+-			    xfs_bstat_t * );
++			    struct xfs_bstat * );
+ static int supprt_prune( void *,
+ 			      jdm_fshandle_t *,
+ 			      int,
+-			      xfs_bstat_t *,
++			      struct xfs_bstat *,
+ 			      char * );
+-static off64_t quantity2offset( jdm_fshandle_t *, xfs_bstat_t *, off64_t );
+-static off64_t estimate_dump_space( xfs_bstat_t * );
++static off64_t quantity2offset( jdm_fshandle_t *, struct xfs_bstat *, off64_t );
++static off64_t estimate_dump_space( struct xfs_bstat * );
+ 
+ /* inomap primitives
+  */
+@@ -110,16 +110,16 @@
+ static int subtree_descend_cb( void *,
+ 				    jdm_fshandle_t *,
+ 				    int fsfd,
+-				    xfs_bstat_t *,
++				    struct xfs_bstat *,
+ 				    char * );
+ static int subtreelist_parse_cb( void *,
+ 				      jdm_fshandle_t *,
+ 				      int fsfd,
+-				      xfs_bstat_t *,
++				      struct xfs_bstat *,
+ 				      char * );
+ static int subtreelist_parse( jdm_fshandle_t *,
+ 				   int,
+-				   xfs_bstat_t *,
++				   struct xfs_bstat *,
+ 				   char *[],
+ 				   ix_t );
+ 
+@@ -144,7 +144,7 @@
+ bool_t
+ inomap_build( jdm_fshandle_t *fshandlep,
+ 	      int fsfd,
+-	      xfs_bstat_t *rootstatp,
++	      struct xfs_bstat *rootstatp,
+ 	      bool_t last,
+ 	      time32_t lasttime,
+ 	      bool_t resume,
+@@ -161,7 +161,7 @@
+ 	      size64_t statcnt,
+ 	      size64_t *statdonep )
+ {
+-	xfs_bstat_t *bstatbufp;
++	struct xfs_bstat *bstatbufp;
+ 	size_t bstatbuflen;
+ 	bool_t pruneneeded = BOOL_FALSE;
+ 	int igrpcnt = 0;
+@@ -185,10 +185,10 @@
+ 	/* allocate a bulkstat buf
+ 	 */
+ 	bstatbuflen = BSTATBUFLEN;
+-	bstatbufp = ( xfs_bstat_t * )memalign( pgsz,
++	bstatbufp = ( struct xfs_bstat * )memalign( pgsz,
+ 					       bstatbuflen
+ 					       *
+-					       sizeof( xfs_bstat_t ));
++					       sizeof( struct xfs_bstat ));
+ 	assert( bstatbufp );
+ 
+ 	/* count the number of inode groups, which will serve as a
+@@ -505,7 +505,7 @@
+ cb_add( void *arg1,
+ 	jdm_fshandle_t *fshandlep,
+ 	int fsfd,
+-	xfs_bstat_t *statp )
++	struct xfs_bstat *statp )
+ {
+ 	register time32_t mtime = statp->bs_mtime.tv_sec;
+ 	register time32_t ctime = statp->bs_ctime.tv_sec;
+@@ -691,7 +691,7 @@
+ supprt_prune( void *arg1,	/* ancestors marked as changed? */
+ 	      jdm_fshandle_t *fshandlep,
+ 	      int fsfd,
+-	      xfs_bstat_t *statp,
++	      struct xfs_bstat *statp,
+ 	      char *name )
+ {
+ 	static bool_t cbrval = BOOL_FALSE;
+@@ -812,7 +812,7 @@
+ cb_startpt( void *arg1,
+ 	    jdm_fshandle_t *fshandlep,
+ 	    int fsfd,
+-	    xfs_bstat_t *statp )
++	    struct xfs_bstat *statp )
+ {
+ 	register int state;
+ 
+@@ -1472,7 +1472,7 @@
+ static int
+ subtreelist_parse( jdm_fshandle_t *fshandlep,
+ 		   int fsfd,
+-		   xfs_bstat_t *rootstatp,
++		   struct xfs_bstat *rootstatp,
+ 		   char *subtreebuf[],
+ 		   ix_t subtreecnt )
+ {
+@@ -1513,7 +1513,7 @@
+ subtreelist_parse_cb( void *arg1,
+ 		      jdm_fshandle_t *fshandlep,
+ 		      int fsfd,
+-		      xfs_bstat_t *statp,
++		      struct xfs_bstat *statp,
+ 		      char *name  )
+ {
+ 	int cbrval = 0;
+@@ -1596,7 +1596,7 @@
+ subtree_descend_cb( void *arg1,
+ 		    jdm_fshandle_t *fshandlep,
+ 		    int fsfd,
+-		    xfs_bstat_t *statp,
++		    struct xfs_bstat *statp,
+ 		    char *name  )
+ {
+ 	int cbrval = 0;
+@@ -1624,7 +1624,7 @@
+ #define BMAP_LEN	512
+ 
+ static off64_t
+-quantity2offset( jdm_fshandle_t *fshandlep, xfs_bstat_t *statp, off64_t qty )
++quantity2offset( jdm_fshandle_t *fshandlep, struct xfs_bstat *statp, off64_t qty )
+ {
+ 	int fd;
+ 	getbmapx_t bmap[ BMAP_LEN ];
+@@ -1699,7 +1699,7 @@
+ 
+ 
+ static off64_t
+-estimate_dump_space( xfs_bstat_t *statp )
++estimate_dump_space( struct xfs_bstat *statp )
+ {
+ 	switch ( statp->bs_mode & S_IFMT ) {
+ 	case S_IFREG:
+--- ./common/content_inode.h.orig	2017-09-21 16:21:55.000000000 -0500
++++ ./common/content_inode.h	2019-11-26 13:21:05.397817393 -0600
+@@ -150,8 +150,8 @@
+ 
+ /* bstat_t - bulk stat structure
+  *
+- * used in filehdr_t below. derived from xfs_bstat_t, to achieve independence
+- * from changes to xfs_bstat_t. 
++ * used in filehdr_t below. derived from struct xfs_bstat, to achieve independence
++ * from changes to struct xfs_bstat. 
+  */
+ #define BSTAT_SZ	128
+ #define MODE_SZ		4
+--- ./common/hsmapi.h.orig	2015-11-10 13:40:23.000000000 -0600
++++ ./common/hsmapi.h	2019-11-26 13:21:05.391817394 -0600
+@@ -186,15 +186,15 @@
+ 
+ /******************************************************************************
+ * Name
+-*	HsmModifyInode - modify a xfs_bstat_t to make a file appear offline
++*	HsmModifyInode - modify a struct xfs_bstat to make a file appear offline
+ *
+ * Description
+ *	HsmModifyInode uses the context provided by a previous
+-*	HsmInitFileContext call to determine how to modify a xfs_bstat_t
++*	HsmInitFileContext call to determine how to modify a struct xfs_bstat
+ *	structure to make a dual-residency HSM file appear to be offline.
+ *
+ * Returns
+-*	!= 0, xfs_bstat_t structure was modified.
++*	!= 0, struct xfs_bstat structure was modified.
+ *	== 0, if something is wrong with the file and it should not be dumped.
+ ******************************************************************************/
+ 
+--- ./common/util.h.orig	2017-08-18 17:54:06.000000000 -0500
++++ ./common/util.h	2019-11-26 13:21:05.411817392 -0600
+@@ -87,7 +87,7 @@
+ typedef int (*bstat_cbfp_t)(void *arg1,
+ 				 jdm_fshandle_t *fshandlep,
+ 				 int fsfd,
+-				 xfs_bstat_t *statp );
++				 struct xfs_bstat *statp );
+ 
+ typedef xfs_ino_t (*bstat_seekfp_t)(void *arg1,
+ 				    xfs_ino_t lastino);
+@@ -102,12 +102,12 @@
+ 			      void * seek_arg1,
+ 			      int *statp,
+ 			      bool_t ( pfp )( int ), /* preemption chk func */
+-			      xfs_bstat_t *buf,
++			      struct xfs_bstat *buf,
+ 			      size_t buflen );
+ 
+ extern int bigstat_one( int fsfd,
+ 			     xfs_ino_t ino,
+-			     xfs_bstat_t *statp );
++			     struct xfs_bstat *statp );
+ 
+ extern int inogrp_iter( int fsfd,
+ 			     int ( * fp )( void *arg1,
+@@ -131,11 +131,11 @@
+  */
+ extern int diriter( jdm_fshandle_t *fshandlep,
+ 			 int fsfd,
+-			 xfs_bstat_t *statp,
++			 struct xfs_bstat *statp,
+ 			 int ( *cbfp )( void *arg1,
+ 					     jdm_fshandle_t *fshandlep,
+ 					     int fsfd,
+-					     xfs_bstat_t *statp,
++					     struct xfs_bstat *statp,
+ 					     char *namep ),
+ 			 void *arg1,
+ 			 int *cbrvalp,
+--- ./common/hsmapi.c.orig	2017-09-21 16:21:55.000000000 -0500
++++ ./common/hsmapi.c	2019-11-26 13:21:05.404817393 -0600
+@@ -108,7 +108,7 @@
+ #define	DM_EVENT_TRUNCATE	18
+ #define	DM_EVENT_DESTROY	20
+ 
+- /* Interesting bit combinations within the bs_dmevmask field of xfs_bstat_t:
++ /* Interesting bit combinations within the bs_dmevmask field of struct xfs_bstat:
+  * OFL, UNM, and PAR files have exactly these bits set.
+  * DUL and MIG files have all but the DM_EVENT_READ bit set */
+ #define DMF_EV_BITS	( (1<<DM_EVENT_DESTROY) | \
+@@ -270,7 +270,7 @@
+ HsmEstimateFileSpace(
+ 	hsm_fs_ctxt_t	*fscontextp,
+ 	hsm_f_ctxt_t	*fcontextp,
+-const	xfs_bstat_t	*statp,
++const	struct xfs_bstat	*statp,
+ 	off64_t		*bytes,
+ 	int		accurate)
+ {
+@@ -353,7 +353,7 @@
+ extern int
+ HsmEstimateFileOffset(
+ 	hsm_fs_ctxt_t	*contextp,
+-const	xfs_bstat_t	*statp,
++const	struct xfs_bstat	*statp,
+ 	off64_t		bytecount,
+ 	off64_t		*byteoffset)
+ {
+@@ -458,7 +458,7 @@
+ extern int
+ HsmInitFileContext(
+ 	hsm_f_ctxt_t	*contextp,
+-const	xfs_bstat_t	*statp)
++const	struct xfs_bstat	*statp)
+ {
+ 	dmf_f_ctxt_t	*dmf_f_ctxtp = (dmf_f_ctxt_t *)contextp;
+ 	XFSattrvalue0_t	*dmfattrp;
+@@ -492,7 +492,7 @@
+ 	attr_op.am_flags     = ATTR_ROOT;
+ 
+ 	error = jdm_attr_multi(dmf_f_ctxtp->fsys.fshanp,
+-			       (xfs_bstat_t *)statp,
++			       (struct xfs_bstat *)statp,
+ 			       (char *)&attr_op,
+ 			       1,
+ 			       0);
+@@ -538,22 +538,22 @@
+ 
+ /******************************************************************************
+ * Name
+-*	HsmModifyInode - modify a xfs_bstat_t to make a file appear offline
++*	HsmModifyInode - modify a struct xfs_bstat to make a file appear offline
+ *
+ * Description
+ *	HsmModifyInode uses the context provided by a previous
+-*	HsmInitFileContext call to determine how to modify a xfs_bstat_t
++*	HsmInitFileContext call to determine how to modify a struct xfs_bstat
+ *	structure to make a dual-residency HSM file appear to be offline.
+ *
+ * Returns
+-*	!= 0, xfs_bstat_t structure was modified.
++*	!= 0, struct xfs_bstat structure was modified.
+ *	== 0, if something is wrong with the file and it should not be dumped.
+ ******************************************************************************/
+ 
+ extern int
+ HsmModifyInode(
+ 	hsm_f_ctxt_t	*contextp,
+-	xfs_bstat_t	*statp)
++	struct xfs_bstat	*statp)
+ {
+ 	dmf_f_ctxt_t	*dmf_f_ctxtp = (dmf_f_ctxt_t *)contextp;
+ 
+--- ./common/util.c.orig	2015-11-10 13:40:23.000000000 -0600
++++ ./common/util.c	2019-11-26 13:21:05.418817392 -0600
+@@ -125,7 +125,7 @@
+ 	      void * seek_arg1,
+ 	      int *statp,
+ 	      bool_t ( pfp )( int ),
+-	      xfs_bstat_t *buf,
++	      struct xfs_bstat *buf,
+ 	      size_t buflenin )
+ {
+ 	__s32 buflenout;
+@@ -162,8 +162,8 @@
+ 	bulkreq.ubuffer = buf;
+ 	bulkreq.ocount = &buflenout;
+ 	while (!ioctl(fsfd, XFS_IOC_FSBULKSTAT, &bulkreq)) {
+-		xfs_bstat_t *p;
+-		xfs_bstat_t *endp;
++		struct xfs_bstat *p;
++		struct xfs_bstat *endp;
+ 
+ 		if ( buflenout == 0 ) {
+ 			mlog( MLOG_NITTY + 1,
+@@ -254,7 +254,7 @@
+ int
+ bigstat_one( int fsfd,
+ 	     xfs_ino_t ino,
+-	     xfs_bstat_t *statp )
++	     struct xfs_bstat *statp )
+ {
+         xfs_fsop_bulkreq_t bulkreq;
+ 	int count = 0;
+@@ -339,11 +339,11 @@
+ int
+ diriter( jdm_fshandle_t *fshandlep,
+ 	 int fsfd,
+-	 xfs_bstat_t *statp,
++	 struct xfs_bstat *statp,
+ 	 int ( *cbfp )( void *arg1,
+ 			     jdm_fshandle_t *fshandlep,
+ 			     int fsfd,
+-			     xfs_bstat_t *statp,
++			     struct xfs_bstat *statp,
+ 			     char *namep ),
+ 	 void *arg1,
+ 	 int *cbrvalp,
+@@ -428,7 +428,7 @@
+ 		      assert( nread >= 0 ),
+ 		      p = ( struct dirent * )( ( char * )p + reclen ),
+ 		      reclen = ( size_t )p->d_reclen ) {
+-			xfs_bstat_t statbuf;
++			struct xfs_bstat statbuf;
+ 			assert( scrval == 0 );
+ 			assert( cbrval == 0 );
+ 
+--- ./doc/xfsdump.html.orig	2017-09-21 16:21:55.000000000 -0500
++++ ./doc/xfsdump.html	2019-11-26 13:21:05.425817391 -0600
+@@ -513,9 +513,9 @@
+       - bigstat_init on cb_add()
+ 	  - loops doing bulkstats (using syssgi() or ioctl())
+ 	    until system call returns non-zero value
+-	  - each bulkstat returns a buffer of xfs_bstat_t records
++	  - each bulkstat returns a buffer of struct xfs_bstat records
+ 	    (buffer of size bulkreq.ocount)
+-	  - loop thru each xfs_bstat_t record for an inode  
++	  - loop thru each struct xfs_bstat record for an inode  
+ 	    calling cb_add()
+ 	  * cb_add
+ 	    - looks at latest mtime|ctime and 
+@@ -629,7 +629,7 @@
+         * dump_filehdr()
+           - write out 256 padded file header
+           - header = &lt;offset, flags, checksum, 128-byte bulk stat structure &gt;
+-          - bulkstat struct derived from xfs_bstat_t 
++          - bulkstat struct derived from struct xfs_bstat 
+             - stnd. stat stuff + extent size, #of extents, DMI stuff
+           - if HSM context then 
+             - modify bstat struct to make it offline

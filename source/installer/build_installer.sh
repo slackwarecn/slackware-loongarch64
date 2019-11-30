@@ -659,7 +659,7 @@ install -m644 $BUSYBOXCFG .config
 make $SILENTMAKE $NUMJOBS CFLAGS="$SLKCFLAGS" || exit 1
 
 # Install into package framework:
-make $SILENTMAKE install || exit 1
+make $SILENTMAKE $NUMJOBS install || exit 1
 cd _install
 
 # Since Slackware 's installer uses the 'date' from coreutils, and 'zcat'

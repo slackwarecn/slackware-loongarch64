@@ -3,7 +3,7 @@
 # Build and package mod_php on Slackware.
 # by:  David Cantrell <david@slackware.com>
 # Modified for PHP 4-5 by volkerdi@slackware.com
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2019  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -110,14 +110,6 @@ cd php-$VERSION || exit 1
 # cleanup:
 find . -name "*.orig" -delete
 
-# Add missing(?) PEAR modules back:
-if [ -d php-$VERSION/pear/packages ]; then
-  ( cd php-$VERSION/pear/packages
-    cp -a $CWD/pear/*.bz2 . 2> /dev/null
-    bzip2 -d *.bz2 2> /dev/null
-  )
-fi
-
 if [ "$ARCH" = "s390" ]; then
   zcat $CWD/php.configure.s390.diff.gz | patch -p1 || exit
 fi
@@ -176,16 +168,16 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
   --with-config-file-path=/etc \
   --with-layout=PHP \
   --disable-sigchild \
-  --enable-xml \
-  --with-libxml-dir=/usr \
+  --with-libxml \
   --with-xmlrpc=shared \
+  --with-expat \
   --enable-simplexml \
   --enable-xmlreader=shared \
   --enable-dom=shared \
   --enable-filter \
   --disable-debug \
   --with-openssl=shared \
-  --with-pcre-regex=/usr \
+  --with-external-pcre \
   --with-zlib=shared,/usr \
   --enable-bcmath=shared \
   --with-bz2=shared,/usr \
@@ -197,12 +189,11 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
   --with-db4=/usr \
   --enable-exif=shared \
   --enable-ftp=shared \
-  --with-gd=shared \
-  --with-jpeg-dir=/usr \
-  --with-png-dir=/usr \
-  --with-zlib-dir=/usr \
-  --with-xpm-dir=/usr \
-  --with-freetype-dir=/usr \
+  --enable-gd \
+  --with-external-gd \
+  --with-jpeg \
+  --with-xpm \
+  --with-freetype \
   --with-gettext=shared,/usr \
   --with-gmp=shared,/usr \
   --with-iconv=shared \
@@ -210,7 +201,6 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
   --with-imap=$IMAPLIBDIR \
   --with-ldap=shared \
   --enable-mbstring=shared \
-  --enable-hash \
   --enable-mysqlnd=shared \
   --with-mysqli=shared,mysqlnd \
   --with-mysql-sock=/var/run/mysql/mysql.sock \
@@ -229,9 +219,8 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
   --enable-sysvmsg \
   --enable-sysvsem \
   --enable-sysvshm \
-  --enable-wddx=shared \
   --with-xsl=shared,/usr \
-  --enable-zip=shared \
+  --with-zip \
   --with-tsrm-pthreads \
   --enable-intl=shared \
   --enable-opcache \
@@ -244,6 +233,7 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
   --with-password-argon2 \
   --without-readline \
   --with-libedit \
+  --with-pear \
   --build=$ARCH-slackware-linux || exit 1
 
 # I am told this option is worse than nothing.  :-)
@@ -281,15 +271,11 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/php/extensions/*.a
 
 mkdir -p $PKG/usr/doc/php-$VERSION
 cp -a \
-  CODING_STANDARDS CREDITS EXTENSIONS INSTALL LICENSE NEWS README* TODO* UPGRADING* \
-  sapi/cgi/README.FastCGI \
+  CODING_STANDARDS* CONTRIBUTING* EXTENSIONS* LICENSE* NEWS* README* UPGRADING* \
   $PKG/usr/doc/php-$VERSION
-chown -R root:root $PKG/usr/doc/php-$VERSION
-chmod 644 $PKG/usr/doc/php-$VERSION/UPGRADING*
 
 mkdir -p $PKG/etc/httpd
-cat $CWD/mod_php.conf.example | sed -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" \
-  > $PKG/etc/httpd/mod_php.conf.new
+cat $CWD/mod_php.conf.example | sed -e "s#lib/httpd#lib${LIBDIRSUFFIX}/httpd#" > $PKG/etc/httpd/mod_php.conf.new
 chmod 644 $PKG/etc/httpd/*
 chown root:root $PKG/etc/httpd/*
 

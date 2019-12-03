@@ -591,6 +591,7 @@ gzip ./source/n/dhcp/doinst.sh
 gzip ./source/n/proftpd/doinst.sh
 gzip ./source/n/dnsmasq/rc.dnsmasq
 gzip ./source/n/dnsmasq/dnsmasq.leasedir.diff
+gzip ./source/n/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch
 gzip ./source/n/dnsmasq/doinst.sh
 gzip ./source/n/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/n/cyrus-sasl/rc.saslauthd

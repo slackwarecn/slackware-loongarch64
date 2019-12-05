@@ -926,6 +926,7 @@ gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/desktop-file-utils/doinst.sh
 gzip ./source/l/desktop-file-utils/desktop-file-utils.quiet.warnings.diff
 gzip ./source/l/fuse3/doinst.sh
+gzip ./source/l/fuse3/rc.fuse3.no.source.lsb.init-functions.diff
 gzip ./source/l/mozjs52/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs52/patches/disable-mozglue.patch
 gzip ./source/l/mozjs52/patches/fix-soname.patch
@@ -1085,6 +1086,7 @@ gzip ./source/xap/gnuplot/gnuplot.fix.info.generation.diff
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
 gzip ./source/xap/windowmaker/wmaker.inst.diff
 gzip ./source/xap/windowmaker/xinitrc.wmaker
+gzip ./source/xap/gv/gv-bz1536211.patch
 gzip ./source/xap/gv/gv-bounding-box.patch
 gzip ./source/xap/gv/gv-dat.patch
 gzip ./source/xap/gv/gv-resource.patch

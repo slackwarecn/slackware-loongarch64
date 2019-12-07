@@ -186,10 +186,10 @@ list_lvm() {
 
 # List any volumes created by cryptsetup
 list_crypt() {
-  for i in $(ls /dev/mapper/); do
-    if cryptsetup status $i 2>/dev/null | grep "is active" 1>/dev/null ; then
-      DEV=$(cryptsetup status $i 2>/dev/null | grep "is active" | cut -f1 -d' ')
-      SIZE=$(fdisk -s $(cryptsetup status $i 2>/dev/null | grep "device:" | cut -f2 -d: | tr -d ' '))
+  for i in $(/bin/ls /dev/mapper/); do
+    if cryptsetup status $i 2>/dev/null | grep -wq "cipher:" ; then
+      DEV=$(cryptsetup status $i | head -n 1 | cut -f 1 -d ' ')
+      SIZE=$(fdisk -s $(cryptsetup status $i | grep "device:" | cut -f 2 -d : | tr -d ' '))
       echo "$DEV  0  0  $SIZE  lc  Linux" >> $TMP/SeTfdisk
     fi
   done

@@ -1911,7 +1911,7 @@ sync
 umount ${CWD}/usbmount
 syslinux ${CWD}/usbboot.img
 
-#Clean up:
+# Clean up:
 rm -rf ${CWD}/usbmount
 
 }

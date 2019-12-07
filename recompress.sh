@@ -1109,6 +1109,7 @@ gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff
+gzip ./source/xap/xlockmore/xlockmore.gltrackball_init.diff
 gzip ./source/xap/xsane/xsane-0.999-7-autoconf.patch
 gzip ./source/xap/xsane/xsane-0.999-lcms2.patch
 gzip ./source/xap/xsane/xsane-0.999-snprintf-update.patch
@@ -1213,10 +1214,7 @@ gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-head
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
-gzip ./source/x/libglvnd/patches/6f52473dac08c44b081b792874b4ce73122096da.patch
-gzip ./source/x/libglvnd/patches/update-gl-h-to-match-mesa.patch
 gzip ./source/x/libglvnd/patches/193.patch
-gzip ./source/x/libglvnd/patches/51233cc52cbcbe25f8461830913c06f5b5bc9508.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh

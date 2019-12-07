@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=shadow
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -96,6 +96,8 @@ fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --sbindir=/usr/sbin \
+  --bindir=/usr/bin \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --docdir=/usr/doc/shadow-$VERSION \
@@ -113,6 +115,19 @@ make install DESTDIR=$PKG || exit 1
 # Fix user group = 100:
 zcat $CWD/useradd.gz > $PKG/etc/default/useradd
 mv $PKG/etc/default/useradd $PKG/etc/default/useradd.new
+
+# Put some stuff back in "old" locations and make symlinks for compat
+mkdir -p $PKG/bin $PKG/sbin
+( cd $PKG/usr/bin
+  mv groups ../../bin
+  mv login ../../bin
+  mv su ../../bin
+  mv faillog ../sbin
+  mv lastlog ../sbin
+  ln -s ../sbin/faillog
+  ln -s ../sbin/lastlog
+)
+mv $PKG/usr/sbin/nologin $PKG/sbin/nologin
 
 # /bin/groups is provided by coreutils.
 rm -f $PKG/bin/groups
@@ -143,14 +158,6 @@ cp -a src/sulogin $PKG/sbin
 # Add the empty faillog log file:
 mkdir -p $PKG/var/log
 touch $PKG/var/log/faillog.new
-
-# Put some stuff back in "old" locations and make symlinks for compat
-( cd $PKG/usr/bin
-  mv faillog ../sbin
-  mv lastlog ../sbin
-  ln -s ../sbin/faillog
-  ln -s ../sbin/lastlog
-)
 
 # Use 4711 rather than 4755 permissions where setuid root is required:
 find $PKG -type f -perm 4755 -exec chmod 4711 "{}" \+

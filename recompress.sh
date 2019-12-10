@@ -633,6 +633,7 @@ gzip ./source/ap/a2ps/a2ps.a2ps_cfg.in.diff
 gzip ./source/ap/a2ps/a2ps-4.14-texinfo-nodes.patch
 gzip ./source/ap/a2ps/a2ps.diff
 gzip ./source/ap/a2ps/a2ps-texi-comments.patch
+gzip ./source/ap/a2ps/a2ps.texinfo-6.7.patch
 gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/madplay/madplay-0.15.2b-fix-segfault.patch
 gzip ./source/ap/zsh/doinst.sh

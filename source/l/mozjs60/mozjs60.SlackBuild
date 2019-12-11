@@ -3,6 +3,7 @@
 # Slackware build script for SpiderMonkey
 
 # Copyright 2011, 2018  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,10 +25,10 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=mozjs52
+PKGNAM=mozjs60
 SRCNAME=firefox
-VERSION=52.9.0esr
-BUILD=${BUILD:-2}
+VERSION=60.9.0esr
+BUILD=${BUILD:-1}
 
 
 # Automatically determine the architecture we're building on:
@@ -70,7 +71,7 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $SRCNAME-$VERSION
+rm -rf $SRCNAME-$VERSION ; rm -rf $SRCNAME-$(echo $VERSION | cut -f 1 -d e)
 # Unpack this in a subdirectory to prevent changing permissions on /tmp:
 rm -rf firefox-unpack
 mkdir firefox-unpack
@@ -79,7 +80,7 @@ tar xvf $CWD/$SRCNAME-$VERSION.source.tar.?z || exit 1
 mv * ..
 cd ..
 rm -rf firefox-unpack
-cd $SRCNAME-$VERSION || exit 1
+cd $SRCNAME-$(echo $VERSION | cut -f 1 -d e) || cd $SRCNAME-$VERSION || exit 1
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -91,20 +92,23 @@ find . \
 ( cd $CWD/autoconf ; ./autoconf.build )
 PATH=$TMP/autoconf-tmp/usr/bin:$PATH
 
-# Patches from Debian:
+# Patches from Fedora:
 zcat $CWD/patches/fix-soname.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/patches/copy-headers.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/patches/tests-increase-timeout.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/tests-snans-be.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/disable-mozglue.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/include-configure-script.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/Always-use-the-equivalent-year-to-determine-the-time-zone.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/icu_sources_data.py-Decouple-from-Mozilla-build-system.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/icu_sources_data-Write-command-output-to-our-stderr.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/tests-For-tests-that-are-skipped-on-64-bit-mips64-is-also.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/emitter.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/emitter_test.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/init_patch.patch.gz | patch -p1 --verbose || exit 1
 
-# Patches from Fedora:
-zcat $CWD/patches/xulrunner-24.0-jemalloc-ppc.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/xulrunner-24.0-s390-inlines.patch.gz | patch -p2 --verbose || exit 1
+# DON'T APPLY THIS ONE UNLESS YOU ENJOY A FAILED COMPILE:
 #zcat $CWD/patches/build-icu-big-endian.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/build-missing-xlocale-h.patch.gz | patch -p2 --verbose || exit 1
-zcat $CWD/patches/mozilla-1253216.patch.gz | patch -p1 --verbose || exit 1
+
+zcat $CWD/patches/Save-x28-before-clobbering-it-in-the-regex-compiler.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/Save-and-restore-non-volatile-x28-on-ARM64-for-generated-unboxed-object-constructor.patch.gz | patch -p1 --verbose || exit 1
 
 # Remove bundled security libraries so that we don't link to them:
 rm -rf security
@@ -125,21 +129,17 @@ CXXFLAGS+="$SLKCFLAGS -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-
   --sysconfdir=/etc \
   --localstatedir=/var \
   --mandir=/usr/man \
-  --disable-debug \
-  --disable-debug-symbols \
-  --disable-strip \
-  --enable-gold \
-  --enable-optimize="-O2" \
-  --enable-threadsafe \
-  --enable-pie \
-  --enable-posix-nspr-emulation \
-  --enable-readline \
-  --enable-release \
-  --enable-shared-js \
-  --disable-tests \
-  --with-intl-api \
-  --with-system-zlib \
   --without-system-icu \
+  --enable-posix-nspr-emulation \
+  --with-system-zlib \
+  --enable-tests \
+  --disable-strip \
+  --with-intl-api \
+  --enable-readline \
+  --enable-shared-js \
+  --disable-optimize \
+  --enable-pie \
+  --disable-jemalloc \
   --build=$ARCH-slackware-linux \
 
 make $NUMJOBS || make || exit 1
@@ -147,6 +147,16 @@ make install DESTDIR=$PKG || exit 1
 
 # No need for the huge static library:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libjs_static.*
+
+# Don't ship -config:
+rm -f $PKG/usr/bin/js*-config
+
+# Rename shared library to have a proper soname:
+mv $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-60.so $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-60.so.0.0.0
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  ln -sf libmozjs-60.so.0.0.0 libmozjs-60.so.0
+  ln -sf libmozjs-60.so.0 libmozjs-60.so
+)
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp ../../README.txt README.html $PKG/usr/doc/$PKGNAM-$VERSION

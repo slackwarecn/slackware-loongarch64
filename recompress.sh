@@ -1111,7 +1111,6 @@ gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff
-gzip ./source/xap/xlockmore/xlockmore.gltrackball_init.diff
 gzip ./source/xap/xsane/xsane-0.999-7-autoconf.patch
 gzip ./source/xap/xsane/xsane-0.999-lcms2.patch
 gzip ./source/xap/xsane/xsane-0.999-snprintf-update.patch

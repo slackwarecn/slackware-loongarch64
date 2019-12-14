@@ -1082,7 +1082,6 @@ gzip ./source/xap/seamonkey/seamonkey.gettid.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/seamonkey/seamonkey.i686.triplet.fix.diff
-gzip ./source/xap/xine-lib/xine-lib-imagemagick7.patch
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/gnuplot/gnuplot.fix.info.generation.diff
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff

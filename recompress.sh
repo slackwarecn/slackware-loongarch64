@@ -150,6 +150,7 @@ gzip ./source/a/gpm/gpm.types.diff
 gzip ./source/a/gpm/mouseconfig
 gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
+gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/file/file.xz.magic
 gzip ./source/a/file/file.zisofs.magic

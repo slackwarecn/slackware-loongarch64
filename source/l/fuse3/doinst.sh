@@ -21,4 +21,4 @@ if [ -e etc/rc.d/rc.fuse3 ]; then
 fi
 
 config etc/rc.d/rc.fuse3.new
-
+config etc/fuse.conf.new

@@ -54,9 +54,7 @@ gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff
-gzip ./source/d/rust/hack.diff
 gzip ./source/d/rust/link_libffi.diff
-gzip ./source/d/rust/0001-WIP-minimize-the-rust-std-component.patch
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
@@ -1178,6 +1176,7 @@ gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
+gzip ./source/x/vulkan-sdk/glslang.199d115e1542fe0a8427efda5fa36158474fb6cf.patch
 gzip ./source/x/mesa/doinst.sh
 gzip ./source/x/urw-core35-fonts-otf/doinst.sh
 gzip ./source/x/x11-skel/doinst.sh

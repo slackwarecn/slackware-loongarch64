@@ -152,6 +152,7 @@ gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/file/file.xz.magic
 gzip ./source/a/file/file.zisofs.magic
+gzip ./source/a/file/file.PT_DYNAMIC.is.dynamically.linked.diff
 gzip ./source/a/file/file.crdaregbin.magic
 gzip ./source/a/file/recompile_magic.mgc.sh
 gzip ./source/a/file/file.short.diff
@@ -947,7 +948,6 @@ gzip ./source/l/esound/remove-confusing-spew.patch
 gzip ./source/l/esound/esound-0.2.38-fix-open-macro.patch
 gzip ./source/l/esound/doinst.sh
 gzip ./source/l/esound/esound-nospawn.patch
-gzip ./source/l/libffi/libffi.includedir.diff
 gzip ./source/l/freetype/freetype.sh
 gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff

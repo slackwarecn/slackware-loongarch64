@@ -260,6 +260,7 @@ gzip ./source/a/upower/doinst.sh
 gzip ./source/a/jfsutils/jfsutils.glibc228.diff
 gzip ./source/a/jfsutils/jfsutils.inttypes.h.diff
 gzip ./source/a/elvis/elvis.ref.c.getline.diff
+gzip ./source/a/procps-ng/procps-ng.pgrep.CMDSTRSIZE.diff
 gzip ./source/a/udisks2/doinst.sh
 gzip ./source/a/sysvinit-functions/doinst.sh
 gzip ./source/a/mdadm/doinst.sh

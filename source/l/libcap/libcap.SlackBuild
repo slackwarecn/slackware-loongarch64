@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2009, 2010, 2011, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,6 +28,9 @@ PKGNAM=libcap
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
 BUILD=${BUILD:-1}
 
+# Building Go support is currently disabled until something actually needs it:
+GOSUPPORT=${GOSUPPORT:-no}
+
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -46,7 +49,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+# Recent versions haven't worked well with -j:
+#NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -88,12 +92,15 @@ sed -i.orig "s/^\(DEBUG =\).*/\1$SLKCFLAGS/" Make.Rules
 # Disable broken gperf support:
 sed 's@^BUILD_GPERF@#\0@' -i Make.Rules
 
+# Fix installing Go objects:
+zcat $CWD/libcap.golang.install.source.path.diff.gz | patch -p1 --verbose || exit 1
 
-make DYNAMIC=yes $NUMJOBS || make DYNAMIC=yes || exit 1
-make install RAISE_SETFCAP=no DESTDIR=$PKG man_prefix=/usr || exit 1
+make DYNAMIC=yes GOLANG=$GOSUPPORT || exit 1
+make install RAISE_SETFCAP=no GOLANG=$GOSUPPORT DESTDIR=$PKG man_prefix=/usr || exit 1
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/libcap.so*
 
-# Don't ship static library:
+# Don't ship the static libcap.a. Leave libpsx.a alone, though - there's no
+# dynamic equivalent for that one:
 rm -f $PKG/lib*/libcap.a
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

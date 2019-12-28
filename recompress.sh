@@ -938,6 +938,7 @@ gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch
 gzip ./source/l/pulseaudio/doinst.sh
+gzip ./source/l/libvncserver/libvncserver.CMAKE_INSTALL_LIBDIR.diff
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch

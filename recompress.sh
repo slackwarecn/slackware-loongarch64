@@ -693,7 +693,6 @@ gzip ./source/ap/slackpkg/files/slackpkg
 gzip ./source/ap/slackpkg/files/dialog-functions.sh
 gzip ./source/ap/slackpkg/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
-gzip ./source/ap/ksh93/ksh93.use.clang.for.tests.diff
 gzip ./source/ap/xfsdump/0005-xfsdump.xfsprogs-5.3.0.xfs_fsop_bulkreq_t.patch
 gzip ./source/ap/xfsdump/0002-xfsdump.xfsprogs-5.3.0.xfs_bstat_t.patch
 gzip ./source/ap/xfsdump/0001-xfsdump.xfsprogs-5.3.0.xfs_fsop_geom_v1_t.patch
@@ -795,6 +794,7 @@ gzip ./source/l/GConf/patches/0003-gsettings-data-convert-Warn-and-fix-invalid-s
 gzip ./source/l/GConf/doinst.sh
 gzip ./source/l/libiodbc/libiodbc.disable.rpath.diff
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2016-10167.patch
+gzip ./source/l/libwmf/fixup-GDK_PIXBUF_DIR-in-configure-ac.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-useafterfree.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2015-4696.patch
 gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2016-10168.patch
@@ -986,6 +986,7 @@ gzip ./source/l/glib/glib-1.2.10-unused-dep.patch
 gzip ./source/l/glib/glib-1.2.10-gcc34.patch
 gzip ./source/l/glib/glib-1.2.10-no_undefined.patch
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
+gzip ./source/l/zstd/zstd.dont.hardcode.libdir.patch
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
 gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch

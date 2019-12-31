@@ -599,6 +599,7 @@ gzip ./source/n/cyrus-sasl/rc.saslauthd
 gzip ./source/n/cyrus-sasl/doinst.sh
 gzip ./source/n/netatalk/doinst.sh
 gzip ./source/xfce/xfce4-power-manager/doinst.sh
+gzip ./source/xfce/xfce4-weather-plugin/update-met_no-API.patch
 gzip ./source/xfce/xfce4-taskmanager/doinst.sh
 gzip ./source/xfce/xfce4-panel/libxfce4panel.max_blinking_count.8.diff
 gzip ./source/xfce/xfce4-notifyd/doinst.sh
@@ -1228,4 +1229,3 @@ bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt
 bzip2 ./source/n/curl/cacert.pem
-bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log

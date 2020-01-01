@@ -770,6 +770,7 @@ gzip ./source/l/gtk+/gtk+-1.2.10-ukfont.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-fontwarning.patch
 gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff
+gzip ./source/l/boost/boost.f61dd9c5324d8439c52764c7aebaac7d0d4b7128.patch
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff
@@ -1181,7 +1182,6 @@ gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
-gzip ./source/x/vulkan-sdk/glslang.199d115e1542fe0a8427efda5fa36158474fb6cf.patch
 gzip ./source/x/mesa/doinst.sh
 gzip ./source/x/urw-core35-fonts-otf/doinst.sh
 gzip ./source/x/x11-skel/doinst.sh

@@ -90,8 +90,15 @@ cp $rootfs/etc/HOSTNAME $rootfs/etc/hostname
 # http://www.vislab.uq.edu.au/howto/lxc/MAKEDEV.sh
 DEV=$rootfs/dev
 mkdir -p ${DEV}
-# Make sure ${DEV}/null isn't accidentally a file by deleting it first:
-rm -f ${DEV}/null
+# Remove any existing "devices" first, as these might be files
+# created by package install scripts:
+for clear_device in ${DEV}/null ${DEV}/zero ${DEV}/random ${DEV}/urandom \
+  ${DEV}/tty ${DEV}/console ${DEV}/tty0 ${DEV}/tty1 ${DEV}/tty2 ${DEV}/tty3 \
+  ${DEV}/tty4 ${DEV}/tty5 ${DEV}/full ${DEV}/initctl ${DEV}/loop0 \
+  ${DEV}/loop1 ; do
+  rm -f $clear_device
+done
+# Create initial set of devices:
 mknod -m 666 ${DEV}/null c 1 3
 mknod -m 666 ${DEV}/zero c 1 5
 mknod -m 666 ${DEV}/random c 1 8
@@ -126,8 +133,8 @@ EOF
 # Back up the existing init scripts and install the lxc versions:
 ( cd $rootfs/etc/rc.d
   cp -a /usr/share/lxc/scripts/slackware/* .
-  chmod 755 *.lxc
-  for file in *.lxc ; do
+  chmod 755 rc.*.lxc
+  for file in rc.*.lxc ; do
     cp -a $(basename $file .lxc) $(basename $file .lxc).orig
     cp -a $file $(basename $file .lxc)
   done

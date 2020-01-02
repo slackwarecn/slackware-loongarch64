@@ -117,7 +117,9 @@ gzip ./source/a/rpm2tgz/patches/0001-fix-d-handling.patch
 gzip ./source/a/rpm2tgz/patches/0009-Add-c-option-just-as-makepkg-c-y.patch
 gzip ./source/a/udisks/udisks.no.pci-db.diff
 gzip ./source/a/udisks/udisks.glibc228.diff
+gzip ./source/a/dialog/dialog.all.use_height.diff
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
+gzip ./source/a/dialog/dialog.no.aspect.ratio.autoajust.patch
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/grub/initrd_naming.patch
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
@@ -198,7 +200,6 @@ gzip ./source/a/shadow/shadow.login.display.short.hostname.diff
 gzip ./source/a/shadow/login.defs
 gzip ./source/a/shadow/shadow.CVE-2005-4890.relax.diff
 gzip ./source/a/shadow/doinst.sh
-gzip ./source/a/shadow/environment
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff
 gzip ./source/a/util-linux/setserial-rc.serial.diff

@@ -31,7 +31,7 @@ SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
 GNOMEDOCUTILSVER=0.20.10
-GTKDOCVER=1.29
+GTKDOCVER=1.32
 SGMLSPLVER=1.03ii
 OPENJADEVER=1.3.2
 OPENSPVER=1.5.2
@@ -45,7 +45,7 @@ XML_DOCBOOKCATALOG=/etc/xml/docbook
 
 # Determine the general CFLAGS for the known architectures:
 case $ARCH in
-  arm*)    export SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=hard"
+  arm*)    export SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=hard -mtune=generic-armv7-a -mabi=aapcs-linux"
            export LIBDIRSUFFIX=""
            export HOSTTARGET="-gnueabihf"
            ;;
@@ -155,7 +155,7 @@ find . \
   -exec chmod 644 {} \;
 
 # Apply patches (these are included in the source rpm):
-# Don't include the XML dir patch because we keep our stuff in /usr/share/sgml.
+# Don't include the XML dir patch 'sgml-common-xmldir.patch' because we keep our stuff in /usr/share/sgml.
 for i in \
   sgml-common-quotes.patch \
   sgml-common-umask.patch ; do
@@ -1018,7 +1018,9 @@ export PATH=$OPATH
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/gnome-doc-utils-$GNOMEDOCUTILSVER.tar.*z*
+mkdir gnome-doc-utils && cd gnome-doc-utils
+rpm2cpio $CWD/sources/gnome-doc-utils-*.src.rpm | cpio -div || exit 1
+tar xvf gnome-doc-utils-$GNOMEDOCUTILSVER.tar.*z*
 cd gnome-doc-utils-*/ || exit 1
 
 chown -R root:root .
@@ -1027,6 +1029,19 @@ find . \
  -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \;
+
+# Apply patches:
+# Extract patch set from Spec file:
+#  egrep '^Patch[0-9].*: ' *.spec | awk -F: '{print $2" \\"}'
+#
+# Note: exclude patch 'gnome-doc-utils-0.14.0-package.patch' as it's an RH bug from 2008
+# and we've never included it.
+for i in \
+ \
+  gnome-doc-utils-0.20.10-python3.patch \
+  \
+  ; do patch --verbose -p1 < ../$i
+done || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -1041,6 +1056,12 @@ CPPFLAGS="$SLKCFLAGS" \
   --disable-scrollkeeper \
   --enable-build-utils \
   --build=$ARCH-slackware-linux$HOSTTARGET || exit 1
+
+# Patch:
+#
+# Set python3 as the interpreter for 'xml2po'.  It's already been patched (above)
+# but the makefiles and other bits contain /usr/bin/python - which on Slackware is python2.
+egrep -lr '/usr/bin/python$' xml2po | xargs sed -i 's?/usr/bin/python?/usr/bin/python3?g'
 
 # No parallel build here because it doesn't work:
 make || exit 1
@@ -1058,14 +1079,29 @@ cp -fav \
 
 # Extract source:
 cd $TMP
-tar xvf $CWD/sources/gtk-doc-$GTKDOCVER.tar.*z*
-cd gtk-doc-$GTKDOCVER || exit 1
+mkdir gtk-doc && cd gtk-doc
+rpm2cpio $CWD/sources/gtk-doc-*.src.rpm | cpio -div || exit 1
+tar xvf gtk-doc-$GTKDOCVER.tar.*z*
+cd gtk-doc-*/ || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \; -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \;
+
+# Apply patches:
+# Extract patch set from Spec file:
+#  egrep '^Patch[0-9].*: ' *.spec | awk -F: '{print $2" \\"}'
+# Note: exclude patch 'gnome-doc-utils-0.14.0-package.patch' as it's an RH bug from 2008
+# and we've never included it.
+for i in \
+ \
+ 0001-Partially-revert-a-gtk-doc-1.31-change-that-broke-e-.patch \
+  \
+  ; do patch --verbose -p1 < ../$i
+done || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

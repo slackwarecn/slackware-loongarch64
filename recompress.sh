@@ -572,7 +572,6 @@ gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/iputils/iputils.docbook.revert.diff
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
-gzip ./source/n/dhcpcd/COPYRIGHT
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/openldap-client/doinst.sh
 gzip ./source/n/bind/doinst.sh

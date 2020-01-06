@@ -571,6 +571,7 @@ gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/iputils/iputils.docbook.revert.diff
+gzip ./source/n/iputils/iputils.libcap-2.30.patch
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/openldap-client/doinst.sh
@@ -975,6 +976,7 @@ gzip ./source/l/svgalib/svgalib.prefix.diff
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/ilmbase/ilmbase-2.2.0-no_undefined.patch
 gzip ./source/l/qtscriptgenerator/include-everything.patch
+gzip ./source/l/libpsl/libpsl.gtk-doc-1.30.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch
@@ -1161,7 +1163,6 @@ gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/unbreakdocs.diff
-gzip ./source/xap/mozilla-firefox/firefox-rust-1.39.x.patch
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/x/liberation-fonts-ttf/doinst.sh

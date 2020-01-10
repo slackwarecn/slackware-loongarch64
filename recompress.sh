@@ -940,7 +940,9 @@ gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch
 gzip ./source/l/pulseaudio/doinst.sh
+gzip ./source/l/libvncserver/libvncserver.d0a76539835d11c0f4723499f8be4bc9c7724eb9.patch
 gzip ./source/l/libvncserver/libvncserver.CMAKE_INSTALL_LIBDIR.diff
+gzip ./source/l/libvncserver/libvncserver.15c4f144a3783d9f1f2c976acf9f4d85988fd466.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
@@ -1047,7 +1049,6 @@ gzip ./source/l/qca/Add_support_for_OpenSSL_1.1.0.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./source/xap/mozilla-thunderbird/thunderbird-rust-1.39.x.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/unbreakdocs.diff

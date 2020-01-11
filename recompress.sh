@@ -779,8 +779,6 @@ gzip ./source/l/ncurses/ncurses.mkhashsize.diff
 gzip ./source/l/ncurses/doinst.sh
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
-gzip ./source/l/db44/patch.4.4.20.1
-gzip ./source/l/db44/patch.4.4.20.2
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
@@ -1030,10 +1028,6 @@ gzip ./source/l/id3lib/patches/id3lib.manpages.patch
 gzip ./source/l/id3lib/patches/id3lib.nullpointer_check.patch
 gzip ./source/l/id3lib/patches/id3lib.utf8_writing.patch
 gzip ./source/l/id3lib/patches/id3lib.c_wrapper.patch
-gzip ./source/l/db42/patch.4.2.52.1
-gzip ./source/l/db42/patch.4.2.52.4
-gzip ./source/l/db42/patch.4.2.52.2
-gzip ./source/l/db42/patch.4.2.52.3
 gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch

@@ -1003,7 +1003,22 @@ rm -f $PKG/$ARCH-installer-filesystem/sbin/reboot
 ( cd $PKG/$ARCH-installer-filesystem/bin ; ln -sf busybox reboot )
 cat << EOF > $PKG/$ARCH-installer-filesystem/sbin/reboot
 #!/bin/sh
+echo "Sending all processes the SIGTERM signal."
+/sbin/killall5 -15
+/bin/sleep 2
+echo "Sending all processes the SIGKILL signal."
+/sbin/killall5 -9
+/bin/sleep 2
+echo "Syncing filesystems."
 sync
+echo "Unmounting filesystems:"
+# Try to unmount these bind mounts first to prevent them from blocking unmount of the target /:
+umount /mnt/dev 2> /dev/null
+umount /mnt/proc 2> /dev/null
+umount /mnt/sys 2> /dev/null
+/bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
+sync
+echo "Rebooting."
 if [ -z "\$*" ]; then
   /bin/reboot -f
 else

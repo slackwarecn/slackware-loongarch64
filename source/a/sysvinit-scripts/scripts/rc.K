@@ -14,6 +14,11 @@
 # Set the path.
 PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
+# Load a custom screen font if the user has an rc.font script.
+if [ -x /etc/rc.d/rc.font ]; then
+  /etc/rc.d/rc.font
+fi
+
 # Load any needed keyboard mappings:
 if [ -x /etc/rc.d/rc.keymap ]; then
   /etc/rc.d/rc.keymap

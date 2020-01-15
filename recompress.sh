@@ -429,6 +429,7 @@ gzip ./source/n/netdate/netdate.diff
 gzip ./source/n/procmail/procmail.lfs.diff
 gzip ./source/n/procmail/procmail_3.22-5.diff
 gzip ./source/n/snownews/snownews.fake.destdir.diff
+gzip ./source/n/nfs-utils/nfs-utils.2.4.3-rc2.patch
 gzip ./source/n/nfs-utils/doinst.sh
 gzip ./source/n/nfs-utils/nfs-utils.lwrap.needs.lnsl.diff
 gzip ./source/n/metamail/metamail.uue.getline.diff

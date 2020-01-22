@@ -584,6 +584,7 @@ gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh
+gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
 gzip ./source/n/samba/smb.conf.diff
 gzip ./source/n/samba/doinst.sh

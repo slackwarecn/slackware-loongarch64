@@ -1,0 +1,78 @@
+--- ./configure.orig	2020-01-21 05:35:20.000000000 -0600
++++ ./configure	2020-01-22 16:13:05.664626321 -0600
+@@ -39925,6 +39925,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+@@ -39992,6 +39993,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+@@ -40059,6 +40061,7 @@
+       PHP_IMAP_EXPORT void mm_nocritical(void){}
+       PHP_IMAP_EXPORT void mm_notify(void){}
+       PHP_IMAP_EXPORT void mm_login(void){}
++      PHP_IMAP_EXPORT void mm_login_method(void){}
+       PHP_IMAP_EXPORT void mm_diskerror(void){}
+       PHP_IMAP_EXPORT void mm_status(void){}
+       PHP_IMAP_EXPORT void mm_lsub(void){}
+@@ -40133,6 +40136,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+--- ./ext/imap/config.m4.orig	2020-01-21 05:35:24.000000000 -0600
++++ ./ext/imap/config.m4	2020-01-22 16:13:05.665626321 -0600
+@@ -34,6 +34,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+@@ -262,6 +263,7 @@
+       PHP_IMAP_EXPORT void mm_nocritical(void){}
+       PHP_IMAP_EXPORT void mm_notify(void){}
+       PHP_IMAP_EXPORT void mm_login(void){}
++      PHP_IMAP_EXPORT void mm_login_method(void){}
+       PHP_IMAP_EXPORT void mm_diskerror(void){}
+       PHP_IMAP_EXPORT void mm_status(void){}
+       PHP_IMAP_EXPORT void mm_lsub(void){}
+--- ./ext/imap/php_imap.c.orig	2020-01-21 05:35:24.000000000 -0600
++++ ./ext/imap/php_imap.c	2020-01-22 16:15:25.545614746 -0600
+@@ -5081,7 +5081,7 @@
+ 	   php debugger? */
+ }
+ 
+-PHP_IMAP_EXPORT void mm_login(NETMBX *mb, char *user, char *pwd, long trial)
++PHP_IMAP_EXPORT void mm_login(NETMBX *mb, char *user, char **pwd, long trial)
+ {
+ 
+ 	if (*mb->user) {
+@@ -5089,7 +5089,13 @@
+ 	} else {
+ 		strlcpy (user, IMAPG(imap_user), MAILTMPLEN);
+ 	}
+-	strlcpy (pwd, IMAPG(imap_password), MAILTMPLEN);
++	*pwd = cpystr(IMAPG(imap_password));	/* alpine-2.22 c-client.a */
++}
++
++/* alpine-2.22 c-client.a workaround */
++PHP_IMAP_EXPORT void mm_login_method(NETMBX *mb, char *user, void *pwd, long trial, char *method)
++{
++   pwd = NULL;
+ }
+ 
+ PHP_IMAP_EXPORT void mm_critical(MAILSTREAM *stream)

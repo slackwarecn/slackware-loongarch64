@@ -3,7 +3,7 @@
 # Build and package mod_php on Slackware.
 # by:  David Cantrell <david@slackware.com>
 # Modified for PHP 4-5 by volkerdi@slackware.com
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2019  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2019, 2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=php
 VERSION=${VERSION:-$(echo php-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 ALPINE=2.22
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -75,6 +75,19 @@ else
   LIBDIRSUFFIX=""
 fi
 
+# Look for Kerberos on the machine and in any precompiled c-client.a:
+if /bin/ls /lib${LIBDIRSUFFIX}/libkrb5.so.? 1> /dev/null 2> /dev/null ; then
+  # Remove the c-client library if it doesn't contain Kerberos support:
+  if ! grep -q krb5_ /usr/local/lib${LIBDIRSUFFIX}/c-client/lib${LIBDIRSUFFIX}/c-client.a 2> /dev/null ; then
+    rm -rf /usr/local/lib${LIBDIRSUFFIX}/c-client
+  fi
+else
+  # Remove the c-client library if it contains Kerberos support:
+  if grep -q krb5_ /usr/local/lib${LIBDIRSUFFIX}/c-client/lib${LIBDIRSUFFIX}/c-client.a 2> /dev/null ; then
+    rm -rf /usr/local/lib${LIBDIRSUFFIX}/c-client
+  fi
+fi
+
 # we need to compile alpine to get c-client.a for IMAP support:
 IMAPLIBDIR=/usr/local/lib${LIBDIRSUFFIX}/c-client
 if [ -r $IMAPLIBDIR/lib${LIBDIRSUFFIX}/c-client.a ]; then
@@ -90,6 +103,13 @@ else
     mkdir -p $IMAPLIBDIR/include
     cp *.h $IMAPLIBDIR/include
   )
+fi
+
+# Set Kerberos build option:
+if /bin/ls /lib${LIBDIRSUFFIX}/libkrb5.so.? 1> /dev/null 2> /dev/null ; then
+  KRB5_OPTION="--with-kerberos"
+else
+  unset KRB5_OPTION
 fi
 
 mkdir -p $PKG/etc/httpd
@@ -131,6 +151,9 @@ find . -name "*.orig" -exec rm {} \+
 zcat $CWD/php.ini-development.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/php.ini-development.diff.gz | patch -p1 --verbose php.ini-production || exit 1
 zcat $CWD/php-fpm.conf.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix for imap API change:
+zcat $CWD/php.imap.api.diff.gz | patch -p1 --verbose || exit 1
 
 # Install the build folder into /usr/lib$LIBDIRSUFFIX/php/build
 # and adapt phpize accordingly:
@@ -177,6 +200,7 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
   --enable-filter \
   --disable-debug \
   --with-openssl=shared \
+  $KRB5_OPTION \
   --with-external-pcre \
   --with-zlib=shared,/usr \
   --enable-bcmath=shared \

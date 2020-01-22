@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=distcc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -77,14 +77,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Make sure we change code/docs to use lib64 if needed:
-if [ ! "$LIBDIRSUFFIX" = "" ]; then
-  grep -l -r usr/lib/distcc | while read file ; do
-    sed -i "s|usr/lib/distcc|usr/lib${LIBDIRSUFFIX}/distcc|g" $file
-  done
-fi
-sed -i "s|usr/lib/gcc|usr/lib${LIBDIRSUFFIX}/gcc|g" update-distcc-symlinks.py
-
 if [ ! -r configure ]; then
   ./autogen.sh
 fi
@@ -95,6 +87,7 @@ fi
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --with-gtk \
+  --with-auth \
   --without-gnome \
   --without-avahi \
   --disable-Werror \
@@ -103,10 +96,10 @@ fi
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG docdir=/usr/doc/distcc-$VERSION || exit 1
 
-# Make a masquarade directory in /usr/lib${LIBDIRSUFFIX}:
+# Make a masquarade directory in /usr/lib/distcc:
 GCCVER=$(gcc -dumpversion)
-mkdir -p $PKG//usr/lib${LIBDIRSUFFIX}/distcc
-( cd $PKG//usr/lib${LIBDIRSUFFIX}/distcc 
+mkdir -p $PKG//usr/lib/distcc
+( cd $PKG//usr/lib/distcc 
   ln -sf ../../bin/distcc c++
   ln -sf ../../bin/distcc c89
   ln -sf ../../bin/distcc c99
@@ -120,6 +113,14 @@ mkdir -p $PKG//usr/lib${LIBDIRSUFFIX}/distcc
   ln -sf ../../bin/distcc $ARCH-slackware-linux-gcc
   ln -sf ../../bin/distcc $ARCH-slackware-linux-gcc-$GCCVER
 )
+
+# If needed, make a symlink from /usr/lib${LIBDIRSUFFIX}/distcc -> /usr/lib/distcc:
+if [ ! "$LIBDIRSUFFIX" = "" ]; then
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+  ( cd $PKG/usr/lib${LIBDIRSUFFIX}
+    ln -sf ../lib/distcc .
+  )
+fi
 
 # pkgdocdir=/usr/doc/distcc-$VERSION
 mkdir -p $PKG/usr/share/applications
@@ -154,4 +155,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 # Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/distcc-$VERSION-$ARCH-$BUILD.txz
-

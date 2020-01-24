@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=nfs-utils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -48,12 +48,22 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 TMP=${TMP:-/tmp}
@@ -92,16 +102,18 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# No NFSv4 yet -- it requires additional libraries.
-
+# Configure, build, and install:
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --with-statedir=/var/lib/nfs \
+  --disable-static \
   --enable-mountconfig \
-  --enable-nfsv4=no \
-  --enable-gss=no \
+  --enable-nfsv4=yes \
+  --enable-gss=yes \
+  --enable-svcgss=yes \
   --enable-tirpc=yes \
   --program-prefix= \
   --program-suffix= \
@@ -109,6 +121,9 @@ CFLAGS="$SLKCFLAGS" \
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # Add nfsmount.conf and man page:
 cat ./utils/mount/nfsmount.conf > $PKG/etc/nfsmount.conf.new
@@ -124,9 +139,6 @@ sed -i "s/# Defaultvers=4/Defaultvers=3/g" $PKG/etc/nfsmount.conf.new
     mv ${config_file} ${config_file}.new
   done
 )
-
-# No NFSv4 yet, so remove these:
-rm -f $PKG/sbin/*nfs4
 
 # This should move to support /usr on NFS:
 mkdir -p $PKG/sbin

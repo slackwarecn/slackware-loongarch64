@@ -850,6 +850,7 @@ l/zlib \
 n/dhcpcd \
 n/dnsmasq \
 n/iproute2 \
+n/krb5 \
 n/libgcrypt \
 n/libgpg-error \
 n/libtirpc \
@@ -1124,7 +1125,11 @@ cp  -fa${VERBOSE1} \
         libgcc*so* \
         libgcrypt*.so* \
         libgpg-error*.so* \
+        libgssapi_krb5.so* \
+        libk5crypto.so* \
         libkmod*so* \
+        libkrb5.so* \
+        libkrb5support.so* \
         liblzma*so* \
         libmount.so* \
         libpcre.so* \

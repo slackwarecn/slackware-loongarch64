@@ -80,6 +80,9 @@ gzip ./source/d/distcc/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/pkg-config/doinst.sh
+gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
+gzip ./source/d/make/make.glibc-2.27.glob.diff
+gzip ./source/d/make/make.guile30.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/gdb/gdb.python38.patch
@@ -197,6 +200,7 @@ gzip ./source/a/shadow/useradd
 gzip ./source/a/shadow/shadow.login.display.short.hostname.diff
 gzip ./source/a/shadow/login.defs
 gzip ./source/a/shadow/shadow.CVE-2005-4890.relax.diff
+gzip ./source/a/shadow/HOME_MODE.xml
 gzip ./source/a/shadow/doinst.sh
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff

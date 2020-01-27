@@ -5,7 +5,7 @@ set +o posix
 #
 # Copyright 2005-2018  Stuart Winter, Surrey, England, UK
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
-# Copyright 2011-2018  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -106,6 +106,7 @@ case $ARCH in
     VERBOSE=1             # show a lot of additional output
                           # The firmware we include by default is only for x86, but
     ADD_NETFIRMWARE=1     # we'll probably want to include some at some stage. For now supply -nf to this script.
+    ADD_NANO=1
     ;;
   x86_64)
     ADD_NETMODS=1
@@ -121,6 +122,7 @@ case $ARCH in
     EFIBOOT=1
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
+    ADD_NANO=1
     ;;
   i586)
     ADD_NETMODS=1
@@ -136,6 +138,7 @@ case $ARCH in
     EFIBOOT=1
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
+    ADD_NANO=1
     ;;
   *)
     ADD_NETMODS=1         # add network modules
@@ -150,6 +153,7 @@ case $ARCH in
     EFIBOOT=0             # do not build the EFI boot image
     VERBOSE=1             # show a lot of additional output
     ADD_NETFIRMWARE=1     # Include the network card firmware
+    ADD_NANO=1
     ;;
 esac
 
@@ -232,6 +236,10 @@ while [ ! -z "$1" ]; do
       ;;
     -nc|--no-compressmods)
       COMPRESS_MODS=0
+      shift
+      ;;
+    -ne|--no-nano)
+      ADD_NANO=0
       shift
       ;;
     -nn|--no-netmods)
@@ -367,6 +375,7 @@ Parameters:
   -m|--multiple          Multiple initrd files (for SMP and non-SMP kernels)
   -n|--netmods           Add network modules to the initrd
   -nc|--no-compressmods  Do _not_ compress kernel modules
+  -ne|--no-nano          Do _not_ add nano editor
   -nm|--no-multiple      Do _not_ create multiple initrd files
   -nn|--no-netmods       Do _not_ add network modules to the initrd
   -np|--no-pcmciamods    Do _not_ add pcmcia modules to the initrd
@@ -748,6 +757,70 @@ make $SILENTMAKE DESTDIR=$PKG/$ARCH-installer-filesystem/ MULTI="1" install || e
 
 }
 
+############### Build nano #####################################################
+
+build_nano()
+{
+echo "--- Building nano editor ---"
+# Extract source:
+cd $TMP
+if [ -d $CWD/sources/nano ]; then
+  echo "--- Using _your_ nano sources (not those in the Slacktree) ---"
+  NANOPATH=$CWD/sources/nano
+elif [ -d $SRCDIR/sources/nano ]; then
+  echo "--- Using _your_ nano sources (not those in the Slacktree) ---"
+  NANOPATH=$SRCDIR/sources/nano
+else
+  # Use the nano sources from the Slackware tree.
+  NANOPATH=$SLACKROOT/source/installer/nano
+fi
+[ ! -d $NANOPATH ] && ( echo "No directory '$NANOPATH'" ; exit 1 )
+NANOPKG=$(ls -1 $NANOPATH/nano-*.tar.?z | head -1)
+NANOVER=$(echo $NANOPKG | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+tar x${VERBOSE2}f $NANOPKG
+
+echo "--- Compiling NANO version '$NANOVER' ---"
+cd nano* || exit 1
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+# Configure:
+CFLAGS="$(echo $SLKCFLAGS | sed s/-O2/-Os/g)" \
+./configure \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  --infodir=/usr/info \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/nano-$VERSION \
+  --datadir=/usr/share \
+  --program-prefix= \
+  --program-suffix= \
+  --disable-libmagic \
+  --enable-color \
+  --enable-multibuffer \
+  --enable-nanorc \
+  --enable-utf8 \
+  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+
+# Build:
+make $NUMJOBS || make || exit 1
+
+# Install into installer's filesystem:
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/bin
+cp -a src/nano $PKG/$ARCH-installer-filesystem/usr/bin/nano
+strip --strip-unneeded $PKG/$ARCH-installer-filesystem/usr/bin/nano
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/man/man1
+cat doc/nano.1 | gzip -9c > $PKG/$ARCH-installer-filesystem/usr/man/man1/nano.1.gz
+
+# Install locale files if I_AM_DIDIER is defined:
+if [ ! -z $I_AM_DIDIER ]; then
+  ( cd po
+    make install DESTDIR=$PKG/$ARCH-installer-filesystem/
+  )
+fi
+
+}
+
 ############## Install binaries into installer filesystem ######################
 
 # You can generate file-> package list in slackware-current
@@ -836,6 +909,7 @@ d/gcc-g++ \
 l/argon2 \
 l/glibc \
 l/json-c \
+l/keyutils \
 l/libaio \
 l/libcap \
 l/libidn2 \
@@ -918,6 +992,8 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \
         syslinux-nomtools \
         strings \
         $PKG/$ARCH-installer-filesystem/usr/bin/
+# Fix ldd shebang:
+sed -i "s|/usr/bin/bash|/bin/bash|g" $PKG/$ARCH-installer-filesystem/usr/bin/ldd
 # Use syslinux-nomtools to avoid needing mtools on the installer:
 if [[ $ARCH = *86* ]]; then
   mv --verbose $PKG/$ARCH-installer-filesystem/usr/bin/syslinux-nomtools $PKG/$ARCH-installer-filesystem/usr/bin/syslinux || exit 1
@@ -1127,6 +1203,7 @@ cp  -fa${VERBOSE1} \
         libgpg-error*.so* \
         libgssapi_krb5.so* \
         libk5crypto.so* \
+        libkeyutils.so* \
         libkmod*so* \
         libkrb5.so* \
         libkrb5support.so* \
@@ -2122,6 +2199,7 @@ if [ -d usr/man ]; then
       man8/fstrim.8.bz2 \
       man8/swaplabel.8.bz2 \
       man8/ip.8.bz2 \
+      man1/nano.1.bz2 \
     ; do
       mkdir -p man/$(dirname $manpage)
       cp -a man.full/$manpage man/$manpage
@@ -2183,6 +2261,11 @@ else
     arch_specifics
   else
     unpack_oldinitrd
+  fi
+
+  # Are we adding the nano editor?
+  if [ $ADD_NANO -eq 1 ]; then
+    build_nano
   fi
 
   # Are we adding network modules?

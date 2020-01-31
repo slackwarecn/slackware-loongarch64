@@ -900,6 +900,7 @@ a/usbutils \
 a/util-linux \
 a/xfsprogs \
 a/xz \
+a/zerofree \
 ap/ddrescue \
 ap/dmidecode \
 ap/lsscsi \
@@ -1134,7 +1135,9 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRSBIN} \
         dmidecode \
         mount.cifs \
         sm-notify \
+        sparsify \
         umount.cifs \
+        zerofree \
         $PKG/$ARCH-installer-filesystem/usr/sbin/
 
 # The installer has wrappers for cfdisk/fdisk which run /dev/makedevs.sh
@@ -2200,6 +2203,7 @@ if [ -d usr/man ]; then
       man8/swaplabel.8.bz2 \
       man8/ip.8.bz2 \
       man1/nano.1.bz2 \
+      man8/zerofree.8.bz2 \
     ; do
       mkdir -p man/$(dirname $manpage)
       cp -a man.full/$manpage man/$manpage

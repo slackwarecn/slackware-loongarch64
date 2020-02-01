@@ -935,11 +935,15 @@ n/ntp \
 n/rpcbind \
 n/samba"
 
+# Prevent a harmless (but ugly) build-time error:
+mkdir -p $TMP/extract-packages/etc
+touch $TMP/extract-packages/etc/shells
+
 # Cruise through the required packages and extract them into
 # a temporary directory:
 for pkg in $PKGLIST ; do
   if [ -s $SLACKROOT/${DISTRODIR}/$pkg-+([^-])-+([^-])-+([^-]).t[gblx]z ]; then
-    installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/$pkg-+([^-])-+([^-])-+([^-]).t[gblx]z | grep "Installing package " | cut -d'(' -f1
+    installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/$pkg-+([^-])-+([^-])-+([^-]).t[gblx]z
   else
     echo "*** Package: "$pkg" not found in ${SLACKROOT}/${DISTRODIR} ***"
   fi
@@ -1376,14 +1380,14 @@ cd $PKG/$ARCH-installer-filesystem
 echo "--- Importing libraries from Slackware packages ---"
 
 # a/e2fsprogs:
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/e2fsprogs-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/e2fsprogs-*.t[gblx]z
 cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 rm -rf $TMP/extract-packages
 
 # a/glibc-solibs:
 mkdir -p $TMP/extract-packages
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/glibc-solibs-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/glibc-solibs-*.t[gblx]z
 cp  -fa${VERBOSE1} /lib${LIBDIRSUFFIX}/ld-linux*so* lib${LIBDIRSUFFIX}/
 cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
@@ -1393,7 +1397,7 @@ rm -rf $TMP/extract-packages
 
 # l/ncurses:
 mkdir -p $TMP/extract-packages
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/l/ncurses-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/l/ncurses-*.t[gblx]z
 cp -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 cp -fa${VERBOSE1} $TMP/extract-packages/usr/share/terminfo/{c,l,v,s,x} usr/share/terminfo/
@@ -1412,35 +1416,35 @@ rm -rf $TMP/extract-packages
 
 # a/acl:
 mkdir -p $TMP/extract-packages
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/acl-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/acl-*.t[gblx]z
 cp -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 rm -rf $TMP/extract-packages
 
 # a/attr:
 mkdir -p $TMP/extract-packages
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/attr-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/attr-*.t[gblx]z
 cp -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 rm -rf $TMP/extract-packages
 
 # a/pciutils:
 mkdir -p $TMP/extract-packages
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/pciutils-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/pciutils-*.t[gblx]z
 cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 rm -rf $TMP/extract-packages
 
 # a/procps-ng:
 mkdir -p $TMP/extract-packages
-installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/procps-ng-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/procps-ng-*.t[gblx]z
 cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 rm -rf $TMP/extract-packages
 
 # a/gpm:
 #mkdir -p $TMP/extract-packages
-#installpkg -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/gpm-*.t[gblx]z | grep "Installing package " | cut -d'(' -f1
+#installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/gpm-*.t[gblx]z
 #cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
 #  lib${LIBDIRSUFFIX}/
 #rm -rf $TMP/extract-packages
@@ -1680,11 +1684,11 @@ rm -rf ./lib/modules.incoming
 # Install the necessary pcmcia support files from stock packages:
 echo "--- Adding support tools from Slackware packages: ---"
 rm -rf $TMP/extract-packages/*
-installpkg -root $TMP/extract-packages/ $PCMCIAUTILS | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages/ $PCMCIAUTILS
 rm -rf $TMP/extract-packages/{usr,var}
 cp -a $TMP/extract-packages/* $PKG/$ARCH-installer-filesystem/
 rm -rf $TMP/extract-packages/*
-installpkg -root $TMP/extract-packages/ $SYSFS | grep "Installing package " | cut -d'(' -f1
+installpkg --terse -root $TMP/extract-packages/ $SYSFS
 rm -rf $TMP/extract-packages/usr/{doc,include} $TMP/extract-packages/var
 if [ ! $ADD_MANPAGES -eq 1 ]; then
   rm -rf $TMP/extract-packages/usr/man/*
@@ -1703,7 +1707,9 @@ compress_modules()
   if [ $COMPRESS_MODS -eq 1 ]; then
     echo "--- Compressing kernel modules ---"
     cd $PKG/$ARCH-installer-filesystem
-    find ./lib/modules -type f -name "*.ko" -exec xz -9f -C crc32 {} \;
+    #find ./lib/modules -type f -name "*.ko" -exec xz -9f -C crc32 {} \;
+    # Do this one in parallel instead:
+    find ./lib/modules -type f -name "*.ko" | parallel xz -9f -C crc32
     for i in $(find ./lib/modules -type l -name "*.ko") ; do ln -s $( readlink $i).xz $i.xz ; rm $i ; done
     cd - 1>/dev/null
   fi

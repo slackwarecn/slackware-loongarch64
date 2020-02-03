@@ -35,7 +35,7 @@ for package in \
   garcon \
   gtk-xfce-engine \
   xfce4-panel \
-  Thunar \
+  thunar \
   thunar-volman \
   tumbler \
   xfce4-appfinder \

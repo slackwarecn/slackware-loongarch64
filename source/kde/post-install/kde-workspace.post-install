@@ -39,6 +39,15 @@ cat $CWD/post-install/kde-workspace/config/Xsession | sed -e "s#/lib#/lib${LIBDI
 # Add a .new suffix so we don't mangle an existing file:
 mv $PKG/usr/share/config/kdm/backgroundrc $PKG/usr/share/config/kdm/backgroundrc.new
 
+# Add config file if PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  mkdir -p $PKG/etc/pam.d
+  cp -a $CWD/post-install/kde-workspace/config/kde.pamd $PKG/etc/pam.d/kde.new
+  chown root:root $PKG/etc/pam.d/kde.new
+  chmod 644 $PKG/etc/pam.d/kde.new
+  echo "config etc/pam.d/kde.new" >> $PKG/install/doinst.sh
+fi
+
 # Move the KDM files someplace FHS compliant:
 mkdir -p $PKG/etc/kde
 mv $PKG/usr/share/config/kdm $PKG/etc/kde

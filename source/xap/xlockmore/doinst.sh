@@ -1,5 +1,3 @@
-#!/bin/sh
-
 config() {
   NEW="$1"
   OLD="$(dirname $NEW)/$(basename $NEW .new)"
@@ -13,13 +11,4 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-if [ -x usr/bin/update-desktop-database ]; then
-  usr/bin/update-desktop-database usr/share/applications >/dev/null 2>&1
-fi
-
-if [ -x usr/bin/update-mime-database ]; then
-  usr/bin/update-mime-database usr/share/mime >/dev/null 2>&1
-fi
-
-config etc/kde/kdm/backgroundrc.new
-config etc/kde/kdm/kdmrc.new
+config etc/pam.d/xlock.new

@@ -1151,6 +1151,7 @@ gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff
+gzip ./source/xap/xlockmore/doinst.sh
 gzip ./source/xap/xsane/xsane-0.999-7-autoconf.patch
 gzip ./source/xap/xsane/xsane-0.999-lcms2.patch
 gzip ./source/xap/xsane/xsane-0.999-snprintf-update.patch
@@ -1179,6 +1180,7 @@ gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
+gzip ./source/xap/xscreensaver/doinst.sh
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
 gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/gnuchess/eboard.assert.diff

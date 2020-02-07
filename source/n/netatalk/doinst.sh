@@ -22,3 +22,7 @@ config etc/rc.d/rc.atalk.new
 config etc/netatalk/afp.conf.new
 config etc/netatalk/dbus-session.conf.new
 config etc/netatalk/extmap.conf.new
+
+if [ -r etc/pam.d/netatalk.new ]; then
+  config etc/pam.d/netatalk.new
+fi

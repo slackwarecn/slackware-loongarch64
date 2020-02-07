@@ -74,6 +74,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--enable-pam-session --with-pam=yes"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--disable-pam-session --with-pam=no"
+fi
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -81,8 +90,8 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --docdir=/usr/doc/sudo-$VERSION \
   --with-env-editor \
-  --disable-pam-session \
-  --with-pam=no \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --with-rundir=/run/sudo \
   --with-vardir=/var/db/sudo \
   --with-insults \

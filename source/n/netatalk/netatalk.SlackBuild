@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012, 2015, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,8 +28,6 @@ PKGNAM=netatalk
 VERSION=${VERSION:-$(echo netatalk-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-2}
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -47,6 +45,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -78,6 +78,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--with-pam-confdir=/etc/pam.d --with-pam --enable-ddp"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--with-shadow"
+fi
+
 # use the system libevent, because the internal one won't compile
 # with openssl 1.1.  Also skip pam and kerberos (for now).
 CFLAGS="$SLKCFLAGS" \
@@ -89,8 +98,8 @@ CFLAGS="$SLKCFLAGS" \
   --libexecdir=/usr/sbin \
   --localstatedir=/var \
   --disable-static \
-  --with-shadow \
-  --disable-static \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --with-libevent=system \
   --with-dbus-sysconf-dir=/etc/dbus-1/system.d/ \
   --with-dbus-daemon=/usr/bin/dbus-daemon \
@@ -131,6 +140,10 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
     mv $file ${file}.new
   done
 )
+
+if [ ! -z "$PAM_OPTIONS" ]; then
+  mv $PKG/etc/pam.d/netatalk $PKG/etc/pam.d/netatalk.new
+fi
 
 mkdir -p $PKG/usr/doc/netatalk-$VERSION
 cp -a \

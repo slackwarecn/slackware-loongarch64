@@ -11,6 +11,9 @@ config() {
 }
 config etc/polkit-1/rules.d/20-plugdev-group-mount-override.rules.new
 config etc/polkit-1/rules.d/10-org.freedesktop.NetworkManager.rules.new
+if [ -r etc/pam.d/polkit-1.new ]; then
+  config etc/pam.d/polkit-1.new
+fi
 
 # Make sure the polkitd user and group exist:
 if ! grep -q "^polkitd:" etc/passwd ; then

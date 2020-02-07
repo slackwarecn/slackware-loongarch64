@@ -4,7 +4,7 @@
 
 # Copyright 2009, 2015  Robby Workman, Northport, Alabama, USA
 # Copyright 2010, 2015  Eric Hameleers, Eindhoven, NL
-# Copyright 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -102,6 +102,15 @@ find . \
 
 autoreconf -vif
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--enable-pam-module=yes"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--enable-pam-module=no"
+fi
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -114,7 +123,8 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-rundir=/var/run \
   --with-pid-file=/var/run/ConsoleKit/pid \
   --enable-docbook-docs \
-  --enable-pam-module=no \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --enable-udev-acl \
   --disable-static \
   --build=$TARGET || exit 1

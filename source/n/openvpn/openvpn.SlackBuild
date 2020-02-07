@@ -81,6 +81,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--enable-plugin-auth-pam"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--disable-plugin-auth-pam"
+fi
+
 if [ ! -x configure ]; then
   autoreconf -vif
 fi
@@ -96,11 +105,21 @@ CXXFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/openvpn-${VERSION} \
   --enable-lzo \
   --enable-iproute2 \
-  --disable-plugin-auth-pam \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
+
+if [ ! -z "$PAM_OPTIONS" ]; then
+  # Make openvpn-auth-pam.so:
+  make -C plugin/auth-pam
+  strip --strip-unneeded plugin/auth-pam/openvpn-auth-pam.so
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+  cp -a plugin/auth-pam/openvpn-auth-pam.so $PKG/usr/lib${LIBDIRSUFFIX}/
+  mv plugin/auth-pam/README plugin/auth-pam/README.pam
+fi
 
 # Create a decent config directory. openvpn doesn't have one by
 # default, nor does it have a single config file.

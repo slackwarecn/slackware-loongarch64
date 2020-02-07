@@ -89,6 +89,15 @@ if ! grep -q "^polkitd:" /etc/passwd ; then
   useradd -c "PolicyKit daemon owner" -d /var/lib/polkit -u 87 -g polkitd -s /bin/false polkitd
 fi
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--with-authfw=pam --with-pam-module-dir=/lib/security"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--with-authfw=shadow"
+fi
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -105,7 +114,8 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-introspection \
   --enable-libsystemd-login=no \
   --enable-libelogind=no \
-  --with-authfw=shadow \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --enable-verbose-mode \
   --with-os-type=Slackware \
   --build=$ARCH-slackware-linux || exit 1
@@ -124,6 +134,11 @@ mkdir -p $PKG/var/lib/polkit
 # Add default policy files for udisks2 and NetworkManager events:
 cat $CWD/10-org.freedesktop.NetworkManager.rules > $PKG/etc/polkit-1/rules.d/10-org.freedesktop.NetworkManager.rules.new
 cat $CWD/20-plugdev-group-mount-override.rules > $PKG/etc/polkit-1/rules.d/20-plugdev-group-mount-override.rules.new
+
+if [ ! -z "$PAM_OPTIONS" ]; then
+  # Make the PAM file .new:
+  mv $PKG/etc/pam.d/polkit-1 $PKG/etc/pam.d/polkit-1.new
+fi
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

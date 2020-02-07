@@ -82,6 +82,13 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  LOGIN_OPTIONS=""
+else
+  LOGIN_OPTIONS="--disable-login"
+fi
+
 # Changing the fdisk -l output (this was done prior to util-linux-ng) broke
 # our installation scripts, so we have changed the name of partition type
 # 83 back to "Linux swap":
@@ -119,7 +126,7 @@ configure_with_python(){
   --enable-pg \
   --enable-raw \
   --enable-rename \
-  --disable-login \
+  $LOGIN_OPTIONS \
   --enable-schedutils \
   --enable-wall \
   --enable-write \
@@ -136,13 +143,13 @@ CFLAGS="$SLKCFLAGS" \
   configure_with_python 2 || exit 1
 
 make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+make install $NUMJOBS DESTDIR=$PKG || exit 1
 
 # Build python3 bindings for libmount:
 make clean
 CFLAGS="$SLKCFLAGS" \
   configure_with_python 3 || exit 1
-make \
+make $NUMJOBS \
   install-pylibmountexecLTLIBRARIES \
   install-pylibmountexecPYTHON \
   DESTDIR=$PKG || exit 1

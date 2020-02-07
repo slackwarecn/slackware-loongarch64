@@ -11,5 +11,6 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/pam.d/xscreensaver.new
-
+if [ -r etc/pam.d/xscreensaver.new ]; then
+  config etc/pam.d/xscreensaver.new
+fi

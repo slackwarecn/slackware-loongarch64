@@ -21,6 +21,9 @@ preserve_perms() {
   config ${NEW}
 }
 
+if [ -r etc/pam.d/sshd.new ]; then
+  config etc/pam.d/sshd.new
+fi
 config etc/default/sshd.new
 config etc/ssh/ssh_config.new
 config etc/ssh/sshd_config.new

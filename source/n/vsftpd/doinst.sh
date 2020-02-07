@@ -9,6 +9,9 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
+if [ -r etc/pam.d/vsftpd.new ]; then
+  config etc/pam.d/vsftpd.new
+fi
 config etc/vsftpd.conf.new
 config etc/logrotate.d/vsftpd.new
 rm -f etc/logrotate.d/vsftpd.new

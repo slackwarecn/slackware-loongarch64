@@ -26,8 +26,6 @@ PKGNAM=vsftpd
 VERSION=${VERSION:-$(echo ${PKGNAM}-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-5}
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -45,6 +43,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
@@ -91,6 +91,11 @@ cat vsftpd.8 | gzip -9c > $PKG/usr/man/man8/vsftpd.8.gz
 
 mkdir -p $PKG/etc
 cat vsftpd.conf > $PKG/etc/vsftpd.conf.new
+
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  mkdir -p $PKG/etc/pam.d
+  cat RedHat/vsftpd.pam > $PKG/etc/pam.d/vsftpd.new
+fi
 
 mkdir -p $PKG/etc/logrotate.d
 zcat $CWD/vsftpd.log.gz > $PKG/etc/logrotate.d/vsftpd.new

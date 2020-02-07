@@ -81,6 +81,15 @@ cd cups-$VERSION || exit 1
 
 sed -i.orig -e 's#$exec_prefix/lib/cups#$libdir/cups#g' configure
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--enable-pam"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--disable-pam"
+fi
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -89,13 +98,21 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-gnutls=yes \
   --enable-cdsassl=no \
   --docdir=/usr/doc \
-  --disable-pam \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --disable-avahi \
   --disable-dnssd \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || exit 1
 make BUILDROOT=$PKG install || exit 1
+
+if [ ! -z "$PAM_OPTIONS" ]; then
+  # Allow pam config files to be edited by root:
+  chmod 644 $PKG/etc/pam.d/*
+  # Make PAM file .new:
+  mv $PKG/etc/pam.d/cups $PKG/etc/pam.d/cups.new
+fi
 
 # Blacklist the usblp module just to make sure that it doesn't cause
 # any problems:

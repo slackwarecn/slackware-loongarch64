@@ -86,12 +86,24 @@ zcat $CWD/0028-pppoe-include-netinet-in.h-before-linux-in.h.patch.gz | patch -p1
 
 zcat $CWD/ppp.glibc228.diff.gz | patch -p1 --verbose || exit 1
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="USE_PAM=y"
+else
+  unset PAM_OPTIONS
+fi
+
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} || exit 1
 
-make $NUMJOBS || make || exit 1
+make $PAM_OPTIONS $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG/usr || exit 1
+
+if [ ! -z "$PAM_OPTIONS" ]; then
+  mkdir -p $PKG/etc/pam.d
+  cat pppd/ppp.pam > $PKG/etc/pam.d/ppp.new
+fi
 
 # Install PPP config files:
 mkdir -p $PKG/etc/ppp

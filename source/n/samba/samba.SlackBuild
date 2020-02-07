@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -100,6 +100,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--with-pam --with-pammodulesdir=/lib/security --with-system-mitkrb5 --with-experimental-mit-ad-dc"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--without-pam"
+fi
+
 # Some of these options could be auto-detected, but declaring them
 # here doesn't hurt and helps document what features we're trying to
 # build in.
@@ -133,7 +142,8 @@ CFLAGS="$SLKCFLAGS" \
   --with-winbind \
   --with-ldap \
   --with-ads \
-  --without-pam \
+  $PAM_OPTIONS \
+  $SHADOW_OPTIONS \
   --build=$TARGET || exit 1
   # Gives errors:
   #--builtin-libraries=replace,ccan \

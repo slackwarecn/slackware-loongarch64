@@ -10,6 +10,11 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
+
+if [ -r etc/pam.d/ppp.new ]; then
+  config etc/pam.d/ppp.new
+fi
+
 config etc/ppp/chap-secrets.new
 config etc/ppp/options.new
 config etc/ppp/pap-secrets.new

@@ -11,4 +11,6 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/pam.d/xlock.new
+if [ -r etc/pam.d/xlock.new ]; then
+  config etc/pam.d/xlock.new
+fi

@@ -51,12 +51,16 @@ PKG=$TMP/package-shadow
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 rm -rf $PKG
@@ -65,6 +69,15 @@ cd $TMP
 rm -rf shadow-$VERSION
 tar xvf $CWD/shadow-$VERSION.tar.xz || exit 1
 cd shadow-$VERSION
+
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--with-libpam"
+  unset SHADOW_OPTIONS
+else
+  unset PAM_OPTIONS
+  SHADOW_OPTIONS="--enable-shadowgrp --without-libcrack"
+fi
 
 # Apply some patches taken from the svn trunk that
 # fix some of the more serious bugs in 4.1.4.3:
@@ -109,7 +122,8 @@ CFLAGS="$SLKCFLAGS" \
   --enable-man \
   --enable-subordinate-ids \
   --disable-shared \
-  --without-libcrack \
+  $SHADOW_OPTIONS \
+  $PAM_OPTIONS \
   --build=$ARCH-slackware-linux
 
 #  --enable-utmpx   # defaults to 'no'
@@ -134,15 +148,41 @@ mkdir -p $PKG/bin $PKG/sbin
 )
 mv $PKG/usr/sbin/nologin $PKG/sbin/nologin
 
+if [ ! -z "$PAM_OPTIONS" ]; then
+  # Don't ship the login utilities. We'll be using the ones from util-linux:
+  for file in /bin/login /bin/su /sbin/runuser /usr/bin/chfn /usr/bin/chsh \
+    /usr/man/man1/chfn.1.gz /usr/man/man1/chsh.1.gz /usr/man/man1/login.1.gz \
+    /usr/man/man1/runuser.1.gz /usr/man/man1/su.1.gz \
+    /usr/share/bash-completion/completions/chfn \
+    /usr/share/bash-completion/completions/chsh \
+    /usr/share/bash-completion/completions/su ; do
+    rm -f $PKG${file}
+  done
+  # Install config files in /etc/pam.d/. We'll use our own copies... I'm not
+  # sure that I trust upstream enough to let them handle this stuff.
+  rm -rf $PKG/etc/pam.d
+  mkdir -p $PKG/etc/pam.d
+  for file in $CWD/pam.d/* ; do
+    cp -a ${file} $PKG/etc/pam.d/
+  done
+  # Ensure correct perms/ownership on files in /etc/pam.d/:
+  chown root:root $PKG/etc/pam.d/*
+  chmod 644 $PKG/etc/pam.d/*
+  # Don't clobber existing config files:
+  find $PKG/etc/pam.d -type f -exec mv {} {}.new \;
+  # Install a login.defs with unsurprising defaults:
+  rm -f $PKG/etc/login.defs
+  zcat $CWD/login.defs.pam.gz > $PKG/etc/login.defs.new
+else # not using PAM
+  mv $PKG/etc/login.access $PKG/etc/login.access.new
+  # Install a login.defs with unsurprising defaults:
+  rm -f $PKG/etc/login.defs
+  zcat $CWD/login.defs.shadow.gz > $PKG/etc/login.defs.new
+fi
+
 # /bin/groups is provided by coreutils.
 rm -f $PKG/bin/groups
 find $PKG -name groups.1 -exec rm {} \+
-
-# Install a login.defs with unsurprising defaults:
-rm -f $PKG/etc/login.defs
-zcat $CWD/login.defs.gz > $PKG/etc/login.defs.new
-
-mv $PKG/etc/login.access $PKG/etc/login.access.new
 
 # I don't think this works well enough to recommend it.
 #mv $PKG/etc/limits $PKG/etc/limits.new
@@ -197,4 +237,3 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/shadow-$VERSION-$ARCH-$BUILD.txz
-

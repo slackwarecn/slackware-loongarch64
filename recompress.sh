@@ -198,9 +198,10 @@ gzip ./source/a/e2fsprogs/doinst.sh
 gzip ./source/a/pkgtools/doinst.sh
 gzip ./source/a/shadow/useradd
 gzip ./source/a/shadow/shadow.login.display.short.hostname.diff
-gzip ./source/a/shadow/login.defs
+gzip ./source/a/shadow/login.defs.pam
 gzip ./source/a/shadow/shadow.CVE-2005-4890.relax.diff
 gzip ./source/a/shadow/HOME_MODE.xml
+gzip ./source/a/shadow/login.defs.shadow
 gzip ./source/a/shadow/doinst.sh
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff
@@ -505,8 +506,9 @@ gzip ./source/n/obexftp/patches/obexftp-0.24-fix-absurd-install-path.patch
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.17.diff
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
+gzip ./source/n/popa3d/popa3d.shadow.diff
+gzip ./source/n/popa3d/popa3d.pam.diff
 gzip ./source/n/popa3d/doinst.sh
-gzip ./source/n/popa3d/popa3d.diff
 gzip ./source/n/ca-certificates/fixup_update-ca-certificates.diff
 gzip ./source/n/ca-certificates/doinst.sh
 gzip ./source/n/ca-certificates/update-ca-certificates.c_rehash.diff
@@ -614,6 +616,7 @@ gzip ./source/n/lynx/lynx.cfg.diff
 gzip ./source/n/netkit-routed/netkit-routed-0.17.diff
 gzip ./source/n/netkit-routed/routed.18.candidate.final.patch
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
+gzip ./source/n/openssh/sshd_config-pam.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/iputils/iputils.docbook.revert.diff
@@ -670,6 +673,7 @@ gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
+gzip ./source/ap/lxc/doinst.sh
 gzip ./source/ap/cgmanager/doinst.sh
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh
 gzip ./source/ap/pm-utils/patches/log-line-spacing-fix.patch
@@ -762,6 +766,7 @@ gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch
 gzip ./source/ap/screen/45suppress_remap.patch
+gzip ./source/ap/screen/doinst.sh
 gzip ./source/ap/groff/groff.man.mdoc.local
 gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
 gzip ./source/ap/rpm/doinst.sh

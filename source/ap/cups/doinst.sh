@@ -13,6 +13,9 @@ for file in etc/cups/*.new ; do
   config $file
 done
 config etc/dbus-1/system.d/cups.conf.new
+if [ -r etc/pam.d/cups.new ]; then
+  config etc/pam.d/cups.new
+fi
 
 # This file will just have to go.  It appeared for a while during a -current
 # devel period and has never been part of a stable release.

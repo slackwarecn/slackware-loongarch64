@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gdb
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -72,18 +72,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Currently broken in this version, but keep trying:
-if [ "$VERSION" = "8.3.1" ]; then
-  GUILE_OPTION="--without-guile"
-else
-  # Might as well try it to see if it compiles this time:
-  GUILE_OPTION="--with-guile"
-fi
+# This has been perpetually broken, so we'll default to turning it off:
+GUILE_OPTION=${GUILE_OPTION:"--without-guile"}
 
-# Fix for Python 3.8.x:
-zcat $CWD/gdb.python38.patch.gz | patch -p1 --verbose || exit 1
+# Make a build directory:
+mkdir build-gdb
+cd build-gdb
 
-./configure \
+# Configure:
+../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
@@ -94,6 +91,7 @@ zcat $CWD/gdb.python38.patch.gz | patch -p1 --verbose || exit 1
   --with-system-zlib \
   --build=$ARCH-slackware-linux || exit 1
 
+# Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
@@ -102,6 +100,9 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/{libbfd*,libiberty*,libopcodes*}
 rmdir $PKG/usr/lib${LIBDIRSUFFIX} 2> /dev/null
 rm -f $PKG/usr/info/{annotate*,bfd*,configure*,standards*}
 rm -rf $PKG/usr/include
+
+# Head back out of the build-gdb directory..
+cd ..
 
 mkdir -p $PKG/usr/doc/gdb-$VERSION/gdb
 cp -a COPYING* README $PKG/usr/doc/gdb-$VERSION
@@ -143,4 +144,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 # Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/gdb-$VERSION-$ARCH-$BUILD.txz
-

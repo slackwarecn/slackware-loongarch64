@@ -85,7 +85,6 @@ gzip ./source/d/make/make.glibc-2.27.glob.diff
 gzip ./source/d/make/make.guile30.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
-gzip ./source/d/gdb/gdb.python38.patch
 gzip ./source/e/emacs/0001-Support-ImageMagick-version-7.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
@@ -633,7 +632,6 @@ gzip ./source/n/httpd/doinst.sh
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
 gzip ./source/n/dovecot/doinst.sh
 gzip ./source/n/dovecot/dovecot.config.README.diff
-gzip ./source/n/libgpg-error/libgpg-error.gawk5.diff
 gzip ./source/n/biff+comsat/biff+comsat.badutmp.diff
 gzip ./source/n/biff+comsat/biff+comsat.offset.diff
 gzip ./source/n/biff+comsat/biff+comsat-0.17.diff
@@ -962,10 +960,6 @@ gzip ./source/l/strigi/libstreams-0001-Generate-config.h-after-looking-for-depen
 gzip ./source/l/strigi/libstreams-0002-Reduce-noise-in-analysis-tools-complain-about-resour.patch
 gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/openexr/openexr.CVE-2017-9110-to-9116.patch
-gzip ./source/l/ConsoleKit2/patches/0002-Fix-some-libdir-scripts-stuff-missed-in-4d87a25ea0af.patch
-gzip ./source/l/ConsoleKit2/patches/0001-Revert-Minor-code-refactoring.patch
-gzip ./source/l/ConsoleKit2/patches/0003-Filter-out-the-kdm-user.patch
-gzip ./source/l/ConsoleKit2/patches/0004-Apply-overlooked-prefix-lib-libdir-substitution.patch
 gzip ./source/l/ConsoleKit2/doinst.sh
 gzip ./source/l/qt-gstreamer/qt-gstreamer.gstreamer-1.16.x.diff
 gzip ./source/l/qt-gstreamer/doinst.sh

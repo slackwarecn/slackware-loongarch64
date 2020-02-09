@@ -77,13 +77,16 @@
 # 1.10.0-2:   18/nov/2019 by Patrick Volkerding <volkerdi@slackware.com>
 #             Rebuilt for new xorg-server.
 # 1.10.1-1:   20/dec/2019 by Patrick Volkerding <volkerdi@slackware.com>
+# 1.10.1-2:   09/feb/2020 by Patrick Volkerding <volkerdi@slackware.com>
+#             Removed redundant .desktop file. Thanks to upnort.
+#             Patched for latest xorg-server.
 # 
 # -----------------------------------------------------------------------------
 
 PKGNAM=tigervnc
 VERSION=${VERSION:-1.10.1}
 PVER=$(echo $VERSION | cut -f 1,2 -d . | tr -d .)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 TAG=${TAG:-}
 
@@ -202,8 +205,8 @@ cd $PKGNAM-$VERSION || exit 1
 # HACK! Force protocol 3.3 for UVNCSC
 zcat $CWD/patches/force_protocol_3.3_for_UVNCSC.patch.gz | patch -p1 || exit 1
 
-## Patch to support x.org 1.20 (already included in tigervnc-1.9.0):
-#zcat $CWD/patches/tigervnc-support-xorg120.patch.gz | patch -p1 --verbose || exit 1
+# Patch to support xorg-server 1.20.7:
+zcat $CWD/patches/tigervnc.xorg-server-1.20.7.diff.gz | patch -p1 --verbose || exit 1
 
 # Explicitly link against libpng to prevent linking errors:
 zcat $CWD/patches/tigervnc13_link_png.patch.gz | patch -p1 --verbose || exit 1
@@ -309,23 +312,6 @@ for PSIZE in 16 24 32 48; do
   install -m644 media/icons/tigervnc_${PSIZE}.png \
     $PKG/usr/share/icons/hicolor/${PSIZE}x${PSIZE}/apps/tigervnc.png 
 done
-cat <<EOT > $PKG/usr/share/applications/tigervnc.desktop
-[Desktop Entry]
-Encoding=UTF-8
-Name=TigerVNC Viewer
-GenericName=VNCViewer (RFB Client)
-Comment=Connect to remote desktop
-SwallowExec=
-Exec=vncviewer
-MimeType=
-Icon=tigervnc
-Path=
-TerminalOptions=
-Terminal=false
-Type=Application
-Categories=Network;
-StartupWMClass=VNC Viewer: Connection Details
-EOT
 
 # Add this to the doinst.sh:
 ! [ -d $PKG/install ] && mkdir -p $PKG/install

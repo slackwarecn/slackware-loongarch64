@@ -38,6 +38,7 @@ gzip ./extra/source/tigervnc/patches/xorg-server/0001-xfree86-use-modesetting-dr
 gzip ./extra/source/tigervnc/patches/xorg-server/fix-nouveau-segfault.diff
 gzip ./extra/source/tigervnc/patches/xorg-server/x11.startwithblackscreen.diff
 gzip ./extra/source/tigervnc/patches/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
+gzip ./extra/source/tigervnc/patches/tigervnc.xorg-server-1.20.7.diff
 gzip ./extra/source/tigervnc/patches/xserver120.patch
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff

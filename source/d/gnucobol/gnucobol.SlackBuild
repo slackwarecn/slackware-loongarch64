@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013, 2014, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2014, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gnucobol
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -113,6 +113,13 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   ABOUT-NLS AUTHORS COPYING* ChangeLog INSTALL NEWS* README* THANKS TODO \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Compress info files, if any:
 if [ -d $PKG/usr/info ]; then

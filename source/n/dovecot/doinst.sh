@@ -28,6 +28,10 @@ for file in etc/dovecot/*.conf.new etc/dovecot/*.ext.new etc/dovecot/conf.d/*.co
   config $file
 done
 
+if [ -r etc/pam.d/dovecot.new ]; then
+  config etc/pam.d/dovecot.new
+fi
+
 # Make sure that the dovecot user/group (UID 94, GID 94), and the
 # postdrop user/group (UID 65, GID 95) exist on this system:
 if ! grep -q "^dovecot:" etc/passwd ; then

@@ -1,0 +1,95 @@
+From 05aa693b7db6b818d31e41f0cab1d5fb4f49600e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20Esser?= <besser82@fedoraproject.org>
+Date: Thu, 15 Nov 2018 15:58:56 +0100
+Subject: [PATCH] pam_unix: Prefer a gensalt function, that supports auto
+ entropy.
+
+* modules/pam_unix/pam_unix_passwd.c: Initialize rounds parameter to 0.
+* modules/pam_unix/passverify.c: Prefer gensalt with auto entropy.
+* modules/pam_unix/support.c: Fix sanitizing of rounds parameter.
+---
+ modules/pam_unix/pam_unix_passwd.c |  2 +-
+ modules/pam_unix/passverify.c      | 13 +++++++++++++
+ modules/pam_unix/support.c         |  7 +++++--
+ 3 files changed, 19 insertions(+), 3 deletions(-)
+
+Index: Linux-PAM-1.3.1/modules/pam_unix/pam_unix_passwd.c
+===================================================================
+--- Linux-PAM-1.3.1.orig/modules/pam_unix/pam_unix_passwd.c
++++ Linux-PAM-1.3.1/modules/pam_unix/pam_unix_passwd.c
+@@ -607,7 +607,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int
+ 	unsigned int ctrl, lctrl;
+ 	int retval;
+ 	int remember = -1;
+-	int rounds = -1;
++	int rounds = 0;
+ 	int pass_min_len = 0;
+ 
+ 	/* <DO NOT free() THESE> */
+Index: Linux-PAM-1.3.1/modules/pam_unix/passverify.c
+===================================================================
+--- Linux-PAM-1.3.1.orig/modules/pam_unix/passverify.c
++++ Linux-PAM-1.3.1/modules/pam_unix/passverify.c
+@@ -375,7 +375,12 @@ PAMH_ARG_DECL(char * create_password_has
+ 	const char *password, unsigned int ctrl, int rounds)
+ {
+ 	const char *algoid;
++#if defined(CRYPT_GENSALT_OUTPUT_SIZE) && CRYPT_GENSALT_OUTPUT_SIZE > 64
++	/* Strings returned by crypt_gensalt_rn will be no longer than this. */
++	char salt[CRYPT_GENSALT_OUTPUT_SIZE];
++#else
+ 	char salt[64]; /* contains rounds number + max 16 bytes of salt + algo id */
++#endif
+ 	char *sp;
+ #ifdef HAVE_CRYPT_R
+ 	struct crypt_data *cdata = NULL;
+@@ -406,6 +411,13 @@ PAMH_ARG_DECL(char * create_password_has
+ 		return crypted;
+ 	}
+ 
++#if defined(CRYPT_GENSALT_IMPLEMENTS_AUTO_ENTROPY) && CRYPT_GENSALT_IMPLEMENTS_AUTO_ENTROPY
++	/*
++	 * Any version of libcrypt supporting auto entropy is
++	 * guaranteed to have crypt_gensalt_rn().
++	 */
++	sp = crypt_gensalt_rn(algoid, rounds, NULL, 0, salt, sizeof(salt));
++#else
+ #ifdef HAVE_CRYPT_GENSALT_R
+ 	if (on(UNIX_BLOWFISH_PASS, ctrl)) {
+ 		char entropy[17];
+@@ -423,6 +435,7 @@ PAMH_ARG_DECL(char * create_password_has
+ #ifdef HAVE_CRYPT_GENSALT_R
+ 	}
+ #endif
++#endif /* CRYPT_GENSALT_IMPLEMENTS_AUTO_ENTROPY */
+ #ifdef HAVE_CRYPT_R
+ 	sp = NULL;
+ 	cdata = malloc(sizeof(*cdata));
+Index: Linux-PAM-1.3.1/modules/pam_unix/support.c
+===================================================================
+--- Linux-PAM-1.3.1.orig/modules/pam_unix/support.c
++++ Linux-PAM-1.3.1/modules/pam_unix/support.c
+@@ -175,6 +175,7 @@ int _set_ctrl(pam_handle_t *pamh, int fl
+ 
+ 	    if (val) {
+ 	      *rounds = strtol(val, NULL, 10);
++	      set(UNIX_ALGO_ROUNDS, ctrl);
+ 	      free (val);
+ 	    }
+ 	  }
+@@ -254,11 +255,13 @@ int _set_ctrl(pam_handle_t *pamh, int fl
+ 			if (*rounds < 4 || *rounds > 31)
+ 				*rounds = 5;
+ 		} else if (on(UNIX_SHA256_PASS, ctrl) || on(UNIX_SHA512_PASS, ctrl)) {
+-			if ((*rounds < 1000) || (*rounds == INT_MAX))
++			if ((*rounds < 1000) || (*rounds == INT_MAX)) {
+ 				/* don't care about bogus values */
++				*rounds = 0;
+ 				unset(UNIX_ALGO_ROUNDS, ctrl);
+-			if (*rounds >= 10000000)
++			} else if (*rounds >= 10000000) {
+ 				*rounds = 9999999;
++			}
+ 		}
+ 	}
+ 

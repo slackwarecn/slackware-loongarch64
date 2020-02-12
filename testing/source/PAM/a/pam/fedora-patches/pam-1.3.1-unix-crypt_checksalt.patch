@@ -1,0 +1,40 @@
+From 62425bf2a0c72d0e23139d0b285547a7add26251 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20Esser?= <besser82@fedoraproject.org>
+Date: Thu, 15 Nov 2018 19:49:44 +0100
+Subject: [PATCH] pam_unix: Add support for crypt_checksalt, if libcrypt
+ supports it.
+
+libxcrypt v4.3 has added the crypt_checksalt function to whether
+the prefix at the begining of a given hash string refers to a
+supported hashing method.
+
+Future revisions of this function will add support to check whether
+the hashing method, the prefix refers to, was disabled or considered
+deprecated by the system's factory presets or system administrator.
+Furthermore it will be able to detect whether the parameters, which
+are used by the corresponding hashing method, being encoded in the
+hash string are not considered to be strong enough anymore.
+
+*modules/pam_unix/passverify.c: Add support for crypt_checksalt.
+---
+ modules/pam_unix/passverify.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/modules/pam_unix/passverify.c b/modules/pam_unix/passverify.c
+index 1f433b3a..6132130a 100644
+--- a/modules/pam_unix/passverify.c
++++ b/modules/pam_unix/passverify.c
+@@ -244,7 +244,13 @@ PAMH_ARG_DECL(int check_shadow_expiry,
+ 		D(("account expired"));
+ 		return PAM_ACCT_EXPIRED;
+ 	}
++#if defined(CRYPT_CHECKSALT_AVAILABLE) && CRYPT_CHECKSALT_AVAILABLE
++	if (spent->sp_lstchg == 0 ||
++	    crypt_checksalt(spent->sp_pwdp) == CRYPT_SALT_METHOD_LEGACY ||
++	    crypt_checksalt(spent->sp_pwdp) == CRYPT_SALT_TOO_CHEAP) {
++#else
+ 	if (spent->sp_lstchg == 0) {
++#endif
+ 		D(("need a new password"));
+ 		*daysleft = 0;
+ 		return PAM_NEW_AUTHTOK_REQD;

@@ -1,0 +1,755 @@
+diff --git a/modules/pam_motd/pam_motd.8.xml b/modules/pam_motd/pam_motd.8.xml
+index 906c4ed..4e2110c 100644
+--- a/modules/pam_motd/pam_motd.8.xml
++++ b/modules/pam_motd/pam_motd.8.xml
+@@ -21,6 +21,9 @@
+       <arg choice="opt">
+         motd=<replaceable>/path/filename</replaceable>
+       </arg>
++      <arg choice="opt">
++        motd_dir=<replaceable>/path/dirname.d</replaceable>
++      </arg>
+     </cmdsynopsis>
+   </refsynopsisdiv>
+ 
+@@ -31,10 +34,49 @@
+     <para>
+       pam_motd is a PAM module that can be used to display
+       arbitrary motd (message of the day) files after a successful
+-      login. By default the <filename>/etc/motd</filename> file is
+-      shown. The message size is limited to 64KB.
++      login. By default, pam_motd shows files in the
++      following locations:
++    </para>
++    <para>
++      <simplelist type='vert'>
++        <member><filename>/etc/motd</filename></member>
++        <member><filename>/run/motd</filename></member>
++        <member><filename>/usr/lib/motd</filename></member>
++        <member><filename>/etc/motd.d/</filename></member>
++        <member><filename>/run/motd.d/</filename></member>
++        <member><filename>/usr/lib/motd.d/</filename></member>
++      </simplelist>
++    </para>
++    <para>
++      Each message size is limited to 64KB.
++    </para>
++    <para>
++      If <filename>/etc/motd</filename> does not exist,
++      then <filename>/run/motd</filename> is shown. If
++      <filename>/run/motd</filename> does not exist, then
++      <filename>/usr/lib/motd</filename> is shown.
++    </para>
++    <para>
++      Similar overriding behavior applies to the directories.
++      Files in <filename>/etc/motd.d/</filename> override files
++      with the same name in <filename>/run/motd.d/</filename> and
++      <filename>/usr/lib/motd.d/</filename>. Files in <filename>/run/motd.d/</filename>
++      override files with the same name in <filename>/usr/lib/motd.d/</filename>.
++    </para>
++    <para>
++      Files the in the directories listed above are displayed in
++      lexicographic order by name.
++    </para>
++    <para>
++      To silence a message,
++      a symbolic link with target <filename>/dev/null</filename>
++      may be placed in <filename>/etc/motd.d</filename> with
++      the same filename as the message to be silenced. Example:
++      Creating a symbolic link as follows silences <filename>/usr/lib/motd.d/my_motd</filename>.
++    </para>
++    <para>
++      <command>ln -s /dev/null /etc/motd.d/my_motd</command>
+     </para>
+-
+   </refsect1>
+ 
+   <refsect1 id="pam_motd-options">
+@@ -47,8 +89,10 @@
+         </term>
+         <listitem>
+           <para>
+-	    The <filename>/path/filename</filename> file is displayed
+-            as message of the day.
++            The <filename>/path/filename</filename> file is displayed
++            as message of the day. Multiple paths to try can be
++            specified as a colon-separated list. By default this option
++            is set to <filename>/etc/motd:/run/motd:/usr/lib/motd</filename>.
+           </para>
+         </listitem>
+       </varlistentry>
+@@ -59,16 +103,17 @@
+         <listitem>
+           <para>
+             The <filename>/path/dirname.d</filename> directory is scanned
+-            and each file contained inside of it is displayed.
++            and each file contained inside of it is displayed. Multiple
++            directories to scan can be specified as a colon-separated list.
++            By default this option is set to <filename>/etc/motd.d:/run/motd.d:/usr/lib/motd.d</filename>.
+           </para>
+         </listitem>
+       </varlistentry>
+     </variablelist>
+     <para>
+-      When no options are given, the default is to display both
+-      <filename>/etc/motd</filename> and the contents of
+-      <filename>/etc/motd.d</filename>.  Specifying either option (or both)
+-      will disable this default behavior.
++      When no options are given, the default behavior applies for both
++      options. Specifying either option (or both) will disable the
++      default behavior for both options.
+     </para>
+   </refsect1>
+ 
+diff --git a/modules/pam_motd/pam_motd.c b/modules/pam_motd/pam_motd.c
+index cc828d7..ec3ebd5 100644
+--- a/modules/pam_motd/pam_motd.c
++++ b/modules/pam_motd/pam_motd.c
+@@ -33,8 +33,8 @@
+  */
+ 
+ #define PAM_SM_SESSION
+-#define DEFAULT_MOTD	"/etc/motd"
+-#define DEFAULT_MOTD_D	"/etc/motd.d"
++#define DEFAULT_MOTD	"/etc/motd:/run/motd:/usr/lib/motd"
++#define DEFAULT_MOTD_D	"/etc/motd.d:/run/motd.d:/usr/lib/motd.d"
+ 
+ #include <security/pam_modules.h>
+ #include <security/pam_modutil.h>
+@@ -97,12 +97,234 @@ static void try_to_display_directory(pam_handle_t *pamh, const char *dirname)
+     }
+ }
+ 
++/*
++ * Split a DELIM-separated string ARG into an array.
++ * Outputs a newly allocated array of strings OUT_ARG_SPLIT
++ * and the number of strings OUT_NUM_STRS.
++ * Returns 0 in case of error, 1 in case of success.
++ */
++static int pam_split_string(const pam_handle_t *pamh, char *arg, char delim,
++			    char ***out_arg_split, uint *out_num_strs)
++{
++    char *arg_extracted = NULL;
++    const char *arg_ptr = arg;
++    char **arg_split = NULL;
++    char delim_str[2];
++    int i = 0;
++    uint num_strs = 0;
++    int retval = 0;
++
++    delim_str[0] = delim;
++    delim_str[1] = '\0';
++
++    if (arg == NULL) {
++	goto out;
++    }
++
++    while (arg_ptr != NULL) {
++	num_strs++;
++	arg_ptr = strchr(arg_ptr + sizeof(const char), delim);
++    }
++
++    arg_split = (char **)calloc(num_strs, sizeof(char *));
++    if (arg_split == NULL) {
++	pam_syslog(pamh, LOG_CRIT, "pam_motd: failed to allocate string array");
++	goto out;
++    }
++
++    arg_extracted = strtok_r(arg, delim_str, &arg);
++    while (arg_extracted != NULL && i < num_strs) {
++	arg_split[i++] = arg_extracted;
++	arg_extracted = strtok_r(NULL, delim_str, &arg);
++    }
++
++    retval = 1;
++
++  out:
++    *out_num_strs = num_strs;
++    *out_arg_split = arg_split;
++
++    return retval;
++}
++
++/* Join A_STR and B_STR, inserting a "/" between them if one is not already trailing
++ * in A_STR or beginning B_STR. A pointer to a newly allocated string holding the
++ * joined string is returned in STRP_OUT.
++ * Returns -1 in case of error, or the number of bytes in the joined string in
++ * case of success. */
++static int join_dir_strings(char **strp_out, const char *a_str, const char *b_str)
++{
++    int has_sep = 0;
++    int retval = -1;
++    char *join_strp = NULL;
++    
++    if (strp_out == NULL || a_str == NULL || b_str == NULL) {
++	goto out;
++    }
++    if (strlen(a_str) == 0) {
++	goto out;
++    }
++
++    has_sep = (a_str[strlen(a_str) - 1] == '/') || (b_str[0] == '/');
++
++    retval = asprintf(&join_strp, "%s%s%s", a_str,
++	(has_sep == 1) ? "" : "/", b_str);
++
++    if (retval < 0) {
++	goto out;
++    }
++
++    *strp_out = join_strp;
++
++  out:
++    return retval;
++}
++
++static int compare_strings(const void * a, const void * b)
++{
++    const char *a_str = *(char **)a;
++    const char *b_str = *(char **)b;
++
++    if (a_str == NULL && b_str == NULL) {
++        return 0;
++    }
++    else if (a_str == NULL) {
++	return -1;
++    }
++    else if (b_str == NULL) {
++	return 1;
++    }
++    else {
++	return strcmp(a_str, b_str);
++    }
++}
++
++static int filter_dirents(const struct dirent *d)
++{
++    return (d->d_type == DT_REG || d->d_type == DT_LNK);
++}
++
++static void try_to_display_directories_with_overrides(pam_handle_t *pamh,
++	char **motd_dir_path_split, int num_motd_dirs)
++{
++    struct dirent ***dirscans = NULL;
++    int *dirscans_sizes = NULL;
++    int dirscans_size_total = 0;
++    char **dirnames_all = NULL;
++    int i;
++    int i_dirnames = 0;
++
++    if (pamh == NULL || motd_dir_path_split == NULL) {
++	goto out;
++    }
++    if (num_motd_dirs < 1) {
++	goto out;
++    }
++
++    if ((dirscans = (struct dirent ***)calloc(num_motd_dirs,
++	    sizeof(struct dirent **))) == NULL) {
++	pam_syslog(pamh, LOG_CRIT, "pam_motd: failed to allocate dirent arrays");
++	goto out;
++    }
++    if ((dirscans_sizes = (int *)calloc(num_motd_dirs, sizeof(int))) == NULL) {
++	pam_syslog(pamh, LOG_CRIT, "pam_motd: failed to allocate dirent array sizes");
++	goto out;
++    }
++
++    for (i = 0; i < num_motd_dirs; i++) {
++	dirscans_sizes[i] = scandir(motd_dir_path_split[i], &(dirscans[i]),
++		filter_dirents, alphasort);
++	if (dirscans_sizes[i] < 0) {
++	    pam_syslog(pamh, LOG_ERR, "pam_motd: error scanning directory %s", motd_dir_path_split[i]);
++	    dirscans_sizes[i] = 0;
++	}
++	dirscans_size_total += dirscans_sizes[i];
++    }
++
++    /* Allocate space for all file names found in the directories, including duplicates. */
++    if ((dirnames_all = (char **)calloc(dirscans_size_total,
++	    sizeof(char *))) == NULL) {
++	pam_syslog(pamh, LOG_CRIT, "pam_motd: failed to allocate dirname array");
++	goto out;
++    }
++
++    for (i = 0; i < dirscans_size_total; i++) {
++	dirnames_all[i] = NULL;
++    }
++
++    for (i = 0; i < num_motd_dirs; i++) {
++	int j;
++
++	for (j = 0; j < dirscans_sizes[i]; j++) {
++	    dirnames_all[i_dirnames] = dirscans[i][j]->d_name;
++	    i_dirnames++;
++	}
++    }
++
++    qsort(dirnames_all, dirscans_size_total,
++	    sizeof(const char *), compare_strings);
++
++    for (i = 0; i < dirscans_size_total; i++) {
++	int j;
++
++	if (dirnames_all[i] == NULL) {
++	    continue;
++	}
++
++	/* Skip duplicate file names. */
++	if (i > 0 && strcmp(dirnames_all[i], dirnames_all[i - 1]) == 0) {
++	    continue;
++	}
++
++	for (j = 0; j < num_motd_dirs; j++) {
++	    char *abs_path = NULL;
++
++	    if (join_dir_strings(&abs_path, motd_dir_path_split[j],
++		    dirnames_all[i]) < 0) {
++		continue;
++	    }
++
++	    if (abs_path != NULL) {
++		int fd = open(abs_path, O_RDONLY, 0);
++		if (fd >= 0) {
++		    try_to_display_fd(pamh, fd);
++		    close(fd);
++
++		    /* We displayed a file, skip to the next file name. */
++		    break;
++		}
++	    }
++	    _pam_drop(abs_path);
++	}
++    }
++
++  out:
++    _pam_drop(dirnames_all);
++    for (i = 0; i < num_motd_dirs; i++) {
++	int j;
++	for (j = 0; j < dirscans_sizes[i]; j++) {
++	    _pam_drop(dirscans[i][j]);
++	}
++	_pam_drop(dirscans[i]);
++    }
++    _pam_drop(dirscans_sizes);
++    _pam_drop(dirscans);
++
++    return;
++}
++
+ int pam_sm_open_session(pam_handle_t *pamh, int flags,
+ 			int argc, const char **argv)
+ {
+     int retval = PAM_IGNORE;
+     const char *motd_path = NULL;
++    char *motd_path_copy = NULL;
++    int num_motd_paths = 0;
++    char **motd_path_split = NULL;
+     const char *motd_dir_path = NULL;
++    char *motd_dir_path_copy = NULL;
++    int num_motd_dir_paths = 0;
++    char **motd_dir_path_split = NULL;
+ 
+     if (flags & PAM_SILENT) {
+ 	return retval;
+@@ -141,16 +363,52 @@ int pam_sm_open_session(pam_handle_t *pamh, int flags,
+     }
+ 
+     if (motd_path != NULL) {
+-	int fd = open(motd_path, O_RDONLY, 0);
++	motd_path_copy = strdup(motd_path);
++    }
++
++    if (motd_path_copy != NULL) {
++	if (pam_split_string(pamh, motd_path_copy, ':',
++		&motd_path_split, &num_motd_paths) == 0) {
++	    goto out;
++	}
++    }
++
++    if (motd_dir_path != NULL) {
++	motd_dir_path_copy = strdup(motd_dir_path);
++    }
+ 
+-	if (fd >= 0) {
+-	    try_to_display_fd(pamh, fd);
+-	    close(fd);
++    if (motd_dir_path_copy != NULL) {
++	if (pam_split_string(pamh, motd_dir_path_copy, ':',
++		&motd_dir_path_split, &num_motd_dir_paths) == 0) {
++	    goto out;
+ 	}
+     }
+ 
+-    if (motd_dir_path != NULL)
+-	try_to_display_directory(pamh, motd_dir_path);
++    if (motd_path_split != NULL) {
++	int i;
++
++	for (i = 0; i < num_motd_paths; i++) {
++	    int fd = open(motd_path_split[i], O_RDONLY, 0);
++
++	    if (fd >= 0) {
++		try_to_display_fd(pamh, fd);
++		close(fd);
++
++		/* We found and displayed a file, move onto next filename. */
++		break;
++	    }
++	}
++    }
++
++    if (motd_dir_path_split != NULL)
++	try_to_display_directories_with_overrides(pamh, motd_dir_path_split,
++		num_motd_dir_paths);
++
++  out:
++    _pam_drop(motd_path_copy);
++    _pam_drop(motd_path_split);
++    _pam_drop(motd_dir_path_copy);
++    _pam_drop(motd_dir_path_split);
+ 
+     return retval;
+ }
+diff --git a/xtests/Makefile.am b/xtests/Makefile.am
+index a6d6f8d..4d5aba3 100644
+--- a/xtests/Makefile.am
++++ b/xtests/Makefile.am
+@@ -32,7 +32,10 @@ EXTRA_DIST = run-xtests.sh tst-pam_dispatch1.pamd tst-pam_dispatch2.pamd \
+ 	tst-pam_substack5.pamd tst-pam_substack5a.pamd tst-pam_substack5.sh \
+ 	tst-pam_assemble_line1.pamd tst-pam_assemble_line1.sh \
+ 	tst-pam_pwhistory1.pamd tst-pam_pwhistory1.sh \
+-	tst-pam_time1.pamd time.conf
++	tst-pam_time1.pamd time.conf \
++	tst-pam_motd.sh tst-pam_motd1.sh tst-pam_motd2.sh \
++	tst-pam_motd3.sh tst-pam_motd4.sh tst-pam_motd1.pamd \
++	tst-pam_motd2.pamd tst-pam_motd3.pamd tst-pam_motd4.pamd
+ 
+ XTESTS = tst-pam_dispatch1 tst-pam_dispatch2 tst-pam_dispatch3 \
+ 	tst-pam_dispatch4 tst-pam_dispatch5 \
+@@ -41,7 +44,7 @@ XTESTS = tst-pam_dispatch1 tst-pam_dispatch2 tst-pam_dispatch3 \
+ 	tst-pam_access1 tst-pam_access2 tst-pam_access3 \
+ 	tst-pam_access4 tst-pam_limits1 tst-pam_succeed_if1 \
+ 	tst-pam_group1 tst-pam_authfail tst-pam_authsucceed \
+-	tst-pam_pwhistory1 tst-pam_time1
++	tst-pam_pwhistory1 tst-pam_time1 tst-pam_motd
+ 
+ NOSRCTESTS = tst-pam_substack1 tst-pam_substack2 tst-pam_substack3 \
+ 	tst-pam_substack4 tst-pam_substack5 tst-pam_assemble_line1
+diff --git a/xtests/tst-pam_motd.c b/xtests/tst-pam_motd.c
+new file mode 100644
+index 0000000..bba2f9d
+--- /dev/null
++++ b/xtests/tst-pam_motd.c
+@@ -0,0 +1,69 @@
++/*
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, and the entire permission notice in its entirety,
++ *    including the disclaimer of warranties.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. The name of the author may not be used to endorse or promote
++ *    products derived from this software without specific prior
++ *    written permission.
++ *
++ * ALTERNATIVELY, this product may be distributed under the terms of
++ * the GNU Public License, in which case the provisions of the GPL are
++ * required INSTEAD OF the above restrictions.  (This clause is
++ * necessary due to a potential bad interaction between the GPL and
++ * the restrictions contained in a BSD-style copyright.)
++ *
++ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
++ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
++ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
++ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
++ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
++ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
++ * OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <security/pam_appl.h>
++#include <security/pam_misc.h>
++
++static struct pam_conv conv = {
++    misc_conv,
++    NULL
++};
++
++int main(int argc, char *argv[])
++{
++    pam_handle_t *pamh=NULL;
++    char *tst_arg = NULL;
++    int retval;
++
++    if (argc > 1)
++	tst_arg = argv[1];
++
++    retval = pam_start(tst_arg, NULL, &conv, &pamh);
++
++    retval = pam_open_session(pamh, 0);
++
++    retval = pam_close_session(pamh, 0);
++
++    if (pam_end(pamh,retval) != PAM_SUCCESS) {     /* close Linux-PAM */
++	pamh = NULL;
++	exit(1);
++    }
++
++    return ( retval == PAM_SUCCESS ? 0:1 );       /* indicate success */
++}
+diff --git a/xtests/tst-pam_motd.sh b/xtests/tst-pam_motd.sh
+new file mode 100755
+index 0000000..9080128
+--- /dev/null
++++ b/xtests/tst-pam_motd.sh
+@@ -0,0 +1,8 @@
++#!/bin/bash
++
++set -e
++
++./tst-pam_motd1.sh
++./tst-pam_motd2.sh
++./tst-pam_motd3.sh
++./tst-pam_motd4.sh
+diff --git a/xtests/tst-pam_motd1.pamd b/xtests/tst-pam_motd1.pamd
+new file mode 100644
+index 0000000..ddea82c
+--- /dev/null
++++ b/xtests/tst-pam_motd1.pamd
+@@ -0,0 +1,3 @@
++#%PAM-1.0
++session    required    pam_permit.so
++session    optional    pam_motd.so motd=tst-pam_motd1.d/etc/motd motd_dir=tst-pam_motd1.d/etc/motd.d
+diff --git a/xtests/tst-pam_motd1.sh b/xtests/tst-pam_motd1.sh
+new file mode 100755
+index 0000000..cc88854
+--- /dev/null
++++ b/xtests/tst-pam_motd1.sh
+@@ -0,0 +1,36 @@
++#!/bin/bash
++
++TST_DIR="tst-pam_motd1.d"
++
++function tst_cleanup() {
++    rm -rf "${TST_DIR}"
++    rm -f tst-pam_motd1.out
++}
++
++mkdir -p ${TST_DIR}
++mkdir -p ${TST_DIR}/etc/motd.d
++
++# Verify the case of single motd and motd.d directory works
++echo "motd: /etc/motd" > ${TST_DIR}/etc/motd
++echo "motd: /etc/motd.d/test" > ${TST_DIR}/etc/motd.d/test
++
++./tst-pam_motd tst-pam_motd1 > tst-pam_motd1.out
++
++RET=$?
++
++motd_to_show_output=$(cat tst-pam_motd1.out | grep "motd: /etc/motd")
++if [ -z "${motd_to_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++motd_dir_to_show_output=$(cat tst-pam_motd1.out | grep "motd: /etc/motd.d/test")
++if [ -z "${motd_dir_to_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++tst_cleanup
++exit $RET
+diff --git a/xtests/tst-pam_motd2.pamd b/xtests/tst-pam_motd2.pamd
+new file mode 100644
+index 0000000..8200191
+--- /dev/null
++++ b/xtests/tst-pam_motd2.pamd
+@@ -0,0 +1,3 @@
++#%PAM-1.0
++session    required    pam_permit.so
++session optional    pam_motd.so    motd=tst-pam_motd2.d/etc/motd:tst-pam_motd2.d/run/motd:tst-pam_motd2.d/usr/lib/motd motd_dir=tst-pam_motd2.d/etc/motd.d:tst-pam_motd2.d/run/motd.d:tst-pam_motd2.d/usr/lib/motd.d
+diff --git a/xtests/tst-pam_motd2.sh b/xtests/tst-pam_motd2.sh
+new file mode 100755
+index 0000000..d26ea92
+--- /dev/null
++++ b/xtests/tst-pam_motd2.sh
+@@ -0,0 +1,53 @@
++#!/bin/bash
++
++TST_DIR="tst-pam_motd2.d"
++
++function tst_cleanup() {
++    rm -rf "${TST_DIR}"
++    rm -f tst-pam_motd2.out
++}
++
++mkdir -p ${TST_DIR}
++mkdir -p ${TST_DIR}/etc/motd.d
++mkdir -p ${TST_DIR}/run/motd.d
++mkdir -p ${TST_DIR}/usr/lib/motd.d
++
++echo "motd: /etc/motd" > ${TST_DIR}/etc/motd
++echo "motd: /run/motd" > ${TST_DIR}/run/motd
++echo "motd: /usr/lib/motd" > ${TST_DIR}/usr/lib/motd
++
++# Drop a motd file in test directories such that every overriding
++# condition (for 3 directories in this case) will be seen.
++echo "motd: e0r0u1 in usr/lib - will show" > ${TST_DIR}/usr/lib/motd.d/e0r0u1.motd
++echo "motd: e0r1u0 in run - will show" > ${TST_DIR}/run/motd.d/e0r1u0.motd
++echo "motd: e0r1u1 in usr/lib - not show" > ${TST_DIR}/usr/lib/motd.d/e0r1u1.motd
++echo "motd: e0r1u1 in run - will show" > ${TST_DIR}/run/motd.d/e0r1u1.motd
++echo "motd: e1r0u0 in etc - will show" > ${TST_DIR}/etc/motd.d/e1r0u0.motd
++echo "motd: e1r0u1 in usr/lib - not show" > ${TST_DIR}/usr/lib/motd.d/e1r0u1.motd
++echo "motd: e1r0u1 in etc - will show" > ${TST_DIR}/etc/motd.d/e1r0u1.motd
++echo "motd: e1r1u0 in run - not show" > ${TST_DIR}/run/motd.d/e1r1u0.motd
++echo "motd: e1r1u0 in etc - will show" > ${TST_DIR}/etc/motd.d/e1r1u0.motd
++echo "motd: e1r1u1 in usr/lib - not show" > ${TST_DIR}/usr/lib/motd.d/e1r1u1.motd
++echo "motd: e1r1u1 in run - not show" > ${TST_DIR}/run/motd.d/e1r1u1.motd
++echo "motd: e1r1u1 in etc - will show" > ${TST_DIR}/etc/motd.d/e1r1u1.motd
++
++./tst-pam_motd tst-pam_motd2 > tst-pam_motd2.out
++
++RET=$?
++
++motd_to_show_output=$(cat tst-pam_motd2.out | grep "motd: /etc/motd")
++if [ -z "${motd_to_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++motd_dir_not_show_output=$(cat tst-pam_motd2.out | grep "not show")
++if [ -n "${motd_dir_not_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++tst_cleanup
++exit $RET
+diff --git a/xtests/tst-pam_motd3.pamd b/xtests/tst-pam_motd3.pamd
+new file mode 100644
+index 0000000..a8b8cbf
+--- /dev/null
++++ b/xtests/tst-pam_motd3.pamd
+@@ -0,0 +1,3 @@
++#%PAM-1.0
++session    required    pam_permit.so
++session optional    pam_motd.so    motd=tst-pam_motd3.d/etc/motd:tst-pam_motd3.d/run/motd:tst-pam_motd3.d/usr/lib/motd motd_dir=tst-pam_motd3.d/etc/motd.d:tst-pam_motd3.d/run/motd.d:tst-pam_motd3.d/usr/lib/motd.d
+diff --git a/xtests/tst-pam_motd3.sh b/xtests/tst-pam_motd3.sh
+new file mode 100755
+index 0000000..e18856b
+--- /dev/null
++++ b/xtests/tst-pam_motd3.sh
+@@ -0,0 +1,53 @@
++#!/bin/bash
++
++TST_DIR="tst-pam_motd3.d"
++
++function tst_cleanup() {
++    rm -rf "${TST_DIR}"
++    rm -f tst-pam_motd3.out
++}
++
++mkdir -p ${TST_DIR}
++mkdir -p ${TST_DIR}/etc/motd.d
++mkdir -p ${TST_DIR}/run/motd.d
++mkdir -p ${TST_DIR}/usr/lib/motd.d
++
++# Verify motd is still displayed when not overridden
++echo "motd: test-show in run - show" > ${TST_DIR}/run/motd.d/test-show.motd
++
++# Test overridden by a symlink to a file that isn't /dev/null; symlink target should show
++echo "motd: hidden-by-symlink in usr/lib - not show" > ${TST_DIR}/usr/lib/motd.d/hidden-by-symlink.motd
++echo "motd: test-from-symlink - show" > ${TST_DIR}/test-from-symlink.motd
++ln -sr ${TST_DIR}/test-from-symlink.motd ${TST_DIR}/run/motd.d/hidden-by-symlink.motd
++
++# Test hidden by a null symlink
++echo "motd: hidden-by-null-symlink in run - not show" > ${TST_DIR}/run/motd.d/hidden-by-null-symlink.motd
++ln -s /dev/null ${TST_DIR}/etc/motd.d/hidden-by-null-symlink.motd
++
++./tst-pam_motd tst-pam_motd3 > tst-pam_motd3.out
++
++RET=$?
++
++motd_dir_not_show_output=$(cat tst-pam_motd3.out | grep "not show")
++if [ -n "${motd_dir_not_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++motd_test_show_output=$(cat tst-pam_motd3.out | grep "test-show.*- show")
++if [ -z "${motd_test_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++motd_general_symlink_show_output=$(cat tst-pam_motd3.out | grep "test-from-symlink.*- show")
++if [ -z "${motd_general_symlink_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++tst_cleanup
++exit $RET
+diff --git a/xtests/tst-pam_motd4.pamd b/xtests/tst-pam_motd4.pamd
+new file mode 100644
+index 0000000..9dc311a
+--- /dev/null
++++ b/xtests/tst-pam_motd4.pamd
+@@ -0,0 +1,3 @@
++#%PAM-1.0
++session    required    pam_permit.so
++session    optional    pam_motd.so motd=tst-pam_motd4.d/etc/motd
+diff --git a/xtests/tst-pam_motd4.sh b/xtests/tst-pam_motd4.sh
+new file mode 100755
+index 0000000..6022177
+--- /dev/null
++++ b/xtests/tst-pam_motd4.sh
+@@ -0,0 +1,27 @@
++#!/bin/bash
++
++TST_DIR="tst-pam_motd4.d"
++
++function tst_cleanup() {
++    rm -rf "${TST_DIR}"
++    rm -f tst-pam_motd4.out
++}
++
++mkdir -p ${TST_DIR}/etc
++
++# Verify the case of single motd with no motd_dir given in tst-pam_motd4.pamd
++echo "motd: /etc/motd" > ${TST_DIR}/etc/motd
++
++./tst-pam_motd tst-pam_motd4 > tst-pam_motd4.out
++
++RET=$?
++
++motd_to_show_output=$(cat tst-pam_motd4.out | grep "motd: /etc/motd")
++if [ -z "${motd_to_show_output}" ];
++then
++    tst_cleanup
++    exit 1
++fi
++
++tst_cleanup
++exit $RET

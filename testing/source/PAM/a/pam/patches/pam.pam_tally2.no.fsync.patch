@@ -1,0 +1,35 @@
+From b136bff25e93be6f11de74aca03569022364b973 Mon Sep 17 00:00:00 2001
+From: "Maciej S. Szmigiero" <mail@maciej.szmigiero.name>
+Date: Mon, 25 Feb 2019 20:50:48 +0100
+Subject: [PATCH] pam_tally2: Remove unnecessary fsync()
+
+pam_tally2 does fsync() after writing to a tally file.
+This causes hard drive cache flushes on every failed SSH login on many
+(if not most) filesystems.
+And an internet-exposed machine can have a lot of these failed logins.
+
+This operation however doesn't seem to be necessary - the pam_tally2
+module does not do any operation which would need explicit post-crash
+ordering, it just does simple file reads and writes.
+And doing a fsync() after them doesn't close any race if the system happens
+to crash between a write being posted and its fsync() completion.
+
+Let's remove this operation to get rid of all these extra cache flushes.
+---
+ modules/pam_tally2/pam_tally2.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/modules/pam_tally2/pam_tally2.c b/modules/pam_tally2/pam_tally2.c
+index 984edf6a..ce7f5aee 100644
+--- a/modules/pam_tally2/pam_tally2.c
++++ b/modules/pam_tally2/pam_tally2.c
+@@ -484,10 +484,6 @@ set_tally(pam_handle_t *pamh, uid_t uid,
+         }
+     }
+ 
+-    if (fsync(*tfile)) {
+-      pam_syslog(pamh, LOG_ALERT, "update (fsync) failed for %s: %m", filename);
+-      return PAM_AUTH_ERR;
+-    }
+     return PAM_SUCCESS;
+ }

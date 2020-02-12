@@ -1,0 +1,185 @@
+diff --git a/libpam/pam_handlers.c b/libpam/pam_handlers.c
+index 106ef7c..b2e94c7 100644
+--- a/libpam/pam_handlers.c
++++ b/libpam/pam_handlers.c
+@@ -282,7 +282,6 @@ _pam_open_config_file(pam_handle_t *pamh
+ {
+     char *p;
+     FILE *f;
+-    int err = 0;
+ 
+     /* Absolute path */
+     if (service[0] == '/') {
+diff --git a/libpam_misc/misc_conv.c b/libpam_misc/misc_conv.c
+index be53f34..07dce36 100644
+--- a/libpam_misc/misc_conv.c
++++ b/libpam_misc/misc_conv.c
+@@ -211,7 +211,7 @@ static int read_string(int echo, const char *prompt, char **retstr)
+ 		    line[nc] = '\0';
+ 		}
+ 		*retstr = strdup(line);
+-		_pam_overwrite(line);
++		_pam_overwrite_n(line, sizeof(line));
+ 		if (!*retstr) {
+ 		    D(("no memory for response string"));
+ 		    nc = -1;
+@@ -244,7 +244,7 @@ static int read_string(int echo, const char *prompt, char **retstr)
+     D(("the timer appears to have expired"));
+ 
+     *retstr = NULL;
+-    _pam_overwrite(line);
++    _pam_overwrite_n(line, sizeof(line));
+ 
+  cleanexit:
+ 
+diff --git a/modules/pam_access/pam_access.c b/modules/pam_access/pam_access.c
+index 80d885d..3801862 100644
+--- a/modules/pam_access/pam_access.c
++++ b/modules/pam_access/pam_access.c
+@@ -806,7 +806,7 @@ pam_sm_authenticate (pam_handle_t *pamh, int flags UNUSED,
+     const char *user=NULL;
+     const void *void_from=NULL;
+     const char *from;
+-    const char const *default_config = PAM_ACCESS_CONFIG;
++    const char * const default_config = PAM_ACCESS_CONFIG;
+     struct passwd *user_pw;
+     char hostname[MAXHOSTNAMELEN + 1];
+     int rv;
+diff --git a/modules/pam_limits/pam_limits.c b/modules/pam_limits/pam_limits.c
+index 4bc4ae7..f8476b4 100644
+--- a/modules/pam_limits/pam_limits.c
++++ b/modules/pam_limits/pam_limits.c
+@@ -342,7 +342,7 @@ static const char *lnames[RLIM_NLIMITS] = {
+ #endif
+ };
+ 
+-static int str2rlimit(char *name) {
++static int str2rlimit(const char *name) {
+     int i;
+     if (!name || *name == '\0')
+         return -1;
+@@ -352,7 +352,7 @@ static int str2rlimit(char *name) {
+     return -1;
+ }
+ 
+-static rlim_t str2rlim_t(char *value) {
++static rlim_t str2rlim_t(const char *value) {
+     unsigned long long rlimit = 0;
+ 
+     if (!value) return (rlim_t)rlimit;
+@@ -384,7 +384,7 @@ static void parse_kernel_limits(pam_handle_t *pamh, struct pam_limit_s *pl, int
+     FILE *limitsfile;
+     const char *proclimits = "/proc/1/limits";
+     char line[256];
+-    char *units, *hard, *soft, *name;
++    const char *units, *hard, *soft, *name;
+ 
+     if (!(limitsfile = fopen(proclimits, "r"))) {
+         pam_syslog(pamh, LOG_WARNING, "Could not read %s (%s), using PAM defaults", proclimits, strerror(errno));
+diff --git a/modules/pam_loginuid/pam_loginuid.c b/modules/pam_loginuid/pam_loginuid.c
+index 96bfd98..66d202c 100644
+--- a/modules/pam_loginuid/pam_loginuid.c
++++ b/modules/pam_loginuid/pam_loginuid.c
+@@ -64,7 +64,7 @@ static int set_loginuid(pam_handle_t *pamh, uid_t uid)
+ 	fd = open("/proc/self/uid_map", O_RDONLY);
+ 	if (fd >= 0) {
+ 		count = pam_modutil_read(fd, uid_map, sizeof(uid_map));
+-		if (strncmp(uid_map, host_uid_map, count) != 0)
++		if (count <= 0 || strncmp(uid_map, host_uid_map, count) != 0)
+ 			rc = PAM_IGNORE;
+ 		close(fd);
+ 	}
+diff --git a/modules/pam_mkhomedir/mkhomedir_helper.c b/modules/pam_mkhomedir/mkhomedir_helper.c
+index 9e204c1..4b8d6b7 100644
+--- a/modules/pam_mkhomedir/mkhomedir_helper.c
++++ b/modules/pam_mkhomedir/mkhomedir_helper.c
+@@ -232,6 +232,8 @@ create_homedir(const struct passwd *pwd,
+       {
+          pam_syslog(NULL, LOG_DEBUG,
+ 		    "unable to open or stat src file %s: %m", newsource);
++         if (srcfd >= 0)
++            close(srcfd);
+          closedir(d);
+ 
+ #ifndef PATH_MAX
+diff --git a/modules/pam_namespace/pam_namespace.c b/modules/pam_namespace/pam_namespace.c
+index f541f89..85f5efa 100644
+--- a/modules/pam_namespace/pam_namespace.c
++++ b/modules/pam_namespace/pam_namespace.c
+@@ -1418,6 +1418,7 @@ static int create_instance(struct polydir_s *polyptr, char *ipath, struct stat *
+     if (fstat(fd, &newstatbuf) < 0) {
+         pam_syslog(idata->pamh, LOG_ERR, "Error stating %s, %m",
+ 		ipath);
++	close(fd);
+ 	rmdir(ipath);
+         return PAM_SESSION_ERR;
+     }
+diff --git a/modules/pam_pwhistory/opasswd.c b/modules/pam_pwhistory/opasswd.c
+index e6cf346..813f579 100644
+--- a/modules/pam_pwhistory/opasswd.c
++++ b/modules/pam_pwhistory/opasswd.c
+@@ -326,6 +326,9 @@ save_old_pass (pam_handle_t *pamh, const char *user, uid_t uid,
+ 	n = strlen (buf);
+ #endif /* HAVE_GETLINE / HAVE_GETDELIM */
+ 
++	if (n < 1)
++	  break;
++
+ 	cp = buf;
+ 	save = strdup (buf); /* Copy to write the original data back.  */
+ 	if (save == NULL)
+@@ -336,9 +339,6 @@ save_old_pass (pam_handle_t *pamh, const char *user, uid_t uid,
+ 	    goto error_opasswd;
+           }
+ 
+-	if (n < 1)
+-	  break;
+-
+ 	tmp = strchr (cp, '#');  /* remove comments */
+ 	if (tmp)
+ 	  *tmp = '\0';
+diff --git a/modules/pam_rootok/pam_rootok.c b/modules/pam_rootok/pam_rootok.c
+index 17baabe..a9d9140 100644
+--- a/modules/pam_rootok/pam_rootok.c
++++ b/modules/pam_rootok/pam_rootok.c
+@@ -66,14 +66,17 @@ log_callback (int type, const char *fmt, ...)
+     int audit_fd;
+     va_list ap;
+ 
+-    va_start(ap, fmt);
+ #ifdef HAVE_LIBAUDIT
+     audit_fd = audit_open();
+ 
+     if (audit_fd >= 0) {
+ 	char *buf;
++	int ret;
+ 
+-	if (vasprintf (&buf, fmt, ap) < 0)
++	va_start(ap, fmt);
++	ret = vasprintf (&buf, fmt, ap);
++	va_end(ap);
++	if (ret < 0)
+ 		return 0;
+ 	audit_log_user_avc_message(audit_fd, AUDIT_USER_AVC, buf, NULL, NULL,
+ 				   NULL, 0);
+@@ -83,6 +86,7 @@ log_callback (int type, const char *fmt, ...)
+     }
+ 
+ #endif
++    va_start(ap, fmt);
+     vsyslog (LOG_USER | LOG_INFO, fmt, ap);
+     va_end(ap);
+     return 0;
+diff --git a/modules/pam_sepermit/pam_sepermit.c b/modules/pam_sepermit/pam_sepermit.c
+index c653290..f37af0f 100644
+--- a/modules/pam_sepermit/pam_sepermit.c
++++ b/modules/pam_sepermit/pam_sepermit.c
+@@ -353,7 +353,7 @@ sepermit_match(pam_handle_t *pamh, const char *cfgfile, const char *user,
+ 		if (*sense == PAM_SUCCESS) {
+ 			if (ignore)
+ 				*sense = PAM_IGNORE;
+-			if (geteuid() == 0 && exclusive && get_loginuid(pamh) == -1)
++			if (geteuid() == 0 && exclusive && get_loginuid(pamh) == (uid_t)-1)
+ 				if (sepermit_lock(pamh, user, debug) < 0)
+ 					*sense = PAM_AUTH_ERR;
+ 		}

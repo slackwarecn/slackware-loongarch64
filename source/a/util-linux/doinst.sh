@@ -22,3 +22,6 @@ config etc/rc.d/rc.serial.new
 config etc/rc.d/rc.setterm.new
 config etc/serial.conf.new
 
+if [ -r etc/default/su.new ]; then
+  config etc/default/su.new
+fi

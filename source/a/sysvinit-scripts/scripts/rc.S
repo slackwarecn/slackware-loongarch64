@@ -367,6 +367,11 @@ else
   /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
 fi
 
+# This should be empty as it's just a mountpoint now:
+rm -rf /var/run/*
+# Bind mount /run to /var/run:
+mount -o bind /run /var/run
+
 # Enable swapping again.  This is needed in case a swapfile is used,
 # as it can't be enabled until the filesystem it resides on has been
 # mounted read-write.
@@ -384,16 +389,14 @@ if [ -x /etc/rc.d/rc.cgconfig -a -x /etc/rc.d/rc.cgred -a -d /sys/fs/cgroup ]; t
 fi
 
 # Clean up some temporary files:
-rm -f /var/run/* /var/run/*/* /var/run/*/*/* /etc/nologin \
-  /etc/dhcpc/*.pid /etc/forcefsck /etc/fastboot \
-  /var/state/saslauthd/saslauthd.pid \
-  /tmp/.Xauth* 1> /dev/null 2> /dev/null
+rm -f /etc/nologin /etc/dhcpc/*.pid /etc/forcefsck /etc/fastboot \
+  /var/state/saslauthd/saslauthd.pid /tmp/.Xauth* 1> /dev/null 2> /dev/null
+rm -rf /tmp/{kde-[a-zA-Z]*,ksocket-[a-zA-Z]*,hsperfdata_[a-zA-Z]*,plugtmp*}
 if [ -d /var/lib/pkgtools/setup/tmp ]; then
   ( cd /var/lib/pkgtools/setup/tmp && rm -rf * )
 elif [ -d /var/log/setup/tmp ]; then
   ( cd /var/log/setup/tmp && rm -rf * )
 fi
-( cd /tmp && rm -rf kde-[a-zA-Z]* ksocket-[a-zA-Z]* hsperfdata_[a-zA-Z]* plugtmp* )
 
 # Clear /var/lock/subsys:
 if [ -d /var/lock/subsys ]; then

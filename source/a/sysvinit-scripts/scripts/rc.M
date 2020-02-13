@@ -75,7 +75,7 @@ if [ -x /etc/rc.d/rc.pcmcia ]; then
 fi
 
 # Start the system logger.
-if [ -x /etc/rc.d/rc.syslog -a -x /usr/sbin/syslogd -a -d /var/log ]; then
+if [ -x /etc/rc.d/rc.syslog ]; then
   /etc/rc.d/rc.syslog start
 fi
 

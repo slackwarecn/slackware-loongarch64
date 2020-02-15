@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# Slackware build script for Cython
-
-# Copyright 2015  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,9 +22,11 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=Cython
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=python-future
+SRCNAM=future
+VERSION=${VERSION:-$(echo ${SRCNAM}-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -50,30 +50,40 @@ PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
-cd $PKGNAM-$VERSION || exit 1
+rm -rf $SRCNAM-$VERSION
+tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
+cd $SRCNAM-$VERSION || exit 1
 
 chown -R root:root .
 find -L . \
- \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 -o -perm 511 \) \
- -exec chmod 755 {} \+ -o \
- \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
- -exec chmod 644 {} \+
+ \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
+  -o -perm 511 \) -exec chmod 755 {} \+ -o \
+ \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
+  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
 
-python3 setup.py install --root=$PKG --prefix=/usr || exit 1
+python setup.py install --root=$PKG || exit 1
 
-for i in cython cythonize cygdb; do
-  mv $PKG/usr/bin/$i $PKG/usr/bin/${i}3
-done
+# Move the python2 versions:
+mv $PKG/usr/bin/futurize $PKG/usr/bin/futurize2
+mv $PKG/usr/bin/pasteurize $PKG/usr/bin/pasteurize2
 
-python setup.py install --root=$PKG --prefix=/usr || exit 1
+# Clear the build folder:
+rm -rf build
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+python3 setup.py install --root=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a *.txt Doc/* $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a *.rst LICENSE* NOTICE PKG-INFO \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 0644 {} \+
+
+# If there's a HISTORY.rst, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r HISTORY.rst ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat HISTORY.rst | head -n 1000 > $DOCSDIR/HISTORY.rst
+  touch -r HISTORY.rst $DOCSDIR/HISTORY.rst
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

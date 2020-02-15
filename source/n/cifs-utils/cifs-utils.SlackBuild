@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=cifs-utils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -90,6 +90,13 @@ find . \
 
 autoreconf -vif
 
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  PAM_OPTIONS="--enable-pam --with-pamdir=/lib${LIBDIRSUFFIX}/security"
+else
+  PAM_OPTIONS=""
+fi
+
 # Configure:
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -97,6 +104,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  $PAM_OPTIONS \
   --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:

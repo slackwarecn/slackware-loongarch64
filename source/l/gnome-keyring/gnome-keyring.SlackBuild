@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gnome-keyring
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -87,7 +87,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-nls \
   --disable-debug \
   --enable-ssh-agent \
-  --with-pam-dir=/lib/security \
+  --with-pam-dir=/lib${LIBDIRSUFFIX}/security \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
@@ -95,6 +95,12 @@ make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# The ones in /lib${LIBDIRSUFFIX}/security can also go:
+rm -f $PKG/lib${LIBDIRSUFFIX}/security/*.la
 
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+

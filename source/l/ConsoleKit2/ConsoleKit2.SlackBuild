@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ConsoleKit2
 VERSION=${VERSION:-1.2.1}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Maximum storage quota for XDG_RUNTIME_DIR:
 XDG_RUNTIME_QUOTA=${XDG_RUNTIME_QUOTA:-size=100M}
@@ -103,7 +103,7 @@ find . \
 
 # Choose correct options depending on whether PAM is installed:
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
-  PAM_OPTIONS="--enable-pam-module=yes --disable-libcgmanager"
+  PAM_OPTIONS="--enable-pam-module=yes --with-pam-module-dir=/lib${LIBDIRSUFFIX}/security --disable-libcgmanager"
   unset SHADOW_OPTIONS
 else
   unset PAM_OPTIONS
@@ -134,6 +134,9 @@ make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# The ones in /lib${LIBDIRSUFFIX}/security can also go:
+rm -f $PKG/lib${LIBDIRSUFFIX}/security/*.la
 
 # Let's not clobber config files
 mv $PKG/etc/ConsoleKit/seats.d/00-primary.seat \

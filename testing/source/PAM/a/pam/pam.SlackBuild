@@ -27,7 +27,7 @@ SRCNAM=Linux-PAM
 PKGNAM=pam
 PAMRHVER=${PAMRHVER:-$(echo pam-redhat-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -123,8 +123,6 @@ zcat $CWD/patches/pam.etc.environment.better.comments.diff.gz | patch -p1 --verb
 
 autoreconf -ivf || exit 1
 
-# Using --enable-securedir=/lib/security/ because some downstream software
-# (last I checked) assumes this, so /lib64/security/ was a problem...
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -132,7 +130,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --libdir=/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --includedir=/usr/include/security \
-  --enable-securedir=/lib/security \
+  --enable-securedir=/lib${LIBDIRSUFFIX}/security \
   --datarootdir=/usr/share \
   --localstatedir=/var \
   --mandir=/usr/man \
@@ -157,11 +155,11 @@ make install DESTDIR=$PKG || exit 1
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-# The ones in /lib/security can also go:
-rm -f $PKG/lib/security/*.la
+# The ones in /lib${LIBDIRSUFFIX}/security can also go:
+rm -f $PKG/lib${LIBDIRSUFFIX}/security/*.la
 
 # Add extra symlinks added by pam.spec:
-( cd $PKG/lib/security
+( cd $PKG/lib${LIBDIRSUFFIX}/security
   for type in acct auth passwd session ; do
     ln -sf pam_unix.so pam_unix_${type}.so
   done

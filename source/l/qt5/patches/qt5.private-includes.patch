@@ -1,0 +1,53 @@
+# Taken from http://code.qt.io/cgit/qt/qtbase.git/patch/?id=67aa365d
+# ------------------------------------------------------------------
+
+From 67aa365d41ebfe082b4efcfd725e4d5f08be678c Mon Sep 17 00:00:00 2001
+From: Ulf Hermann <ulf.hermann@qt.io>
+Date: Wed, 25 Apr 2018 12:48:21 +0200
+Subject: Do emit CMake declarations for existing private headers
+
+We need to make sure we don't emit CMake declarations for private
+headers if those headers are absent. However, most of the time we have
+private headers and should add them.
+
+Task-number: QTBUG-37417
+Change-Id: I639eb93d008de27928dedac540894af70c1883b9
+Reviewed-by: Oswald Buddenhagen <oswald.buddenhagen@qt.io>
+---
+ mkspecs/features/create_cmake.prf | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mkspecs/features/create_cmake.prf b/mkspecs/features/create_cmake.prf
+index 66acedef55..2ed708e085 100644
+--- a/mkspecs/features/create_cmake.prf
++++ b/mkspecs/features/create_cmake.prf
+@@ -28,9 +28,13 @@ CMAKE_OUT_DIR = $$MODULE_BASE_OUTDIR/lib/cmake
+ 
+ CMAKE_MODULE_NAME = $$cmakeModuleName($${MODULE})
+ 
++!generated_privates {
++    isEmpty(SYNCQT.INJECTED_PRIVATE_HEADER_FILES):isEmpty(SYNCQT.PRIVATE_HEADER_FILES): \
++        CMAKE_NO_PRIVATE_INCLUDES = true
++}
++
+ split_incpath {
+     CMAKE_ADD_SOURCE_INCLUDE_DIRS = true
+-    CMAKE_NO_PRIVATE_INCLUDES = true # Don't add private includes in the build dir which don't exist
+     CMAKE_SOURCE_INCLUDES = \
+         $$cmakeTargetPaths($$QT_MODULE_INCLUDE_BASE $$QT_MODULE_INCLUDE_BASE/Qt$${CMAKE_MODULE_NAME})
+     CMAKE_SOURCE_PRIVATE_INCLUDES = \
+@@ -53,10 +57,6 @@ contains(CMAKE_INCLUDE_DIR, "^\\.\\./.*") {
+     CMAKE_INCLUDE_DIR_IS_ABSOLUTE = True
+ }
+ 
+-isEmpty(QT.$${MODULE}_private.includes)| \
+-        !exists($$first(QT.$${MODULE}_private.includes)): \
+-    CMAKE_NO_PRIVATE_INCLUDES = true
+-
+ CMAKE_LIB_DIR = $$cmakeRelativePath($$[QT_INSTALL_LIBS], $$[QT_INSTALL_PREFIX])
+ contains(CMAKE_LIB_DIR,"^\\.\\./.*") {
+     CMAKE_LIB_DIR = $$[QT_INSTALL_LIBS]/
+-- 
+cgit v1.1-6-g87c4
+
+

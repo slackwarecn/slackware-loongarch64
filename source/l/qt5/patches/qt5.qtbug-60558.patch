@@ -1,0 +1,32 @@
+https://github.com/qt/qtbase/commit/f45c6c18.patch
+
+From f45c6c180463ccb6620e1d273a264f14a1204a93 Mon Sep 17 00:00:00 2001
+From: Thiago Macieira <thiago.macieira@intel.com>
+Date: Wed, 3 May 2017 14:08:50 -0700
+Subject: [PATCH] QInternal::unregisterCallback: don't crash on unregistering
+ during exit
+
+Task-number: QTBUG-60558
+Change-Id: Ica9894dc9b5e48278fd4fffd14bb34c6d98d2555
+Reviewed-by: Olivier Goffart (Woboq GmbH) <ogoffart@woboq.com>
+---
+ src/corelib/global/qglobal.cpp | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/corelib/global/qglobal.cpp b/src/corelib/global/qglobal.cpp
+index c37503f3db..22fc20d47e 100644
+--- a/src/corelib/global/qglobal.cpp
++++ b/src/corelib/global/qglobal.cpp
+@@ -3988,8 +3988,10 @@ bool QInternal::registerCallback(Callback cb, qInternalCallback callback)
+ bool QInternal::unregisterCallback(Callback cb, qInternalCallback callback)
+ {
+     if (cb >= 0 && cb < QInternal::LastCallback) {
+-        QInternal_CallBackTable *cbt = global_callback_table();
+-        return (bool) cbt->callbacks[cb].removeAll(callback);
++        if (global_callback_table.exists()) {
++            QInternal_CallBackTable *cbt = global_callback_table();
++            return (bool) cbt->callbacks[cb].removeAll(callback);
++        }
+     }
+     return false;
+ }

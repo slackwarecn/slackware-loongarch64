@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=util-linux
 VERSION=${VERSION:-$(echo util-linux*.tar.xz | cut -d - -f 3  | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 ADJTIMEXVERS=1.29
 SETSERIALVERS=2.17
@@ -90,6 +90,17 @@ if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
   cp -a $CWD/su.default $PKG/etc/default/su.new
   chown root:root $PKG/etc/default/su.new
   chmod 644 $PKG/etc/default/su.new
+  # Add /etc/pam.d config files:
+  rm -rf $PKG/etc/pam.d
+  mkdir -p $PKG/etc/pam.d
+  for file in $CWD/pam.d/* ; do
+    cp -a ${file} $PKG/etc/pam.d/
+  done
+  # Ensure correct perms/ownership on files in /etc/pam.d/:
+  chown root:root $PKG/etc/pam.d/*
+  chmod 644 $PKG/etc/pam.d/*
+  # Don't clobber existing config files:
+  find $PKG/etc/pam.d -type f -exec mv {} {}.new \;
 else
   LOGIN_OPTIONS="--disable-login"
 fi
@@ -149,6 +160,14 @@ CFLAGS="$SLKCFLAGS" \
 
 make $NUMJOBS || make || exit 1
 make install $NUMJOBS DESTDIR=$PKG || exit 1
+
+# These need to be setuid root to work properly (only built for PAM):
+if [ -r $PKG/usr/bin/chfn ]; then
+  chmod 4711 $PKG/usr/bin/chfn
+fi
+if [ -r $PKG/usr/bin/chsh ]; then
+  chmod 4711 $PKG/usr/bin/chsh
+fi
 
 # Build python3 bindings for libmount:
 make clean

@@ -22,6 +22,12 @@ config etc/rc.d/rc.serial.new
 config etc/rc.d/rc.setterm.new
 config etc/serial.conf.new
 
+for configfile in chfn.new chsh.new login.new runuser.new runuser-l.new su.new su-l.new ; do
+  if [ -r etc/pam.d/$configfile ]; then
+    config etc/pam.d/$configfile
+  fi
+done
+
 if [ -r etc/default/su.new ]; then
   config etc/default/su.new
 fi

@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=samba
 VERSION=${VERSION:-$(echo samba-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 if [ -e $CWD/machine.conf ]; then
   . $CWD/machine.conf ]
@@ -104,6 +104,11 @@ find . \
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
   PAM_OPTIONS="--with-pam --with-pammodulesdir=/lib${LIBDIRSUFFIX}/security --with-system-mitkrb5 --with-experimental-mit-ad-dc"
   unset SHADOW_OPTIONS
+  # Handle removal of ENCTYPE_DES_CBC_MD5 from krb5.
+  # These patches are already upstreamed in the 4.12.0 RC.
+  zcat $CWD/0000-use-gnutls-for-des-cbc.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/0001-handle-removal-des-enctypes-from-krb5.patch.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/0002-samba-tool-create-working-private-krb5.conf.patch.gz | patch -p1 --verbose || exit 1
 else
   unset PAM_OPTIONS
   SHADOW_OPTIONS="--without-pam"

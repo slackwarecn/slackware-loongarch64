@@ -1,0 +1,42 @@
+From 5a084994144704a6c146b94f8a22cf57ce08deab Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <ab@samba.org>
+Date: Mon, 7 Oct 2019 18:24:28 +0300
+Subject: [PATCH] samba-tool: create working private krb5.conf
+
+DNS update tool uses private krb5.conf which should have enough details
+to authenticate with GSS-TSIG when running nsupdate.
+
+Unfortunately, the configuration we provide is not enough. We set
+defaults to not lookup REALM via DNS but at the same time we don't
+provide any realm definition. As result, MIT Kerberos cannot actually
+find a working realm for Samba AD deployment because it cannot query DNS
+for a realm discovery or pick it up from the configuration.
+
+Extend private krb5.conf with a realm definition that will allow MIT
+Kerberos to look up KDC over DNS.
+
+Signed-off-by: Alexander Bokovoy <ab@samba.org>
+Reviewed-by: Andreas Schneider <asn@samba.org>
+---
+ source4/setup/krb5.conf | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/source4/setup/krb5.conf b/source4/setup/krb5.conf
+index b1bf6cf907d..ad6f2818fb5 100644
+--- a/source4/setup/krb5.conf
++++ b/source4/setup/krb5.conf
+@@ -2,3 +2,11 @@
+ 	default_realm = ${REALM}
+ 	dns_lookup_realm = false
+ 	dns_lookup_kdc = true
++
++[realms]
++${REALM} = {
++	default_domain = ${DNSDOMAIN}
++}
++
++[domain_realm]
++	${HOSTNAME} = ${REALM}
+-- 
+2.21.0
+

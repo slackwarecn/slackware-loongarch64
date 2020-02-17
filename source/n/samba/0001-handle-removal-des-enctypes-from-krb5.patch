@@ -1,0 +1,314 @@
+From 3828e798da8e0b44356039dd927f0624d5d182f9 Mon Sep 17 00:00:00 2001
+From: Isaac Boukris <iboukris@gmail.com>
+Date: Wed, 6 Nov 2019 12:12:55 +0200
+Subject: [PATCH] Remove DES support if MIT Kerberos version does not support
+ it
+
+---
+ source3/libads/kerberos_keytab.c              |  2 -
+ source3/passdb/machine_account_secrets.c      | 36 ------------------
+ source4/auth/kerberos/kerberos.h              |  2 +-
+ .../dsdb/samdb/ldb_modules/password_hash.c    | 12 ++++++
+ source4/kdc/db-glue.c                         |  4 +-
+ source4/torture/rpc/remote_pac.c              | 37 -------------------
+ testprogs/blackbox/dbcheck-oldrelease.sh      |  2 +-
+ testprogs/blackbox/functionalprep.sh          |  2 +-
+ .../blackbox/test_export_keytab_heimdal.sh    | 16 ++++----
+ .../blackbox/upgradeprovision-oldrelease.sh   |  2 +-
+ 10 files changed, 26 insertions(+), 89 deletions(-)
+
+diff --git a/source3/libads/kerberos_keytab.c b/source3/libads/kerberos_keytab.c
+index 97d5535041c..7d193e1a600 100644
+--- a/source3/libads/kerberos_keytab.c
++++ b/source3/libads/kerberos_keytab.c
+@@ -240,8 +240,6 @@ int ads_keytab_add_entry(ADS_STRUCT *ads, const char *srvPrinc, bool update_ads)
+ 	krb5_data password;
+ 	krb5_kvno kvno;
+         krb5_enctype enctypes[6] = {
+-		ENCTYPE_DES_CBC_CRC,
+-		ENCTYPE_DES_CBC_MD5,
+ #ifdef HAVE_ENCTYPE_AES128_CTS_HMAC_SHA1_96
+ 		ENCTYPE_AES128_CTS_HMAC_SHA1_96,
+ #endif
+diff --git a/source3/passdb/machine_account_secrets.c b/source3/passdb/machine_account_secrets.c
+index dfc21f295a1..efba80f1474 100644
+--- a/source3/passdb/machine_account_secrets.c
++++ b/source3/passdb/machine_account_secrets.c
+@@ -1031,7 +1031,6 @@ static int secrets_domain_info_kerberos_keys(struct secrets_domain_info1_passwor
+ 	krb5_keyblock key;
+ 	DATA_BLOB aes_256_b = data_blob_null;
+ 	DATA_BLOB aes_128_b = data_blob_null;
+-	DATA_BLOB des_md5_b = data_blob_null;
+ 	bool ok;
+ #endif /* HAVE_ADS */
+ 	DATA_BLOB arc4_b = data_blob_null;
+@@ -1177,32 +1176,6 @@ static int secrets_domain_info_kerberos_keys(struct secrets_domain_info1_passwor
+ 		return ENOMEM;
+ 	}
+ 
+-	krb5_ret = smb_krb5_create_key_from_string(krb5_ctx,
+-						   NULL,
+-						   &salt,
+-						   &cleartext_utf8,
+-						   ENCTYPE_DES_CBC_MD5,
+-						   &key);
+-	if (krb5_ret != 0) {
+-		DBG_ERR("generation of a des-cbc-md5 key failed: %s\n",
+-			smb_get_krb5_error_message(krb5_ctx, krb5_ret, keys));
+-		krb5_free_context(krb5_ctx);
+-		TALLOC_FREE(keys);
+-		TALLOC_FREE(salt_data);
+-		return krb5_ret;
+-	}
+-	des_md5_b = data_blob_talloc(keys,
+-				     KRB5_KEY_DATA(&key),
+-				     KRB5_KEY_LENGTH(&key));
+-	krb5_free_keyblock_contents(krb5_ctx, &key);
+-	if (des_md5_b.data == NULL) {
+-		DBG_ERR("data_blob_talloc failed for des-cbc-md5.\n");
+-		krb5_free_context(krb5_ctx);
+-		TALLOC_FREE(keys);
+-		TALLOC_FREE(salt_data);
+-		return ENOMEM;
+-	}
+-
+ 	krb5_free_context(krb5_ctx);
+ no_kerberos:
+ 
+@@ -1227,15 +1200,6 @@ no_kerberos:
+ 	keys[idx].value			= arc4_b;
+ 	idx += 1;
+ 
+-#ifdef HAVE_ADS
+-	if (des_md5_b.length != 0) {
+-		keys[idx].keytype		= ENCTYPE_DES_CBC_MD5;
+-		keys[idx].iteration_count	= 4096;
+-		keys[idx].value			= des_md5_b;
+-		idx += 1;
+-	}
+-#endif /* HAVE_ADS */
+-
+ 	p->salt_data = salt_data;
+ 	p->default_iteration_count = 4096;
+ 	p->num_keys = idx;
+diff --git a/source4/auth/kerberos/kerberos.h b/source4/auth/kerberos/kerberos.h
+index 2ff9e3868af..1dd63acc838 100644
+--- a/source4/auth/kerberos/kerberos.h
++++ b/source4/auth/kerberos/kerberos.h
+@@ -50,7 +50,7 @@ struct keytab_container {
+ #define TOK_ID_GSS_GETMIC	((const uint8_t *)"\x01\x01")
+ #define TOK_ID_GSS_WRAP		((const uint8_t *)"\x02\x01")
+ 
+-#define ENC_ALL_TYPES (ENC_CRC32 | ENC_RSA_MD5 | ENC_RC4_HMAC_MD5 |	\
++#define ENC_ALL_TYPES (ENC_RC4_HMAC_MD5 |	\
+ 		       ENC_HMAC_SHA1_96_AES128 | ENC_HMAC_SHA1_96_AES256)
+ 
+ #ifndef HAVE_KRB5_SET_DEFAULT_TGS_KTYPES
+diff --git a/source4/dsdb/samdb/ldb_modules/password_hash.c b/source4/dsdb/samdb/ldb_modules/password_hash.c
+index 006e35c46d5..f16937c6cab 100644
+--- a/source4/dsdb/samdb/ldb_modules/password_hash.c
++++ b/source4/dsdb/samdb/ldb_modules/password_hash.c
+@@ -786,6 +786,7 @@ static int setup_kerberos_keys(struct setup_password_fields_io *io)
+ 	 * create ENCTYPE_DES_CBC_MD5 key out of
+ 	 * the salt and the cleartext password
+ 	 */
++#ifdef SAMBA4_USES_HEIMDAL
+ 	krb5_ret = smb_krb5_create_key_from_string(io->smb_krb5_context->krb5_context,
+ 						   NULL,
+ 						   &salt,
+@@ -804,6 +805,11 @@ static int setup_kerberos_keys(struct setup_password_fields_io *io)
+ 					 KRB5_KEY_DATA(&key),
+ 					 KRB5_KEY_LENGTH(&key));
+ 	krb5_free_keyblock_contents(io->smb_krb5_context->krb5_context, &key);
++#else
++	/* MIT has dropped support for DES enctypes, store a random key instead. */
++	io->g.des_md5 = data_blob_talloc(io->ac, NULL, 8);
++	generate_secret_buffer(io->g.des_md5.data, 8);
++#endif
+ 	if (!io->g.des_md5.data) {
+ 		return ldb_oom(ldb);
+ 	}
+@@ -812,6 +818,7 @@ static int setup_kerberos_keys(struct setup_password_fields_io *io)
+ 	 * create ENCTYPE_DES_CBC_CRC key out of
+ 	 * the salt and the cleartext password
+ 	 */
++#ifdef SAMBA4_USES_HEIMDAL
+ 	krb5_ret = smb_krb5_create_key_from_string(io->smb_krb5_context->krb5_context,
+ 						   NULL,
+ 						   &salt,
+@@ -830,6 +837,11 @@ static int setup_kerberos_keys(struct setup_password_fields_io *io)
+ 					 KRB5_KEY_DATA(&key),
+ 					 KRB5_KEY_LENGTH(&key));
+ 	krb5_free_keyblock_contents(io->smb_krb5_context->krb5_context, &key);
++#else
++	/* MIT has dropped support for DES enctypes, store a random key instead. */
++	io->g.des_crc = data_blob_talloc(io->ac, NULL, 8);
++	generate_secret_buffer(io->g.des_crc.data, 8);
++#endif
+ 	if (!io->g.des_crc.data) {
+ 		return ldb_oom(ldb);
+ 	}
+diff --git a/source4/kdc/db-glue.c b/source4/kdc/db-glue.c
+index f62a633c6c7..023ae7b580d 100644
+--- a/source4/kdc/db-glue.c
++++ b/source4/kdc/db-glue.c
+@@ -359,10 +359,10 @@ static krb5_error_code samba_kdc_message2entry_keys(krb5_context context,
+ 
+ 	/* If UF_USE_DES_KEY_ONLY has been set, then don't allow use of the newer enc types */
+ 	if (userAccountControl & UF_USE_DES_KEY_ONLY) {
+-		supported_enctypes = ENC_CRC32|ENC_RSA_MD5;
++		supported_enctypes = 0;
+ 	} else {
+ 		/* Otherwise, add in the default enc types */
+-		supported_enctypes |= ENC_CRC32 | ENC_RSA_MD5 | ENC_RC4_HMAC_MD5;
++		supported_enctypes |= ENC_RC4_HMAC_MD5;
+ 	}
+ 
+ 	/* Is this the krbtgt or a RODC krbtgt */
+diff --git a/source4/torture/rpc/remote_pac.c b/source4/torture/rpc/remote_pac.c
+index 7a5cda74b74..f12060e3c8f 100644
+--- a/source4/torture/rpc/remote_pac.c
++++ b/source4/torture/rpc/remote_pac.c
+@@ -38,7 +38,6 @@
+ 
+ #define TEST_MACHINE_NAME_BDC "torturepacbdc"
+ #define TEST_MACHINE_NAME_WKSTA "torturepacwksta"
+-#define TEST_MACHINE_NAME_WKSTA_DES "torturepacwkdes"
+ #define TEST_MACHINE_NAME_S4U2SELF_BDC "tests4u2selfbdc"
+ #define TEST_MACHINE_NAME_S4U2SELF_WKSTA "tests4u2selfwk"
+ 
+@@ -581,39 +580,6 @@ static bool test_PACVerify_workstation_aes(struct torture_context *tctx,
+ 			      NETLOGON_NEG_AUTH2_ADS_FLAGS | NETLOGON_NEG_SUPPORTS_AES);
+ }
+ 
+-static bool test_PACVerify_workstation_des(struct torture_context *tctx,
+-					   struct dcerpc_pipe *p, struct cli_credentials *credentials, struct test_join *join_ctx)
+-{
+-	struct samr_SetUserInfo r;
+-	union samr_UserInfo user_info;
+-	struct dcerpc_pipe *samr_pipe = torture_join_samr_pipe(join_ctx);
+-	struct smb_krb5_context *smb_krb5_context;
+-	krb5_error_code ret;
+-
+-	ret = cli_credentials_get_krb5_context(popt_get_cmdline_credentials(),
+-			tctx->lp_ctx, &smb_krb5_context);
+-	torture_assert_int_equal(tctx, ret, 0, "cli_credentials_get_krb5_context() failed");
+-
+-	if (smb_krb5_get_allowed_weak_crypto(smb_krb5_context->krb5_context) == FALSE) {
+-		torture_skip(tctx, "Cannot test DES without [libdefaults] allow_weak_crypto = yes");
+-	}
+-
+-	/* Mark this workstation with DES-only */
+-	user_info.info16.acct_flags = ACB_USE_DES_KEY_ONLY | ACB_WSTRUST;
+-	r.in.user_handle = torture_join_samr_user_policy(join_ctx);
+-	r.in.level = 16;
+-	r.in.info = &user_info;
+-
+-	torture_assert_ntstatus_ok(tctx, dcerpc_samr_SetUserInfo_r(samr_pipe->binding_handle, tctx, &r),
+-		"failed to set DES info account flags");
+-	torture_assert_ntstatus_ok(tctx, r.out.result,
+-		"failed to set DES into account flags");
+-
+-	return test_PACVerify(tctx, p, credentials, SEC_CHAN_WKSTA,
+-			      TEST_MACHINE_NAME_WKSTA_DES,
+-			      NETLOGON_NEG_AUTH2_ADS_FLAGS);
+-}
+-
+ #ifdef SAMBA4_USES_HEIMDAL
+ static NTSTATUS check_primary_group_in_validation(TALLOC_CTX *mem_ctx,
+ 						  uint16_t validation_level,
+@@ -1000,9 +966,6 @@ struct torture_suite *torture_rpc_remote_pac(TALLOC_CTX *mem_ctx)
+ 								      &ndr_table_netlogon, TEST_MACHINE_NAME_WKSTA);
+ 	torture_rpc_tcase_add_test_creds(tcase, "verify-sig-aes", test_PACVerify_workstation_aes);
+ 
+-	tcase = torture_suite_add_machine_workstation_rpc_iface_tcase(suite, "netlogon-member-des",
+-								      &ndr_table_netlogon, TEST_MACHINE_NAME_WKSTA_DES);
+-	torture_rpc_tcase_add_test_join(tcase, "verify-sig", test_PACVerify_workstation_des);
+ #ifdef SAMBA4_USES_HEIMDAL
+ 	tcase = torture_suite_add_machine_bdc_rpc_iface_tcase(suite, "netr-bdc-arcfour",
+ 							      &ndr_table_netlogon, TEST_MACHINE_NAME_S4U2SELF_BDC);
+diff --git a/testprogs/blackbox/dbcheck-oldrelease.sh b/testprogs/blackbox/dbcheck-oldrelease.sh
+index 3d0ee2c165a..41c55178d4e 100755
+--- a/testprogs/blackbox/dbcheck-oldrelease.sh
++++ b/testprogs/blackbox/dbcheck-oldrelease.sh
+@@ -388,7 +388,7 @@ referenceprovision() {
+ 
+ ldapcmp() {
+     if [ x$RELEASE = x"release-4-0-0" ]; then
+-         $PYTHON $BINDIR/samba-tool ldapcmp tdb://$PREFIX_ABS/${RELEASE}_reference/private/sam.ldb tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb --two --skip-missing-dn --filter=dnsRecord,displayName
++         $PYTHON $BINDIR/samba-tool ldapcmp tdb://$PREFIX_ABS/${RELEASE}_reference/private/sam.ldb tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb --two --skip-missing-dn --filter=dnsRecord,displayName,msDS-SupportedEncryptionTypes
+     fi
+ }
+ 
+diff --git a/testprogs/blackbox/functionalprep.sh b/testprogs/blackbox/functionalprep.sh
+index 80e82252d45..1d37611ef7a 100755
+--- a/testprogs/blackbox/functionalprep.sh
++++ b/testprogs/blackbox/functionalprep.sh
+@@ -61,7 +61,7 @@ provision_2012r2() {
+ ldapcmp_ignore() {
+     # At some point we will need to ignore, but right now, it should be perfect
+     IGNORE_ATTRS=$1
+-    $PYTHON $BINDIR/samba-tool ldapcmp tdb://$PREFIX_ABS/$2/private/sam.ldb tdb://$PREFIX_ABS/$3/private/sam.ldb --two --skip-missing-dn
++    $PYTHON $BINDIR/samba-tool ldapcmp tdb://$PREFIX_ABS/$2/private/sam.ldb tdb://$PREFIX_ABS/$3/private/sam.ldb --two --skip-missing-dn --filter msDS-SupportedEncryptionTypes
+ }
+ 
+ ldapcmp() {
+diff --git a/testprogs/blackbox/test_export_keytab_heimdal.sh b/testprogs/blackbox/test_export_keytab_heimdal.sh
+index cfa245fd4de..6a2595cd684 100755
+--- a/testprogs/blackbox/test_export_keytab_heimdal.sh
++++ b/testprogs/blackbox/test_export_keytab_heimdal.sh
+@@ -43,7 +43,7 @@ test_keytab() {
+ 
+ 	echo "test: $testname"
+ 
+-	NKEYS=$($VALGRIND $samba4ktutil $keytab | grep -i "$principal" | egrep -c "des|aes|arcfour")
++	NKEYS=$($VALGRIND $samba4ktutil $keytab | grep -i "$principal" | egrep -c "aes|arcfour")
+ 	status=$?
+ 	if [ x$status != x0 ]; then
+ 		echo "failure: $testname"
+@@ -64,22 +64,22 @@ unc="//$SERVER/tmp"
+ testit "create user locally" $VALGRIND $PYTHON $newuser nettestuser $USERPASS $@ || failed=`expr $failed + 1`
+ 
+ testit "dump keytab from domain" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab $@ || failed=`expr $failed + 1`
+-test_keytab "read keytab from domain" "$PREFIX/tmpkeytab" "$SERVER\\\$" 5
++test_keytab "read keytab from domain" "$PREFIX/tmpkeytab" "$SERVER\\\$" 3
+ testit "dump keytab from domain (2nd time)" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab $@ || failed=`expr $failed + 1`
+-test_keytab "read keytab from domain (2nd time)" "$PREFIX/tmpkeytab" "$SERVER\\\$" 5
++test_keytab "read keytab from domain (2nd time)" "$PREFIX/tmpkeytab" "$SERVER\\\$" 3
+ 
+ testit "dump keytab from domain for cifs principal" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab-server --principal=cifs/$SERVER_FQDN $@ || failed=`expr $failed + 1`
+-test_keytab "read keytab from domain for cifs principal" "$PREFIX/tmpkeytab-server" "cifs/$SERVER_FQDN" 5
++test_keytab "read keytab from domain for cifs principal" "$PREFIX/tmpkeytab-server" "cifs/$SERVER_FQDN" 3
+ testit "dump keytab from domain for cifs principal (2nd time)" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab-server --principal=cifs/$SERVER_FQDN $@ || failed=`expr $failed + 1`
+-test_keytab "read keytab from domain for cifs principal (2nd time)" "$PREFIX/tmpkeytab-server" "cifs/$SERVER_FQDN" 5
++test_keytab "read keytab from domain for cifs principal (2nd time)" "$PREFIX/tmpkeytab-server" "cifs/$SERVER_FQDN" 3
+ 
+ testit "dump keytab from domain for user principal" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab-2 --principal=nettestuser $@ || failed=`expr $failed + 1`
+-test_keytab "dump keytab from domain for user principal" "$PREFIX/tmpkeytab-2" "nettestuser@$REALM" 5
++test_keytab "dump keytab from domain for user principal" "$PREFIX/tmpkeytab-2" "nettestuser@$REALM" 3
+ testit "dump keytab from domain for user principal (2nd time)" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab-2 --principal=nettestuser@$REALM $@ || failed=`expr $failed + 1`
+-test_keytab "dump keytab from domain for user principal (2nd time)" "$PREFIX/tmpkeytab-2" "nettestuser@$REALM" 5
++test_keytab "dump keytab from domain for user principal (2nd time)" "$PREFIX/tmpkeytab-2" "nettestuser@$REALM" 3
+ 
+ testit "dump keytab from domain for user principal with SPN as UPN" $VALGRIND $PYTHON $samba_tool domain exportkeytab $PREFIX/tmpkeytab-3 --principal=http/testupnspn.$DNSDOMAIN $@ || failed=`expr $failed + 1`
+-test_keytab "dump keytab from domain for user principal" "$PREFIX/tmpkeytab-3" "http/testupnspn.$DNSDOMAIN@$REALM" 5
++test_keytab "dump keytab from domain for user principal" "$PREFIX/tmpkeytab-3" "http/testupnspn.$DNSDOMAIN@$REALM" 3
+ 
+ KRB5CCNAME="$PREFIX/tmpuserccache"
+ export KRB5CCNAME
+diff --git a/testprogs/blackbox/upgradeprovision-oldrelease.sh b/testprogs/blackbox/upgradeprovision-oldrelease.sh
+index 76276168011..208baa54a02 100755
+--- a/testprogs/blackbox/upgradeprovision-oldrelease.sh
++++ b/testprogs/blackbox/upgradeprovision-oldrelease.sh
+@@ -106,7 +106,7 @@ referenceprovision() {
+ 
+ ldapcmp() {
+     if [ x$RELEASE != x"alpha13" ]; then
+-         $PYTHON $BINDIR/samba-tool ldapcmp tdb://$PREFIX_ABS/${RELEASE}_upgrade_reference/private/sam.ldb tdb://$PREFIX_ABS/${RELEASE}_upgrade/private/sam.ldb --two --skip-missing-dn --filter=dnsRecord,displayName
++         $PYTHON $BINDIR/samba-tool ldapcmp tdb://$PREFIX_ABS/${RELEASE}_upgrade_reference/private/sam.ldb tdb://$PREFIX_ABS/${RELEASE}_upgrade/private/sam.ldb --two --skip-missing-dn --filter=dnsRecord,displayName,msDS-SupportedEncryptionTypes
+     fi
+ }
+ 
+-- 
+2.23.0
+

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,31 +20,31 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Use 2020.0.1 branch. Verify first that there's no better branch with
-# "git branch -a" in the unpruned repo.
-BRANCH=${1:-2020.0.1}
+CWD=$(pwd)
+GITHUB_ARCHIVE=$(/bin/ls v[0-9]*.tar.gz)
+OUTPUT_NAME=$(tar tvvf $GITHUB_ARCHIVE | head -n 1 | tr -d / | rev | cut -f 1 -d ' ' | rev)
+OUTPUT_TIMESTAMP=$(tar tvvf $GITHUB_ARCHIVE | head -n 1 | tr -d / | rev | cut -f 2,3 -d ' ' | rev)
 
-# Clear download area:
-rm -rf ast
+# Create a temporary extraction directory:
+EXTRACT_DIR=$(mktemp -d)
 
-# Clone repository:
-git clone https://github.com/att/ast
+# Extract, repack, compress, and fix timestamp:
+( cd $EXTRACT_DIR
+  tar xf $CWD/$GITHUB_ARCHIVE
 
-# checkout $BRANCH:
-( cd ast 
-  git checkout $BRANCH || exit 1
+  # This is excessive:
+  rm -rf $OUTPUT_NAME/tests/*
+  rm -f $OUTPUT_NAME/research/img/*
+  rm -f $OUTPUT_NAME/java/org/brotli/integration/*.zip
+  rm -f $OUTPUT_NAME/docs/brotli-comparison-study-2015-09-22.pdf
+
+  tar cf $OUTPUT_NAME.tar $OUTPUT_NAME
+  plzip -9 $OUTPUT_NAME.tar
+  touch -d "$OUTPUT_TIMESTAMP" $OUTPUT_NAME.tar.lz
 )
 
-HEADISAT="$( cd ast && git log -1 --format=%h )"
-DATE="$( cd ast && git log -1 --format=%ad --date=format:%Y%m%d )"
-# Cleanup.  We're not packing up the whole git repo.
-( cd ast && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-# No need to package these:
-( cd ast && rm -rf lib/package/tgz )
-mv ast att-ast-${DATE}_${HEADISAT}
-tar cf att-ast-${DATE}_${HEADISAT}.tar att-ast-${DATE}_${HEADISAT}
-plzip -9 -n 6 -f att-ast-${DATE}_${HEADISAT}.tar
-rm -rf att-ast-${DATE}_${HEADISAT}
-echo
-echo "ast branch $BRANCH with HEAD at $HEADISAT packaged as att-ast-${DATE}_${HEADISAT}.tar.lz"
-echo
+# Move the repacked archive here:
+mv $EXTRACT_DIR/$OUTPUT_NAME.tar.lz .
+
+# Remove the temporary directory:
+rm -rf $EXTRACT_DIR

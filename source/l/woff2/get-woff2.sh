@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,31 +20,22 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Use 2020.0.1 branch. Verify first that there's no better branch with
-# "git branch -a" in the unpruned repo.
-BRANCH=${1:-2020.0.1}
-
 # Clear download area:
-rm -rf ast
+rm -rf woff2
 
 # Clone repository:
-git clone https://github.com/att/ast
+git clone https://github.com/google/woff2.git
 
-# checkout $BRANCH:
-( cd ast 
-  git checkout $BRANCH || exit 1
-)
+HEADISAT="$( cd woff2 && git log -1 --format=%h )"
+DATE="$( cd woff2 && git log -1 --format=%ad --date=format:%Y%m%d )"
 
-HEADISAT="$( cd ast && git log -1 --format=%h )"
-DATE="$( cd ast && git log -1 --format=%ad --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
-( cd ast && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-# No need to package these:
-( cd ast && rm -rf lib/package/tgz )
-mv ast att-ast-${DATE}_${HEADISAT}
-tar cf att-ast-${DATE}_${HEADISAT}.tar att-ast-${DATE}_${HEADISAT}
-plzip -9 -n 6 -f att-ast-${DATE}_${HEADISAT}.tar
-rm -rf att-ast-${DATE}_${HEADISAT}
+( cd woff2 && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+mv woff2 woff2-${DATE}_${HEADISAT}
+tar cf woff2-${DATE}_${HEADISAT}.tar woff2-${DATE}_${HEADISAT}
+plzip -9 woff2-${DATE}_${HEADISAT}.tar
+rm -rf woff2-${DATE}_${HEADISAT}
+touch -d "$DATE" woff2-${DATE}_${HEADISAT}.tar.lz
 echo
-echo "ast branch $BRANCH with HEAD at $HEADISAT packaged as att-ast-${DATE}_${HEADISAT}.tar.lz"
+echo "woff2 branch $BRANCH with HEAD at $HEADISAT packaged as woff2-${DATE}_${HEADISAT}.tar.lz"
 echo

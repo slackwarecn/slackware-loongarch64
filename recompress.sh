@@ -591,9 +591,12 @@ gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
+gzip ./source/n/samba/0001-handle-removal-des-enctypes-from-krb5.patch
+gzip ./source/n/samba/0000-use-gnutls-for-des-cbc.patch
 gzip ./source/n/samba/smb.conf.diff
 gzip ./source/n/samba/doinst.sh
 gzip ./source/n/samba/samba.libsmbclient.h.ffmpeg.compat.diff
+gzip ./source/n/samba/0002-samba-tool-create-working-private-krb5.conf.patch
 gzip ./source/n/htdig/htdig-3.2.0b6.diff
 gzip ./source/n/htdig/htdig.conf.diff
 gzip ./source/n/htdig/doinst.sh
@@ -970,6 +973,7 @@ gzip ./source/l/desktop-file-utils/desktop-file-utils.quiet.warnings.diff
 gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/fuse3/rc.fuse3.no.source.lsb.init-functions.diff
 gzip ./source/l/gdk-pixbuf2/doinst.sh
+gzip ./source/l/qt5-webkit/patches/qt5-webkit.icu65.patch
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/020_no-parallel-make.diff
@@ -1078,6 +1082,12 @@ gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/glib-networking/doinst.sh
+gzip ./source/l/qt5/patches/qt5.pulseaudio.diff
+gzip ./source/l/qt5/patches/qt5.cve-2020-0570.patch
+gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
+gzip ./source/l/qt5/patches/qt5.mysql.h.diff
+gzip ./source/l/qt5/patches/qt5.cve-2020-0569.patch
+gzip ./source/l/qt5/doinst.sh
 gzip ./source/l/qca/qca.tlsunittest.cpp.diff
 gzip ./source/l/qca/Add_support_for_OpenSSL_1.1.0.diff
 gzip ./source/xap/hexchat/doinst.sh

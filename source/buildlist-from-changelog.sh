@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -273,7 +273,8 @@ cat $TMPDIR/header $TMPDIR/kernel $TMPDIR/sobumps $TMPDIR/perl $TMPDIR/packages 
   # the next test handle the main xorg-server package.
   if [ "$PACKAGE" = "xorg-server-xnest" -o \
        "$PACKAGE" = "xorg-server-xvfb" -o \
-       "$PACKAGE" = "xorg-server-xephyr" ]; then
+       "$PACKAGE" = "xorg-server-xephyr" -o \
+       "$PACKAGE" = "xorg-server-xwayland" ]; then
     echo "#x/x11/x11.SlackBuild xserver xorg-server" >> $TMPDIR/output
     continue
   fi

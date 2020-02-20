@@ -31,9 +31,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=qt5
 VERSION=$(ls qt-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 PKGSRC=$(echo $VERSION | cut -d - -f 1)
 PKGVER=$(echo $VERSION | tr - _)
+
+USE_CODECS=${USE_CODECS:-NO}
+SYSTEM_FFMPEG=${SYSTEM_FFMPEG:-YES}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -138,13 +141,16 @@ cd qtbase
   zcat $CWD/patches/qt5.cve-2020-0570.patch.gz | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
 
+# If PulseAudio is not found, use the _alsa $TAG and disable it in the build:
 if ! pkg-config --exists libpulse 2>/dev/null ; then
   # Forcibly disable pulseaudio in qtwebengine:
   zcat $CWD/patches/qt5.pulseaudio.diff.gz | patch -p1 --verbose || exit 1
   # Disable pulseaudio in Qt5:
-  PACONF="-no-pulseaudio"
+  PULSEAUDIO_OPTION="-no-pulseaudio"
+  TAG="_alsa"
 else
-  PACONF=" "
+  unset PULSEAUDIO_OPTION
+  unset TAG
 fi
 
 # Use our custom compiler and linker flags:
@@ -152,6 +158,18 @@ sed -e "s|^\(QMAKE_CFLAGS_RELEASE.*\)|\1 ${SLKCFLAGS}|" \
   -i qtbase/mkspecs/common/gcc-base.conf || exit 1
 sed -e "s|^\(QMAKE_LFLAGS_RELEASE.*\)|\1 ${SLKLDFLAGS}|" \
   -i qtbase/mkspecs/common/g++-unix.conf || exit 1
+
+if [ ! "$USE_CODECS" = "NO" ]; then
+  CODEC_OPTION="-proprietary-codecs -webengine-proprietary-codecs"
+else
+  unset CODEC_OPTION
+fi
+
+if [ "$SYSTEM_FFMPEG" = "YES" ]; then
+  FFMPEG_OPTION="-webengine-ffmpeg"
+else
+  unset FFMPEG_OPTION
+fi
 
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
@@ -171,7 +189,6 @@ export QT_PLUGIN_PATH="${QTDIR}/qtbase/plugins"
   -archdatadir /usr/lib${LIBDIRSUFFIX}/qt5 \
   -docdir /usr/doc/qt5-$PKGVER \
   -examplesdir /usr/doc/qt5-$PKGVER/examples \
-  -proprietary-codecs \
   -system-libpng \
   -system-libjpeg \
   -system-sqlite \
@@ -196,10 +213,11 @@ export QT_PLUGIN_PATH="${QTDIR}/qtbase/plugins"
   -no-separate-debug-info \
   -no-strip \
   -no-use-gold-linker \
-  -webengine-proprietary-codecs \
-  ${PACONF} \
+  ${CODEC_OPTION} \
+  ${FFMPEG_OPTION} \
+  ${PULSEAUDIO_OPTION} \
   ${RELOCATIONS} \
-  -no-pch \
+  -no-pch
   # No-precompiled-headers is ccache-friendly.
   
 # Sometimes a failure happens when parallelizing make.  Try again if make fails,
@@ -333,4 +351,4 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM-$PKGVER-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$PKGVER-$ARCH-${BUILD}${TAG}.txz

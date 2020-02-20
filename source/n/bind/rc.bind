@@ -1,7 +1,7 @@
 #!/bin/sh
 # Start/stop/restart the BIND name server daemon (named).
 
-# Start bind. In the past it was more secure to run BIND as a non-root
+# Start BIND. In the past it was more secure to run BIND as a non-root
 # user (for example, with '-u daemon'), but the modern version of BIND
 # knows how to use the kernel's capability mechanism to drop all root
 # privileges except the ability to bind() to a privileged port and set
@@ -10,6 +10,10 @@
 # can be set like this in /etc/default/named:
 #       NAMED_OPTIONS="-u daemon"
 # So you will not have to edit this script.
+#
+# Please note that if you run BIND as a non-root user, your files in
+# /var/named may need to be chowned to this user or else named will
+# refuse to start.
 
 # You might also consider running BIND in a "chroot jail",
 # a discussion of which may be found in
@@ -53,14 +57,15 @@ find_bind_user() {
 # running or you'll get more than one copy running.
 bind_start() {
   # If we are running as a non-root user, we'll need to be sure that
-  # /var/run/named exists, and /var/run/named and /var/named are
-  # chowned properly to that user:
+  # /var/run/named exists, and /var/run/named is chowned properly to
+  # that user. Your files in /var/named may need to be chowned as
+  # well, but that will be up to the sysadmin to do.
   BIND_USER="$(find_bind_user)"
   if [ ! "$BIND_USER" = "root" ]; then
     mkdir -p /var/run/named
-    chown -R $BIND_USER /var/run/named /var/named
+    chown -R $BIND_USER /var/run/named
   else # prevent error if switching back to running as root:
-    chown -R root /var/run/named /var/named
+    chown -R root /var/run/named
   fi
   if [ -x /usr/sbin/named ]; then
     echo "Starting BIND:  /usr/sbin/named $NAMED_OPTIONS"

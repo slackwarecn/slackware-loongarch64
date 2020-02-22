@@ -641,6 +641,7 @@ gzip ./source/n/biff+comsat/biff+comsat-0.17.diff
 gzip ./source/n/dhcp/dhclient-script.PATH.diff
 gzip ./source/n/dhcp/doinst.sh
 gzip ./source/n/proftpd/doinst.sh
+gzip ./source/n/dnsmasq/dnsmasq.nettle35.diff
 gzip ./source/n/dnsmasq/rc.dnsmasq
 gzip ./source/n/dnsmasq/dnsmasq.leasedir.diff
 gzip ./source/n/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch
@@ -1266,7 +1267,6 @@ gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-head
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
-gzip ./source/x/libglvnd/patches/193.patch
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./testing/source/PAM/a/libpwquality/doinst.sh
 gzip ./testing/source/PAM/a/pam/patches/pam.pam_tally2.slackware.diff

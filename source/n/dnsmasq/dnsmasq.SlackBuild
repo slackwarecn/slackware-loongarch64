@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2015, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2015, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,9 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=dnsmasq
 VERSION=${VERSION:-$(echo dnsmasq-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
+
+EXTRA_BUILD_OPTS=${EXTRA_BUILD_OPTS:-"-DHAVE_DNSSEC -DHAVE_DBUS -DHAVE_LIBIDN2 -DHAVE_CONNTRACK"}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -70,8 +72,11 @@ zcat $CWD/dnsmasq.libidn2.diff.gz | patch -p1 --verbose --backup --suffix=.orig 
 # Fix build with Linux 5.4.x:
 zcat $CWD/dnsmasq-2.80-SIOCGSTAMP.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
-make $NUMJOBS all-i18n PREFIX=/usr MANDIR=/usr/man || exit 1
-make install-i18n PREFIX=/usr DESTDIR=$PKG MANDIR=/usr/man || exit 1
+# Fix build with nettle-3.5:
+zcat $CWD/dnsmasq.nettle35.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+
+make $NUMJOBS all-i18n PREFIX=/usr MANDIR=/usr/man COPTS="$EXTRA_BUILD_OPTS" || exit 1
+make install-i18n PREFIX=/usr DESTDIR=$PKG MANDIR=/usr/man COPTS="$EXTRA_BUILD_OPTS" || exit 1
 chmod 0755 $PKG/usr/sbin/dnsmasq
 
 mkdir -p $PKG/etc/dnsmasq.d

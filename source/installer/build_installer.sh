@@ -1537,7 +1537,13 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
          mv scsi.orig/hv_storvsc.ko scsi
          rm -rf${VERBOSE1} scsi.orig
          mkdir md
+         mv md.orig/dm-bufio.ko md
+         mv md.orig/dm-bio-prison.ko md
          mv md.orig/dm-raid.ko md
+         mv md.orig/dm-snapshot.ko md
+         mv md.orig/dm-thin-pool.ko md
+         mkdir md/persistent-data
+         mv md.orig/persistent-data/dm-persistent-data.ko md/persistent-data
          rm -rf${VERBOSE1} md.orig
        ;;
     esac

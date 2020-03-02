@@ -1129,11 +1129,13 @@ gzip ./source/xap/xgames/xlander-2009-07-18.diff
 gzip ./source/xap/xgames/xcuckoo.diff
 gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
+gzip ./source/xap/seamonkey/seamonkey.rust.encoding_rs.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/seamonkey/seamonkey.rust14x.diff
 gzip ./source/xap/seamonkey/seamonkey.gettid.patch
+gzip ./source/xap/seamonkey/seamonkey.nsstring.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
-gzip ./source/xap/seamonkey/seamonkey.i686.triplet.fix.diff
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/gnuplot/gnuplot.fix.info.generation.diff
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff

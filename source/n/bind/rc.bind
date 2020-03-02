@@ -56,22 +56,25 @@ find_bind_user() {
 # Seriously, don't run "rc.bind start" if BIND is already
 # running or you'll get more than one copy running.
 bind_start() {
+  # Make sure /var/run/named exists:
+  mkdir -p /var/run/named
   # If we are running as a non-root user, we'll need to be sure that
-  # /var/run/named exists, and /var/run/named is chowned properly to
-  # that user. Your files in /var/named may need to be chowned as
-  # well, but that will be up to the sysadmin to do.
+  # /var/run/named is chowned properly to that user. Your files in
+  # /var/named may need to be chowned as well, but that will be up to
+  # the sysadmin to do.
   BIND_USER="$(find_bind_user)"
   if [ ! "$BIND_USER" = "root" ]; then
-    mkdir -p /var/run/named
     chown -R $BIND_USER /var/run/named
   else # prevent error if switching back to running as root:
     chown -R root /var/run/named
   fi
+  # Start named:
   if [ -x /usr/sbin/named ]; then
     echo "Starting BIND:  /usr/sbin/named $NAMED_OPTIONS"
     /usr/sbin/named $NAMED_OPTIONS
     sleep 1
   fi
+  # Make sure that named started:
   if ! ps axc | grep -q named ; then
     echo "WARNING:  named did not start."
     echo "Attempting to start named again:  /usr/sbin/named $NAMED_OPTIONS"
@@ -100,8 +103,8 @@ bind_stop() {
   # to have any ill effects:
   sleep 1
   if ps axc | grep -q named ; then
-    echo "Using "killall named" on additional BIND processes..."
-    /bin/killall named 2> /dev/null
+    echo "Stopping all named processes in this namespace:  /bin/killall --ns \$\$ named"
+    /bin/killall --ns $$ named 2> /dev/null
   fi
 }
 

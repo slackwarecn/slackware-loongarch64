@@ -452,15 +452,14 @@ gzip ./source/n/bsd-finger/bsd-finger-0.17-host-info.patch
 gzip ./source/n/bsd-finger/bsd-finger-0.17-usagi-ipv6.patch
 gzip ./source/n/bsd-finger/bsd-finger-0.17-init-realname.patch
 gzip ./source/n/ppp/radius.msdict
-gzip ./source/n/ppp/0028-pppoe-include-netinet-in.h-before-linux-in.h.patch
 gzip ./source/n/ppp/pppsetup-1.98.pppoff.diff
 gzip ./source/n/ppp/ppp.slack.diff
 gzip ./source/n/ppp/pppsetup-1.98.slack.diff
 gzip ./source/n/ppp/pppsetup-1.98.moredevs.diff
 gzip ./source/n/ppp/ppp.CVE-2015-3310.diff
+gzip ./source/n/ppp/ppp.CVE-2020-8597.patch
 gzip ./source/n/ppp/realms
 gzip ./source/n/ppp/doinst.sh
-gzip ./source/n/ppp/ppp.glibc228.diff
 gzip ./source/n/ppp/options.new
 gzip ./source/n/ppp/pppsetup-1.98.backupfiles.diff
 gzip ./source/n/inetd/inetd-OpenBSD-1.79.diff

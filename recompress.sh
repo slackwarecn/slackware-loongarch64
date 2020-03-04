@@ -591,12 +591,9 @@ gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
-gzip ./source/n/samba/0001-handle-removal-des-enctypes-from-krb5.patch
-gzip ./source/n/samba/0000-use-gnutls-for-des-cbc.patch
 gzip ./source/n/samba/smb.conf.diff
 gzip ./source/n/samba/doinst.sh
 gzip ./source/n/samba/samba.libsmbclient.h.ffmpeg.compat.diff
-gzip ./source/n/samba/0002-samba-tool-create-working-private-krb5.conf.patch
 gzip ./source/n/htdig/htdig-3.2.0b6.diff
 gzip ./source/n/htdig/htdig.conf.diff
 gzip ./source/n/htdig/doinst.sh

@@ -26,7 +26,7 @@ PKGNAM=seamonkey
 TARBALLVER=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
 # Strip the end from beta versions:
 VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -46,6 +46,16 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+# Seamonkey has been requiring more and more memory, especially while linking
+# libxul. If it fails to build natively on x86 32-bit, it can be useful to
+# attempt the build using an x86_64 kernel and a 32-bit userspace. Detect this
+# situation and set the ARCH to i686. Later in the script we'll add some
+# options to the .mozconfig so that the compile will do the right thing.
+if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-bit)" != "" ]; then
+  COMPILE_X86_UNDER_X86_64=true
+  ARCH=i686
+fi
+
 if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
   OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
@@ -55,16 +65,6 @@ elif [ "$ARCH" = "x86_64" ]; then
 else
   LIBDIRSUFFIX=""
   OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
-fi
-
-# Seamonkey has been requiring more and more memory, especially while linking
-# libxul. If it fails to build natively on x86 32-bit, it can be useful to
-# attempt the build using an x86_64 kernel and a 32-bit userspace. Detect this
-# situation and set the ARCH to i686. Later in the script we'll add some
-# options to the .mozconfig so that the compile will do the right thing.
-if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-bit)" != "" ]; then
-  COMPILE_X86_UNDER_X86_64=true
-  ARCH=i686
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):

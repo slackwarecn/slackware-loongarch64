@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=perl
 VERSION=5.30.1
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -83,6 +83,8 @@ IOSOCKETSSL=2.066
 NETSSLEAY=1.88
 # https://metacpan.org/release/libnet
 LIBNET=3.11
+# https://metacpan.org/release/Parse-Yapp
+PARSEYAPP=1.21
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mcpu=i686"
@@ -378,6 +380,20 @@ make install DESTDIR=$PKG || exit 1
     mkdir -p $PKG/usr/doc/perl-$VERSION/libnet-${LIBNET}
     cp -a Artistic Changes Copying INSTALL LICENCE README $PKG/usr/doc/perl-$VERSION/libnet-${LIBNET}
     chmod 644 $PKG/usr/doc/perl-$VERSION/libnet-${LIBNET}/*
+  ) || exit 1
+  ( tar xzvf $CWD/Parse-Yapp-${PARSEYAPP}.tar.gz
+    cd Parse-Yapp-${PARSEYAPP}
+    chown -R root:root .
+    echo y | perl Makefile.PL INSTALLDIRS=vendor
+    make || exit 1
+    if [ "$MAKETEST" = "yes" ]; then
+      make test || exit 1
+    fi
+    make install || exit 1
+    make install DESTDIR=$PKG || exit 1
+    mkdir -p $PKG/usr/doc/perl-$VERSION/Parse-Yapp-${PARSEYAPP}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/Parse-Yapp-${PARSEYAPP}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/Parse-Yapp-${PARSEYAPP}/*
   ) || exit 1
 ) || exit 1
 

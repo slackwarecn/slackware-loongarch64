@@ -622,6 +622,7 @@ gzip ./source/n/iputils/iputils.libcap-2.30.patch
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/openldap-client/doinst.sh
+gzip ./source/n/bind/bind-v9.16.0-tcp_quota_fix.patch
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff

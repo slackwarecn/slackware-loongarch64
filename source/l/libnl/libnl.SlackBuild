@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libnl
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -91,6 +91,9 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# No static libraries:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.a
+
 chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/libnl*
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -100,10 +103,10 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   COPYING* README* \
   $PKG/usr/doc/$PKGNAM-$VERSION
+chmod 644 $PKG/usr/doc/$PKGNAM-$VERSION/*
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

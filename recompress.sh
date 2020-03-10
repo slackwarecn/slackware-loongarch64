@@ -1044,6 +1044,7 @@ gzip ./source/l/openal-soft/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
+gzip ./source/l/SDL2/SDL2-2.0.9-khrplatform.patch
 gzip ./source/l/PyQt/PyQt.phonon.diff
 gzip ./source/l/mozjs60/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs60/patches/emitter_test.patch

@@ -1001,6 +1001,7 @@ gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.csh
 gzip ./source/l/freetype/freetype.illadvisederror.diff
 gzip ./source/l/gcr/doinst.sh
+gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff
 gzip ./source/l/sdl/sdl-1.2.14-fix-mouse-clicking.patch
 gzip ./source/l/sdl/SDL_ttf.shaded.text.diff
 gzip ./source/l/sdl/SDL_mixer.usrlocal.diff

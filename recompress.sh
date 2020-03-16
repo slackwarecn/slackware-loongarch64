@@ -527,7 +527,6 @@ gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/postfix/postfix.script.starting.message.diff
-gzip ./source/n/postfix/postfix.res-macros-fix.patch
 gzip ./source/n/postfix/postfix.only.warn.regular.files.diff
 gzip ./source/n/postfix/doinst.sh
 gzip ./source/n/fetchmail/fetchmail.openssl111.diff
@@ -971,7 +970,6 @@ gzip ./source/l/desktop-file-utils/desktop-file-utils.quiet.warnings.diff
 gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/fuse3/rc.fuse3.no.source.lsb.init-functions.diff
 gzip ./source/l/gdk-pixbuf2/doinst.sh
-gzip ./source/l/qt5-webkit/patches/qt5-webkit.icu65.patch
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/020_no-parallel-make.diff

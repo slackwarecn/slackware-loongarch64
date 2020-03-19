@@ -982,6 +982,7 @@ gzip ./source/l/libvncserver/libvncserver.CMAKE_INSTALL_LIBDIR.diff
 gzip ./source/l/libvncserver/libvncserver.15c4f144a3783d9f1f2c976acf9f4d85988fd466.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
+gzip ./source/l/PyQt5/patches/pyqt5-python2-crash.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-taglib_ver.patch
 gzip ./source/l/taglib-extras/taglib-extras-0.1-multilib-1.patch

@@ -299,6 +299,7 @@ gzip ./source/a/sysvinit-functions/doinst.sh
 gzip ./source/a/mdadm/doinst.sh
 gzip ./source/a/os-prober/os-prober.lvm2.diff
 gzip ./source/a/os-prober/os-prober.reiserfs.diff
+gzip ./source/a/tcsh/tcsh.sh.hist.diff
 gzip ./source/a/tcsh/tcsh.nobuiltincolorls.diff
 gzip ./source/a/tcsh/doinst.sh
 gzip ./source/a/dcron/patches/0006-Fixed-a-bug-whereby-syncs-killed-all-waiting-jobs.patch
@@ -621,7 +622,6 @@ gzip ./source/n/iputils/iputils.libcap-2.30.patch
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/openldap-client/doinst.sh
-gzip ./source/n/bind/bind-v9.16.0-tcp_quota_fix.patch
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff

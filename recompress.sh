@@ -1146,7 +1146,6 @@ gzip ./source/xap/gv/gv-resource.patch
 gzip ./source/xap/gv/gv-aarch64.patch
 gzip ./source/xap/gv/gv-bug1071238.patch
 gzip ./source/xap/x3270/doinst.sh
-gzip ./source/xap/xaos/xaos.x86.registers.diff
 gzip ./source/xap/xaos/xaos.6
 gzip ./source/xap/rxvt-unicode/rxvt-unicode.utempter.diff
 gzip ./source/xap/gparted/doinst.sh

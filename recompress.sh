@@ -51,6 +51,7 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
+gzip ./source/d/llvm/llvm.polly.hack.diff
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
@@ -1080,6 +1081,7 @@ gzip ./source/l/akonadi/doinst.sh
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
+gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5.pulseaudio.diff
 gzip ./source/l/qt5/patches/qt5.cve-2020-0570.patch

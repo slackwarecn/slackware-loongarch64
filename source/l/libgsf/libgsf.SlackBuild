@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libgsf
-VERSION=${VERSION:-$(echo libgsf-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo libgsf-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
@@ -67,7 +67,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf libgsf-$VERSION
-tar xvf $CWD/libgsf-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/libgsf-$VERSION.tar.?z || exit 1
 cd libgsf-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -76,12 +76,17 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+if [ ! -r configure ]; then
+  NOCONFIGURE=1 ./autogen.sh
+fi
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --localstatedir=/var/lib \
+  --enable-gtk-doc \
   --with-html-dir=/usr/share/gtk-doc/html \
   --mandir=/usr/man \
   --disable-static \

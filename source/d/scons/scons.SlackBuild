@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2015  Heinz Wiesinger, Amsterdam, The Netherlands
 # All rights reserved.
 #
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=scons
 VERSION=${VERSION:-$(echo scons-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -80,6 +80,12 @@ python3 setup.py install \
   --no-version-script \
   --standard-lib \
   --root=$PKG || exit 1
+
+# Fix shebangs for python3:
+sed -i "s|env python$|env python3|" $PKG/usr/bin/*
+
+# Get rid of MS-DOS batch files:
+rm -f $PKG/usr/bin/*.bat
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

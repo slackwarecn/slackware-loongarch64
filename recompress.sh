@@ -1083,7 +1083,6 @@ gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
-gzip ./source/l/qt5/patches/qt5.pulseaudio.diff
 gzip ./source/l/qt5/patches/qt5.cve-2020-0570.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
 gzip ./source/l/qt5/patches/qt5.mysql.h.diff

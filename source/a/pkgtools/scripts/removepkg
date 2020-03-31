@@ -3,7 +3,7 @@
 #
 # Copyright 1994, 1995, 1998  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2001, Slackware Linux, Inc., Concord, CA USA
-# Copyright 2009, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2015, 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,6 +24,12 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Tue Mar 31 03:06:25 UTC 2020
+# Support an uninstall script to be executed when the package is removed.
+# The script should be a standard sh script with the same name as the package
+# (without the .txz or other extension), and should be installed in
+# /var/lib/pkgtools/douninst.sh.
+#
 # Tue Jun  5 20:04:45 UTC 2018
 # Use /var/lib/pkgtools for the package database, not /var/log.
 # Logs of the removed packages and scripts will remain in /var/log, but moved
@@ -327,10 +333,17 @@ remove_packages() {
     fi
     popd > /dev/null
   fi
-
   if [ -r $ADM_DIR/packages/$PKGNAME ]; then
    if [ ! "$WARN" = true ]; then
     echo "Removing package: $(basename $ADM_DIR/packages/$PKGNAME)"
+    # If there's an uninstall script, save it:
+    if [ -r $ADM_DIR/douninst.sh/$PKGNAME ]; then
+     cp -a $ADM_DIR/douninst.sh/$PKGNAME $TMP/$PKGNAME
+    elif [ -r $ADM_DIR/douninst.sh/$(echo ${PKGNAME} | sed "s/-upgraded.*//") ]; then
+     cp -a $ADM_DIR/douninst.sh/$(echo ${PKGNAME} | sed "s/-upgraded.*//") $TMP/$PKGNAME
+    else
+     rm -f $TMP/$PKGNAME
+    fi
    fi
    if fgrep "./" $ADM_DIR/packages/$PKGNAME 1> /dev/null 2>&1; then
     TRIGGER="^\.\/"
@@ -380,26 +393,31 @@ remove_packages() {
     # so we'll remake the directories and symlinks first:
     mkdir -p $LOG_DIR/removed_packages $LOG_DIR/removed_scripts
     for symlink in removed_packages removed_scripts ; do
-      if [ ! -L $LOG_DIR/../$symlink ]; then
-        rm -rf $LOG_DIR/../$symlink
-        ( cd $LOG_DIR/.. ; ln -sf pkgtools/$symlink . )
-      fi
+     if [ ! -L $LOG_DIR/../$symlink ]; then
+      rm -rf $LOG_DIR/../$symlink
+      ( cd $LOG_DIR/.. ; ln -sf pkgtools/$symlink . )
+     fi
     done
     # Now that we know we have log directories, move the files:
     mv $ADM_DIR/packages/$PKGNAME $LOG_DIR/removed_packages
     if [ -r $ADM_DIR/scripts/$PKGNAME ]; then
      mv $ADM_DIR/scripts/$PKGNAME $LOG_DIR/removed_scripts
     fi
+    # If there is an uninstall script, run it here:
+    if [ -r $TMP/$PKGNAME ]; then
+     cd $ROOT/ ; sh $TMP/$PKGNAME
+     rm -f $TMP/$PKGNAME
+    fi
+    # In the case where a library and symlink are removed but an earlier version
+    # remains on the machine, this will link it up and save potential problems:
+    if [ "$ROOT" = "" ] && [ -x /sbin/ldconfig ]; then
+     ( flock 9 || exit 11
+      /sbin/ldconfig 2> /dev/null
+     ) 9> $INSTLOCKDIR/ldconfig.lock
+    fi
    fi
   else
    echo "No such package: $(basename $ADM_DIR/packages/$PKGNAME). Can't remove."
-  fi
-  # In the case where a library and symlink are removed but an earlier version
-  # remains on the machine, this will link it up and save potential problems:
-  if [ "$ROOT" = "" ] && [ -x /sbin/ldconfig ]; then
-   ( flock 9 || exit 11
-    /sbin/ldconfig 2> /dev/null
-   ) 9> $INSTLOCKDIR/ldconfig.lock
   fi
  done
 }

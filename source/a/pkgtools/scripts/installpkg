@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 1994, 1998, 2000  Patrick Volkerding, Concord, CA, USA 
 # Copyright 2001, 2003  Slackware Linux, Inc., Concord, CA, USA
-# Copyright 2007, 2009, 2011, 2017, 2018, 2019  Patrick Volkerding, Sebeka, MN, USA 
+# Copyright 2007, 2009, 2011, 2017, 2018, 2019, 2020  Patrick Volkerding, Sebeka, MN, USA 
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,6 +20,11 @@
 #  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Wed Apr  1 21:59:41 UTC 2020
+# If the package contains /install/douninst.sh, copy the uninstall script to
+# $ADM_DIR/douninst.sh/$shortname and add the filename to the package list
+# in $ADM_DIR/packages/$shortname.
 #
 # Fri Oct  4 06:04:39 UTC 2019
 # Add support for --no-overwrite so that upgradepkg can be kind to SSDs.
@@ -281,7 +286,7 @@ ADM_DIR="$ROOT/var/lib/pkgtools"
 LOG_DIR="$ROOT/var/log/pkgtools"
 
 # If the directories don't exist, "initialize" the package database:
-for PKGDBDIR in packages scripts setup ; do
+for PKGDBDIR in douninst.sh packages scripts setup ; do
   if [ ! -d $ADM_DIR/$PKGDBDIR ]; then
     mkdir -p $ADM_DIR/$PKGDBDIR
     chmod 755 $ADM_DIR/$PKGDBDIR 
@@ -697,9 +702,14 @@ EOF
       cp $ROOT/$INSTDIR/doinst.sh $ADM_DIR/scripts/$shortname
       chmod 755 $ADM_DIR/scripts/$shortname
     fi
-    # /install/doinst.sh and /install/slack-* are reserved locations for the package system.
+    if [ -r $ROOT/$INSTDIR/douninst.sh ]; then
+      cp $ROOT/$INSTDIR/douninst.sh $ADM_DIR/douninst.sh/$shortname
+      chmod 755 $ADM_DIR/douninst.sh/$shortname
+      echo "$(echo $ADM_DIR | rev | cut -f 1-3 -d / | rev)/douninst.sh/$shortname" >> $ADM_DIR/packages/$shortname
+    fi
+    # /install/do*inst.sh and /install/slack-* are reserved locations for the package system.
     # Heh, not any more with a recent tar :-)
-    ( cd $ROOT/$INSTDIR ; rm -f doinst.sh slack-* 1> /dev/null 2>&1 )
+    ( cd $ROOT/$INSTDIR ; rm -f do*inst.sh slack-* 1> /dev/null 2>&1 )
     rmdir $ROOT/$INSTDIR 1> /dev/null 2>&1
   fi
   # If we used a scan directory, get rid of it:

@@ -24,6 +24,10 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Wed Apr  1 22:14:46 UTC 2020
+# Add --skip-douninst option to skip running the uninstall script.
+# Save removed uninstall scripts in /var/log/removed_uninstall_scripts.
+#
 # Tue Mar 31 03:06:25 UTC 2020
 # Support an uninstall script to be executed when the package is removed.
 # The script should be a standard sh script with the same name as the package
@@ -252,7 +256,9 @@ delete_files() {
      preserve_file "$FILE"
     fi
    else
-    ! [ $TERSE ] && echo "  --> $ROOT/$FILE no longer exists. Skipping."
+    if [ "$(echo $FILE | cut -b1-8)" != "install/" ]; then
+     ! [ $TERSE ] && echo "  --> $ROOT/$FILE no longer exists. Skipping."
+    fi
    fi
   else
    preserve_dir "$FILE"
@@ -337,9 +343,9 @@ remove_packages() {
    if [ ! "$WARN" = true ]; then
     echo "Removing package: $(basename $ADM_DIR/packages/$PKGNAME)"
     # If there's an uninstall script, save it:
-    if [ -r $ADM_DIR/douninst.sh/$PKGNAME ]; then
+    if [ -r $ADM_DIR/douninst.sh/$PKGNAME -a ! "$SKIP_DOUNINST" = "true" ]; then
      cp -a $ADM_DIR/douninst.sh/$PKGNAME $TMP/$PKGNAME
-    elif [ -r $ADM_DIR/douninst.sh/$(echo ${PKGNAME} | sed "s/-upgraded.*//") ]; then
+    elif [ -r $ADM_DIR/douninst.sh/$(echo ${PKGNAME} | sed "s/-upgraded.*//") -a ! "$SKIP_DOUNINST" = "true" ]; then
      cp -a $ADM_DIR/douninst.sh/$(echo ${PKGNAME} | sed "s/-upgraded.*//") $TMP/$PKGNAME
     else
      rm -f $TMP/$PKGNAME
@@ -391,8 +397,8 @@ remove_packages() {
    if [ ! "$WARN" = "true" ]; then
     # We won't assume that anything in /var/log can be trusted to remain there,
     # so we'll remake the directories and symlinks first:
-    mkdir -p $LOG_DIR/removed_packages $LOG_DIR/removed_scripts
-    for symlink in removed_packages removed_scripts ; do
+    mkdir -p $LOG_DIR/removed_packages $LOG_DIR/removed_scripts $LOG_DIR/removed_uninstall_scripts
+    for symlink in removed_packages removed_scripts removed_uninstall_scripts ; do
      if [ ! -L $LOG_DIR/../$symlink ]; then
       rm -rf $LOG_DIR/../$symlink
       ( cd $LOG_DIR/.. ; ln -sf pkgtools/$symlink . )
@@ -406,7 +412,8 @@ remove_packages() {
     # If there is an uninstall script, run it here:
     if [ -r $TMP/$PKGNAME ]; then
      cd $ROOT/ ; sh $TMP/$PKGNAME
-     rm -f $TMP/$PKGNAME
+     # Move the uninstall script to $LOG_DIR/removed_uninstall_scripts:
+     mv $TMP/$PKGNAME $LOG_DIR/removed_uninstall_scripts
     fi
     # In the case where a library and symlink are removed but an earlier version
     # remains on the machine, this will link it up and save potential problems:
@@ -423,7 +430,7 @@ remove_packages() {
 }
 
 if [ "$#" = "0" ]; then
-  echo "Usage: $(basename $0) [--copy] [--keep] [--preserve] [--terse] [--warn] packagename ..."; exit 1
+  echo "Usage: $(basename $0) [--copy] [--keep] [--preserve] [--skip-douninst] [--terse] [--warn] packagename ..."; exit 1
 fi
 
 while : ; do
@@ -431,6 +438,7 @@ while : ; do
   -copy | --copy) WARN=true; PRESERVE=true; shift;;
   -keep | --keep) KEEP=true; shift;;
   -preserve | --preserve) PRESERVE=true; shift;;
+  -skip-douninst | --skip-douninst) SKIP_DOUNINST=true; shift;;
   -terse | --terse) TERSE=0; shift;;
   -warn | --warn) WARN=true; shift;;
   -* | --*) echo "Usage: $(basename $0) [-copy] [-keep] [-preserve] [-warn] packagename ..."; exit 1;;

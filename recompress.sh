@@ -60,6 +60,7 @@ gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh
+gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch

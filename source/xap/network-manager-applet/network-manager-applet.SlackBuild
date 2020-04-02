@@ -3,6 +3,7 @@
 # Slackware build script for network-manager-applet
 
 # Copyright 2010, 2011, 2014  Robby Workman, Northport, Alabama, USA
+# Copyyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=network-manager-applet
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -76,39 +77,29 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --mandir=/usr/man \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --disable-static \
-  --enable-more-warnings=no \
-  --without-team \
-  --without-selinux \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# network-manager-applet-1.8.22 installs locale files with a different name
-# than what is expected causing localization to fail. To be on the safe side,
-# we'll symlink to the old name. This hack shouldn't hurt anything in the
-# future, but perhaps it should be revisited someday to see if it's still
-# required.
-for LOCALEDIR in $PKG/usr/share/locale/*/LC_MESSAGES ; do
-  ( cd $LOCALEDIR
-    if [ -r network-manager-applet.mo ]; then
-      ln -sf network-manager-applet.mo nm-applet.mo
-    fi
-  )
-done
+  --buildtype=release \
+  -Dteam=false \
+  -Dselinux=false \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018, 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=lsof
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -70,7 +70,16 @@ cat lsof > $PKG/usr/bin/lsof
 # No, NOT suid.
 chmod 755 $PKG/usr/bin/lsof
 mkdir -p $PKG/usr/man/man8
-cat Lsof.8 | gzip -9c > $PKG/usr/man/man8/lsof.8.gz
+# Grab the version number:
+# When copying the manpage, eliminate the line requiring the "version" file to
+# be present, and sed a placeholder for the version into place:
+cat Lsof.8 | grep -v "^.so ./version$" | sed 's|\\\*(VN|%VERSION%|g' > $PKG/usr/man/man8/lsof.8
+# Get the revision number:
+LSOFVER="$(cat version | cut -f 3 -d ' ')"
+# Make the replacement:
+sed -i "s/%VERSION%/$LSOFVER/g" $PKG/usr/man/man8/lsof.8
+# Compress the manpage:
+gzip -9 $PKG/usr/man/man8/lsof.8
 mkdir -p $PKG/usr/doc/lsof-$VERSION
 cp -a 00* $PKG/usr/doc/lsof-$VERSION
 chmod 644 $PKG/usr/doc/lsof-$VERSION/*

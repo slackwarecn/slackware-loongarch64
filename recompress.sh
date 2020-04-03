@@ -746,6 +746,7 @@ gzip ./source/ap/slackpkg/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
 gzip ./source/ap/dc3dd/dc3dd.glibc228.diff
 gzip ./source/ap/flac/flac.man.diff
+gzip ./source/ap/sc/sc-7.16-3.diff
 gzip ./source/ap/sqlite/COPYRIGHT
 gzip ./source/ap/nano/doinst.sh
 gzip ./source/ap/linuxdoc-tools/doinst.sh

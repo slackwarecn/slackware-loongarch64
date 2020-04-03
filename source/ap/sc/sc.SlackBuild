@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006-2010, 2014, 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,17 +22,19 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=libdrm
+PKGNAM=sc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-7}
 
-# Automatically determine architecture for build & packaging:
+# Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-    *)    export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -45,14 +47,11 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-${PKGNAM}
-
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i586" ]; then
+if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -60,19 +59,25 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
-cd $TMP
-rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
-cd ${PKGNAM}-$VERSION || exit 1
 
-# Make sure ownerships and permissions are sane:
+cd $TMP
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -80,65 +85,43 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Configure, build, and install:
-export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
-mkdir meson-build
-cd meson-build
-meson setup \
-  --prefix=/usr \
-  --libdir=lib${LIBDIRSUFFIX} \
-  --libexecdir=/usr/libexec \
-  --bindir=/usr/bin \
-  --sbindir=/usr/sbin \
-  --includedir=/usr/include \
-  --datadir=/usr/share \
-  --mandir=/usr/man \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --buildtype=release \
-  -Dudev=true \
-  .. || exit 1
-  "${NINJA:=ninja}" $NUMJOBS || exit 1
-  DESTDIR=$PKG $NINJA install || exit 1
-cd ..
+# Old software, modern compiler:
+zcat $CWD/sc-7.16-3.diff.gz | patch -p1 --verbose || exit 1
+
+# Build:
+make $NUMJOBS || exit 1
+
+# Install:
+mkdir -p $PKG/usr/bin
+cat sc > $PKG/usr/bin/sc
+cat scqref > $PKG/usr/bin/scqref
+cat psc > $PKG/usr/bin/psc
+mkdir -p $PKG/usr/man/man1
+name=sc NAME=SC LIBDIR=/usr/lib${LIBDIRSUFFIX}/sc sh torev sc.doc >  sc.1
+name=sc NAME=SC LIBDIR=/usr/lib${LIBDIRSUFFIX}/sc sh torev psc.doc > psc.1
+cat sc.1 | gzip -9c > $PKG/usr/man/man1/sc.1.gz
+cat psc.1 | gzip -9c > $PKG/usr/man/man1/psc.1.gz
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/sc
+cat tutorial.sc > $PKG/usr/lib${LIBDIRSUFFIX}/sc/tutorial.sc
 
 # Strip binaries:
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
-
-# Compress info files, if any:
-if [ -d $PKG/usr/info ]; then
-  ( cd $PKG/usr/info
-    rm -f dir
-    gzip -9 *
-  )
-fi
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 # Add a documentation directory:
-mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
-cp -a \
-  README \
-  $PKG/usr/doc/${PKGNAM}-$VERSION
+mkdir -p $PKG/usr/doc/sc-$VERSION
+cp -a CHANGES README TODO SC.MACROS $PKG/usr/doc/sc-$VERSION
+chmod 644 $PKG/usr/doc/sc-$VERSION/*
+
+# If there's a CHANGES file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-cd $TMP/package-${PKGNAM}
-/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
-
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

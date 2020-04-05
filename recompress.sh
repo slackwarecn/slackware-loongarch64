@@ -532,7 +532,6 @@ gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/postfix/postfix.script.starting.message.diff
 gzip ./source/n/postfix/postfix.only.warn.regular.files.diff
 gzip ./source/n/postfix/doinst.sh
-gzip ./source/n/fetchmail/fetchmail.openssl111.diff
 gzip ./source/n/ytalk/doinst.sh
 gzip ./source/n/telnet/telnet-OpenBSD-20020321.diff
 gzip ./source/n/telnet/telnet-OpenBSD-014_telnet.diff

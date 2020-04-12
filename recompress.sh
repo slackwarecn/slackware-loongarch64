@@ -637,7 +637,6 @@ gzip ./source/n/biff+comsat/biff+comsat-0.17.diff
 gzip ./source/n/dhcp/dhclient-script.PATH.diff
 gzip ./source/n/dhcp/doinst.sh
 gzip ./source/n/proftpd/doinst.sh
-gzip ./source/n/dnsmasq/dnsmasq.nettle35.diff
 gzip ./source/n/dnsmasq/rc.dnsmasq
 gzip ./source/n/dnsmasq/dnsmasq.leasedir.diff
 gzip ./source/n/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch

@@ -1072,6 +1072,7 @@ gzip ./source/l/id3lib/patches/id3lib.nullpointer_check.patch
 gzip ./source/l/id3lib/patches/id3lib.utf8_writing.patch
 gzip ./source/l/id3lib/patches/id3lib.c_wrapper.patch
 gzip ./source/l/gtk+3/doinst.sh
+gzip ./source/l/gtk+3/gtk.meson.build.version.diff
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
 gzip ./source/l/akonadi/mysql-global.conf.patch

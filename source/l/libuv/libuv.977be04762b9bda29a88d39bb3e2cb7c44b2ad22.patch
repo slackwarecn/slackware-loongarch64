@@ -1,0 +1,484 @@
+From 977be04762b9bda29a88d39bb3e2cb7c44b2ad22 Mon Sep 17 00:00:00 2001
+From: Ben Noordhuis <info@bnoordhuis.nl>
+Date: Thu, 16 Apr 2020 09:59:03 +0200
+Subject: [PATCH] Revert "freebsd,linux: add recvmmsg() + sendmmsg() udp
+ implementation"
+
+This reverts commit 3d7136639a39db46bc4a9074922559a564e49514.
+This reverts commit d9cd7d437d6bcea56355b6e0ef215aa64687d7a1.
+
+The first reverted commit is the sendmmsg/recvmmsg support, the second
+one a fix-up to deliver datagrams in order. The second commit has been
+implicated in causing bind9 to crash on freebsd.
+
+A quick review of the code suggests that downstream code written against
+pre-v1.35.0 libuv can't safely deal with multi-datagram support because
+they are unaware of the `UV_UDP_MMSG_CHUNK` flag and what that implies
+for buffer management, hence I'm moving to revert it.
+
+The `UV_UDP_MMSG_CHUNK` flag remains part of `uv_udp_flags` for
+API/ABI backwards compatibility reasons but it is no longer used.
+
+Fixes: https://github.com/libuv/libuv/issues/2791
+Refs: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=245653
+---
+ docs/src/udp.rst          |  18 +---
+ include/uv.h              |   5 +-
+ src/unix/freebsd.c        |  25 -----
+ src/unix/internal.h       |  24 -----
+ src/unix/linux-syscalls.c |   1 -
+ src/unix/linux-syscalls.h |  14 +++
+ src/unix/udp.c            | 207 +-------------------------------------
+ 7 files changed, 22 insertions(+), 272 deletions(-)
+
+diff --git a/docs/src/udp.rst b/docs/src/udp.rst
+index 786a28b030..53b1fea493 100644
+--- a/docs/src/udp.rst
++++ b/docs/src/udp.rst
+@@ -42,11 +42,6 @@ Data types
+             * any traffic, in effect "stealing" the port from the previous listener.
+             */
+             UV_UDP_REUSEADDR = 4
+-            /*
+-             * Indicates that the message was received by recvmmsg, so the buffer provided
+-             * must not be freed by the recv_cb callback.
+-             */
+-            UV_UDP_MMSG_CHUNK = 8
+         };
+ 
+ .. c:type:: void (*uv_udp_send_cb)(uv_udp_send_t* req, int status)
+@@ -67,18 +62,13 @@ Data types
+     * `buf`: :c:type:`uv_buf_t` with the received data.
+     * `addr`: ``struct sockaddr*`` containing the address of the sender.
+       Can be NULL. Valid for the duration of the callback only.
+-    * `flags`: One or more or'ed UV_UDP_* constants.
++    * `flags`: One or more or'ed UV_UDP_* constants. Right now only
++      ``UV_UDP_PARTIAL`` is used.
+ 
+     The callee is responsible for freeing the buffer, libuv does not reuse it.
+     The buffer may be a null buffer (where `buf->base` == NULL and `buf->len` == 0)
+     on error.
+ 
+-    When using :man:`recvmmsg(2)`, chunks will have the `UV_UDP_MMSG_CHUNK` flag set,
+-    those must not be freed. There will be a final callback with `nread` set to 0,
+-    `addr` set to NULL and the buffer pointing at the initially allocated data with
+-    the `UV_UDP_MMSG_CHUNK` flag cleared. This is a good chance for the callee to
+-    free the provided buffer.
+-
+     .. note::
+         The receive callback will be called with `nread` == 0 and `addr` == NULL when there is
+         nothing to read, and with `nread` == 0 and `addr` != NULL when an empty UDP packet is
+@@ -376,10 +366,6 @@ API
+ 
+     :returns: 0 on success, or an error code < 0 on failure.
+ 
+-    .. versionchanged:: 1.35.0 added support for :man:`recvmmsg(2)` on supported platforms).
+-                        The use of this feature requires a buffer larger than
+-                        2 * 64KB to be passed to `alloc_cb`.
+-
+ .. c:function:: int uv_udp_recv_stop(uv_udp_t* handle)
+ 
+     Stop listening for incoming datagrams.
+diff --git a/include/uv.h b/include/uv.h
+index 2e8072fdae..dd8c8a40b0 100644
+--- a/include/uv.h
++++ b/include/uv.h
+@@ -1,4 +1,4 @@
+-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
++/* COPYRIGHT JOYENT, INC. AND OTHER NODE CONTRIBUTORS. ALL RIGHTS RESERVED.
+  *
+  * Permission is hereby granted, free of charge, to any person obtaining a copy
+  * of this software and associated documentation files (the "Software"), to
+@@ -607,8 +607,7 @@ enum uv_udp_flags {
+    */
+   UV_UDP_REUSEADDR = 4,
+   /*
+-   * Indicates that the message was received by recvmmsg, so the buffer provided
+-   * must not be freed by the recv_cb callback.
++   * Unused. Here for API/ABI compatibility.
+    */
+   UV_UDP_MMSG_CHUNK = 8
+ };
+diff --git a/src/unix/freebsd.c b/src/unix/freebsd.c
+index ef77e127c2..57bd04e240 100644
+--- a/src/unix/freebsd.c
++++ b/src/unix/freebsd.c
+@@ -288,28 +288,3 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+   uv__free(cp_times);
+   return 0;
+ }
+-
+-
+-int uv__sendmmsg(int fd,
+-                 struct uv__mmsghdr* mmsg,
+-                 unsigned int vlen,
+-                 unsigned int flags) {
+-#if __FreeBSD__ >= 11
+-  return sendmmsg(fd, mmsg, vlen, flags);
+-#else
+-  return errno = ENOSYS, -1;
+-#endif
+-}
+-
+-
+-int uv__recvmmsg(int fd,
+-                 struct uv__mmsghdr* mmsg,
+-                 unsigned int vlen,
+-                 unsigned int flags,
+-                 struct timespec* timeout) {
+-#if __FreeBSD__ >= 11
+-  return recvmmsg(fd, mmsg, vlen, flags, timeout);
+-#else
+-  return errno = ENOSYS, -1;
+-#endif
+-}
+diff --git a/src/unix/internal.h b/src/unix/internal.h
+index 598554b607..469fd7d2b8 100644
+--- a/src/unix/internal.h
++++ b/src/unix/internal.h
+@@ -31,7 +31,6 @@
+ #include <fcntl.h>  /* O_CLOEXEC and O_NONBLOCK, if supported. */
+ #include <stdio.h>
+ #include <errno.h>
+-#include <sys/socket.h>
+ 
+ #if defined(__STRICT_ANSI__)
+ # define inline __inline
+@@ -328,27 +327,4 @@ int uv__getsockpeername(const uv_handle_t* handle,
+                         struct sockaddr* name,
+                         int* namelen);
+ 
+-#if defined(__linux__)            ||                                      \
+-    defined(__FreeBSD__)          ||                                      \
+-    defined(__FreeBSD_kernel__)
+-#define HAVE_MMSG 1
+-struct uv__mmsghdr {
+-  struct msghdr msg_hdr;
+-  unsigned int msg_len;
+-};
+-
+-int uv__recvmmsg(int fd,
+-                 struct uv__mmsghdr* mmsg,
+-                 unsigned int vlen,
+-                 unsigned int flags,
+-                 struct timespec* timeout);
+-int uv__sendmmsg(int fd,
+-                 struct uv__mmsghdr* mmsg,
+-                 unsigned int vlen,
+-                 unsigned int flags);
+-#else
+-#define HAVE_MMSG 0
+-#endif
+-
+-
+ #endif /* UV_UNIX_INTERNAL_H_ */
+diff --git a/src/unix/linux-syscalls.c b/src/unix/linux-syscalls.c
+index 742f26ada8..eb5a8fd274 100644
+--- a/src/unix/linux-syscalls.c
++++ b/src/unix/linux-syscalls.c
+@@ -126,7 +126,6 @@
+ # endif
+ #endif /* __NR_getrandom */
+ 
+-struct uv__mmsghdr;
+ 
+ int uv__sendmmsg(int fd,
+                  struct uv__mmsghdr* mmsg,
+diff --git a/src/unix/linux-syscalls.h b/src/unix/linux-syscalls.h
+index 2e8fa2a519..7ee1511a45 100644
+--- a/src/unix/linux-syscalls.h
++++ b/src/unix/linux-syscalls.h
+@@ -61,6 +61,20 @@ struct uv__statx {
+   uint64_t unused1[14];
+ };
+ 
++struct uv__mmsghdr {
++  struct msghdr msg_hdr;
++  unsigned int msg_len;
++};
++
++int uv__recvmmsg(int fd,
++                 struct uv__mmsghdr* mmsg,
++                 unsigned int vlen,
++                 unsigned int flags,
++                 struct timespec* timeout);
++int uv__sendmmsg(int fd,
++                 struct uv__mmsghdr* mmsg,
++                 unsigned int vlen,
++                 unsigned int flags);
+ ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, int64_t offset);
+ ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset);
+ int uv__dup3(int oldfd, int newfd, int flags);
+diff --git a/src/unix/udp.c b/src/unix/udp.c
+index f2fcae1760..982059ff48 100644
+--- a/src/unix/udp.c
++++ b/src/unix/udp.c
+@@ -32,8 +32,6 @@
+ #endif
+ #include <sys/un.h>
+ 
+-#define UV__UDP_DGRAM_MAXSIZE (64 * 1024)
+-
+ #if defined(IPV6_JOIN_GROUP) && !defined(IPV6_ADD_MEMBERSHIP)
+ # define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
+ #endif
+@@ -51,36 +49,6 @@ static int uv__udp_maybe_deferred_bind(uv_udp_t* handle,
+                                        int domain,
+                                        unsigned int flags);
+ 
+-#if HAVE_MMSG
+-
+-#define UV__MMSG_MAXWIDTH 20
+-
+-static int uv__udp_recvmmsg(uv_udp_t* handle, uv_buf_t* buf);
+-static void uv__udp_sendmmsg(uv_udp_t* handle);
+-
+-static int uv__recvmmsg_avail;
+-static int uv__sendmmsg_avail;
+-static uv_once_t once = UV_ONCE_INIT;
+-
+-static void uv__udp_mmsg_init(void) {
+-  int ret;
+-  int s;
+-  s = uv__socket(AF_INET, SOCK_DGRAM, 0);
+-  if (s < 0)
+-    return;
+-  ret = uv__sendmmsg(s, NULL, 0, 0);
+-  if (ret == 0 || errno != ENOSYS) {
+-    uv__sendmmsg_avail = 1;
+-    uv__recvmmsg_avail = 1;
+-  } else {
+-    ret = uv__recvmmsg(s, NULL, 0, 0, NULL);
+-    if (ret == 0 || errno != ENOSYS)
+-      uv__recvmmsg_avail = 1;
+-  }
+-  uv__close(s);
+-}
+-
+-#endif
+ 
+ void uv__udp_close(uv_udp_t* handle) {
+   uv__io_close(handle->loop, &handle->io_watcher);
+@@ -180,61 +148,6 @@ static void uv__udp_io(uv_loop_t* loop, uv__io_t* w, unsigned int revents) {
+   }
+ }
+ 
+-#if HAVE_MMSG
+-static int uv__udp_recvmmsg(uv_udp_t* handle, uv_buf_t* buf) {
+-  struct sockaddr_in6 peers[UV__MMSG_MAXWIDTH];
+-  struct iovec iov[UV__MMSG_MAXWIDTH];
+-  struct uv__mmsghdr msgs[UV__MMSG_MAXWIDTH];
+-  ssize_t nread;
+-  uv_buf_t chunk_buf;
+-  size_t chunks;
+-  int flags;
+-  size_t k;
+-
+-  /* prepare structures for recvmmsg */
+-  chunks = buf->len / UV__UDP_DGRAM_MAXSIZE;
+-  if (chunks > ARRAY_SIZE(iov))
+-    chunks = ARRAY_SIZE(iov);
+-  for (k = 0; k < chunks; ++k) {
+-    iov[k].iov_base = buf->base + k * UV__UDP_DGRAM_MAXSIZE;
+-    iov[k].iov_len = UV__UDP_DGRAM_MAXSIZE;
+-    msgs[k].msg_hdr.msg_iov = iov + k;
+-    msgs[k].msg_hdr.msg_iovlen = 1;
+-    msgs[k].msg_hdr.msg_name = peers + k;
+-    msgs[k].msg_hdr.msg_namelen = sizeof(peers[0]);
+-  }
+-
+-  do
+-    nread = uv__recvmmsg(handle->io_watcher.fd, msgs, chunks, 0, NULL);
+-  while (nread == -1 && errno == EINTR);
+-
+-  if (nread < 1) {
+-    if (nread == 0 || errno == EAGAIN || errno == EWOULDBLOCK)
+-      handle->recv_cb(handle, 0, buf, NULL, 0);
+-    else
+-      handle->recv_cb(handle, UV__ERR(errno), buf, NULL, 0);
+-  } else {
+-    /* pass each chunk to the application */
+-    for (k = 0; k < (size_t) nread && handle->recv_cb != NULL; k++) {
+-      flags = UV_UDP_MMSG_CHUNK;
+-      if (msgs[k].msg_hdr.msg_flags & MSG_TRUNC)
+-        flags |= UV_UDP_PARTIAL;
+-
+-      chunk_buf = uv_buf_init(iov[k].iov_base, iov[k].iov_len);
+-      handle->recv_cb(handle,
+-                      msgs[k].msg_len,
+-                      &chunk_buf,
+-                      msgs[k].msg_hdr.msg_name,
+-                      flags);
+-    }
+-
+-    /* one last callback so the original buffer is freed */
+-    if (handle->recv_cb != NULL)
+-      handle->recv_cb(handle, 0, buf, NULL, 0);
+-  }
+-  return nread;
+-}
+-#endif
+ 
+ static void uv__udp_recvmsg(uv_udp_t* handle) {
+   struct sockaddr_storage peer;
+@@ -254,27 +167,13 @@ static void uv__udp_recvmsg(uv_udp_t* handle) {
+ 
+   do {
+     buf = uv_buf_init(NULL, 0);
+-    handle->alloc_cb((uv_handle_t*) handle, UV__UDP_DGRAM_MAXSIZE, &buf);
++    handle->alloc_cb((uv_handle_t*) handle, 64 * 1024, &buf);
+     if (buf.base == NULL || buf.len == 0) {
+       handle->recv_cb(handle, UV_ENOBUFS, &buf, NULL, 0);
+       return;
+     }
+     assert(buf.base != NULL);
+ 
+-#if HAVE_MMSG
+-    uv_once(&once, uv__udp_mmsg_init);
+-    if (uv__recvmmsg_avail) {
+-      /* Returned space for more than 1 datagram, use it to receive
+-       * multiple datagrams. */
+-      if (buf.len >= 2 * UV__UDP_DGRAM_MAXSIZE) {
+-        nread = uv__udp_recvmmsg(handle, &buf);
+-        if (nread > 0)
+-          count -= nread;
+-        continue;
+-      }
+-    }
+-#endif
+-
+     memset(&h, 0, sizeof(h));
+     memset(&peer, 0, sizeof(peer));
+     h.msg_name = &peer;
+@@ -300,120 +199,21 @@ static void uv__udp_recvmsg(uv_udp_t* handle) {
+ 
+       handle->recv_cb(handle, nread, &buf, (const struct sockaddr*) &peer, flags);
+     }
+-    count--;
+   }
+   /* recv_cb callback may decide to pause or close the handle */
+   while (nread != -1
+-      && count > 0
++      && count-- > 0
+       && handle->io_watcher.fd != -1
+       && handle->recv_cb != NULL);
+ }
+ 
+-#if HAVE_MMSG
+-static void uv__udp_sendmmsg(uv_udp_t* handle) {
+-  uv_udp_send_t* req;
+-  struct uv__mmsghdr h[UV__MMSG_MAXWIDTH];
+-  struct uv__mmsghdr *p;
+-  QUEUE* q;
+-  ssize_t npkts;
+-  size_t pkts;
+-  size_t i;
+-
+-  if (QUEUE_EMPTY(&handle->write_queue))
+-    return;
+-
+-write_queue_drain:
+-  for (pkts = 0, q = QUEUE_HEAD(&handle->write_queue);
+-       pkts < UV__MMSG_MAXWIDTH && q != &handle->write_queue;
+-       ++pkts, q = QUEUE_HEAD(q)) {
+-    assert(q != NULL);
+-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+-    assert(req != NULL);
+-
+-    p = &h[pkts];
+-    memset(p, 0, sizeof(*p));
+-    if (req->addr.ss_family == AF_UNSPEC) {
+-      p->msg_hdr.msg_name = NULL;
+-      p->msg_hdr.msg_namelen = 0;
+-    } else {
+-      p->msg_hdr.msg_name = &req->addr;
+-      if (req->addr.ss_family == AF_INET6)
+-        p->msg_hdr.msg_namelen = sizeof(struct sockaddr_in6);
+-      else if (req->addr.ss_family == AF_INET)
+-        p->msg_hdr.msg_namelen = sizeof(struct sockaddr_in);
+-      else if (req->addr.ss_family == AF_UNIX)
+-        p->msg_hdr.msg_namelen = sizeof(struct sockaddr_un);
+-      else {
+-        assert(0 && "unsupported address family");
+-        abort();
+-      }
+-    }
+-    h[pkts].msg_hdr.msg_iov = (struct iovec*) req->bufs;
+-    h[pkts].msg_hdr.msg_iovlen = req->nbufs;
+-  }
+-
+-  do
+-    npkts = uv__sendmmsg(handle->io_watcher.fd, h, pkts, 0);
+-  while (npkts == -1 && errno == EINTR);
+-
+-  if (npkts < 1) {
+-    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
+-      return;
+-    for (i = 0, q = QUEUE_HEAD(&handle->write_queue);
+-         i < pkts && q != &handle->write_queue;
+-         ++i, q = QUEUE_HEAD(q)) {
+-      assert(q != NULL);
+-      req = QUEUE_DATA(q, uv_udp_send_t, queue);
+-      assert(req != NULL);
+-
+-      req->status = UV__ERR(errno);
+-      QUEUE_REMOVE(&req->queue);
+-      QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
+-    }
+-    uv__io_feed(handle->loop, &handle->io_watcher);
+-    return;
+-  }
+-
+-  for (i = 0, q = QUEUE_HEAD(&handle->write_queue);
+-       i < pkts && q != &handle->write_queue;
+-       ++i, q = QUEUE_HEAD(&handle->write_queue)) {
+-    assert(q != NULL);
+-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+-    assert(req != NULL);
+-
+-    req->status = req->bufs[0].len;
+-
+-    /* Sending a datagram is an atomic operation: either all data
+-     * is written or nothing is (and EMSGSIZE is raised). That is
+-     * why we don't handle partial writes. Just pop the request
+-     * off the write queue and onto the completed queue, done.
+-     */
+-    QUEUE_REMOVE(&req->queue);
+-    QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
+-  }
+-
+-  /* couldn't batch everything, continue sending (jump to avoid stack growth) */
+-  if (!QUEUE_EMPTY(&handle->write_queue))
+-    goto write_queue_drain;
+-  uv__io_feed(handle->loop, &handle->io_watcher);
+-  return;
+-}
+-#endif
+ 
+ static void uv__udp_sendmsg(uv_udp_t* handle) {
+   uv_udp_send_t* req;
+-  struct msghdr h;
+   QUEUE* q;
++  struct msghdr h;
+   ssize_t size;
+ 
+-#if HAVE_MMSG
+-  uv_once(&once, uv__udp_mmsg_init);
+-  if (uv__sendmmsg_avail) {
+-    uv__udp_sendmmsg(handle);
+-    return;
+-  }
+-#endif
+-
+   while (!QUEUE_EMPTY(&handle->write_queue)) {
+     q = QUEUE_HEAD(&handle->write_queue);
+     assert(q != NULL);
+@@ -463,6 +263,7 @@ static void uv__udp_sendmsg(uv_udp_t* handle) {
+   }
+ }
+ 
++
+ /* On the BSDs, SO_REUSEPORT implies SO_REUSEADDR but with some additional
+  * refinements for programs that use multicast.
+  *
+

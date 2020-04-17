@@ -987,6 +987,7 @@ gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-taglib_ver.patch
 gzip ./source/l/taglib-extras/taglib-extras-0.1-multilib-1.patch
 gzip ./source/l/gstreamer0/gstreamer-0.10.36-bison3.patch
+gzip ./source/l/libuv/libuv.977be04762b9bda29a88d39bb3e2cb7c44b2ad22.patch
 gzip ./source/l/esound/esound-0.2.38-drain.patch
 gzip ./source/l/esound/esound-0.2.41-libm.patch
 gzip ./source/l/esound/remove-confusing-spew.patch

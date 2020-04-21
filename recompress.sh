@@ -75,12 +75,12 @@ gzip ./source/d/automake/doinst.sh
 gzip ./source/d/intltool/no-guess-builddir.diff
 gzip ./source/d/intltool/intltool-0.51.0-perl-5.22.patch
 gzip ./source/d/m4/m4.glibc228.diff
-gzip ./source/d/python/python.readline.set_pre_input_hook.diff
-gzip ./source/d/python/python.no-static-library.diff
-gzip ./source/d/python/python.x86_64.diff
 gzip ./source/d/distcc/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/libtool/doinst.sh
+gzip ./source/d/python2/python.readline.set_pre_input_hook.diff
+gzip ./source/d/python2/python.no-static-library.diff
+gzip ./source/d/python2/python.x86_64.diff
 gzip ./source/d/pkg-config/doinst.sh
 gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
 gzip ./source/d/make/make.glibc-2.27.glob.diff
@@ -987,7 +987,6 @@ gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-taglib_ver.patch
 gzip ./source/l/taglib-extras/taglib-extras-0.1-multilib-1.patch
 gzip ./source/l/gstreamer0/gstreamer-0.10.36-bison3.patch
-gzip ./source/l/libuv/libuv.977be04762b9bda29a88d39bb3e2cb7c44b2ad22.patch
 gzip ./source/l/esound/esound-0.2.38-drain.patch
 gzip ./source/l/esound/esound-0.2.41-libm.patch
 gzip ./source/l/esound/remove-confusing-spew.patch

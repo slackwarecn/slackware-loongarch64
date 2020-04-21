@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2012, 2013, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012, 2013, 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,11 +22,11 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=python
+PKGNAM=python2
 SRCNAM=Python
 VERSION=$(echo $SRCNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 BRANCH_VERSION=$(echo $VERSION | cut -f 1,2 -d . )
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -68,9 +68,9 @@ elif [ "$ARCH" = "armel" ]; then
 fi
 
 # Location for Python site-packages:
-SITEPK=$PKG/usr/lib${LIBDIRSUFFIX}/${PKGNAM}${BRANCH_VERSION}/site-packages
+SITEPK=$PKG/usr/lib${LIBDIRSUFFIX}/python${BRANCH_VERSION}/site-packages
 # same as above without $PKG
-TOOLSDIR=/usr/lib${LIBDIRSUFFIX}/${PKGNAM}${BRANCH_VERSION}/site-packages
+TOOLSDIR=/usr/lib${LIBDIRSUFFIX}/python${BRANCH_VERSION}/site-packages
 
 cd $TMP
 rm -rf $SRCNAM-$VERSION
@@ -101,7 +101,7 @@ sed -i "/SQLITE_OMIT_LOAD_EXTENSION/d" setup.py
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
-  --docdir=/usr/doc/python-$VERSION \
+  --docdir=/usr/doc/python2-$VERSION \
   --with-threads \
   --enable-ipv6 \
   --enable-shared \
@@ -115,16 +115,16 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Install some python-demo files:
-mkdir -p $PKG/usr/doc/python-$VERSION
-cp -a Demo $PKG/usr/doc/python-$VERSION
+mkdir -p $PKG/usr/doc/python2-$VERSION
+cp -a Demo $PKG/usr/doc/python2-$VERSION
 
 # We'll install the python-tools under site-packages:
 mkdir -p $SITEPK
 cp -a Tools/* $SITEPK
 
-mkdir -p $PKG/usr/doc/python-$VERSION
-mv $SITEPK/README $PKG/usr/doc/python-$VERSION/README.python-tools
-( cd $PKG/usr/doc/python-$VERSION
+mkdir -p $PKG/usr/doc/python2-$VERSION
+mv $SITEPK/README $PKG/usr/doc/python2-$VERSION/README.python-tools
+( cd $PKG/usr/doc/python2-$VERSION
   ln -sf $TOOLSDIR Tools
 )
 
@@ -137,12 +137,12 @@ mkdir -p $PKG/usr/bin
 )
 
 # Install docs:
-mkdir -p $PKG/usr/doc/python-$VERSION/Documentation
-cp -a README LICENSE $PKG/usr/doc/python-$VERSION
-cp -a Misc $PKG/usr/doc/python-$VERSION
+mkdir -p $PKG/usr/doc/python2-$VERSION/Documentation
+cp -a README LICENSE $PKG/usr/doc/python2-$VERSION
+cp -a Misc $PKG/usr/doc/python2-$VERSION
 tar xf $CWD/python-$VERSION-docs-text.tar.?z*
-mv python-${VERSION}-docs-text/* $PKG/usr/doc/python-$VERSION/Documentation
-chown -R root:root $PKG/usr/doc/python-$VERSION
+mv python-${VERSION}-docs-text/* $PKG/usr/doc/python2-$VERSION/Documentation
+chown -R root:root $PKG/usr/doc/python2-$VERSION
 
 # Fix possible incorrect permissions:
 ( cd $PKG
@@ -179,5 +179,5 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/python-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/python2-$VERSION-$ARCH-$BUILD.txz
 

@@ -40,6 +40,7 @@ gzip ./extra/source/tigervnc/patches/xorg-server/0001-Always-install-vbe-and-int
 gzip ./extra/source/tigervnc/patches/tigervnc.xorg-server-1.20.7.diff
 gzip ./extra/source/tigervnc/patches/xserver120.patch
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
+gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/python3/python3.x86_64.diff
 gzip ./source/d/python3/python3.no-static-library.diff
@@ -55,7 +56,12 @@ gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff
+gzip ./source/d/rust/rust.llvm10.841558d3bdc9c9510b841c438838196378741021.patch
+gzip ./source/d/rust/rust.llvm10.a94fa896cc92d5e0678376cf5aa8b64af0899732.patch
 gzip ./source/d/rust/link_libffi.diff
+gzip ./source/d/rust/rust.llvm10.66008eb9e4e46bb5c12a215e2abe2338617c2582.patch
+gzip ./source/d/rust/rust.llvm10.7a14f9ed4fa60f4d8fc042fc678c80c14a850dc0.patch
+gzip ./source/d/rust/rust.llvm10.497f879b1e24c369362bcd821959ffabc50a8a31.patch
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/mercurial/doinst.sh

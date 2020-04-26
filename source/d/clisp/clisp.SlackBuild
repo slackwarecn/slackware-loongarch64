@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2015, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2015, 2017, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,10 +24,10 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=clisp
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Bundled libraries:
-FFCALLVER=2.1
+FFCALLVER=2.2
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -124,7 +124,10 @@ find . \
   -exec chmod 644 {} \+
 
 # Fix build failure with missing struct member:
-zcat $CWD/clisp.c_data.compact_empty_buckets.diff.gz | patch -p1 --verbose || exit
+zcat $CWD/clisp.c_data.compact_empty_buckets.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix modules that need access to symbols in libgnu.a:
+zcat $CWD/clisp.link.libgnu.whole-archive.diff.gz | patch -p1 --verbose || exit 1
 
 # I'll be unsafe if I want to:
 export FORCE_UNSAFE_CONFIGURE=1

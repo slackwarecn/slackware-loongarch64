@@ -25,6 +25,8 @@ if [ -d /run ]; then
   if ! grep -wq "tmpfs /run tmpfs" /proc/mounts ; then
     /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755,size=32M,nodev,nosuid,noexec
   fi
+  # Make sure that mounts below /run are visible in both /run and /var/run:
+  /sbin/mount --make-shared /run
 fi
 
 # Load the loop device kernel module:

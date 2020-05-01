@@ -63,17 +63,19 @@ find -L . \
 
 python3 setup.py install --root=$PKG --prefix=/usr || exit 1
 
-for i in cython cythonize cygdb; do
-  mv $PKG/usr/bin/$i $PKG/usr/bin/${i}3
-done
-
-python setup.py install --root=$PKG --prefix=/usr || exit 1
-
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a *.txt Doc/* $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a *.rst *.txt docs/* $PKG/usr/doc/$PKGNAM-$VERSION
+
+# If there's a CHANGES.rst, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES.rst ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat CHANGES.rst | head -n 1000 > $DOCSDIR/CHANGES.rst
+  touch -r CHANGES.rst $DOCSDIR/CHANGES.rst
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

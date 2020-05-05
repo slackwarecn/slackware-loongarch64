@@ -88,6 +88,31 @@ find . \
   -exec chmod 644 {} \+
 }
 
+# setuptools-44.0.0:
+cd $TMP/$PKGNAM-$VERSION || exit 1
+tar xf $CWD/modules/setuptools-44.0.0.tar.lz || exit 1
+cd setuptools-44.0.0
+fix_perms
+# Install setuptools to the system if it's not there:
+if [ ! -d /usr/lib${LIBDIRSUFFIX}/python2.7/site-packages/setuptools/version.py ]; then
+  python2 setup.py install --root=/ || exit 1
+fi
+python2 setup.py install --root=$PKG || exit 1
+# Drop the python2 version of easy_install so the python 3.x
+# one is the default:
+rm -f $PKG/usr/bin/easy_install
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/setuptools-44.0.0
+cp -a CHANGES.rst PKG-INFO README.rst docs/*.txt \
+  $PKG/usr/doc/$PKGNAM-$VERSION/setuptools-44.0.0
+find $PKG/usr/doc/$PKGNAM-$VERSION/setuptools-44.0.0 -type f -exec chmod 0644 {} \+
+# If there's a CHANGES.rst, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r CHANGES.rst ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION/setuptools-44.0.0)
+  cat CHANGES.rst | head -n 1000 > $DOCSDIR/CHANGES.rst
+  touch -r CHANGES.rst $DOCSDIR/CHANGES.rst
+fi
+
 # Cython-0.29.16:
 cd $TMP/$PKGNAM-$VERSION || exit 1
 tar xf $CWD/modules/Cython-0.29.16.tar.lz || exit 1
@@ -121,27 +146,6 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/pip-20.0.2
 cp -a *.txt PKG-INFO README.rst \
   $PKG/usr/doc/$PKGNAM-$VERSION/pip-20.0.2
 find $PKG/usr/doc/$PKGNAM-$VERSION/pip-20.0.2 -type f -exec chmod 0644 {} \+
-
-# setuptools-44.0.0:
-cd $TMP/$PKGNAM-$VERSION || exit 1
-tar xf $CWD/modules/setuptools-44.0.0.tar.lz || exit 1
-cd setuptools-44.0.0
-fix_perms
-python2 setup.py install --root=$PKG || exit 1
-# Drop the python2 version of easy_install so the python 3.x
-# one is the default:
-rm -f $PKG/usr/bin/easy_install
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/setuptools-44.0.0
-cp -a CHANGES.rst PKG-INFO README.rst docs/*.txt \
-  $PKG/usr/doc/$PKGNAM-$VERSION/setuptools-44.0.0
-find $PKG/usr/doc/$PKGNAM-$VERSION/setuptools-44.0.0 -type f -exec chmod 0644 {} \+
-# If there's a CHANGES.rst, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r CHANGES.rst ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION/setuptools-44.0.0)
-  cat CHANGES.rst | head -n 1000 > $DOCSDIR/CHANGES.rst
-  touch -r CHANGES.rst $DOCSDIR/CHANGES.rst
-fi
 
 # M2Crypto-0.35.2 and typing-3.7.4.1:
 cd $TMP/$PKGNAM-$VERSION || exit 1

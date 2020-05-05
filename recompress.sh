@@ -837,6 +837,7 @@ gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
 gzip ./source/l/libvisual-plugins/60_no-const-vispluginfo-in-nastyfft.patch
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
+gzip ./source/l/libcap/libcap.pkgconfig.path.diff
 gzip ./source/l/imagemagick/policy.xml.diff
 gzip ./source/l/imagemagick/doinst.sh
 gzip ./source/l/GConf/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch
@@ -1209,6 +1210,7 @@ gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
+gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch

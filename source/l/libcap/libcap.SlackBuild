@@ -86,11 +86,14 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
+# Put the pkgconfig files in the proper location:
+zcat $CWD/libcap.pkgconfig.path.diff.gz | patch -p1 --verbose || exit 1
+
 # Set the CFLAGS
-sed -i.orig "s/^\(DEBUG =\).*/\1$SLKCFLAGS/" Make.Rules
+sed -i "s/^\(DEBUG =\).*/\1$SLKCFLAGS/" Make.Rules
 
 # Disable broken gperf support:
-sed 's@^BUILD_GPERF@#\0@' -i Make.Rules
+sed -i 's@^BUILD_GPERF@#\0@' Make.Rules
 
 make DYNAMIC=yes GOLANG=$GOSUPPORT || exit 1
 make install RAISE_SETFCAP=no GOLANG=$GOSUPPORT DESTDIR=$PKG man_prefix=/usr || exit 1

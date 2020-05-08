@@ -34,7 +34,7 @@ rm -f var/log/faillog.new
 if [ -r etc/login.access.new ]; then
   config etc/login.access.new
 fi
-for configfile in chage.new chgpasswd.new chpasswd.new groupadd.new groupdel.new groupmems.new groupmod.new newusers.new other.new passwd.new postlogin.new system-auth.new useradd.new userdel.new usermod.new ; do
+for configfile in chage.new chgpasswd.new chpasswd.new groupadd.new groupdel.new groupmems.new groupmod.new newusers.new other.new passwd.new postlogin.new su.new su-l.new system-auth.new useradd.new userdel.new usermod.new ; do
   if [ -r etc/pam.d/$configfile ]; then
     config etc/pam.d/$configfile
   fi

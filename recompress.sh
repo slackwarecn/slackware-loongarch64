@@ -1297,6 +1297,13 @@ gzip ./testing/source/PAM/a/pam/fedora-patches/pam-1.1.6-limits-user.patch
 gzip ./testing/source/PAM/a/pam/fedora-patches/pam-1.3.0-pwhistory-helper.patch
 gzip ./testing/source/PAM/a/pam/fedora-patches/pam-1.3.0-unix-nomsg.patch
 gzip ./testing/source/PAM/a/pam/doinst.sh
+gzip ./testing/source/PAM/n/nss-pam-ldapd/548efe5333b56a0a042843a044e0348317f80065.patch
+gzip ./testing/source/PAM/n/nss-pam-ldapd/fea0f5ed287b04406afca0835b1a333bd1fe617b.patch
+gzip ./testing/source/PAM/n/nss-pam-ldapd/1025d5de336d8c9585b79df3154b5649da344281.patch
+gzip ./testing/source/PAM/n/nss-pam-ldapd/doinst.sh
+gzip ./testing/source/PAM/n/nss-pam-ldapd/b33551895b3c02dc7082363c6aae13f8e336f4e5.patch
+gzip ./testing/source/gcc10/patches/gfortran.deferred-shape-vs-assumed-shape.patch
+gzip ./testing/source/gcc10/patches/gcc-no_fixincludes.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

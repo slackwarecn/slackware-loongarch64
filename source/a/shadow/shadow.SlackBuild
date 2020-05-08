@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=shadow
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -74,9 +74,13 @@ cd shadow-$VERSION
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
   PAM_OPTIONS="--with-libpam"
   unset SHADOW_OPTIONS
+  # By default, use the shadow version of /bin/su:
+  SHIP_SU=${SHIP_SU:-YES}
 else
   unset PAM_OPTIONS
   SHADOW_OPTIONS="--enable-shadowgrp --without-libcrack"
+  # By default, use the shadow version of /bin/su:
+  SHIP_SU=${SHIP_SU:-YES}
 fi
 
 # Apply some patches taken from the svn trunk that
@@ -151,12 +155,9 @@ mv $PKG/usr/sbin/nologin $PKG/sbin/nologin
 
 if [ ! -z "$PAM_OPTIONS" ]; then
   # Don't ship the login utilities. We'll be using the ones from util-linux:
-  for file in /bin/login /bin/su /sbin/runuser /usr/bin/chfn /usr/bin/chsh \
+  for file in /bin/login /sbin/runuser /usr/bin/chfn /usr/bin/chsh \
     /usr/man/man1/chfn.1.gz /usr/man/man1/chsh.1.gz /usr/man/man1/login.1.gz \
-    /usr/man/man1/runuser.1.gz /usr/man/man1/su.1.gz \
-    /usr/share/bash-completion/completions/chfn \
-    /usr/share/bash-completion/completions/chsh \
-    /usr/share/bash-completion/completions/su ; do
+    /usr/man/man1/runuser.1.gz ; do
     rm -f $PKG${file}
   done
   # Install config files in /etc/pam.d/. We'll use our own copies... I'm not
@@ -166,6 +167,9 @@ if [ ! -z "$PAM_OPTIONS" ]; then
   for file in $CWD/pam.d/* ; do
     cp -a ${file} $PKG/etc/pam.d/
   done
+  if [ "$SHIP_SU" = "YES" ]; then
+    cp -a $CWD/pam.d-su/* $PKG/etc/pam.d/
+  fi
   # Ensure correct perms/ownership on files in /etc/pam.d/:
   chown root:root $PKG/etc/pam.d/*
   chmod 644 $PKG/etc/pam.d/*
@@ -179,6 +183,13 @@ else # not using PAM
   # Install a login.defs with unsurprising defaults:
   rm -f $PKG/etc/login.defs
   zcat $CWD/login.defs.shadow.gz > $PKG/etc/login.defs.new
+fi
+
+# If we	aren't using this version of su, remove the files:
+if [ "$SHIP_SU" = "NO" ]; then
+  rm $PKG/bin/su
+  find $PKG/usr/man -name su.1 | xargs rm
+  find $PKG/usr/man -name suauth.5 | xargs rm
 fi
 
 # /bin/groups is provided by coreutils.
@@ -196,6 +207,11 @@ chmod 0755 $PKG/usr/sbin/adduser
 # Add sulogin to the package:
 cp -a src/sulogin $PKG/sbin
 ( cd $PKG/bin ; ln -s ../sbin/sulogin )
+cp -a ./man/zh_CN/man8/sulogin.8 $PKG/usr/man/zh_CN/man8/sulogin.8 || exit 1
+cp -a ./man/ru/man8/sulogin.8 $PKG/usr/man/ru/man8/sulogin.8 || exit 1
+cp -a ./man/de/man8/sulogin.8 $PKG/usr/man/de/man8/sulogin.8 || exit 1
+cp -a ./man/ja/man8/sulogin.8 $PKG/usr/man/ja/man8/sulogin.8 || exit 1
+cp -a ./man/man8/sulogin.8 $PKG/usr/man/man8/sulogin.8 || exit 1
 
 # Add the empty faillog log file:
 mkdir -p $PKG/var/log

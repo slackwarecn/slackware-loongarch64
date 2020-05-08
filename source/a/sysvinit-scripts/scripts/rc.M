@@ -366,6 +366,11 @@ if [ -x /etc/rc.d/rc.openldap ]; then
   /etc/rc.d/rc.openldap start
 fi
 
+# Start local LDAP name service daemon (from nss-pam-ldapd):
+if [ -x /etc/rc.d/rc.nslcd ]; then
+  /etc/rc.d/rc.nslcd start
+fi
+
 # Start Dovecot:
 if [ -x /etc/rc.d/rc.dovecot ]; then
   /etc/rc.d/rc.dovecot start

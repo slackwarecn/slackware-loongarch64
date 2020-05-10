@@ -82,20 +82,30 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-if [ ! -r configure ]; then
-  NOCONFIGURE=1 ./autogen.sh
-fi
+zcat $CWD/shared-mime-info.skip_tests.diff.gz | patch -p1 --verbose || exit 1
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
   --mandir=/usr/man \
-  --docdir=/usr/doc/${PKGNAM}-$VERSION \
-  --disable-update-mimedb \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --buildtype=release \
+  -Dupdate-mimedb=false \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
 mv $PKG/usr/share/pkgconfig $PKG/usr/lib${LIBDIRSUFFIX}
@@ -127,7 +137,7 @@ fi
 
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  COPYING* HACKING NEWS README* \
+  COPYING* HACKING* MAINTAINERS* NEWS* README* code-of-conduct* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 chmod 644 $PKG/usr/doc/${PKGNAM}-$VERSION/*
 

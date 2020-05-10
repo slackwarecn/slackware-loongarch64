@@ -1027,6 +1027,7 @@ gzip ./source/l/ilmbase/ilmbase-2.2.0-no_undefined.patch
 gzip ./source/l/qtscriptgenerator/include-everything.patch
 gzip ./source/l/libpsl/libpsl.gtk-doc-1.30.patch
 gzip ./source/l/shared-mime-info/doinst.sh
+gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch
 gzip ./source/l/glib/glib-1.2.10-autotools.patch

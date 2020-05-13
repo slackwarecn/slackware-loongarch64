@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=shared-mime-info
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -71,10 +71,6 @@ rm -rf ${PKGNAM}-$VERSION
 tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION || exit 1
 
-# Don't use fdatasync() unless you want it to take 1000x longer
-# to update the mime database.  Seriously.
-export ac_cv_func_fdatasync=no
-
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -103,6 +99,9 @@ meson setup \
   --buildtype=release \
   -Dupdate-mimedb=false \
   .. || exit 1
+  # Don't use fdatasync() unless you want it to take 1000x longer
+  # to update the mime database.  Seriously.
+  sed -e "/HAVE_FDATASYNC/ d" -i src/config.h
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..

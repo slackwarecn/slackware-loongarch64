@@ -568,6 +568,7 @@ gzip ./source/n/rp-pppoe/doinst.sh
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-pluginpath.patch
 gzip ./source/n/newspost/newspost.getline.diff
 gzip ./source/n/openvpn/doinst.sh
+gzip ./source/n/openldap/doinst.sh
 gzip ./source/n/rpcbind/0001-rpcinfo-Fix-stack-buffer-overflow.patch
 gzip ./source/n/rpcbind/rpcbind.lwrap.needs.lnsl.diff
 gzip ./source/n/rpcbind/0001-man-rpcibind.8-Clarify-state-file-usage-and-history.patch
@@ -628,7 +629,6 @@ gzip ./source/n/iputils/iputils.docbook.revert.diff
 gzip ./source/n/iputils/iputils.libcap-2.30.patch
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/doinst.sh
-gzip ./source/n/openldap-client/doinst.sh
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff

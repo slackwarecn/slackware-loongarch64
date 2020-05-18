@@ -2,7 +2,7 @@
 #
 # Copyright 1994, 1998, 1999  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2002, 2003  Slackware Linux, Inc, Concord, CA
-# Copyright 2007, 2008, 2011, 2013, 2018  Patrick Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007, 2008, 2011, 2013, 2018, 2020  Patrick Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -45,7 +45,7 @@ LILO designed to work with EFI/UEFI systems." \
  if [ $? = 1 -o $? = 255 ]; then
   exit
  fi
- REPLY="`cat $TMP/reply`"
+ REPLY="$(cat $TMP/reply)"
  rm -f $TMP/reply
  if [ "$REPLY" = "skip" ]; then
    exit
@@ -191,7 +191,7 @@ or the standard Linux console?" 0 0 0 \
 #  "1024x768x16m" "Frame buffer console, 1024x768x16.8m" \
 #  "1280x1024x16m" "Frame buffer console, 1280x1024x16.8m" \
 #  "1600x1200x16m" "Frame buffer console, 1600x1200x16.8m"
-  CONSOLETYPE="`cat $TMP/reply`"
+  CONSOLETYPE="$(cat $TMP/reply)"
   if [ "$CONSOLETYPE" = "1600x1200x16m" ]; then
     CONSOLENUM=799
   elif [ "$CONSOLETYPE" = "1600x1200x64k" ]; then
@@ -260,7 +260,7 @@ simplelilo()
  if [ $? = 1 -o $? = 255 ]; then
   APPEND=""
  fi
- APPEND="`cat $TMP/reply`"
+ APPEND="$(cat $TMP/reply)"
 
  # If we got here, we either don't have boot manager or don't want to use it
  # Note 3/2018: or OS/2 Boot Manager cruft was removed ;-)
@@ -284,7 +284,7 @@ Which option would you like?" \
  if [ $? = 1 -o $? = 255 ]; then
   exit
  fi
- TG="`cat $TMP/reply`"
+ TG="$(cat $TMP/reply)"
  rm -r $TMP/reply
  dialog --infobox "\nScanning partitions and generating /etc/lilo.conf..." 5 57
  sleep 1
@@ -292,8 +292,8 @@ Which option would you like?" \
   MBR_TARGET=/dev/sda
   echo $MBR_TARGET > $TMP/LILOMBR
   cat /proc/partitions | while read LINE ; do
-   MAJOR="`echo $LINE | cut -f 1 -d ' '`"
-   MINOR="`echo $LINE | cut -f 2 -d ' '`"
+   MAJOR="$(echo $LINE | cut -f 1 -d ' ')"
+   MINOR="$(echo $LINE | cut -f 2 -d ' ')"
    if [ ! "$MINOR" = "0" -a ! "$MINOR" = "64" ]; then # ignore whole devices to weed out CD drives
     if [ "$MAJOR" = "3" ]; then
      MBR_TARGET=/dev/hda
@@ -321,9 +321,9 @@ Which option would you like?" \
     fi
    fi
   done
-  LILO_TARGET=`cat $TMP/LILOMBR`
+  LILO_TARGET=$(cat $TMP/LILOMBR)
  elif [ "$TG" = "Root" ]; then
-  LILO_TARGET=`echo $ROOT_DEVICE`
+  LILO_TARGET=$(echo $ROOT_DEVICE)
  elif [ "$TG" = "Floppy" ]; then
   LILO_TARGET="/dev/fd0"
  fi
@@ -344,7 +344,8 @@ EOF
  fi
  cat << EOF >> $T_PX/etc/lilo.conf
 boot = $LILO_TARGET
-#compact        # faster, but won't work on all systems.
+# This option loads the kernel and initrd much faster:
+compact
 
 # Boot BMP Image.
 # Bitmap in BMP format: 640x480x8
@@ -434,10 +435,10 @@ W95
 FAT12
 FAT16
 HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort )"
-  DOSP="`echo $DOSP | cut -f 1 -d ' '`"
+  DOSP="$(echo $DOSP | cut -f 1 -d ' ')"
  fi
  if [ ! "$DOSP" = "" ]; then
-  TABLE="`echo $DOSP | cut -b1-8`"
+  TABLE="$(echo $DOSP | cut -b1-8)"
   cat << EOF >> $T_PX/etc/lilo.conf
 # Windows bootable partition config begins
 other = $DOSP
@@ -448,8 +449,8 @@ EOF
   echo "Windows  -  (Windows FAT/NTFS partition)" >> $T_PX/boot/boot_message.txt
  fi
  # Next, we search for Linux partitions:
- LNXP="`PROBE -l | grep "Linux$"`" 
- LNXP="`echo $LNXP | cut -f 1 -d ' ' | sort`"
+ LNXP="$(PROBE -l | grep "Linux$")" 
+ LNXP="$(echo $LNXP | cut -f 1 -d ' ' | sort)"
  if [ ! "$LNXP" = "" ]; then
   cat << EOF >> $T_PX/etc/lilo.conf
 # Linux bootable partition config begins
@@ -463,10 +464,10 @@ EOF
  fi
 # DEAD CODE, BUT IN CASE OS/2 MAKES A COMEBACK!
 # # OK, hopefully we can remember how to deal with OS/2 :^)
-# OS2P="`PROBE -l | grep "HPFS"`"
-# OS2P="`echo $OS2P | cut -f 1 -d ' ' | sort`"
+# OS2P="$(PROBE -l | grep "HPFS")"
+# OS2P="$(echo $OS2P | cut -f 1 -d ' ' | sort)"
 # if [ ! "$OS2P" = "" ]; then
-#  TABLE="`echo $OS2P | cut -b1-8`"
+#  TABLE="$(echo $OS2P | cut -b1-8)"
 #  if [ "$TABLE" = "/dev/hda" ]; then
 #   cat << EOF >> $T_PX/etc/lilo.conf
 ## OS/2 bootable partition config begins
@@ -635,13 +636,13 @@ EOF
 # 'probe()' borrowed from LILO QuickInst.
 probe()
 {
- [ ! -z "`dd if=$1 bs=1 count=1 2>/dev/null | tr '\0' x`" ]
+ [ ! -z "$(dd if=$1 bs=1 count=1 2>/dev/null | tr '\0' x)" ]
  return
 }
 
 # Figure out if we're installing from the hard drive
 if [ -r $TMP/SeTT_PX ]; then
- T_PX="`cat $TMP/SeTT_PX`"
+ T_PX="$(cat $TMP/SeTT_PX)"
 else
  if [ "$T_PX" = "" -a ! "$1" = "" ]; then
   T_PX=$1
@@ -658,9 +659,9 @@ LNX="no" # this means no Linux partition has been defined as bootable
 ROOT_DEVICE=$2
 if [ "$ROOT_DEVICE" = "" ]; then
  if [ -r $TMP/SeTrootdev ]; then
-  ROOT_DEVICE="`cat $TMP/SeTrootdev`"
+  ROOT_DEVICE="$(cat $TMP/SeTrootdev)"
  else
-  ROOT_DEVICE="`mount | cut -f 1 -d " " | sed -n "1 p"`"
+  ROOT_DEVICE="$(mount | grep " on $T_PX " | cut -f 1 -d " " | head -n 1)"
  fi
 fi
 # Figure out where the kernel is:
@@ -707,7 +708,7 @@ it later with the 'liloconfig' command. Which option would you like?" \
  if [ $? = 1 -o $? = 255 ]; then
   exit
  fi
- REPLY="`cat $TMP/reply`"
+ REPLY="$(cat $TMP/reply)"
  rm -f $TMP/reply
  if [ "$REPLY" = "skip" ]; then
   exit
@@ -737,7 +738,7 @@ Which option would you like?" 21 73 8 \
   if [ $? = 1 -o $? = 255 ]; then
    REPLY="Skip"
   else
-   REPLY="`cat $TMP/reply`"
+   REPLY="$(cat $TMP/reply)"
   fi
   rm -r $TMP/reply
   if [ "$REPLY" = "Begin" ]; then
@@ -747,7 +748,7 @@ Which option would you like?" 21 73 8 \
     HDR="no"
     continue;
    else
-    APPEND="`cat $TMP/reply`"
+    APPEND="$(cat $TMP/reply)"
    fi
    #ask_utf;
    #if [ $? = 1 -o $? = 255 ]; then
@@ -772,15 +773,15 @@ selection. Please pick a target location:" 15 65 3 \
     continue;
    else
     LNX="no"
-    TG="`cat $TMP/reply`"
+    TG="$(cat $TMP/reply)"
    fi
    rm -r $TMP/reply
    if [ "$TG" = "MBR" ]; then
     MBR_TARGET=/dev/sda
     echo $MBR_TARGET > $TMP/LILOMBR
     cat /proc/partitions | while read LINE ; do
-     MAJOR="`echo $LINE | cut -f 1 -d ' '`"
-     MINOR="`echo $LINE | cut -f 2 -d ' '`"
+     MAJOR="$(echo $LINE | cut -f 1 -d ' ')"
+     MINOR="$(echo $LINE | cut -f 2 -d ' ')"
      if [ ! "$MINOR" = "0" -a ! "$MINOR" = "64" ]; then # ignore whole devices to weed out CD drives
       if [ "$MAJOR" = "3" ]; then
        MBR_TARGET=/dev/hda
@@ -797,17 +798,17 @@ selection. Please pick a target location:" 15 65 3 \
       fi
      fi
     done
-    LILO_TARGET=`cat $TMP/LILOMBR`
+    LILO_TARGET=$(cat $TMP/LILOMBR)
     dialog --title "CONFIRM LOCATION TO INSTALL LILO" --inputbox \
 "The auto-detected location to install the LILO boot block is shown below. \
 If you need to make any changes, you can make them below. Otherwise, hit \
 ENTER to accept the target location shown." 11 60 $LILO_TARGET 2> $TMP/reply
     if [ $? = 0 ]; then
-      LILO_TARGET="`cat $TMP/reply`"
+      LILO_TARGET="$(cat $TMP/reply)"
     fi
     rm -f $TMP/reply
    elif [ "$TG" = "Root" ]; then
-    LILO_TARGET=`echo $ROOT_DEVICE`
+    LILO_TARGET=$(echo $ROOT_DEVICE)
    elif [ "$TG" = "Floppy" ]; then
     LILO_TARGET="/dev/fd0"    
    else
@@ -826,7 +827,7 @@ default." 13 74 4 \
     HDR="no"
     continue;
    else
-    TIMEOUT="`cat $TMP/reply`"
+    TIMEOUT="$(cat $TMP/reply)"
    fi
    rm -r $TMP/reply
    if [ "$TIMEOUT" = "None" ]; then 
@@ -852,7 +853,8 @@ default." 13 74 4 \
 # Start LILO global section
 boot = $LILO_TARGET
 
-#compact        # faster, but won't work on all systems.
+# This option loads the kernel and initrd much faster:
+compact
 
 EOF
    # Boot splash
@@ -954,7 +956,7 @@ EOF
      continue
     fi
     rm $TMP/tmpmsg
-    LINUX_PART="`cat $TMP/reply`"
+    LINUX_PART="$(cat $TMP/reply)"
     checkp_dialog $LINUX_PART
     if [ ! $? = 0 ]; then
      continue;
@@ -967,7 +969,7 @@ SINGLE WORD." 11 60 2> $TMP/reply
     if [ $? = 1 -o $? = 255 ]; then
      continue
     fi
-    LABEL="`cat $TMP/reply`"
+    LABEL="$(cat $TMP/reply)"
     cat << EOF >> $TMP/lilo.conf
 # Linux bootable partition config begins
 image = $KERNEL
@@ -995,13 +997,13 @@ partitions unless you start over with a new LILO header." 6 60
     echo >> $TMP/tmpmsg
     echo "Which one would you like LILO to boot?" >> $TMP/tmpmsg
     dialog --title "SELECT OS/2 PARTITION" --no-collapse --inputbox \
-"`cat $TMP/tmpmsg`" 20 74 2> $TMP/reply
+"$(cat $TMP/tmpmsg)" 20 74 2> $TMP/reply
     if [ $? = 1 -o $? = 255 ]; then
      rm $TMP/tmpmsg
      continue
     fi
     rm $TMP/tmpmsg
-    OS_2_PART="`cat $TMP/reply`"
+    OS_2_PART="$(cat $TMP/reply)"
     checkp_dialog $OS_2_PART
     if [ ! $? = 0 ]; then
      continue;
@@ -1014,9 +1016,9 @@ SINGLE WORD."  11 60 2> $TMP/reply
     if [ $? = 1 -o $? = 255 ]; then
      continue
     fi
-    LABEL="`cat $TMP/reply`"
-    TABLE="`echo $OS_2_PART | cut -b1-8`"
-    if [ "`echo $TABLE | cut -b6-8`" = "hda" ]; then
+    LABEL="$(cat $TMP/reply)"
+    TABLE="$(echo $OS_2_PART | cut -b1-8)"
+    if [ "$(echo $TABLE | cut -b6-8)" = "hda" ]; then
      cat << EOF >> $TMP/lilo.conf
 # OS/2 bootable partition config begins
 other = $OS_2_PART
@@ -1061,13 +1063,13 @@ HPFS" | grep -v "Ext'd" | grep -v "Extend" | sort | grep "$($OSPROBER 2> /dev/nu
     echo >> $TMP/tmpmsg
     echo "Which one would you like LILO to boot?" >> $TMP/tmpmsg
     dialog --title "SELECT WINDOWS PARTITION" --no-collapse --inputbox \
-"`cat $TMP/tmpmsg`" 20 74 2> $TMP/reply
+"$(cat $TMP/tmpmsg)" 20 74 2> $TMP/reply
     if [ $? = 1 -o $? = 255 ]; then
      rm $TMP/tmpmsg
      continue
     fi
     rm $TMP/tmpmsg
-    DOSPART="`cat $TMP/reply`"
+    DOSPART="$(cat $TMP/reply)"
     checkp_dialog $DOSPART
     if [ ! $? = 0 ]; then
      continue;
@@ -1080,13 +1082,13 @@ SINGLE WORD." 11 60 2> $TMP/reply
     if [ $? = 1 -o $? = 255 ]; then
      continue
     fi
-    LABEL="`cat $TMP/reply`"
+    LABEL="$(cat $TMP/reply)"
     unset USE_LOADER
-    TABLE="`echo $DOSPART | cut -b1-8`"
-    if [ "`echo $TABLE | cut -b6-8`" = "hda" ]; then
+    TABLE="$(echo $DOSPART | cut -b1-8)"
+    if [ "$(echo $TABLE | cut -b6-8)" = "hda" ]; then
      USE_LOADER="no"
     fi
-    if [ "`echo $TABLE | cut -b6-8`" = "sda" ]; then
+    if [ "$(echo $TABLE | cut -b6-8)" = "sda" ]; then
      if probe /dev/hda; then
       USE_LOADER="yes"
      else

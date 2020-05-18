@@ -883,6 +883,7 @@ a/mdadm \
 a/ncompress \
 a/openssl-solibs \
 a/os-prober \
+a/pam \
 a/pciutils \
 a/plzip \
 a/pkgtools \
@@ -1119,6 +1120,19 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \
         usb-devices \
         $PKG/$ARCH-installer-filesystem/usr/bin/
 
+# Copy PAM's security directory:
+cd $TMP/extract-packages/lib${LIBDIRSUFFIX}
+cp -a security $PKG/$ARCH-installer-filesystem/lib${LIBDIRSUFFIX}
+
+# Copy PAM's config files:
+cd $TMP/extract-packages/etc
+cp -a pam.d $PKG/$ARCH-installer-filesystem/etc
+( cd $PKG/$ARCH-installer-filesystem/etc/pam.d
+  for file in *.new ; do
+    mv $file $(basename $file .new)
+  done
+)
+
 # Grab a couple of terminus fonts that we'll need to prevent
 # blindness from microscopic KMS terminal fonts:
 cd $TMP/extract-packages/usr/share/kbd/consolefonts
@@ -1216,6 +1230,7 @@ cp  -fa${VERBOSE1} \
         libkrb5support.so* \
         liblzma*so* \
         libmount.so* \
+        libpam*.so* \
         libpcre.so* \
         libpopt*.so* \
         libsmartcols.so* \

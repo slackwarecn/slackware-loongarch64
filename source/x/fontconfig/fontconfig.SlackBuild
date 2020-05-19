@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -87,6 +87,23 @@ zcat $CWD/fontconfig.liberation.diff.gz | patch -p1 --verbose || exit 1
 # it out (and possibly follow symlinks, or index ugly bitmapped fonts):
 zcat $CWD/fontconfig.font.dir.list.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
+# Add some patches from the Fedora SRPM:
+zcat $CWD/fedora-patches/fontconfig-sleep-less.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/fedora-patches/fontconfig-required-freetype-version.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-score-hint-on-match.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-1744377.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-drop-lang-from-pkgkit-format.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-sysroot.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-read-latest-cache.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-mt.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-test.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-assertion.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-dtd.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-dtd-id.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-0-timestamp-dir-on-sb.patch.gz | patch -p1 --verbose || exit 1
+
+autoreconf -vif
+
 CFLAGS=$SLKCFLAGS \
 ./configure \
   --prefix=/usr \
@@ -99,6 +116,7 @@ CFLAGS=$SLKCFLAGS \
   --with-xmldir=/etc/fonts \
   --localstatedir=/var \
   --enable-static=no \
+  --enable-libxml2 \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1

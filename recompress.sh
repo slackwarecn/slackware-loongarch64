@@ -1067,7 +1067,6 @@ gzip ./source/l/glib/glib-1.2.10-unused-dep.patch
 gzip ./source/l/glib/glib-1.2.10-gcc34.patch
 gzip ./source/l/glib/glib-1.2.10-no_undefined.patch
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
-gzip ./source/l/zstd/zstd.dont.hardcode.libdir.patch
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
 gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch

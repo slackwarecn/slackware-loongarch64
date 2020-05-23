@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=zstd
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -86,7 +86,6 @@ tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
 zcat $CWD/zstd.dont.link.pzstd.to.static.libzstd.a.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/zstd.dont.hardcode.libdir.patch.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -102,6 +101,7 @@ make $NUMJOBS CFLAGS="$SLKCFLAGS" -C contrib/pzstd || exit 1
 
 # Install it:
 make \
+  $NUMJOBS \
   prefix=/usr \
   libdir=/usr/lib${LIBDIRSUFFIX} \
   mandir=/usr/man \

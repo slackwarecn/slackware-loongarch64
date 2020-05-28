@@ -588,10 +588,10 @@ gzip ./source/n/nn/NNTP
 gzip ./source/n/NetworkManager/doinst.sh
 gzip ./source/n/netwatch/netwatch.phonemyself.diff
 gzip ./source/n/netwatch/netwatch.makefile.diff
+gzip ./source/n/rp-pppoe/rp-pppoe-3.14-ip-allocation.patch
 gzip ./source/n/rp-pppoe/rp-pppoe-manpages.patch
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-doc.patch
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-plugin.patch
-gzip ./source/n/rp-pppoe/rp-pppoe-3.12-ip-allocation.patch
 gzip ./source/n/rp-pppoe/doinst.sh
 gzip ./source/n/rp-pppoe/rp-pppoe-3.12-pluginpath.patch
 gzip ./source/n/newspost/newspost.getline.diff

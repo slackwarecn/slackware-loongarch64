@@ -6,7 +6,7 @@
 removepkg --terse xfce4-mixer xfce4-volumed
 for package in MPlayer alsa-lib alsa-plugins audacious-plugins ffmpeg \
   fluidsynth gst-plugins-good gst-plugins-good0 kde-runtime kmix libao \
-  pulseaudio pamixer pavucontrol xfce4-pulseaudio-plugin \
+  pulseaudio pamixer pavucontrol qt5 xfce4-pulseaudio-plugin \
   libcanberra mpg123 phonon sox xine-lib ; do
   upgradepkg --install-new --terse ../../slackware*/*/${package}-*.txz
 done

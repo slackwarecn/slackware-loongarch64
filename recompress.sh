@@ -64,6 +64,11 @@ gzip ./source/d/rust/rust.llvm10.7a14f9ed4fa60f4d8fc042fc678c80c14a850dc0.patch
 gzip ./source/d/rust/rust.llvm10.497f879b1e24c369362bcd821959ffabc50a8a31.patch
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
+gzip ./source/d/gyp/gyp-ninja-build.patch
+gzip ./source/d/gyp/gyp-fix-cmake.patch
+gzip ./source/d/gyp/gyp-python38.patch
+gzip ./source/d/gyp/gyp-python39.patch
+gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
 gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff

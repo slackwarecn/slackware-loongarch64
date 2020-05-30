@@ -1,6 +1,6 @@
 #!/bin/bash
 # Copyright 2005, 2006, 2008, 2009, 2010, 2012  Eric Hameleers, Eindhoven, NL
-# Copyright 2013, 2014, 2015, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2014, 2015, 2017, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=mozilla-nss
 SRCNAM=nss
-VERSION=${VERSION:-3.52.1}
+VERSION=${VERSION:-3.53}
 NSPR=${NSPR:-4.25}
 BUILD=${BUILD:-1}
 
@@ -82,8 +82,8 @@ cd nss-$VERSION
 tar xvf $CWD/nspr-$NSPR.tar.?z || exit 1
 mv nspr*/nspr .
 
-# -Werror is problematic with gcc7:
-sed -i "s|\ -Werror| |" nss/coreconf/Werror.mk || exit 1
+## -Werror is problematic with gcc7:
+#sed -i "s|\ -Werror| |" nss/coreconf/Werror.mk || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -93,31 +93,22 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-echo Building ...
-export LDFLAGS="-lz"
-export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
-export BUILD_OPT=1
-export NSDISTMODE="copy"
-export NSS_USE_SYSTEM_SQLITE=1
-export NSS_ENABLE_ECC=1
+./bundle.sh
 cd nss
-  # Seems parallel build does not work with this.
-  #make $NUMJOBS nss_build_all export || exit 1
-  make nss_build_all export || exit 1
+./build.sh -v --opt --system-sqlite --enable-libpkix --disable-tests
 cd -
 
 # Install all the needed stuff to the package dir:
 mkdir -p $PKG/usr/{bin,lib${LIBDIRSUFFIX},include/{nss,nspr}}
-cd dist/$(uname -s)*
+cd dist/Release
   cp -pL bin/{certutil,cmsutil,crlutil,modutil,pk12util,shlibsign,signtool,signver,ssltap} $PKG/usr/bin/
   cp -pL lib/* $PKG/usr/lib${LIBDIRSUFFIX}/
   chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/*.so*
-  cp -rL include/* $PKG/usr/include/nspr/
+  cp -rL include/* $PKG/usr/include/
   cp -rpL ../public/nss/*.h $PKG/usr/include/nss/
   # Remove some things we do not need:
   rm -f $PKG/usr/bin/*.so
-  rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+  rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.{TOC,a}
   rm -rf $PKG/usr/include/nspr/md
   cp -L lib/libcrmf.a $PKG/usr/lib${LIBDIRSUFFIX}/ # yes, put this one back
 cd -

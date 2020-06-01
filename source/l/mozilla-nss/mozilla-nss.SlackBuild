@@ -68,8 +68,7 @@ fi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-# Seems parallel build does not work with this.
-#NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -93,9 +92,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-./bundle.sh
 cd nss
-./build.sh -v --opt --system-sqlite --enable-libpkix --disable-tests
+./build.sh -v $NUMJOBS --opt --system-sqlite --enable-libpkix --disable-tests
 cd -
 
 # Install all the needed stuff to the package dir:
@@ -110,7 +108,8 @@ cd dist/Release
   rm -f $PKG/usr/bin/*.so
   rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.{TOC,a}
   rm -rf $PKG/usr/include/nspr/md
-  cp -L lib/libcrmf.a $PKG/usr/lib${LIBDIRSUFFIX}/ # yes, put this one back
+  # We require a few static libraries. Why? I don't remember.
+  cp -L ../../nss/out/Release/lib{crmf,nssb,nssckfw}.a $PKG/usr/lib${LIBDIRSUFFIX}/ || exit 1
 cd -
 
 cd nss/cmd/smimetools

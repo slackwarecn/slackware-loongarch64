@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=subversion
 VERSION=${VERSION:-$(echo subversion-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -98,25 +98,30 @@ CFLAGS="$SLKCFLAGS" \
   --with-lz4=internal \
   --with-zlib=/usr \
   --with-pic \
-  --with-kwallet \
   --build=$ARCH-slackware-linux || exit 1
+
+# Leave this out for now, because having qt5 and KDE4 installed confuses it.
+# We'll look at it again once we have Plasma 5.
+#  --with-kwallet
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 make install-tools DESTDIR=$PKG || exit 1
 make install-docs DESTDIR=$PKG || exit 1
 
-# Install python bindings
-make swig-py || exit 1
-make install-swig-py DESTDIR=$PKG || exit 1
-PYTHON_VER=$(python -c 'import sys; print "%d.%d" % sys.version_info[:2]')
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/python${PYTHON_VER}/site-packages
-mv $PKG/usr/lib${LIBDIRSUFFIX}/svn-python/* \
-  $PKG/usr/lib${LIBDIRSUFFIX}/python${PYTHON_VER}/site-packages
-rmdir $PKG/usr/lib${LIBDIRSUFFIX}/svn-python
+## COMMENTED OUT - this doesn't work with swig > 4.0.0
+## If something actually needs it, let me know and I'll look at it again.
+## Install python bindings
+#make swig-py || exit 1
+#make install-swig-py DESTDIR=$PKG || exit 1
+#PYTHON_VER=$(python3 -c 'import sys; print "%d.%d" % sys.version_info[:2]')
+#mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/python${PYTHON_VER}/site-packages
+#mv $PKG/usr/lib${LIBDIRSUFFIX}/svn-python/* \
+#  $PKG/usr/lib${LIBDIRSUFFIX}/python${PYTHON_VER}/site-packages
+#rmdir $PKG/usr/lib${LIBDIRSUFFIX}/svn-python
 
 # Perl bindings
-make swig-pl-lib || exit 1
+make $NUMJOBS swig-pl-lib || exit 1
 make install-swig-pl-lib DESTDIR=$PKG || exit 1
 ( cd subversion/bindings/swig/perl/native
   perl Makefile.PL
@@ -126,7 +131,7 @@ eval $(perl '-V:archlib')
 mv $PKG/$archlib/perllocal.pod $PKG/$archlib/subversion.pod
 
 # Ruby bindings
-make swig-rb || exit 1
+make $NUMJOBS swig-rb || exit 1
 make install-swig-rb DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:

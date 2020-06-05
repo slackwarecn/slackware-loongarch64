@@ -56,12 +56,7 @@ gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/opencl-headers/cl.hpp
 gzip ./source/d/opencl-headers/cl2.hpp
 gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff
-gzip ./source/d/rust/rust.llvm10.841558d3bdc9c9510b841c438838196378741021.patch
-gzip ./source/d/rust/rust.llvm10.a94fa896cc92d5e0678376cf5aa8b64af0899732.patch
 gzip ./source/d/rust/link_libffi.diff
-gzip ./source/d/rust/rust.llvm10.66008eb9e4e46bb5c12a215e2abe2338617c2582.patch
-gzip ./source/d/rust/rust.llvm10.7a14f9ed4fa60f4d8fc042fc678c80c14a850dc0.patch
-gzip ./source/d/rust/rust.llvm10.497f879b1e24c369362bcd821959ffabc50a8a31.patch
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/gyp/gyp-ninja-build.patch
@@ -704,7 +699,6 @@ gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
 gzip ./source/ap/mariadb/mysql_install_db.nopam.diff
-gzip ./source/ap/dash/dash-0.5.7-format-security.patch
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff

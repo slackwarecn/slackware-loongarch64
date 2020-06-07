@@ -1570,9 +1570,10 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     mv block.orig/virtio_blk.ko block
     rm -rf${VERBOSE1} block.orig
     # Done with block directory
-    # Save the Hyper-V modules in staging, but toss the rest:
+    # Grab a few modules from staging:
     mv staging staging.orig
     mv staging.orig/hv staging
+    mv staging.orig/exfat staging
     rm -rf${VERBOSE1} staging.orig
     # Save the Hyper-V keyboard module:
     mkdir -p input.orig/serio

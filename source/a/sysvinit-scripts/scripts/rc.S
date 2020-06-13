@@ -420,6 +420,9 @@ touch /var/run/utmp
 chown root:utmp /var/run/utmp
 chmod 664 /var/run/utmp
 
+# In case pam_faillock(8) is being used, create the tally directory:
+mkdir -p /var/run/faillock
+
 # Update the current kernel level in the /etc/motd (Message Of The Day) file,
 # if the first line of that file begins with the word 'Linux'.
 # You are free to modify the rest of the file as you see fit.

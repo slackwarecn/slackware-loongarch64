@@ -186,8 +186,6 @@ gzip ./source/a/tar/tar-1.13.bzip2.diff
 gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/genpower/genpower.halt.diff
 gzip ./source/a/genpower/genpower.var.diff
-gzip ./source/a/pam/patches/pam.pam_tally2.slackware.diff
-gzip ./source/a/pam/patches/pam.pam_tally2.no.fsync.patch
 gzip ./source/a/pam/patches/pam.etc.environment.better.comments.diff
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-unix-gensalt-autoentropy.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-redhat-modules.patch
@@ -200,6 +198,7 @@ gzip ./source/a/pam/fedora-patches/pam-1.1.3-nouserenv.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-unix-remove-obsolete-_unix_read_password-prototype.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-unix-crypt_checksalt.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-unix-fix_checksalt_syslog.patch
+gzip ./source/a/pam/fedora-patches/pam-1.4.0-redhat-modules.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-noflex.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-unix-bcrypt_b.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.1-unix-yescrypt.patch

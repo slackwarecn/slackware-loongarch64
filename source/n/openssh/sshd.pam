@@ -4,13 +4,16 @@
 # need to add additional consoles to /etc/securetty if you want to allow
 # root logins on them, such as: ssh, pts/0, :0, etc
 #auth            required        pam_securetty.so
-# To set a limit on failed authentications, the pam_tally2 module
-# can be enabled. See pam_tally2(8) for options.
-#auth            required        pam_tally2.so deny=4 unlock_time=1200
+# When using pam_faillock, print a message to the user if the account is
+# locked. This lets the user know what is going on, but it also potentially
+# gives additional information to attackers:
+#auth            requisite       pam_faillock.so preauth
 auth            include         system-auth
+# To set a limit on failed authentications, the pam_faillock module
+# can be enabled. See pam_faillock(8) for more information.
+#auth            [default=die]   pam_faillock.so authfail
+#auth            sufficient      pam_faillock.so authsucc
 auth            include         postlogin
-# Also uncomment this line to use pam_tally2:
-#account         required        pam_tally2.so
 account         required        pam_nologin.so
 account         include         system-auth
 password        include         system-auth

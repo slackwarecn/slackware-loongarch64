@@ -1012,9 +1012,6 @@ gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch
 gzip ./source/l/pulseaudio/doinst.sh
-gzip ./source/l/libvncserver/libvncserver.d0a76539835d11c0f4723499f8be4bc9c7724eb9.patch
-gzip ./source/l/libvncserver/libvncserver.CMAKE_INSTALL_LIBDIR.diff
-gzip ./source/l/libvncserver/libvncserver.15c4f144a3783d9f1f2c976acf9f4d85988fd466.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
 gzip ./source/l/PyQt5/patches/pyqt5-python2-crash.patch

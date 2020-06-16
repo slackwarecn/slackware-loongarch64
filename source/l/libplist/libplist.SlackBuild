@@ -109,11 +109,20 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-static \
   --build=$ARCH-slackware-linux || exit 1
 
+# Hack this to link with -lm:
+sed -i "s/LIBS = -lpthread/LIBS = -lpthread -lm/g" src/Makefile
+
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Provide symlinks from the old pkgconfig names:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
+  ln -sf libplist++-2.*.pc libplist++.pc
+  ln -sf libplist-2.*.pc libplist.pc
+)
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \

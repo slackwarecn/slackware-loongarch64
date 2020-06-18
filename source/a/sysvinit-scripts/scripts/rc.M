@@ -116,9 +116,11 @@ if [ -x /etc/rc.d/rc.messagebus ]; then
   /etc/rc.d/rc.messagebus start
 fi
 
-# Start console-kit-daemon:
-if [ -x /etc/rc.d/rc.consolekit ]; then
+# Start the session/seat daemon:
+if [ -x /etc/rc.d/rc.consolekit -a -x /usr/sbin/console-kit-daemon ]; then
   /etc/rc.d/rc.consolekit start
+elif [ -x /etc/rc.d/rc.elogind ]; then
+  /etc/rc.d/rc.elogind start
 fi
 
 # Start Bluetooth:

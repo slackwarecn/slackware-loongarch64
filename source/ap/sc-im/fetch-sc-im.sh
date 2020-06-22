@@ -36,12 +36,14 @@ git clone https://github.com/andmarti1424/sc-im
 
 HEADISAT="$( cd sc-im && git log -1 --format=%h )"
 DATE="$( cd sc-im && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd sc-im && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd sc-im && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv sc-im sc-im-${DATE}_${HEADISAT}
 tar cf sc-im-${DATE}_${HEADISAT}.tar sc-im-${DATE}_${HEADISAT}
 plzip -9 -f sc-im-${DATE}_${HEADISAT}.tar
 rm -rf sc-im-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" sc-im-${DATE}_${HEADISAT}.tar.lz
 echo
 echo "sc-im branch $BRANCH with HEAD at $HEADISAT packaged as sc-im-${DATE}_${HEADISAT}.tar.lz"
 echo

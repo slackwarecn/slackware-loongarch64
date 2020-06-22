@@ -36,12 +36,14 @@ git clone http://llvm.org/git/libclc.git
 
 HEADISAT="$( cd libclc && git log -1 --format=%h )"
 DATE="$( cd libclc && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd libclc && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd libclc && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv libclc libclc-${DATE}_${HEADISAT}
 tar cf libclc-${DATE}_${HEADISAT}.tar libclc-${DATE}_${HEADISAT}
 xz -9 -f libclc-${DATE}_${HEADISAT}.tar
 rm -rf libclc-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" libclc-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "libclc branch $BRANCH with HEAD at $HEADISAT packaged as libclc-${DATE}_${HEADISAT}.tar.xz"
 echo

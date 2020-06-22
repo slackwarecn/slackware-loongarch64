@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2019, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,26 +24,26 @@
 BRANCH=${1:-master}
 
 # Clear download area:
-rm -rf usbmuxd
+rm -rf neofetch
 
 # Clone repository:
-git clone https://github.com/libimobiledevice/usbmuxd
+git clone https://github.com/dylanaraps/neofetch
 
 # checkout $BRANCH:
-( cd usbmuxd 
+( cd neofetch 
   git checkout $BRANCH || exit 1
 )
 
-HEADISAT="$( cd usbmuxd && git log -1 --format=%h )"
-DATE="$( cd usbmuxd && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd usbmuxd && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
+HEADISAT="$( cd neofetch && git log -1 --format=%h )"
+DATE="$( cd neofetch && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd neofetch && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
-( cd usbmuxd && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-mv usbmuxd usbmuxd-${DATE}_${HEADISAT}
-tar cf usbmuxd-${DATE}_${HEADISAT}.tar usbmuxd-${DATE}_${HEADISAT}
-xz -9 -f usbmuxd-${DATE}_${HEADISAT}.tar
-rm -rf usbmuxd-${DATE}_${HEADISAT}
-touch -d "$LONGDATE" usbmuxd-${DATE}_${HEADISAT}.tar.xz
+( cd neofetch && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+mv neofetch neofetch-${DATE}_${HEADISAT}
+tar cf neofetch-${DATE}_${HEADISAT}.tar neofetch-${DATE}_${HEADISAT}
+xz -9 -f neofetch-${DATE}_${HEADISAT}.tar
+rm -rf neofetch-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" neofetch-${DATE}_${HEADISAT}.tar.xz
 echo
-echo "usbmuxd branch $BRANCH with HEAD at $HEADISAT packaged as usbmuxd-${DATE}_${HEADISAT}.tar.xz"
+echo "neofetch branch $BRANCH with HEAD at $HEADISAT packaged as neofetch-${DATE}_${HEADISAT}.tar.xz"
 echo

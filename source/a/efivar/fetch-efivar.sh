@@ -36,12 +36,14 @@ git clone https://github.com/rhboot/efivar
 
 HEADISAT="$( cd efivar && git log -1 --format=%h )"
 DATE="$( cd efivar && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd efivar && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd efivar && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv efivar efivar-${DATE}_${HEADISAT}
 tar cf efivar-${DATE}_${HEADISAT}.tar efivar-${DATE}_${HEADISAT}
 xz -9 -f efivar-${DATE}_${HEADISAT}.tar
 rm -rf efivar-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" efivar-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "efivar branch $BRANCH with HEAD at $HEADISAT packaged as efivar-${DATE}_${HEADISAT}.tar.xz"
 echo

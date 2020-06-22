@@ -36,6 +36,7 @@ git clone https://chromium.googlesource.com/external/gyp
 
 HEADISAT="$( cd gyp && git log -1 --format=%h )"
 DATE="$( cd gyp && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd gyp && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd gyp && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 rm -r gyp/test/*
@@ -43,6 +44,7 @@ mv gyp gyp-${DATE}_${HEADISAT}
 tar cf gyp-${DATE}_${HEADISAT}.tar gyp-${DATE}_${HEADISAT}
 xz -9 -f gyp-${DATE}_${HEADISAT}.tar
 rm -rf gyp-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" gyp-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "gyp branch $BRANCH with HEAD at $HEADISAT packaged as gyp-${DATE}_${HEADISAT}.tar.xz"
 echo

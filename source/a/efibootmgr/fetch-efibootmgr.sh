@@ -36,12 +36,14 @@ git clone https://github.com/rhboot/efibootmgr
 
 HEADISAT="$( cd efibootmgr && git log -1 --format=%h )"
 DATE="$( cd efibootmgr && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd efibootmgr && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd efibootmgr && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv efibootmgr efibootmgr-${DATE}_${HEADISAT}
 tar cf efibootmgr-${DATE}_${HEADISAT}.tar efibootmgr-${DATE}_${HEADISAT}
 xz -9 -f efibootmgr-${DATE}_${HEADISAT}.tar
 rm -rf efibootmgr-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" efibootmgr-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "efibootmgr branch $BRANCH with HEAD at $HEADISAT packaged as efibootmgr-${DATE}_${HEADISAT}.tar.xz"
 echo

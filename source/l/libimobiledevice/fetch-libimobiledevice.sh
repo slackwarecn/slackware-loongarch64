@@ -36,12 +36,14 @@ git clone https://github.com/libimobiledevice/libimobiledevice
 
 HEADISAT="$( cd libimobiledevice && git log -1 --format=%h )"
 DATE="$( cd libimobiledevice && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd libimobiledevice && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd libimobiledevice && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv libimobiledevice libimobiledevice-${DATE}_${HEADISAT}
 tar cf libimobiledevice-${DATE}_${HEADISAT}.tar libimobiledevice-${DATE}_${HEADISAT}
 xz -9 -f libimobiledevice-${DATE}_${HEADISAT}.tar
 rm -rf libimobiledevice-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" libimobiledevice-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "libimobiledevice branch $BRANCH with HEAD at $HEADISAT packaged as libimobiledevice-${DATE}_${HEADISAT}.tar.xz"
 echo

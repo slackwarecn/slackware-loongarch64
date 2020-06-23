@@ -1131,7 +1131,7 @@ gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff
 gzip ./source/xap/xmms/xmms.wmxmms_vis_depth_workaround.diff
 gzip ./source/xap/blueman/dont-autostart-applet-in-kde.diff
-gzip ./source/xap/blueman/30-blueman-netdev-allow-access.rules
+gzip ./source/xap/blueman/blueman.allow.access.to.netdev.group.diff
 gzip ./source/xap/blueman/doinst.sh
 gzip ./source/xap/xpdf/lang/xpdf-chinese-traditional.diff
 gzip ./source/xap/xpdf/lang/xpdf-thai.diff

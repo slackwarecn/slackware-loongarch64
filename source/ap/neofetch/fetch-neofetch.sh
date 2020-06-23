@@ -20,30 +20,33 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+PKGNAM=neofetch
+
 # Pull a stable branch + patches
 BRANCH=${1:-master}
 
 # Clear download area:
-rm -rf neofetch
+rm -rf ${PKGNAM}
 
 # Clone repository:
-git clone https://github.com/dylanaraps/neofetch
+git clone https://github.com/dylanaraps/${PKGNAM}
 
 # checkout $BRANCH:
-( cd neofetch 
+( cd ${PKGNAM} 
   git checkout $BRANCH || exit 1
 )
 
-HEADISAT="$( cd neofetch && git log -1 --format=%h )"
-DATE="$( cd neofetch && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd neofetch && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
+HEADISAT="$( cd ${PKGNAM} && git log -1 --format=%h )"
+DATE="$( cd ${PKGNAM} && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd ${PKGNAM} && git log -1 --format=%ad --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
-( cd neofetch && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-mv neofetch neofetch-${DATE}_${HEADISAT}
-tar cf neofetch-${DATE}_${HEADISAT}.tar neofetch-${DATE}_${HEADISAT}
-xz -9 -f neofetch-${DATE}_${HEADISAT}.tar
-rm -rf neofetch-${DATE}_${HEADISAT}
-touch -d "$LONGDATE" neofetch-${DATE}_${HEADISAT}.tar.xz
+( cd ${PKGNAM} && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+mv ${PKGNAM} ${PKGNAM}-${DATE}_${HEADISAT}
+tar cf ${PKGNAM}-${DATE}_${HEADISAT}.tar ${PKGNAM}-${DATE}_${HEADISAT}
+plzip -9 -f ${PKGNAM}-${DATE}_${HEADISAT}.tar
+rm -rf ${PKGNAM}-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" ${PKGNAM}-${DATE}_${HEADISAT}.tar.lz
 echo
-echo "neofetch branch $BRANCH with HEAD at $HEADISAT packaged as neofetch-${DATE}_${HEADISAT}.tar.xz"
+echo "${PKGNAM} branch $BRANCH with HEAD at $HEADISAT packaged as ${PKGNAM}-${DATE}_${HEADISAT}.tar.lz"
 echo

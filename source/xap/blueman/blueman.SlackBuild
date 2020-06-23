@@ -3,7 +3,7 @@
 # Slackware build script for blueman
 
 # Copyright 2009, 2015  Robby Workman, Tuscaloosa, Alabama, USA
-# Copyright 2010, 2015, 2018  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2010, 2015, 2018, 2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=blueman
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -90,6 +90,9 @@ done
 # Don't autostart blueman applet in KDE; it has its own bluetooth application
 zcat $CWD/dont-autostart-applet-in-kde.diff.gz | patch -p1 --verbose || exit 1
 
+# Patch the blueman rules to allow members of the netdev group to make changes:
+zcat $CWD/blueman.allow.access.to.netdev.group.diff.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 PYTHON=/usr/bin/python3 \
@@ -119,10 +122,6 @@ sed -i "s,#!/usr/bin/env python3,#!/usr/bin/python${PYTHON3VER},g" module/_bluem
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# Install default rules allowing users in the netdev group to make changes:
-mkdir -p $PKG/etc/polkit-1/rules.d
-zcat $CWD/30-blueman-netdev-allow-access.rules.gz > $PKG/etc/polkit-1/rules.d/30-blueman-netdev-allow-access.rules.new
 
 # Remove the AppIndicator.py plugin (we don't have libappindicator3
 # nor will we be getting it in the foreseeable future)

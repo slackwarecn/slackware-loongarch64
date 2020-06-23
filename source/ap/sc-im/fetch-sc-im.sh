@@ -36,7 +36,7 @@ git clone https://github.com/andmarti1424/sc-im
 
 HEADISAT="$( cd sc-im && git log -1 --format=%h )"
 DATE="$( cd sc-im && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd sc-im && git log -1 --date=format:%c | grep Date: | cut -f 2- -d : )"
+LONGDATE="$( cd sc-im && git log -1 --format=%ad --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd sc-im && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv sc-im sc-im-${DATE}_${HEADISAT}

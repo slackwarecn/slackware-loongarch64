@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,18 +22,19 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=rsync
+PKGNAM=xxHash
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -48,23 +49,34 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
 fi
 
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-rsync
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf rsync-$VERSION
-tar xvf $CWD/rsync-$VERSION.tar.?z || exit 1
-cd rsync-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -73,48 +85,35 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --build=$ARCH-slackware-linux || exit 1
+export CFLAGS="$SLKCFLAGS"
 
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit
+PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man/man1 make $NUMJOBS || exit 1
+PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} MANDIR=/usr/man/man1 DESTDIR=$PKG make install || exit 1
 
-mv $PKG/usr/share/man $PKG/usr
-rmdir $PKG/usr/share
+# Fix pkgconfig libdir:
+sed -i "s|\${exec_prefix}/lib|\${exec_prefix}/lib${LIBDIRSUFFIX}|g" $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/libxxhash.pc
 
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1 | grep -v '\.gz$') ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
+# Don't package static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
-mkdir -p $PKG/usr/doc/rsync-$VERSION/popt
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  COPYING* INSTALL NEWS README* TODO tech_report.tex \
-  support \
-  $PKG/usr/doc/rsync-$VERSION
-( cd popt
-  cp -a CHANGES COPYING README README.rsync $PKG/usr/doc/rsync-$VERSION/popt
-)
-
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  CHANGELOG* LICENSE* README* doc/xxhash_spec* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/rsync-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

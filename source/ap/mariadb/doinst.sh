@@ -23,7 +23,9 @@ config etc/mysqlaccess.conf.new
 config etc/my.cnf.new
 config etc/my.cnf.d/client.cnf.new
 config etc/my.cnf.d/mysql-clients.cnf.new
+config etc/my.cnf.d/s3.cnf.new
 config etc/my.cnf.d/server.cnf.new
+config etc/my.cnf.d/spider.cnf.new
 config etc/logrotate.d/mysql.new
 
 # Not supported in every $ARCH:

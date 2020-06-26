@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,15 +23,18 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sysklogd
-VERSION=1.5.1
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
+# Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
-       *) export ARCH=$( uname -m ) ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -44,15 +47,37 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-sysklogd
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
+
 cd $TMP
-rm -rf sysklogd-$VERSION
-tar xvf $CWD/sysklogd-$VERSION.tar.gz || exit 1
-cd sysklogd-$VERSION
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -60,30 +85,24 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Use memmove() instead of strcpy() in syslogd.c
-zcat $CWD/use_memmove_not_strcpy.diff.gz | patch -p1 --verbose || exit 1
+# Configure, build, and install:
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --disable-static \
+  --without-logger \
+  --build=$ARCH-slackware-linux || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
 
-# Allow -c option to log all (even repeated) messages:
-zcat $CWD/sysklogd.allow.repeated.messages.diff.gz | patch -p1 --verbose || exit 1
-
-# union wait removed in glibc, use int instead:
-zcat $CWD/sysklogd.union.wait.int.diff.gz | patch -p1 --verbose || exit 1
-
-make all syslog_tst $NUMJOBS || make || exit 1
-
-mkdir -p $PKG/usr/sbin
-cat klogd > $PKG/usr/sbin/klogd
-cat syslog_tst > $PKG/usr/sbin/syslog_tst
-cat syslogd > $PKG/usr/sbin/syslogd
-chmod 0755 $PKG/usr/sbin/*
-
-mkdir -p $PKG/usr/man/man{5,8}
-cat syslog.conf.5 | gzip -9c > $PKG/usr/man/man5/syslog.conf.5.gz
-cat klogd.8 | gzip -9c > $PKG/usr/man/man8/klogd.8.gz
-cat sysklogd.8 | gzip -9c > $PKG/usr/man/man8/sysklogd.8.gz
-( cd $PKG/usr/man/man8 ; ln -s sysklogd.8.gz syslogd.8.gz )
-
-mkdir -p $PKG/etc
+mkdir -p $PKG/etc/syslog.d
 cat $CWD/config/syslog.conf.new > $PKG/etc/syslog.conf.new
 
 mkdir -p $PKG/etc/logrotate.d
@@ -93,25 +112,53 @@ mkdir -p $PKG/etc/rc.d
 cat $CWD/config/rc.syslog.new > $PKG/etc/rc.d/rc.syslog.new
 chmod 0755 $PKG/etc/rc.d/rc.syslog.new
 
+mkdir -p $PKG/etc/default
+cat $CWD/config/syslogd.new > $PKG/etc/default/syslogd.new
+
 mkdir -p $PKG/var/log
-for i in cron debug maillog messages secure spooler syslog ; do
+for i in cron debug maillog messages secure syslog ; do
   touch $PKG/var/log/$i.new
   chmod 640 $PKG/var/log/$i.new
 done
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-mkdir -p $PKG/usr/doc/sysklogd-$VERSION
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  ANNOUNCE CHANGES COPYING INSTALL MANIFEST NEWS README.1st README.linux \
-  $PKG/usr/doc/sysklogd-$VERSION
-chmod 0644 $PKG/usr/doc/sysklogd-$VERSION/*
+  ChangeLog* COPYING* LICENSE* NEWS* README* THANKS* TODO* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog.md | head -n 1000 > $DOCSDIR/ChangeLog.md
+  touch -r ChangeLog.md $DOCSDIR/ChangeLog.md
+fi
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
-zcat $CWD/doinst.sh > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/sysklogd-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

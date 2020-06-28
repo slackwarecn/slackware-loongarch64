@@ -239,6 +239,7 @@ gzip ./source/a/util-linux/util-linux.fdisk-no-solaris.diff
 gzip ./source/a/util-linux/adjtimex_1.29-2.2.diff
 gzip ./source/a/util-linux/doinst.sh
 gzip ./source/a/util-linux/ziptool-fix_build.patch
+gzip ./source/a/util-linux/util-linux.chfn.diff
 gzip ./source/a/sharutils/sharutils.glibc228.diff
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-manpage-fix.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-cve-2018-1000035-heap-based-overflow.patch
@@ -1250,6 +1251,7 @@ gzip ./source/x/scim-hangul/scim-hangul-0.3.2+gcc-4.3.patch
 gzip ./source/x/scim-hangul/scim-hangul-0.4.0+gtk.patch
 gzip ./source/x/scim-hangul/scim-hangul-0.3.2+gcc-4.7.patch
 gzip ./source/x/dejavu-fonts-ttf/doinst.sh
+gzip ./source/x/libwacom/libwacom.joystick_property_matching.patch
 gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch

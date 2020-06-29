@@ -233,13 +233,13 @@ gzip ./source/a/shadow/doinst.sh
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff
 gzip ./source/a/util-linux/setserial-rc.serial.diff
+gzip ./source/a/util-linux/0001-chfn-Make-readline-prompt-for-each-field-on-a-separa.patch
 gzip ./source/a/util-linux/util-linux.do.not.list.ram.devices.diff
 gzip ./source/a/util-linux/bsdstrings-util-linux_overflow.diff
 gzip ./source/a/util-linux/util-linux.fdisk-no-solaris.diff
 gzip ./source/a/util-linux/adjtimex_1.29-2.2.diff
 gzip ./source/a/util-linux/doinst.sh
 gzip ./source/a/util-linux/ziptool-fix_build.patch
-gzip ./source/a/util-linux/util-linux.chfn.diff
 gzip ./source/a/sharutils/sharutils.glibc228.diff
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-manpage-fix.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-cve-2018-1000035-heap-based-overflow.patch

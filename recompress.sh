@@ -1251,7 +1251,6 @@ gzip ./source/x/scim-hangul/scim-hangul-0.3.2+gcc-4.3.patch
 gzip ./source/x/scim-hangul/scim-hangul-0.4.0+gtk.patch
 gzip ./source/x/scim-hangul/scim-hangul-0.3.2+gcc-4.7.patch
 gzip ./source/x/dejavu-fonts-ttf/doinst.sh
-gzip ./source/x/libwacom/libwacom.joystick_property_matching.patch
 gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch

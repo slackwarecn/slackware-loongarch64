@@ -907,7 +907,6 @@ gzip ./source/l/netpbm/netpbm-libdir-so.patch
 gzip ./source/l/netpbm/netpbm-manfix.patch
 gzip ./source/l/netpbm/netpbm-time.patch
 gzip ./source/l/netpbm/netpbm-python3.patch
-gzip ./source/l/netpbm/netpbm-fiasco-overflow.patch
 gzip ./source/l/netpbm/netpbm-security-code.patch
 gzip ./source/l/netpbm/netpbm-pamtojpeg2k.patch
 gzip ./source/l/netpbm/netpbm-ppmfadeusage.patch

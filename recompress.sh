@@ -28,7 +28,6 @@ gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
 gzip ./extra/source/bittornado/doinst.sh
 gzip ./extra/source/sendmail/Build
-gzip ./extra/source/sendmail/openssl-1.1.0.patch
 gzip ./extra/source/tigervnc/patches/tigervnc13_link_png.patch
 gzip ./extra/source/tigervnc/patches/force_protocol_3.3_for_UVNCSC.patch
 gzip ./extra/source/tigervnc/patches/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch

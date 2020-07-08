@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@ BRANCH=${1:-master}
 rm -rf xf86-video-sis
 
 # Clone repository:
-git clone git://git.freedesktop.org/git/xorg/driver/xf86-video-sis/
+git clone https://gitlab.freedesktop.org/xorg/driver/xf86-video-sis/
 
 # checkout $BRANCH:
 ( cd xf86-video-sis 
@@ -36,12 +36,14 @@ git clone git://git.freedesktop.org/git/xorg/driver/xf86-video-sis/
 
 HEADISAT="$( cd xf86-video-sis && git log -1 --format=%h )"
 DATE="$( cd xf86-video-sis && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd xf86-video-sis && git log -1 --format=%ad --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-sis && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv xf86-video-sis xf86-video-sis-${DATE}_${HEADISAT}
 tar cf xf86-video-sis-${DATE}_${HEADISAT}.tar xf86-video-sis-${DATE}_${HEADISAT}
 xz -9 -f xf86-video-sis-${DATE}_${HEADISAT}.tar
 rm -rf xf86-video-sis-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" xf86-video-sis-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "xf86-video-sis branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-sis-${DATE}_${HEADISAT}.tar.xz"
 echo

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@ BRANCH=${1:-master}
 rm -rf xf86-video-v4l
 
 # Clone repository:
-git clone git://git.freedesktop.org/git/xorg/driver/xf86-video-v4l/
+git clone https://gitlab.freedesktop.org/xorg/driver/xf86-video-v4l/
 
 # checkout $BRANCH:
 ( cd xf86-video-v4l 
@@ -36,12 +36,14 @@ git clone git://git.freedesktop.org/git/xorg/driver/xf86-video-v4l/
 
 HEADISAT="$( cd xf86-video-v4l && git log -1 --format=%h )"
 DATE="$( cd xf86-video-v4l && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd xf86-video-v4l && git log -1 --format=%ad --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-v4l && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv xf86-video-v4l xf86-video-v4l-${DATE}_${HEADISAT}
 tar cf xf86-video-v4l-${DATE}_${HEADISAT}.tar xf86-video-v4l-${DATE}_${HEADISAT}
 xz -9 -f xf86-video-v4l-${DATE}_${HEADISAT}.tar
 rm -rf xf86-video-v4l-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" xf86-video-v4l-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "xf86-video-v4l branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-v4l-${DATE}_${HEADISAT}.tar.xz"
 echo

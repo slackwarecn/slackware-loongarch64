@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2016  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2016, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -36,12 +36,14 @@ git clone git://anongit.freedesktop.org/git/openchrome/xf86-video-openchrome/
 
 HEADISAT="$( cd xf86-video-openchrome && git log -1 --format=%h )"
 DATE="$( cd xf86-video-openchrome && git log -1 --format=%ad --date=format:%Y%m%d )"
+LONGDATE="$( cd xf86-video-openchrome && git log -1 --format=%ad --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-openchrome && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv xf86-video-openchrome xf86-video-openchrome-${DATE}_${HEADISAT}
 tar cf xf86-video-openchrome-${DATE}_${HEADISAT}.tar xf86-video-openchrome-${DATE}_${HEADISAT}
 xz -9 -f xf86-video-openchrome-${DATE}_${HEADISAT}.tar
 rm -rf xf86-video-openchrome-${DATE}_${HEADISAT}
+touch -d "$LONGDATE" xf86-video-openchrome-${DATE}_${HEADISAT}.tar.xz
 echo
 echo "xf86-video-openchrome branch $BRANCH with HEAD at $HEADISAT packaged as xf86-video-openchrome-${DATE}_${HEADISAT}.tar.xz"
 echo

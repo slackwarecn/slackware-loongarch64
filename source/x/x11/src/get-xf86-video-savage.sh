@@ -35,8 +35,8 @@ git clone https://gitlab.freedesktop.org/xorg/driver/xf86-video-savage/
 )
 
 HEADISAT="$( cd xf86-video-savage && git log -1 --format=%h )"
-DATE="$( cd xf86-video-savage && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd xf86-video-savage && git log -1 --format=%ad --date=format:%c )"
+DATE="$( cd xf86-video-savage && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd xf86-video-savage && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-savage && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv xf86-video-savage xf86-video-savage-${DATE}_${HEADISAT}

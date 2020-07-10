@@ -35,7 +35,7 @@ git clone git://net-tools.git.sourceforge.net/gitroot/net-tools/net-tools/
 )
 
 HEADISAT="$( cd net-tools && git log -1 --format=%h )"
-DATE="$( cd net-tools && git log -1 --format=%ad --date=format:%Y%m%d )"
+DATE="$( cd net-tools && git log -1 --format=%cd --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd net-tools && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv net-tools net-tools-${DATE}_${HEADISAT}

@@ -37,7 +37,7 @@ git clone git://github.com/strace/${PKGNAM}
 )
 
 HEADISAT="$( cd ${PKGNAM} && git log -1 --format=%h )"
-DATE="$( cd ${PKGNAM} && git log -1 --format=%ad --date=format:%Y%m%d )"
+DATE="$( cd ${PKGNAM} && git log -1 --format=%cd --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd ${PKGNAM} && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv ${PKGNAM} ${PKGNAM}-${DATE}_${HEADISAT}

@@ -40,7 +40,7 @@ git clone git://git.ghostscript.com/urw-core35-fonts.git
 )
 
 HEADISAT="$( cd urw-core35-fonts && git log -1 --format=%h )"
-DATE="$( cd urw-core35-fonts && git log -1 --format=%ad --date=format:%Y%m%d )"
+DATE="$( cd urw-core35-fonts && git log -1 --format=%cd --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd urw-core35-fonts && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv urw-core35-fonts urw-core35-fonts-otf-${DATE}_${HEADISAT}_git

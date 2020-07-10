@@ -35,8 +35,8 @@ git clone https://gitlab.freedesktop.org/xorg/driver/xf86-video-sis/
 )
 
 HEADISAT="$( cd xf86-video-sis && git log -1 --format=%h )"
-DATE="$( cd xf86-video-sis && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd xf86-video-sis && git log -1 --format=%ad --date=format:%c )"
+DATE="$( cd xf86-video-sis && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd xf86-video-sis && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-sis && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv xf86-video-sis xf86-video-sis-${DATE}_${HEADISAT}

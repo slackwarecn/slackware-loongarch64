@@ -38,7 +38,7 @@ LXC_MAJOR=$(cd lxc && grep "^m4_define(\[lxc_version_major" configure.ac | cut -
 LXC_MINOR=$(cd lxc && grep "^m4_define(\[lxc_version_minor" configure.ac | cut -f 2 -d ' ' | tr -d ')')
 LXC_MICRO=$(cd lxc && grep "^m4_define(\[lxc_version_micro" configure.ac | cut -f 2 -d ' ' | tr -d ')')
 HEADISAT="$( cd lxc && git log -1 --format=%h )"
-DATE="$( cd lxc && git log -1 --format=%ad --date=format:%Y%m%d )"
+DATE="$( cd lxc && git log -1 --format=%cd --date=format:%Y%m%d )"
 
 # Cleanup.  We're not packing up the whole git repo.
 ( cd lxc && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )

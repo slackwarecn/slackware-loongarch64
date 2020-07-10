@@ -1574,6 +1574,7 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     mv staging staging.orig
     mv staging.orig/hv staging
     mv staging.orig/exfat staging
+    mv staging.orig/speakup staging
     rm -rf${VERBOSE1} staging.orig
     # Save the Hyper-V keyboard module:
     mkdir -p input.orig/serio

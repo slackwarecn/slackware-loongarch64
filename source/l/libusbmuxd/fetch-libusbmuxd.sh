@@ -35,8 +35,8 @@ git clone https://github.com/libimobiledevice/libusbmuxd
 )
 
 HEADISAT="$( cd libusbmuxd && git log -1 --format=%h )"
-DATE="$( cd libusbmuxd && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd libusbmuxd && git log -1 --format=%ad --date=format:%c )"
+DATE="$( cd libusbmuxd && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd libusbmuxd && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd libusbmuxd && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv libusbmuxd libusbmuxd-${DATE}_${HEADISAT}

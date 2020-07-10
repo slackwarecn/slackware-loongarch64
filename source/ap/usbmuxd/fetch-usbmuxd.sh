@@ -35,8 +35,8 @@ git clone https://github.com/libimobiledevice/usbmuxd
 )
 
 HEADISAT="$( cd usbmuxd && git log -1 --format=%h )"
-DATE="$( cd usbmuxd && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd usbmuxd && git log -1 --format=%ad --date=format:%c )"
+DATE="$( cd usbmuxd && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd usbmuxd && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd usbmuxd && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv usbmuxd usbmuxd-${DATE}_${HEADISAT}

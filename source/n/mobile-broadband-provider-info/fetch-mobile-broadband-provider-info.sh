@@ -35,8 +35,8 @@ git clone https://gitlab.gnome.org/GNOME/mobile-broadband-provider-info.git
 )
 
 HEADISAT="$( cd mobile-broadband-provider-info && git log -1 --format=%h )"
-DATE="$( cd mobile-broadband-provider-info && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd mobile-broadband-provider-info && git log -1 --format=%ad --date=format:%c )"
+DATE="$( cd mobile-broadband-provider-info && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd mobile-broadband-provider-info && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd mobile-broadband-provider-info && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv mobile-broadband-provider-info mobile-broadband-provider-info-${DATE}_${HEADISAT}

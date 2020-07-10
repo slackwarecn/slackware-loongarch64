@@ -35,8 +35,8 @@ git clone git://anongit.freedesktop.org/git/openchrome/xf86-video-openchrome/
 )
 
 HEADISAT="$( cd xf86-video-openchrome && git log -1 --format=%h )"
-DATE="$( cd xf86-video-openchrome && git log -1 --format=%ad --date=format:%Y%m%d )"
-LONGDATE="$( cd xf86-video-openchrome && git log -1 --format=%ad --date=format:%c )"
+DATE="$( cd xf86-video-openchrome && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd xf86-video-openchrome && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd xf86-video-openchrome && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv xf86-video-openchrome xf86-video-openchrome-${DATE}_${HEADISAT}

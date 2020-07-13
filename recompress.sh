@@ -526,7 +526,6 @@ gzip ./source/n/netkit-rwho/rwhod_getloadavg.diff
 gzip ./source/n/netkit-rwho/netkit-rwho-0.17.diff
 gzip ./source/n/ebtables/doinst.sh
 gzip ./source/n/ModemManager/WeDoNotHaveSystemD.patch
-gzip ./source/n/libmilter/sendmail-8.15.2-gethostbyname2.patch
 gzip ./source/n/obexftp/patches/obexftp-norpath.patch
 gzip ./source/n/obexftp/patches/obexftp-0.24-fix-absurd-install-path.patch
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch

@@ -14,3 +14,6 @@ config() {
 config etc/soma/stations.conf.new
 config etc/soma/options.conf.new
 
+if [ -x /usr/bin/update-desktop-database ]; then
+  /usr/bin/update-desktop-database -q usr/share/applications >/dev/null 2>&1
+fi

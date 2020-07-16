@@ -1224,6 +1224,8 @@ gzip ./source/xap/easytag/easytag.revert.ogg.handle.patch
 gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
+gzip ./source/xap/pan/495bfb2eb9228b5b5cef8b50e11af577e4b473f8.patch
+gzip ./source/xap/pan/0d775547f0e7cf7529538704814469e1db5496f2.patch
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff

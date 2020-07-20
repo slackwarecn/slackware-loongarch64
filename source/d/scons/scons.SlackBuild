@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=scons
 VERSION=${VERSION:-$(echo scons-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -66,9 +66,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf scons-$VERSION
+rm -rf SCons-$VERSION scons-$VERSION
 tar xvf $CWD/scons-$VERSION.tar.*z* || exit 1
-cd scons-$VERSION || exit 1
+cd SCons-$VERSION || scons-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -76,10 +76,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-python3 setup.py install \
-  --no-version-script \
-  --standard-lib \
-  --root=$PKG || exit 1
+python3 setup.py install --root=$PKG || exit 1
 
 # Fix shebangs for python3:
 sed -i "s|env python$|env python3|" $PKG/usr/bin/*
@@ -90,19 +87,32 @@ rm -f $PKG/usr/bin/*.bat
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \+
-  for i in $( find . -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
-)
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# For some reason, SCons no longer ships a man page. If there is not a man page
+# present, install the last known version. It's better than nothing.
+if [ ! -r $PKG/usr/man/man1/scons.1.gz ]; then
+  mkdir -p $PKG/usr/man/man1
+  cp -a $CWD/scons.1.gz $PKG/usr/man/man1
+else
+  echo "ERROR: actually found scons man page! Please comment out the section of"
+  echo "the build script that tries to install it, and delete the old man page."
+  exit 1
+fi
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/
 cp -a \
-  *.txt MANIFEST PKG-INFO \
+  LICENSE* PKG-INFO* README* \
   $PKG/usr/doc/$PKGNAM-$VERSION/
+chmod 644 $PKG/usr/doc/$PKGNAM-$VERSION/*
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

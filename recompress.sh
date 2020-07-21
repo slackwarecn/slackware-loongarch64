@@ -1044,6 +1044,8 @@ gzip ./source/l/svgalib/svgalib-1.9.25-vga_getmodenumber.patch
 gzip ./source/l/svgalib/svgalib.prefix.diff
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/ilmbase/ilmbase-2.2.0-no_undefined.patch
+gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-change-in-GNU-.patch
+gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
 gzip ./source/l/qtscriptgenerator/include-everything.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff

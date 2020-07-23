@@ -233,7 +233,6 @@ gzip ./source/a/shadow/doinst.sh
 gzip ./source/a/pciutils/pciutils.dontcompress.diff
 gzip ./source/a/util-linux/setserial-undef_TIOCGHAYESESP.diff
 gzip ./source/a/util-linux/setserial-rc.serial.diff
-gzip ./source/a/util-linux/0001-chfn-Make-readline-prompt-for-each-field-on-a-separa.patch
 gzip ./source/a/util-linux/util-linux.do.not.list.ram.devices.diff
 gzip ./source/a/util-linux/bsdstrings-util-linux_overflow.diff
 gzip ./source/a/util-linux/util-linux.fdisk-no-solaris.diff

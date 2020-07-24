@@ -1118,6 +1118,7 @@ gzip ./source/l/qca/qca.tlsunittest.cpp.diff
 gzip ./source/l/qca/Add_support_for_OpenSSL_1.1.0.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-thunderbird/thunderbird.rust-1.45.diff
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
@@ -1156,6 +1157,7 @@ gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/doinst.sh
+gzip ./source/xap/seamonkey/seamonkey.rust-1.45.diff
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
@@ -1235,6 +1237,7 @@ gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/unbreakdocs.diff
+gzip ./source/xap/mozilla-firefox/firefox.rust-1.45.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/x/liberation-fonts-ttf/doinst.sh

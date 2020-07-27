@@ -1238,7 +1238,6 @@ gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/unbreakdocs.diff
-gzip ./source/xap/mozilla-firefox/firefox.rust-1.45.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/x/liberation-fonts-ttf/doinst.sh

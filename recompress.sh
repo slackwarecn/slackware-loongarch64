@@ -1243,6 +1243,8 @@ gzip ./source/x/liberation-fonts-ttf/doinst.sh
 gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
+gzip ./source/x/noto-fonts-ttf/doinst.sh
+gzip ./source/x/hack-fonts-ttf/doinst.sh
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff
 gzip ./source/x/wqy-zenhei-font-ttf/fixup-fontconfig-file.diff
 gzip ./source/x/wqy-zenhei-font-ttf/64-wqy-zenhei.conf
@@ -1252,6 +1254,7 @@ gzip ./source/x/scim-hangul/scim-hangul-0.3.2+gcc-4.3.patch
 gzip ./source/x/scim-hangul/scim-hangul-0.4.0+gtk.patch
 gzip ./source/x/scim-hangul/scim-hangul-0.3.2+gcc-4.7.patch
 gzip ./source/x/dejavu-fonts-ttf/doinst.sh
+gzip ./source/x/noto-cjk-fonts-ttf/doinst.sh
 gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch

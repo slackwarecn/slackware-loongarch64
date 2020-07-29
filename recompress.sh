@@ -3,7 +3,6 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
-gzip ./extra/source/emacspeak/emacspeak.tcl8.6.diff
 gzip ./extra/source/xv/xv-3.10a.patch
 gzip ./extra/source/xv/xv-libpng-1.5.patch
 gzip ./extra/source/xv/xv.prefix_x86_64.diff

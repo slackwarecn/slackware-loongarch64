@@ -15,12 +15,6 @@ gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Make-Unique-support-option
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Use-datadir-xfce4-mixer-as-MIXER_DATADIR.patch
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/doinst.sh
 gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-icons-Makefile.am-Remove-unnecessary-gtk-update-icon.patch
-gzip ./extra/source/wicd/wicd-1421918.patch
-gzip ./extra/source/wicd/curses_bitrate_fix.patch
-gzip ./extra/source/wicd/manually-compile-translations.diff
-gzip ./extra/source/wicd/doinst.sh
-gzip ./extra/source/wicd/wicd.netentry_curses.py.save.settings.patch
-gzip ./extra/source/wicd/wicd-1.7.3-urwid-1.3.0.patch
 gzip ./extra/source/recordmydesktop/recordmydesktop-bitrate.patch
 gzip ./extra/source/recordmydesktop/shmstr-to-shmproto.patch
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff

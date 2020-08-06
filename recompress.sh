@@ -1304,7 +1304,6 @@ gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-head
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
-gzip ./source/x/x11/patch/libX11/libX11.fix_size.diff
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./testing/source/gcc10/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./testing/source/gcc10/patches/gcc-no_fixincludes.diff

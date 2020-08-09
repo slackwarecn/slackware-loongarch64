@@ -563,11 +563,6 @@ gzip ./source/n/telnet/netkit-telnet-0.17-ayt.patch
 gzip ./source/n/alpine/pinepgp-0.18.0-makefile-sed-fix.diff
 gzip ./source/n/alpine/alpine.manpage.diff
 gzip ./source/n/alpine/pinepgp.pinegpgp.in.diff
-gzip ./source/n/pssh/pssh-read-stdin-as-bytes-in-Python-3.patch
-gzip ./source/n/pssh/pssh-2.3.1-py3-str-bytes-encode.patch
-gzip ./source/n/pssh/pssh-2.3.1-py3-import.patch
-gzip ./source/n/pssh/pssh-2.3.1-py3-non-blocking.patch
-gzip ./source/n/pssh/pssh-2.3.1-py3-min-int-none.patch
 gzip ./source/n/nn/nn.glibc-2.30.diff
 gzip ./source/n/nn/nn.diff
 gzip ./source/n/nn/nn_6.7.3-10.diff

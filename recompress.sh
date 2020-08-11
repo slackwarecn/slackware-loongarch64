@@ -86,7 +86,6 @@ gzip ./source/d/make/make.guile30.diff
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/scons/scons.1
-gzip ./source/e/emacs/0001-Support-ImageMagick-version-7.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch

@@ -492,21 +492,12 @@ gzip ./source/n/pidentd/doinst.sh
 gzip ./source/n/pidentd/pidentd.conf.diff
 gzip ./source/n/autofs/doinst.sh
 gzip ./source/n/net-snmp/net-snmp-5.7.2-cert-path.patch
-gzip ./source/n/net-snmp/net-snmp-5.8-agentx-disconnect-crash.patch
-gzip ./source/n/net-snmp/net-snmp-5.7.2-pie.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-Remove-U64-typedef.patch
-gzip ./source/n/net-snmp/net-snmp-5.8-autofs-skip.patch
-gzip ./source/n/net-snmp/net-snmp-5.8-python3.patch
-gzip ./source/n/net-snmp/net-snmp-5.7.2-autoreconf.patch
-gzip ./source/n/net-snmp/net-snmp-5.8-cflags.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-multilib.patch
 gzip ./source/n/net-snmp/snmpd.conf
 gzip ./source/n/net-snmp/doinst.sh
-gzip ./source/n/net-snmp/net-snmp-5.8-libnetsnmptrapd-against-MYSQL_LIBS.patch
-gzip ./source/n/net-snmp/net-snmp-5.8-dir-fix.patch
 gzip ./source/n/net-snmp/net-snmp-5.7.3-iterator-fix.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-modern-rpm-api.patch
-gzip ./source/n/net-snmp/net-snmp-5.8-test-debug.patch
 gzip ./source/n/uucp/policy.h.diff
 gzip ./source/n/ulogd/doinst.sh
 gzip ./source/n/openssl/doinst.sh-openssl-solibs
@@ -832,7 +823,6 @@ gzip ./source/l/gtk+/gtk+-1.2.10-ukfont.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-fontwarning.patch
 gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff
-gzip ./source/l/boost/boost-1.73-geometry-issue721.patch
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff
@@ -1215,6 +1205,7 @@ gzip ./source/xap/easytag/easytag.revert.ogg.handle.patch
 gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
+gzip ./source/xap/ssr/doinst.sh
 gzip ./source/xap/pan/495bfb2eb9228b5b5cef8b50e11af577e4b473f8.patch
 gzip ./source/xap/pan/0d775547f0e7cf7529538704814469e1db5496f2.patch
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff

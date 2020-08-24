@@ -660,8 +660,6 @@ fi
 chown -R root:root .
 
 # Copy config:
-# If we you rather like bash instead of busybox's ash, you'll need to adjust
-# the symlinks in /bin and stuff.
 install -m644 $BUSYBOXCFG .config
 
 # Build:
@@ -682,6 +680,11 @@ rm -f${VERBOSE1} sbin/fdisk
 rm -f${VERBOSE1} bin/cp
 
 cp --remove-destination -fa${VERBOSE2} * $PKG/$ARCH-installer-filesystem/
+
+# If we built bin/env, make a link in usr/bin as well:
+if [ -x $PKG/$ARCH-installer-filesystem/bin/env ]; then
+  ( cd $PKG/$ARCH-installer-filesystem/usr/bin ; ln -sf ../../bin/env . )
+fi
 
 }
 

@@ -628,7 +628,6 @@ gzip ./source/n/openssh/sshd_config-pam.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/iputils/iputils.docbook.revert.diff
-gzip ./source/n/iputils/iputils.libcap-2.30.patch
 gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/bind/doinst.sh
@@ -1224,6 +1223,7 @@ gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/noto-fonts-ttf/doinst.sh
+gzip ./source/x/libinput/libinput.less.lag.complaining.diff
 gzip ./source/x/hack-fonts-ttf/doinst.sh
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff
 gzip ./source/x/wqy-zenhei-font-ttf/fixup-fontconfig-file.diff

@@ -885,7 +885,6 @@ gzip ./source/l/netpbm/netpbm-python3.patch
 gzip ./source/l/netpbm/netpbm-security-code.patch
 gzip ./source/l/netpbm/netpbm-pamtojpeg2k.patch
 gzip ./source/l/netpbm/netpbm-ppmfadeusage.patch
-gzip ./source/l/netpbm/netpbm-userguide.patch
 gzip ./source/l/netpbm/netpbm-cmuwtopbm.patch
 gzip ./source/l/netpbm/netpbm-CVE-2017-2587.patch
 gzip ./source/l/netpbm/netpbm-security-scripts.patch

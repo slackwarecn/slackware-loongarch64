@@ -1283,6 +1283,7 @@ gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.pa
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
+gzip ./source/x/x11/patch/xorg-server/fix-pci-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff

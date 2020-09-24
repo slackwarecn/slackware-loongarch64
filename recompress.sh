@@ -1285,12 +1285,6 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/xcm/xcm.udev.rules.diff
-gzip ./testing/source/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./testing/source/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./testing/source/mozilla-thunderbird/tb.ui.scrollToClick.diff
-gzip ./testing/source/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
-gzip ./testing/source/mozilla-thunderbird/unbreakdocs.diff
-gzip ./testing/source/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./testing/source/gcc10/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./testing/source/gcc10/patches/gcc-no_fixincludes.diff
 gzip ./pasture/source/php/php-fpm.conf.diff

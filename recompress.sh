@@ -196,6 +196,7 @@ gzip ./source/a/pam/fedora-patches/pam-1.1.6-limits-user.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.0-pwhistory-helper.patch
 gzip ./source/a/pam/fedora-patches/pam-1.3.0-unix-nomsg.patch
 gzip ./source/a/pam/doinst.sh
+gzip ./source/a/glibc-zoneinfo/zic.default.fat
 gzip ./source/a/glibc-zoneinfo/doinst.sh
 gzip ./source/a/efibootmgr/f862d860103511ae953cc2dd1283e1e95bf00376.patch
 gzip ./source/a/minicom/lrzsz_0.12.21-5.diff
@@ -1002,7 +1003,6 @@ gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.csh
-gzip ./source/l/freetype/freetype.illadvisederror.diff
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff
 gzip ./source/l/sdl/sdl-1.2.14-fix-mouse-clicking.patch

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2015, 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=glibc-zoneinfo
 ZONE_VERSIONS="$(echo tzdata* | cut -f1 -d . | cut -b7-11)"
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -84,8 +84,12 @@ cd $TMP
 rm -rf tzcodedata-build
 mkdir tzcodedata-build
 cd tzcodedata-build
-tar xzf $CWD/tzdata?????.tar.gz || exit 1
 tar xzf $CWD/tzcode?????.tar.gz || exit 1
+tar xzf $CWD/tzdata?????.tar.gz || exit 1
+
+# Default to more bloated (but more compatible) "fat" format with zic.
+# This was the default prior to tzcode2020b.
+zcat $CWD/zic.default.fat.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \

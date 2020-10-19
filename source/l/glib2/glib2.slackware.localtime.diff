@@ -1,6 +1,7 @@
-From 4ac2d88f3153d8cdaa003601363e71f46820a187 Mon Sep 17 00:00:00 2001
+From 05690c6bdb6751278352fefe96061395de490663 Mon Sep 17 00:00:00 2001
+
 From: Patrick J. Volkerding <volkerdi@slackware.com>
-Date: Tue, 20 Nov 2018 13:26:57 -0600
+Date: Mon, 19 Oct 2020 12:54:57 -0600
 Subject: [PATCH] Also look at /etc/localtime-copied-from
 
 In Slackware, /etc/localtime is a copy of the local timezone file, not a
@@ -12,26 +13,23 @@ systems this will be a symlink to the local timezone file under
 /etc/localtime *is* a symlink first though, since that's an acceptable
 local system modification on Slackware.
 
---- ./glib/gtimezone.c.orig	2018-09-21 09:23:53.000000000 -0500
-+++ ./glib/gtimezone.c	2018-11-20 13:11:31.601643410 -0600
-@@ -440,6 +440,20 @@
+--- ./glib/gtimezone.c.orig	2020-10-19 10:05:31.300005400 -0500
++++ ./glib/gtimezone.c	2020-10-19 13:04:58.796033505 -0500
+@@ -451,6 +451,17 @@
  
-       /* Resolve the actual timezone pointed to by /etc/localtime. */
-       resolved_identifier = g_file_read_link (filename, &read_link_err);
+   /* Resolve the actual timezone pointed to by /etc/localtime. */
+   resolved_identifier = g_file_read_link ("/etc/localtime", &read_link_err);
 +
-+      /* If we didn't get the timezone here (probably because
-+       * /etc/localtime is not a symlink), then we will try again using
-+       * /etc/localtime-copied-from, which on Slackware is a symlink to
-+       * the local timezone file. */
-+      if (resolved_identifier == NULL)
-+        {
-+          filename = g_strdup ("/etc/localtime-copied-from");
-+          g_clear_error (&read_link_err);
-+          resolved_identifier = g_file_read_link (filename, &read_link_err);
-+        }
++  /* If we didn't get the timezone here (probably because
++   * /etc/localtime is not a symlink), then we will try again using
++   * /etc/localtime-copied-from, which on Slackware is a symlink to
++   * the local timezone file. */
++  if (resolved_identifier == NULL)
++    {
++      g_clear_error (&read_link_err);
++      resolved_identifier = g_file_read_link ("/etc/localtime-copied-from", &read_link_err);
++    }
 +
-+      /* Test that we got the resolved_identifier. If not, fall back on the
-+       * last option (/var/db/zoneinfo file, as found on FreeBSD) */
-       if (resolved_identifier == NULL)
-         {
-           gboolean not_a_symlink = g_error_matches (read_link_err,
+   if (resolved_identifier == NULL)
+     {
+       gboolean not_a_symlink = g_error_matches (read_link_err,

@@ -610,8 +610,6 @@ gzip ./source/n/htdig/doinst.sh
 gzip ./source/n/netwrite/netwrite-0.17.diff
 gzip ./source/n/libtirpc/doinst.sh
 gzip ./source/n/stunnel/doinst.sh
-gzip ./source/n/yptools/ypbind-mt.gettid.diff
-gzip ./source/n/yptools/yp-tools-2.14-glibc217-crypt.diff
 gzip ./source/n/yptools/nsswitch.conf-nis
 gzip ./source/n/yptools/rc.yp
 gzip ./source/n/netkit-rsh/netkit-rsh.arg_max.diff

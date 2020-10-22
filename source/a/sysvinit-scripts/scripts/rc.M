@@ -117,7 +117,7 @@ if [ -x /etc/rc.d/rc.messagebus ]; then
 fi
 
 # Start the session/seat daemon:
-if [ -x /etc/rc.d/rc.elogind ]; then
+if [ -x /etc/rc.d/rc.elogind -a -x /bin/loginctl ]; then
   /etc/rc.d/rc.elogind start
 elif [ -x /etc/rc.d/rc.consolekit -a -x /usr/sbin/console-kit-daemon ]; then
   /etc/rc.d/rc.consolekit start

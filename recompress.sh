@@ -375,8 +375,8 @@ gzip ./source/kde/patch/kdelibs/return-not-break.-copy-paste-error.patch
 gzip ./source/kde/patch/kdelibs/return-application-icons-properly.patch
 gzip ./source/kde/patch/kdelibs/coding-style-fixes.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.docbook.patch
+gzip ./source/kde/patch/kdelibs/0001-Make-kssl-compile-against-OpenSSL-1.1.0.patch
 gzip ./source/kde/patch/kdelibs/kde4libs-4.14.26.diff
-gzip ./source/kde/patch/kdelibs/kdelibs-openssl-1.1.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.upnp_conditional.patch
 gzip ./source/kde/patch/kdelibs/kdelibs.2c3762feddf7e66cf6b64d9058f625a715694a00.patch
 gzip ./source/kde/patch/ktouch/ktouch.performance.diff

@@ -34,9 +34,11 @@ gzip ./extra/source/tigervnc/patches/xserver120.patch
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
-gzip ./source/d/python3/python3.x86_64.diff
+gzip ./source/d/python3/python.sysconfig.py.x86_64.diff
 gzip ./source/d/python3/python3.no-static-library.diff
 gzip ./source/d/python3/python3.readline.set_pre_input_hook.diff
+gzip ./source/d/python3/python3.setup.py.x86_64.diff
+gzip ./source/d/python3/python3.distutils.x86_64.diff
 gzip ./source/d/autoconf/doinst.sh
 gzip ./source/d/pmake/pmake_1.111-1.diff
 gzip ./source/d/pmake/pmake.txt
@@ -1292,3 +1294,4 @@ gzip ./pasture/source/php/php.ini-development.diff
 bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt
+bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log

@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libxml2
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -80,6 +80,11 @@ find . \
   -exec chmod 644 {} \+
 
 zcat $CWD/libxml2.do-not-check-crc.diff.gz | patch -p1 --verbose || exit 1
+
+# Fixes for python-3.9.x:
+sed -i '/if Py/{s/Py/(Py/;s/)/))/}' python/{types.c,libxml.c}
+sed -i '/_PyVerify_fd/,+1d' python/types.c
+sed -i 's/test.test/#&/' python/tests/tstLastError.py
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \

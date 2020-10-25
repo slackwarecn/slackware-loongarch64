@@ -29,7 +29,7 @@ PKGNAM=python3
 SRCNAM=Python
 VERSION=$(echo $SRCNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 BRANCH_VERSION=$(echo $VERSION | cut -f 1,2 -d . )
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -81,12 +81,15 @@ tar xf $CWD/$SRCNAM-$VERSION.tar.xz || exit 1
 cd $SRCNAM-$VERSION || exit 1
 
 zcat $CWD/python3.readline.set_pre_input_hook.diff.gz | patch -p1 --verbose || exit 1
+
 # We don't want a large libpython*.a.
 zcat $CWD/python3.no-static-library.diff.gz | patch -p1 --verbose || exit 1
 
 if [ "$ARCH" = "x86_64" ]; then
   # Install to lib64 instead of lib.
-  zcat $CWD/python3.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python.sysconfig.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python3.distutils.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python3.setup.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
 fi
 
 # Fix python3 path in cgi.py.
@@ -106,6 +109,7 @@ find -L . \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --with-platlibdir=lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --enable-ipv6 \

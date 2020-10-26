@@ -456,6 +456,7 @@ gzip ./source/n/procmail/procmail.lfs.diff
 gzip ./source/n/procmail/procmail_3.22-5.diff
 gzip ./source/n/snownews/snownews.fake.destdir.diff
 gzip ./source/n/nfs-utils/doinst.sh
+gzip ./source/n/nfs-utils/nfs-utils.exportfs.comment.out.debugging.spew.diff
 gzip ./source/n/nfs-utils/nfs-utils.lwrap.needs.lnsl.diff
 gzip ./source/n/metamail/metamail.uue.getline.diff
 gzip ./source/n/icmpinfo/icmpinfo-1.11.diff

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2010, 2011, 2018  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2020  Robby Workman, Tuscaloosa, Alabama, USA
 # Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
@@ -23,9 +23,8 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=udisks2
-SRCNAM=udisks
-VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=libbytesize
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -76,9 +75,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf $SRCNAM-$VERSION
-tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
-cd $SRCNAM-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -97,7 +96,6 @@ if [ ! -r configure ]; then
 fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
-# --enable-zram (removed since it appears to require systemd... but perhaps there's a way around that)
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -105,19 +103,14 @@ CXXFLAGS="$SLKCFLAGS" \
   --localstatedir=/var \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --mandir=/usr/man \
+  --infodir=/usr/info \
   --disable-static \
-  --enable-lvm2 \
-  --enable-btrfs \
-  --enable-bcache \
   --build=$ARCH-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# Don't overwrite config file, but leave mount_options.conf.example alone
-mv $PKG/etc/udisks2/udisks2.conf $PKG/etc/udisks2/udisks2.conf.new
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -147,7 +140,6 @@ if [ -r ChangeLog ]; then
 fi
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

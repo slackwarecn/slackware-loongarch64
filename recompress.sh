@@ -201,6 +201,7 @@ gzip ./source/a/pam/doinst.sh
 gzip ./source/a/glibc-zoneinfo/doinst.sh
 gzip ./source/a/glibc-zoneinfo/zic.default.fat.diff
 gzip ./source/a/efibootmgr/f862d860103511ae953cc2dd1283e1e95bf00376.patch
+gzip ./source/a/ndctl/doinst.sh
 gzip ./source/a/minicom/lrzsz_0.12.21-5.diff
 gzip ./source/a/minicom/config.sub-x86_64.diff
 gzip ./source/a/minicom/doinst.sh
@@ -299,6 +300,7 @@ gzip ./source/a/lvm2/create-dm-run-dir.diff
 gzip ./source/a/lvm2/doinst.sh
 gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy
+gzip ./source/a/libblockdev/doinst.sh
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff

@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=openexr
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -79,41 +79,38 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-# Patch security issues:
-zcat $CWD/openexr.CVE-2017-9110-to-9116.patch.gz | patch -p1 --verbose || exit 1
-
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+# Configure, build, and install:
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL LICENSE NEWS README* \
+  CHANGES* CODE_OF_CONDUCT* CONTRIBUTING* CONTRIBUTORS* GOVERNANCE* INSTALL* LICENSE* README* SECURITY* \
   $PKG/usr/doc/$PKGNAM-$VERSION
-mv $PKG/usr/share/doc/OpenEXR-$VERSION/*.pdf $PKG/usr/doc/$PKGNAM-$VERSION/
-rm -rf $PKG/usr/share/doc
 
-# If there's a ChangeLog, installing at least part of the recent history
+mv $PKG/usr/share/doc/OpenEXR/* $PKG/usr/doc/$PKGNAM-$VERSION
+rmdir $PKG/usr/share/doc/OpenEXR $PKG/usr/share/doc $PKG/usr/share
+
+# If there's a CHANGES file, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
+if [ -r CHANGES ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
 fi
 
 mkdir -p $PKG/install

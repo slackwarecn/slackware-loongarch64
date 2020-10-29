@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2017  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2019  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,32 +20,25 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Convert github release in vX.XX.tar.gz format to exiv2-X.XX.tar.xz format
-# and remove useless cruft.
+PKGNAM=exiv2
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.gz | rev | cut -f 3- -d . | cut -f 2 -d - | rev)}
 
-
-GITHUB_RELEASE=$(echo v*.tar.gz)
-if [ ! -r $GITHUB_RELEASE ]; then
-  echo "$GITHUB_RELEASE is not a libwebp tarball. Exiting."
+if [ ! -r $PKGNAM-${VERSION}-Source.tar.gz ]; then
+  echo "$PKGNAM-${VERSION}-Source.tar.gz does not exist. Exiting."
   exit 1
 fi
-SRCDIR=$(tar tf v*.tar.gz | head -n 1 | cut -f 1 -d /)
 
-# Untar github sources:
-rm -rf $SRCDIR
-tar xvf $GITHUB_RELEASE
+touch -r $PKGNAM-${VERSION}-Source.tar.gz tmp-timestamp || exit 1
 
-# HERE'S WHERE WE WOULD REMOVE STUFF FROM $SRCDIR, BUT WE AREN'T ACTUALLY
-# USING THIS SCRIPT YET UNTIL WE SWITCH TO DOWNLOADING FROM GITHUB'S RELEASES
+rm -rf $PKGNAM-${VERSION}-Source
+tar xf $PKGNAM-${VERSION}-Source.tar.gz || exit 1
+rm -rf $PKGNAM-${VERSION}-Source/test/data/*
+rm -rf $PKGNAM-${VERSION}-Source/tests/bugfixes/*
+rm -f $PKGNAM-${VERSION}-Source.tar.lz
+tar cf $PKGNAM-${VERSION}-Source.tar $PKGNAM-${VERSION}-Source
+touch -r tmp-timestamp $PKGNAM-${VERSION}-Source.tar
+plzip -9 -v $PKGNAM-${VERSION}-Source.tar
+rm -rf $PKGNAM-${VERSION}-Source tmp-timestamp
 
-# Package it back up as a .tar.xz:
-rm -f $SRCDIR.tar $SRCDIR.tar.xz
-tar cf $SRCDIR.tar $SRCDIR
-xz -9 $SRCDIR.tar
-touch -d "$(tar tvf $GITHUB_RELEASE | head -n 1 | cut -f 2- -d 0 | cut -f 2,3 -d ' ')" $SRCDIR.tar.xz
-
-# Cleanup:
-rm -rf $SRCDIR
-
-echo "Repacking of $SRCDIR.tar.xz complete."
+echo "Repacking of $PKGNAM-${VERSION}-Source.tar.lz complete."
 

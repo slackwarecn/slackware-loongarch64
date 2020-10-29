@@ -873,7 +873,6 @@ gzip ./source/l/libwmf/libwmf-0.2.8.4-CVE-2009-3546.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
-gzip ./source/l/poppler/poppler.splashpath.h.revert.diff
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
@@ -970,7 +969,6 @@ gzip ./source/l/strigi/libstreamanalyzer-0005-use-rpath-only-when-needed.patch
 gzip ./source/l/strigi/libstreams-0001-Generate-config.h-after-looking-for-dependencies.patch
 gzip ./source/l/strigi/libstreams-0002-Reduce-noise-in-analysis-tools-complain-about-resour.patch
 gzip ./source/l/libvisual/libvisual.glib.h.diff
-gzip ./source/l/openexr/openexr.CVE-2017-9110-to-9116.patch
 gzip ./source/l/ConsoleKit2/doinst.sh
 gzip ./source/l/qt-gstreamer/qt-gstreamer.gstreamer-1.16.x.diff
 gzip ./source/l/qt-gstreamer/doinst.sh
@@ -1022,7 +1020,6 @@ gzip ./source/l/svgalib/svgalib-1.9.25-quickmath-h-redefinitions.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-vga_getmodenumber.patch
 gzip ./source/l/svgalib/svgalib.prefix.diff
 gzip ./source/l/libexif/libexif.pc.diff
-gzip ./source/l/ilmbase/ilmbase-2.2.0-no_undefined.patch
 gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-change-in-GNU-.patch
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
 gzip ./source/l/qtscriptgenerator/include-everything.patch

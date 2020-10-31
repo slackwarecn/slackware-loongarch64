@@ -919,6 +919,7 @@ l/keyutils \
 l/libaio \
 l/libcap \
 l/libidn2 \
+l/libnsl \
 l/libunistring \
 l/libusb \
 l/lzo \
@@ -1235,6 +1236,7 @@ cp  -fa${VERBOSE1} \
         libkrb5support.so* \
         liblzma*so* \
         libmount.so* \
+        libnsl.so* \
         libpam*.so* \
         libpcre.so* \
         libpopt*.so* \

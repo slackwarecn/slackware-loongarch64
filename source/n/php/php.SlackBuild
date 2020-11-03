@@ -155,9 +155,6 @@ zcat $CWD/php-fpm.conf.diff.gz | patch -p1 --verbose || exit 1
 # Fix for imap API change:
 zcat $CWD/php.imap.api.diff.gz | patch -p1 --verbose || exit 1
 
-# Fix for icu 68.1 no longer defining TRUE and FALSE externally:
-zcat $CWD/php.icu_68_1.diff.gz | patch -p1 --verbose || exit 1
-
 # Install the build folder into /usr/lib$LIBDIRSUFFIX/php/build
 # and adapt phpize accordingly:
 sed -i "s|build$|php/build|" scripts/Makefile.frag
@@ -167,11 +164,13 @@ sed -i "s|build\"$|php/build\"|" scripts/phpize.in
 # requirement. See the link below:
 # http://site.icu-project.org/download/61#TOC-Migration-Issues
 
+# -DU_DEFINE_FALSE_AND_TRUE=1 since recent icu4c no longer defines these otherwise.
+
 # Generic "kitchen sink" configure function, with as many things as possible (and
 # maybe then some ;-) compiled as shared extensions:
 EXTENSION_DIR=/usr/lib${LIBDIRSUFFIX}/php/extensions \
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1" \
+CFLAGS="$SLKCFLAGS -DU_DEFINE_FALSE_AND_TRUE=1" \
+CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1 -DU_DEFINE_FALSE_AND_TRUE=1" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \

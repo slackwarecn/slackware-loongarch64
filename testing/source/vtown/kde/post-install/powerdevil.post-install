@@ -1,0 +1,30 @@
+# Move the polkit dbus configuration files to the proper place:
+mkdir -p $PKG/etc
+mv $PKG/etc/kde/dbus-1 $PKG/etc/
+
+mkdir -p $PKG/etc/polkit-1/rules.d
+
+# Add upower policy allowing users in the 'power' group
+# to suspend/hibernate the computer:
+install -m 0644 -o root \
+  $CWD/post-install/powerdevil/10-enable-upower-suspend.rules \
+  $PKG/etc/polkit-1/rules.d/10-enable-upower-suspend.rules.new
+
+if [ "$SLKELOGIND" == "no" ]; then
+  # Add ConsoleKit2 policy file that allows users in the 'power' group
+  # to shutdown/reboot the computer:
+  install -m 0644 -o root \
+    $CWD/post-install/powerdevil/10-enable-ck2-power.rules \
+    $PKG/etc/polkit-1/rules.d/10-enable-session-power.rules.new
+else
+  # Add login1 policy file that allows users in the 'power' group
+  # to shutdown/reboot the computer:
+  install -m 0644 -o root \
+    $CWD/post-install/powerdevil/10-enable-elogind-power.rules \
+    $PKG/etc/polkit-1/rules.d/10-enable-session-power.rules.new
+  # Add powerdevil policy file that allows users in the 'power' group
+  # to check for existence of a discrete gpu:
+  install -m 0644 -o root \
+    $CWD/post-install/powerdevil/10-enable-powerdevil-discrete-gpu.rules \
+    $PKG/etc/polkit-1/rules.d/10-enable-powerdevil-discrete-gpu.rules.new
+fi

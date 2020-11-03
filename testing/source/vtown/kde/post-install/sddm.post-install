@@ -1,0 +1,49 @@
+if [ "$SLACKPAM" == "no" ]; then
+  # Remove PAM related stuff:
+  rm -rf $PKG/etc/pam.d
+else
+  # Replace systemd-centric files with ours:
+  rm -f $PKG/etc/pam.d/sddm*
+  for FILE in sddm sddm-autologin sddm-greeter ; do
+    install -Dm644 $CWD/post-install/sddm-qt5/pam.d/$FILE $PKG/etc/pam.d/$FILE
+  done
+fi
+
+# Remove the sddm.conf file because we will generate our own in doinst.sh:
+rm -f $PKG/etc/sddm.conf
+
+# Make sure that Plasma and SDDM work on older GPUs,
+# by forcing Qt5 to use software GL rendering:
+cat <<"EOGL" >> $PKG/usr/share/sddm/scripts/Xsetup
+
+# Make sure that Plasma and SDDM work on older GPUs,
+# by forcing Qt5 to use software GL rendering:
+OPENGL_VERSION=$(LANG=C glxinfo |grep '^OpenGL version string: ' |head -n 1 |sed -e 's/^OpenGL version string: \([0-9]\).*$/\1/g')
+if [ "$OPENGL_VERSION" -lt 2 ]; then
+  QT_XCB_FORCE_SOFTWARE_OPENGL=1
+  export QT_XCB_FORCE_SOFTWARE_OPENGL
+fi
+EOGL
+
+# Ensure that user customizations to the session files are not lost:
+mv $PKG/usr/share/sddm/scripts/Xsession{,.new}
+mv $PKG/usr/share/sddm/scripts/Xsetup{,.new}
+mv $PKG/usr/share/sddm/scripts/Xstop{,.new}
+mv $PKG/usr/share/sddm/scripts/wayland-session{,.new}
+
+# Add a wrapper for the sddm binary, to enable a custom environment:
+mv $PKG/usr/bin/sddm $PKG/usr/bin/sddm.bin
+cat <<"EOT" > $PKG/usr/bin/sddm
+#!/bin/sh
+# Customized environment (LANG definition):
+if [ -f /etc/default/sddm ]; then
+  . /etc/default/sddm
+fi
+/usr/bin/sddm.bin "$*"
+EOT
+chmod 0755 $PKG/usr/bin/sddm
+
+# Let's also add an example customization (localization of the UI):
+mkdir -p  $PKG/etc/default
+echo ". /etc/profile.d/lang.sh" >  $PKG/etc/default/sddm.new
+

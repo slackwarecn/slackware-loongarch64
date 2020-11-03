@@ -1,0 +1,23 @@
+if [ "$SLKELOGIND" == "no" ]; then
+  # Add missing consolekit support
+  # (brings back the switch_user functionality in KDE):
+  cat $CWD/patch/sddm/sddm_consolekit.diff | patch -p1 --verbose || { touch ${SLACK_KDE_BUILD_DIR}/${PKGNAME}.failed ; continue ; }
+
+  # Don't assume that ConsoleKit2 exposes a login1 dbus interface:
+  cat $CWD/patch/sddm/sddm_ck2_revert.patch | patch -p1 --verbose || { touch ${SLACK_KDE_BUILD_DIR}/${PKGNAME}.failed ; continue ; }
+fi
+
+# Properly honor supplemental groups, https://github.com/sddm/sddm/issues/1159 :
+cat $CWD/patch/sddm/sddm_revert-honor-PAM-supplemental-groups.patch | patch -p1 --verbose || { touch ${SLACK_KDE_BUILD_DIR}/${PKGNAME}.failed ; continue ; }
+cat $CWD/patch/sddm/sddm_honor-PAM-supplemental-groups-v2.patch | patch -p1 --verbose || { touch ${SLACK_KDE_BUILD_DIR}/${PKGNAME}.failed ; continue ; }
+
+# SDDM 0.14 sources $HOME/.xsession which in Slackware will override the
+# session selection you make in SDDM. We fix that unwanted side effect by
+# reverting the change:
+cat $CWD/patch/sddm/sddm_userxsession.diff | patch -p1 --verbose || { touch ${SLACK_KDE_BUILD_DIR}/${PKGNAME}.failed ; continue ; }
+
+# Add the dutch translation:
+if ! grep -q nl.ts data/translations/CMakeLists.txt ; then
+  sed -e '/set(TRANSLATION_FILES/s/TRANSLATION_FILES/&\n    nl.ts/' \
+      -i data/translations/CMakeLists.txt
+fi

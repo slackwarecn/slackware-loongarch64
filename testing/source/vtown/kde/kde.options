@@ -1,0 +1,68 @@
+# Set default arch/build.  A default version is not needed since
+# package versions are determined by their source tarvall.
+
+[ -z $BUILD ] && export BUILD=1
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+[ -z $PKGARCH ] && export PKGARCH=$ARCH
+
+# Use this as CFLAGS and CXXFLAGS:
+if [ -z "$SLKCFLAGS" ]; then
+  if [ "$ARCH" = "i486" ]; then
+    export SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+    export LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "i586" ]; then
+    export SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+    export LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "s390" ]; then
+    export SLKCFLAGS="-O2"
+    export LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "x86_64" ]; then
+    export SLKCFLAGS="-O2 -fPIC"
+    export LIBDIRSUFFIX="64"
+  elif [ "$ARCH" = "arm" ]; then
+    export SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
+    export LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "armel" ]; then
+    export SLKCFLAGS="-O2 -march=armv4t"
+    export LIBDIRSUFFIX=""
+  elif [ "$ARCH" = "armv7hl" ]; then
+    export SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+    export LIBDIRSUFFIX=""
+  else
+    export SLKCFLAGS="-O2"
+    export LIBDIRSUFFIX=""
+  fi
+fi
+
+# Use this to set the number of parallel make jobs:
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
+export NUMJOBS
+
+# Additional cmake flags that are spanned across the KDE modules
+# Do not use "final build" unless we build an actual release.
+export KDE_OPT_ARGS=" -Wno-dev -DBUILD_TESTING=OFF -DSITE=\"slackware.com\" -DKDE_DISTRIBUTION_TEXT=\"volkerdi@slackware.com\" "
+
+# Choose correct options depending on whether PAM is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
+  SLACKPAM=${SLACKPAM:-"yes"}
+else
+  SLACKPAM=${SLACKPAM:-"no"}
+fi
+
+# Choose correct options depending on whether elogind is installed:
+if [ -L /lib${LIBDIRSUFFIX}/libelogind.so.? ]; then
+  SLKELOGIND=${SLKELOGIND:-"yes"}
+else
+  SLKELOGIND=${SLKELOGIND:-"no"}
+fi

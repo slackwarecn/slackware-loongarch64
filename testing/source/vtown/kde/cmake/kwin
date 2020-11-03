@@ -1,0 +1,29 @@
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    $KDE_OPT_ARGS \
+    -DKDE_PLATFORM_FEATURE_DISABLE_DEPRECATED=TRUE \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DKDE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
+    -DKDE_INSTALL_LIBEXECDIR=lib$LIBDIRSUFFIX \
+    -DKDE_INSTALL_MANDIR=/usr/man \
+    -DKDE_INSTALL_QTPLUGINDIR=lib$LIBDIRSUFFIX/qt5/plugins \
+    -DKDE_INSTALL_QMLDIR=lib$LIBDIRSUFFIX/qt5/qml \
+    -DKDE_INSTALL_SYSCONFDIR=/etc/kde \
+    -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+    -DBUILD_TESTING=OFF \
+    -DHAVE_SHADOW=TRUE \
+    -DQca-qt5_DIR=/usr/lib${LIBDIRSUFFIX}/cmake/Qca \
+    ..
+
+# Nasty hack to fix something I could not fix in Qt5 package...
+#   9729: /usr/include/c++/9.1.0/cstdlib:75:15: fatal error: stdlib.h: No such file or directory
+#  9733: make[2]: *** [plugins/qpa/CMakeFiles/KWinQpaPlugin.dir/build.make:63: plugins/qpa/CMakeFiles/KWinQpaPlugin.dir/KWinQpaPlugin_autogen/mocs_compilation.cpp.o] Error 1
+sed -i ./plugins/qpa/CMakeFiles/KWinQpaPlugin.dir/flags.make \
+  -e "s/isystem/I/g"

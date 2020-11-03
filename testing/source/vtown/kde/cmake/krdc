@@ -1,0 +1,38 @@
+# Since xfreerdp is a runtime dependency, krdc should not be looking for it
+# and disabling support for RDP if the binary is not found at compile-time...
+if which xfreerdp 1>/dev/null 2>&1 ; then
+  AB_REMOVE_KLUDGE=0
+else
+  AB_REMOVE_KLUDGE=1
+  touch /usr/local/bin/xfreerdp
+  chmod 755 /usr/local/bin/xfreerdp
+fi
+
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    $KDE_OPT_ARGS \
+    -DKDE_PLATFORM_FEATURE_DISABLE_DEPRECATED=TRUE \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DSYSCONF_INSTALL_DIR=/etc/kde \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DLIB_INSTALL_DIR=lib$LIBDIRSUFFIX \
+    -DLIBEXEC_INSTALL_DIR=lib$LIBDIRSUFFIX \
+    -DQT_PLUGIN_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/plugins \
+    -DQML_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/qml \
+    -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+    -DBUILD_TESTING=OFF \
+    -DQca-qt5_DIR=/usr/lib${LIBDIRSUFFIX}/cmake/Qca \
+    ..
+
+# Cleanup:
+if [ $AB_REMOVE_KLUDGE -eq 1 ]; then
+  rm -f /usr/local/bin/xfreerdp
+fi
+unset AB_REMOVE_KLUDGE

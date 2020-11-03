@@ -1,0 +1,88 @@
+Slightly modified from this patch in order to apply against SDDM master git:
+https://github.com/AOSC-Dev/sddm/commit/c6be72636f43a28f1b6aebff9d682d0182dd7a1e.patch
+
+From c6be72636f43a28f1b6aebff9d682d0182dd7a1e Mon Sep 17 00:00:00 2001
+From: Leslie Zhai <xiangzhai83@gmail.com>
+Date: Mon, 31 Aug 2015 14:04:17 +0800
+Subject: [PATCH] Disable pam backend because loginFailed
+
+---
+diff -uar sddm-d42700a_20150822git.orig/CMakeLists.txt sddm-d42700a_20150822git/CMakeLists.txt
+--- sddm-d42700a_20150822git.orig/CMakeLists.txt	2015-08-22 16:17:37.000000000 +0200
++++ sddm-d42700a_20150822git/CMakeLists.txt	2015-08-31 12:01:47.342810382 +0200
+@@ -31,6 +31,7 @@
+ # Options
+ option(BUILD_MAN_PAGES "Build man pages" OFF)
+ option(ENABLE_JOURNALD "Enable logging to journald" ON)
++option(ENABLE_PAM "Enable pam" OFF)
+ 
+ # Definitions
+ add_definitions(-Wall -std=c++11 -DQT_NO_CAST_FROM_ASCII)
+@@ -66,7 +67,7 @@
+ find_package(PkgConfig)
+ 
+ # PAM
+-if(NOT NO_PAM)
++if(ENABLE_PAM)
+     find_package(PAM)
+ 
+     if(PAM_FOUND)
+diff -uar sddm-d42700a_20150822git.orig/src/helper/backend/PasswdBackend.cpp sddm-d42700a_20150822git/src/helper/backend/PasswdBackend.cpp
+--- sddm-d42700a_20150822git.orig/src/helper/backend/PasswdBackend.cpp	2015-08-22 16:17:37.000000000 +0200
++++ sddm-d42700a_20150822git/src/helper/backend/PasswdBackend.cpp	2015-08-31 12:00:43.995324823 +0200
+@@ -38,7 +38,7 @@
+         if (m_autologin)
+             return true;
+ 
+-        if (m_user == "sddm") {
++        if (m_user == QStringLiteral("sddm")) {
+             if (m_greeter)
+                 return true;
+             else
+@@ -49,17 +49,17 @@
+         QString password;
+ 
+         if (m_user.isEmpty())
+-            r.prompts << Prompt(AuthPrompt::LOGIN_USER, "Login", false);
+-        r.prompts << Prompt(AuthPrompt::LOGIN_PASSWORD, "Password", true);
++            r.prompts << Prompt(AuthPrompt::LOGIN_USER, QStringLiteral("Login"), false);
++        r.prompts << Prompt(AuthPrompt::LOGIN_PASSWORD, QStringLiteral("Password"), true);
+ 
+         Request response = m_app->request(r);
+         Q_FOREACH(const Prompt &p, response.prompts) {
+             switch (p.type) {
+                 case AuthPrompt::LOGIN_USER:
+-                    m_user = p.response;
++                    m_user = QString::fromUtf8(p.response);
+                     break;
+                 case AuthPrompt::LOGIN_PASSWORD:
+-                    password = p.response;
++                    password = QString::fromUtf8(p.response);
+                     break;
+                 default:
+                     break;
+@@ -68,13 +68,13 @@
+ 
+         struct passwd *pw = getpwnam(qPrintable(m_user));
+         if (!pw) {
+-            m_app->error(QString("Wrong user/password combination"), Auth::ERROR_AUTHENTICATION);
++            m_app->error(QStringLiteral("Wrong user/password combination"), Auth::ERROR_AUTHENTICATION);
+             return false;
+         }
+ 
+         struct spwd *spw = getspnam(pw->pw_name);
+         if (!spw) {
+-            qWarning() << "[Passwd] Could get passwd but not shadow";
++            qWarning() << QStringLiteral("[Passwd] Could get passwd but not shadow");
+             return false;
+         }
+ 
+@@ -86,7 +86,7 @@
+             return true;
+         }
+ 
+-        m_app->error(QString("Wrong user/password combination"), Auth::ERROR_AUTHENTICATION);
++        m_app->error(QStringLiteral("Wrong user/password combination"), Auth::ERROR_AUTHENTICATION);
+         return false;
+     }
+ 

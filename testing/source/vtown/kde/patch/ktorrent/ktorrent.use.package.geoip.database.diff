@@ -1,0 +1,38 @@
+diff -uar ktorrent-5.1.1.orig/plugins/infowidget/geoipmanager.cpp ktorrent-5.1.1/plugins/infowidget/geoipmanager.cpp
+--- ktorrent-5.1.1.orig/plugins/infowidget/geoipmanager.cpp	2018-08-31 01:37:04.000000000 +0200
++++ ktorrent-5.1.1/plugins/infowidget/geoipmanager.cpp	2019-05-11 14:32:39.599297006 +0200
+@@ -42,7 +42,7 @@
+ #ifdef USE_SYSTEM_GEOIP
+         geo_ip = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_STANDARD);
+ #else
+-        geoip_data_file = QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("geoip.dat"));
++        geoip_data_file = QStringLiteral("/usr/share/apps/ktorrent/GeoIP/geoip.dat");
+         if (geoip_data_file.isEmpty())
+             geoip_data_file = QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("GeoIP.dat"));
+ 
+@@ -57,12 +57,6 @@
+             {
+                 QFileInfo fi(geoip_data_file);
+                 QDateTime now = QDateTime::currentDateTime();
+-                if (fi.lastModified().daysTo(now) >= 30)
+-                {
+-                    // if the last time the geoip file was modified, was more then
+-                    // 30 days ago, redownload it
+-                    downloadDataBase();
+-                }
+             }
+         }
+ #endif
+@@ -107,12 +101,6 @@
+ 
+     void GeoIPManager::downloadDataBase()
+     {
+-#ifndef USE_SYSTEM_GEOIP
+-        Out(SYS_INW | LOG_NOTICE) << "Downloading GeoIP database: " << geoip_url << endl;
+-        download_destination = kt::DataDir(CreateIfNotExists) + geoip_url.fileName();
+-        KIO::CopyJob* job = KIO::copy(geoip_url, QUrl::fromLocalFile(download_destination), KIO::Overwrite | KIO::HideProgressInfo);
+-        connect(job, &KIO::CopyJob::result, this, &GeoIPManager::databaseDownloadFinished);
+-#endif
+     }
+ 
+     void GeoIPManager::databaseDownloadFinished(KJob* job)

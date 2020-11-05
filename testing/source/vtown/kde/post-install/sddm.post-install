@@ -9,21 +9,34 @@ else
   done
 fi
 
+# Create the SDDM home directory:
+mkdir -p $PKG/var/lib/sddm
+chmod 755 $PKG/var/lib/sddm
+chown sddm:sddm $PKG/var/lib/sddm
+
 # Remove the sddm.conf file because we will generate our own in doinst.sh:
 rm -f $PKG/etc/sddm.conf
 
-# Make sure that Plasma and SDDM work on older GPUs,
-# by forcing Qt5 to use software GL rendering:
-cat <<"EOGL" >> $PKG/usr/share/sddm/scripts/Xsetup
+# Generate the default sddm.conf:
+$PKG/usr/bin/sddm --example-config > $PKG/etc/sddm.conf
+
+# Set the KDE5 theme 'breeze' as default (integrates better with Plasma 5):
+sed -i -e "/\[Theme\]/,/^\[/s/^Current.*/Current=breeze/" $PKG/etc/sddm.conf
+
+# Move the default config file to .new:
+mv $PKG/etc/sddm.conf $PKG/etc/sddm.conf.new
 
 # Make sure that Plasma and SDDM work on older GPUs,
 # by forcing Qt5 to use software GL rendering:
+cat << "EOF" >> $PKG/usr/share/sddm/scripts/Xsetup
+# Make sure that Plasma and SDDM work on older GPUs by forcing Qt5 to use
+# software GL rendering if the OpenGL version is not new enough:
 OPENGL_VERSION=$(LANG=C glxinfo |grep '^OpenGL version string: ' |head -n 1 |sed -e 's/^OpenGL version string: \([0-9]\).*$/\1/g')
 if [ "$OPENGL_VERSION" -lt 2 ]; then
   QT_XCB_FORCE_SOFTWARE_OPENGL=1
   export QT_XCB_FORCE_SOFTWARE_OPENGL
 fi
-EOGL
+EOF
 
 # Ensure that user customizations to the session files are not lost:
 mv $PKG/usr/share/sddm/scripts/Xsession{,.new}
@@ -46,4 +59,3 @@ chmod 0755 $PKG/usr/bin/sddm
 # Let's also add an example customization (localization of the UI):
 mkdir -p  $PKG/etc/default
 echo ". /etc/profile.d/lang.sh" >  $PKG/etc/default/sddm.new
-

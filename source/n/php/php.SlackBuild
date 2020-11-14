@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=php
 VERSION=${VERSION:-$(echo php-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 ALPINE=2.24
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -270,6 +270,10 @@ CXXFLAGS="$SLKCFLAGS -DU_USING_ICU_NAMESPACE=1 -DU_DEFINE_FALSE_AND_TRUE=1" \
 
 make $NUMJOBS || make || exit 1
 make install INSTALL_ROOT=$PKG || exit 1
+
+# Don't include the c-client library in php-config output:
+sed -i "s| -L/usr/local/lib${LIBDIRSUFFIX}/c-client/lib${LIBDIRSUFFIX}||g" $PKG/usr/bin/php-config
+sed -i "s|  -lc-client||g" $PKG/usr/bin/php-config
 
 mkdir -p $PKG/etc/{rc.d,php-fpm.d}
 cp sapi/fpm/init.d.php-fpm $PKG/etc/rc.d/rc.php-fpm.new

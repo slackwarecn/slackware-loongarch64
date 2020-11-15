@@ -89,9 +89,12 @@ export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 
 # Keep memory usage as low as possible when linking:
-SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats"
+SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
 export LDFLAGS="$SLKLDFLAGS"
 export MOZ_LINK_FLAGS="$SLKLDFLAGS"
+
+# Set linker to use:
+LINKER=bfd
 
 # Put Rust objects on a diet to keep the linker from running into memory
 # issues (especially on 32-bit):
@@ -125,25 +128,25 @@ export RUSTFLAGS="-Cdebuginfo=0"
 PGO=${PGO:-no}
 
 if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-Os"
+  SLKCFLAGS="-O2 -g0"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-Os"
+  SLKCFLAGS="-O2 -g0"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-O2 -g0"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -g0 -fPIC"
   LIBDIRSUFFIX="64"
 elif [ "$ARCH" = "arm" ]; then
-  SLKCFLAGS="-O2 -march=armv4 -mtune=xscale"
+  SLKCFLAGS="-O2 -g0 -march=armv4 -mtune=xscale"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "armel" ]; then
-  SLKCFLAGS="-O2 -march=armv4t"
+  SLKCFLAGS="-O2 -g0 -march=armv4t"
   LIBDIRSUFFIX=""
 else
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-O2 -g0"
   LIBDIRSUFFIX=""
 fi
 
@@ -230,9 +233,10 @@ OPTIONS="\
   --enable-alsa \
   --enable-application=browser \
   --enable-default-toolkit=cairo-gtk3-wayland \
-  --enable-linker=gold \
+  --enable-linker=$LINKER \
   $GOOGLE_API_KEY \
-  --enable-strip \
+  --disable-strip \
+  --disable-install-strip \
   --enable-cpp-rtti \
   --enable-accessibility \
   --disable-crashreporter \

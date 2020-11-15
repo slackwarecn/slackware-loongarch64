@@ -58,13 +58,13 @@ fi
 
 if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
-  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1 -g0"}
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
-  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1 -g0"}
 else
   LIBDIRSUFFIX=""
-  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1"}
+  OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1 -g0"}
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
@@ -77,12 +77,17 @@ export CFLAGS="-Wformat -fno-delete-null-pointer-checks"
 export CXXFLAGS="-Wformat -fno-delete-null-pointer-checks -fpermissive"
 
 # Keep memory usage as low as possible when linking:
-SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats"
+SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
 export LDFLAGS="$SLKLDFLAGS"
 export MOZ_LINK_FLAGS="$SLKLDFLAGS"
 
-# Don't use icecream:
-PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
+# Don't use icecream with clang:
+if [ "$CC" = "clang" ]; then
+  PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
+fi
+
+# Set linker to use:
+LINKER=bfd
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -139,8 +144,9 @@ OPTIONS="\
   --enable-startup-notification \
   --enable-alsa \
   --disable-debug \
-  --enable-gold \
-  --enable-strip \
+  --enable-linker=$LINKER \
+  --disable-strip \
+  --disable-install-strip \
   --disable-tests \
   --disable-crashreporter \
   --enable-accessibility \

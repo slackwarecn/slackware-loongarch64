@@ -1098,7 +1098,6 @@ gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolid
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/unbreakdocs.diff
-gzip ./source/xap/mozilla-thunderbird/rust_1.47.0.patch
 gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff

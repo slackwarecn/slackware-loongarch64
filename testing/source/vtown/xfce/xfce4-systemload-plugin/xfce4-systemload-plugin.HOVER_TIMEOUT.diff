@@ -1,0 +1,51 @@
+--- ./panel-plugin/systemload.c.orig	2018-11-29 10:44:33.000000000 -0600
++++ ./panel-plugin/systemload.c	2018-12-02 13:22:54.163384487 -0600
+@@ -55,6 +55,8 @@
+ static gchar *DEFAULT_COLOR[] = { "#0000c0", "#00c000", "#f0f000" };
+ static gchar *DEFAULT_COMMAND_TEXT = "xfce4-taskmanager";
+ 
++/* HOVER_TIMEOUT is a fixed constant in gtk+-3; this must match - Aargh */
++#define HOVER_TIMEOUT 500
+ #define UPDATE_TIMEOUT 500
+ #define UPDATE_TIMEOUT_SECONDS 1
+ 
+@@ -106,6 +108,7 @@
+     guint             timeout, timeout_seconds;
+     gboolean          use_timeout_seconds;
+     guint             timeout_id;
++    guint	      tooltip_timeout;
+     t_command         command;
+     t_monitor         *monitor[3];
+     t_uptime_monitor  *uptime;
+@@ -173,6 +176,9 @@
+                  global->monitor[count]->value_read / 100.0);
+         }
+     }
++/* don't write tooltip too often */
++    if((global->tooltip_timeout += global->timeout) <= HOVER_TIMEOUT) return TRUE;
++    global->tooltip_timeout = 0;
+     if (global->monitor[0]->options.enabled)
+     {
+         g_snprintf(caption, sizeof(caption), _("System Load: %ld%%"),
+@@ -335,6 +341,7 @@
+ #endif
+     global->plugin = plugin;
+     global->timeout = UPDATE_TIMEOUT;
++    global->tooltip_timeout = 0;
+     global->timeout_seconds = UPDATE_TIMEOUT_SECONDS;
+     global->use_timeout_seconds = TRUE;
+     global->timeout_id = 0;
+@@ -422,13 +429,6 @@
+     }
+ #endif
+     global->timeout_id = g_timeout_add(global->timeout, (GSourceFunc)update_monitors, global);
+-    /* reduce the default tooltip timeout to be smaller than the update interval otherwise
+-     * we won't see tooltips on GTK 2.16 or newer */
+-    settings = gtk_settings_get_default();
+-    if (g_object_class_find_property(G_OBJECT_GET_CLASS(settings), "gtk-tooltip-timeout"))
+-        g_object_set(settings, "gtk-tooltip-timeout",
+-                     global->timeout - 10, NULL);
+-
+ }
+ 
+ static void

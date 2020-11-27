@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=upower
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -81,29 +81,25 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
- -exec chmod 755 {} \+ -o \
+ -exec chmod 755 {} \; -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
- -exec chmod 644 {} \+
+ -exec chmod 644 {} \;
 
-zcat $CWD/patches/upower-pm-utils-0.9.23-fix-segfault.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/linux-Properly-detect-bluetooth-mice-and-keyboards-t.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/rules-support-Logitech-Unifying-in-Linux-3.19.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/linux-Clamp-percentage-for-overfull-batteries.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/linux-Detect-docked-docking-stations-correctly.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/Fix-HID-rules-header-as-per-discussions.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/Update-UPower-HID-rules-supported-devices-list.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/rules-Add-support-for-Logitech-G700s-G700-Gaming-Mou.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0002-linux-Fix-memory-leak-in-Bluez-backend.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0003-linux-Fix-warning-when-bluez-Appearance-property-isn.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0006-lib-Add-Pen-device-type.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0007-linux-Detect-Bluetooth-pens.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0008-linux-Identify-keyboard-pointing-device-combos-as-ke.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0011-linux-Add-support-for-iPhone-XR-XS-models.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/patches/0012-build-Use-a-newer-libplist-if-available.patch.gz | patch -p1 --verbose || exit 1
 
-# Don't fail on deprecated delarations:
-zcat $CWD/patches/upower.glib_2_58_1.diff.gz | patch -p1 --verbose || exit 1
-
-CFLAGS="$SLKCFLAGS -Wno-error=deprecated-declarations" \
-CXXFLAGS="$SLKCFLAGS -Wno-error=deprecated-declarations" \
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -113,7 +109,6 @@ CXXFLAGS="$SLKCFLAGS -Wno-error=deprecated-declarations" \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
   --enable-man-pages \
-  --enable-deprecated \
   --build=$TARGET || exit 1
 
 make $NUMJOBS || make || exit 1
@@ -128,14 +123,13 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # Don't clobber the config file on upgrades
 mv $PKG/etc/UPower/UPower.conf $PKG/etc/UPower/UPower.conf.new
 
-find $PKG/usr/man -type f -exec gzip -9 {} \+
+find $PKG/usr/man -type f -exec gzip -9 {} \;
 for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   AUTHORS COPYING ChangeLog HACKING INSTALL NEWS README \
   $PKG/usr/doc/$PKGNAM-$VERSION
-cat $CWD/$PKGNAM.SlackBuild > $PKG/usr/doc/$PKGNAM-$VERSION/$PKGNAM.SlackBuild
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

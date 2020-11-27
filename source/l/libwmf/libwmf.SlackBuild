@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libwmf
-VERSION=0.2.8.4
-BUILD=${BUILD:-9}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -71,47 +71,12 @@ rm -rf libwmf-$VERSION
 tar xvf $CWD/libwmf-$VERSION.tar.?z* || exit 1
 cd libwmf-$VERSION || exit 1
 
-zcat $CWD/libwmf.png14.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
-
-# Miscellaneous patches from Fedora:
-zcat $CWD/libwmf-0.2.8.4-fallbackfont.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-pixbufloaderdir.patch.gz | patch -p1 --verbose || exit 1
-
-# and fix a missed item from the last patch  --rworkman
-zcat $CWD/fixup-GDK_PIXBUF_DIR-in-configure-ac.patch.gz | patch -p1 --verbose || exit 1
-
-# Don't export the modified embedded GD library symbols, to avoid conflicts with
-# the system libgd:
-zcat $CWD/libwmf-0.2.8.4-reducesymbols.patch.gz | patch -p1 --verbose || exit 1
-
-# Patch security issues:
-zcat $CWD/libwmf-0.2.8.4-useafterfree.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2006-3376.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2004-0941.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2007-0455.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2007-2756.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2007-3472.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2007-3473.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2007-3477.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2009-3546.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2015-0848+CVE-2015-4588.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2015-4695.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2015-4696.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2016-10167.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2016-10168.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2016-9011.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2016-9317.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/libwmf-0.2.8.4-CVE-2017-6362.patch.gz | patch -p1 --verbose || exit 1
-
-autoreconf -vif
-automake
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -126,25 +91,25 @@ make install DESTDIR=$PKG || exit 1
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-# Symlink to system fonts. We're not going to just point the fontdir to the
-# system Type1 directory since libwmf still wants to use the obsolete fontdir,
-# and we don't want to put that there:
+# Symlink to system fonts.
 ( cd $PKG/usr/share/libwmf/fonts
-  for file in *.afm *.pfb ; do
-    # Check to see if the font exists on the system. It is required to have
-    # the ghostscript-fonts package installed during the build.
-    if [ -r /usr/share/fonts/Type1/$file ]; then
-      ln -sf ../../fonts/Type1/$file .
+  # Replace with a fontmap containing the system font names:
+  cat $CWD/fontmap > fontmap
+  rm *.afm *.t1
+  # Link to system fonts:
+  for file in n019003l.afm n019003l.pfb n019004l.afm n019004l.pfb n019023l.afm n019023l.pfb n019024l.afm n019024l.pfb n021003l.afm n021003l.pfb n021004l.afm n021004l.pfb n021023l.afm n021023l.pfb n021024l.afm n021024l.pfb n022003l.afm n022003l.pfb n022004l.afm n022004l.pfb n022023l.afm n022023l.pfb n022024l.afm n022024l.pfb s050000l.afm s050000l.pfb ; do
+    if [ ! -r /usr/share/fonts/Type1/$file ]; then
+      echo "FONT $file NOT FOUND ON SYSTEM"
+      exit 1
     fi
-  done
-)
+    ln -sf ../../fonts/Type1/$file .
+  done || exit 1
+) || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mkdir -p $PKG/usr/doc
-mv $PKG/usr/share/doc/libwmf $PKG/usr/doc/libwmf-$VERSION
-rmdir $PKG/usr/share/doc
+mkdir -p $PKG/usr/doc/libwmf-$VERSION
 cp -a \
   AUTHORS BUILDING COPYING CREDITS NEWS README TODO \
   $PKG/usr/doc/libwmf-$VERSION

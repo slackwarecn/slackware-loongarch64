@@ -37,6 +37,9 @@ tar xf ${PKGNAM}-${VERSION}.tar.bz2 || exit 1
 # Drop the Makefile in etc/:
 rm -f ${PKGNAM}-${VERSION}/etc/Makefile
 
+# More cruft:
+rm -rf ${PKGNAM}-${VERSION}/.ccls-cache
+
 # Repack as .tar.lz:
 rm -f ${PKGNAM}-${VERSION}.tar
 tar cf ${PKGNAM}-${VERSION}.tar ${PKGNAM}-${VERSION}

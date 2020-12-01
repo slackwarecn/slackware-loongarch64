@@ -26,9 +26,6 @@ PKGNAM=fontconfig
 VERSION=${VERSION:-$(echo fontconfig-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-# Set this to liberation, dejavu, or noto:
-PREFERRED_FONT=${PREFERRED_FONT:-liberation}
-
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -80,14 +77,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Set preferred system font:
-if [ ! -r $CWD/fontconfig.$PREFERRED_FONT.diff.gz ]; then
-  echo "ERROR: $CWD/fontconfig.$PREFERRED_FONT.diff.gz patch not found."
-  exit 1
-else
-  echo "Using preferred font patch: $CWD/fontconfig.$PREFERRED_FONT.diff.gz"
-  zcat $CWD/fontconfig.$PREFERRED_FONT.diff.gz | patch -p1 --verbose || exit 1
-fi
+# Prefer DejaVu fonts in 60-latin.conf:
+#zcat $CWD/fontconfig.dejavu.diff.gz | patch -p1 --verbose || exit 1
+
+# Prefer Liberation fonts in 60-latin.conf (these work better with hinting):
+zcat $CWD/fontconfig.liberation.diff.gz | patch -p1 --verbose || exit 1
 
 # Hardcode the default font search path rather than having fontconfig figure
 # it out (and possibly follow symlinks, or index ugly bitmapped fonts):
@@ -95,6 +89,18 @@ zcat $CWD/fontconfig.font.dir.list.diff.gz | patch -p1 --verbose --backup --suff
 
 # Add some patches from the Fedora SRPM:
 zcat $CWD/fedora-patches/fontconfig-sleep-less.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/fedora-patches/fontconfig-required-freetype-version.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-score-hint-on-match.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-1744377.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-drop-lang-from-pkgkit-format.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-sysroot.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-read-latest-cache.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-mt.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-test.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-assertion.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-dtd.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-fix-dtd-id.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/fontconfig-0-timestamp-dir-on-sb.patch.gz | patch -p1 --verbose || exit 1
 
 autoreconf -vif
 

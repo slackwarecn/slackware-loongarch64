@@ -65,7 +65,6 @@ gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch
 gzip ./source/d/binutils/patches/binutils.export.demangle.h.diff
-gzip ./source/d/binutils/patches/binutils-2.25.1-cleansweep.patch
 gzip ./source/d/binutils/patches/binutils-2.25-set-long-long.patch
 gzip ./source/d/binutils/patches/binutils.no-config-h-check.diff
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-copy-osabi.patch
@@ -1304,8 +1303,6 @@ gzip ./testing/source/vtown/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./testing/source/vtown/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./testing/source/vtown/xfce/Greybird/0001-Fix-GTK3-dark-colors.patch
 gzip ./testing/source/vtown/xfce/Greybird/0002-Fix-Thunar-CSD-when-not-focused-Fixes-274.patch
-gzip ./testing/source/gcc10/patches/gfortran.deferred-shape-vs-assumed-shape.patch
-gzip ./testing/source/gcc10/patches/gcc-no_fixincludes.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

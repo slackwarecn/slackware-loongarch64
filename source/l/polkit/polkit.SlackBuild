@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=polkit
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -82,6 +82,9 @@ find . \
 
 zcat $CWD/dont-set-wheel-group-as-admin.diff.gz | patch -p1 || exit 1
 
+# https://gitlab.freedesktop.org/polkit/polkit/-/issues/29
+zcat $CWD/0001-configure-fix-elogind-support.patch.gz | patch -p1 || exit 1
+
 # If we get here and don't have a polkitd user/group, add one.
 # Otherwise a few directories in the package will have wrong permissions.
 if ! grep -q "^polkitd:" /etc/passwd ; then
@@ -99,9 +102,15 @@ else
 fi
 
 if [ ! -r configure ]; then
-  NOCONFIGURE=1 ./autogen.sh
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
 fi
 
+LIBELOGIND_CFLAGS="$(pkg-config --cflags libelogind)" \
+LIBELOGIND_LIBS="$(pkg-config --libs libelogind)" \
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -117,7 +126,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --disable-examples \
   --enable-introspection \
   --enable-libsystemd-login=no \
-  --enable-libelogind=no \
+  --enable-libelogind=yes \
   $PAM_OPTIONS \
   $SHADOW_OPTIONS \
   --enable-verbose-mode \
@@ -179,9 +188,8 @@ if [ -r ChangeLog ]; then
 fi
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh > $PKG/install/doinst.sh
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

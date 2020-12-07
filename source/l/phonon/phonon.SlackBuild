@@ -1,7 +1,8 @@
 #!/bin/sh 
 
 # Copyright 2008  Robby Workman, Northport, Alabama, USA
-# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010, 2011, 2012, 2014, 2015, 2016, 2017, 2018, 2019  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,26 +22,21 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Modified 2010, 2011, 2012, 2014  Eric Hameleers, Eindhoven, NL
-
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=phonon
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
-
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
-MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$MARCH" in
-    i?86)    export ARCH=i586 ;;
-    armv7hl) export ARCH=$MARCH ;;
-    arm*)    export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-    *)       export ARCH=$MARCH ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 if [ "$ARCH" = "i586" ]; then
@@ -76,25 +72,28 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-phonon
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -r phonon-$VERSION
-tar xvf $CWD/phonon-$VERSION.tar.?z* || exit 1
-cd phonon-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
- \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
- -exec chmod 755 {} \+ -o \
- \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
- -exec chmod 644 {} \+
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
 
-mkdir build
-cd build
+# Qt5 is the only supported version as of 4.11.0:
+mkdir build-qt5
+cd build-qt5
   cmake \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
@@ -105,35 +104,11 @@ cd build
     -DPHONON_QT_PLUGIN_INSTALL_DIR=/usr/lib$LIBDIRSUFFIX/qt/plugins/designer \
     -DWITH_QZeitgeist=BOOL:OFF \
     -DWITH_PulseAudio=BOOL:${PULSEAUDIO} \
+    -DQT_QMAKE_EXECUTABLE=/usr/bin/qmake-qt5 \
     ..
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd -
-
-# Conditional build of Qt5 support:
-if qtpaths-qt5 --qt-version 1>/dev/null 2>/dev/null ; then
-  mkdir build-qt5
-  cd build-qt5
-    cmake \
-      -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-      -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-      -DCMAKE_INSTALL_PREFIX=/usr \
-      -DMAN_INSTALL_DIR=/usr/man \
-      -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-      -DPHONON_INSTALL_QT_EXTENSIONS_INTO_SYSTEM_QT:BOOL=ON \
-      -DPHONON_QT_PLUGIN_INSTALL_DIR=/usr/lib$LIBDIRSUFFIX/qt/plugins/designer \
-      -DWITH_QZeitgeist=BOOL:OFF \
-      -DWITH_PulseAudio=BOOL:ON \
-      -DPHONON_BUILD_PHONON4QT5=ON \
-      -DQT_QMAKE_EXECUTABLE=/usr/bin/qmake-qt5 \
-      ..
-    make $NUMJOBS || make || exit 1
-    make install DESTDIR=$PKG || exit 1
-  cd -
-fi
-
-# PyQT won't find the header files otherwise:
-sed -i -e 's#{includedir}$#& -I\${includedir}/phonon#' $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/phonon.pc
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -150,8 +125,8 @@ if [ -d $PKG/usr/man ]; then
   )
 fi
 
-mkdir -p $PKG/usr/doc/phonon-$VERSION
-cp -a phonon/{BUGS,IDEAS,TODO} $PKG/usr/doc/phonon-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a doc/{BUGS,IDEAS,TODO} $PKG/usr/doc/$PKGNAM-$VERSION
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -160,5 +135,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/phonon-$VERSION-$ARCH-$BUILD$TAG.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD$TAG.txz

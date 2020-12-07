@@ -131,8 +131,9 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-nmtui=yes \
   --enable-json-validation \
   --enable-ovs \
-  --with-session-tracking=consolekit \
-  --with-suspend-resume=consolekit \
+  --with-consolekit=no \
+  --with-session-tracking=elogind \
+  --with-suspend-resume=elogind \
   --with-hostname-persist=slackware \
   --build=$TARGET || exit 1
 
@@ -168,11 +169,10 @@ mkdir -p $PKG/etc/rc.d
 cat $CWD/rc.networkmanager > $PKG/etc/rc.d/rc.networkmanager.new
 chmod 0644 $PKG/etc/rc.d/rc.networkmanager.new
 
-# Add the pm-utils hook back in
-# xfce4-power-manager needs to be built *without* NM support
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/sleep.d/
-cat $CWD/55NetworkManager > $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/sleep.d/55NetworkManager
-chmod 0755 $PKG/usr/lib${LIBDIRSUFFIX}/pm-utils/sleep.d/55NetworkManager
+# Move dbus configs to system location:
+mkdir -p $PKG/usr/share/dbus-1/system.d/
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d/
+rmdir --parents $PKG/etc/dbus-1/system.d/
 
 # Add default (plain) config file to enable keyfile plugin
 cat $CWD/NetworkManager.conf > $PKG/etc/NetworkManager/NetworkManager.conf.new

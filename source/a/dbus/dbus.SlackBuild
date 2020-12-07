@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Copyright 2007-2010  Robby Workman, Northport, Alabama, USA
-# Copyright 2007-2018  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2007-2020  Patrick Volkerding, Sebeka, MN, USA
+# Copyright 2020  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=dbus
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -78,6 +79,9 @@ find . \
  -exec chmod 644 {} \+
 
 zcat $CWD/dbus-1.12.x-allow_root_globally.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/dbus-enable-elogind.patch.gz | patch -p1 --verbose || exit 1
+
+NOCONFIGURE=1 ./autogen.sh || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -86,15 +90,20 @@ CXXFLAGS="$SLKCFLAGS" \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --runstatedir=/var/run \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-doxygen-docs \
+  --disable-apparmor \
+  --disable-selinux \
   --enable-shared=yes \
   --enable-static=no \
   --enable-inotify \
+  --enable-user-session \
   --enable-x11-autolaunch \
+  --enable-elogind \
+  --disable-systemd \
+  --without-systemdsystemunitdir \
   --with-system-pid-file=/var/run/dbus/dbus.pid \
   --with-system-socket=/var/run/dbus/system_bus_socket \
   --with-console-auth-dir=/var/run/console \
@@ -153,4 +162,3 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

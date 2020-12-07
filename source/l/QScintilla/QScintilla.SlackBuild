@@ -29,7 +29,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=QScintilla
 VERSION=${VERSION:-$(echo ${PKGNAM}-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -142,65 +142,7 @@ if qtpaths-qt5 --qt-version 1>/dev/null 2>/dev/null ; then
     #make  || exit 1
     #make -j1 install DESTDIR=$PKG INSTALL_ROOT=$PKG || exit 1
   cd -
-
-  # In order to compile Qt4 support next, clean up first:
-  make clean -C Qt4Qt5 || exit 1
-  make clean -C designer-Qt4Qt5 || exit 1
-  make clean -C Python || exit 1
 fi
-
-# QT4 support:
-echo "-- Compiling Qt4 support --"
-cd Qt4Qt5
-  echo "-- >> Qt4Qt5 --"
-  qmake \
-    -o Makefile \
-    QMAKE_CFLAGS+="$SLKCFLAGS" \
-    QMAKE_CXXFLAGS+="$SLKCFLAGS -std=c++11" \
-    qscintilla.pro || exit 1
-  make $NUMJOBS || exit 1
-  make install INSTALL_ROOT=$PKG || exit 1
-cd -
-
-cd designer-Qt4Qt5
-  echo "-- >> designer-Qt4Qt5 --"
-  qmake \
-    -o Makefile \
-    INCLUDEPATH+=../Qt4Qt5 QMAKE_LIBDIR+=../Qt4Qt5 \
-    QMAKE_CFLAGS+="$SLKCFLAGS" \
-    QMAKE_CXXFLAGS+="$SLKCFLAGS -std=c++11" \
-    designer.pro || exit 1
-  make $NUMJOBS || exit 1
-  make install INSTALL_ROOT=$PKG || exit 1
-cd -
-
-cd Python
-  echo "-- >> Python --"
-  python3 configure.py \
-      --verbose \
-      --qmake /usr/bin/qmake \
-      -n ../Qt4Qt5/ -o ../Qt4Qt5/ -c \
-      || exit 1
-  make -j1 || exit 1
-  make -j1 install INSTALL_ROOT=$PKG || exit 1
-
-  make clean || exit 1
-
-  python2 configure.py \
-      --verbose \
-      --qmake /usr/bin/qmake \
-      -n ../Qt4Qt5/ -o ../Qt4Qt5/ -c \
-      || exit 1
-  make -j1 || exit 1
-  make -j1 install INSTALL_ROOT=$PKG || exit 1
-cd -
-
-# Link the shared qt4 libraries into /usr/lib${LIBDIRSUFFIX}:
-( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  for file in $(ls -1 qt/lib/*.so* 2>/dev/null) ; do
-    ln -sf $file .
-  done
-)
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

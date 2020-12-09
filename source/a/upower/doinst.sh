@@ -12,4 +12,4 @@ config() {
 }
 
 config etc/UPower/UPower.conf.new
-
+config usr/share/polkit-1/rules.d/10-enable-upower-suspend.rules.new

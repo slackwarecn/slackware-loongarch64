@@ -1,14 +1,15 @@
-# In order to properly handle time before /usr is mounted (in
-# the event that /usr is a separate partition, which for a number
-# of reasons isn't really a great idea), the /etc/localtime file
-# should be a copy of the desired zoneinfo file and not a symlink
-# to a file in /usr/share/zoneinfo. But if we find a symlink here
-# we should defer to the admin's wishes and leave it alone.
-#
-# Note that setting the timezone with timeconfig will wipe both
-# /etc/localtime and /etc/localtime-copied from.
-# /etc/localtime-copied-from will be a symlink to a file under
-# /usr/share/zoneinfo, and /etc/localtime will be a copy of that file.
+# Note on configuration change (2020-12-09):
+# For the past decade and a half, this package has created a symlink
+# /etc/localtime-copied-from and a file /etc/localtime to prevent
+# time skew until /usr is mounted. But having a separate /usr partition
+# hasn't really made sense for a long time and leads to all kinds of
+# bugs these days. We're going to make /etc/localtime a symlink just
+# like everyone else does so that programs that expect it to be a link
+# can fetch the timezone without requiring any special patches.
+# If you insist on making /usr a seperate partition, you might want to
+# put the pointed-to directories and timezone file in your empty /usr
+# directory so that it is available before the real /usr is mounted.
+# Still not recommended though.
 
 # In a special case, we will handle the removal of the US/Pacific-New
 # timezone. A bit of background information on this:
@@ -32,23 +33,25 @@ if [ "$(/bin/ls -l etc/localtime-copied-from 2> /dev/null | rev | cut -f 1,2 -d 
   ( cd etc ; rm -rf localtime-copied-from )
   ( cd etc ; ln -sf /usr/share/zoneinfo/US/Pacific localtime-copied-from )
 fi
+# Same with any /etc/localtime symlink:
+if [ -L etc/localtime ]; then
+  if [ "$(/bin/ls -l etc/localtime 2> /dev/null | rev | cut -f 1,2 -d / | rev)" = "US/Pacific-New" ]; then
+    ( cd etc ; rm -rf localtime )
+    ( cd etc ; ln -sf /usr/share/zoneinfo/US/Pacific localtime )
+  fi
+fi
 
-# If we have no /etc/localtime, but we do have a localtime-copied-from
-# symlink to locate what we would want there, then add a copy now:
-if [ ! -r etc/localtime -a -L etc/localtime-copied-from ]; then
-  chroot . /bin/cp etc/localtime-copied-from etc/localtime
+# If we already have a localtime-copied-from symlink, move it over as the
+# /etc/localtime symlink:
+if [ -L etc/localtime-copied-from ]; then
+  rm -f etc/localtime
+  mv etc/localtime-copied-from etc/localtime
 fi
 
 # Add the default timezone in /etc, if none exists:
-if [ ! -r etc/localtime -a ! -L etc/localtime-copied-from ]; then
+if [ ! -r etc/localtime ]; then
   ( cd etc ; rm -rf localtime localtime-copied-from )
   ( cd etc ; ln -sf /usr/share/zoneinfo/Factory localtime-copied-from )
-fi
-
-# Make sure /etc/localtime is updated, unless it is a symlink (in which
-# case leave it alone):
-if [ ! -L etc/localtime ]; then
-  chroot . /bin/cp etc/localtime-copied-from etc/localtime
 fi
 
 # Add a link to the timeconfig script in /usr/share/zoneinfo:

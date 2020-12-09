@@ -609,8 +609,6 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
-gzip ./source/xfce/Greybird/0001-Fix-GTK3-dark-colors.patch
-gzip ./source/xfce/Greybird/0002-Fix-Thunar-CSD-when-not-focused-Fixes-274.patch
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff

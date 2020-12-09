@@ -26,8 +26,9 @@ preserve_perms() {
 
 #
 # Preserve permissions while moving into place:
-config etc/elogind/logind.conf.new
 preserve_perms etc/rc.d/rc.elogind.new
+config etc/elogind/logind.conf.new
+config usr/share/polkit-1/rules.d/10-enable-session-power.rules.new
 
 if pgrep -f elogind-daemon | grep -q 'elogind-daemon'; then
   echo "Reloading elogind-daemon..."

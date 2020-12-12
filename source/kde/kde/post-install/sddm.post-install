@@ -1,18 +1,17 @@
-if [ "$SLACKPAM" == "no" ]; then
-  # Remove PAM related stuff:
-  rm -rf $PKG/etc/pam.d
-else
-  # Replace systemd-centric files with ours:
-  rm -f $PKG/etc/pam.d/sddm*
-  for FILE in sddm sddm-autologin sddm-greeter ; do
-    install -Dm644 $CWD/post-install/sddm/pam.d/$FILE $PKG/etc/pam.d/$FILE
-  done
-fi
+# Replace systemd-centric files with ours:
+rm -f $PKG/etc/pam.d/sddm*
+for FILE in sddm sddm-autologin sddm-greeter ; do
+  install -Dm644 $CWD/post-install/sddm/pam.d/$FILE $PKG/etc/pam.d/$FILE
+done
 
 # Create the SDDM home directory:
 mkdir -p $PKG/var/lib/sddm
 chmod 755 $PKG/var/lib/sddm
 chown sddm:sddm $PKG/var/lib/sddm
+
+# D-Bus configs should be under /usr, not /etc:
+mkdir -p $PKG/usr/share/dbus-1/system.d
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d
 
 # Remove the sddm.conf file because we will generate our own in doinst.sh:
 rm -f $PKG/etc/sddm.conf
@@ -37,12 +36,6 @@ if [ "$OPENGL_VERSION" -lt 2 ]; then
   export QT_XCB_FORCE_SOFTWARE_OPENGL
 fi
 EOF
-
-# Ensure that user customizations to the session files are not lost:
-mv $PKG/usr/share/sddm/scripts/Xsession{,.new}
-mv $PKG/usr/share/sddm/scripts/Xsetup{,.new}
-mv $PKG/usr/share/sddm/scripts/Xstop{,.new}
-mv $PKG/usr/share/sddm/scripts/wayland-session{,.new}
 
 # Add a wrapper for the sddm binary, to enable a custom environment:
 mv $PKG/usr/bin/sddm $PKG/usr/bin/sddm.bin

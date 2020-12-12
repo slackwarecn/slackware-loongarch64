@@ -360,6 +360,7 @@ gzip ./source/a/mcelog/mcelog.init.diff
 gzip ./source/a/mcelog/doinst.sh
 gzip ./source/kde/kde/patch/ktorrent/geoip.dat
 gzip ./source/kde/kcm-fcitx/doinst.sh
+gzip ./source/kde/kcm-fcitx/destroy-erroroverlay-with-base-widget.patch
 gzip ./source/y/bsd-games/hangman-words
 gzip ./source/y/bsd-games/patches/0008-quiz-Add-answers-to-adults-babies.-Closes-659528.patch
 gzip ./source/y/bsd-games/patches/0007-Unsorted-Debian-patches.patch
@@ -807,7 +808,6 @@ gzip ./source/l/netpbm/netpbm-noppmtompeg.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
 gzip ./source/l/glib2/glib.allow.gtk-doc-1.32.diff
-gzip ./source/l/glib2/glib2.slackware.localtime.diff
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff

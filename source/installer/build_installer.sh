@@ -877,6 +877,7 @@ a/grep \
 a/gzip \
 a/hdparm \
 a/hwdata \
+a/inih \
 a/jfsutils \
 a/kmod \
 a/lvm2 \
@@ -1229,6 +1230,7 @@ cp  -fa${VERBOSE1} \
         libgcrypt*.so* \
         libgpg-error*.so* \
         libgssapi_krb5.so* \
+        libinih.so* \
         libk5crypto.so* \
         libkeyutils.so* \
         libkmod*so* \

@@ -219,6 +219,7 @@ gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh
 gzip ./source/a/e2fsprogs/e2fsprogs.no.64bit.by.default.diff
 gzip ./source/a/e2fsprogs/doinst.sh
+gzip ./source/a/elogind/10-enable-elogind-power.rules
 gzip ./source/a/elogind/elogind-polkit.patch
 gzip ./source/a/elogind/doinst.sh
 gzip ./source/a/pkgtools/doinst.sh

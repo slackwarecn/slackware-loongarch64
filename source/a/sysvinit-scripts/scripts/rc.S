@@ -379,11 +379,6 @@ mount -o bind /run /var/run
 # mounted read-write.
 /sbin/swapon -a 2> /dev/null
 
-# Start cgmanager (or cgproxy in a container):
-if [ -x /etc/rc.d/rc.cgmanager -a -d /sys/fs/cgroup ]; then
-  /etc/rc.d/rc.cgmanager start
-fi
-
 # Start libcgroup services:
 if [ -x /etc/rc.d/rc.cgconfig -a -x /etc/rc.d/rc.cgred -a -d /sys/fs/cgroup ]; then
   /etc/rc.d/rc.cgconfig start ; echo " /usr/sbin/cgconfigparser -l /etc/cgconfig.conf"

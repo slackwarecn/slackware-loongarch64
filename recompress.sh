@@ -610,7 +610,6 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
-gzip ./source/xfce/xfce4-systemload-plugin/xfce4-systemload-plugin.HOVER_TIMEOUT.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
@@ -820,6 +819,7 @@ gzip ./source/l/gtk+2/doinst.sh
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
 gzip ./source/l/libvisual/libvisual.glib.h.diff
+gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/desktop-file-utils/doinst.sh

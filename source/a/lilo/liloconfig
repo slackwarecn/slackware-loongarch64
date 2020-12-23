@@ -678,20 +678,6 @@ else
   exit 99 # no kernel?  guess you couldn't read.  bye bye.
 fi
 
- # If we're installing from the umsdos.gz rootdisk, suggest skipping LILO:
- if [ ! "$T_PX" = "/" ]; then
-   if mount | grep " on /mnt " | grep umsdos 1> /dev/null 2> /dev/null ; then
-     dialog --title "SKIP LILO CONFIGURATION? (RECOMMENDED)" --yesno "Since \
-you are installing to a FAT partition, it's suggested that you do not \
-configure LILO at this time. (Instead, use your bootdisk. For booting \
-off the hard drive from MS-DOS, you can use Loadlin. You'll find \
-Loadlin on your hard drive in \LINUX\ROOT) Skip LILO configuration \
-(highly recommended)?" 10 70
-     if [ $? = 0 ]; then
-       exit
-     fi 
-   fi
- fi
  # OK, now let's see if we should automate things:
  dialog --title "INSTALL LILO" --menu "LILO (Linux Loader) is a generic \
 boot loader. There's a simple installation which tries to automatically \
@@ -796,6 +782,12 @@ selection. Please pick a target location:" 15 65 3 \
        MBR_TARGET=/dev/hdg
        echo $MBR_TARGET > $TMP/LILOMBR
       fi
+      if dmidecode 2> /dev/null | grep -q QEMU 2> /dev/null ; then
+       if [ -r /dev/vda ]; then
+         MBR_TARGET=/dev/vda
+         echo $MBR_TARGET > $TMP/LILOMBR
+       fi
+      fi
      fi
     done
     LILO_TARGET=$(cat $TMP/LILOMBR)
@@ -880,6 +872,9 @@ EOF
      echo "# Append any additional kernel parameters:" >> $TMP/lilo.conf
      echo "append=\"$APPEND $UTFVT\"" >> $TMP/lilo.conf
    #fi
+   if echo $LILO_TARGET | grep -q vda 2>/dev/null ; then
+    echo "disk = /dev/vda bios=0x80 max-partitions=7" >> $TMP/lilo.conf
+   fi
    cat << EOF >> $TMP/lilo.conf
 $PROMPT
 $TIMEOUT
@@ -1154,8 +1149,8 @@ configuration file, it could not be found. Try making a new one." 9 70
    if [ -r $TMP/lilo.conf ]; then
     dialog --title "YOUR NEW /etc/lilo.conf" --textbox "$TMP/lilo.conf" 22 70
    else
-    if [ -r /mnt/etc/lilo.conf ]; then
-     dialog --title "YOUR OLD /etc/lilo.conf" --textbox "/mnt/etc/lilo.conf" 22 70
+    if [ -r $T_PX/etc/lilo.conf ]; then
+     dialog --title "YOUR OLD /etc/lilo.conf" --textbox "$T_PX/etc/lilo.conf" 22 70
     elif [ "$T_PX" = "/" -a -r /etc/lilo.conf ]; then
      dialog --title "YOUR OLD /etc/lilo.conf" --textbox "/etc/lilo.conf" 22 70
     else

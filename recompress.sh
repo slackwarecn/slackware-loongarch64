@@ -305,6 +305,7 @@ gzip ./source/a/lvm2/doinst.sh
 gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy
 gzip ./source/a/libblockdev/doinst.sh
+gzip ./source/a/lilo/lilo.gcc10.diff
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff

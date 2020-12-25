@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=GConf
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -98,6 +98,11 @@ CXXFLAGS="$SLKCFLAGS" \
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Move dbus configs to system location:
+mkdir -p $PKG/usr/share/dbus-1/system.d/
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d/
+rmdir --parents $PKG/etc/dbus-1/system.d/
 
 # Don't ship .la files:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la

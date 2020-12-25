@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=hplip
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -150,7 +150,7 @@ PYTHON=/usr/bin/python3 \
   --disable-foomatic-ppd-install \
   --enable-foomatic-drv-install \
   --enable-network-build=yes \
-  --enable-qt4 \
+  --enable-qt5 \
   --enable-policykit \
   --enable-cups-ppd-install \
   --build=$ARCH-slackware-linux \
@@ -160,12 +160,20 @@ PYTHON=/usr/bin/python3 \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG rulesdir=/lib/udev/rules.d || exit 1
 
+# Move dbus configs to system location:
+mkdir -p $PKG/usr/share/dbus-1/system.d/
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d/
+rmdir --parents $PKG/etc/dbus-1/system.d/
+
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # 3.16.8 is not making this directory even though several scripts
 # continue to make use of it:
 mkdir -p $PKG/var/lib/hp/
+
+# HAL is long gone:
+rm -rf $PKG/usr/share/hal
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

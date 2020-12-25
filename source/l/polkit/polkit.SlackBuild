@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=polkit
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -144,9 +144,13 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 # actually used for anything later.  Perms don't matter.
 mkdir -p $PKG/var/lib/polkit
 
-# Add default policy files for udisks2 and NetworkManager events:
-cat $CWD/10-org.freedesktop.NetworkManager.rules > $PKG/etc/polkit-1/rules.d/10-org.freedesktop.NetworkManager.rules.new
-cat $CWD/20-plugdev-group-mount-override.rules > $PKG/etc/polkit-1/rules.d/20-plugdev-group-mount-override.rules.new
+# Move dbus configs to system location:
+mkdir -p $PKG/usr/share/dbus-1/system.d/
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d/
+rmdir --parents $PKG/etc/dbus-1/system.d/
+
+# Leave the /etc/polkit-1/rules.d/ dir in place, but move the config(s)
+mv $PKG/etc/polkit-1/rules.d/* $PKG/usr/share/polkit-1/rules.d/
 
 if [ ! -z "$PAM_OPTIONS" ]; then
   # Make the PAM file .new:

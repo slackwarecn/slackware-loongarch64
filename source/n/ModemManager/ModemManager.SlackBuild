@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ModemManager
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -81,6 +81,8 @@ find . \
 
 zcat $CWD/WeDoNotHaveSystemD.patch.gz | patch -p1 --verbose || exit 1
 
+LIBSYSTEMD_LOGIN_CFLAGS="$(pkg-config --cflags libelogind)" \
+LIBSYSTEMD_LOGIN_LIBS="$(pkg-config --libs libelogind)" \
 CFLAGS="$SLKCFLAGS -Wno-incompatible-pointer-types" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -92,10 +94,16 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --disable-static \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --with-systemd-suspend-resume \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Move dbus configs to system location:
+mkdir -p $PKG/usr/share/dbus-1/system.d/
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d/
+rmdir --parents $PKG/etc/dbus-1/system.d/
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

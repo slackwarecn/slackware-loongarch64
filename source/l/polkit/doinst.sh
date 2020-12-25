@@ -9,8 +9,7 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-config etc/polkit-1/rules.d/20-plugdev-group-mount-override.rules.new
-config etc/polkit-1/rules.d/10-org.freedesktop.NetworkManager.rules.new
+
 if [ -r etc/pam.d/polkit-1.new ]; then
   config etc/pam.d/polkit-1.new
 fi

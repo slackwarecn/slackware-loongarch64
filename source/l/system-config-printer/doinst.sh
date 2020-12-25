@@ -11,9 +11,6 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/dbus-1/system.d/com.redhat.NewPrinterNotification.conf.new
-config etc/dbus-1/system.d/com.redhat.PrinterDriversInstaller.conf.new
-
 # Update the desktop database:
 if [ -x usr/bin/update-desktop-database ]; then
   chroot . /usr/bin/update-desktop-database usr/share/applications > /dev/null 2>&1

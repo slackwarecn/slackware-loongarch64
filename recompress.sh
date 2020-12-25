@@ -9,12 +9,6 @@ gzip ./extra/source/xv/xv.prefix_x86_64.diff
 gzip ./extra/source/xv/xv.jasper.diff
 gzip ./extra/source/xv/xv.prefix.diff
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
-gzip ./extra/source/pure-alsa-system/xfce4-volumed/0001-Removed-deprecated-Encoding-entry-in-.desktop-file-t.patch
-gzip ./extra/source/pure-alsa-system/xfce4-volumed/0003-Removing-edge-case-memleaks.patch
-gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Make-Unique-support-optional.patch
-gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-Use-datadir-xfce4-mixer-as-MIXER_DATADIR.patch
-gzip ./extra/source/pure-alsa-system/xfce4-mixer/doinst.sh
-gzip ./extra/source/pure-alsa-system/xfce4-mixer/0001-icons-Makefile.am-Remove-unnecessary-gtk-update-icon.patch
 gzip ./extra/source/recordmydesktop/recordmydesktop-bitrate.patch
 gzip ./extra/source/recordmydesktop/shmstr-to-shmproto.patch
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
@@ -596,11 +590,14 @@ gzip ./source/n/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/n/cyrus-sasl/rc.saslauthd
 gzip ./source/n/cyrus-sasl/doinst.sh
 gzip ./source/n/netatalk/doinst.sh
+gzip ./source/n/netatalk/netatalk-invalid_dircache_entries.patch
 gzip ./source/xfce/xfce4-whiskermenu-plugin/doinst.sh
 gzip ./source/xfce/xfce4-power-manager/doinst.sh
 gzip ./source/xfce/xfce4-taskmanager/doinst.sh
 gzip ./source/xfce/mousepad/doinst.sh
 gzip ./source/xfce/xfce4-screensaver/0001-Catch-gs_listener_dbus_init-failures.patch
+gzip ./source/xfce/xfce4-screensaver/clarify-desc-in-xfce-settings.patch
+gzip ./source/xfce/xfce4-session/use-xfss-by-default-in-xfce.patch
 gzip ./source/xfce/elementary-xfce/doinst.sh
 gzip ./source/xfce/xfce4-panel/libxfce4panel.max_blinking_count.8.diff
 gzip ./source/xfce/xfce4-panel-profiles/doinst.sh
@@ -975,6 +972,7 @@ gzip ./source/xap/xgames/xlander-2009-07-18.diff
 gzip ./source/xap/xgames/xcuckoo.diff
 gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
+gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
@@ -1032,6 +1030,7 @@ gzip ./source/xap/geeqie/doinst.sh
 gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c
+gzip ./source/xap/xscreensaver/clarify-desc-in-xfce-settings.patch
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
 gzip ./source/xap/xscreensaver/doinst.sh
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff

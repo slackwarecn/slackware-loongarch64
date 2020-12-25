@@ -12,7 +12,7 @@ config() {
 for file in etc/cups/*.new ; do
   config $file
 done
-config etc/dbus-1/system.d/cups.conf.new
+
 if [ -r etc/pam.d/cups.new ]; then
   config etc/pam.d/cups.new
 fi

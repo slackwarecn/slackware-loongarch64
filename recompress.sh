@@ -829,6 +829,7 @@ gzip ./source/l/qt5-webkit/qt5-webkit.bison27.patch
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/020_no-parallel-make.diff
+gzip ./source/l/pulseaudio/pulseaudio.elogind.meson.diff
 gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch

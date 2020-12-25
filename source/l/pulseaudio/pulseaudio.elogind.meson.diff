@@ -1,0 +1,52 @@
+diff -urN pulseaudio-14.0.orig/meson.build pulseaudio-14.0/meson.build
+--- pulseaudio-14.0.orig/meson.build	2020-11-23 20:31:13.000000000 +0200
++++ pulseaudio-14.0/meson.build	2020-12-24 22:24:03.166596631 +0200
+@@ -602,6 +602,11 @@
+   systemduserunitdir = systemd_dep.get_pkgconfig_variable('systemduserunitdir')
+ endif
+ 
++libelogind_dep = dependency('libelogind', required : get_option('elogind'))
++if libelogind_dep.found()
++  cdata.set('HAVE_SYSTEMD_LOGIN', 1)
++endif
++
+ x11_dep = dependency('x11-xcb', required : get_option('x11'))
+ if x11_dep.found()
+   xcb_dep  = dependency('xcb',  required : true, version : '>= 1.6')
+@@ -829,6 +834,7 @@
+   'Enable udev:                   @0@'.format(udev_dep.found()),
+   '  Enable HAL->udev compat:     @0@'.format(get_option('hal-compat')),
+   'Enable systemd:                @0@'.format(libsystemd_dep.found()),
++  'Enable elogind:                @0@'.format(libelogind_dep.found()),
+ #  'Enable TCP Wrappers:           @0@'.format(${ENABLE_TCPWRAP}),
+   'Enable libsamplerate:          @0@'.format(samplerate_dep.found()),
+   'Enable IPv6:                   @0@'.format(get_option('ipv6')),
+diff -urN pulseaudio-14.0.orig/meson_options.txt pulseaudio-14.0/meson_options.txt
+--- pulseaudio-14.0.orig/meson_options.txt	2020-11-11 04:07:46.000000000 +0200
++++ pulseaudio-14.0/meson_options.txt	2020-12-24 22:18:27.921584579 +0200
+@@ -135,6 +135,9 @@
+ option('systemd',
+        type : 'feature', value : 'auto',
+        description : 'Optional systemd support')
++option('elogind',
++       type : 'feature', value : 'auto',
++       description : 'Optional elogind support')
+ option('udev',
+        type : 'feature', value : 'auto',
+        description : 'Optional udev support')
+diff -urN pulseaudio-14.0.orig/src/modules/meson.build pulseaudio-14.0/src/modules/meson.build
+--- pulseaudio-14.0.orig/src/modules/meson.build	2020-11-11 04:07:46.000000000 +0200
++++ pulseaudio-14.0/src/modules/meson.build	2020-12-24 22:20:06.143588110 +0200
+@@ -188,6 +188,12 @@
+   ]
+ endif
+ 
++if libelogind_dep.found()
++  all_modules += [
++    [ 'module-systemd-login', 'module-systemd-login.c', [], [], [libelogind_dep] ],
++  ]
++endif
++
+ if udev_dep.found()
+   all_modules += [ [ 'module-udev-detect', 'module-udev-detect.c', [], [], [udev_dep] ] ]
+   if get_option('hal-compat')

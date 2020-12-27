@@ -13,127 +13,381 @@ Note that upgrading from a Slackware version earlier than 14.2 is NOT
   supported at all and will most likely not work.
 
 
+*** NEW USERS/GROUPS SINCE 14.2 ***
+
+cgred group, GID 41
+dovecot user and group, UID and GID 94
+dovenull user and group, UID and GID 95
+icecc user and group, UID and GID 49
+ldap user and group, UID and GID 330
+ntp user and group, UID and GID 44
+postfix user and group, UID and GID 91
+postdrop user and group, UID and GID 92
+
+
+*** NOTABLE CHANGES AND HINTS ***
+
+User authentication is PAM-based now; in short, Slackware ships PAM.
+  The out-of-the-box configuration should be exactly what you expect
+  from Slackware.  Enjoy.
+
+The stock networking scripts now use iproute2 instead of net-tools and
+  bridge-utils and friends. All of the previous functionality is still
+  supported with the same config file syntax in /etc/rc.d/rc.inet1.conf,
+  but added functionality includes support for creating virtual interfaces
+  (e.g. tun/tap) and adding them to bridges as well as binding additional
+  IP addresses to virtual and/or real interfaces. This did involve some
+  added options to rc.inet1.conf.  Maybe best of all, /sbin/ifconfig can
+  still be used to view (and even configure) interfaces manually - any
+  additional IP addresses bound to interfaces using rc.inet1 will be done
+  in such a way that /sbin/ifconfig recognizes them.
+  
+The ntp package has changed such that ntpd now drops privileges and runs as
+  user ntp and group ntp. Be sure to move/merge the changes to rc.ntpd and
+  /etc/ntp.conf.
+
+The gnupg2 package has changed such that the gpg agent is autostarted on 
+  demand now, so be sure to remove any local profile script changes to 
+  handle that. Also, there is a new keyring format used by gnupg2-2.2.x,
+  so have a look at https://www.gnupg.org/faq/whats-new-in-2.1.html#keybox
+  for migration tips.
+
+n/postfix replaces n/sendmail as the default MTA.
+  However, postfix is sendmail compatible with respect to function; in
+  other words, any scripts or other applications expecting to *use*
+  sendmail should work just fine, as postfix installs a sendmail binary
+  at /usr/sbin/sendmail. This is all fine and wonderful unless you want
+  to use sendmail *instead* of postfix and thus decided to leave sendmail
+  installed on the system. The postfix package will overwrite the
+  /usr/sbin/sendmail file on the system. Long story short: if you plan 
+  to use the sendmail MTA instead of postfix, you will need to reinstall 
+  sendmail after postfix. Many distros provide a means of having both MTAs 
+  (and even others, such as exim and courier) installed at the same time, 
+  but we don't see a reason to bother with that. If for some reason you 
+  DO want both:
+    1: First, install the MTA you do NOT plan to use
+    2. Rename the /usr/sbin/sendmail binary with a suffix, e.g.
+       # mv /usr/sbin/sendmail /usr/sbin/sendmail.postfix
+    3: Next, install the MTA you DO plan to use
+  Finally, you might want to configure the first-installed MTA to look at
+  the changed path for its sendmail binary. We're not going to cover that 
+  here. Also note that only one of the installed MTAs will be able to bind
+  the common SMTP ports, if you want to have both MTAs running.
+
+The cciss driver has been replaced by the hpsa driver, so if you're
+  running an HP server, this may be relevant to you. This is mostly an
+  issue with respect to device references -- if you have references to
+  /dev/cciss/* in e.g. /etc/fstab and/or /etc/smartd.conf, you'll need
+  to fix those.  Reference: https://tinyurl.com/cciss-hpsa
+
+The default location for packaged dbus configs and polkit rules are now
+  /usr/share/dbus-1/system.d/ and /usr/share/polkit-1/rules.d/ ; as such,
+  all packaged files have been moved to those locations. If you upgraded
+  from 14.2, you will have the previous copies of those still inside
+  /etc/dbus-1/system.d/ and /etc/polkit-1/rules.d/ (as they used to be
+  installed with .new suffixes). The upgrade process will not (and should
+  not) automatically remove those, as the locations in /etc are intended
+  to override the locations in /usr/share, and it's possible that the
+  system administrator had edited the files in /etc and intends for those
+  edits to be persistent. If that does not apply, *and* the files remaining
+  in there were not installed by non-stock packages, you may remove the
+  dbus configs and polkit rules files in the /etc locations.
+
+elogind now manages cgroups (cgmanager is removed), so the leftover files
+  at /etc/rc.d/rc.cgmanager and /etc/rc.d/rc.cgproxy should be removed.
+
+Use one of the provided generic kernels for daily use.  Do not report
+  bugs until/unless you have reproduced them using one of the stock 
+  generic kernels.  You will need to create an initrd in order to boot
+  the generic kernels - see /boot/README.initrd for instructions.
+  The huge kernels are primarily intended as "installer" and "emergency" 
+  kernels in case you forget to make an initrd.  For most systems, you 
+  should use the generic SMP kernel if it will run, even if your system is 
+  not SMP-capable.  Some newer hardware needs the local APIC enabled in the 
+  SMP kernel, and theoretically there should not be a performance penalty 
+  with using the SMP-capable kernel on a uniprocessor machine, as the SMP 
+  kernel tests for this and makes necessary adjustments.  Furthermore, the 
+  kernel sources shipped with Slackware are configured for SMP usage, so you 
+  won't have to modify those to build external modules (such as NVidia or 
+  ATI proprietary drivers) if you use the SMP kernel.
+
+  If you decide to use one of the non-SMP kernels, you will need to follow the
+  instructions in /extra/linux-5.10.3-nosmp-sdk/README.TXT to modify your
+  kernel sources for non-SMP usage.  Note that this only applies if you are
+  using the Slackware-provided non-SMP kernel - if you build a custom kernel,
+  the symlinks at /lib/modules/$(uname -r)/{build,source} will point to the
+  correct kernel source so long as you don't (re)move it.
+
+If you want to change the resolution of the KMS console, that can be done
+  with something like this as a kernel append in lilo.conf:
+    append="video=1024x768"
+
+Speaking of lilo.conf and KMS, make sure you use either vga=normal or 
+  vga=extended -- some of the framebuffers don't like KMS very much...
+
+If you have set up an encrypted root partition, you will need to have access 
+  to your keyboard in order to type the passphrase.  This may require you to 
+  add the uhci-hcd and usbhid modules to your initrd image if you have a USB 
+  keyboard.  Also note that if you are using a non-US keyboard, you can use the
+  '-l' parameter to the 'mkinitrd' command in order to add support for this
+  keyboard to your initrd.
+
+Subpixel hinting in freetype has been enabled upstream by default, but you 
+  may adjust this in /etc/profile.d/freetype.{csh,sh}.
+
+
 *** PACKAGE ADDITIONS SINCE 14.2 ***
 
+a/cracklib
 a/efivar
+a/elogind
 a/f2fs-tools
 a/haveged
 a/hostname (split from n/net-tools)
+a/inih
 a/lbzip2
 a/lhasa (replaces a/lha)
+a/libblockdev
+a/libbytesize
+a/libpwquality
 a/lzlib
 a/mlocate (replaces a/slocate)
+a/ndctl
 a/nvi
 a/openssl10-solibs (compat libraries for openssl-1.0.2)
+a/pam
 a/plzip
+a/volume_key
 a/zerofree
 ap/dash (replaces ap/ash)
+ap/inxi
 ap/man-db (replaces ap/man)
+ap/neofetch
 ap/nvme-cli
 ap/opus-tools
 ap/sc-im (replaces ap/sc)
+ap/undervolt
 ap/xorriso
+d/autoconf-archive
 d/check
 d/gcc-brig
 d/gcc-gdc
 d/gnucobol (replaces d/gnu-cobol)
+d/gyp
 d/icecream
+d/meson
+d/ninja
 d/opencl-headers
 d/parallel
 d/patchelf
 d/python-pip
+d/python2 (replaces d/python)
 d/python3
+d/re2c
+d/rinutils
 d/rust
+d/sassc
 d/vala
+e/emacspeak
+kde/* (too many to reasonably list here - see UPGRADE.TXT)
 l/Mako
+l/PyQt5
+l/QtAV
 l/SDL2
 l/SDL2_gfx
 l/SDL2_image
 l/SDL2_mixer
 l/SDL2_net
 l/SDL2_ttf
+l/accountsservice
 l/argon2
+l/brotli
+l/cfitsio
+l/cryfs
+l/cryptopp
+l/dotconf
+l/dvdauthor
+l/espeak-ng
+l/farstream
 l/ffmpeg
 l/fluidsynth
+l/freecell-solver
+l/frei0r-plugins
 l/fuse3
+l/gdk-pixbuf2-xlib
 l/gexiv2
+l/gjs
+l/glade
 l/gnome-themes-extra (replaces l/gnome-themes-standard)
+l/graphene
 l/graphite2
 l/gst-plugins-libav
+l/gtksourceview3
+l/hyphen
 l/id3lib
 l/isl
 l/jansson
 l/jmtpfs
 l/json-glib
+l/kdsoap
+l/keybinder3
 l/lame
+l/lensfun
+l/libappindicator
 l/libbluray
+l/libburn
 l/libclc
+l/libcue
+l/libdbusmenu
+l/libdmtx
 l/libedit
 l/libidn2
+l/libindicator
+l/libnice
+l/libnsl
+l/libnss_nis
 l/libopusenc
 l/libpsl
+l/libqalculate
+l/libsass
 l/libsodium
 l/libunwind
+l/libuv
 l/libwebp
+l/libwnck3
+l/libxkbcommon
 l/lmdb
-l/mozjs60 (replaced l/js185)
+l/lz4
+l/mlt
+l/mozjs78 (replaced l/js185)
 l/ocl-icd
 l/oniguruma
+l/openal-soft
+l/opencv
 l/opus
 l/opusfile
+l/pcaudiolib
+l/pcre2
+l/phonon-backend-gstreamer
+l/pipewire
 l/pyparsing
 l/python-appdirs
 l/python-certifi
 l/python-chardet
-l/python-docutils
 l/python-distro
+l/python-docutils
+l/python-future
 l/python-idna
 l/python-notify2
 l/python-packaging
 l/python-ply
 l/python-pygments
+l/python-pysol_cards
+l/python-random2
 l/python-requests
 l/python-sane
 l/python-six
 l/python-urllib3
+l/python2-module-collection
+l/qrencode
+l/qt5
+l/qt5-webkit
+l/qtkeychain
+l/quazip
+l/rpcsvc-proto
+l/rttr
+l/speech-dispatcher
 l/speex
 l/talloc
 l/tdb
 l/tevent
+l/tidy-html5
 l/utf8proc
+l/vid.stab
+l/woff2
+l/xxHash
 l/zstd
 n/dovecot
 n/krb5
 n/libmilter
 n/nghttp2
 n/npth
+n/nss-pam-ldapd
+n/openldap
 n/openssl10 (compat development package for openssl-1.0.2)
+n/pam-krb5
 n/postfix
 n/s-nail (replaces mailx)
+n/socat
 n/sshfs
 n/wireless_tools (renamed from n/wireless-tools)
 t/fig2dev (replaces t/transfig)
 t/texlive (replaces t/tetex and t/tetex-doc)
+x/OpenCC
+x/cldr-emoji-annotation
+x/fcitx
+x/fcitx-anthy
+x/fcitx-configtool
+x/fcitx-hangul
+x/fcitx-kkc
+x/fcitx-libpinyin
+x/fcitx-m17n
+x/fcitx-qt5
+x/fcitx-sayura
+x/fcitx-table-extra
+x/fcitx-table-other
+x/fcitx-unikey
+x/hack-fonts-ttf
+x/ibus
+x/ibus-anthy
+x/ibus-hangul
+x/ibus-kkc
+x/ibus-libpinyin
+x/ibus-m17n
+x/ibus-table
+x/ibus-unikey
 x/igt-gpu-tools (replaces x/intel-gpu-tools)
 x/intel-vaapi-driver (replaces x/libva-intel-driver)
 x/libXfont2
+x/libgee
 x/libglvnd
 x/libinput
+x/libkkc
+x/libkkc-data
 x/libmypaint
+x/libpinyin
 x/libva-utils
 x/libwacom
+x/marisa
 x/mypaint-brushes
+x/noto-cjk-fonts-ttf
+x/noto-fonts-ttf
+x/pyxdg
+x/skkdic
 x/ttf-tlwg
 x/urw-core35-fonts-otf
 x/vulkan-sdk
+x/wayland
+x/wayland-protocols
 x/xf86-input-libinput
 x/xf86-video-vboxvideo
+x/xisxwayland
+x/xorg-server-xwayland
 x/xorgproto (replaces all of the other x/*proto packages)
+xap/NetworkManager-openvpn
 xap/easytag
 xap/ffmpegthumbnailer
+xap/libnma
 xap/rxvt-unicode (replaces xap/rxvt)
+xap/ssr
+xap/xsnow
+xfce/Greybird
+xfce/elementary-xfce
+xfce/mousepad
 xfce/thunar (replaces xfce/Thunar)
-extra/sendmail/* (moved from main tree)
+xfce/xfce4-panel-profiles
+xfce/xfce4-screensaver
+xfce/xfce4-whiskermenu-plugin
 
 
 *** PACKAGE REMOVALS SINCE 14.2 ***
@@ -143,30 +397,58 @@ a/getty-ps (moved to /extra)
 a/lha (replaced by a/lhasa)
 a/slocate (replaced by a/mlocate)
 ap/ash (replaced by ap/dash)
+ap/cgmanager (obsoleted by a/elogind)
 ap/man (replaced by ap/man-db)
+ap/pm-utils (obsoleted by a/elogind)
 ap/sc (replaced by ap/sc-im)
 ap/workbone
 d/gcc-java
 d/gnu-cobol (replaced by d/gnucobol)
+d/python (replaced by d/python2)
+kde/* (too many to reasonably list here - see UPGRADE.TXT)
+kdei/* (too many to reasonably list here)
+l/ConsoleKit2 (obsoleted by a/elogind)
+l/PyQt
+l/automoc4
 l/db42
 l/db44
+l/glade3 (replaced by l/glade)
 l/gnome-themes-standard (replaced by l/gnome-themes-extra)
 l/herqq
-l/js185 (replaced with l/mozjs60)
+l/ilmbase
+l/js185 (replaced by l/mozjs78)
+l/json-c
+l/keybinder (replaced by l/keybinder3)
 l/libart_lgpl
+l/libbluedevil
+l/libcroco
+l/liblastfm
 l/libmcs
 l/libmowgli
 l/libmsn
 l/libtermcap
 l/libwmf-docs (merged with l/libwmf)
 l/notify-python (replaced by python-notify2)
+l/phonon-gstreamer
 l/pyrex
+l/qimageblitz
+l/qjson
+l/qt (replaced by l/qt5)
+l/qt-gstreamer
+l/qtscriptgenerator
+l/raptor2
+l/rasqal
+l/redland
 l/seamonkey-solibs
+l/soprano
+l/strigi
+l/urwid
 l/virtuoso-ose
 n/dirmngr
 n/idnkit
 n/imapd
 n/mailx (replaced by n/s-nail)
+n/openldap-client
 n/pth
 n/rfkill (included in a/util-linux)
 n/sendmail (moved to /extra ; replaced by n/postfix and n/libmilter)
@@ -199,12 +481,19 @@ x/randrproto (replaced by x/xorgproto)
 x/recordproto (replaced by x/xorgproto)
 x/renderproto (replaced by x/xorgproto)
 x/resourceproto (replaced by x/xorgproto)
+x/scim
+x/scim-anthy
+x/scim-hangul
+x/scim-input-pad
+x/scim-m17n
+x/scim-pinyin
+x/scim-tables
 x/scrnsaverproto (replaced by x/xorgproto)
 x/videoproto (replaced by x/xorgproto)
 x/xcmiscproto (replaced by x/xorgproto)
 x/xextproto (replaced by x/xorgproto)
-x/xf86-video-xgi (replaced by x/xorgproto)
-x/xf86-video-xgixp (replaced by x/xorgproto)
+x/xf86-video-xgi
+x/xf86-video-xgixp
 x/xf86bigfontproto (replaced by x/xorgproto)
 x/xf86dgaproto (replaced by x/xorgproto)
 x/xf86driproto (replaced by x/xorgproto)
@@ -216,166 +505,8 @@ xap/rxvt (replaced by xap/rxvt-unicode)
 xap/xfractint (moved to /extra)
 xap/xv (moved to /extra)
 xfce/Thunar (replaced by xfce/thunar)
+xfce/gtk-xfce-engine
+xfce/orage
 extra/bittorrent/bittorrent
 extra/mplayerplug-in/mplayerplug-in
 
-
-*** NEW USERS/GROUPS SINCE 14.2 ***
-
-cgred group, GID 41
-ntp user and group, UID and GID 44
-postfix user and group, UID and GID 91
-postdrop group, GID 92
-dovecot user and group, UID and GID 94
-dovenull user and group, UID and GID 95
-
-
-*** OTHER NOTABLE CHANGES AND HINTS ***
-
-The stock networking scripts now use iproute2 instead of net-tools and
-  bridge-utils and friends. All of the previous functionality is still
-  supported with the same config file syntax in /etc/rc.d/rc.inet1.conf,
-  but added functionality includes support for creating virtual interfaces
-  (e.g. tun/tap) and adding them to bridges as well as binding additional
-  IP addresses to virtual and/or real interfaces. This did involve some
-  added options to rc.inet1.conf.  Maybe best of all, /sbin/ifconfig can
-  still be used to view (and even configure) interfaces manually - any
-  additional IP addresses bound to interfaces using rc.inet1 will be done
-  in such a way that /sbin/ifconfig recognizes them.
-  
-The ntp package has changed such that ntpd now drops privileges and runs as
-  user ntp and group ntp. Be sure to move/merge the changes to rc.ntpd and
-  /etc/ntp.conf.
-
-The gnupg2 package has changed such that the gpg agent is autostarted on 
-  demand now, so be sure to remove any local profile script changes to 
-  handle that. Also, there is a new keyring format used by gnupg2-2.2.x,
-  so have a look at https://www.gnupg.org/faq/whats-new-in-2.1.html#keybox
-  for migration tips.
-
-As mentioned earlier, n/postfix replaces n/sendmail as the default MTA.
-  However, postfix is sendmail compatible with respect to function; in
-  other words, any scripts or other applications expecting to *use*
-  sendmail should work just fine, as postfix installs a sendmail binary
-  at /usr/sbin/sendmail. This is all fine and wonderful unless you want
-  to use sendmail *instead* of postfix and thus decided to leave sendmail
-  installed on the system. The postfix package will overwrite the
-  /usr/sbin/sendmail file on the system. Long story short: if you plan 
-  to use the sendmail MTA instead of postfix, you will need to reinstall 
-  sendmail after postfix. Many distros provide a means of having both MTAs 
-  (and even others, such as exim and courier) installed at the same time, 
-  but we don't see a reason to bother with that. If for some reason you 
-  DO want both:
-    1: First, install the MTA you do NOT plan to use
-    2. Rename the /usr/sbin/sendmail binary with a suffix, e.g.
-       # mv /usr/sbin/sendmail /usr/sbin/sendmail.postfix
-    3: Next, install the MTA you DO plan to use
-  Finally, you might want to configure the first-installed MTA to look at
-  the changed path for its sendmail binary. We're not going to cover that 
-  here. Also note that only one of the installed MTAs will be able to bind
-  the common SMTP ports, if you want to have both MTAs running.
-
-The cciss driver has been replaced by the hpsa driver, so if you're
-  running an HP server, this may be relevant to you. This is mostly an
-  issue with respect to device references -- if you have references to
-  /dev/cciss/* in e.g. /etc/fstab and/or /etc/smartd.conf, you'll need
-  to fix those.  Reference: https://tinyurl.com/cciss-hpsa
-
-Use one of the provided generic kernels for daily use.  Do not report
-  bugs until/unless you have reproduced them using one of the stock 
-  generic kernels.  You will need to create an initrd in order to boot
-  the generic kernels - see /boot/README.initrd for instructions.
-  The huge kernels are primarily intended as "installer" and "emergency" 
-  kernels in case you forget to make an initrd.  For most systems, you 
-  should use the generic SMP kernel if it will run, even if your system is 
-  not SMP-capable.  Some newer hardware needs the local APIC enabled in the 
-  SMP kernel, and theoretically there should not be a performance penalty 
-  with using the SMP-capable kernel on a uniprocessor machine, as the SMP 
-  kernel tests for this and makes necessary adjustments.  Furthermore, the 
-  kernel sources shipped with Slackware are configured for SMP usage, so you 
-  won't have to modify those to build external modules (such as NVidia or 
-  ATI proprietary drivers) if you use the SMP kernel.
-
-  If you decide to use one of the non-SMP kernels, you will need to follow the
-  instructions in /extra/linux-5.4.18-nosmp-sdk/README.TXT to modify your
-  kernel sources for non-SMP usage.  Note that this only applies if you are
-  using the Slackware-provided non-SMP kernel - if you build a custom kernel,
-  the symlinks at /lib/modules/$(uname -r)/{build,source} will point to the
-  correct kernel source so long as you don't (re)move it.
-
-Printing, scanning, and bluetooth usage require that your user account be a
-  member of the "lp" group (membership in the "scanner" group is no longer
-  needed by any of the included scanner drivers, though some third party
-  drivers may still need it); we had to configure sane to use the "lp" group
-  or else multifunction devices (e.g. print/scan/copy units) would only do
-  one or the other (depending on whether the group ownership was "lp" or
-  "scanner").
-
-If you want to change the resolution of the KMS console, that can be done
-  with something like this as a kernel append in lilo.conf:
-    append="video=1024x768"
-
-Speaking of lilo.conf and KMS, make sure you use either vga=normal or 
-  vga=extended -- some of the framebuffers don't like KMS very much...
-
-If your cd/dvd drive is not visible inside a gtk-based desktop environment
-  (e.g. Xfce), you may need to add "comment=x-gvfs-show" to the /etc/fstab 
-  line for the device.  For more information, see this document:
-  http://git.gnome.org/browse/gvfs/tree/monitor/udisks2/what-is-shown.txt
-
-If you have set up an encrypted root partition, you will need to have access 
-  to your keyboard in order to type the passphrase.  This may require you to 
-  add the uhci-hcd and usbhid modules to your initrd image if you have a USB 
-  keyboard.  Also note that if you are using a non-US keyboard, you can use the
-  '-l' parameter to the 'mkinitrd' command in order to add support for this
-  keyboard to your initrd.
-
-If you have permission errors when attempting to burn a cdrom or dvd image,
-  such as the following:
-    /usr/bin/cdrecord: Operation not permitted. Cannot send SCSI cmd via ioctl
-  then cdrecord almost certainly needs root privileges to work correctly.
-  One potential solution is to make the cdrecord and cdrdao binaries suid root,
-  but this has possible security implications.  The safest way to do that is 
-  to make those binaries suid root, owned by a specific group, and executable
-  by only root and members of that group.  For most people, the example below
-  will be sufficient (but adjust as desired depending on your specific needs):
-    chown root:cdrom /usr/bin/cdrecord /usr/bin/cdrdao
-    chmod 4750 /usr/bin/cdrecord /usr/bin/cdrdao
-  If you don't want all members of the 'cdrom' group to be able to execute the
-  two suid binaries, then create a special group (such as 'burning' which is
-  recommended by k3b), use it instead of 'cdrom' in the line above, and add
-  to it only the users you wish to have access to cdrecord and cdrdao.
-
-Subpixel hinting in freetype has been enabled upstream by default, but you 
-  may adjust this in /etc/profile.d/freetype.{csh,sh}.
-
-Input methods for complex characters (CJK, which is shorthand for Chinese,
-  Japanese, Korean) and other non-latin character sets have been added. These
-  input methods use the SCIM (Smart Common Input Method) platform.
-  The environment variables for SCIM support are set in /etc/profile.d/scim.sh
-  The requirements for getting SCIM input methods to work in your X session
-  are as follows:
-  (1) Use a UTF-8 locale. Look in /etc/profile.d/lang.sh for setting your
-      language to (for instance) en_US.UTF-8. As a word of warning: maybe you
-      should leave root with a non-UTF-8 locale because you don't want root's
-      commands to be misinterpreted. You can add the following line to your
-      ~/.profile file to enable UTF-8 just for yourself:
-        export LANG=en_US.UTF-8
-  (2) Make the scim profile scripts executable. These will setup your
-      environment correctly for the use of scim with X applications. Run:
-        chmod +x /etc/profile.d/scim.*
-  (3) Start the scim daemon as soon as your X session starts. The scim daemon
-      must be active before any of your X applications. In KDE, you can add a
-      shell script to the ~/.kde/Autostart folder that runs the command
-      "scim -d". In XFCE you can add "scim -d" to the Autostarted Applications.
-      If you boot your computer in runlevel 4 (the graphical XDM/KDM login)
-      you can simply add the line "scim -d" to your ~/.xprofile file.
-      This gives you a Desktop Environment independent way of starting scim.
-  When scim is running, you will see a small keyboard icon in your system tray.
-  Right-click it to enter SCIM Setup. In 'Global Setup' select your keyboard
-  layout, and you are ready to start entering just about any language
-  characters you wish! Press the magical key combo <Control><Space>
-  in order to activate or deactivate SCIM input. The SCIM taskbar in the
-  desktop's corner allows you to select a language. As you type, SCIM will show
-  an overview of applicable character glyphs (if you are inputting complex
-  characters like Japanese).

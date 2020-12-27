@@ -1,7 +1,4 @@
 #!/bin/sh
-#  xinitrc.xfce - modified to work around xfce4session bug
-#                 https://bugzilla.xfce.org/show_bug.cgi?id=8841
-
 
 ########################################################################
 ##  Merge in defaults and keymaps                                     ##
@@ -32,9 +29,5 @@ fi
 ##  Start xfce Desktop Environment                                    ##
 ########################################################################
 
-if [ -z "$DESKTOP_SESSION" -a -x /usr/bin/ck-launch-session ]; then
-  exec ck-launch-session dbus-launch --exit-with-session /usr/bin/startxfce4
-else
-  exec dbus-launch --exit-with-session /usr/bin/startxfce4
-fi
+exec /usr/bin/startxfce4
 

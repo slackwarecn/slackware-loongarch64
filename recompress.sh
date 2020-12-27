@@ -599,15 +599,17 @@ gzip ./source/xfce/xfce4-screensaver/0001-Catch-gs_listener_dbus_init-failures.p
 gzip ./source/xfce/xfce4-screensaver/clarify-desc-in-xfce-settings.patch
 gzip ./source/xfce/xfce4-session/use-xfss-by-default-in-xfce.patch
 gzip ./source/xfce/elementary-xfce/doinst.sh
-gzip ./source/xfce/xfce4-panel/libxfce4panel.max_blinking_count.8.diff
 gzip ./source/xfce/xfce4-panel-profiles/doinst.sh
 gzip ./source/xfce/xfce4-notifyd/doinst.sh
 gzip ./source/xfce/xfce4-screenshooter/doinst.sh
+gzip ./source/xfce/xfwm4/0001-compositor-Ignore-XError-when-changing-background-pi.patch
 gzip ./source/xfce/xfce4-clipman-plugin/doinst.sh
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme_clean.patch
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
+gzip ./source/xfce/Greybird/0002-Reduce-messagedialog-buttonbox-size.patch
+gzip ./source/xfce/Greybird/0001-Make-CSD-titlebars-slimmer.patch
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
@@ -1148,4 +1150,3 @@ gzip ./pasture/source/php/php.ini-development.diff
 bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt
-bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log

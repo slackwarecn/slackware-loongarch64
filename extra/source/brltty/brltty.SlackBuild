@@ -32,7 +32,7 @@ PKG=/tmp/package-brltty
 
 PKGNAM=brltty
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -94,9 +94,15 @@ make $NUMJOBS || exit 1
 make install INSTALL_ROOT=$PKG || exit 1
 chmod 755 $PKG/bin/* $PKG/lib${LIBDIRSUFFIX}/brltty/*
 
+# Add polkit configs:
+( cd Authorization/Polkit
+  make install INSTALL_ROOT=$PKG
+)
+
 # Add udev rules:
-mkdir -p $PKG/lib/udev/rules.d
-cp Autostart/Udev/rules $PKG/lib/udev/rules.d/40-usb-brltty.rules || exit 1
+( cd Autostart/Udev
+  make install INSTALL_ROOT=$PKG UDEV_LIBRARY_DIRECTORY=$PKG/lib/udev
+)
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

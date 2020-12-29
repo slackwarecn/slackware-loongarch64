@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xfce4-panel-profiles
 VERSION=${VERSION:-$(echo xfce4-panel-profiles-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -80,12 +80,13 @@ find . \
 # Configure, build, and install:
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
-./configure --prefix=/usr --python=python3 || exit 1
+./configure \
+  --prefix=/usr \
+  --mandir=/usr/man \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --python=python3 || exit 1
 make $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
-
-# Relocate man pages:
-mv $PKG/usr/share/man $PKG/usr
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -105,13 +106,6 @@ if [ -d $PKG/usr/man ]; then
   )
 fi
 
-rm -rf $PKG/usr/share/doc
-mkdir -p $PKG/usr/doc/xfce4-panel-profiles-$VERSION
-cp -a \
-  AUTHORS COPYING* NEWS README* TODO \
-  $PKG/usr/doc/xfce4-panel-profiles-$VERSION
-# If there's a ChangeLog, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
 if [ -r ChangeLog ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog

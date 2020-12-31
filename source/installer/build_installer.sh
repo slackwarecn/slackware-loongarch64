@@ -870,6 +870,7 @@ a/dialog \
 a/dosfstools \
 a/e2fsprogs \
 a/efivar \
+a/elogind \
 a/etc \
 a/f2fs-tools \
 a/gptfdisk \
@@ -1224,6 +1225,7 @@ cp  -fa${VERBOSE1} \
         libcap*so* \
         libcrypto*so* \
         libdevmapper*so* \
+        libelogind*so* \
         libf2fs.so* \
         libfdisk.so* \
         libgcc*so* \

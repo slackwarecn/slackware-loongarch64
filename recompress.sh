@@ -438,7 +438,6 @@ gzip ./source/n/slrn/doinst.sh
 gzip ./source/n/pidentd/pidentd.openssl-1.1.diff
 gzip ./source/n/pidentd/doinst.sh
 gzip ./source/n/pidentd/pidentd.conf.diff
-gzip ./source/n/cifs-utils/cifs-utils.f4e7c84467152624a288351321c8664dbf3364af.patch
 gzip ./source/n/autofs/doinst.sh
 gzip ./source/n/net-snmp/net-snmp-5.7.2-cert-path.patch
 gzip ./source/n/net-snmp/net-snmp-5.8-Remove-U64-typedef.patch

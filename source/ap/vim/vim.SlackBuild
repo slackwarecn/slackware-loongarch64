@@ -60,6 +60,11 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+# If dynamic support for Ruby works with this $ARCH, then allow it:
+if [ "$ARCH" = "x86_64" ]; then
+  RUBYDYNAMIC="=dynamic"
+fi
+
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 PYVER=$(python -V 2>&1 | cut -f 2 -d' ' | cut -f 1-2 -d.)
@@ -116,21 +121,19 @@ CFLAGS="$SLKCFLAGS" \
 ./configure \
   $* \
   --prefix=/usr \
-  --enable-pythoninterp \
   --with-python-config-dir=/usr/lib${LIBDIRSUFFIX}/python$PYVER/config \
-  --enable-python3interp \
   --with-python3-config-dir=$(python3-config --configdir) \
-  --enable-perlinterp \
+  --enable-perlinterp=dynamic \
+  --enable-pythoninterp=dynamic \
+  --enable-python3interp=dynamic \
+  --enable-rubyinterp${RUBYDYNAMIC} \
+  --enable-tclinterp=dynamic \
   --disable-canberra \
-  --disable-tclinterp \
   --enable-multibyte \
   --enable-cscope \
   --with-features=huge \
   --with-compiledby="<volkerdi@slackware.com>" \
   --build=$ARCH-slackware-linux || exit 1
-
-  # I had been adding this, but got 100% complaints and 0% kudos:
-  #  --enable-rubyinterp
 }
 
 cd $TMP/vim-$VERSION || exit 1

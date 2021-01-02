@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2019, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ rm -rf shared-mime-info
 # Clone repository:
 git clone https://gitlab.freedesktop.org/xdg/shared-mime-info.git
 
-VERSION=$(cd shared-mime-info && grep "^AC_INIT(\[shared-mime-info" configure.ac | cut -f 2 -d , | tr -d [ | tr -d ])
+VERSION=$(cd shared-mime-info && grep -w 'version:' meson.build | head -n 1 | cut -f 2 -d \')
 
 # Cleanup.  We're not packing up the whole git repo.
 ( cd shared-mime-info && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )

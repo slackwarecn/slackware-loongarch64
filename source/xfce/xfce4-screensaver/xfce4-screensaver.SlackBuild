@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xfce4-screensaver
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -79,9 +79,6 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-# Revert this one: https://gitlab.xfce.org/apps/xfce4-screensaver/-/issues/66
-zcat $CWD/0001-Catch-gs_listener_dbus_init-failures.patch.gz | patch -p1 -R || exit 1
-
 # Clarify description in Xfce Settings menu
 zcat $CWD/clarify-desc-in-xfce-settings.patch.gz | patch -p1 --verbose || exit 1
 
@@ -102,9 +99,12 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-locking \
   --build=$ARCH-slackware-linux || exit 1
 
-
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Don't ship autostart file. This will start without it.
+rm -f $PKG/etc/xdg/autostart/xfce4-screensaver.desktop
+rmdir $PKG/etc/xdg/autostart
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true

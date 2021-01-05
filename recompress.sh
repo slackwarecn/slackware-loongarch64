@@ -489,6 +489,7 @@ gzip ./source/n/telnet/netkit-telnet-0.17-ayt.patch
 gzip ./source/n/alpine/pinepgp-0.18.0-makefile-sed-fix.diff
 gzip ./source/n/alpine/alpine.manpage.diff
 gzip ./source/n/alpine/pinepgp.pinegpgp.in.diff
+gzip ./source/n/dehydrated/doinst.sh
 gzip ./source/n/nn/nn.glibc-2.30.diff
 gzip ./source/n/nn/nn.diff
 gzip ./source/n/nn/nn_6.7.3-10.diff
@@ -594,7 +595,6 @@ gzip ./source/xfce/xfce4-whiskermenu-plugin/doinst.sh
 gzip ./source/xfce/xfce4-power-manager/doinst.sh
 gzip ./source/xfce/xfce4-taskmanager/doinst.sh
 gzip ./source/xfce/mousepad/doinst.sh
-gzip ./source/xfce/xfce4-screensaver/0001-Catch-gs_listener_dbus_init-failures.patch
 gzip ./source/xfce/xfce4-screensaver/clarify-desc-in-xfce-settings.patch
 gzip ./source/xfce/xfce4-session/use-xfss-by-default-in-xfce.patch
 gzip ./source/xfce/elementary-xfce/doinst.sh

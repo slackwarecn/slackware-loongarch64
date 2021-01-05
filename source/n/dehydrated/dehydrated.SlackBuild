@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Copyright 2002-2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2021  Heinz Wiesinger, Amsterdam, NL
+# Copyright 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,19 +23,11 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=ispell
-VERSION=3.4.01
+PKGNAM=dehydrated
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-# Automatically determine the architecture we're building on:
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
-  esac
-fi
+ARCH=noarch
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -45,21 +38,16 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
 fi
 
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-ispell
-
-if [ "$ARCH" = "x86_64" ]; then
-  LIBDIRSUFFIX="64"
-else
-  LIBDIRSUFFIX=""
-fi
-
+PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
-mkdir -p $PKG $PKG
+mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf ispell-$VERSION
-tar xvf $CWD/ispell-$VERSION.tar.?z || exit 1
-cd ispell-$VERSION || exit 1
+rm -rf ${PKGNAM}-${VERSION}
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
+cd ${PKGNAM}-$VERSION || exit 1
+
+# Make sure ownerships and permissions are sane:
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -67,27 +55,21 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-zcat $CWD/local.h.linux.diff.gz | patch -p1 --verbose || exit 1
-sed -i -e "s#/usr/lib/#/usr/lib${LIBDIRSUFFIX}/#" local.h.linux
-cp -a local.h.linux local.h
+mkdir -p $PKG/usr/{bin,man/man1}
+install -m 755 dehydrated $PKG/usr/bin/
+install -m 644 docs/man/dehydrated.1 $PKG/usr/man/man1/
 
-make || exit 1
+mkdir -p $PKG/etc/dehydrated
+install -m 644 docs/examples/config $PKG/etc/dehydrated/config.new
 
-sleep 2 # to make absolutely sure that config will have a later timestamp
-        # than local.h and will not get rebuilt by `make install`
-sed -i -e "s#/usr#$PKG&#g" config.sh
+mkdir -p $PKG/etc/cron.daily
+# Install the cron file as non-executable to prevent noise for those who have
+# no interest in using dehydrated. It will need to be made chmod 755 for the
+# cron jobs to run (and will retain those permissions through updates):
+install -m 644 $CWD/dehydrated.cron $PKG/etc/cron.daily/dehydrated.new
 
-mkdir -p $PKG/usr/{bin,lib${LIBDIRSUFFIX},man}
-make install || exit 1
-
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/ispell
-  ln -sf americanmed.hash american.hash
-  ln -sf americanmed.hash english.hash
-)
-
-# Strip binaries:
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# .well-known directory for multi-domain setups
+mkdir -p $PKG/var/www/dehydrated
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -104,18 +86,15 @@ if [ -d $PKG/usr/man ]; then
   )
 fi
 
-# Add documentation to the package:
-mkdir -p $PKG/usr/doc/ispell-$VERSION
-cp -a \
-  Contributors Magiclines README WISHES \
-  $PKG/usr/doc/ispell-$VERSION
-chown -R root:root $PKG/usr/doc/ispell-$VERSION
+mkdir -p $PKG/usr/doc/dehydrated-$VERSION/docs/examples
+cp -a CHANGELOG* LICENSE* README* $PKG/usr/doc/dehydrated-$VERSION
+cp -a docs/*.md $PKG/usr/doc/dehydrated-$VERSION/docs
+cp -a docs/examples/{domains.txt,hook.sh} \
+  $PKG/usr/doc/dehydrated-$VERSION/docs/examples
 
-# Add the package description:
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Make the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/ispell-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz

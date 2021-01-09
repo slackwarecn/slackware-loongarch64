@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -222,20 +222,6 @@ cat $TMPDIR/header $TMPDIR/kernel $TMPDIR/sobumps $TMPDIR/perl $TMPDIR/packages 
   fi
   SERIES=$(dirname $line)
   PACKAGE=$(pkgname $line)
-  # Handle special case of KDE package:
-  if [ "$SERIES" = "kde" ]; then
-    if [ -x $SLACKSRC/kde/kde.SlackBuild ]; then
-      KDESB=kde/kde.SlackBuild
-    elif [ -x $SLACKSRC/kde/kde/kde.SlackBuild ]; then
-      KDESB=kde/kde/kde.SlackBuild
-    else
-      echo "# UNHANDLED: $line" >> $TMPDIR/output
-      continue
-    fi
-    BUILDOPT="$(grep "^${PACKAGE}$" $(dirname $SLACKSRC/$KDESB)/modules/* | rev | cut -f 1 -d / | rev)"
-    echo "$KDESB $BUILDOPT" >> $TMPDIR/output
-    continue
-  fi
   # Search SlackBuilds that start with that name:
   SEARCHFOUND=false
   for searchdir in $SLACKSRC/*/$(echo $PACKAGE | cut -f 1 -d -)* ; do
@@ -261,6 +247,20 @@ cat $TMPDIR/header $TMPDIR/kernel $TMPDIR/sobumps $TMPDIR/perl $TMPDIR/packages 
     fi
   done
   if [ "$SEARCHFOUND" = "true" ]; then
+    continue
+  fi
+  # Handle special case of KDE package:
+  if [ "$SERIES" = "kde" ]; then
+    if [ -x $SLACKSRC/kde/kde.SlackBuild ]; then
+      KDESB=kde/kde.SlackBuild
+    elif [ -x $SLACKSRC/kde/kde/kde.SlackBuild ]; then
+      KDESB=kde/kde/kde.SlackBuild
+    else
+      echo "# UNHANDLED: $line" >> $TMPDIR/output
+      continue
+    fi
+    BUILDOPT="$(grep "^${PACKAGE}$" $(dirname $SLACKSRC/$KDESB)/modules/* | rev | cut -f 1 -d / | rev)"
+    echo "$KDESB $BUILDOPT" >> $TMPDIR/output
     continue
   fi
   # Handle special case of aspell-en:

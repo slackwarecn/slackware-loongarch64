@@ -930,6 +930,7 @@ l/pcre \
 l/popt \
 l/readline \
 l/zlib \
+l/zstd \
 n/dhcpcd \
 n/dnsmasq \
 n/iproute2 \
@@ -1271,6 +1272,7 @@ cp  -fa${VERBOSE1} \
         libstdc++*.so* \
         libunistring*.so* \
         libusb-1.0*.so* \
+        libzstd.so* \
         $PKG/$ARCH-installer-filesystem/usr/lib${LIBDIRSUFFIX}/
 
 # Stuff needed for os-prober:

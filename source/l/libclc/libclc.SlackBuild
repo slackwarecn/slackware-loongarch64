@@ -3,7 +3,7 @@
 # Slackware build script for libclc
 
 # Copyright 2016  Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2017, 2018, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libclc
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 4- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
@@ -74,9 +74,9 @@ PKG=$TMP/package-libclc
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf libclc-$VERSION
-tar xvf $CWD/libclc-$VERSION.tar.?z* || exit 1
-cd libclc-$VERSION || exit 1
+rm -rf libclc-${VERSION}.src
+tar xvf $CWD/libclc-$VERSION.src.tar.?z* || exit 1
+cd libclc-${VERSION}.src || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -84,17 +84,23 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-CFLAGS="$SLKCFLAGS -D__extern_always_inline=inline" \
-./configure.py \
-  --prefix=/usr \
-  --libexecdir=/usr/lib$LIBDIRSUFFIX/clc/ \
-  --pkgconfigdir=/usr/lib$LIBDIRSUFFIX/pkgconfig/ || exit 1
+# Configure, build, and install:
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a *.TXT $PKG/usr/doc/$PKGNAM-$VERSION

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2007-2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2007-2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=netkit-bootparamd
 VERSION=0.17
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -55,7 +55,14 @@ rm -rf netkit-bootparamd-$VERSION
 tar xzvf $CWD/netkit-bootparamd-$VERSION.tar.gz || exit 1
 cd netkit-bootparamd-$VERSION
 chown -R root:root .
+
 ./configure --prefix=/usr
+
+# Fixes for libtirpc:
+sed -i -e 's/Winline/Winline -I\/usr\/include\/tirpc/' MCONFIG
+sed -i -e 's/LDFLAGS=/LDFLAGS=-ltirpc/' MCONFIG
+sed -i -e 's/void get_myaddress/extern int get_myaddress/' rpc.bootparamd/main.c
+
 make || exit 1
 cd rpc.bootparamd
 strip bootparamd callbootd

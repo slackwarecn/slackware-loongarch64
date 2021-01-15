@@ -601,7 +601,6 @@ gzip ./source/xfce/elementary-xfce/doinst.sh
 gzip ./source/xfce/xfce4-panel-profiles/doinst.sh
 gzip ./source/xfce/xfce4-notifyd/doinst.sh
 gzip ./source/xfce/xfce4-screenshooter/doinst.sh
-gzip ./source/xfce/xfwm4/0001-compositor-Ignore-XError-when-changing-background-pi.patch
 gzip ./source/xfce/xfce4-clipman-plugin/doinst.sh
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme_clean.patch
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2002-2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2002-2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -45,15 +45,15 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
 fi
 
 if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686 -fcommon"
   LIBDIRSUFFIX=""
   MFILE="m-i80386.h"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -fPIC -fcommon"
   LIBDIRSUFFIX="64"
   MFILE="m-x86_64.h"
 else
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-O2 -fcommon"
   LIBDIRSUFFIX=""
   MFILE="m-i80386.h"
 fi
@@ -87,6 +87,8 @@ zcat $CWD/nn.badnntphost.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/nn.glibc-2.30.diff.gz | patch -p1 --verbose || exit 1
 
 cat config.h-dist | sed -e "s#m-sparc.h#${MFILE}#" > config.h
+# Apply CFLAGS:
+sed -i -e "s/-O2/$SLKCFLAGS/g" Makefile
 make all || exit 1
 
 # We'll pipe the correct options to ./inst

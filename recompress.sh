@@ -394,6 +394,7 @@ gzip ./source/n/bluez/refresh_adv_manager_for_non-LE_devices.diff
 gzip ./source/n/bluez/bluez-5.51-obexd_without_systemd-1.patch
 gzip ./source/n/bluez/doinst.sh
 gzip ./source/n/iproute2/doinst.sh
+gzip ./source/n/tftp-hpa/tftp-hpa.fcommon.diff
 gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff
 gzip ./source/n/procmail/procmail.lfs.diff
@@ -432,6 +433,7 @@ gzip ./source/n/ppp/options.new
 gzip ./source/n/ppp/pppsetup-1.98.backupfiles.diff
 gzip ./source/n/inetd/inetd-OpenBSD-1.79.diff
 gzip ./source/n/inetd/fix-x86_64-daytime-segfault.diff
+gzip ./source/n/inetd/inetd.libtirpc.diff
 gzip ./source/n/inetd/doinst.sh
 gzip ./source/n/inetd/inetd.loopingdos.diff
 gzip ./source/n/slrn/doinst.sh
@@ -648,6 +650,7 @@ gzip ./source/ap/vorbis-tools/ogg123.opus.diff
 gzip ./source/ap/sudo/doinst.sh
 gzip ./source/ap/soma/doinst.sh
 gzip ./source/ap/cups-filters/doinst.sh
+gzip ./source/ap/bpe/bpe.port.to.strerror.diff
 gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/diffutils.mkdir_p.diff
 gzip ./source/ap/diffutils/diffutils-sdiff-no-waitpid.patch
@@ -700,6 +703,7 @@ gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap
+gzip ./source/ap/ghostscript/ghostscript-9.53.3-freetype_fix-1.patch
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch
@@ -889,6 +893,7 @@ gzip ./source/l/gamin/gaminrc
 gzip ./source/l/gamin/doinst.sh
 gzip ./source/l/gamin/no_g_const_return.patch
 gzip ./source/l/gst-plugins-base0/gst-plugins-base-0.10.36-gcc_4_9_0_i686-1.patch
+gzip ./source/l/pygtk/pygtk-Drop-the-PangoFont-find_shaper-virtual-method.patch
 gzip ./source/l/pygtk/pygtk-fix-pango-object-leaks.patch
 gzip ./source/l/gnome-keyring/doinst.sh
 gzip ./source/l/openal-soft/doinst.sh

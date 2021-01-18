@@ -1136,6 +1136,7 @@ gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-def
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/fix-pci-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
+gzip ./source/x/x11/patch/xorg-server/06_use-intel-only-on-pre-gen4.diff
 gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-headers.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch

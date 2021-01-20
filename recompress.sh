@@ -720,12 +720,8 @@ gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
-gzip ./source/l/glibc/glibc-2.29.en_US.no.am.pm.date.format.diff
-gzip ./source/l/glibc/patches/glibc.b6d2c4475d5abc05dd009575b90556bdd3c78ad0.patch
-gzip ./source/l/glibc/patches/glibc.8a80ee5e2bab17a1f8e1e78fab5c33ac7efa8b29.patch
-gzip ./source/l/glibc/patches/glibc.e1df30fbc2e2167a982c0e77a7ebee28f4dd0800.patch
-gzip ./source/l/glibc/patches/glibc.b0f6679bcd738ea244a14acd879d974901e56c8e.patch
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
+gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-expose.patch
@@ -979,6 +975,7 @@ gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/seamonkey/rust148-packed_simd.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh

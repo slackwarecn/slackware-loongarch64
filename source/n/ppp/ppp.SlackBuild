@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2015, 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,10 +23,10 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ppp
-VERSION=2.4.8
+VERSION=2.4.9
 RADVER=1.1.7
 PPPVER=1.98
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -65,8 +65,8 @@ echo "| ppp-$VERSION |"
 echo "+============+"
 cd $TMP
 rm -rf ppp-$VERSION ppp-ppp-$VERSION
-tar xvf $CWD/ppp-$VERSION.tar.xz || exit 1
-cd ppp-ppp-$VERSION || ppp-$VERSION || exit 1
+tar xvf $CWD/ppp-$VERSION.tar.?z || exit 1
+cd ppp-$VERSION || cd ppp-ppp-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -81,7 +81,6 @@ sed -i -e "s#lib/pppd#lib${LIBDIRSUFFIX}/pppd#g" $(grep -lr 'lib/pppd' *)
 rm -f include/linux/if_pppol2tp.h
 
 zcat $CWD/ppp.CVE-2015-3310.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/ppp.CVE-2020-8597.patch.gz | patch -p1 --verbose || exit 1
 
 # Choose correct options depending on whether PAM is installed:
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
@@ -134,7 +133,7 @@ echo "| freeradius-client-$RADVER |"
 echo "+====================+"
 cd $TMP
 rm -rf freeradius-client-$RADVER
-tar xf $CWD/freeradius-client-$RADVER.tar.xz || exit 1
+tar xf $CWD/freeradius-client-$RADVER.tar.?z || exit 1
 cd freeradius-client-$RADVER || exit 1
 chown -R root:root .
 ./configure \
@@ -158,13 +157,15 @@ cp -a \
   BUGS CHANGES COPYRIGHT README README.radexample doc/instop.html \
   $PKG/usr/doc/freeradius-client-$RADVER
 chmod 644 $PKG/usr/doc/freeradius-client-$RADVER/*
+# Don't ship the static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libfreeradius-client.a
 
 echo "+===============+"
 echo "| pppsetup-$PPPVER |"
 echo "+===============+"
 cd $TMP
 rm -rf pppsetup-$PPPVER
-tar xvf $CWD/pppsetup-$PPPVER.tar.xz || exit 1
+tar xvf $CWD/pppsetup-$PPPVER.tar.?z || exit 1
 cd pppsetup-$PPPVER || exit 1
 chown -R root:root .
 zcat $CWD/pppsetup-1.98.slack.diff.gz | patch -p1 --backup || exit

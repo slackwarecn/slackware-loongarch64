@@ -75,9 +75,9 @@ gzip ./source/d/python2/python.readline.set_pre_input_hook.diff
 gzip ./source/d/python2/python.no-static-library.diff
 gzip ./source/d/python2/python.x86_64.diff
 gzip ./source/d/pkg-config/doinst.sh
-gzip ./source/d/make/b552b05251980f693c729e251f93f5225b400714.patch
-gzip ./source/d/make/make.glibc-2.27.glob.diff
-gzip ./source/d/make/make.guile30.diff
+gzip ./source/d/make/make-4.3-getcwd.patch
+gzip ./source/d/make/make-4.3-j8k.patch
+gzip ./source/d/make/make-4.0-noclock_gettime.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/scons/scons.1
@@ -426,7 +426,6 @@ gzip ./source/n/ppp/ppp.slack.diff
 gzip ./source/n/ppp/pppsetup-1.98.slack.diff
 gzip ./source/n/ppp/pppsetup-1.98.moredevs.diff
 gzip ./source/n/ppp/ppp.CVE-2015-3310.diff
-gzip ./source/n/ppp/ppp.CVE-2020-8597.patch
 gzip ./source/n/ppp/realms
 gzip ./source/n/ppp/doinst.sh
 gzip ./source/n/ppp/options.new
@@ -566,7 +565,6 @@ gzip ./source/n/openssh/sshd_config-pam.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/iputils/iputils.docbook.revert.diff
-gzip ./source/n/openssl10/openssl-1.0-versioned-symbols.patch
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
@@ -838,7 +836,6 @@ gzip ./source/l/PyQt5/patches/pyqt5-python2-crash.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-taglib_ver.patch
 gzip ./source/l/taglib-extras/taglib-extras-0.1-multilib-1.patch
-gzip ./source/l/gstreamer0/gstreamer-0.10.36-bison3.patch
 gzip ./source/l/esound/esound-0.2.38-drain.patch
 gzip ./source/l/esound/esound-0.2.41-libm.patch
 gzip ./source/l/esound/remove-confusing-spew.patch
@@ -858,7 +855,6 @@ gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
 gzip ./source/l/adwaita-icon-theme/inherit-hicolor-theme.diff
-gzip ./source/l/gst-plugins-good0/v4l.compile.fixes.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-round_gtf_gtfcalc_c.patch
 gzip ./source/l/svgalib/svgalib.nohelper.diff
@@ -887,7 +883,6 @@ gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch
 gzip ./source/l/gamin/gaminrc
 gzip ./source/l/gamin/doinst.sh
 gzip ./source/l/gamin/no_g_const_return.patch
-gzip ./source/l/gst-plugins-base0/gst-plugins-base-0.10.36-gcc_4_9_0_i686-1.patch
 gzip ./source/l/pygtk/pygtk-Drop-the-PangoFont-find_shaper-virtual-method.patch
 gzip ./source/l/pygtk/pygtk-fix-pango-object-leaks.patch
 gzip ./source/l/gnome-keyring/doinst.sh

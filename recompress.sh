@@ -646,7 +646,6 @@ gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.glibc228.diff
 gzip ./source/ap/texinfo/update-info-dir.8
 gzip ./source/ap/texinfo/update-info-dir
 gzip ./source/ap/texinfo/doinst.sh
-gzip ./source/ap/vorbis-tools/ogg123.opus.diff
 gzip ./source/ap/sudo/doinst.sh
 gzip ./source/ap/soma/doinst.sh
 gzip ./source/ap/cups-filters/doinst.sh
@@ -975,7 +974,6 @@ gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./source/xap/seamonkey/rust148-packed_simd.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh

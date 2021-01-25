@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ PKGNAM=seamonkey
 TARBALLVER=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
 # Strip the end from beta versions:
 VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -125,10 +125,7 @@ rm -rf seamonkey-unpack
 cd seamonkey-${TARBALLVER} || exit 1
 
 # Retain GTK+ v2 scrolling behavior:
-zcat $CWD/sm.ui.scrollToClick.diff.gz | patch -p1 --verbose || exit 1
-
-# Fix build with Rust 1.48.0:
-zcat $CWD/rust148-packed_simd.patch.gz | patch -p0 --verbose || exit 1
+zcat $CWD/sm.ui.scrollToClick.diff.gz | patch -p2 --verbose || exit 1
 
 # Make sure the perms/ownerships are sane:
 chown -R root:root .
@@ -164,8 +161,7 @@ OPTIONS="\
   --enable-calendar \
   --without-system-nspr \
   --with-system-zlib \
-  --enable-application=suite \
-  --with-pthreads \
+  --enable-application=comm/suite \
   --host=$ARCH-slackware-linux \
   --target=$ARCH-slackware-linux"
 
@@ -189,7 +185,7 @@ echo "export CXX=\"${CXX}\"" >> .mozconfig
 mkdir obj
 echo "mk_add_options MOZ_OBJDIR=$(pwd)/obj" >> .mozconfig
 # This directory is also needed or the build will fail:
-mkdir -p mozilla/obj
+mkdir -p obj
 
 # Set options for $OPTIMIZE_FLAG:
 echo "ac_add_options --enable-optimize=\"${OPTIMIZE_FLAG}\"" >> .mozconfig
@@ -246,11 +242,9 @@ chown -R root:root $PKG/usr/share/pixmaps
 chmod 644 $PKG/usr/share/pixmaps/*
 
 mkdir -p $PKG/usr/doc/seamonkey-$VERSION
-( cd mozilla
-  cp -a \
-    LEGAL LICENSE README.txt \
-    $PKG/usr/doc/seamonkey-$VERSION
-)
+cp -a \
+  AUTHORS LEGAL LICENSE README.txt \
+  $PKG/usr/doc/seamonkey-$VERSION
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

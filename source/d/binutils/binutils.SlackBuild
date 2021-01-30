@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=binutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -105,9 +105,6 @@ zcat $CWD/patches/binutils-2.24-ldforcele.patch.gz | patch -p1 --verbose || exit
 zcat $CWD/patches/binutils.export.demangle.h.diff.gz | patch -p1 --verbose || exit 1
 # Don't check to see if "config.h" was included in the installed headers:
 zcat $CWD/patches/binutils.no-config-h-check.diff.gz | patch -p1 --verbose || exit 1
-
-# Revert patch that breaks the kernel build. No || exit 1 because of ChangeLog patch rejections:
-zcat $CWD/patches/0001-ELF-Don-t-generate-unused-section-symbols.patch.gz | patch -p1 -R
 
 # Set %version to something halfway meaningful:
 sed -i -e 's/%''{release}/slack15/g' bfd/Makefile{.am,.in}
@@ -205,12 +202,12 @@ fi
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Remove some unneeded man pages, and then compress the rest
-rm -f $PKG/usr/man/man1/{dlltool,windres}.1
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \+
-  for i in $(find . -type l) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
-)
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Compress info pages
 rm -f $PKG/usr/info/dir

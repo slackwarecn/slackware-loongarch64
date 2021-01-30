@@ -61,7 +61,6 @@ gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch
 gzip ./source/d/binutils/patches/binutils.export.demangle.h.diff
 gzip ./source/d/binutils/patches/binutils-2.25-set-long-long.patch
 gzip ./source/d/binutils/patches/binutils.no-config-h-check.diff
-gzip ./source/d/binutils/patches/0001-ELF-Don-t-generate-unused-section-symbols.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-copy-osabi.patch
 gzip ./source/d/binutils/patches/binutils-2.25-version.patch
 gzip ./source/d/icecream/doinst.sh

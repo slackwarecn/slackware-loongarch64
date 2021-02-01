@@ -1210,6 +1210,7 @@ cp --remove-destination -fa${VERBOSE1} \
         installpkg \
         pkgtool \
         removepkg \
+        upgradepkg \
         $PKG/$ARCH-installer-filesystem/sbin/
 
 # Deal with /lib stuff from the packages:

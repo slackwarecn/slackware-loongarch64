@@ -880,6 +880,7 @@ gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
 gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch
+gzip ./source/l/gamin/0001-Poll-files-on-nfs4.patch
 gzip ./source/l/gamin/gaminrc
 gzip ./source/l/gamin/doinst.sh
 gzip ./source/l/gamin/no_g_const_return.patch

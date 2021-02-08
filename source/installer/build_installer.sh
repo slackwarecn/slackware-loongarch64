@@ -1414,9 +1414,9 @@ cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/
 rm -rf $TMP/extract-packages
 
-# a/glibc-solibs:
+# a/aaa_glibc-solibs:
 mkdir -p $TMP/extract-packages
-installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/glibc-solibs-*.t[gblx]z
+installpkg --terse -root $TMP/extract-packages $SLACKROOT/${DISTRODIR}/a/aaa_glibc-solibs-*.t[gblx]z
 cp  -fa${VERBOSE1} /lib${LIBDIRSUFFIX}/ld-linux*so* lib${LIBDIRSUFFIX}/
 cp  -fa${VERBOSE1} $TMP/extract-packages/lib${LIBDIRSUFFIX}/*so* \
   lib${LIBDIRSUFFIX}/

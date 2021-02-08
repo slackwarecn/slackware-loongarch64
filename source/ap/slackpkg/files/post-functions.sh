@@ -47,7 +47,7 @@ mergenew() {
 				;;
 				I|i)
 					if [ -f "${FULLNAME}.smerge" ]; then
-						if [ -e "${FULLNAME}" ]; then
+						if [ -e "${FULLNAME}" ] && [ "$ORIG_BACKUPS" != "off" ]; then
 							mv "${FULLNAME}" "${FULLNAME}.orig"
 						fi
 						mv "${FULLNAME}.smerge" "${FULLNAME}"
@@ -101,7 +101,7 @@ overold() {
 	FILEPATH=$(dirname $i)
 	FULLNAME="${FILEPATH}/${BASENAME}"
 
-	if [ -e ${FULLNAME} ]; then
+	if [ -e ${FULLNAME} ] && [ "$ORIG_BACKUPS" != "off" ]; then
 	    mv ${FULLNAME} ${FULLNAME}.orig
 	fi
 	mv ${FULLNAME}.new ${FULLNAME}
@@ -141,21 +141,52 @@ looknew() {
 		-not -name "shadow.new" \
 		-not -name "gshadow.new" 2>/dev/null | sort 2>/dev/null)
 	if [ "$FILES" != "" ]; then
-		echo -e "\n\
-Some packages had new configuration files installed.
+		newcount=$(echo "$FILES" | wc -l)
+		echo -ne "\n\
+Some packages had new configuration files installed ($newcount new files):\n\n"
+
+		SIZE=$(stty size)
+		ROWS=${SIZE% *}
+		LISTMAX=$((ROWS-20))
+
+		if [ $newcount -le $LISTMAX ]; then
+			echo -e "$FILES"
+		else
+			F=0
+			for FN in $FILES; do
+				F=$((F+1))
+				echo "$FN"
+
+				if [ $F -ge $LISTMAX ]; then
+					F=0
+					echo -ne "\nPress SPACE for more, ENTER to skip"
+					IFS=$'\n' read -rn 1 junk
+					echo -e "\n"
+					
+					if [ "$junk" = " " ]; then
+						continue
+					elif [ "$junk" = "" ]; then
+						break
+					fi
+				fi
+			done
+		fi
+
+		echo -ne "\n\
 You have four choices:
 
 	(K)eep the old files and consider .new files later
 
-	(O)verwrite all old files with the new ones. The
-	   old files will be stored with the suffix .orig
-
+	(O)verwrite all old files with the new ones"
+		[ "$ORIG_BACKUPS" != "off" ] && echo -ne ". The
+	   old files will be stored with the suffix .orig"
+		echo -e "\n\n\
 	(R)emove all .new files
 
 	(P)rompt K, O, R selection for every single file
-	
+
 What do you want (K/O/R/P)?"
-		answer	
+		answer
 		case $ANSWER in
 			K|k)
 				break
@@ -178,7 +209,7 @@ What do you want (K/O/R/P)?"
 					GOEX=0
 					while [ $GOEX -eq 0 ]; do
 						echo
-                                                showmenu $i "(K)eep" "(O)verwrite" "(R)emove" "(D)iff" "(M)erge" "(V)imdiff"
+						showmenu $i "(K)eep" "(O)verwrite" "(R)emove" "(D)iff" "(M)erge" "(V)imdiff"
 						read ANSWER
 						case $ANSWER in
 							O|o)
@@ -195,9 +226,9 @@ What do you want (K/O/R/P)?"
 							M|m)
 								mergenew $1
 							;;
-                                                        V|v)
-                                                                runvimdiff $1
-                                                        ;;
+							V|v)
+								runvimdiff $1
+							;;
 							K|k|*)
 								GOEX=1
 							;;
@@ -236,7 +267,7 @@ Your kernel image was updated, and lilo does not appear to be used on
 your system.  You may need to adjust your boot manager (like GRUB) to 
 boot the appropriate kernel (after generating an initrd if required)."
 		fi
-		echo -e "Press any key to continue...\n "
+		echo -e "Press the \"Enter\" key to continue...\n "
 		read _junk
 	fi
 }

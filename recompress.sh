@@ -314,7 +314,6 @@ gzip ./source/a/upower/doinst.sh
 gzip ./source/a/jfsutils/jfsutils.glibc228.diff
 gzip ./source/a/jfsutils/jfsutils.inttypes.h.diff
 gzip ./source/a/elvis/elvis.ref.c.getline.diff
-gzip ./source/a/procps-ng/procps-ng.pgrep.CMDSTRSIZE.diff
 gzip ./source/a/udisks2/doinst.sh
 gzip ./source/a/sysvinit-functions/doinst.sh
 gzip ./source/a/mdadm/doinst.sh
@@ -1111,6 +1110,11 @@ gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
+gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
+gzip ./testing/source/glibc/glibc.locale.no-archive.diff
+gzip ./testing/source/glibc/patches/0001-nsswitch-return-result-when-nss-database-is-locked.patch
+gzip ./testing/source/glibc/glibc-c-utf8-locale.patch
+gzip ./testing/source/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

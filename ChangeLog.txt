@@ -1,3 +1,32 @@
+Tue Feb  9 20:43:33 UTC 2021
+a/exfatprogs-1.1.0-x86_64-1.txz:  Upgraded.
+a/kernel-firmware-20210208_b79d239-noarch-1.txz:  Upgraded.
+a/procps-ng-3.3.17-x86_64-1.txz:  Upgraded.
+ap/man-db-2.9.4-x86_64-1.txz:  Upgraded.
+ap/slackpkg-15.0-noarch-2.txz:  Rebuilt.
+  Allow new-config after slackpkg upgrade itself. Thanks to PiterPUNK.
+d/git-2.30.1-x86_64-1.txz:  Upgraded.
+l/imagemagick-7.0.10_62-x86_64-1.txz:  Upgraded.
+l/jasper-2.0.25-x86_64-1.txz:  Upgraded.
+n/fetchmail-6.4.16-x86_64-1.txz:  Upgraded.
+xfce/thunar-4.16.3-x86_64-1.txz:  Upgraded.
+testing/packages/aaa_glibc-solibs-2.33-x86_64-1_testing.txz:  Added.
+testing/packages/glibc-2.33-x86_64-1_testing.txz:  Added.
+  This is here for some actual testing - don't go just jumping into this one
+  all willy-nilly, especially if you're on 32-bit. The internal implementation
+  of some glibc functions has changed in ways that can break sandboxes that
+  restrict the allowable functions. So far this is known to affect
+  qt5-webengine and openssl, and in the case of openssl upgrading to this
+  version of glibc will lock out ssh access to the machine. I've seen one
+  mention of the openssh issue online as a comment posted to LWN's article
+  about the release of glibc-2.33. It says that a patch was submitted upstream,
+  but I haven't been able to locate a copy yet.
+  On the qt5 issue, alienBOB has given me a link to this patch:
+  https://src.fedoraproject.org/rpms/qt5-qtwebengine/blob/09e1adb883639325aa8115dc1fc3e8f5088a2438/f/qtwebengine-everywhere-src-5.15.2-%231904652.patch
+  If anyone has a fix for openssl on 32-bit, kindly post it to LQ.
+testing/packages/glibc-i18n-2.33-x86_64-1_testing.txz:  Added.
+testing/packages/glibc-profile-2.33-x86_64-1_testing.txz:  Added.
++--------------------------+
 Mon Feb  8 05:13:26 UTC 2021
 a/aaa_elflibs-15.0-x86_64-30.txz:  Removed.
   Renamed to aaa_libraries.
@@ -447,6 +476,43 @@ d/binutils-2.36-x86_64-2.txz:  Rebuilt.
 l/loudmouth-1.5.4-x86_64-1.txz:  Upgraded.
 n/autofs-5.1.7-x86_64-1.txz:  Upgraded.
 n/dnsmasq-2.84-x86_64-1.txz:  Upgraded.
+  This update fixes bugs and remotely exploitable security issues:
+    Use the values of --min-port and --max-port in outgoing
+    TCP connections to upstream DNS servers.
+    Fix a remote buffer overflow problem in the DNSSEC code. Any
+    dnsmasq with DNSSEC compiled in and enabled is vulnerable to this,
+    referenced by CVE-2020-25681, CVE-2020-25682, CVE-2020-25683
+    CVE-2020-25687.
+    Be sure to only accept UDP DNS query replies at the address
+    from which the query was originated. This keeps as much entropy
+    in the {query-ID, random-port} tuple as possible, to help defeat
+    cache poisoning attacks. Refer: CVE-2020-25684.
+    Use the SHA-256 hash function to verify that DNS answers
+    received are for the questions originally asked. This replaces
+    the slightly insecure SHA-1 (when compiled with DNSSEC) or
+    the very insecure CRC32 (otherwise). Refer: CVE-2020-25685.
+    Handle multiple identical near simultaneous DNS queries better.
+    Previously, such queries would all be forwarded
+    independently. This is, in theory, inefficent but in practise
+    not a problem, _except_ that is means that an answer for any
+    of the forwarded queries will be accepted and cached.
+    An attacker can send a query multiple times, and for each repeat,
+    another {port, ID} becomes capable of accepting the answer he is
+    sending in the blind, to random IDs and ports. The chance of a
+    succesful attack is therefore multiplied by the number of repeats
+    of the query. The new behaviour detects repeated queries and
+    merely stores the clients sending repeats so that when the
+    first query completes, the answer can be sent to all the
+    clients who asked. Refer: CVE-2020-25686.
+  For more information, see:
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25681
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25682
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25683
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25684
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25685
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25686
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25687
+  (* Security fix *)
 n/tin-2.4.5-x86_64-1.txz:  Upgraded.
 xap/gparted-1.2.0-x86_64-1.txz:  Upgraded.
 xap/mozilla-thunderbird-78.7.0-x86_64-1.txz:  Upgraded.

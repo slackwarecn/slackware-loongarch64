@@ -992,8 +992,6 @@ gzip ./source/xap/blackbox/blackbox.menu
 gzip ./source/xap/blackbox/startblackbox
 gzip ./source/xap/blackbox/xinitrc.blackbox
 gzip ./source/xap/blackbox/doinst.sh
-gzip ./source/xap/gftp/gftp.desktop
-gzip ./source/xap/gftp/gftp.glibc-2.30.diff
 gzip ./source/xap/geeqie/doinst.sh
 gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh

@@ -1050,6 +1050,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         e2label \
         e4crypt \
         gdisk \
+        getcap \
         fsfreeze \
         fstrim \
         jfs_fsck \
@@ -1077,6 +1078,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         resize2fs \
         rpcbind \
         rpc.statd \
+        setcap \
         sfdisk \
         sgdisk \
         swaplabel \

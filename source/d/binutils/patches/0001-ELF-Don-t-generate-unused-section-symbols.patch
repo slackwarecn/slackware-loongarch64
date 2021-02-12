@@ -1,0 +1,3696 @@
+From d1bcae833b32f1408485ce69f844dcd7ded093a8 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Thu, 7 Jan 2021 06:42:00 -0800
+Subject: [PATCH] ELF: Don't generate unused section symbols
+
+For ELF targets, section symbols are required only for relocations.
+With -ffunction-sections -fdata-sections, there can be many unused
+section symbols.  Sizes of libstdc++.a on Linux/x86-64 in GCC 11 are
+
+With unused section symbols   : 39411698 bytes
+Without unused section symbols: 39227002 bytes
+
+The unused section symbols in libstdc++.a occupy more than 180 KB.
+
+Add BSF_SECTION_SYM_USED to indicate if a section symbol should be
+included in the symbol table.  The BSF_SECTION_SYM_USED should be set
+if the section symbol is used for relocation or the section symbol is
+always included in the symbol table.
+
+Add keep_unused_section_symbols to bfd_target to indicate if unused
+section symbols should be kept.  If TARGET_KEEP_UNUSED_SECTION_SYMBOLS
+is defined as FALSE, unused ection symbols will be removed.
+
+Tested on Linux/x86.  Other ELF backends need to:
+
+1. Define TARGET_KEEP_UNUSED_SECTION_SYMBOLS to FALSE.
+2. Mark used section symbols in assembler backend.
+3. Remove unused section symbols from expected assembler and linker
+outputs.
+
+bfd/
+
+	PR 27109
+	* aix386-core.c (core_aix386_vec): Initialize
+	keep_unused_section_symbol to TARGET_KEEP_UNUSED_SECTION_SYMBOLS.
+	* aout-target.h (MY (vec)): Likewise.
+	* binary.c (binary_vec): Likewise.
+	* cisco-core.c (core_cisco_be_vec): Likewise.
+	(core_cisco_le_vec): Likewise.
+	* coff-alpha.c (alpha_ecoff_le_vec): Likewise.
+	* coff-i386.c (TARGET_SYM): Likewise.
+	(TARGET_SYM_BIG): Likewise.
+	* coff-ia64.c (TARGET_SYM): Likewise.
+	* coff-mips.c (mips_ecoff_le_vec): Likewise.
+	(mips_ecoff_be_vec): Likewise.
+	(mips_ecoff_bele_vec): Likewise.
+	* coff-rs6000.c (rs6000_xcoff_vec): Likewise.
+	(powerpc_xcoff_vec): Likewise.
+	* coff-sh.c (sh_coff_small_vec): Likewise.
+	(sh_coff_small_le_vec): Likewise.
+	* coff-tic30.c (tic30_coff_vec): Likewise.
+	* coff-tic54x.c (tic54x_coff0_vec): Likewise.
+	(tic54x_coff0_beh_vec): Likewise.
+	(tic54x_coff1_vec): Likewise.
+	(tic54x_coff1_beh_vec): Likewise.
+	(tic54x_coff2_vec): Likewise.
+	(tic54x_coff2_beh_vec): Likewise.
+	* coff-x86_64.c (TARGET_SYM): Likewise.
+	(TARGET_SYM_BIG): Likewise.
+	* coff64-rs6000.c (rs6000_xcoff64_vec): Likewise.
+	(rs6000_xcoff64_aix_vec): Likewise.
+	* coffcode.h (CREATE_BIG_COFF_TARGET_VEC): Likewise.
+	(CREATE_BIGHDR_COFF_TARGET_VEC): Likewise.
+	(CREATE_LITTLE_COFF_TARGET_VEC): Likewise.
+	* elfxx-target.h (TARGET_BIG_SYM): Likewise.
+	(TARGET_LITTLE_SYM): Likewise.
+	* hppabsd-core.c (core_hppabsd_vec): Likewise.
+	* hpux-core.c (core_hpux_vec): Likewise.
+	* i386msdos.c (i386_msdos_vec): Likewise.
+	* ihex.c (ihex_vec): Likewise.
+	* irix-core.c (core_irix_vec): Likewise.
+	* mach-o-target.c (TARGET_NAME): Likewise.
+	* mmo.c (mmix_mmo_vec): Likewise.
+	* netbsd-core.c (core_netbsd_vec): Likewise.
+	* osf-core.c (core_osf_vec): Likewise.
+	* pdp11.c (MY (vec)): Likewise.
+	* pef.c (pef_vec): Likewise.
+	(pef_xlib_vec): Likewise.
+	* plugin.c (plugin_vec): Likewise.
+	* ppcboot.c (powerpc_boot_vec): Likewise.
+	* ptrace-core.c (core_ptrace_vec): Likewise.
+	* sco5-core.c (core_sco5_vec): Likewise.
+	* som.c (hppa_som_vec): Likewise.
+	* srec.c (srec_vec): Likewise.
+	(symbolsrec_vec): Likewise.
+	* tekhex.c (tekhex_vec): Likewise.
+	* trad-core.c (core_trad_vec): Likewise.
+	* verilog.c (verilog_vec): Likewise.
+	* vms-alpha.c (alpha_vms_vec): Likewise.
+	* vms-lib.c (alpha_vms_lib_txt_vec): Likewise.
+	* wasm-module.c (wasm_vec): Likewise.
+	* xsym.c (sym_vec): Likewise.
+	* elf.c (ignore_section_sym): Return TRUE if BSF_SECTION_SYM_USED
+	isn't set.
+	(elf_map_symbols): Don't include ignored section symbols.
+	* elfcode.h (elf_slurp_symbol_table): Also set
+	BSF_SECTION_SYM_USED on STT_SECTION symbols.
+	* elflink.c (bfd_elf_final_link): Generated section symbols only
+	when emitting relocations or reqired.
+	* elfxx-x86.h (TARGET_KEEP_UNUSED_SECTION_SYMBOLS): New.
+	* syms.c (BSF_SECTION_SYM_USED): New.
+	* targets.c (TARGET_KEEP_UNUSED_SECTION_SYMBOLS): New.
+	(bfd_target): Add keep_unused_section_symbols.
+	(bfd_keep_unused_section_symbols): New.
+	* bfd-in2.h: Regenerated.
+
+binutils/
+
+	PR 27109
+	* objcopy.c (copy_object): Handle section symbols for
+	non-relocatable inputs.
+	* testsuite/binutils-all/readelf.exp (readelf_test): Check
+	is_elf_unused_section_symbols.
+	* testsuite/binutils-all/readelf.s-64: Updated.
+	* testsuite/binutils-all/readelf.ss: Likewise.
+	* testsuite/binutils-all/readelf.ss-64: Likewise.
+	* testsuite/binutils-all/readelf.s-64-unused: New file.
+	* testsuite/binutils-all/readelf.ss-64-unused: Likewise.
+	* testsuite/binutils-all/readelf.ss-unused: Likewise.
+	* testsuite/lib/binutils-common.exp
+	(is_elf_unused_section_symbols): New proc.
+
+gas/ChangeLog:
+
+	PR 27109
+	* read.c (s_reloc): Call symbol_mark_used_in_reloc on the
+	section symbol.
+	* subsegs.c (subseg_set_rest): Set BSF_SECTION_SYM_USED if needed.
+	* write.c (adjust_reloc_syms): Call symbol_mark_used_in_reloc
+	on the section symbol.
+	(set_symtab): Don't generate unused section symbols.
+	(maybe_generate_build_notes): Call symbol_mark_used_in_reloc
+	on the section symbol.
+	* config/obj-elf.c (elf_adjust_symtab): Call
+	symbol_mark_used_in_reloc on the group signature symbol.
+	* testsuite/gas/cfi/cfi-label.d: Remove unused section symbols
+	from expected output.
+	* testsuite/gas/elf/elf.exp (run_elf_list_test): Check
+	is_elf_unused_section_symbols.
+	* testsuite/gas/elf/section2.e: Updated.
+	* testsuite/gas/elf/section2.e-unused: New file.
+	* testsuite/gas/elf/symver.d: Remove unused section symbols.
+	* testsuite/gas/i386/ilp32/elf/symver.d: Likewise.
+	* testsuite/gas/i386/ilp32/x86-64-size-1.d: Likewise.
+	* testsuite/gas/i386/ilp32/x86-64-size-3.d: Likewise.
+	* testsuite/gas/i386/ilp32/x86-64-size-5.d: Likewise.
+	* testsuite/gas/i386/ilp32/x86-64-unwind.d: Likewise.
+	* testsuite/gas/i386/size-1.d: Likewise.
+	* testsuite/gas/i386/size-3.d: Likewise.
+	* testsuite/gas/i386/svr4.d: Likewise.
+	* testsuite/gas/i386/x86-64-size-1.d: Likewise.
+	* testsuite/gas/i386/x86-64-size-3.d: Likewise.
+	* testsuite/gas/i386/x86-64-size-5.d: Likewise.
+	* testsuite/gas/i386/x86-64-unwind.d: Likewise.
+
+ld/
+
+	PR 27109
+	* testsuite/ld-elf/export-class.sd: Adjust the expected output.
+	* testsuite/ld-elf/loadaddr3b.d: Likewise.
+	* testsuite/ld-i386/ibt-plt-1.d: Likewise.
+	* testsuite/ld-i386/ibt-plt-2a.d: Likewise.
+	* testsuite/ld-i386/ibt-plt-2c.d: Likewise.
+	* testsuite/ld-i386/ibt-plt-3a.d: Likewise.
+	* testsuite/ld-i386/ibt-plt-3c.d: Likewise.
+	* testsuite/ld-i386/pr19636-1d.d: Likewise.
+	* testsuite/ld-i386/pr19636-1l.d: Likewise.
+	* testsuite/ld-i386/pr19636-2c.d: Likewise.
+	* testsuite/ld-ifunc/ifunc-2-i386-now.d: Likewise.
+	* testsuite/ld-ifunc/ifunc-2-local-i386-now.d: Likewise.
+	* testsuite/ld-ifunc/ifunc-2-local-x86-64-now.d: Likewise.
+	* testsuite/ld-ifunc/ifunc-2-x86-64-now.d: Likewise.
+	* testsuite/ld-ifunc/ifunc-21-x86-64.d: Likewise.
+	* testsuite/ld-ifunc/ifunc-22-x86-64.d: Likewise.
+	* testsuite/ld-ifunc/pr17154-i386-now.d: Likewise.
+	* testsuite/ld-ifunc/pr17154-i386.d: Likewise.
+	* testsuite/ld-ifunc/pr17154-x86-64-now.d: Likewise.
+	* testsuite/ld-ifunc/pr17154-x86-64.d: Likewise.
+	* testsuite/ld-x86-64/bnd-branch-1-now.d: Likewise.
+	* testsuite/ld-x86-64/bnd-ifunc-1-now.d: Likewise.
+	* testsuite/ld-x86-64/bnd-ifunc-2-now.d: Likewise.
+	* testsuite/ld-x86-64/bnd-ifunc-2.d: Likewise.
+	* testsuite/ld-x86-64/bnd-plt-1-now.d: Likewise.
+	* testsuite/ld-x86-64/bnd-plt-1.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-1-x32.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-1.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-2a-x32.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-2a.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-2c-x32.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-2c.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-3a-x32.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-3a.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-3c-x32.d: Likewise.
+	* testsuite/ld-x86-64/ibt-plt-3c.d: Likewise.
+	* testsuite/ld-x86-64/pr19609-4e.d: Likewise.
+	* testsuite/ld-x86-64/pr19609-6a.d: Likewise.
+	* testsuite/ld-x86-64/pr19609-6b.d: Likewise.
+	* testsuite/ld-x86-64/pr19609-7b.d: Likewise.
+	* testsuite/ld-x86-64/pr19609-7d.d: Likewise.
+	* testsuite/ld-x86-64/pr19636-2l.d: Likewise.
+	* testsuite/ld-x86-64/pr20253-1d.d: Likewise.
+	* testsuite/ld-x86-64/pr20253-1h.d: Likewise.
+	* testsuite/ld-x86-64/pr21038b-now.d: Likewise.
+	* testsuite/ld-x86-64/pr21038b.d: Likewise.
+	* testsuite/ld-x86-64/pr21038c-now.d: Likewise.
+	* testsuite/ld-x86-64/pr21038c.d: Likewise.
+	* testsuite/ld-x86-64/pr23854.d: Likewise.
+	* testsuite/ld-x86-64/pr25416-3.d: Likewise.
+	* testsuite/ld-x86-64/pr25416-4.d: Likewise.
+	* testsuite/ld-i386/plt-pic.pd: Likewise.
+	* testsuite/ld-i386/plt-pic2.dd: Likewise.
+	* testsuite/ld-i386/plt.pd: Likewise.
+	* testsuite/ld-i386/plt2.dd: Likewise.
+	* testsuite/ld-i386/tlsbin.rd: Likewise.
+	* testsuite/ld-i386/tlsbin2.rd: Likewise.
+	* testsuite/ld-i386/tlsbindesc.rd: Likewise.
+	* testsuite/ld-i386/tlsdesc.rd: Likewise.
+	* testsuite/ld-i386/tlsgdesc.rd: Likewise.
+	* testsuite/ld-i386/tlsnopic.rd: Likewise.
+	* testsuite/ld-i386/tlspic.rd: Likewise.
+	* testsuite/ld-i386/tlspic2.rd: Likewise.
+	* testsuite/ld-x86-64/mpx3.dd: Likewise.
+	* testsuite/ld-x86-64/mpx3n.dd: Likewise.
+	* testsuite/ld-x86-64/mpx4.dd: Likewise.
+	* testsuite/ld-x86-64/mpx4n.dd: Likewise.
+	* testsuite/ld-x86-64/pe-x86-64-1.od: Likewise.
+	* testsuite/ld-x86-64/pe-x86-64-2.od: Likewise.
+	* testsuite/ld-x86-64/pe-x86-64-3.od: Likewise.
+	* testsuite/ld-x86-64/pe-x86-64-4.od: Likewise.
+	* testsuite/ld-x86-64/plt.pd: Likewise.
+	* testsuite/ld-x86-64/plt2.dd: Likewise.
+	* testsuite/ld-x86-64/tlsbin.rd: Likewise.
+	* testsuite/ld-x86-64/tlsbin2.rd: Likewise.
+	* testsuite/ld-x86-64/tlsbindesc.rd: Likewise.
+	* testsuite/ld-x86-64/tlsdesc.rd: Likewise.
+	* testsuite/ld-x86-64/tlsgdesc.rd: Likewise.
+	* testsuite/ld-x86-64/tlspic.rd: Likewise.
+	* testsuite/ld-x86-64/tlspic2.rd: Likewise.
+	* testsuite/ld-elf/sec64k.exp: Check
+	is_elf_unused_section_symbols.
+---
+ bfd/ChangeLog                                 | 76 ++++++++++++++++
+ bfd/aix386-core.c                             |  1 +
+ bfd/aout-target.h                             |  1 +
+ bfd/bfd-in2.h                                 | 17 ++++
+ bfd/binary.c                                  |  1 +
+ bfd/cisco-core.c                              |  2 +
+ bfd/coff-alpha.c                              |  1 +
+ bfd/coff-i386.c                               |  4 +-
+ bfd/coff-ia64.c                               |  1 +
+ bfd/coff-mips.c                               |  3 +
+ bfd/coff-rs6000.c                             |  2 +
+ bfd/coff-sh.c                                 |  2 +
+ bfd/coff-tic30.c                              |  1 +
+ bfd/coff-tic54x.c                             | 26 ++++++
+ bfd/coff-x86_64.c                             |  2 +
+ bfd/coff64-rs6000.c                           |  2 +
+ bfd/coffcode.h                                |  3 +
+ bfd/elf.c                                     | 15 +++-
+ bfd/elfcode.h                                 |  8 +-
+ bfd/elflink.c                                 | 61 +++++++------
+ bfd/elfxx-target.h                            |  6 ++
+ bfd/elfxx-x86.h                               |  3 +
+ bfd/hppabsd-core.c                            |  1 +
+ bfd/hpux-core.c                               |  1 +
+ bfd/i386msdos.c                               |  1 +
+ bfd/ihex.c                                    |  1 +
+ bfd/irix-core.c                               |  1 +
+ bfd/mach-o-target.c                           |  1 +
+ bfd/mmo.c                                     |  1 +
+ bfd/netbsd-core.c                             |  1 +
+ bfd/osf-core.c                                |  1 +
+ bfd/pdp11.c                                   |  1 +
+ bfd/pef.c                                     |  2 +
+ bfd/plugin.c                                  |  1 +
+ bfd/ppcboot.c                                 |  1 +
+ bfd/ptrace-core.c                             |  1 +
+ bfd/sco5-core.c                               |  1 +
+ bfd/som.c                                     |  1 +
+ bfd/srec.c                                    |  2 +
+ bfd/syms.c                                    |  3 +
+ bfd/targets.c                                 | 14 +++
+ bfd/tekhex.c                                  |  1 +
+ bfd/trad-core.c                               |  1 +
+ bfd/verilog.c                                 |  1 +
+ bfd/vms-alpha.c                               |  1 +
+ bfd/vms-lib.c                                 |  1 +
+ bfd/wasm-module.c                             |  1 +
+ bfd/xsym.c                                    |  1 +
+ binutils/ChangeLog                            | 16 ++++
+ binutils/objcopy.c                            | 24 ++++++
+ binutils/testsuite/binutils-all/readelf.exp   |  6 +-
+ binutils/testsuite/binutils-all/readelf.s-64  |  2 +-
+ .../binutils-all/readelf.s-64-unused          | 27 ++++++
+ binutils/testsuite/binutils-all/readelf.ss    |  5 +-
+ binutils/testsuite/binutils-all/readelf.ss-64 |  5 +-
+ .../binutils-all/readelf.ss-64-unused         | 18 ++++
+ .../testsuite/binutils-all/readelf.ss-unused  | 20 +++++
+ binutils/testsuite/lib/binutils-common.exp    | 31 +++++++
+ gas/ChangeLog                                 | 33 +++++++
+ gas/config/obj-elf.c                          |  3 +
+ gas/read.c                                    |  3 +
+ gas/subsegs.c                                 |  4 +
+ gas/testsuite/gas/cfi/cfi-label.d             |  4 +-
+ gas/testsuite/gas/elf/elf.exp                 |  6 +-
+ gas/testsuite/gas/elf/section2.e              |  7 --
+ gas/testsuite/gas/elf/section2.e-unused       |  8 ++
+ gas/testsuite/gas/elf/symver.d                |  4 -
+ gas/testsuite/gas/i386/ilp32/elf/symver.d     |  4 -
+ gas/testsuite/gas/i386/ilp32/x86-64-size-1.d  | 24 +++---
+ gas/testsuite/gas/i386/ilp32/x86-64-size-3.d  | 16 ++--
+ gas/testsuite/gas/i386/ilp32/x86-64-size-5.d  | 12 +--
+ gas/testsuite/gas/i386/ilp32/x86-64-unwind.d  |  6 +-
+ gas/testsuite/gas/i386/size-1.d               | 24 +++---
+ gas/testsuite/gas/i386/size-3.d               | 16 ++--
+ gas/testsuite/gas/i386/svr4.d                 |  3 -
+ gas/testsuite/gas/i386/x86-64-size-1.d        | 24 +++---
+ gas/testsuite/gas/i386/x86-64-size-3.d        | 16 ++--
+ gas/testsuite/gas/i386/x86-64-size-5.d        | 12 +--
+ gas/testsuite/gas/i386/x86-64-unwind.d        | 10 +--
+ gas/write.c                                   | 43 +++++++---
+ ld/ChangeLog                                  | 86 +++++++++++++++++++
+ ld/testsuite/ld-elf/export-class.sd           |  2 -
+ ld/testsuite/ld-elf/loadaddr3b.d              |  3 -
+ ld/testsuite/ld-elf/sec64k.exp                | 14 +--
+ ld/testsuite/ld-i386/ibt-plt-1.d              |  4 +-
+ ld/testsuite/ld-i386/ibt-plt-2a.d             |  4 +-
+ ld/testsuite/ld-i386/ibt-plt-2c.d             |  4 +-
+ ld/testsuite/ld-i386/ibt-plt-3a.d             |  4 +-
+ ld/testsuite/ld-i386/ibt-plt-3c.d             |  4 +-
+ ld/testsuite/ld-i386/plt-pic.pd               |  6 +-
+ ld/testsuite/ld-i386/plt-pic2.dd              |  6 +-
+ ld/testsuite/ld-i386/plt.pd                   |  6 +-
+ ld/testsuite/ld-i386/plt2.dd                  |  6 +-
+ ld/testsuite/ld-i386/pr19636-1d.d             |  2 +-
+ ld/testsuite/ld-i386/pr19636-1l.d             |  2 +-
+ ld/testsuite/ld-i386/pr19636-2c.d             |  2 +-
+ ld/testsuite/ld-i386/tlsbin.rd                | 13 ---
+ ld/testsuite/ld-i386/tlsbin2.rd               | 11 ---
+ ld/testsuite/ld-i386/tlsbindesc.rd            | 11 ---
+ ld/testsuite/ld-i386/tlsdesc.rd               | 11 ---
+ ld/testsuite/ld-i386/tlsgdesc.rd              | 10 ---
+ ld/testsuite/ld-i386/tlsnopic.rd              |  9 --
+ ld/testsuite/ld-i386/tlspic.rd                | 12 ---
+ ld/testsuite/ld-i386/tlspic2.rd               | 10 ---
+ ld/testsuite/ld-ifunc/ifunc-2-i386-now.d      |  4 +-
+ .../ld-ifunc/ifunc-2-local-i386-now.d         |  4 +-
+ .../ld-ifunc/ifunc-2-local-x86-64-now.d       |  4 +-
+ ld/testsuite/ld-ifunc/ifunc-2-x86-64-now.d    |  4 +-
+ ld/testsuite/ld-ifunc/ifunc-21-x86-64.d       | 10 +--
+ ld/testsuite/ld-ifunc/ifunc-22-x86-64.d       | 10 +--
+ ld/testsuite/ld-ifunc/pr17154-i386-now.d      | 10 +--
+ ld/testsuite/ld-ifunc/pr17154-i386.d          |  8 +-
+ ld/testsuite/ld-ifunc/pr17154-x86-64-now.d    | 10 +--
+ ld/testsuite/ld-ifunc/pr17154-x86-64.d        |  8 +-
+ ld/testsuite/ld-x86-64/bnd-branch-1-now.d     | 10 +--
+ ld/testsuite/ld-x86-64/bnd-ifunc-1-now.d      |  2 +-
+ ld/testsuite/ld-x86-64/bnd-ifunc-2-now.d      |  8 +-
+ ld/testsuite/ld-x86-64/bnd-ifunc-2.d          |  8 +-
+ ld/testsuite/ld-x86-64/bnd-plt-1-now.d        |  8 +-
+ ld/testsuite/ld-x86-64/bnd-plt-1.d            |  8 +-
+ ld/testsuite/ld-x86-64/ibt-plt-1-x32.d        |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-1.d            |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-2a-x32.d       |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-2a.d           |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-2c-x32.d       |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-2c.d           |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-3a-x32.d       |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-3a.d           |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-3c-x32.d       |  4 +-
+ ld/testsuite/ld-x86-64/ibt-plt-3c.d           |  4 +-
+ ld/testsuite/ld-x86-64/mpx3.dd                |  2 +-
+ ld/testsuite/ld-x86-64/mpx3n.dd               |  2 +-
+ ld/testsuite/ld-x86-64/mpx4.dd                |  2 +-
+ ld/testsuite/ld-x86-64/mpx4n.dd               |  2 +-
+ ld/testsuite/ld-x86-64/pe-x86-64-1.od         |  5 --
+ ld/testsuite/ld-x86-64/pe-x86-64-2.od         |  5 --
+ ld/testsuite/ld-x86-64/pe-x86-64-3.od         |  5 --
+ ld/testsuite/ld-x86-64/pe-x86-64-4.od         |  6 --
+ ld/testsuite/ld-x86-64/plt.pd                 |  6 +-
+ ld/testsuite/ld-x86-64/plt2.dd                |  6 +-
+ ld/testsuite/ld-x86-64/pr19609-4e.d           |  4 +-
+ ld/testsuite/ld-x86-64/pr19609-6a.d           |  2 +-
+ ld/testsuite/ld-x86-64/pr19609-6b.d           |  2 +-
+ ld/testsuite/ld-x86-64/pr19609-7b.d           |  2 +-
+ ld/testsuite/ld-x86-64/pr19609-7d.d           |  2 +-
+ ld/testsuite/ld-x86-64/pr19636-2l.d           |  6 +-
+ ld/testsuite/ld-x86-64/pr20253-1d.d           | 12 +--
+ ld/testsuite/ld-x86-64/pr20253-1h.d           | 12 +--
+ ld/testsuite/ld-x86-64/pr21038b-now.d         |  2 +-
+ ld/testsuite/ld-x86-64/pr21038b.d             |  2 +-
+ ld/testsuite/ld-x86-64/pr21038c-now.d         |  2 +-
+ ld/testsuite/ld-x86-64/pr21038c.d             |  2 +-
+ ld/testsuite/ld-x86-64/pr23854.d              | 36 ++++----
+ ld/testsuite/ld-x86-64/pr25416-3.d            |  4 +-
+ ld/testsuite/ld-x86-64/pr25416-4.d            |  4 +-
+ ld/testsuite/ld-x86-64/tlsbin.rd              | 13 ---
+ ld/testsuite/ld-x86-64/tlsbin2.rd             | 11 ---
+ ld/testsuite/ld-x86-64/tlsbindesc.rd          | 11 ---
+ ld/testsuite/ld-x86-64/tlsdesc.rd             | 12 ---
+ ld/testsuite/ld-x86-64/tlsgdesc.rd            | 10 ---
+ ld/testsuite/ld-x86-64/tlspic.rd              | 12 ---
+ ld/testsuite/ld-x86-64/tlspic2.rd             | 12 ---
+ 162 files changed, 809 insertions(+), 522 deletions(-)
+ create mode 100644 binutils/testsuite/binutils-all/readelf.s-64-unused
+ create mode 100644 binutils/testsuite/binutils-all/readelf.ss-64-unused
+ create mode 100644 binutils/testsuite/binutils-all/readelf.ss-unused
+ create mode 100644 gas/testsuite/gas/elf/section2.e-unused
+
+diff --git a/bfd/aix386-core.c b/bfd/aix386-core.c
+index d641b81031..68cd642952 100644
+--- a/bfd/aix386-core.c
++++ b/bfd/aix386-core.c
+@@ -239,6 +239,7 @@ const bfd_target core_aix386_vec =
+   ' ',				/* ar_pad_char */
+   16,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   NO_GET64, NO_GETS64, NO_PUT64,
+   NO_GET, NO_GETS, NO_PUT,
+   NO_GET, NO_GETS, NO_PUT,	/* data */
+diff --git a/bfd/aout-target.h b/bfd/aout-target.h
+index 8c27bb1007..92fc3ed4dd 100644
+--- a/bfd/aout-target.h
++++ b/bfd/aout-target.h
+@@ -660,6 +660,7 @@ const bfd_target MY (vec) =
+   AR_PAD_CHAR,			/* AR_pad_char.  */
+   15,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ #ifdef TARGET_IS_BIG_ENDIAN_P
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+      bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+diff --git a/bfd/bfd-in2.h b/bfd/bfd-in2.h
+index 43ead185c1..7eff85b7ea 100644
+--- a/bfd/bfd-in2.h
++++ b/bfd/bfd-in2.h
+@@ -6416,6 +6416,9 @@ typedef struct bfd_symbol
+      with this name and type in use.  BSF_OBJECT must also be set.  */
+ #define BSF_GNU_UNIQUE          (1 << 23)
+ 
++  /* This section symbol should be included in the symbol table.  */
++#define BSF_SECTION_SYM_USED    (1 << 24)
++
+   flagword flags;
+ 
+   /* A pointer to the section to which this symbol is
+@@ -7291,6 +7294,11 @@ bfd_boolean generic_core_file_matches_executable_p
+    (bfd_assert (__FILE__,__LINE__), NULL))
+ #endif
+ 
++/* Defined to TRUE if unused section symbol should be kept.  */
++#ifndef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++#define TARGET_KEEP_UNUSED_SECTION_SYMBOLS TRUE
++#endif
++
+ enum bfd_flavour
+ {
+   /* N.B. Update bfd_flavour_name if you change this.  */
+@@ -7364,6 +7372,9 @@ typedef struct bfd_target
+      possible targets when more than one target matches.  */
+   unsigned char match_priority;
+ 
++ /* TRUE if unused section symbols should be kept.  */
++  bfd_boolean keep_unused_section_symbols;
++
+   /* Entries for byte swapping for data. These are different from the
+      other entry points, since they don't take a BFD as the first argument.
+      Certain other handlers could do the same.  */
+@@ -7794,6 +7805,12 @@ bfd_asymbol_flavour (const asymbol *sy)
+   return sy->the_bfd->xvec->flavour;
+ }
+ 
++static inline bfd_boolean
++bfd_keep_unused_section_symbols (const bfd *abfd)
++{
++  return abfd->xvec->keep_unused_section_symbols;
++}
++
+ bfd_boolean bfd_set_default_target (const char *name);
+ 
+ const bfd_target *bfd_find_target (const char *target_name, bfd *abfd);
+diff --git a/bfd/binary.c b/bfd/binary.c
+index db1bec02b6..942c66bbd6 100644
+--- a/bfd/binary.c
++++ b/bfd/binary.c
+@@ -335,6 +335,7 @@ const bfd_target binary_vec =
+   ' ',				/* ar_pad_char */
+   16,				/* ar_max_namelen */
+   255,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* data */
+diff --git a/bfd/cisco-core.c b/bfd/cisco-core.c
+index 1b77829c15..c0e68ade48 100644
+--- a/bfd/cisco-core.c
++++ b/bfd/cisco-core.c
+@@ -329,6 +329,7 @@ const bfd_target core_cisco_be_vec =
+   ' ',				/* ar_pad_char */
+   16,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16, /* data */
+@@ -384,6 +385,7 @@ const bfd_target core_cisco_le_vec =
+   ' ',				/* ar_pad_char */
+   16,				/* ar_max_namelen */
+   0,				/* match_priority */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+   bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+diff --git a/bfd/coff-alpha.c b/bfd/coff-alpha.c
+index 50b2f973a5..db26587fea 100644
+--- a/bfd/coff-alpha.c
++++ b/bfd/coff-alpha.c
+@@ -2427,6 +2427,7 @@ const bfd_target alpha_ecoff_le_vec =
+   ' ',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+diff --git a/bfd/coff-i386.c b/bfd/coff-i386.c
+index 5048df9daf..e02519564d 100644
+--- a/bfd/coff-i386.c
++++ b/bfd/coff-i386.c
+@@ -651,6 +651,7 @@ const bfd_target
+   '/',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+@@ -729,6 +730,7 @@ const bfd_target
+   '/',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+@@ -772,4 +774,4 @@ const bfd_target
+ 
+   &bigobj_swap_table
+ };
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/bfd/coff-ia64.c b/bfd/coff-ia64.c
+index 24a4a7c133..887c7aae77 100644
+--- a/bfd/coff-ia64.c
++++ b/bfd/coff-ia64.c
+@@ -170,6 +170,7 @@ const bfd_target
+   '/',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+diff --git a/bfd/coff-mips.c b/bfd/coff-mips.c
+index 38376b23d7..d20f4b4659 100644
+--- a/bfd/coff-mips.c
++++ b/bfd/coff-mips.c
+@@ -1446,6 +1446,7 @@ const bfd_target mips_ecoff_le_vec =
+   ' ',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+@@ -1504,6 +1505,7 @@ const bfd_target mips_ecoff_be_vec =
+   ' ',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+      bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+      bfd_getb16, bfd_getb_signed_16, bfd_putb16,
+@@ -1562,6 +1564,7 @@ const bfd_target mips_ecoff_bele_vec =
+   ' ',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+diff --git a/bfd/coff-rs6000.c b/bfd/coff-rs6000.c
+index a71791e3f9..fbc1aed311 100644
+--- a/bfd/coff-rs6000.c
++++ b/bfd/coff-rs6000.c
+@@ -4201,6 +4201,7 @@ const bfd_target rs6000_xcoff_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+     /* data */
+     bfd_getb64,
+@@ -4382,6 +4383,7 @@ const bfd_target powerpc_xcoff_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+     /* data */
+     bfd_getb64,
+diff --git a/bfd/coff-sh.c b/bfd/coff-sh.c
+index 99541a76e0..04ef99b777 100644
+--- a/bfd/coff-sh.c
++++ b/bfd/coff-sh.c
+@@ -3134,6 +3134,7 @@ const bfd_target sh_coff_small_vec =
+   '/',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16, /* data */
+@@ -3191,6 +3192,7 @@ const bfd_target sh_coff_small_le_vec =
+   '/',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+   bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+diff --git a/bfd/coff-tic30.c b/bfd/coff-tic30.c
+index f3e7df0a3d..f4d3a13ef4 100644
+--- a/bfd/coff-tic30.c
++++ b/bfd/coff-tic30.c
+@@ -192,6 +192,7 @@ const bfd_target tic30_coff_vec =
+   '/',				/* ar_pad_char */
+   15,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* data */
+diff --git a/bfd/coff-tic54x.c b/bfd/coff-tic54x.c
+index 914bb2a390..3c18221d24 100644
+--- a/bfd/coff-tic54x.c
++++ b/bfd/coff-tic54x.c
+@@ -415,6 +415,7 @@ const bfd_target tic54x_coff0_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+@@ -472,6 +473,11 @@ const bfd_target tic54x_coff0_beh_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++#ifdef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++    TRUE,			/* keep unused section symbols.  */
++#else
++    FALSE,			/* keep unused section symbols.  */
++#endif
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+@@ -530,6 +536,11 @@ const bfd_target tic54x_coff1_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++#ifdef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++    TRUE,			/* keep unused section symbols.  */
++#else
++    FALSE,			/* keep unused section symbols.  */
++#endif
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+@@ -588,6 +599,11 @@ const bfd_target tic54x_coff1_beh_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++#ifdef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++    TRUE,			/* keep unused section symbols.  */
++#else
++    FALSE,			/* keep unused section symbols.  */
++#endif
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+@@ -646,6 +662,11 @@ const bfd_target tic54x_coff2_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++#ifdef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++    TRUE,			/* keep unused section symbols.  */
++#else
++    FALSE,			/* keep unused section symbols.  */
++#endif
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+@@ -704,6 +725,11 @@ const bfd_target tic54x_coff2_beh_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++#ifdef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++    TRUE,			/* keep unused section symbols.  */
++#else
++    FALSE,			/* keep unused section symbols.  */
++#endif
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+diff --git a/bfd/coff-x86_64.c b/bfd/coff-x86_64.c
+index 0279ce23c8..adab60cd11 100644
+--- a/bfd/coff-x86_64.c
++++ b/bfd/coff-x86_64.c
+@@ -782,6 +782,7 @@ const bfd_target
+   '/',				/* Ar_pad_char.  */
+   15,				/* Ar_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+@@ -854,6 +855,7 @@ const bfd_target
+   '/',				/* Ar_pad_char.  */
+   15,				/* Ar_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+diff --git a/bfd/coff64-rs6000.c b/bfd/coff64-rs6000.c
+index a3b17020c1..9aa0304ec9 100644
+--- a/bfd/coff64-rs6000.c
++++ b/bfd/coff64-rs6000.c
+@@ -2665,6 +2665,7 @@ const bfd_target rs6000_xcoff64_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+     /* data */
+     bfd_getb64,
+@@ -2928,6 +2929,7 @@ const bfd_target rs6000_xcoff64_aix_vec =
+     '/',			/* ar_pad_char */
+     15,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+     /* data */
+     bfd_getb64,
+diff --git a/bfd/coffcode.h b/bfd/coffcode.h
+index 21820da453..2fd699ff1b 100644
+--- a/bfd/coffcode.h
++++ b/bfd/coffcode.h
+@@ -5820,6 +5820,7 @@ const bfd_target VAR =							\
+   '/',				/* AR_pad_char.  */			\
+   15,				/* AR_max_namelen.  */			\
+   0,				/* match priority.  */			\
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */ \
+ 									\
+   /* Data conversion functions.  */					\
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,				\
+@@ -5881,6 +5882,7 @@ const bfd_target VAR =							\
+   '/',				/* AR_pad_char.  */			\
+   15,				/* AR_max_namelen.  */			\
+   0,				/* match priority.  */			\
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */ \
+ 									\
+   /* Data conversion functions.  */					\
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,				\
+@@ -5942,6 +5944,7 @@ const bfd_target VAR =							\
+   '/',				/* AR_pad_char.  */			\
+   15,				/* AR_max_namelen.  */			\
+   0,				/* match priority.  */			\
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */ \
+ 									\
+   /* Data conversion functions.  */					\
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,				\
+diff --git a/bfd/elf.c b/bfd/elf.c
+index 3f4ccd2055..ab19bdb453 100644
+--- a/bfd/elf.c
++++ b/bfd/elf.c
+@@ -4061,6 +4061,10 @@ ignore_section_sym (bfd *abfd, asymbol *sym)
+   if ((sym->flags & BSF_SECTION_SYM) == 0)
+     return FALSE;
+ 
++  /* Ignore the section symbol if it isn't used.  */
++  if ((sym->flags & BSF_SECTION_SYM_USED) == 0)
++    return TRUE;
++
+   if (sym->section == NULL)
+     return TRUE;
+ 
+@@ -4148,7 +4152,10 @@ elf_map_symbols (bfd *abfd, unsigned int *pnum_locals)
+      at least in that case.  */
+   for (asect = abfd->sections; asect; asect = asect->next)
+     {
+-      if (sect_syms[asect->index] == NULL)
++      asymbol *sym = asect->symbol;
++      /* Don't include ignored section symbols.  */
++      if (!ignore_section_sym (abfd, sym)
++	  && sect_syms[asect->index] == NULL)
+ 	{
+ 	  if (!sym_is_global (abfd, asect->symbol))
+ 	    num_locals++;
+@@ -4170,6 +4177,7 @@ elf_map_symbols (bfd *abfd, unsigned int *pnum_locals)
+ 
+       if (sym_is_global (abfd, sym))
+ 	i = num_locals + num_globals2++;
++      /* Don't include ignored section symbols.  */
+       else if (!ignore_section_sym (abfd, sym))
+ 	i = num_locals2++;
+       else
+@@ -4179,9 +4187,10 @@ elf_map_symbols (bfd *abfd, unsigned int *pnum_locals)
+     }
+   for (asect = abfd->sections; asect; asect = asect->next)
+     {
+-      if (sect_syms[asect->index] == NULL)
++      asymbol *sym = asect->symbol;
++      if (!ignore_section_sym (abfd, sym)
++	  && sect_syms[asect->index] == NULL)
+ 	{
+-	  asymbol *sym = asect->symbol;
+ 	  unsigned int i;
+ 
+ 	  sect_syms[asect->index] = sym;
+diff --git a/bfd/elfcode.h b/bfd/elfcode.h
+index b40fb4a1f5..4e99fcc6b9 100644
+--- a/bfd/elfcode.h
++++ b/bfd/elfcode.h
+@@ -1347,7 +1347,13 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
+ 	  switch (ELF_ST_TYPE (isym->st_info))
+ 	    {
+ 	    case STT_SECTION:
+-	      sym->symbol.flags |= BSF_SECTION_SYM | BSF_DEBUGGING;
++	      /* Mark the input section symbol as used since it may be
++	         used for relocation and section group.
++		 NB: BSF_SECTION_SYM_USED is ignored by linker and may
++		 be cleared by objcopy for non-relocatable inputs.  */
++	      sym->symbol.flags |= (BSF_SECTION_SYM
++				    | BSF_DEBUGGING
++				    | BSF_SECTION_SYM_USED);
+ 	      break;
+ 	    case STT_FILE:
+ 	      sym->symbol.flags |= BSF_FILE | BSF_DEBUGGING;
+diff --git a/bfd/elflink.c b/bfd/elflink.c
+index 4c54b1a159..a7c952b6fc 100644
+--- a/bfd/elflink.c
++++ b/bfd/elflink.c
+@@ -12527,9 +12527,6 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
+ 
+   if (info->strip != strip_all || emit_relocs)
+     {
+-      bfd_boolean name_local_sections;
+-      const char *name;
+-
+       file_ptr off = elf_next_file_pos (abfd);
+ 
+       _bfd_elf_assign_file_position_for_section (symtab_hdr, off, TRUE);
+@@ -12550,36 +12547,38 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
+ 				     bfd_und_section_ptr, NULL) != 1)
+ 	goto error_return;
+ 
+-      /* Output a symbol for each section.  We output these even if we are
+-	 discarding local symbols, since they are used for relocs.  These
+-	 symbols usually have no names.  We store the index of each one in
+-	 the index field of the section, so that we can find it again when
+-	 outputting relocs.  */
++      /* Output a symbol for each section if asked or they are used for
++	 relocs.  These symbols usually have no names.  We store the
++	 index of each one in the index field of the section, so that
++	 we can find it again when outputting relocs.  */
+ 
+-      name_local_sections
+-	= (bed->elf_backend_name_local_section_symbols
+-	   && bed->elf_backend_name_local_section_symbols (abfd));
++      if (bfd_keep_unused_section_symbols (abfd) || emit_relocs)
++	{
++	  bfd_boolean name_local_sections
++	    = (bed->elf_backend_name_local_section_symbols
++	       && bed->elf_backend_name_local_section_symbols (abfd));
++	  const char *name = NULL;
+ 
+-      name = NULL;
+-      elfsym.st_size = 0;
+-      elfsym.st_info = ELF_ST_INFO (STB_LOCAL, STT_SECTION);
+-      elfsym.st_other = 0;
+-      elfsym.st_value = 0;
+-      elfsym.st_target_internal = 0;
+-      for (i = 1; i < elf_numsections (abfd); i++)
+-	{
+-	  o = bfd_section_from_elf_index (abfd, i);
+-	  if (o != NULL)
+-	    {
+-	      o->target_index = bfd_get_symcount (abfd);
+-	      elfsym.st_shndx = i;
+-	      if (!bfd_link_relocatable (info))
+-		elfsym.st_value = o->vma;
+-	      if (name_local_sections)
+-		name = o->name;
+-	      if (elf_link_output_symstrtab (&flinfo, name, &elfsym, o,
+-					     NULL) != 1)
+-		goto error_return;
++	  elfsym.st_size = 0;
++	  elfsym.st_info = ELF_ST_INFO (STB_LOCAL, STT_SECTION);
++	  elfsym.st_other = 0;
++	  elfsym.st_value = 0;
++	  elfsym.st_target_internal = 0;
++	  for (i = 1; i < elf_numsections (abfd); i++)
++	    {
++	      o = bfd_section_from_elf_index (abfd, i);
++	      if (o != NULL)
++		{
++		  o->target_index = bfd_get_symcount (abfd);
++		  elfsym.st_shndx = i;
++		  if (!bfd_link_relocatable (info))
++		    elfsym.st_value = o->vma;
++		  if (name_local_sections)
++		    name = o->name;
++		  if (elf_link_output_symstrtab (&flinfo, name, &elfsym, o,
++						 NULL) != 1)
++		    goto error_return;
++		}
+ 	    }
+ 	}
+     }
+diff --git a/bfd/elfxx-target.h b/bfd/elfxx-target.h
+index cae1fbf0bb..c930b767bf 100644
+--- a/bfd/elfxx-target.h
++++ b/bfd/elfxx-target.h
+@@ -1007,6 +1007,9 @@ const bfd_target TARGET_BIG_SYM =
+ 
+   elf_match_priority,
+ 
++  /* TRUE if unused section symbols should be kept.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS,
++
+   /* Routines to byte-swap various sized integers from the data sections */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+     bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+@@ -1108,6 +1111,9 @@ const bfd_target TARGET_LITTLE_SYM =
+ 
+   elf_match_priority,
+ 
++  /* TRUE if unused section symbols should be kept.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS,
++
+   /* Routines to byte-swap various sized integers from the data sections */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+diff --git a/bfd/elfxx-x86.h b/bfd/elfxx-x86.h
+index cc8149d06b..e11e06bdad 100644
+--- a/bfd/elfxx-x86.h
++++ b/bfd/elfxx-x86.h
+@@ -18,6 +18,9 @@
+    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+    MA 02110-1301, USA.  */
+ 
++/* Don't generate unused section symbols.  */
++#define TARGET_KEEP_UNUSED_SECTION_SYMBOLS FALSE
++
+ #include "sysdep.h"
+ #include "bfd.h"
+ #include "bfdlink.h"
+diff --git a/bfd/hppabsd-core.c b/bfd/hppabsd-core.c
+index d2c8a94b94..c36e467ae1 100644
+--- a/bfd/hppabsd-core.c
++++ b/bfd/hppabsd-core.c
+@@ -230,6 +230,7 @@ const bfd_target core_hppabsd_vec =
+     0,							   /* symbol prefix */
+     ' ',						   /* ar_pad_char */
+     16,							   /* ar_max_namelen */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/hpux-core.c b/bfd/hpux-core.c
+index 42f84247d8..03d0de3382 100644
+--- a/bfd/hpux-core.c
++++ b/bfd/hpux-core.c
+@@ -392,6 +392,7 @@ const bfd_target core_hpux_vec =
+     ' ',			/* ar_pad_char */
+     16,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/i386msdos.c b/bfd/i386msdos.c
+index 526561e3ae..6254b2aa2e 100644
+--- a/bfd/i386msdos.c
++++ b/bfd/i386msdos.c
+@@ -279,6 +279,7 @@ const bfd_target i386_msdos_vec =
+     ' ',				/* ar_pad_char */
+     16,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+     bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
+diff --git a/bfd/ihex.c b/bfd/ihex.c
+index 65431025ea..13dd106817 100644
+--- a/bfd/ihex.c
++++ b/bfd/ihex.c
+@@ -981,6 +981,7 @@ const bfd_target ihex_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/bfd/irix-core.c b/bfd/irix-core.c
+index d00f4917c1..e4fb622d69 100644
+--- a/bfd/irix-core.c
++++ b/bfd/irix-core.c
+@@ -293,6 +293,7 @@ const bfd_target core_irix_vec =
+     ' ',						   /* ar_pad_char */
+     16,							   /* ar_max_namelen */
+     0,							   /* match_priority */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/mach-o-target.c b/bfd/mach-o-target.c
+index 993c9747b5..3b45433653 100644
+--- a/bfd/mach-o-target.c
++++ b/bfd/mach-o-target.c
+@@ -136,6 +136,7 @@ const bfd_target TARGET_NAME =
+   ' ',				/* ar_pad_char.  */
+   16,				/* ar_max_namelen.  */
+   TARGET_PRIORITY,	/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+ #if TARGET_BIG_ENDIAN
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+diff --git a/bfd/mmo.c b/bfd/mmo.c
+index a31ddef81e..4ba62d0bc6 100644
+--- a/bfd/mmo.c
++++ b/bfd/mmo.c
+@@ -3344,6 +3344,7 @@ const bfd_target mmix_mmo_vec =
+   ' ',				/* ar_pad_char */
+   16,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* data */
+diff --git a/bfd/netbsd-core.c b/bfd/netbsd-core.c
+index a1f88207b1..60fa69d142 100644
+--- a/bfd/netbsd-core.c
++++ b/bfd/netbsd-core.c
+@@ -276,6 +276,7 @@ const bfd_target core_netbsd_vec =
+     ' ',			/* ar_pad_char.  */
+     16,				/* ar_max_namelen.  */
+     0,				/* Match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data.  */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data.  */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data.  */
+diff --git a/bfd/osf-core.c b/bfd/osf-core.c
+index f91b2aac14..17cc532396 100644
+--- a/bfd/osf-core.c
++++ b/bfd/osf-core.c
+@@ -187,6 +187,7 @@ const bfd_target core_osf_vec =
+     ' ',			/* ar_pad_char */
+     16,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/pdp11.c b/bfd/pdp11.c
+index 914dcaa5de..8992f4e543 100644
+--- a/bfd/pdp11.c
++++ b/bfd/pdp11.c
+@@ -4689,6 +4689,7 @@ const bfd_target MY (vec) =
+   AR_PAD_CHAR,			/* AR_pad_char.  */
+   15,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+      bfd_getp32, bfd_getp_signed_32, bfd_putp32,
+      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* Data.  */
+diff --git a/bfd/pef.c b/bfd/pef.c
+index 85030e5463..93bc933eec 100644
+--- a/bfd/pef.c
++++ b/bfd/pef.c
+@@ -1015,6 +1015,7 @@ const bfd_target pef_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+@@ -1159,6 +1160,7 @@ const bfd_target pef_xlib_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/bfd/plugin.c b/bfd/plugin.c
+index d733f6afdf..d1767b0134 100644
+--- a/bfd/plugin.c
++++ b/bfd/plugin.c
+@@ -719,6 +719,7 @@ const bfd_target plugin_vec =
+   '/',				/* ar_pad_char.  */
+   15,				/* ar_max_namelen.  */
+   255,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+ 
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+diff --git a/bfd/ppcboot.c b/bfd/ppcboot.c
+index e3ade1cdf0..5cdd7adbbd 100644
+--- a/bfd/ppcboot.c
++++ b/bfd/ppcboot.c
+@@ -495,6 +495,7 @@ const bfd_target powerpc_boot_vec =
+   ' ',				/* ar_pad_char */
+   16,				/* ar_max_namelen */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* data */
+diff --git a/bfd/ptrace-core.c b/bfd/ptrace-core.c
+index 7cf47af10b..d21a61ce3f 100644
+--- a/bfd/ptrace-core.c
++++ b/bfd/ptrace-core.c
+@@ -177,6 +177,7 @@ const bfd_target core_ptrace_vec =
+     0,							   /* symbol prefix */
+     ' ',						   /* ar_pad_char */
+     16,							   /* ar_max_namelen */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/sco5-core.c b/bfd/sco5-core.c
+index c543c38be1..167dba9f32 100644
+--- a/bfd/sco5-core.c
++++ b/bfd/sco5-core.c
+@@ -358,6 +358,7 @@ const bfd_target core_sco5_vec =
+     ' ',			/* ar_pad_char */
+     16,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/som.c b/bfd/som.c
+index 5897ae6c5b..872e93341d 100644
+--- a/bfd/som.c
++++ b/bfd/som.c
+@@ -6859,6 +6859,7 @@ const bfd_target hppa_som_vec =
+   '/',				/* AR_pad_char.  */
+   14,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/bfd/srec.c b/bfd/srec.c
+index e21d7f8b80..92faf3dc82 100644
+--- a/bfd/srec.c
++++ b/bfd/srec.c
+@@ -1295,6 +1295,7 @@ const bfd_target srec_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+@@ -1351,6 +1352,7 @@ const bfd_target symbolsrec_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/bfd/syms.c b/bfd/syms.c
+index 9559ab4580..10ea8bd7b8 100644
+--- a/bfd/syms.c
++++ b/bfd/syms.c
+@@ -307,6 +307,9 @@ CODE_FRAGMENT
+ .     with this name and type in use.  BSF_OBJECT must also be set.  *}
+ .#define BSF_GNU_UNIQUE          (1 << 23)
+ .
++.  {* This section symbol should be included in the symbol table.  *}
++.#define BSF_SECTION_SYM_USED    (1 << 24)
++.
+ .  flagword flags;
+ .
+ .  {* A pointer to the section to which this symbol is
+diff --git a/bfd/targets.c b/bfd/targets.c
+index 8086f03e46..076441b3a2 100644
+--- a/bfd/targets.c
++++ b/bfd/targets.c
+@@ -132,6 +132,11 @@ DESCRIPTION
+ .   (((bfd)->xvec->message[(int) ((bfd)->format)]) arglist) : \
+ .   (bfd_assert (__FILE__,__LINE__), NULL))
+ .#endif
++.
++.{* Defined to TRUE if unused section symbol should be kept.  *}
++.#ifndef TARGET_KEEP_UNUSED_SECTION_SYMBOLS
++.#define TARGET_KEEP_UNUSED_SECTION_SYMBOLS TRUE
++.#endif
+ .
+ 	This is the structure which defines the type of BFD this is.  The
+ 	<<xvec>> member of the struct <<bfd>> itself points here.  Each
+@@ -215,6 +220,9 @@ DESCRIPTION
+ .     possible targets when more than one target matches.  *}
+ .  unsigned char match_priority;
+ .
++. {* TRUE if unused section symbols should be kept.  *}
++.  bfd_boolean keep_unused_section_symbols;
++.
+ .  {* Entries for byte swapping for data. These are different from the
+ .     other entry points, since they don't take a BFD as the first argument.
+ .     Certain other handlers could do the same.  *}
+@@ -655,6 +663,12 @@ to find an alternative output format that is suitable.
+ .  return sy->the_bfd->xvec->flavour;
+ .}
+ .
++.static inline bfd_boolean
++.bfd_keep_unused_section_symbols (const bfd *abfd)
++.{
++.  return abfd->xvec->keep_unused_section_symbols;
++.}
++.
+ */
+ 
+ /* All known xvecs (even those that don't compile on all systems).
+diff --git a/bfd/tekhex.c b/bfd/tekhex.c
+index 99d54dbdb8..6599a4f3f4 100644
+--- a/bfd/tekhex.c
++++ b/bfd/tekhex.c
+@@ -1008,6 +1008,7 @@ const bfd_target tekhex_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/bfd/trad-core.c b/bfd/trad-core.c
+index 1a4dbe6bf8..14627cb72e 100644
+--- a/bfd/trad-core.c
++++ b/bfd/trad-core.c
+@@ -279,6 +279,7 @@ const bfd_target core_trad_vec =
+     ' ',			/* ar_pad_char */
+     16,				/* ar_max_namelen */
+     0,				/* match priority.  */
++    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data */
+     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data */
+diff --git a/bfd/verilog.c b/bfd/verilog.c
+index a54f6b04eb..94a9cc8045 100644
+--- a/bfd/verilog.c
++++ b/bfd/verilog.c
+@@ -405,6 +405,7 @@ const bfd_target verilog_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/bfd/vms-alpha.c b/bfd/vms-alpha.c
+index 72d89e518f..94001cc3bf 100644
+--- a/bfd/vms-alpha.c
++++ b/bfd/vms-alpha.c
+@@ -9792,6 +9792,7 @@ const bfd_target alpha_vms_vec =
+   ' ',				/* ar_pad_char.  */
+   15,				/* ar_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+   bfd_getl16, bfd_getl_signed_16, bfd_putl16,
+diff --git a/bfd/vms-lib.c b/bfd/vms-lib.c
+index 3752b91139..eaac8af2a2 100644
+--- a/bfd/vms-lib.c
++++ b/bfd/vms-lib.c
+@@ -2403,6 +2403,7 @@ const bfd_target alpha_vms_lib_txt_vec =
+   ' ',				/* ar_pad_char.  */
+   15,				/* ar_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+   bfd_getl16, bfd_getl_signed_16, bfd_putl16,
+diff --git a/bfd/wasm-module.c b/bfd/wasm-module.c
+index 1fde4a57ab..dc135645f4 100644
+--- a/bfd/wasm-module.c
++++ b/bfd/wasm-module.c
+@@ -794,6 +794,7 @@ const bfd_target wasm_vec =
+   ' ',				/* AR_pad_char.  */
+   255,				/* AR_max_namelen.  */
+   0,				/* Match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   /* Routines to byte-swap various sized integers from the data sections.  */
+   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+diff --git a/bfd/xsym.c b/bfd/xsym.c
+index ea26603141..e9283f63ad 100644
+--- a/bfd/xsym.c
++++ b/bfd/xsym.c
+@@ -2298,6 +2298,7 @@ const bfd_target sym_vec =
+   ' ',				/* AR_pad_char.  */
+   16,				/* AR_max_namelen.  */
+   0,				/* match priority.  */
++  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
+diff --git a/binutils/objcopy.c b/binutils/objcopy.c
+index 560e7c648d..62ee22202f 100644
+--- a/binutils/objcopy.c
++++ b/binutils/objcopy.c
+@@ -3204,6 +3204,30 @@ copy_object (bfd *ibfd, bfd *obfd, const bfd_arch_info_type *input_arch)
+   if (convert_debugging)
+     dhandle = read_debugging_info (ibfd, isympp, symcount, FALSE);
+ 
++   if ((obfd->flags & (EXEC_P | DYNAMIC)) != 0
++       && (obfd->flags & HAS_RELOC) == 0)
++    {
++      if (bfd_keep_unused_section_symbols (obfd))
++	{
++	  /* Non-relocatable inputs may not have the unused section
++	     symbols.  Mark all section symbols as used to generate
++	     section symbols.  */
++	  asection *asect;
++	  for (asect = obfd->sections; asect != NULL; asect = asect->next)
++	    if (asect->symbol)
++	      asect->symbol->flags |= BSF_SECTION_SYM_USED;
++	}
++      else
++	{
++	  /* Non-relocatable inputs may have the unused section symbols.
++	     Mark all section symbols as unused to excluded them.  */
++	  long s;
++	  for (s = 0; s < symcount; s++)
++	    if ((isympp[s]->flags & BSF_SECTION_SYM_USED))
++	      isympp[s]->flags &= ~BSF_SECTION_SYM_USED;
++	}
++    }
++
+   if (strip_symbols == STRIP_DEBUG
+       || strip_symbols == STRIP_ALL
+       || strip_symbols == STRIP_UNNEEDED
+diff --git a/binutils/testsuite/binutils-all/readelf.exp b/binutils/testsuite/binutils-all/readelf.exp
+index 4834233ad3..51d26b762b 100644
+--- a/binutils/testsuite/binutils-all/readelf.exp
++++ b/binutils/testsuite/binutils-all/readelf.exp
+@@ -100,7 +100,11 @@ proc readelf_test { options binary_file regexp_file xfails } {
+ 	return
+     }
+ 
+-    set target_machine ""
++    if { [is_elf_unused_section_symbols ] } {
++	set target_machine unused
++    } else {
++	set target_machine ""
++    }
+     if [istarget "mips*-*-*"] then {
+ 	if [is_bad_symtab] then {
+ 	    set target_machine mips
+diff --git a/binutils/testsuite/binutils-all/readelf.s-64 b/binutils/testsuite/binutils-all/readelf.s-64
+index a1e6cd1bbd..5582d77c37 100644
+--- a/binutils/testsuite/binutils-all/readelf.s-64
++++ b/binutils/testsuite/binutils-all/readelf.s-64
+@@ -18,7 +18,7 @@ Section Headers:
+  +\[ .\] .symtab +SYMTAB +0000000000000000 +0+.*
+ # aarch64-elf targets have one more data symbol.
+ # x86 targets may have .note.gnu.property.
+- +0+.* +0000000000000018 +(6|7) +(6|7) +8
++ +0+.* +0000000000000018 +(6|7) +(3|4) +8
+  +\[ .\] .strtab +STRTAB +0000000000000000 +0+.*
+  +0+.* +0000000000000000 .* +0 +0 +1
+  +\[ .\] .shstrtab +STRTAB +0000000000000000 +[0-9a-f]+
+diff --git a/binutils/testsuite/binutils-all/readelf.s-64-unused b/binutils/testsuite/binutils-all/readelf.s-64-unused
+new file mode 100644
+index 0000000000..a1e6cd1bbd
+--- /dev/null
++++ b/binutils/testsuite/binutils-all/readelf.s-64-unused
+@@ -0,0 +1,27 @@
++There are .* section headers, starting at offset .*:
++
++Section Headers:
++ +\[Nr\] Name +Type +Address +Offset
++ +Size +EntSize +Flags +Link +Info +Align
++ +\[ 0\] +NULL +0000000000000000 +00000000
++ +0000000000000000 +0000000000000000 +0 +0 +0
++ +\[ 1\] .text +PROGBITS +0000000000000000 +00000040
++ +00000000000000.. +0000000000000000 +AX +0 +0 +.*
++ +\[ 2\] .rel.+text +REL. +0+ +0+.*
++ +000000000000001. +000000000000001. +I +. +1 +8
++ +\[ 3\] .data +PROGBITS +0000000000000000 +000000(48|50)
++ +000000000000000[48] +0000000000000000 +WA +0 +0 +.*
++ +\[ 4\] .bss +NOBITS +0000000000000000 +000000(4c|50|54|58)
++ +0000000000000000 +0000000000000000 +WA +0 +0 +.*
++# x86 targets may put .note.gnu.property here.
++#...
++ +\[ .\] .symtab +SYMTAB +0000000000000000 +0+.*
++# aarch64-elf targets have one more data symbol.
++# x86 targets may have .note.gnu.property.
++ +0+.* +0000000000000018 +(6|7) +(6|7) +8
++ +\[ .\] .strtab +STRTAB +0000000000000000 +0+.*
++ +0+.* +0000000000000000 .* +0 +0 +1
++ +\[ .\] .shstrtab +STRTAB +0000000000000000 +[0-9a-f]+
++ +00000000000000.. +0000000000000000 .* +0 +0 +.*
++Key to Flags:
++#...
+diff --git a/binutils/testsuite/binutils-all/readelf.ss b/binutils/testsuite/binutils-all/readelf.ss
+index acc6d9390c..5fbb5d002e 100644
+--- a/binutils/testsuite/binutils-all/readelf.ss
++++ b/binutils/testsuite/binutils-all/readelf.ss
+@@ -2,10 +2,7 @@
+ Symbol table '.symtab' contains .* entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +0: 00000000 +0 +NOTYPE +LOCAL +DEFAULT +UND 
+- +1: 00000000 +0 +SECTION +LOCAL +DEFAULT +1 
+- +2: 00000000 +0 +SECTION +LOCAL +DEFAULT +[34] 
+- +3: 00000000 +0 +SECTION +LOCAL +DEFAULT +[45] 
+- +4: 00000000 +0 +NOTYPE +LOCAL +DEFAULT +1 static_text_symbol
++ +1: 00000000 +0 +NOTYPE +LOCAL +DEFAULT +1 static_text_symbol
+ # ARM targets add the $d mapping symbol here...
+ # NDS32 targets add the $d2 mapping symbol here...
+ #...
+diff --git a/binutils/testsuite/binutils-all/readelf.ss-64 b/binutils/testsuite/binutils-all/readelf.ss-64
+index bd10cabef3..99a732f71f 100644
+--- a/binutils/testsuite/binutils-all/readelf.ss-64
++++ b/binutils/testsuite/binutils-all/readelf.ss-64
+@@ -2,10 +2,7 @@
+ Symbol table '.symtab' contains .* entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +0: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +UND 
+- +1: 0000000000000000 +0 +SECTION +LOCAL +DEFAULT +1 
+- +2: 0000000000000000 +0 +SECTION +LOCAL +DEFAULT +3 
+- +3: 0000000000000000 +0 +SECTION +LOCAL +DEFAULT +4 
+- +4: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +1 static_text_symbol
++ +1: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +1 static_text_symbol
+ # aarch64-elf targets add the $d mapping symbol here...
+ #...
+  +.: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +3 static_data_symbol
+diff --git a/binutils/testsuite/binutils-all/readelf.ss-64-unused b/binutils/testsuite/binutils-all/readelf.ss-64-unused
+new file mode 100644
+index 0000000000..bd10cabef3
+--- /dev/null
++++ b/binutils/testsuite/binutils-all/readelf.ss-64-unused
+@@ -0,0 +1,18 @@
++
++Symbol table '.symtab' contains .* entries:
++ +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
++ +0: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +UND 
++ +1: 0000000000000000 +0 +SECTION +LOCAL +DEFAULT +1 
++ +2: 0000000000000000 +0 +SECTION +LOCAL +DEFAULT +3 
++ +3: 0000000000000000 +0 +SECTION +LOCAL +DEFAULT +4 
++ +4: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +1 static_text_symbol
++# aarch64-elf targets add the $d mapping symbol here...
++#...
++ +.: 0000000000000000 +0 +NOTYPE +LOCAL +DEFAULT +3 static_data_symbol
++# ... or here ...
++#...
++.* +.: 0000000000000000 +0 +NOTYPE +GLOBAL +DEFAULT +1 text_symbol
++ +.: 0000000000000000 +0 +NOTYPE +GLOBAL +DEFAULT +UND external_symbol
++ +.: 0000000000000000 +0 +NOTYPE +GLOBAL +DEFAULT +3 data_symbol
++ +[0-9]+: 0000000000000004 +4 +(COMMON|OBJECT) +GLOBAL +DEFAULT +COM common_symbol
++#pass
+diff --git a/binutils/testsuite/binutils-all/readelf.ss-unused b/binutils/testsuite/binutils-all/readelf.ss-unused
+new file mode 100644
+index 0000000000..acc6d9390c
+--- /dev/null
++++ b/binutils/testsuite/binutils-all/readelf.ss-unused
+@@ -0,0 +1,20 @@
++
++Symbol table '.symtab' contains .* entries:
++ +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
++ +0: 00000000 +0 +NOTYPE +LOCAL +DEFAULT +UND 
++ +1: 00000000 +0 +SECTION +LOCAL +DEFAULT +1 
++ +2: 00000000 +0 +SECTION +LOCAL +DEFAULT +[34] 
++ +3: 00000000 +0 +SECTION +LOCAL +DEFAULT +[45] 
++ +4: 00000000 +0 +NOTYPE +LOCAL +DEFAULT +1 static_text_symbol
++# ARM targets add the $d mapping symbol here...
++# NDS32 targets add the $d2 mapping symbol here...
++#...
++ +.: 00000000 +0 +NOTYPE +LOCAL +DEFAULT +[34] static_data_symbol
++# v850 targets include extra SECTION symbols here for the .call_table_data
++# and .call_table_text sections.
++#...
++ +[0-9]+: 00000000 +0 +NOTYPE +GLOBAL +DEFAULT +1 text_symbol
++ +[0-9]+: 00000000 +0 +NOTYPE +GLOBAL +DEFAULT +UND external_symbol
++ +[0-9]+: 00000000 +0 +NOTYPE +GLOBAL +DEFAULT +[34] data_symbol
++ +[0-9]+: 00000004 +4 +(COMMON|OBJECT) +GLOBAL +DEFAULT +(COM|ANSI_COM) common_symbol
++#...
+diff --git a/binutils/testsuite/lib/binutils-common.exp b/binutils/testsuite/lib/binutils-common.exp
+index 6552d30264..616a6cad3d 100644
+--- a/binutils/testsuite/lib/binutils-common.exp
++++ b/binutils/testsuite/lib/binutils-common.exp
+@@ -248,6 +248,37 @@ proc is_generic { } {
+     return 0
+ }
+ 
++# True if the object format is ELF with unused section symbols.
++proc is_elf_unused_section_symbols {} {
++    global AS ASFLAGS READELF
++
++    if {![info exists elf_unused_section_symbols_saved]} {
++	set elf_unused_section_symbols_saved 1
++	if { [is_elf_format] } {
++	    set base "empty[pid]"
++	    set src "$base.s"
++	    set obj "$base.obj"
++	    set f [open $src "w"]
++	    close $f
++	    set cmd "$AS $ASFLAGS -o $obj $src"
++	    send_log "$cmd\n"
++	    set cmdret [remote_exec host $cmd]
++	    set cmdret [lindex $cmdret 0]
++	    if { $cmdret == 0 } {
++		set cmd "$READELF -sW $obj"
++		send_log "$cmd\n"
++		set got [remote_exec host $cmd]
++		if { ![string match "*SECTION*" $got] }  {
++		    set elf_unused_section_symbols_saved 0
++		}
++	    }
++	    file delete $obj
++	    file delete $src
++	}
++    }
++    return $elf_unused_section_symbols_saved
++}
++
+ # True if the ELF target supports STB_GNU_UNIQUE.
+ #
+ # This require ELFOSABI_GNU, and `bfd_elf_final_link'.
+diff --git a/gas/config/obj-elf.c b/gas/config/obj-elf.c
+index 94fa8051a0..6c0a6ae9ee 100644
+--- a/gas/config/obj-elf.c
++++ b/gas/config/obj-elf.c
+@@ -2841,6 +2841,9 @@ elf_adjust_symtab (void)
+ 	  symbol_table_insert (sy);
+ 	}
+       elf_group_id (s) = symbol_get_bfdsym (sy);
++      /* Mark the group signature symbol as used so that it will be
++	 included in the symbol table.  */
++      symbol_mark_used_in_reloc (sy);
+     }
+ }
+ 
+diff --git a/gas/read.c b/gas/read.c
+index 9d0ba27ea8..be6e3e03d4 100644
+--- a/gas/read.c
++++ b/gas/read.c
+@@ -4207,6 +4207,9 @@ s_reloc (int ignore ATTRIBUTE_UNUSED)
+       goto err_out;
+     case O_constant:
+       exp.X_add_symbol = section_symbol (now_seg);
++      /* Mark the section symbol used in relocation so that it will be
++	 included in the symbol table.  */
++      symbol_mark_used_in_reloc (exp.X_add_symbol);
+       exp.X_op = O_symbol;
+       /* Fallthru */
+     case O_symbol:
+diff --git a/gas/subsegs.c b/gas/subsegs.c
+index 8e4b310afe..191879eb08 100644
+--- a/gas/subsegs.c
++++ b/gas/subsegs.c
+@@ -89,6 +89,10 @@ subseg_set_rest (segT seg, subsegT subseg)
+ 
+   seginfo = seg_info (seg);
+ 
++  /* Should the section symbol be kept?  */
++  if (bfd_keep_unused_section_symbols (stdoutput))
++    seg->symbol->flags |= BSF_SECTION_SYM_USED;
++
+   /* Attempt to find or make a frchain for that subsection.
+      We keep the list sorted by subsection number.  */
+   for (frcP = *(lastPP = &seginfo->frchainP);
+diff --git a/gas/testsuite/gas/cfi/cfi-label.d b/gas/testsuite/gas/cfi/cfi-label.d
+index 0350b57f13..c6507138b4 100644
+--- a/gas/testsuite/gas/cfi/cfi-label.d
++++ b/gas/testsuite/gas/cfi/cfi-label.d
+@@ -6,11 +6,9 @@
+ 
+ SYMBOL TABLE:
+ 0*00 l    d  \.text	0*00 \.text
+-0*00 l    d  \.data	0*00 \.data
+-0*00 l    d  \.bss	0*00 \.bss
++#...
+ 0*00 l     F \.text	0*04 cfilabel
+ 0*2f l       \.eh_frame	0*00 cfi2
+-0*00 l    d  \.eh_frame	0*00 \.eh_frame
+ 0*2b g       \.eh_frame	0*00 cfi1
+ 
+ 
+diff --git a/gas/testsuite/gas/elf/elf.exp b/gas/testsuite/gas/elf/elf.exp
+index 5cfb7a6237..a0f98eddd6 100644
+--- a/gas/testsuite/gas/elf/elf.exp
++++ b/gas/testsuite/gas/elf/elf.exp
+@@ -54,7 +54,11 @@ proc run_elf_list_test { name suffix opts readelf_opts readelf_pipe } {
+ 
+ # We're testing bits in obj-elf -- don't run on anything else.
+ if { [is_elf_format] } then {
+-    set target_machine ""
++    if { [is_elf_unused_section_symbols ] } {
++	set target_machine -unused
++    } else {
++	set target_machine ""
++    }
+     set dump_opts ""
+     if {[istarget "arc*-*-*"]} {
+ 	set target_machine -arc
+diff --git a/gas/testsuite/gas/elf/section2.e b/gas/testsuite/gas/elf/section2.e
+index 9b50798bcf..8b13789179 100644
+--- a/gas/testsuite/gas/elf/section2.e
++++ b/gas/testsuite/gas/elf/section2.e
+@@ -1,8 +1 @@
+ 
+-Symbol table '.symtab' contains 5 entries:
+- +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+- +0: 0+0 +0 +NOTYPE +LOCAL +DEFAULT +UND 
+- +1: 0+0 +0 +SECTION +LOCAL +DEFAULT +1 
+- +2: 0+0 +0 +SECTION +LOCAL +DEFAULT +2 
+- +3: 0+0 +0 +SECTION +LOCAL +DEFAULT +3 
+- +4: 0+0 +0 +SECTION +LOCAL +DEFAULT +4 
+diff --git a/gas/testsuite/gas/elf/section2.e-unused b/gas/testsuite/gas/elf/section2.e-unused
+new file mode 100644
+index 0000000000..9b50798bcf
+--- /dev/null
++++ b/gas/testsuite/gas/elf/section2.e-unused
+@@ -0,0 +1,8 @@
++
++Symbol table '.symtab' contains 5 entries:
++ +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
++ +0: 0+0 +0 +NOTYPE +LOCAL +DEFAULT +UND 
++ +1: 0+0 +0 +SECTION +LOCAL +DEFAULT +1 
++ +2: 0+0 +0 +SECTION +LOCAL +DEFAULT +2 
++ +3: 0+0 +0 +SECTION +LOCAL +DEFAULT +3 
++ +4: 0+0 +0 +SECTION +LOCAL +DEFAULT +4 
+diff --git a/gas/testsuite/gas/elf/symver.d b/gas/testsuite/gas/elf/symver.d
+index 7fcc62a5ca..2292e3267d 100644
+--- a/gas/testsuite/gas/elf/symver.d
++++ b/gas/testsuite/gas/elf/symver.d
+@@ -8,10 +8,6 @@
+ .*:     file format .*
+ 
+ SYMBOL TABLE:
+-
+-0+000 l.*d.*\.text.*0+000.*
+-0+000 l.*d.*\.data.*0+000.*
+-0+000 l.*d.*\.bss.*0+000.*
+ #...
+ 0+000 l.*O.*\.data.*0+004 x
+ #...
+diff --git a/gas/testsuite/gas/i386/ilp32/elf/symver.d b/gas/testsuite/gas/i386/ilp32/elf/symver.d
+index 7f69d660b3..3acf1487b3 100644
+--- a/gas/testsuite/gas/i386/ilp32/elf/symver.d
++++ b/gas/testsuite/gas/i386/ilp32/elf/symver.d
+@@ -9,10 +9,6 @@
+ .*:     file format .*
+ 
+ SYMBOL TABLE:
+-
+-0+000 l.*d.*\.text.*0+000.*
+-0+000 l.*d.*\.data.*0+000.*
+-0+000 l.*d.*\.bss.*0+000.*
+ #...
+ 0+000 l.*O.*\.data.*0+004 x
+ #...
+diff --git a/gas/testsuite/gas/i386/ilp32/x86-64-size-1.d b/gas/testsuite/gas/i386/ilp32/x86-64-size-1.d
+index e5b74fa5c9..64b052dc93 100644
+--- a/gas/testsuite/gas/i386/ilp32/x86-64-size-1.d
++++ b/gas/testsuite/gas/i386/ilp32/x86-64-size-1.d
+@@ -6,19 +6,19 @@
+ 
+ Relocation section '.rela.text' at offset .* contains 9 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
+-0+1  00000420 R_X86_64_SIZE32   00000000   xxx \+ 0
+-0+6  00000420 R_X86_64_SIZE32   00000000   xxx - 8
+-0+b  00000420 R_X86_64_SIZE32   00000000   xxx \+ 8
+-0+10  00000520 R_X86_64_SIZE32   00000000   yyy \+ 0
+-0+15  00000520 R_X86_64_SIZE32   00000000   yyy - 10
+-0+1a  00000520 R_X86_64_SIZE32   00000000   yyy \+ 10
+-0+1f  00000620 R_X86_64_SIZE32   00000020   zzz \+ 0
+-0+24  00000620 R_X86_64_SIZE32   00000020   zzz - 20
+-0+29  00000620 R_X86_64_SIZE32   00000020   zzz \+ 20
++0+1  00000120 R_X86_64_SIZE32   00000000   xxx \+ 0
++0+6  00000120 R_X86_64_SIZE32   00000000   xxx - 8
++0+b  00000120 R_X86_64_SIZE32   00000000   xxx \+ 8
++0+10  00000220 R_X86_64_SIZE32   00000000   yyy \+ 0
++0+15  00000220 R_X86_64_SIZE32   00000000   yyy - 10
++0+1a  00000220 R_X86_64_SIZE32   00000000   yyy \+ 10
++0+1f  00000320 R_X86_64_SIZE32   00000020   zzz \+ 0
++0+24  00000320 R_X86_64_SIZE32   00000020   zzz - 20
++0+29  00000320 R_X86_64_SIZE32   00000020   zzz \+ 20
+ 
+ Relocation section '.rela.data' at offset .* contains 3 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
+-0+50  00000420 R_X86_64_SIZE32   00000000   xxx - 1
+-0+54  00000520 R_X86_64_SIZE32   00000000   yyy \+ 2
+-0+58  00000620 R_X86_64_SIZE32   00000020   zzz \+ 0
++0+50  00000120 R_X86_64_SIZE32   00000000   xxx - 1
++0+54  00000220 R_X86_64_SIZE32   00000000   yyy \+ 2
++0+58  00000320 R_X86_64_SIZE32   00000020   zzz \+ 0
+ #pass
+diff --git a/gas/testsuite/gas/i386/ilp32/x86-64-size-3.d b/gas/testsuite/gas/i386/ilp32/x86-64-size-3.d
+index 6f96134f13..65f6890dae 100644
+--- a/gas/testsuite/gas/i386/ilp32/x86-64-size-3.d
++++ b/gas/testsuite/gas/i386/ilp32/x86-64-size-3.d
+@@ -6,15 +6,15 @@
+ 
+ Relocation section '.rela.text' at offset .* contains 6 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
+-0+1  00000620 R_X86_64_SIZE32   00000000   xxx \+ 0
+-0+6  00000620 R_X86_64_SIZE32   00000000   xxx - 8
+-0+b  00000620 R_X86_64_SIZE32   00000000   xxx \+ 8
+-0+10  00000720 R_X86_64_SIZE32   00000000   yyy \+ 0
+-0+15  00000720 R_X86_64_SIZE32   00000000   yyy - 10
+-0+1a  00000720 R_X86_64_SIZE32   00000000   yyy \+ 10
++0+1  00000120 R_X86_64_SIZE32   00000000   xxx \+ 0
++0+6  00000120 R_X86_64_SIZE32   00000000   xxx - 8
++0+b  00000120 R_X86_64_SIZE32   00000000   xxx \+ 8
++0+10  00000220 R_X86_64_SIZE32   00000000   yyy \+ 0
++0+15  00000220 R_X86_64_SIZE32   00000000   yyy - 10
++0+1a  00000220 R_X86_64_SIZE32   00000000   yyy \+ 10
+ 
+ Relocation section '.rela.tdata' at offset .* contains 2 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
+-0+50  00000620 R_X86_64_SIZE32   00000000   xxx - 1
+-0+54  00000720 R_X86_64_SIZE32   00000000   yyy \+ 2
++0+50  00000120 R_X86_64_SIZE32   00000000   xxx - 1
++0+54  00000220 R_X86_64_SIZE32   00000000   yyy \+ 2
+ #pass
+diff --git a/gas/testsuite/gas/i386/ilp32/x86-64-size-5.d b/gas/testsuite/gas/i386/ilp32/x86-64-size-5.d
+index 8ce06b0f84..4571a484ea 100644
+--- a/gas/testsuite/gas/i386/ilp32/x86-64-size-5.d
++++ b/gas/testsuite/gas/i386/ilp32/x86-64-size-5.d
+@@ -6,13 +6,13 @@
+ 
+ Relocation section '.rela.text' at offset .* contains 3 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
+-0+2  00000421 R_X86_64_SIZE64   00000000   xxx \+ 0
+-0+c  00000421 R_X86_64_SIZE64   00000000   xxx - 8
+-0+16  00000421 R_X86_64_SIZE64   00000000   xxx \+ 8
++0+2  00000121 R_X86_64_SIZE64   00000000   xxx \+ 0
++0+c  00000121 R_X86_64_SIZE64   00000000   xxx - 8
++0+16  00000121 R_X86_64_SIZE64   00000000   xxx \+ 8
+ 
+ Relocation section '.rela.data' at offset .* contains 3 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
+-0+50  00000421 R_X86_64_SIZE64   00000000   xxx - 1
+-0+58  00000621 R_X86_64_SIZE64   00000000   yyy \+ c8
+-0+60  00000521 R_X86_64_SIZE64   00000020   zzz \+ 0
++0+50  00000121 R_X86_64_SIZE64   00000000   xxx - 1
++0+58  00000321 R_X86_64_SIZE64   00000000   yyy \+ c8
++0+60  00000221 R_X86_64_SIZE64   00000020   zzz \+ 0
+ #pass
+diff --git a/gas/testsuite/gas/i386/ilp32/x86-64-unwind.d b/gas/testsuite/gas/i386/ilp32/x86-64-unwind.d
+index bd532b73e8..274ddb0627 100644
+--- a/gas/testsuite/gas/i386/ilp32/x86-64-unwind.d
++++ b/gas/testsuite/gas/i386/ilp32/x86-64-unwind.d
+@@ -3,7 +3,7 @@
+ #readelf: -S
+ #name: x86-64 (ILP32) unwind
+ 
+-There are 8 section headers, starting at offset 0x[0-9a-f]+:
++There are 6 section headers, starting at offset 0x[0-9a-f]+:
+ 
+ Section Headers:
+   \[Nr\] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+@@ -12,8 +12,6 @@ Section Headers:
+   \[ 2\] .data             PROGBITS        00000000 000034 000000 00  WA  0   0  1
+   \[ 3\] .bss              NOBITS          00000000 000034 000000 00  WA  0   0  1
+   \[ 4\] .eh_frame         X86_64_UNWIND   00000000 000034 000008 00   A  0   0  1
+-  \[ 5\] .symtab           SYMTAB          00000000 [0-9a-f]+ 000050 10      6   5  4
+-  \[ 6\] .strtab           STRTAB          00000000 [0-9a-f]+ 000001 00   .  0   0  1
+-  \[ 7\] .shstrtab         STRTAB          00000000 [0-9a-f]+ 000036 00   .  0   0  1
++  \[ 5\] .shstrtab         STRTAB          00000000 [0-9a-f]+ 000026 00   .  0   0  1
+ Key to Flags:
+ #pass
+diff --git a/gas/testsuite/gas/i386/size-1.d b/gas/testsuite/gas/i386/size-1.d
+index d582bbecc9..b187e5d4a3 100644
+--- a/gas/testsuite/gas/i386/size-1.d
++++ b/gas/testsuite/gas/i386/size-1.d
+@@ -5,19 +5,19 @@
+ 
+ Relocation section '.rel.text' at offset .* contains 9 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name
+-0+1  00000426 R_386_SIZE32      00000000   xxx
+-0+6  00000426 R_386_SIZE32      00000000   xxx
+-0+b  00000426 R_386_SIZE32      00000000   xxx
+-0+10  00000526 R_386_SIZE32      00000000   yyy
+-0+15  00000526 R_386_SIZE32      00000000   yyy
+-0+1a  00000526 R_386_SIZE32      00000000   yyy
+-0+1f  00000626 R_386_SIZE32      00000020   zzz
+-0+24  00000626 R_386_SIZE32      00000020   zzz
+-0+29  00000626 R_386_SIZE32      00000020   zzz
++0+1  00000126 R_386_SIZE32      00000000   xxx
++0+6  00000126 R_386_SIZE32      00000000   xxx
++0+b  00000126 R_386_SIZE32      00000000   xxx
++0+10  00000226 R_386_SIZE32      00000000   yyy
++0+15  00000226 R_386_SIZE32      00000000   yyy
++0+1a  00000226 R_386_SIZE32      00000000   yyy
++0+1f  00000326 R_386_SIZE32      00000020   zzz
++0+24  00000326 R_386_SIZE32      00000020   zzz
++0+29  00000326 R_386_SIZE32      00000020   zzz
+ 
+ Relocation section '.rel.data' at offset .* contains 3 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name
+-0+50  00000426 R_386_SIZE32      00000000   xxx
+-0+54  00000526 R_386_SIZE32      00000000   yyy
+-0+58  00000626 R_386_SIZE32      00000020   zzz
++0+50  00000126 R_386_SIZE32      00000000   xxx
++0+54  00000226 R_386_SIZE32      00000000   yyy
++0+58  00000326 R_386_SIZE32      00000020   zzz
+ #pass
+diff --git a/gas/testsuite/gas/i386/size-3.d b/gas/testsuite/gas/i386/size-3.d
+index 2b08707f43..b45811c5d8 100644
+--- a/gas/testsuite/gas/i386/size-3.d
++++ b/gas/testsuite/gas/i386/size-3.d
+@@ -5,15 +5,15 @@
+ 
+ Relocation section '.rel.text' at offset .* contains 6 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name
+-0+1  00000626 R_386_SIZE32      00000000   xxx
+-0+6  00000626 R_386_SIZE32      00000000   xxx
+-0+b  00000626 R_386_SIZE32      00000000   xxx
+-0+10  00000726 R_386_SIZE32      00000000   yyy
+-0+15  00000726 R_386_SIZE32      00000000   yyy
+-0+1a  00000726 R_386_SIZE32      00000000   yyy
++0+1  00000126 R_386_SIZE32      00000000   xxx
++0+6  00000126 R_386_SIZE32      00000000   xxx
++0+b  00000126 R_386_SIZE32      00000000   xxx
++0+10  00000226 R_386_SIZE32      00000000   yyy
++0+15  00000226 R_386_SIZE32      00000000   yyy
++0+1a  00000226 R_386_SIZE32      00000000   yyy
+ 
+ Relocation section '.rel.tdata' at offset .* contains 2 entries:
+  Offset     Info    Type            Sym.Value  Sym. Name
+-0+50  00000626 R_386_SIZE32      00000000   xxx
+-0+54  00000726 R_386_SIZE32      00000000   yyy
++0+50  00000126 R_386_SIZE32      00000000   xxx
++0+54  00000226 R_386_SIZE32      00000000   yyy
+ #pass
+diff --git a/gas/testsuite/gas/i386/svr4.d b/gas/testsuite/gas/i386/svr4.d
+index 3a46354192..2820506668 100644
+--- a/gas/testsuite/gas/i386/svr4.d
++++ b/gas/testsuite/gas/i386/svr4.d
+@@ -4,9 +4,6 @@
+ .*: +file format .*
+ 
+ SYMBOL TABLE:
+-0+00 .* \.text[ 	]+0+ \.text
+-0+00 .* \.data[ 	]+0+ \.data
+-0+00 .* \.bss[ 	]+0+ \.bss
+ 0+00 .* \.text[ 	]+0+ svr4
+ 0+04 .* \*ABS\*[ 	]+0+ a
+ 0+03 .* \*ABS\*[ 	]+0+ b
+diff --git a/gas/testsuite/gas/i386/x86-64-size-1.d b/gas/testsuite/gas/i386/x86-64-size-1.d
+index 657408cf73..57db899437 100644
+--- a/gas/testsuite/gas/i386/x86-64-size-1.d
++++ b/gas/testsuite/gas/i386/x86-64-size-1.d
+@@ -6,19 +6,19 @@
+ 
+ Relocation section '.rela.text' at offset .* contains 9 entries:
+   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
+-0+1  000400000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 0
+-0+6  000400000020 R_X86_64_SIZE32   0000000000000000 xxx - 8
+-0+b  000400000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 8
+-0+10  000500000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 0
+-0+15  000500000020 R_X86_64_SIZE32   0000000000000000 yyy - 10
+-0+1a  000500000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 10
+-0+1f  000600000020 R_X86_64_SIZE32   0000000000000020 zzz \+ 0
+-0+24  000600000020 R_X86_64_SIZE32   0000000000000020 zzz - 20
+-0+29  000600000020 R_X86_64_SIZE32   0000000000000020 zzz \+ 20
++0+1  000100000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 0
++0+6  000100000020 R_X86_64_SIZE32   0000000000000000 xxx - 8
++0+b  000100000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 8
++0+10  000200000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 0
++0+15  000200000020 R_X86_64_SIZE32   0000000000000000 yyy - 10
++0+1a  000200000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 10
++0+1f  000300000020 R_X86_64_SIZE32   0000000000000020 zzz \+ 0
++0+24  000300000020 R_X86_64_SIZE32   0000000000000020 zzz - 20
++0+29  000300000020 R_X86_64_SIZE32   0000000000000020 zzz \+ 20
+ 
+ Relocation section '.rela.data' at offset .* contains 3 entries:
+   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
+-0+50  000400000020 R_X86_64_SIZE32   0000000000000000 xxx - 1
+-0+54  000500000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 2
+-0+58  000600000020 R_X86_64_SIZE32   0000000000000020 zzz \+ 0
++0+50  000100000020 R_X86_64_SIZE32   0000000000000000 xxx - 1
++0+54  000200000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 2
++0+58  000300000020 R_X86_64_SIZE32   0000000000000020 zzz \+ 0
+ #pass
+diff --git a/gas/testsuite/gas/i386/x86-64-size-3.d b/gas/testsuite/gas/i386/x86-64-size-3.d
+index 943a64e9ac..4688dc938b 100644
+--- a/gas/testsuite/gas/i386/x86-64-size-3.d
++++ b/gas/testsuite/gas/i386/x86-64-size-3.d
+@@ -6,15 +6,15 @@
+ 
+ Relocation section '.rela.text' at offset .* contains 6 entries:
+   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
+-0+1  000600000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 0
+-0+6  000600000020 R_X86_64_SIZE32   0000000000000000 xxx - 8
+-0+b  000600000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 8
+-0+10  000700000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 0
+-0+15  000700000020 R_X86_64_SIZE32   0000000000000000 yyy - 10
+-0+1a  000700000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 10
++0+1  000100000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 0
++0+6  000100000020 R_X86_64_SIZE32   0000000000000000 xxx - 8
++0+b  000100000020 R_X86_64_SIZE32   0000000000000000 xxx \+ 8
++0+10  000200000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 0
++0+15  000200000020 R_X86_64_SIZE32   0000000000000000 yyy - 10
++0+1a  000200000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 10
+ 
+ Relocation section '.rela.tdata' at offset .* contains 2 entries:
+   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
+-0+50  000600000020 R_X86_64_SIZE32   0000000000000000 xxx - 1
+-0+54  000700000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 2
++0+50  000100000020 R_X86_64_SIZE32   0000000000000000 xxx - 1
++0+54  000200000020 R_X86_64_SIZE32   0000000000000000 yyy \+ 2
+ #pass
+diff --git a/gas/testsuite/gas/i386/x86-64-size-5.d b/gas/testsuite/gas/i386/x86-64-size-5.d
+index c34d0eedaa..d18ffcd3a4 100644
+--- a/gas/testsuite/gas/i386/x86-64-size-5.d
++++ b/gas/testsuite/gas/i386/x86-64-size-5.d
+@@ -5,13 +5,13 @@
+ 
+ Relocation section '.rela.text' at offset .* contains 3 entries:
+   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
+-0+2  000400000021 R_X86_64_SIZE64   0000000000000000 xxx \+ 0
+-0+c  000400000021 R_X86_64_SIZE64   0000000000000000 xxx - 8
+-0+16  000400000021 R_X86_64_SIZE64   0000000000000000 xxx \+ 8
++0+2  000100000021 R_X86_64_SIZE64   0000000000000000 xxx \+ 0
++0+c  000100000021 R_X86_64_SIZE64   0000000000000000 xxx - 8
++0+16  000100000021 R_X86_64_SIZE64   0000000000000000 xxx \+ 8
+ 
+ Relocation section '.rela.data' at offset .* contains 3 entries:
+   Offset          Info           Type           Sym. Value    Sym. Name \+ Addend
+-0+50  000400000021 R_X86_64_SIZE64   0000000000000000 xxx - 1
+-0+58  000600000021 R_X86_64_SIZE64   0000000000000000 yyy \+ c8
+-0+60  000500000021 R_X86_64_SIZE64   0000000000000020 zzz \+ 0
++0+50  000100000021 R_X86_64_SIZE64   0000000000000000 xxx - 1
++0+58  000300000021 R_X86_64_SIZE64   0000000000000000 yyy \+ c8
++0+60  000200000021 R_X86_64_SIZE64   0000000000000020 zzz \+ 0
+ #pass
+diff --git a/gas/testsuite/gas/i386/x86-64-unwind.d b/gas/testsuite/gas/i386/x86-64-unwind.d
+index 7f8d94fe86..ca3047277e 100644
+--- a/gas/testsuite/gas/i386/x86-64-unwind.d
++++ b/gas/testsuite/gas/i386/x86-64-unwind.d
+@@ -2,7 +2,7 @@
+ #readelf: -S
+ #name: x86-64 unwind
+ 
+-There are 8 section headers, starting at offset 0x[0-9a-f]+:
++There are 6 section headers, starting at offset 0x[0-9a-f]+:
+ 
+ Section Headers:
+   \[Nr\] Name              Type             Address           Offset
+@@ -17,11 +17,7 @@ Section Headers:
+        0000000000000000  0000000000000000  WA       0     0     1
+   \[ 4\] \.eh_frame         X86_64_UNWIND    0000000000000000  00000040
+        0000000000000008  0000000000000000   A       0     0     1
+-  \[ 5\] \.symtab           SYMTAB           0000000000000000  [0-9a-f]+
+-       0000000000000078  0000000000000018           6     5     8
+-  \[ 6\] \.strtab           STRTAB           0000000000000000  [0-9a-f]+
+-       0000000000000001  0000000000000000   .       0     0     1
+-  \[ 7\] \.shstrtab         STRTAB           0000000000000000  [0-9a-f]+
+-       0000000000000036  0000000000000000   .       0     0     1
++  \[ 5\] \.shstrtab         STRTAB           0000000000000000  [0-9a-f]+
++       0000000000000026  0000000000000000   .       0     0     1
+ Key to Flags:
+ #...
+diff --git a/gas/write.c b/gas/write.c
+index ca14b3734b..75ba971eb4 100644
+--- a/gas/write.c
++++ b/gas/write.c
+@@ -848,7 +848,12 @@ adjust_reloc_syms (bfd *abfd ATTRIBUTE_UNUSED,
+ 	/* Since we're reducing to section symbols, don't attempt to reduce
+ 	   anything that's already using one.  */
+ 	if (symbol_section_p (sym))
+-	  continue;
++	  {
++	    /* Mark the section symbol used in relocation so that it will
++	       be included in the symbol table.  */
++	    symbol_mark_used_in_reloc (sym);
++	    continue;
++	  }
+ 
+ 	symsec = S_GET_SEGMENT (sym);
+ 	if (symsec == NULL)
+@@ -1747,10 +1752,13 @@ set_symtab (void)
+ 
+   /* Count symbols.  We can't rely on a count made by the loop in
+      write_object_file, because *_frob_file may add a new symbol or
+-     two.  */
++     two.  Generate unused section symbols only if needed.  */
+   nsyms = 0;
+   for (symp = symbol_rootP; symp; symp = symbol_next (symp))
+-    nsyms++;
++    if (bfd_keep_unused_section_symbols (stdoutput)
++	|| !symbol_section_p (symp)
++	|| symbol_used_in_reloc_p (symp))
++      nsyms++;
+ 
+   if (nsyms)
+     {
+@@ -1759,15 +1767,22 @@ set_symtab (void)
+ 
+       asympp = (asymbol **) bfd_alloc (stdoutput, amt);
+       symp = symbol_rootP;
+-      for (i = 0; i < nsyms; i++, symp = symbol_next (symp))
+-	{
+-	  asympp[i] = symbol_get_bfdsym (symp);
+-	  if (asympp[i]->flags != BSF_SECTION_SYM
+-	      || !(bfd_is_const_section (asympp[i]->section)
+-		   && asympp[i]->section->symbol == asympp[i]))
+-	    asympp[i]->flags |= BSF_KEEP;
+-	  symbol_mark_written (symp);
+-	}
++      for (i = 0; i < nsyms; symp = symbol_next (symp))
++	if (bfd_keep_unused_section_symbols (stdoutput)
++	    || !symbol_section_p (symp)
++	    || symbol_used_in_reloc_p (symp))
++	  {
++	    asympp[i] = symbol_get_bfdsym (symp);
++	    if (asympp[i]->flags != BSF_SECTION_SYM
++		|| !(bfd_is_const_section (asympp[i]->section)
++		     && asympp[i]->section->symbol == asympp[i]))
++	      asympp[i]->flags |= BSF_KEEP;
++	    symbol_mark_written (symp);
++	    /* Include this section symbol in the symbol table.  */
++	    if (symbol_section_p (symp))
++	      asympp[i]->flags |= BSF_SECTION_SYM_USED;
++	    i++;
++	  }
+     }
+   else
+     asympp = 0;
+@@ -2058,6 +2073,10 @@ maybe_generate_build_notes (void)
+ 			   bfd_section_size (bsym->section),
+ 			   note);
+ 
++	/* Mark the section symbol used in relocation so that it will be
++	   included in the symbol table.  */
++	symbol_mark_used_in_reloc (sym);
++
+ 	total_size += note_size;
+ 	/* FIXME: Maybe add a note recording the assembler command line and version ?  */
+       }
+diff --git a/ld/testsuite/ld-elf/export-class.sd b/ld/testsuite/ld-elf/export-class.sd
+index bd5c5491d9..e71248268c 100644
+--- a/ld/testsuite/ld-elf/export-class.sd
++++ b/ld/testsuite/ld-elf/export-class.sd
+@@ -9,8 +9,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ #...
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  * Num: * Value * Size * Type * Bind * Vis * Ndx * Name
+-#...
+- * [0-9a-f]+: * 0*12340000 * 0 * SECTION * LOCAL * DEFAULT * [0-9]+ *
+ #...
+  * [0-9a-f]+: * 0*123400a0 * 0 * NOTYPE * LOCAL * DEFAULT * [0-9]+ * hidden_foo
+ #...
+diff --git a/ld/testsuite/ld-elf/loadaddr3b.d b/ld/testsuite/ld-elf/loadaddr3b.d
+index ac4b5178d8..aa5e951524 100644
+--- a/ld/testsuite/ld-elf/loadaddr3b.d
++++ b/ld/testsuite/ld-elf/loadaddr3b.d
+@@ -3,9 +3,6 @@
+ #objdump: -t
+ #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
+ 
+-#...
+-0+0000100 l    d  .text	0+0000000 .text
+-0+0000200 l    d  .data	0+0000000 .data
+ #...
+ 0+0000110 g       \*ABS\*	0+0000000 data_load
+ #...
+diff --git a/ld/testsuite/ld-elf/sec64k.exp b/ld/testsuite/ld-elf/sec64k.exp
+index a1856b5bca..d148c26d8f 100644
+--- a/ld/testsuite/ld-elf/sec64k.exp
++++ b/ld/testsuite/ld-elf/sec64k.exp
+@@ -198,11 +198,15 @@ if { ![istarget "d10v-*-*"]
+     puts $ofd "  \\\[65279\\\] \\.foo\\.\[0-9\]+ .*"
+     puts $ofd "  \\\[65280\\\] \\.foo\\.\[0-9\]+ .*"
+     puts $ofd "#..."
+-    puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+660.. "
+-    puts $ofd "#..."
+-    puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[0-9\] bar_1$"
+-    puts $ofd "#..."
+-    puts $ofd ".* bar_66000$"
++    if { [is_elf_unused_section_symbols ] } {
++	puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+660.. "
++	puts $ofd "#..."
++	puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[0-9\] bar_1$"
++	puts $ofd "#..."
++	puts $ofd ".* bar_66000$"
++    } else {
++	puts $ofd " 66...: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+660.. bar_66000$"
++    }
+     puts $ofd "#..."
+     # Global symbols are not in "alphanumeric" order, so we just check
+     # that the first and the last are present in any order (assuming no
+diff --git a/ld/testsuite/ld-i386/ibt-plt-1.d b/ld/testsuite/ld-i386/ibt-plt-1.d
+index a7eaa1f77d..b0648ae9e0 100644
+--- a/ld/testsuite/ld-i386/ibt-plt-1.d
++++ b/ld/testsuite/ld-i386/ibt-plt-1.d
+@@ -13,11 +13,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%eax\)
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-i386/ibt-plt-2a.d b/ld/testsuite/ld-i386/ibt-plt-2a.d
+index 9c8f5996a7..42aa2ce741 100644
+--- a/ld/testsuite/ld-i386/ibt-plt-2a.d
++++ b/ld/testsuite/ld-i386/ibt-plt-2a.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%eax\)
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-i386/ibt-plt-2c.d b/ld/testsuite/ld-i386/ibt-plt-2c.d
+index a9c8642ced..445e08fa8b 100644
+--- a/ld/testsuite/ld-i386/ibt-plt-2c.d
++++ b/ld/testsuite/ld-i386/ibt-plt-2c.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%eax\)
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-i386/ibt-plt-3a.d b/ld/testsuite/ld-i386/ibt-plt-3a.d
+index b4366c9315..b357a74a33 100644
+--- a/ld/testsuite/ld-i386/ibt-plt-3a.d
++++ b/ld/testsuite/ld-i386/ibt-plt-3a.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%eax\)
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-i386/ibt-plt-3c.d b/ld/testsuite/ld-i386/ibt-plt-3c.d
+index b4366c9315..b357a74a33 100644
+--- a/ld/testsuite/ld-i386/ibt-plt-3c.d
++++ b/ld/testsuite/ld-i386/ibt-plt-3c.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%eax\)
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-i386/plt-pic.pd b/ld/testsuite/ld-i386/plt-pic.pd
+index 5c047d4deb..fe0f3efb1b 100644
+--- a/ld/testsuite/ld-i386/plt-pic.pd
++++ b/ld/testsuite/ld-i386/plt-pic.pd
+@@ -8,7 +8,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-[0-9a-f]+ <.plt>:
++[0-9a-f]+ <fn1@plt-0x10>:
+  +[0-9a-f]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+  +[0-9a-f]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
+ #...
+@@ -16,9 +16,9 @@ Disassembly of section .plt:
+ [0-9a-f]+ <fn1@plt>:
+  +[0-9a-f]+:	ff a3 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+\(%ebx\)
+  +[0-9a-f]+:	68 00 00 00 00       	push   \$0x0
+- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
++ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x10>
+ 
+ [0-9a-f]+ <fn2@plt>:
+  +[0-9a-f]+:	ff a3 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+\(%ebx\)
+  +[0-9a-f]+:	68 08 00 00 00       	push   \$0x8
+- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
++ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x10>
+diff --git a/ld/testsuite/ld-i386/plt-pic2.dd b/ld/testsuite/ld-i386/plt-pic2.dd
+index 8162234aab..c9af97203a 100644
+--- a/ld/testsuite/ld-i386/plt-pic2.dd
++++ b/ld/testsuite/ld-i386/plt-pic2.dd
+@@ -9,7 +9,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-.* <.plt>:
++.* <fn1@plt-0x10>:
+  +[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+  +[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
+  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
+@@ -18,12 +18,12 @@ Disassembly of section .plt:
+ .* <fn1@plt>:
+  +[a-f0-9]+:	ff a3 0c 00 00 00    	jmp    \*0xc\(%ebx\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    .* <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    .* <fn1@plt-0x10>
+ 
+ .* <fn2@plt>:
+  +[a-f0-9]+:	ff a3 10 00 00 00    	jmp    \*0x10\(%ebx\)
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    .* <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    .* <fn1@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-i386/plt.pd b/ld/testsuite/ld-i386/plt.pd
+index efcd8a1b1d..9c395c3b8d 100644
+--- a/ld/testsuite/ld-i386/plt.pd
++++ b/ld/testsuite/ld-i386/plt.pd
+@@ -8,7 +8,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-[0-9a-f]+ <.plt>:
++[0-9a-f]+ <fn1@plt-0x10>:
+  +[0-9a-f]+:	ff 35 ([0-9a-f]{2} ){4} *	push   0x[0-9a-f]+
+  +[0-9a-f]+:	ff 25 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+
+ #...
+@@ -16,9 +16,9 @@ Disassembly of section .plt:
+ [0-9a-f]+ <fn1@plt>:
+  +[0-9a-f]+:	ff 25 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+
+  +[0-9a-f]+:	68 00 00 00 00       	push   \$0x0
+- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
++ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x10>
+ 
+ [0-9a-f]+ <fn2@plt>:
+  +[0-9a-f]+:	ff 25 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+
+  +[0-9a-f]+:	68 08 00 00 00       	push   \$0x8
+- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
++ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x10>
+diff --git a/ld/testsuite/ld-i386/plt2.dd b/ld/testsuite/ld-i386/plt2.dd
+index c9d673f65a..5623fe9685 100644
+--- a/ld/testsuite/ld-i386/plt2.dd
++++ b/ld/testsuite/ld-i386/plt2.dd
+@@ -9,7 +9,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+8048160 <.plt>:
++0+8048160 <fn1@plt-0x10>:
+  +[a-f0-9]+:	ff 35 40 92 04 08    	push   0x8049240
+  +[a-f0-9]+:	ff 25 44 92 04 08    	jmp    \*0x8049244
+  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
+@@ -18,12 +18,12 @@ Disassembly of section .plt:
+ 0+8048170 <fn1@plt>:
+  +[a-f0-9]+:	ff 25 48 92 04 08    	jmp    \*0x8049248
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    8048160 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    8048160 <fn1@plt-0x10>
+ 
+ 0+8048180 <fn2@plt>:
+  +[a-f0-9]+:	ff 25 4c 92 04 08    	jmp    \*0x804924c
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    8048160 <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    8048160 <fn1@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-i386/pr19636-1d.d b/ld/testsuite/ld-i386/pr19636-1d.d
+index b7e6aba92c..f294c9c707 100644
+--- a/ld/testsuite/ld-i386/pr19636-1d.d
++++ b/ld/testsuite/ld-i386/pr19636-1d.d
+@@ -22,4 +22,4 @@ Disassembly of section .text:
+ .* <_start>:
+ [ 	]*[a-f0-9]+:	3b 80 f8 ff ff ff    	cmp    -0x8\(%eax\),%eax
+ [ 	]*[a-f0-9]+:	ff a0 fc ff ff ff    	jmp    \*-0x4\(%eax\)
+-[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <\.plt\+0x10>
++[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <_start-0x10>
+diff --git a/ld/testsuite/ld-i386/pr19636-1l.d b/ld/testsuite/ld-i386/pr19636-1l.d
+index 8f2a8e5127..a7568aa74a 100644
+--- a/ld/testsuite/ld-i386/pr19636-1l.d
++++ b/ld/testsuite/ld-i386/pr19636-1l.d
+@@ -23,4 +23,4 @@ Disassembly of section .text:
+ .* <_start>:
+ [ 	]*[a-f0-9]+:	3b 80 f8 ff ff ff    	cmp    -0x8\(%eax\),%eax
+ [ 	]*[a-f0-9]+:	ff a0 fc ff ff ff    	jmp    \*-0x4\(%eax\)
+-[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <\.plt\+0x10>
++[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <_start-0x10>
+diff --git a/ld/testsuite/ld-i386/pr19636-2c.d b/ld/testsuite/ld-i386/pr19636-2c.d
+index 4b49c81755..92b241073c 100644
+--- a/ld/testsuite/ld-i386/pr19636-2c.d
++++ b/ld/testsuite/ld-i386/pr19636-2c.d
+@@ -22,6 +22,6 @@ Disassembly of section .text:
+ .* <_start>:
+ [ 	]*[a-f0-9]+:	3b 80 fc ff ff ff    	cmp    -0x4\(%eax\),%eax
+ [ 	]*[a-f0-9]+:	ff a0 fc ff ff ff    	jmp    \*-0x4\(%eax\)
+-[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <\.plt\+0x10>
++[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <_start-0x10>
+ [ 	]*[a-f0-9]+:	3d 00 00 00 00       	cmp    \$0x0,%eax
+ [ 	]*[a-f0-9]+:	e8 fc ff ff ff       	call   .* <_start\+0x17>
+diff --git a/ld/testsuite/ld-i386/tlsbin.rd b/ld/testsuite/ld-i386/tlsbin.rd
+index 20e4c5ed36..39afcd0b5b 100644
+--- a/ld/testsuite/ld-i386/tlsbin.rd
++++ b/ld/testsuite/ld-i386/tlsbin.rd
+@@ -84,19 +84,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +13 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsbinpic.o
+  +[0-9]+: 00000020 +0 +TLS +LOCAL +DEFAULT +9 sl1
+  +[0-9]+: 00000024 +0 +TLS +LOCAL +DEFAULT +9 sl2
+diff --git a/ld/testsuite/ld-i386/tlsbin2.rd b/ld/testsuite/ld-i386/tlsbin2.rd
+index 5177f4d30d..fcbecc3196 100644
+--- a/ld/testsuite/ld-i386/tlsbin2.rd
++++ b/ld/testsuite/ld-i386/tlsbin2.rd
+@@ -79,17 +79,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsbinpic2.o
+  +[0-9]+: 00000020 +0 +TLS +LOCAL +DEFAULT +7 sl1
+  +[0-9]+: 00000024 +0 +TLS +LOCAL +DEFAULT +7 sl2
+diff --git a/ld/testsuite/ld-i386/tlsbindesc.rd b/ld/testsuite/ld-i386/tlsbindesc.rd
+index 1c9c4f2cb2..b831f89133 100644
+--- a/ld/testsuite/ld-i386/tlsbindesc.rd
++++ b/ld/testsuite/ld-i386/tlsbindesc.rd
+@@ -77,17 +77,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsbindesc.o
+  +[0-9]+: 00000020 +0 +TLS +LOCAL +DEFAULT +7 sl1
+  +[0-9]+: 00000024 +0 +TLS +LOCAL +DEFAULT +7 sl2
+diff --git a/ld/testsuite/ld-i386/tlsdesc.rd b/ld/testsuite/ld-i386/tlsdesc.rd
+index a5b4fb83c0..ec418d1a1f 100644
+--- a/ld/testsuite/ld-i386/tlsdesc.rd
++++ b/ld/testsuite/ld-i386/tlsdesc.rd
+@@ -92,17 +92,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsdesc.o
+  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +7 sl1
+  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +7 sl2
+diff --git a/ld/testsuite/ld-i386/tlsgdesc.rd b/ld/testsuite/ld-i386/tlsgdesc.rd
+index ef131ef857..0744aeb78b 100644
+--- a/ld/testsuite/ld-i386/tlsgdesc.rd
++++ b/ld/testsuite/ld-i386/tlsgdesc.rd
+@@ -73,16 +73,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+  +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +8 _DYNAMIC
+  +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +10 _GLOBAL_OFFSET_TABLE_
+  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG3
+diff --git a/ld/testsuite/ld-i386/tlsnopic.rd b/ld/testsuite/ld-i386/tlsnopic.rd
+index 661f1c46c6..229ce23a9a 100644
+--- a/ld/testsuite/ld-i386/tlsnopic.rd
++++ b/ld/testsuite/ld-i386/tlsnopic.rd
+@@ -80,15 +80,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsnopic1.o
+  +[0-9]+: 0+00 +0 +TLS +LOCAL +DEFAULT +6 bl1
+  +[0-9]+: 0+04 +0 +TLS +LOCAL +DEFAULT +6 bl2
+diff --git a/ld/testsuite/ld-i386/tlspic.rd b/ld/testsuite/ld-i386/tlspic.rd
+index 3425c951bd..135d74907d 100644
+--- a/ld/testsuite/ld-i386/tlspic.rd
++++ b/ld/testsuite/ld-i386/tlspic.rd
+@@ -96,18 +96,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlspic1.o
+  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +8 sl1
+  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +8 sl2
+diff --git a/ld/testsuite/ld-i386/tlspic2.rd b/ld/testsuite/ld-i386/tlspic2.rd
+index 274445db84..ce85a55be4 100644
+--- a/ld/testsuite/ld-i386/tlspic2.rd
++++ b/ld/testsuite/ld-i386/tlspic2.rd
+@@ -91,16 +91,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlspic3.o
+  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +6 sl1
+  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +6 sl2
+diff --git a/ld/testsuite/ld-ifunc/ifunc-2-i386-now.d b/ld/testsuite/ld-ifunc/ifunc-2-i386-now.d
+index 2c917fa293..0d3f7b80d0 100644
+--- a/ld/testsuite/ld-ifunc/ifunc-2-i386-now.d
++++ b/ld/testsuite/ld-ifunc/ifunc-2-i386-now.d
+@@ -10,7 +10,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+f0 <.plt>:
++0+f0 <\*ABS\*@plt-0x10>:
+  +[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+  +[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
+  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
+@@ -19,7 +19,7 @@ Disassembly of section .plt:
+ 0+100 <\*ABS\*@plt>:
+  +[a-f0-9]+:	ff a3 0c 00 00 00    	jmp    \*0xc\(%ebx\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    f0 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    f0 <\*ABS\*@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/ifunc-2-local-i386-now.d b/ld/testsuite/ld-ifunc/ifunc-2-local-i386-now.d
+index 01f6a78146..48d2084d38 100644
+--- a/ld/testsuite/ld-ifunc/ifunc-2-local-i386-now.d
++++ b/ld/testsuite/ld-ifunc/ifunc-2-local-i386-now.d
+@@ -10,7 +10,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+e0 <.plt>:
++0+e0 <\*ABS\*@plt-0x10>:
+  +[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+  +[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
+  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
+@@ -19,7 +19,7 @@ Disassembly of section .plt:
+ 0+f0 <\*ABS\*@plt>:
+  +[a-f0-9]+:	ff a3 0c 00 00 00    	jmp    \*0xc\(%ebx\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    e0 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    e0 <\*ABS\*@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/ifunc-2-local-x86-64-now.d b/ld/testsuite/ld-ifunc/ifunc-2-local-x86-64-now.d
+index 375cecd6f2..14866a8f6c 100644
+--- a/ld/testsuite/ld-ifunc/ifunc-2-local-x86-64-now.d
++++ b/ld/testsuite/ld-ifunc/ifunc-2-local-x86-64-now.d
+@@ -9,7 +9,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+170 <.plt>:
++0+170 <\*ABS\*\+0x190@plt-0x10>:
+  +[a-f0-9]+:	ff 35 42 01 20 00    	push   0x200142\(%rip\)        # 2002b8 <_GLOBAL_OFFSET_TABLE_\+0x8>
+  +[a-f0-9]+:	ff 25 44 01 20 00    	jmp    \*0x200144\(%rip\)        # 2002c0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+@@ -17,7 +17,7 @@ Disassembly of section .plt:
+ 0+180 <\*ABS\*\+0x190@plt>:
+  +[a-f0-9]+:	ff 25 42 01 20 00    	jmp    \*0x200142\(%rip\)        # 2002c8 <_GLOBAL_OFFSET_TABLE_\+0x18>
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    170 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    170 <\*ABS\*\+0x190@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/ifunc-2-x86-64-now.d b/ld/testsuite/ld-ifunc/ifunc-2-x86-64-now.d
+index 9cd35181b8..1cd60941ac 100644
+--- a/ld/testsuite/ld-ifunc/ifunc-2-x86-64-now.d
++++ b/ld/testsuite/ld-ifunc/ifunc-2-x86-64-now.d
+@@ -9,7 +9,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+170 <.plt>:
++0+170 <\*ABS\*\+0x190@plt-0x10>:
+  +[a-f0-9]+:	ff 35 42 01 20 00    	push   0x200142\(%rip\)        # 2002b8 <_GLOBAL_OFFSET_TABLE_\+0x8>
+  +[a-f0-9]+:	ff 25 44 01 20 00    	jmp    \*0x200144\(%rip\)        # 2002c0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+@@ -17,7 +17,7 @@ Disassembly of section .plt:
+ 0+180 <\*ABS\*\+0x190@plt>:
+  +[a-f0-9]+:	ff 25 42 01 20 00    	jmp    \*0x200142\(%rip\)        # 2002c8 <_GLOBAL_OFFSET_TABLE_\+0x18>
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    170 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    170 <\*ABS\*\+0x190@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/ifunc-21-x86-64.d b/ld/testsuite/ld-ifunc/ifunc-21-x86-64.d
+index de12e9f543..69a4ade87f 100644
+--- a/ld/testsuite/ld-ifunc/ifunc-21-x86-64.d
++++ b/ld/testsuite/ld-ifunc/ifunc-21-x86-64.d
+@@ -9,11 +9,11 @@
+ Disassembly of section .text:
+ 
+ 0+4000c8 <__start>:
+- +[a-f0-9]+:	ff 15 2a 00 20 00    	call   \*0x20002a\(%rip\)        # 6000f8 <.got>
+- +[a-f0-9]+:	ff 25 24 00 20 00    	jmp    \*0x200024\(%rip\)        # 6000f8 <.got>
+- +[a-f0-9]+:	48 03 05 1d 00 20 00 	add    0x20001d\(%rip\),%rax        # 6000f8 <.got>
+- +[a-f0-9]+:	48 8b 05 16 00 20 00 	mov    0x200016\(%rip\),%rax        # 6000f8 <.got>
+- +[a-f0-9]+:	48 85 05 0f 00 20 00 	test   %rax,0x20000f\(%rip\)        # 6000f8 <.got>
++ +[a-f0-9]+:	ff 15 2a 00 20 00    	call   \*0x20002a\(%rip\)        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	ff 25 24 00 20 00    	jmp    \*0x200024\(%rip\)        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	48 03 05 1d 00 20 00 	add    0x20001d\(%rip\),%rax        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	48 8b 05 16 00 20 00 	mov    0x200016\(%rip\),%rax        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	48 85 05 0f 00 20 00 	test   %rax,0x20000f\(%rip\)        # 6000f8 <bar\+0x200007>
+  +[a-f0-9]+:	48 c7 c0 f1 00 40 00 	mov    \$0x4000f1,%rax
+ 
+ 0+4000f0 <foo>:
+diff --git a/ld/testsuite/ld-ifunc/ifunc-22-x86-64.d b/ld/testsuite/ld-ifunc/ifunc-22-x86-64.d
+index de12e9f543..69a4ade87f 100644
+--- a/ld/testsuite/ld-ifunc/ifunc-22-x86-64.d
++++ b/ld/testsuite/ld-ifunc/ifunc-22-x86-64.d
+@@ -9,11 +9,11 @@
+ Disassembly of section .text:
+ 
+ 0+4000c8 <__start>:
+- +[a-f0-9]+:	ff 15 2a 00 20 00    	call   \*0x20002a\(%rip\)        # 6000f8 <.got>
+- +[a-f0-9]+:	ff 25 24 00 20 00    	jmp    \*0x200024\(%rip\)        # 6000f8 <.got>
+- +[a-f0-9]+:	48 03 05 1d 00 20 00 	add    0x20001d\(%rip\),%rax        # 6000f8 <.got>
+- +[a-f0-9]+:	48 8b 05 16 00 20 00 	mov    0x200016\(%rip\),%rax        # 6000f8 <.got>
+- +[a-f0-9]+:	48 85 05 0f 00 20 00 	test   %rax,0x20000f\(%rip\)        # 6000f8 <.got>
++ +[a-f0-9]+:	ff 15 2a 00 20 00    	call   \*0x20002a\(%rip\)        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	ff 25 24 00 20 00    	jmp    \*0x200024\(%rip\)        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	48 03 05 1d 00 20 00 	add    0x20001d\(%rip\),%rax        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	48 8b 05 16 00 20 00 	mov    0x200016\(%rip\),%rax        # 6000f8 <bar\+0x200007>
++ +[a-f0-9]+:	48 85 05 0f 00 20 00 	test   %rax,0x20000f\(%rip\)        # 6000f8 <bar\+0x200007>
+  +[a-f0-9]+:	48 c7 c0 f1 00 40 00 	mov    \$0x4000f1,%rax
+ 
+ 0+4000f0 <foo>:
+diff --git a/ld/testsuite/ld-ifunc/pr17154-i386-now.d b/ld/testsuite/ld-ifunc/pr17154-i386-now.d
+index 082d067422..6747b3408d 100644
+--- a/ld/testsuite/ld-ifunc/pr17154-i386-now.d
++++ b/ld/testsuite/ld-ifunc/pr17154-i386-now.d
+@@ -10,7 +10,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+180 <.plt>:
++0+180 <\*ABS\*@plt-0x10>:
+  +[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+  +[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
+  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
+@@ -19,22 +19,22 @@ Disassembly of section .plt:
+ 0+190 <\*ABS\*@plt>:
+  +[a-f0-9]+:	ff a3 0c 00 00 00    	jmp    \*0xc\(%ebx\)
+  +[a-f0-9]+:	68 18 00 00 00       	push   \$0x18
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    180 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ 0+1a0 <func1@plt>:
+  +[a-f0-9]+:	ff a3 10 00 00 00    	jmp    \*0x10\(%ebx\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    180 <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ 0+1b0 <func2@plt>:
+  +[a-f0-9]+:	ff a3 14 00 00 00    	jmp    \*0x14\(%ebx\)
+  +[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+- +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    180 <.plt>
++ +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ 0+1c0 <\*ABS\*@plt>:
+  +[a-f0-9]+:	ff a3 18 00 00 00    	jmp    \*0x18\(%ebx\)
+  +[a-f0-9]+:	68 10 00 00 00       	push   \$0x10
+- +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    180 <.plt>
++ +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/pr17154-i386.d b/ld/testsuite/ld-ifunc/pr17154-i386.d
+index 68123bf0ca..0b9817d437 100644
+--- a/ld/testsuite/ld-ifunc/pr17154-i386.d
++++ b/ld/testsuite/ld-ifunc/pr17154-i386.d
+@@ -15,22 +15,22 @@
+ 0+190 <\*ABS\*@plt>:
+ [ 	]*[a-f0-9]+:	ff a3 0c 00 00 00    	jmp    \*0xc\(%ebx\)
+ [ 	]*[a-f0-9]+:	68 18 00 00 00       	push   \$0x18
+-[ 	]*[a-f0-9]+:	e9 e0 ff ff ff       	jmp    180 <.plt>
++[ 	]*[a-f0-9]+:	e9 e0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ 0+1a0 <func1@plt>:
+ [ 	]*[a-f0-9]+:	ff a3 10 00 00 00    	jmp    \*0x10\(%ebx\)
+ [ 	]*[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+-[ 	]*[a-f0-9]+:	e9 d0 ff ff ff       	jmp    180 <.plt>
++[ 	]*[a-f0-9]+:	e9 d0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ 0+1b0 <func2@plt>:
+ [ 	]*[a-f0-9]+:	ff a3 14 00 00 00    	jmp    \*0x14\(%ebx\)
+ [ 	]*[a-f0-9]+:	68 08 00 00 00       	push   \$0x8
+-[ 	]*[a-f0-9]+:	e9 c0 ff ff ff       	jmp    180 <.plt>
++[ 	]*[a-f0-9]+:	e9 c0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ 0+1c0 <\*ABS\*@plt>:
+ [ 	]*[a-f0-9]+:	ff a3 18 00 00 00    	jmp    \*0x18\(%ebx\)
+ [ 	]*[a-f0-9]+:	68 10 00 00 00       	push   \$0x10
+-[ 	]*[a-f0-9]+:	e9 b0 ff ff ff       	jmp    180 <.plt>
++[ 	]*[a-f0-9]+:	e9 b0 ff ff ff       	jmp    180 <\*ABS\*@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/pr17154-x86-64-now.d b/ld/testsuite/ld-ifunc/pr17154-x86-64-now.d
+index 928a6a78d7..4cc1dc206d 100644
+--- a/ld/testsuite/ld-ifunc/pr17154-x86-64-now.d
++++ b/ld/testsuite/ld-ifunc/pr17154-x86-64-now.d
+@@ -9,7 +9,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+240 <.plt>:
++0+240 <\*ABS\*\+0x29a@plt-0x10>:
+  +[a-f0-9]+:	ff 35 7a 01 20 00    	push   0x20017a\(%rip\)        # 2003c0 <_GLOBAL_OFFSET_TABLE_\+0x8>
+  +[a-f0-9]+:	ff 25 7c 01 20 00    	jmp    \*0x20017c\(%rip\)        # 2003c8 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+@@ -17,22 +17,22 @@ Disassembly of section .plt:
+ 0+250 <\*ABS\*\+0x29a@plt>:
+  +[a-f0-9]+:	ff 25 7a 01 20 00    	jmp    \*0x20017a\(%rip\)        # 2003d0 <_GLOBAL_OFFSET_TABLE_\+0x18>
+  +[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ 0+260 <func1@plt>:
+  +[a-f0-9]+:	ff 25 72 01 20 00    	jmp    \*0x200172\(%rip\)        # 2003d8 <func1>
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ 0+270 <func2@plt>:
+  +[a-f0-9]+:	ff 25 6a 01 20 00    	jmp    \*0x20016a\(%rip\)        # 2003e0 <func2>
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ 0+280 <\*ABS\*\+0x290@plt>:
+  +[a-f0-9]+:	ff 25 62 01 20 00    	jmp    \*0x200162\(%rip\)        # 2003e8 <_GLOBAL_OFFSET_TABLE_\+0x30>
+  +[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+- +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-ifunc/pr17154-x86-64.d b/ld/testsuite/ld-ifunc/pr17154-x86-64.d
+index 8a6861dcde..9fb23d410e 100644
+--- a/ld/testsuite/ld-ifunc/pr17154-x86-64.d
++++ b/ld/testsuite/ld-ifunc/pr17154-x86-64.d
+@@ -13,22 +13,22 @@
+ 0+250 <\*ABS\*\+0x29a@plt>:
+  +[a-f0-9]+:	ff 25 5a 01 20 00    	jmp    \*0x20015a\(%rip\)        # 2003b0 <_GLOBAL_OFFSET_TABLE_\+0x18>
+  +[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ 0+260 <func1@plt>:
+  +[a-f0-9]+:	ff 25 52 01 20 00    	jmp    \*0x200152\(%rip\)        # 2003b8 <func1>
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ 0+270 <func2@plt>:
+  +[a-f0-9]+:	ff 25 4a 01 20 00    	jmp    \*0x20014a\(%rip\)        # 2003c0 <func2>
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ 0+280 <\*ABS\*\+0x290@plt>:
+  +[a-f0-9]+:	ff 25 42 01 20 00    	jmp    \*0x200142\(%rip\)        # 2003c8 <_GLOBAL_OFFSET_TABLE_\+0x30>
+  +[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+- +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    240 <.plt>
++ +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    240 <\*ABS\*\+0x29a@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-x86-64/bnd-branch-1-now.d b/ld/testsuite/ld-x86-64/bnd-branch-1-now.d
+index 9640beac2d..b7bc4e526c 100644
+--- a/ld/testsuite/ld-x86-64/bnd-branch-1-now.d
++++ b/ld/testsuite/ld-x86-64/bnd-branch-1-now.d
+@@ -8,7 +8,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+230 <.plt>:
++0+230 <foo2@plt-0x10>:
+  +[a-f0-9]+:	ff 35 82 01 20 00    	push   0x200182\(%rip\)        # 2003b8 <_GLOBAL_OFFSET_TABLE_\+0x8>
+  +[a-f0-9]+:	ff 25 84 01 20 00    	jmp    \*0x200184\(%rip\)        # 2003c0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+@@ -16,22 +16,22 @@ Disassembly of section .plt:
+ 0+240 <foo2@plt>:
+  +[a-f0-9]+:	ff 25 82 01 20 00    	jmp    \*0x200182\(%rip\)        # 2003c8 <foo2>
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    230 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    230 <foo2@plt-0x10>
+ 
+ 0+250 <foo3@plt>:
+  +[a-f0-9]+:	ff 25 7a 01 20 00    	jmp    \*0x20017a\(%rip\)        # 2003d0 <foo3>
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    230 <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    230 <foo2@plt-0x10>
+ 
+ 0+260 <foo1@plt>:
+  +[a-f0-9]+:	ff 25 72 01 20 00    	jmp    \*0x200172\(%rip\)        # 2003d8 <foo1>
+  +[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+- +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    230 <.plt>
++ +[a-f0-9]+:	e9 c0 ff ff ff       	jmp    230 <foo2@plt-0x10>
+ 
+ 0+270 <foo4@plt>:
+  +[a-f0-9]+:	ff 25 6a 01 20 00    	jmp    \*0x20016a\(%rip\)        # 2003e0 <foo4>
+  +[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+- +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    230 <.plt>
++ +[a-f0-9]+:	e9 b0 ff ff ff       	jmp    230 <foo2@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-x86-64/bnd-ifunc-1-now.d b/ld/testsuite/ld-x86-64/bnd-ifunc-1-now.d
+index 25af7f81d4..15ecfe1cc5 100644
+--- a/ld/testsuite/ld-x86-64/bnd-ifunc-1-now.d
++++ b/ld/testsuite/ld-x86-64/bnd-ifunc-1-now.d
+@@ -13,7 +13,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 4b 01 20 00 	bnd jmp \*0x20014b\(%rip\)        # 2002c8 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 170 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 170 <\*ABS\*\+0x198@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/bnd-ifunc-2-now.d b/ld/testsuite/ld-x86-64/bnd-ifunc-2-now.d
+index 634940d5b1..211d72d233 100644
+--- a/ld/testsuite/ld-x86-64/bnd-ifunc-2-now.d
++++ b/ld/testsuite/ld-x86-64/bnd-ifunc-2-now.d
+@@ -13,16 +13,16 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 9b 01 20 00 	bnd jmp \*0x20019b\(%rip\)        # 2003e8 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 240 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 240 <.plt>
++ +[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 240 <.plt>
++ +[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+  +[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+- +[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 240 <.plt>
++ +[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/bnd-ifunc-2.d b/ld/testsuite/ld-x86-64/bnd-ifunc-2.d
+index 7a0356cc69..f80ba15aa3 100644
+--- a/ld/testsuite/ld-x86-64/bnd-ifunc-2.d
++++ b/ld/testsuite/ld-x86-64/bnd-ifunc-2.d
+@@ -8,16 +8,16 @@
+ [ 	]*[a-f0-9]+:	f2 ff 25 7b 01 20 00 	bnd jmp \*0x20017b\(%rip\)[ 	]*(#.*)?
+ [ 	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+ [ 	]*[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+-[ 	]*[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 240 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ [ 	]*[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+-[ 	]*[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 240 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ [ 	]*[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+-[ 	]*[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 240 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ [ 	]*[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+-[ 	]*[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 240 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 240 <\*ABS\*\+0x2bc@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/bnd-plt-1-now.d b/ld/testsuite/ld-x86-64/bnd-plt-1-now.d
+index be5392c45f..24e28210a0 100644
+--- a/ld/testsuite/ld-x86-64/bnd-plt-1-now.d
++++ b/ld/testsuite/ld-x86-64/bnd-plt-1-now.d
+@@ -13,16 +13,16 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 a3 01 20 00 	bnd jmp \*0x2001a3\(%rip\)        # 2003e0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 230 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 230 <.plt>
++ +[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+  +[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+- +[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 230 <.plt>
++ +[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+  +[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+- +[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 230 <.plt>
++ +[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/bnd-plt-1.d b/ld/testsuite/ld-x86-64/bnd-plt-1.d
+index cca370527a..ab3ab45faa 100644
+--- a/ld/testsuite/ld-x86-64/bnd-plt-1.d
++++ b/ld/testsuite/ld-x86-64/bnd-plt-1.d
+@@ -13,16 +13,16 @@ Disassembly of section .plt:
+ [ 	]*[a-f0-9]+:	f2 ff 25 83 01 20 00 	bnd jmp \*0x200183\(%rip\)[ 	]*(#.*)?
+ [ 	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+ [ 	]*[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+-[ 	]*[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 230 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ [ 	]*[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+-[ 	]*[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 230 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 d5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ [ 	]*[a-f0-9]+:	68 02 00 00 00       	push   \$0x2
+-[ 	]*[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 230 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 c5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ [ 	]*[a-f0-9]+:	68 03 00 00 00       	push   \$0x3
+-[ 	]*[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 230 <.plt>
++[ 	]*[a-f0-9]+:	f2 e9 b5 ff ff ff    	bnd jmp 230 <foo2@plt-0x50>
+ [ 	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-1-x32.d b/ld/testsuite/ld-x86-64/ibt-plt-1-x32.d
+index 2018b11936..b011e3f158 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-1-x32.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-1-x32.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-1.d b/ld/testsuite/ld-x86-64/ibt-plt-1.d
+index d556ec13f6..15563b432d 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-1.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-1.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp [a-f0-9]+ <.*>
+  +[a-f0-9]+:	90                   	nop
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp [a-f0-9]+ <.*>
+  +[a-f0-9]+:	90                   	nop
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-2a-x32.d b/ld/testsuite/ld-x86-64/ibt-plt-2a-x32.d
+index 5168a31c74..a19cece98e 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-2a-x32.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-2a-x32.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-2a.d b/ld/testsuite/ld-x86-64/ibt-plt-2a.d
+index 01401ba141..9278592909 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-2a.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-2a.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp 1f0 <.plt>
++ +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp 1f0 <.*>
+  +[a-f0-9]+:	90                   	nop
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp 1f0 <.plt>
++ +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp 1f0 <.*>
+  +[a-f0-9]+:	90                   	nop
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-2c-x32.d b/ld/testsuite/ld-x86-64/ibt-plt-2c-x32.d
+index 9f9663cca3..b00ab920c0 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-2c-x32.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-2c-x32.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-2c.d b/ld/testsuite/ld-x86-64/ibt-plt-2c.d
+index aa81fb9ddb..b7969d8c57 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-2c.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-2c.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp [a-f0-9]+ <.*>
+  +[a-f0-9]+:	90                   	nop
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp [a-f0-9]+ <.*>
+  +[a-f0-9]+:	90                   	nop
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-3a-x32.d b/ld/testsuite/ld-x86-64/ibt-plt-3a-x32.d
+index bf185d548f..d6f8bb3afb 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-3a-x32.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-3a-x32.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    140 <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-3a.d b/ld/testsuite/ld-x86-64/ibt-plt-3a.d
+index 27dd93c8e5..9c15ed4f92 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-3a.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-3a.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp 1f0 <.plt>
++ +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp 1f0 <.*>
+  +[a-f0-9]+:	90                   	nop
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp 1f0 <.plt>
++ +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp 1f0 <.*>
+  +[a-f0-9]+:	90                   	nop
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-3c-x32.d b/ld/testsuite/ld-x86-64/ibt-plt-3c-x32.d
+index 66f4705124..f09b1a666a 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-3c-x32.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-3c-x32.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 e2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	e9 d2 ff ff ff       	jmp    [a-f0-9]+ <bar1@plt-0x30>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/ibt-plt-3c.d b/ld/testsuite/ld-x86-64/ibt-plt-3c.d
+index 5c918b8b4d..5c19e3dc96 100644
+--- a/ld/testsuite/ld-x86-64/ibt-plt-3c.d
++++ b/ld/testsuite/ld-x86-64/ibt-plt-3c.d
+@@ -14,11 +14,11 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	f2 e9 e1 ff ff ff    	bnd jmp [a-f0-9]+ <.*>
+  +[a-f0-9]+:	90                   	nop
+  +[a-f0-9]+:	f3 0f 1e fa          	endbr64 
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp [a-f0-9]+ <.plt>
++ +[a-f0-9]+:	f2 e9 d1 ff ff ff    	bnd jmp [a-f0-9]+ <.*>
+  +[a-f0-9]+:	90                   	nop
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/mpx3.dd b/ld/testsuite/ld-x86-64/mpx3.dd
+index 96e56fc5e0..729b1cf4e9 100644
+--- a/ld/testsuite/ld-x86-64/mpx3.dd
++++ b/ld/testsuite/ld-x86-64/mpx3.dd
+@@ -8,7 +8,7 @@ Disassembly of section .plt:
+ [  	]*[a-f0-9]+:	f2 ff ([0-9a-f]{2} ){5}	bnd jmp \*0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <_GLOBAL_OFFSET_TABLE_\+0x10>
+ [  	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+ [  	]*[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+-[  	]*[a-f0-9]+:	f2 e9 ([0-9a-f]{2} ){4}   	bnd jmp [a-f0-9]+ <.plt>
++[  	]*[a-f0-9]+:	f2 e9 ([0-9a-f]{2} ){4}   	bnd jmp [a-f0-9]+ <call1@plt-0x20>
+ [  	]*[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/mpx3n.dd b/ld/testsuite/ld-x86-64/mpx3n.dd
+index f4609d5ed6..a1eba8e975 100644
+--- a/ld/testsuite/ld-x86-64/mpx3n.dd
++++ b/ld/testsuite/ld-x86-64/mpx3n.dd
+@@ -8,7 +8,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 a3 01 20 00 	bnd jmp \*0x2001a3\(%rip\)        # 6003d0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 400220 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 400220 <call1@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/mpx4.dd b/ld/testsuite/ld-x86-64/mpx4.dd
+index 35f6869bad..50a0fbca50 100644
+--- a/ld/testsuite/ld-x86-64/mpx4.dd
++++ b/ld/testsuite/ld-x86-64/mpx4.dd
+@@ -8,7 +8,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 43 01 20 00 	bnd jmp \*0x200143\(%rip\)        # 600340 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 4001f0 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 4001f0 <call1@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/mpx4n.dd b/ld/testsuite/ld-x86-64/mpx4n.dd
+index 5585610767..92177bb121 100644
+--- a/ld/testsuite/ld-x86-64/mpx4n.dd
++++ b/ld/testsuite/ld-x86-64/mpx4n.dd
+@@ -8,7 +8,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 63 01 20 00 	bnd jmp \*0x200163\(%rip\)        # 600360 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 4001f0 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 4001f0 <call1@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/pe-x86-64-1.od b/ld/testsuite/ld-x86-64/pe-x86-64-1.od
+index 1ff644ee9c..4966d55fb5 100644
+--- a/ld/testsuite/ld-x86-64/pe-x86-64-1.od
++++ b/ld/testsuite/ld-x86-64/pe-x86-64-1.od
+@@ -2,11 +2,6 @@
+ .*: +file format .*
+ 
+ SYMBOL TABLE:
+-0+401000 l    d  .text\$mn	0000000000000000 .text\$mn
+-0+402000 l    d  .xdata	0000000000000000 .xdata
+-0+402008 l    d  .pdata	0000000000000000 .pdata
+-0+403014 l    d  .bss	0000000000000000 .bss
+-0+ l    d  .debug\$S	0000000000000000 .debug\$S
+ 0+401000 g       .text\$mn	0000000000000000 getaddr1
+ 0+401020 g       .text\$mn	0000000000000000 begin
+ 0+403014 g       .bss	0000000000000000 __bss_start
+diff --git a/ld/testsuite/ld-x86-64/pe-x86-64-2.od b/ld/testsuite/ld-x86-64/pe-x86-64-2.od
+index 1ff644ee9c..4966d55fb5 100644
+--- a/ld/testsuite/ld-x86-64/pe-x86-64-2.od
++++ b/ld/testsuite/ld-x86-64/pe-x86-64-2.od
+@@ -2,11 +2,6 @@
+ .*: +file format .*
+ 
+ SYMBOL TABLE:
+-0+401000 l    d  .text\$mn	0000000000000000 .text\$mn
+-0+402000 l    d  .xdata	0000000000000000 .xdata
+-0+402008 l    d  .pdata	0000000000000000 .pdata
+-0+403014 l    d  .bss	0000000000000000 .bss
+-0+ l    d  .debug\$S	0000000000000000 .debug\$S
+ 0+401000 g       .text\$mn	0000000000000000 getaddr1
+ 0+401020 g       .text\$mn	0000000000000000 begin
+ 0+403014 g       .bss	0000000000000000 __bss_start
+diff --git a/ld/testsuite/ld-x86-64/pe-x86-64-3.od b/ld/testsuite/ld-x86-64/pe-x86-64-3.od
+index 1ff644ee9c..4966d55fb5 100644
+--- a/ld/testsuite/ld-x86-64/pe-x86-64-3.od
++++ b/ld/testsuite/ld-x86-64/pe-x86-64-3.od
+@@ -2,11 +2,6 @@
+ .*: +file format .*
+ 
+ SYMBOL TABLE:
+-0+401000 l    d  .text\$mn	0000000000000000 .text\$mn
+-0+402000 l    d  .xdata	0000000000000000 .xdata
+-0+402008 l    d  .pdata	0000000000000000 .pdata
+-0+403014 l    d  .bss	0000000000000000 .bss
+-0+ l    d  .debug\$S	0000000000000000 .debug\$S
+ 0+401000 g       .text\$mn	0000000000000000 getaddr1
+ 0+401020 g       .text\$mn	0000000000000000 begin
+ 0+403014 g       .bss	0000000000000000 __bss_start
+diff --git a/ld/testsuite/ld-x86-64/pe-x86-64-4.od b/ld/testsuite/ld-x86-64/pe-x86-64-4.od
+index 302a345b2e..e0bde11d84 100644
+--- a/ld/testsuite/ld-x86-64/pe-x86-64-4.od
++++ b/ld/testsuite/ld-x86-64/pe-x86-64-4.od
+@@ -2,12 +2,6 @@
+ .*: +file format .*
+ 
+ SYMBOL TABLE:
+-0+401000 l    d  .text\$mn	0000000000000000 .text\$mn
+-0+402000 l    d  .xdata	0000000000000000 .xdata
+-0+402008 l    d  .pdata	0000000000000000 .pdata
+-0+403018 l    d  .data	0000000000000000 .data
+-0+403038 l    d  .bss	0000000000000000 .bss
+-0+ l    d  .debug\$S	0000000000000000 .debug\$S
+ 0+403038 g       .bss	0000000000000000 c
+ 0+401000 g       .text\$mn	0000000000000000 begin
+ 0+403038 g       .bss	0000000000000000 __bss_start
+diff --git a/ld/testsuite/ld-x86-64/plt.pd b/ld/testsuite/ld-x86-64/plt.pd
+index 54a00dffc4..6b4024c5c9 100644
+--- a/ld/testsuite/ld-x86-64/plt.pd
++++ b/ld/testsuite/ld-x86-64/plt.pd
+@@ -8,7 +8,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-[0-9a-f]+ <.plt>:
++[0-9a-f]+ <fn1@plt-0x10>:
+  +[0-9a-f]+:	ff 35 ([0-9a-f]{2} ){4} *	push   0x[0-9a-f]+\(%rip\) +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x8>
+  +[0-9a-f]+:	ff 25 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+\(%rip\) +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[0-9a-f]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+@@ -16,9 +16,9 @@ Disassembly of section .plt:
+ [0-9a-f]+ <fn1@plt>:
+  +[0-9a-f]+:	ff 25 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+\(%rip\) +# [0-9a-f]+ <fn1>
+  +[0-9a-f]+:	68 00 00 00 00       	push   \$0x0
+- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
++ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x10>
+ 
+ [0-9a-f]+ <fn2@plt>:
+  +[0-9a-f]+:	ff 25 ([0-9a-f]{2} ){4} *	jmp    \*0x[0-9a-f]+\(%rip\) +# [0-9a-f]+ <fn2>
+  +[0-9a-f]+:	68 01 00 00 00       	push   \$0x1
+- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
++ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x10>
+diff --git a/ld/testsuite/ld-x86-64/plt2.dd b/ld/testsuite/ld-x86-64/plt2.dd
+index 663ec98192..454bc060dd 100644
+--- a/ld/testsuite/ld-x86-64/plt2.dd
++++ b/ld/testsuite/ld-x86-64/plt2.dd
+@@ -9,7 +9,7 @@
+ 
+ Disassembly of section .plt:
+ 
+-0+400220 <.plt>:
++0+400220 <fn1@plt-0x10>:
+  +[a-f0-9]+:	ff 35 7a 01 20 00    	push   0x20017a\(%rip\)        # 6003a0 <_GLOBAL_OFFSET_TABLE_\+0x8>
+  +[a-f0-9]+:	ff 25 7c 01 20 00    	jmp    \*0x20017c\(%rip\)        # 6003a8 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+@@ -17,12 +17,12 @@ Disassembly of section .plt:
+ 0+400230 <fn1@plt>:
+  +[a-f0-9]+:	ff 25 7a 01 20 00    	jmp    \*0x20017a\(%rip\)        # 6003b0 <fn1>
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    400220 <.plt>
++ +[a-f0-9]+:	e9 e0 ff ff ff       	jmp    400220 <fn1@plt-0x10>
+ 
+ 0+400240 <fn2@plt>:
+  +[a-f0-9]+:	ff 25 72 01 20 00    	jmp    \*0x200172\(%rip\)        # 6003b8 <fn2>
+  +[a-f0-9]+:	68 01 00 00 00       	push   \$0x1
+- +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    400220 <.plt>
++ +[a-f0-9]+:	e9 d0 ff ff ff       	jmp    400220 <fn1@plt-0x10>
+ 
+ Disassembly of section .text:
+ 
+diff --git a/ld/testsuite/ld-x86-64/pr19609-4e.d b/ld/testsuite/ld-x86-64/pr19609-4e.d
+index f2634947d6..48adc947e7 100644
+--- a/ld/testsuite/ld-x86-64/pr19609-4e.d
++++ b/ld/testsuite/ld-x86-64/pr19609-4e.d
+@@ -9,5 +9,5 @@
+ Disassembly of section .text:
+ 
+ 0+70000000 <_start>:
+-[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    [-]?0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <.got>
+-[ 	]*[a-f0-9]+:	4c 8b 1d ([0-9a-f]{2} ){4} *	mov    [-]?0x[a-f0-9]+\(%rip\),%r11        # [a-f0-9]+ <.got>
++[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    [-]?0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <_start\+0x1000>
++[ 	]*[a-f0-9]+:	4c 8b 1d ([0-9a-f]{2} ){4} *	mov    [-]?0x[a-f0-9]+\(%rip\),%r11        # [a-f0-9]+ <_start\+0x1000>
+diff --git a/ld/testsuite/ld-x86-64/pr19609-6a.d b/ld/testsuite/ld-x86-64/pr19609-6a.d
+index b340287f48..265825d4c6 100644
+--- a/ld/testsuite/ld-x86-64/pr19609-6a.d
++++ b/ld/testsuite/ld-x86-64/pr19609-6a.d
+@@ -9,5 +9,5 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+-[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <.got>
++[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <_start\+0x1000>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr19609-6b.d b/ld/testsuite/ld-x86-64/pr19609-6b.d
+index 810023b2b9..1f769eff4d 100644
+--- a/ld/testsuite/ld-x86-64/pr19609-6b.d
++++ b/ld/testsuite/ld-x86-64/pr19609-6b.d
+@@ -9,5 +9,5 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+-[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <.got>
++[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <_start\+0x1000>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr19609-7b.d b/ld/testsuite/ld-x86-64/pr19609-7b.d
+index 20b42e838d..d85e5e9425 100644
+--- a/ld/testsuite/ld-x86-64/pr19609-7b.d
++++ b/ld/testsuite/ld-x86-64/pr19609-7b.d
+@@ -9,5 +9,5 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+-[ ]*[a-f0-9]+:	ff 15 ([0-9a-f]{2} ){4} *	call   \*-?0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <.got>
++[ ]*[a-f0-9]+:	ff 15 ([0-9a-f]{2} ){4} *	call   \*-?0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <_start\+0x1000>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr19609-7d.d b/ld/testsuite/ld-x86-64/pr19609-7d.d
+index 034a57b1e0..6eb511080d 100644
+--- a/ld/testsuite/ld-x86-64/pr19609-7d.d
++++ b/ld/testsuite/ld-x86-64/pr19609-7d.d
+@@ -9,5 +9,5 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+-[ ]*[a-f0-9]+:	ff 15 ([0-9a-f]{2} ){4} *	call   \*-?0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <.got>
++[ ]*[a-f0-9]+:	ff 15 ([0-9a-f]{2} ){4} *	call   \*-?0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <_start\+0x1000>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr19636-2l.d b/ld/testsuite/ld-x86-64/pr19636-2l.d
+index c9b256dd44..1b894b3e97 100644
+--- a/ld/testsuite/ld-x86-64/pr19636-2l.d
++++ b/ld/testsuite/ld-x86-64/pr19636-2l.d
+@@ -20,7 +20,7 @@ Disassembly of section .plt:
+ Disassembly of section .text:
+ 
+ 0+140 <_start>:
+- +[a-f0-9]+:	48 3b 05 f1 00 20 00 	cmp    0x2000f1\(%rip\),%rax        # 200238 <.got>
+- +[a-f0-9]+:	ff 25 f3 00 20 00    	jmp    \*0x2000f3\(%rip\)        # 200240 <.got\+0x8>
+- +[a-f0-9]+:	e8 de ff ff ff       	call   130 <.plt\+0x10>
++ +[a-f0-9]+:	48 3b 05 f1 00 20 00 	cmp    0x2000f1\(%rip\),%rax        # 200238 <_DYNAMIC\+0xe0>
++ +[a-f0-9]+:	ff 25 f3 00 20 00    	jmp    \*0x2000f3\(%rip\)        # 200240 <_DYNAMIC\+0xe8>
++ +[a-f0-9]+:	e8 de ff ff ff       	call   130 <_start-0x10>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr20253-1d.d b/ld/testsuite/ld-x86-64/pr20253-1d.d
+index 28fbc998ea..f9f03ba840 100644
+--- a/ld/testsuite/ld-x86-64/pr20253-1d.d
++++ b/ld/testsuite/ld-x86-64/pr20253-1d.d
+@@ -15,10 +15,10 @@ Disassembly of section .text:
+  +[a-f0-9]+:	c3                   	ret *
+ 
+ 0+1ca <_start>:
+- +[a-f0-9]+:	ff 15 28 01 20 00    	call   \*0x200128\(%rip\)        # 2002f8 <.got>
+- +[a-f0-9]+:	ff 25 2a 01 20 00    	jmp    \*0x20012a\(%rip\)        # 200300 <.got\+0x8>
+- +[a-f0-9]+:	48 c7 05 1f 01 20 00 00 00 00 00 	movq   \$0x0,0x20011f\(%rip\)        # 200300 <.got\+0x8>
+- +[a-f0-9]+:	48 83 3d 0f 01 20 00 00 	cmpq   \$0x0,0x20010f\(%rip\)        # 2002f8 <.got>
+- +[a-f0-9]+:	48 3b 0d 08 01 20 00 	cmp    0x200108\(%rip\),%rcx        # 2002f8 <.got>
+- +[a-f0-9]+:	48 3b 0d 09 01 20 00 	cmp    0x200109\(%rip\),%rcx        # 200300 <.got\+0x8>
++ +[a-f0-9]+:	ff 15 28 01 20 00    	call   \*0x200128\(%rip\)        # 2002f8 <_DYNAMIC\+0x100>
++ +[a-f0-9]+:	ff 25 2a 01 20 00    	jmp    \*0x20012a\(%rip\)        # 200300 <_DYNAMIC\+0x108>
++ +[a-f0-9]+:	48 c7 05 1f 01 20 00 00 00 00 00 	movq   \$0x0,0x20011f\(%rip\)        # 200300 <_DYNAMIC\+0x108>
++ +[a-f0-9]+:	48 83 3d 0f 01 20 00 00 	cmpq   \$0x0,0x20010f\(%rip\)        # 2002f8 <_DYNAMIC\+0x100>
++ +[a-f0-9]+:	48 3b 0d 08 01 20 00 	cmp    0x200108\(%rip\),%rcx        # 2002f8 <_DYNAMIC\+0x100>
++ +[a-f0-9]+:	48 3b 0d 09 01 20 00 	cmp    0x200109\(%rip\),%rcx        # 200300 <_DYNAMIC\+0x108>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr20253-1h.d b/ld/testsuite/ld-x86-64/pr20253-1h.d
+index 132fa03afc..7d9b1475d5 100644
+--- a/ld/testsuite/ld-x86-64/pr20253-1h.d
++++ b/ld/testsuite/ld-x86-64/pr20253-1h.d
+@@ -15,10 +15,10 @@ Disassembly of section .text:
+  +[a-f0-9]+:	c3                   	ret *
+ 
+ 0+40008e <_start>:
+- +[a-f0-9]+:	ff 15 2c 00 20 00    	call   \*0x20002c\(%rip\)        # 6000c0 <.got>
+- +[a-f0-9]+:	ff 25 2e 00 20 00    	jmp    \*0x20002e\(%rip\)        # 6000c8 <.got\+0x8>
+- +[a-f0-9]+:	48 c7 05 23 00 20 00 00 00 00 00 	movq   \$0x0,0x200023\(%rip\)        # 6000c8 <.got\+0x8>
+- +[a-f0-9]+:	48 83 3d 13 00 20 00 00 	cmpq   \$0x0,0x200013\(%rip\)        # 6000c0 <.got>
+- +[a-f0-9]+:	48 3b 0d 0c 00 20 00 	cmp    0x20000c\(%rip\),%rcx        # 6000c0 <.got>
+- +[a-f0-9]+:	48 3b 0d 0d 00 20 00 	cmp    0x20000d\(%rip\),%rcx        # 6000c8 <.got\+0x8>
++ +[a-f0-9]+:	ff 15 2c 00 20 00    	call   \*0x20002c\(%rip\)        # 6000c0 <_start\+0x200032>
++ +[a-f0-9]+:	ff 25 2e 00 20 00    	jmp    \*0x20002e\(%rip\)        # 6000c8 <_start\+0x20003a>
++ +[a-f0-9]+:	48 c7 05 23 00 20 00 00 00 00 00 	movq   \$0x0,0x200023\(%rip\)        # 6000c8 <_start\+0x20003a>
++ +[a-f0-9]+:	48 83 3d 13 00 20 00 00 	cmpq   \$0x0,0x200013\(%rip\)        # 6000c0 <_start\+0x200032>
++ +[a-f0-9]+:	48 3b 0d 0c 00 20 00 	cmp    0x20000c\(%rip\),%rcx        # 6000c0 <_start\+0x200032>
++ +[a-f0-9]+:	48 3b 0d 0d 00 20 00 	cmp    0x20000d\(%rip\),%rcx        # 6000c8 <_start\+0x20003a>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr21038b-now.d b/ld/testsuite/ld-x86-64/pr21038b-now.d
+index 62e80dc06b..c042b6cf70 100644
+--- a/ld/testsuite/ld-x86-64/pr21038b-now.d
++++ b/ld/testsuite/ld-x86-64/pr21038b-now.d
+@@ -54,7 +54,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 33 0e 20 00 	bnd jmp \*0x200e33\(%rip\)        # 200ff0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1b0 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1b0 <func@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/pr21038b.d b/ld/testsuite/ld-x86-64/pr21038b.d
+index 126c1d2efe..144ed44ccc 100644
+--- a/ld/testsuite/ld-x86-64/pr21038b.d
++++ b/ld/testsuite/ld-x86-64/pr21038b.d
+@@ -53,7 +53,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 53 0e 20 00 	bnd jmp \*0x200e53\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1b0 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1b0 <func@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.sec:
+diff --git a/ld/testsuite/ld-x86-64/pr21038c-now.d b/ld/testsuite/ld-x86-64/pr21038c-now.d
+index 19a4ea8fcb..2058512b74 100644
+--- a/ld/testsuite/ld-x86-64/pr21038c-now.d
++++ b/ld/testsuite/ld-x86-64/pr21038c-now.d
+@@ -63,7 +63,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 eb 0d 20 00 	bnd jmp \*0x200deb\(%rip\)        # 200fe8 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1f0 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1f0 <func1@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.got:
+diff --git a/ld/testsuite/ld-x86-64/pr21038c.d b/ld/testsuite/ld-x86-64/pr21038c.d
+index 35e7d83c4e..a62d43a7bc 100644
+--- a/ld/testsuite/ld-x86-64/pr21038c.d
++++ b/ld/testsuite/ld-x86-64/pr21038c.d
+@@ -62,7 +62,7 @@ Disassembly of section .plt:
+  +[a-f0-9]+:	f2 ff 25 13 0e 20 00 	bnd jmp \*0x200e13\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1f0 <.plt>
++ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1f0 <func1@plt-0x20>
+  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ 
+ Disassembly of section .plt.got:
+diff --git a/ld/testsuite/ld-x86-64/pr23854.d b/ld/testsuite/ld-x86-64/pr23854.d
+index 95770d3cef..5113a2c44a 100644
+--- a/ld/testsuite/ld-x86-64/pr23854.d
++++ b/ld/testsuite/ld-x86-64/pr23854.d
+@@ -7,22 +7,22 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+- +[a-f0-9]+:	66 13 05 ([0-9a-f]{2} ){4} *	adc    0x[a-f0-9]+\(%rip\),%ax        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 03 1d ([0-9a-f]{2} ){4} *	add    0x[a-f0-9]+\(%rip\),%bx        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 23 0d ([0-9a-f]{2} ){4} *	and    0x[a-f0-9]+\(%rip\),%cx        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 3b 15 ([0-9a-f]{2} ){4} *	cmp    0x[a-f0-9]+\(%rip\),%dx        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 0b 3d ([0-9a-f]{2} ){4} *	or     0x[a-f0-9]+\(%rip\),%di        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 1b 35 ([0-9a-f]{2} ){4} *	sbb    0x[a-f0-9]+\(%rip\),%si        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 2b 2d ([0-9a-f]{2} ){4} *	sub    0x[a-f0-9]+\(%rip\),%bp        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 44 33 05 ([0-9a-f]{2} ){4} *	xor    0x[a-f0-9]+\(%rip\),%r8w        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 85 0d ([0-9a-f]{2} ){4} *	test   %cx,0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <.got>
+- +[a-f0-9]+:	66 13 05 ([0-9a-f]{2} ){4} *	adc    0x[a-f0-9]+\(%rip\),%ax        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 03 1d ([0-9a-f]{2} ){4} *	add    0x[a-f0-9]+\(%rip\),%bx        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 23 0d ([0-9a-f]{2} ){4} *	and    0x[a-f0-9]+\(%rip\),%cx        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 3b 15 ([0-9a-f]{2} ){4} *	cmp    0x[a-f0-9]+\(%rip\),%dx        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 0b 3d ([0-9a-f]{2} ){4} *	or     0x[a-f0-9]+\(%rip\),%di        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 1b 35 ([0-9a-f]{2} ){4} *	sbb    0x[a-f0-9]+\(%rip\),%si        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 2b 2d ([0-9a-f]{2} ){4} *	sub    0x[a-f0-9]+\(%rip\),%bp        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 44 33 05 ([0-9a-f]{2} ){4} *	xor    0x[a-f0-9]+\(%rip\),%r8w        # [a-f0-9]+ <.got\+0x8>
+- +[a-f0-9]+:	66 85 0d ([0-9a-f]{2} ){4} *	test   %cx,0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <.got\+0x8>
++ +[a-f0-9]+:	66 13 05 ([0-9a-f]{2} ){4} *	adc    0x[a-f0-9]+\(%rip\),%ax        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 03 1d ([0-9a-f]{2} ){4} *	add    0x[a-f0-9]+\(%rip\),%bx        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 23 0d ([0-9a-f]{2} ){4} *	and    0x[a-f0-9]+\(%rip\),%cx        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 3b 15 ([0-9a-f]{2} ){4} *	cmp    0x[a-f0-9]+\(%rip\),%dx        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 0b 3d ([0-9a-f]{2} ){4} *	or     0x[a-f0-9]+\(%rip\),%di        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 1b 35 ([0-9a-f]{2} ){4} *	sbb    0x[a-f0-9]+\(%rip\),%si        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 2b 2d ([0-9a-f]{2} ){4} *	sub    0x[a-f0-9]+\(%rip\),%bp        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 44 33 05 ([0-9a-f]{2} ){4} *	xor    0x[a-f0-9]+\(%rip\),%r8w        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 85 0d ([0-9a-f]{2} ){4} *	test   %cx,0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 13 05 ([0-9a-f]{2} ){4} *	adc    0x[a-f0-9]+\(%rip\),%ax        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 03 1d ([0-9a-f]{2} ){4} *	add    0x[a-f0-9]+\(%rip\),%bx        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 23 0d ([0-9a-f]{2} ){4} *	and    0x[a-f0-9]+\(%rip\),%cx        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 3b 15 ([0-9a-f]{2} ){4} *	cmp    0x[a-f0-9]+\(%rip\),%dx        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 0b 3d ([0-9a-f]{2} ){4} *	or     0x[a-f0-9]+\(%rip\),%di        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 1b 35 ([0-9a-f]{2} ){4} *	sbb    0x[a-f0-9]+\(%rip\),%si        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 2b 2d ([0-9a-f]{2} ){4} *	sub    0x[a-f0-9]+\(%rip\),%bp        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 44 33 05 ([0-9a-f]{2} ){4} *	xor    0x[a-f0-9]+\(%rip\),%r8w        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
++ +[a-f0-9]+:	66 85 0d ([0-9a-f]{2} ){4} *	test   %cx,0x[a-f0-9]+\(%rip\)        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr25416-3.d b/ld/testsuite/ld-x86-64/pr25416-3.d
+index 9c1da13484..26927d9956 100644
+--- a/ld/testsuite/ld-x86-64/pr25416-3.d
++++ b/ld/testsuite/ld-x86-64/pr25416-3.d
+@@ -9,8 +9,8 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+- +[a-f0-9]+:	40 8b 05 ([0-9a-f]{2} ){4}[ \t]+rex mov 0x[a-f0-9]+\(%rip\),%eax[ \t]+# [a-f0-9]+ <.got>
++ +[a-f0-9]+:	40 8b 05 ([0-9a-f]{2} ){4}[ \t]+rex mov 0x[a-f0-9]+\(%rip\),%eax[ \t]+# [a-f0-9]+ <_DYNAMIC\+0x[a-f0-9]+>
+  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+  +[a-f0-9]+:	64 8b 0c 25 00 00 00 00 	mov    %fs:0x0,%ecx
+- +[a-f0-9]+:	40 03 0d ([0-9a-f]{2} ){4}[ \t]+rex add 0x[a-f0-9]+\(%rip\),%ecx[ \t]+# [a-f0-9]+ <.got>
++ +[a-f0-9]+:	40 03 0d ([0-9a-f]{2} ){4}[ \t]+rex add 0x[a-f0-9]+\(%rip\),%ecx[ \t]+# [a-f0-9]+ <_DYNAMIC\+0x[a-f0-9]+>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/pr25416-4.d b/ld/testsuite/ld-x86-64/pr25416-4.d
+index 8d91fbc0a6..d98121f1f3 100644
+--- a/ld/testsuite/ld-x86-64/pr25416-4.d
++++ b/ld/testsuite/ld-x86-64/pr25416-4.d
+@@ -9,8 +9,8 @@
+ Disassembly of section .text:
+ 
+ [a-f0-9]+ <_start>:
+- +[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4}[ \t]+mov    0x[a-f0-9]+\(%rip\),%rax[ \t]+# [a-f0-9]+ <.got>
++ +[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4}[ \t]+mov    0x[a-f0-9]+\(%rip\),%rax[ \t]+# [a-f0-9]+ <_DYNAMIC\+0x[a-f0-9]+>
+  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
+  +[a-f0-9]+:	64 8b 0c 25 00 00 00 00 	mov    %fs:0x0,%ecx
+- +[a-f0-9]+:	40 03 0d ([0-9a-f]{2} ){4}[ \t]+rex add 0x[a-f0-9]+\(%rip\),%ecx[ \t]+# [a-f0-9]+ <.got>
++ +[a-f0-9]+:	40 03 0d ([0-9a-f]{2} ){4}[ \t]+rex add 0x[a-f0-9]+\(%rip\),%ecx[ \t]+# [a-f0-9]+ <_DYNAMIC\+0x[a-f0-9]+>
+ #pass
+diff --git a/ld/testsuite/ld-x86-64/tlsbin.rd b/ld/testsuite/ld-x86-64/tlsbin.rd
+index c535732b75..54fe876ecc 100644
+--- a/ld/testsuite/ld-x86-64/tlsbin.rd
++++ b/ld/testsuite/ld-x86-64/tlsbin.rd
+@@ -75,19 +75,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+ .* NOTYPE +LOCAL +DEFAULT +UND *
+-.* SECTION +LOCAL +DEFAULT +1 *
+-.* SECTION +LOCAL +DEFAULT +2 *
+-.* SECTION +LOCAL +DEFAULT +3 *
+-.* SECTION +LOCAL +DEFAULT +4 *
+-.* SECTION +LOCAL +DEFAULT +5 *
+-.* SECTION +LOCAL +DEFAULT +6 *
+-.* SECTION +LOCAL +DEFAULT +7 *
+-.* SECTION +LOCAL +DEFAULT +8 *
+-.* SECTION +LOCAL +DEFAULT +9 *
+-.* SECTION +LOCAL +DEFAULT +10 *
+-.* SECTION +LOCAL +DEFAULT +11 *
+-.* SECTION +LOCAL +DEFAULT +12 *
+-.* SECTION +LOCAL +DEFAULT +13 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsbinpic.o
+ .* TLS +LOCAL +DEFAULT +9 sl1
+ .* TLS +LOCAL +DEFAULT +9 sl2
+diff --git a/ld/testsuite/ld-x86-64/tlsbin2.rd b/ld/testsuite/ld-x86-64/tlsbin2.rd
+index b1205fe49a..495115eb70 100644
+--- a/ld/testsuite/ld-x86-64/tlsbin2.rd
++++ b/ld/testsuite/ld-x86-64/tlsbin2.rd
+@@ -70,17 +70,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+ .* NOTYPE +LOCAL +DEFAULT +UND *
+-.* SECTION +LOCAL +DEFAULT +1 *
+-.* SECTION +LOCAL +DEFAULT +2 *
+-.* SECTION +LOCAL +DEFAULT +3 *
+-.* SECTION +LOCAL +DEFAULT +4 *
+-.* SECTION +LOCAL +DEFAULT +5 *
+-.* SECTION +LOCAL +DEFAULT +6 *
+-.* SECTION +LOCAL +DEFAULT +7 *
+-.* SECTION +LOCAL +DEFAULT +8 *
+-.* SECTION +LOCAL +DEFAULT +9 *
+-.* SECTION +LOCAL +DEFAULT +10 *
+-.* SECTION +LOCAL +DEFAULT +11 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsbinpic2.o
+ .* TLS +LOCAL +DEFAULT +7 sl1
+ .* TLS +LOCAL +DEFAULT +7 sl2
+diff --git a/ld/testsuite/ld-x86-64/tlsbindesc.rd b/ld/testsuite/ld-x86-64/tlsbindesc.rd
+index 9e46ca1d0f..682c4a066a 100644
+--- a/ld/testsuite/ld-x86-64/tlsbindesc.rd
++++ b/ld/testsuite/ld-x86-64/tlsbindesc.rd
+@@ -68,17 +68,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsbindesc.o
+  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +7 sl1
+  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +7 sl2
+diff --git a/ld/testsuite/ld-x86-64/tlsdesc.rd b/ld/testsuite/ld-x86-64/tlsdesc.rd
+index a15c6e0f22..58feb20e55 100644
+--- a/ld/testsuite/ld-x86-64/tlsdesc.rd
++++ b/ld/testsuite/ld-x86-64/tlsdesc.rd
+@@ -100,18 +100,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlsdesc.o
+  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +8 sl1
+  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +8 sl2
+diff --git a/ld/testsuite/ld-x86-64/tlsgdesc.rd b/ld/testsuite/ld-x86-64/tlsgdesc.rd
+index 77e8ae3d81..ca8f19bf3f 100644
+--- a/ld/testsuite/ld-x86-64/tlsgdesc.rd
++++ b/ld/testsuite/ld-x86-64/tlsgdesc.rd
+@@ -73,16 +73,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
+- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
+  +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +8 _DYNAMIC
+  +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +10 _GLOBAL_OFFSET_TABLE_
+  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG3
+diff --git a/ld/testsuite/ld-x86-64/tlspic.rd b/ld/testsuite/ld-x86-64/tlspic.rd
+index 024e124e51..2e44dc6ac6 100644
+--- a/ld/testsuite/ld-x86-64/tlspic.rd
++++ b/ld/testsuite/ld-x86-64/tlspic.rd
+@@ -84,18 +84,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+ .* NOTYPE +LOCAL +DEFAULT +UND *
+-.* SECTION +LOCAL +DEFAULT +1 *
+-.* SECTION +LOCAL +DEFAULT +2 *
+-.* SECTION +LOCAL +DEFAULT +3 *
+-.* SECTION +LOCAL +DEFAULT +4 *
+-.* SECTION +LOCAL +DEFAULT +5 *
+-.* SECTION +LOCAL +DEFAULT +6 *
+-.* SECTION +LOCAL +DEFAULT +7 *
+-.* SECTION +LOCAL +DEFAULT +8 *
+-.* SECTION +LOCAL +DEFAULT +9 *
+-.* SECTION +LOCAL +DEFAULT +10 *
+-.* SECTION +LOCAL +DEFAULT +11 *
+-.* SECTION +LOCAL +DEFAULT +12 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlspic1.o
+ .* TLS +LOCAL +DEFAULT +8 sl1
+ .* TLS +LOCAL +DEFAULT +8 sl2
+diff --git a/ld/testsuite/ld-x86-64/tlspic2.rd b/ld/testsuite/ld-x86-64/tlspic2.rd
+index a39a8fe0d0..60decd2787 100644
+--- a/ld/testsuite/ld-x86-64/tlspic2.rd
++++ b/ld/testsuite/ld-x86-64/tlspic2.rd
+@@ -81,18 +81,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
+ Symbol table '\.symtab' contains [0-9]+ entries:
+  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
+ .* NOTYPE +LOCAL +DEFAULT +UND *
+-.* SECTION +LOCAL +DEFAULT +1 *
+-.* SECTION +LOCAL +DEFAULT +2 *
+-.* SECTION +LOCAL +DEFAULT +3 *
+-.* SECTION +LOCAL +DEFAULT +4 *
+-.* SECTION +LOCAL +DEFAULT +5 *
+-.* SECTION +LOCAL +DEFAULT +6 *
+-.* SECTION +LOCAL +DEFAULT +7 *
+-.* SECTION +LOCAL +DEFAULT +8 *
+-.* SECTION +LOCAL +DEFAULT +9 *
+-.* SECTION +LOCAL +DEFAULT +10 *
+-.* SECTION +LOCAL +DEFAULT +11 *
+-.* SECTION +LOCAL +DEFAULT +12 *
+ .* FILE +LOCAL +DEFAULT +ABS .*tlspic3.o
+ .* TLS +LOCAL +DEFAULT +8 sl1
+ .* TLS +LOCAL +DEFAULT +8 sl2
+-- 
+2.30.0
+

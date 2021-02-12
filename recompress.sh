@@ -61,6 +61,7 @@ gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch
 gzip ./source/d/binutils/patches/binutils.export.demangle.h.diff
 gzip ./source/d/binutils/patches/binutils-2.25-set-long-long.patch
 gzip ./source/d/binutils/patches/binutils.no-config-h-check.diff
+gzip ./source/d/binutils/patches/0001-ELF-Don-t-generate-unused-section-symbols.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-copy-osabi.patch
 gzip ./source/d/binutils/patches/binutils-2.25-version.patch
 gzip ./source/d/icecream/doinst.sh
@@ -559,6 +560,7 @@ gzip ./source/n/netkit-routed/netkit-routed-0.17.diff
 gzip ./source/n/netkit-routed/routed.18.candidate.final.patch
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/ssh-copy-id.diff
+gzip ./source/n/openssh/openssh-glibc-2.33.patch
 gzip ./source/n/openssh/sshd_config-pam.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
@@ -891,6 +893,7 @@ gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
 gzip ./source/l/qt5/patches/qt5.mysql.h.diff
+gzip ./source/l/qt5/patches/qtwebengine-everywhere-src-5.15.2-%231904652.patch
 gzip ./source/l/qt5/doinst.sh
 gzip ./source/l/mozjs78/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs78/patches/fix-soname.patch

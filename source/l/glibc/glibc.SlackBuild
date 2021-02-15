@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=glibc
 VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
@@ -223,6 +223,11 @@ mkdir build-glibc-$VERSION
 cd build-glibc-$VERSION || exit 1
 
 echo "BUILDING DAS NPTL GLIBC"
+# We are setting the variable below so that x86 ISA level is not included
+# in shared libraries. Without this, glibc compiled with -march= may not
+# run on some CPUs that it should be able to support. Needed for glibc-2.33.
+# FIXME: revisit this with future glibc releases!
+libc_cv_include_x86_isa_level=no \
 CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \

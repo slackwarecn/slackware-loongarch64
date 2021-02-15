@@ -692,6 +692,7 @@ gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
+gzip ./source/l/glibc/patches/0001-nsswitch-return-result-when-nss-database-is-locked.patch
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/doinst.sh
@@ -1110,11 +1111,6 @@ gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
-gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
-gzip ./testing/source/glibc/glibc.locale.no-archive.diff
-gzip ./testing/source/glibc/patches/0001-nsswitch-return-result-when-nss-database-is-locked.patch
-gzip ./testing/source/glibc/glibc-c-utf8-locale.patch
-gzip ./testing/source/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

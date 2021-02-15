@@ -74,15 +74,18 @@ fi
 # of this script as you think will help to speed things along.
 WIPE_AFTER_BUILD=${WIPE_AFTER_BUILD:-no}
 
-# This variable is used to tell x11.SlackBuild not to use upgradepkg on the
-# built package since this script already does that:
-UPGRADE_PACKAGES=${UPGRADE_PACKAGES:-"no"}
-export UPGRADE_PACKAGES
-
-# This variable is used to tell kde.SlackBuild not to use upgradepkg on the
-# built package since this script already does that:
-UPGRADE=${UPGRADE:-"no"}
-export UPGRADE
+# NOTE: In case kde.SlackBuild or x11.SlackBuild are used to build everything
+# in one shot, it's safer to just let stuff be installed twice...
+#
+## This variable is used to tell x11.SlackBuild not to use upgradepkg on the
+## built package since this script already does that:
+#UPGRADE_PACKAGES=${UPGRADE_PACKAGES:-"no"}
+#export UPGRADE_PACKAGES
+#
+## This variable is used to tell kde.SlackBuild not to use upgradepkg on the
+## built package since this script already does that:
+#UPGRADE=${UPGRADE:-"no"}
+#export UPGRADE
 
 # Be kind, don't hit control-c! If you do, you might leave broken packages,
 # logfiles, and locks in $TMP that will cause problems for you later. If you're

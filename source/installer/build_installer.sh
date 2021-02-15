@@ -1237,6 +1237,7 @@ cp  -fa${VERBOSE1} \
         libgpg-error*.so* \
         libgssapi_krb5.so* \
         libinih.so* \
+        libINIReader.so* \
         libk5crypto.so* \
         libkeyutils.so* \
         libkmod*so* \

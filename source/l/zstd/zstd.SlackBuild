@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=zstd
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -111,6 +111,14 @@ install -Dm755 contrib/pzstd/pzstd $PKG/usr/bin/pzstd || exit 1
 
 # Don't ship static library:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+
+# It might be advisable to have the libraries in /lib${LIBDIRSUFFIX}:
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+mv $PKG/usr/lib${LIBDIRSUFFIX}/libzstd.so.* $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  rm -f libzstd.so
+  ln -sf ../../lib${LIBDIRSUFFIX}/libzstd.so.? libzstd.so
+)
 
 # zstdmt as the same as zstd, so just make a symlink:
 ( cd $PKG/usr/bin

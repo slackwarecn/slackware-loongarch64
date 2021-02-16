@@ -9,8 +9,6 @@ gzip ./extra/source/xv/xv.prefix_x86_64.diff
 gzip ./extra/source/xv/xv.jasper.diff
 gzip ./extra/source/xv/xv.prefix.diff
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
-gzip ./extra/source/recordmydesktop/recordmydesktop-bitrate.patch
-gzip ./extra/source/recordmydesktop/shmstr-to-shmproto.patch
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
 gzip ./extra/source/bittornado/doinst.sh

@@ -906,11 +906,11 @@ gzip ./source/l/mozjs78/patches/init_patch.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_style_check_disable_s390x.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_checks_disable.patch
 gzip ./source/xap/hexchat/doinst.sh
+gzip ./source/xap/mozilla-thunderbird/0041-bmo-1684261-Fix-build-with-rust-1.50.0.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
-gzip ./source/xap/mozilla-thunderbird/unbreakdocs.diff
 gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff

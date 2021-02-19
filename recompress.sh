@@ -24,6 +24,10 @@ gzip ./extra/source/tigervnc/patches/xorg-server/0001-Always-install-vbe-and-int
 gzip ./extra/source/tigervnc/patches/tigervnc.xorg-server-1.20.7.diff
 gzip ./extra/source/tigervnc/patches/xserver120.patch
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
+gzip ./extra/source/php8/php-fpm.conf.diff
+gzip ./extra/source/php8/doinst.sh
+gzip ./extra/source/php8/php.imap.api.diff
+gzip ./extra/source/php8/php.ini-development.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/python3/python.sysconfig.py.x86_64.diff

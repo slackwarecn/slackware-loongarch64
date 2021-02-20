@@ -566,6 +566,7 @@ gzip ./source/n/openssh/openssh-glibc-2.33.patch
 gzip ./source/n/openssh/sshd_config-pam.diff
 gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
+gzip ./source/n/s-nail/s-nail.no.emptystart.diff
 gzip ./source/n/iputils/iputils.docbook.revert.diff
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/bind/doinst.sh

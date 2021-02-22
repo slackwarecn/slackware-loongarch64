@@ -1,0 +1,21 @@
+--- ./syscall.c.orig	2021-02-22 14:30:03.639032473 -0600
++++ ./syscall.c	2021-02-22 14:30:07.490032559 -0600
+@@ -232,7 +232,8 @@
+ 	RETURN_ERROR_IF_RO_OR_LO;
+ #ifdef HAVE_LCHMOD
+ 	code = lchmod(path, mode & CHMOD_BITS);
+-#else
++	if (code < 0 && errno == ENOTSUP) {
++#endif
+ 	if (S_ISLNK(mode)) {
+ # if defined HAVE_SETATTRLIST
+ 		struct attrlist attrList;
+@@ -247,6 +248,8 @@
+ # endif
+ 	} else
+ 		code = chmod(path, mode & CHMOD_BITS); /* DISCOURAGED FUNCTION */
++#ifdef HAVE_LCHMOD
++	}
+ #endif /* !HAVE_LCHMOD */
+ 	if (code != 0 && (preserve_perms || preserve_executability))
+ 		return code;

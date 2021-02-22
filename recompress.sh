@@ -476,6 +476,7 @@ gzip ./source/n/nss-pam-ldapd/fea0f5ed287b04406afca0835b1a333bd1fe617b.patch
 gzip ./source/n/nss-pam-ldapd/1025d5de336d8c9585b79df3154b5649da344281.patch
 gzip ./source/n/nss-pam-ldapd/doinst.sh
 gzip ./source/n/nss-pam-ldapd/b33551895b3c02dc7082363c6aae13f8e336f4e5.patch
+gzip ./source/n/rsync/rsync.no_lchmod.diff
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh
@@ -487,6 +488,7 @@ gzip ./source/n/telnet/telnet-OpenBSD-20020321.diff
 gzip ./source/n/telnet/telnet-OpenBSD-014_telnet.diff
 gzip ./source/n/telnet/netkit-telnet-0.17.diff
 gzip ./source/n/telnet/netkit-telnet-0.17-ayt.patch
+gzip ./source/n/rsync.nolchmod.diff
 gzip ./source/n/alpine/pinepgp-0.18.0-makefile-sed-fix.diff
 gzip ./source/n/alpine/alpine.manpage.diff
 gzip ./source/n/alpine/pinepgp.pinegpgp.in.diff

@@ -571,6 +571,7 @@ gzip ./source/n/s-nail/s-nail.no.emptystart.diff
 gzip ./source/n/iputils/iputils.docbook.revert.diff
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/bind/doinst.sh
+gzip ./source/n/bind/bind-9.16.11.CVE-2020-8625.diff
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
 gzip ./source/n/irssi/doinst.sh
@@ -912,7 +913,6 @@ gzip ./source/l/mozjs78/patches/init_patch.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_style_check_disable_s390x.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_checks_disable.patch
 gzip ./source/xap/hexchat/doinst.sh
-gzip ./source/xap/mozilla-thunderbird/0041-bmo-1684261-Fix-build-with-rust-1.50.0.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff

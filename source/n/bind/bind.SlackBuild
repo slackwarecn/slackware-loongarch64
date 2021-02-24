@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=bind
 VERSION=${VERSION:-$(echo ${PKGNAM}-[0-9]*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -81,6 +81,10 @@ if ls /lib*/libgssapi_krb5* 1> /dev/null 2> /dev/null ; then
 else
   GSSAPI=" "
 fi
+
+# Fix a security vulnerability. This is fixed in 9.16.12, but we can't use
+# that version due to other regressions.
+zcat $CWD/bind-9.16.11.CVE-2020-8625.diff.gz | patch -p1 --verbose || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

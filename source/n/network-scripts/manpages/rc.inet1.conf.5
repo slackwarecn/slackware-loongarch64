@@ -7,26 +7,27 @@
 .ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
 .el .TP "\\$1"
 ..
-.TH RC.INET1.CONF 5 "12 Nov 2017" "Slackware Version 15.0"
+.TH RC.INET1.CONF 5 "16 Nov 2019" "Slackware Version 15.0"
 .SH NAME
 rc.inet1.conf \- Slackware network configuration file.
 .SH DESCRIPTION
-.B rc.inet1.conf
-\. This file contains the configuration settings for network interfaces.
-It consists basically of a series of variable array definitions.
-Array elements with the same index number will all belong to the same
-network interface.
+This file contains the configuration settings for network interfaces.
+It consists of a series of shell variable array definitions.  The
+convention in this man page is to refer to these shell variable array
+definitions as "parameters".
 .LP
-By default, index number `0' is used for the configuration of interface
-.I eth0,
+Parameters with the same index number will all belong to the same network
+interface.  By default, index number `0' is used for the configuration of
+interface
+.IR eth0 ,
 index number `1' is used for
 .I eth1
-and so forth. The default interface name can be overruled by the use of
-the variable
+and so forth.  The default interface name can be overruled by the use of
+the parameter
 .B IFNAME.
 .LP
-This is what a typical section of the file looks like for a card that is
-configured to use DHCP, showing all array variables with the index number [0]:
+This is what a typical section of the file looks like for an interface that is
+configured to use DHCP, showing all parameters with the index number `0':
 .LP
 # Config information for eth0:
 .br
@@ -37,206 +38,331 @@ NETMASK[0]=""
 IPALIASES[0]=""
 .br
 USE_DHCP[0]="yes"
-.br
-DHCP_HOSTNAME[0]=""
-.br
-DHCP_TIMEOUT[0]=""
 .LP
-Alternatively, here is an example for a card that uses a static IP address and
-has a non-default name (
-.I ath0
+Alternatively, here is an example for an interface that uses a static
+IPv4 address, an autoconfigured IPv6 address, and a non-default name
+.RI ( ath0
 instead of
-.I eth1
-), as well as an additional IP address configured on the interface.
-The array index is [1] in this case.
+.IR eth1 ),
+as well as additional IPv4 alias addresses.
+The parameter index is `1' in this case.
 .LP
-# Config information for ath0 (using static IP address):
+# Config information for ath0:
 .br
 IFNAME[1]="ath0"
 .br
 IPADDR[1]="192.168.3.11"
 .br
-NETMASK[1]="255.255.255.0"
+NETMASK[1]="24"
 .br
 IPALIASES[1]="192.168.3.100/24"
 .br
 USE_DHCP[1]=""
 .br
-DHCP_HOSTNAME[1]=""
-.br
 GATEWAY="192.168.3.1"
 .br
+IP6ADDRS[1]=""
+.br
+USE_SLAAC[1]="yes"
+.br
+USE_DHCP6[1]=""
+.br
+GATEWAY6=""
+.br
 .SH EXAMPLE VIRTUAL INTERFACE CREATION AND SETUP
-Virtual interfaces are created before any address configuration or bridge 
+Virtual interfaces are created before any address configuration or bridge
 setup is done, so you may use these interfaces as IFNAME or BRNICS values.
 These can be tun or tap interfaces: adjust VIRTIFNAME and VIRTIFTYPE as
 needed.
 .LP
 # Virtual tap interface example
 .br
-#VIRTIFNAME[0]="tap0"
+VIRTIFNAME[0]="tap0"
 .br
-#VIRTIFTYPE[0]="tap"
+VIRTIFTYPE[0]="tap"
 .br
-#VIRTIFUSER[0]="root"
+VIRTIFUSER[0]="root"
 .br
-#VIRTIFGROUP[0]="root"
+VIRTIFGROUP[0]="root"
+.br
+.SH EXAMPLE BRIDGE INTERFACE CREATION
+Link aggregation (bond) interfaces can be configured with the use of 3 new
+parameters for use in rc.inet1.conf.  The BONDNICS parameter should contain
+the (space delimited) list of interfaces to include in the bond.  The type
+of bond is configured with the BONDMODE parameter, which can be any of the
+supported mode types as found in the bonding kernel documentation found at
+/usr/src/linux/Documentation/networking/bonding.txt.
+.LP
+The final parameter is a new generic IFOPTS parameter, which takes a list
+of interface specific configuration options in a pipe (|) delimited list.
+There are several module specific options which can be set with this
+parameter, and they can be found in the kernel source documentation from
+above.  Note: it is
+.B highly
+recommended that you use at least the
+.B miimon
+option.  Certain bonding modes will require other options to operate correctly.
+.LP
+Here is a complete configuration for a load balancing, fault tolerant
+interface, with two ethernet devices:
+.LP
+IFNAME[0]="bond0"
+.br
+BONDNICS[0]="eth0 eth1"
+.br
+BONDMODE[0]="balance-rr"
+.br
+IFOPTS[0]="xmit_hash_policy layer2+3 | miimon 100"
+.br
+IPADDR[0]="192.168.0.10"
+.br
+NETMASK[0]="24"
+.LP
+.SH EXAMPLE VLAN INTERFACE CREATION
+VLAN interfaces can be configured in rc.inet1.conf, in the standard Slackware
+way of defining an interface.  The key to the configuration is to use the
+correct IFNAME setting for the underlying ethernet (or bond) interface and the
+tagged VLAN ID that should be exposed.
+.LP
+Here are the basic settings to expose a VLAN with ID 100 on the eth0
+interface, configured with a static IPv4 address:
+.LP
+IFNAME[0]="eth0.100"
+.br
+IFOPTS[0]=""
+.br
+IPADDR[0]="192.168.100.10"
+.br
+NETMASK[0]="24"
+.LP
+The IFNAME of the interface contains the underlying ethernet device name
+(eth0), a period (.), and the VLAN ID to be exposed.
+.LP
+Note that the underlying ethernet (or bond) interface does not need to have an
+IP address to be used with the VLAN, but it can have an IP address if you are
+also using an untagged VLAN.
+.LP
+The new generic IFOPTS parameter takes a pipe (|) delimited list of interface
+type specific options, but does not need any options in order for a VLAN
+interface to be configured.  However, there are several VLAN specific options
+which can be configured if required - these are documented in the ip-link(8)
+man page (search for "VLAN Type Support").
 .br
 .SH EXAMPLE BRIDGE CREATION AND SETUP
-Note the added "BRNICS" variable which contains a space-separated list
+Note the added BRNICS parameter which contains a space-separated list
 of the physical or virtual network interfaces you want to add to the bridge.
-Note that the array index can not be a duplicate of that defined for some
+Note that the parameter index can not be a duplicate of that defined for some
 other interface (e.g. eth0 will be index 0 by default).
 .LP
-IFNAME[0]="br0"
+IFNAME[5]="br0"
 .br
-BRNICS[0]="eth0 eth1 tun0"
+BRNICS[5]="eth0 eth1 tun0"
 .br
-IPADDR[0]="192.168.0.1"
+IFOPTS[5]=""
 .br
-NETMASK[0]="255.255.255.0"
+IPADDR[5]="192.168.0.10"
 .br
-IPALIASES[0]=""
+NETMASK[5]="24"
+.LP
+The new generic IFOPTS parameter takes a pipe (|) delimited list of interface
+type specific options, but does not need any options in order for a bridge
+interface to be configured.  However, there are several bridge specific options
+which can be configured if required - these are documented in the ip-link(8)
+man page (search for "BRIDGE Type Support").
 .br
-USE_DHCP[0]=""
-.br
-DHCP_HOSTNAME[0]=""
-.br
+
 .SH GENERAL PARAMETERS
-This is a list of network parameters you can set for any card (wired as well
-as wired).  The example section is for `eth0' by default, i.e.
-the array variables all have the array index [0]:
+This is a list of parameters you can set for any interface.
+The example section is for `eth0' by default, i.e.
+the parameters all have the array index `0':
 .LP
 # Config information for eth0:
 .TP 25
 IPADDR[0]=""
-# Set this value to an actual IP address if you want static IP
-address assignment
+# Set this parameter to an actual IPv4 address if you want static IPv4
+address assignment.  This is ignored if the USE_DHCP[0] parameter is set
+to "yes".
 .TP
 NETMASK[0]=""
-# With a static IP address, you are required to also set a netmask
-(255.255.255.0 is common)
+# The netmask for the IPv4 address set in IPADDR[0].  This should be in
+CIDR format with an optional leading /, e.g. "24" or "/16" - though the
+traditional dotted-quad format (e.g. "255.255.255.0") is still accepted.
+If this parameter is unset or empty, a netmask of "24" will be assumed.
 .TP
 IPALIASES[0]=""
-# Space separated list of additional IP addresses to bind to the
-interface after initial configuration is complete. An optional
-netmask may be specified after the IP in the form 1.2.3.4/24.  If no
-netmask is specified the default of /32 will be used. If USE_DHCP
-is set to `yes' then additional addresses will only be added if the
-dhcp client invocation is successful in obtaining a primary address.
+# Space separated list of additional IPv4 addresses to bind to the
+interface after initial configuration is complete.  An optional
+netmask may be specified after the address in the form "1.2.3.4/24".  If no
+netmask is specified the default of "/24" will be used.  If USE_DHCP[0]
+is set to `yes' then additional IPv4 addresses will only be added if the
+DHCP client invocation is successful in obtaining a primary IPv4 address.
 .TP
-USE_DHCP[0]="yes"
-# If set to "yes", we will run a DHCP client and have the IP address
-dynamically assigned
+USE_DHCP[0]=""
+# If set to "yes", we will run a DHCP client and have the IPv4 address
+dynamically assigned.
 .TP
-DHCP_HOSTNAME[0]="mybox"
-# Tell the DHCP server what hostname to register
+DHCP_HOSTNAME[0]=""
+# Tell the DHCP server what hostname to register, e.g. "darkstar".
 .TP
-DHCP_TIMEOUT[0]=15
+DHCP_TIMEOUT[0]=""
 # The default timeout for the DHCP client to wait for server response is
-30 seconds, but you might want a shorter wait.
+15 seconds, but you might want a shorter or longer wait.
 .TP
-IFNAME[0]="usb0"
+IP6ADDRS[0]=""
+# The static IPv6 addresses for the interface.  This option takes a list of
+IPv6 addresses and prefix lengths in CIDR notation, in a space delimited
+list.  For example: IP6ADDRS[0]="a:b:c:d::1/48 1:2:3:4::5/64".
+If a prefix length is not given (separated from the IP address with a /), a
+length of 64 will be assumed.  This is ignored if either the USE_DHCP6[0]
+or USE_SLAAC[0] parameters is set to "yes".
+.TP
+USE_SLAAC[0]=""
+# With this parameter set to "yes", the interface's IPv6 address will be
+configured via SLAAC (also known as autoconfig), even if RA indicates
+DHCP6 is available on the network.  If SLAAC is not available on the
+network, no IPv6 address will be assigned.  If this parameter is unset or
+empty, the interface will not be autoconfigured -- note that this is
+changed behaviour from Slackware 14.2 and earlier.
+.TP
+USE_DHCP6[0]=""
+# When set to "yes", use DHCP6 to configure the interface.  This will
+bring up the interface using DHCP6 if RA indicates DHCP6 support is
+available on the network, falling back to SLAAC (if available on the
+network), or will leave the interface unconfigured after a timeout.  When
+this parameter is set to "yes", USE_SLAAC[0] is ignored.
+.TP
+SLAAC_TIMEOUT[0]=""
+# The default timeout for autoconfiguration to wait for the interface
+to come up is 15 sec.  Increase the timeout if a longer period is required
+on your network.
+.TP
+USE_RA[0]=""
+# If set to "yes", accept Router Advertisements even when SLAAC is disabled
+on the interface.  This parameter should almost never be required.
+.TP
+IFNAME[0]=""
 # Use this to define configuration blocks for interfaces with non-standard
-names (this should be rare these days)
+names.
 .TP
-HWADDR[0]="00:01:23:45:67:89"
-# Overrule the card's hardware MAC address
+HWADDR[0]=""
+# Overrule the hardware MAC address (if supported by the network card) by
+setting a new value here, e.g. "00:01:23:45:67:89".
 .TP
 MTU[0]=""
 # The default MTU is 1500, but you might need 1360 when you use NAT'ed
-IPSec traffic. IPv6 will likely require smaller MTUs as well
+IPSec traffic.
 .TP
-PROMISCUOUS[0]="yes"
-# Set promiscuous mode on the interface.
+PROMISCUOUS[0]=""
+# If set to "yes", enable promiscuous mode on the interface.
 .TP
-DHCP_KEEPRESOLV[0]="yes"
+DHCP_KEEPRESOLV[0]=""
 # If you do
 .B not
-want `/etc/resolv.conf' overwritten by the DHCP client
+want
+.I /etc/resolv.conf
+overwritten by the DHCP client, set this parameter to "yes".
 .TP
-DHCP_KEEPNTP[0]="yes"
+DHCP_KEEPNTP[0]=""
 # If you do
 .B not
-want `/etc/ntp.conf' overwritten by the DHCP client
+want
+.I /etc/ntp.conf
+overwritten by the DHCP client, set this parameter to "yes".
 .TP
-DHCP_KEEPGW[0]="yes"
+DHCP_KEEPGW[0]=""
 # If you do
 .B not
-want the DHCP client to change your default gateway
+want the DHCP client to change your default gateway, set this parameter
+to "yes".
 .TP
-DHCP_DEBUG[0]="yes"
-# Make dhcpcd show verbose diagnostics
-.TP
-DHCP_NOIPV4LL[0]="yes"
-# Do not assign an
-.I `ipv4ll'
-address when a DHCP server is not found (ipv4 link-local addressing in the IP range 169.254.0.0/16 is also known as
+DHCP_NOIPV4LL[0]=""
+# When set to "yes", do
+.B not
+assign an IPv4 Link Local (IPv4LL) address when a DHCP server is not found.
+IPv4LL addresses are in the range 169.254.0.0/16, and is also known as
 .I `zeroconf'
-address assignment)
+address assignment.
 .TP
 DHCP_IPADDR[0]=""
-# Request a specific IP address from the DHCP server
+# Request a specific IPv4 address from the DHCP server.  Note that this is only
+a request - the DHCP server may offer a completely different address.
+.TP
+DHCP_DEBUG[0]="yes"
+# Make dhcpcd show verbose diagnostics.
 .SH WIRELESS PARAMETERS
-For wireless cards, several additional parameter definitions are available.
-All these parameters (or better, variables) start with the prefix
+For wireless interfaces, several additional parameter definitions are available.
+All these parameters start with the prefix
 .B WLAN_ .
 .LP
 .TP 25
-WLAN_ESSID[4]=DARKSTAR
-# Your Wireless Access Point's name
+WLAN_ESSID[4]=""
+# Your Wireless Access Point's name, e.g. "darkstar".
 .TP
-WLAN_MODE[4]=Managed
-# "Managed" mode for use with Access Points.  "Ad-Hoc" is for
-peer-to-peer connections.
+WLAN_MODE[4]=""
+# Set to "Managed" for use with Access Points.  For a peer-to-peer connection
+set this parameter to "Ad-Hoc".
 .TP
-WLAN_RATE[4]="54M auto"
-# The transmission rates you want the driver to try ("auto" means
-that bandwidth can be variable)
+WLAN_RATE[4]=""
+# The transmission rates you want the driver to try, e.g. "54M auto".
+("auto" means that bandwidth can be variable).
 .TP
-WLAN_CHANNEL[4]="auto"
-# The channel to which the Access Point is tuned ("auto" to let the
-driver find out the correct channel) 
+WLAN_CHANNEL[4]=""
+# The channel to which the Access Point is tuned, or "auto" to let the
+driver find the correct channel.
 .TP
-WLAN_KEY[4]="D5A31F54ACF0487C2D0B1C10D2"
-# Definition of a WEP key
+WLAN_KEY[4]=""
+# Definition of a WEP key, e.g. "D5A31F54ACF0487C2D0B1C10D2".
 .TP
-WLAN_IWPRIV[4]="set AuthMode=WPAPSK | set EncrypType=TKIP | set WPAPSK=the_64_character_key"
-# Some drivers require a private ioctl to be set through the iwpriv command.
+WLAN_IWPRIV[4]=""
+# Some drivers require a private ioctl to be set through the iwpriv command. e.g.
+"set AuthMode=WPAPSK | set EncrypType=TKIP | set WPAPSK=the_64_character_key".
 If more than one is required, you can place them in the
-.I IWPRIV
-parameter (separated with the pipe (|) character, see the example).
-.TP 
-WLAN_WPA[4]="wpa_supplicant"
-# Run wpa_supplicant for WPA support
+.I WLAN_IWPRIV
+parameter separated with the pipe (|) character.  Ssee the example.
 .TP
-WLAN_WPADRIVER[4]="ndiswrapper"
-# Tell wpa_supplicant to specifically use the ndiswrapper driver.
-If you leave this empty the `wext' driver is used by default; most
-modern wireless drivers use 'wext'.
+WLAN_WPA[4]=""
+# The name of the application that should be executed for WPA support.  This
+will usually be "wpa_supplicant".
+.TP
+WLAN_WPADRIVER[4]=""
+# Tell wpa_supplicant to specifically use this driver, e.g. "ndiswrapper".
+If you leave this empty the "wext" driver is used by default - most modern
+wireless drivers use wext.
 .TP
 WLAN_WPAWAIT[4]=30
 # In case it takes long for the WPA association to finish, you can
-increase the wait time before rc.wireless decides that association
-failed (defaults to 10 seconds)
+use this parameter to increase the wait time before rc.wireless decides
+that association failed.  The default is 10 seconds.
+.SH DEFAULT GATEWAY PARAMETERS
+These parameters, to set an IPv4 and IPv6 default gateway, are not
+interface-specific and must not have an index number.
+.TP 25
+GATEWAY=""
+# The IPv4 default gateway, e.g. "192.168.1.1".  This parameter should be left
+empty when interfaces are configured via DHCP.
+.TP
+GATEWAY6=""
+# The IPv6 default gateway, e.g. "fe80::1".  This parameter should be left
+empty when interfaces are configured via DHCP6 or SLAAC.
 .SH FILES
 .TP 25
 .I /etc/rc.d/rc.inet1
-network configuration script
+network configuration script.
 .TP
 .I /etc/rc.d/rc.inet1.conf
-configuration parameter file (is being read by rc.inet1 and rc.wireless)
+configuration parameter file (read by rc.inet1 and rc.wireless).
 .TP
 .I /etc/rc.d/rc.wireless
-wireless configuration script
+wireless configuration script.
 .TP
 .I /etc/rc.d/rc.wireless.conf
-configuration parameter file (
-.B deprecated
-)
+wireless configuration parameter file
+.B (deprecated)
+\.
 .SH CAVEATS
-The network interface definitions are stored in variable
-.I arrays.
+The network interface definitions are stored in shell variable
+.I arrays
+\.
 The bash shell has no facilities to retrieve the largest array index used.
 Therefore, the
 .I rc.inet1
@@ -246,14 +372,17 @@ script makes the assumption that array indexes stay below the value of
 .LP
 If you want to configure more than six network interfaces, you will
 have to edit the file
-.I /etc/rc.d/rc.inet1
-and change the value `6' in the line
-.B MAXNICS=${MAXNICS:-6}
-to the number of network interfaces you wish to use.
+.I /etc/rc.d/rc.inet1.conf
+and uncomment, and change the value `6' in the line
+.B #MAXNICS="6"
+(at the very bottom of the file) to the number of network interfaces you wish to use.
 .SH AUTHORS
 Patrick J. Volkerding <volkerdi@slackware.com>
+.br
 Eric Hameleers <alien@slackware.com>
+.br
 Robby Workman <rworkman@slackware.com>
+.br
 Darren 'Tadgy' Austin <darren@afterdark.org.uk>
 .SH "SEE ALSO"
 .BR rc.inet1(8)

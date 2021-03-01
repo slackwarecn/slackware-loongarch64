@@ -26,46 +26,60 @@ and so forth.  The default interface name can be overruled by the use of
 the parameter
 .B IFNAME.
 .LP
-This is what a typical section of the file looks like for an interface that is
-configured to use DHCP, showing all parameters with the index number `0':
+This is what a typical section of the file looks like for an interface,
+showing all parameters with the index number `0':
 .LP
-# Config information for eth0:
 .br
-IPADDR[0]=""
+# IPv4 config options for eth0:
 .br
-NETMASK[0]=""
+IPADDRS[0]=""
 .br
-IPALIASES[0]=""
+USE_DHCP[0]=""
 .br
-USE_DHCP[0]="yes"
+# IPv6 config options for eth0:
+.br
+IP6ADDRS[0]=""
+.br
+USE_SLAAC[0]=""
+.br
+USE_DHCP6[0]=""
+.br
+# Generic options for eth0:
+.br
+DHCP_HOSTNAME[0]=""
 .LP
-Alternatively, here is an example for an interface that uses a static
-IPv4 address, an autoconfigured IPv6 address, and a non-default name
+Alternatively, here is an example for an interface that uses static
+IPv4 addresses, an autoconfigured IPv6 address, and a non-default name
 .RI ( ath0
 instead of
-.IR eth1 ),
-as well as additional IPv4 alias addresses.
+.IR eth1 ).
 The parameter index is `1' in this case.
 .LP
-# Config information for ath0:
 .br
 IFNAME[1]="ath0"
 .br
-IPADDR[1]="192.168.3.11"
+# IPv4 config options for ath0:
 .br
-NETMASK[1]="24"
-.br
-IPALIASES[1]="192.168.3.100/24"
+IPADDRS[1]="192.168.1.10/24 10.0.0.10/8"
 .br
 USE_DHCP[1]=""
 .br
-GATEWAY="192.168.3.1"
+# IPv6 config options for ath0
 .br
 IP6ADDRS[1]=""
 .br
 USE_SLAAC[1]="yes"
 .br
 USE_DHCP6[1]=""
+.br
+# Generic options for ath0:
+.br
+DHCP_HOSTNAME[1]=""
+
+.br
+# Gateway IP addresses:
+.br
+GATEWAY="192.168.1.1"
 .br
 GATEWAY6=""
 .br
@@ -85,7 +99,7 @@ VIRTIFUSER[0]="root"
 .br
 VIRTIFGROUP[0]="root"
 .br
-.SH EXAMPLE BRIDGE INTERFACE CREATION
+.SH EXAMPLE BONDING INTERFACE CREATION
 Link aggregation (bond) interfaces can be configured with the use of 3 new
 parameters for use in rc.inet1.conf.  The BONDNICS parameter should contain
 the (space delimited) list of interfaces to include in the bond.  The type
@@ -114,9 +128,13 @@ BONDMODE[0]="balance-rr"
 .br
 IFOPTS[0]="xmit_hash_policy layer2+3 | miimon 100"
 .br
-IPADDR[0]="192.168.0.10"
+IPADDRS[0]="192.168.0.10/24"
 .br
-NETMASK[0]="24"
+IP6ADDRS[0]="e1ff:fec8:ae47:d9ab::abc1/64"
+.br
+GATEWAY="192.168.0.1"
+.br
+GATEWAY6="e1ff:fec8:ae47:d9ab::1"
 .LP
 .SH EXAMPLE VLAN INTERFACE CREATION
 VLAN interfaces can be configured in rc.inet1.conf, in the standard Slackware
@@ -131,9 +149,7 @@ IFNAME[0]="eth0.100"
 .br
 IFOPTS[0]=""
 .br
-IPADDR[0]="192.168.100.10"
-.br
-NETMASK[0]="24"
+IPADDRS[0]="192.168.100.10/24"
 .LP
 The IFNAME of the interface contains the underlying ethernet device name
 (eth0), a period (.), and the VLAN ID to be exposed.
@@ -160,9 +176,7 @@ BRNICS[5]="eth0 eth1 tun0"
 .br
 IFOPTS[5]=""
 .br
-IPADDR[5]="192.168.0.10"
-.br
-NETMASK[5]="24"
+IPADDRS[5]="192.168.0.10/24"
 .LP
 The new generic IFOPTS parameter takes a pipe (|) delimited list of interface
 type specific options, but does not need any options in order for a bridge
@@ -178,24 +192,11 @@ the parameters all have the array index `0':
 .LP
 # Config information for eth0:
 .TP 25
-IPADDR[0]=""
-# Set this parameter to an actual IPv4 address if you want static IPv4
-address assignment.  This is ignored if the USE_DHCP[0] parameter is set
-to "yes".
-.TP
-NETMASK[0]=""
-# The netmask for the IPv4 address set in IPADDR[0].  This should be in
-CIDR format with an optional leading /, e.g. "24" or "/16" - though the
-traditional dotted-quad format (e.g. "255.255.255.0") is still accepted.
-If this parameter is unset or empty, a netmask of "24" will be assumed.
-.TP
-IPALIASES[0]=""
-# Space separated list of additional IPv4 addresses to bind to the
-interface after initial configuration is complete.  An optional
-netmask may be specified after the address in the form "1.2.3.4/24".  If no
-netmask is specified the default of "/24" will be used.  If USE_DHCP[0]
-is set to `yes' then additional IPv4 addresses will only be added if the
-DHCP client invocation is successful in obtaining a primary IPv4 address.
+IPADDRS[0]=""
+# Set this parameter to a space delimited list of IPv4 addresses and netmasks
+to bind to the interface,  The netmask should be in CIDR style separated from
+the IP address with a /.  E.g. "192.168.1.10/24 10.0.0.10/8".  If the netmask
+is not provided, "/24" is assumed.
 .TP
 USE_DHCP[0]=""
 # If set to "yes", we will run a DHCP client and have the IPv4 address
@@ -213,8 +214,7 @@ IP6ADDRS[0]=""
 IPv6 addresses and prefix lengths in CIDR notation, in a space delimited
 list.  For example: IP6ADDRS[0]="a:b:c:d::1/48 1:2:3:4::5/64".
 If a prefix length is not given (separated from the IP address with a /), a
-length of 64 will be assumed.  This is ignored if either the USE_DHCP6[0]
-or USE_SLAAC[0] parameters is set to "yes".
+length of 64 will be assumed.
 .TP
 USE_SLAAC[0]=""
 # With this parameter set to "yes", the interface's IPv6 address will be
@@ -383,6 +383,6 @@ Eric Hameleers <alien@slackware.com>
 .br
 Robby Workman <rworkman@slackware.com>
 .br
-Darren 'Tadgy' Austin <darren@afterdark.org.uk>
+Darren 'Tadgy' Austin <darren@slackware.uk>
 .SH "SEE ALSO"
 .BR rc.inet1(8)

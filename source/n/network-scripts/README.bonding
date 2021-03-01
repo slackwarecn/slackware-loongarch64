@@ -1,0 +1,129 @@
+Bonding (link aggregation)
+==========================
+
+Features
+--------
+* Full support of features offered by the bonding kernel module.
+* Selectable bonding mode using a single parameter in rc.inet1.conf.
+* Easy addition of interfaces to the bond using a parameter in rc.inet1.conf.
+* Custom bonding module options can be provided using the generic parameter
+  IFOPTS[x] in the configuration file.
+
+Configuration
+-------------
+Bonding interfaces can be configured via two new bond specific parameters in
+rc.inet1.conf, plus use of the generic IFOPTS[x] parameter.  New parameters
+are:
+  BONDNICS[x]=""	The space delimited list of interfaces to add to this
+			bond.  The interfaces will be brought up and configured
+			while bringing up the interface, so do not need to be
+			previously defined in rc.inet1.conf.  A bond can be
+			created with only 1 interface, but does not become
+			useful until at least 2 interfaces are configured.
+
+  BONDMODE[x]=""	This parameter sets the bonding mode for this
+			interface.  If not specified when BONDNICS[x] has been
+			used, the default is 'balance-rr'.  See below for a
+			list of all bonding modes available.
+
+The following bond modes are available:
+  balance-rr		This mode is also known as round-robin mode.  Packets
+			are sequentially transmitted and received through each
+			interface one by one.  This mode provides load 
+			balancing functionality along with fault tolerance.
+  active-backup		When in this mode only one interface set to active,
+			while all other interfaces are in the backup state.  If
+			the active interface fails, a backup interface replaces 
+			it as the only active interface in the bond.  This mode
+			only provides fault tolerance, no load balancing.
+			This mode requires that the 'primary <interface>'
+			option be configured with the IFOPTS[x] parameter.
+  balance-xor		The source MAC address uses exclusive or (XOR) logic 
+			with the destination MAC address.  This	calculation 
+			ensures that the same slave interface is selected for 
+			each destination MAC address.  This mode provides fault
+			tolerance and load balancing.
+  broadcast		All packets are sent to all the slaved interfaces. This
+			mode provides fault tolerance, but may result in
+			duplicate packets arriving at the destination.
+  802.3ad		Also known as LACP.  This mode creates aggregation
+			groups that share the same speed and duplex settings, 
+			and it requires a switch that supports an IEEE 802.3ad.
+			This mode uses all interfaces to form the aggregation
+			group and provides fault tolerance and load balancing.
+  balance-tlb		This mode ensures that the outgoing traffic 
+			distribution is set according to the load on each
+			interface and that the current interface receives all
+			the incoming traffic.  If the assigned interface fails
+			to receive traffic, another interface is assigned to
+			the receiving role.  This provides fault tolerance and
+			load balancing.
+  balance-alb		The receiving packets are load balanced through Address
+			Resolution Protocol (ARP) negotiation.  This mode
+			provides fault tolerance and load balancing.
+
+Module specific interface options can be set using the the IFOPTS[x] paramter,
+which takes a pipe (|) delimited list of options for the interface.  The
+following are the most useful options which can be set with IFOPTS[x]:
+  miimon	Specifies the MII link monitoring frequency in milliseconds.
+		This determines how often the link state of each slaved
+		interface is checked for link failures.  A value of zero
+		disables MII link monitoring, but this is NOT advised.  A value
+		of 100 is a good starting point.  The default value is 0, so be
+		sure to set this option with ALL modes.
+  lacp_rate	This option specifies the rate at which the host will ask the
+		link partner to transmit LACPDU packets in 802.3ad mode.
+		Possible values are:
+		  slow		Transmit LACPDUs every 30 seconds.
+		  fast		Transmit LACPDUs every 1 second.
+		The default is slow, but fast is recommended.
+  primary	The interface (eth0, eth2, ...) selecting which slave is the
+		primary device.  The specified interface will always be the
+		active slave while it is available.  Only when the primary is
+		off-line will alternate interfaces be used.  This is useful
+		when one interface is preferred over another (e.g. when one
+		interface has higher throughput than another).  This option
+		is only valid for active-backup, balance-tlb, and balance-alb
+		modes.
+  xmit_hash_policy
+		Selects the transmit hash policy to use for interface selection
+		in balance-xor, 802.3ad, and balance-tlb modes.  Possible 
+		values are:
+		  layer2	Use XOR of source/dest hardware MAC addresses
+				and packet type ID fields to generate the hash.
+				This algorithm will place all traffic to a 
+				particular network peer on the same slave.
+		  layer2+3	Use a combination of layer2 and layer3 protocol
+				information (hardware MAC addresses and IP
+				addresses) to generate the hash.
+				This algorithm will place all traffic to a
+				particular network peer on the same slave.
+				This policy is intended to provide a more 
+				balanced distribution of traffic than layer2
+				alone, especially in environments where a
+				layer3 gateway device is required to reach most
+				destinations.
+		  layer3+4	This policy uses upper layer protocol 
+				information, when available, to generate the
+				hash.  This allows for traffic to a particular
+				network peer to span multiple slave interfaces,
+				although a single connection will not span 
+				multiple slaves.
+		The default value is layer2.  Additional (lesser used) policies
+		are available, and documented in kernel source documentation:
+		/usr/src/linux/Documentation/networking/bonding.txt
+
+The IFOPTS[x] option should always include the 'miimon' option - not using this
+option will result in network degradation.
+In 'active-backup' mode, the 'primary' option should also be supplied.
+When using '802.3ad mode', set "lacp_rate fast" for faster recovery from an
+interface failure.
+In other modes, the 'xmit_hash_policy' should be set.
+
+Full documentation of the bonding layer is available in the kernel source
+documentation: /usr/src/linux/Documentation/networking/bonding.txt.
+
+
+--
+Darren 'Tadgy' Austin.
+<darren (at) afterdark.org.uk>

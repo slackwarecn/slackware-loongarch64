@@ -58,13 +58,21 @@
 #                                test may depend on the kernel options and the
 #                                wireless driver used.
 #                                Convert the MAC address to uppercase in sed.
+# 11/Nov/2019 * Darren Austin *  Log to syslog, failling back to stdout.
+#                                Output error to stderr if not called from
+#                                rc.inet1.
 # ------------------------------------------------------------------------------
 
-LOGGER=${LOGGER:-cat}
+# If possible, log events in /var/log/messages:
+if [ -f /var/run/syslogd.pid ] && [ -x /usr/bin/logger ]; then
+  LOGGER=/usr/bin/logger
+else # output to stdout/stderr:
+  LOGGER=/bin/cat
+fi
 
-if [ -z $IFNAME ] ; then
-  echo "WARNING: The script 'rc.wireless' must be executed by 'rc.inet1'!"  | $LOGGER
-  echo "         You should run the command \"/etc/rc.d/rc.inet1 <your_interface>_start\" yourself." | $LOGGER
+if [ -z "$IFNAME" ] ; then
+  echo "ERROR: The script 'rc.wireless' must be executed by 'rc.inet1'!" >&2
+  echo "       You should run the command \"/etc/rc.d/rc.inet1 <your_interface>_start\" yourself." >&2
   return 1 2> /dev/null || exit 1
 fi
 
@@ -89,11 +97,11 @@ IFCOMMAND="/sbin/ip link set dev ${INTERFACE}"
 is_wireless_device ()
 {
     # Return 0 for a wireless interface, or 1 for a non-wireless interface.
-    if LC_ALL=C $IWPATH/iwconfig $1 2>&1 | grep -q "IEEE 802.11" ; then
+    if [ -d /sys/class/net/${1}/wireless ]; then
         return 0
-    elif [ -d /sys/class/net/${1}/wireless ]; then
+    elif grep -Fxq 'DEVTYPE=wlan' /sys/class/net/${1}/uevent 2>/dev/null; then 
         return 0
-    elif [ "$(cat /sys/class/net/${1}/uevent | grep DEVTYPE)" = "DEVTYPE=wlan" ]; then 
+    elif LC_ALL=C $IWPATH/iwconfig $1 2>&1 | grep -q "IEEE 802.11" ; then
         return 0
     else # all tests failed, assume the device is not wireless (or add a better test :)
         return 1
@@ -110,8 +118,7 @@ is_wireless_device ${INTERFACE} || return 0 2> /dev/null || exit 0
 # If we stop a wireless interface using wpa_supplicant,
 # we'll kill its wpa_supplicant daemon too and exit this script:
 if [ "$2" = "stop" ]; then
-	WPAPID=$(echo $(ps axww | grep wpa_supplicant | grep i${INTERFACE}) | cut -f1 -d' ')
-	[ ${WPAPID} ] &&  kill ${WPAPID}
+	pkill --full "bin/wpa_supplicant.* -i${INTERFACE}"
 	return 0
 fi
 
@@ -124,7 +131,7 @@ $IFCOMMAND up
 sleep 3
 
 # Get the MAC address for the interface
-HWADDR=$(/sbin/ip link show dev ${INTERFACE} | sed -ne 's/.*link\/ether \(..:..:..:..:..:..\).*/\U\1/p') 
+HWADDR=$(cat "/sys/class/net/${INTERFACE}/address")
 
 # Empty all wireless parameters- some of them could still be set for a previous interface:
 # when rc.inet1 is sourced from rc.M all scripts are run in the same shell.
@@ -177,7 +184,7 @@ WPACONF=${WLAN_WPACONF[$i]:-${WPACONF:="/etc/wpa_supplicant.conf"}}
 WPAWAIT=${WLAN_WPAWAIT[$i]:-${WPAWAIT:="60"}}
 
 
-[ -n "$VERBOSE" -a -n "$INFO" ] && echo "$0:  $1 information: '$INFO'"
+[ -n "$VERBOSE" ] && [ -n "$INFO" ] && echo "$0:  $1 information: '$INFO'"
 
 ###################
 # WIRELESS CONFIG #
@@ -199,7 +206,7 @@ fi
 if [ ! -n "$NICKNAME" ] ; then
     NICKNAME=$(/bin/hostname)
 fi
-if [ -n "$ESSID" -o -n "$MODE" ] ; then
+if [ -n "$ESSID" ] || [ -n "$MODE" ] ; then
 	echo "$0:  $IWCOMMAND nick $NICKNAME" | $LOGGER
 	$IWCOMMAND nick $NICKNAME
 fi
@@ -217,7 +224,7 @@ elif [ -n "$CHANNEL" ] ; then
 fi
 
 # WEP keys (non-WPA) 
-if [ -n "$KEY" -a ! -n "$WPA" ] ; then
+if [ -n "$KEY" ] && [ ! -n "$WPA" ] ; then
 	if [ "$KEY" = "off" ]; then
 	  echo "$0:  $IWCOMMAND key open" | $LOGGER
 	  $IWCOMMAND key open
@@ -272,7 +279,7 @@ if [ -n "$IWPRIV" ] ; then
   echo "${IWPRIV}|" | \
   while read -d '|' iwi; do
     if [ -n "$iwi" ]; then
-      echo "$0:  '$IWPRIVCMD $iwi'" | $LOGGER
+      echo "$0:  $IWPRIVCMD $iwi" | $LOGGER
       $IWPRIVCMD $iwi
     fi
   done
@@ -290,12 +297,11 @@ if [ "$WPA" = "wpa_supplicant" ] || [ "$WPA" = "wpaxsupplicant" ] && [ -x ${SUPP
 	$IFCOMMAND down
 	#WPACONF=${WPACONF:-/etc/wpa_supplicant.conf}
 	WPA_OPTIONS=""
-	[ ${WPADRIVER} ] && WPA_OPTIONS="-D${WPADRIVER}" # specify the driver
-	[ ${WPA} = "wpaxsupplicant" ] && WPA_OPTIONS="${WPA_OPTIONS} -e" # Use external xsupplicant (disables the internal supplicant)
+	[ -n "$WPADRIVER" ] && WPA_OPTIONS="-D${WPADRIVER}" # specify the driver
+	[ "$WPA" = "wpaxsupplicant" ] && WPA_OPTIONS="${WPA_OPTIONS} -e" # Use external xsupplicant (disables the internal supplicant)
 
 	# We leave a running wpa_supplicant process in peace:
-	WPAPID=$(echo $(ps axww | grep wpa_supplicant | grep i${INTERFACE}) | cut -f1 -d' ')
-	if [ ${WPAPID} ]; then
+	if pgrep --full "bin/wpa_supplicant.* -i${INTERFACE}" >/dev/null ; then
 	  echo "$0:  wpa_supplicant found running already" | $LOGGER
 	else
 	  echo "$0:  wpa_supplicant -B -c${WPACONF} ${WPA_OPTIONS} -i$INTERFACE" | $LOGGER
@@ -317,7 +323,7 @@ if [ "$WPA" = "wpa_supplicant" ] || [ "$WPA" = "wpaxsupplicant" ] && [ -x ${SUPP
 	  fi
 	done
 	if [ $wi -eq $WPAWAIT ]; then
-	  echo "WPA authentication did not complete, try running '/etc/rc.d/rc.inet1 ${INTERFACE}_start' in a few seconds." | $LOGGER
+	  echo "$0:  WPA authentication did not complete, try running '/etc/rc.d/rc.inet1 ${INTERFACE}_start' in a few seconds." | $LOGGER
 	fi
 	# Bring interface up to avoid 'not ready' errors when calling iwconfig
 	$IFCOMMAND up

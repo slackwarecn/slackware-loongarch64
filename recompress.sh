@@ -621,6 +621,7 @@ gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
+gzip ./source/ap/hplip/fix-desktop-file.patch
 gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
 gzip ./source/ap/lxc/doinst.sh
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh

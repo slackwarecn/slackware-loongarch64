@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # A script to do basic network configuration.
 # Mostly written by Patrick Volkerding <volkerdi@slackware.com>.
 # Modified to use /etc/rc.d/rc.inet1.conf Tue Aug 26 16:51:48 PDT 2003 <pjv>
@@ -13,17 +13,13 @@ write_config_files() {
 # If we're doing loopback, we don't want 127.0.0.1 and 255.255.255.0 in
 # rc.inet1.conf... it's better to leave the values null. However, since
 # we use the IP in other places, we need to make a copy for here.
-RCIPCOPY=$IPADDR
-RCMASKCOPY=$NETMASK
-RCIP6COPY=$IPADDR6
-RCPREFIXCOPY=$PREFIX6
-if [ "$RCIPCOPY" = "127.0.0.1" ]; then
-  RCIPCOPY=""
-  RCMASKCOPY=""
+RCIPCOPY=("${IPADDRS[@]}")
+RCIP6COPY=("${IP6ADDRS[@]}")
+if [ "${RCIPCOPY[0]}" = "127.0.0.1/8" ]; then
+  RCIPCOPY=()
 fi
-if [ "$RCIP6COPY" = "::1" ]; then
-  RCIP6COPY=""
-  RCPREFIXCOPY=""
+if [ "${RCIP6COPY[0]}" = "::1/128" ]; then
+  RCIP6COPY=()
 fi
 
 # echo "Creating /$RC..."
@@ -47,56 +43,53 @@ fi
 
 # =============================================================================
 
-# IPv4 config information for eth0:
 ENDFILE
 
 if [ -n "$VLAN" ]; then
+  VLAN=".$(( 10#$VLAN ))"
   echo "IFNAME[0]=\"eth0$VLAN\"" >>$RC
 fi
 
 /bin/cat << ENDFILE >> $RC
-IPADDR[0]="$RCIPCOPY"
-NETMASK[0]="$RCMASKCOPY"
-IPALIASES[0]=""
+# IPv4 config options for eth0$VLAN:
+IPADDRS[0]="${RCIPCOPY[@]}"
 USE_DHCP[0]="$USE_DHCP"
-DHCP_HOSTNAME[0]="$DHCP_HOSTNAME"
-# IPv6 config information for eth0:
-IP6ADDRS[0]="`if [ ! \"$RCIP6COPY\" = \"\" ]; then echo \"$RCIP6COPY/$RCPREFIXCOPY\"; fi`"
+# IPv6 config options for eth0$VLAN:
+IP6ADDRS[0]="${RCIP6COPY[@]}"
 USE_SLAAC[0]="$USE_SLAAC"
 USE_DHCP6[0]="$USE_DHCP6"
+# Generic options for eth0$VLAN:
+DHCP_HOSTNAME[0]="$DHCP_HOSTNAME"
 
-# IPv4 config information for eth1:
-IPADDR[1]=""
-NETMASK[1]=""
-IPALIASES[1]=""
+# IPv4 config options for eth1:
+IPADDRS[1]=""
 USE_DHCP[1]=""
-DHCP_HOSTNAME[1]=""
-# IPv6 config information for eth1:
+# IPv6 config options for eth1:
 IP6ADDRS[1]=""
 USE_SLAAC[1]=""
 USE_DHCP6[1]=""
+# Generic options for eth1:
+DHCP_HOSTNAME[1]=""
 
-# IPv4 config information for eth2:
-IPADDR[2]=""
-NETMASK[2]=""
-IPALIASES[2]=""
+# IPv4 config options for eth2:
+IPADDRS[2]=""
 USE_DHCP[2]=""
-DHCP_HOSTNAME[2]=""
-# IPv6 config information for eth2:
+# IPv6 config options for eth2:
 IP6ADDRS[2]=""
 USE_SLAAC[2]=""
 USE_DHCP6[2]=""
+# Generic options for eth2:
+DHCP_HOSTNAME[2]=""
 
-# IPv4 config information for eth3:
-IPADDR[3]=""
-NETMASK[3]=""
-IPALIASES[3]=""
+# IPv4 config options for eth3:
+IPADDRS[3]=""
 USE_DHCP[3]=""
-DHCP_HOSTNAME[3]=""
-# IPv6 config information for eth3:
+# IPv6 config options for eth3:
 IP6ADDRS[3]=""
 USE_SLAAC[3]=""
 USE_DHCP6[3]=""
+# Generic options for eth3:
+DHCP_HOSTNAME[3]=""
 
 # IPv4 default gateway IP address:
 GATEWAY="$GATEWAY"
@@ -105,7 +98,7 @@ GATEWAY6="$GATEWAY6"
 
 # =============================================================================
 
-# Example of how to configure a bond (link aggrigation) interface.
+# Example of how to configure a bond (link aggregation) interface.
 # Note the addition of the BONDNICS and BONDMODE parameters.
 # BONDNICS is a space delimited list of interfaces to add to this bond.  The
 # BONDNICS interfaces will be brought up and configured while bringing up the
@@ -124,9 +117,7 @@ GATEWAY6="$GATEWAY6"
 #BONDNICS[0]="eth0 eth1"
 #BONDMODE[0]="balance-rr"
 #IFOPTS[0]="xmit_hash_policy layer2+3 | miimon 100"
-#IPADDR[0]="192.168.0.1"
-#NETMASK[0]="24"
-#IPALIASES[0]=""
+#IPADDRS[0]="192.168.0.1/24"
 #USE_DHCP[0]=""
 #DHCP_HOSTNAME[0]=""
 #IP6ADDRS[0]=""
@@ -144,9 +135,7 @@ GATEWAY6="$GATEWAY6"
 # for a standard VLAN to be configured.
 #IFNAME[0]="eth0.10"
 #IFOPTS[0]=""
-#IPADDR[0]="192.168.10.1"
-#NETMASK[0]="24"
-#IPALIASES[0]=""
+#IPADDRS[0]="192.168.10.1/24"
 #USE_DHCP[0]=""
 #DHCP_HOSTNAME[0]=""
 #IP6ADDRS[0]=""
@@ -165,9 +154,7 @@ GATEWAY6="$GATEWAY6"
 #IFNAME[0]="br0"
 #BRNICS[0]="eth0"
 #IFOPTS[0]=""
-#IPADDR[0]="192.168.0.1"
-#NETMASK[0]="24"
-#IPALIASES[0]=""
+#IPADDRS[0]="192.168.0.1/24"
 #USE_DHCP[0]=""
 #DHCP_HOSTNAME[0]=""
 
@@ -197,9 +184,7 @@ GATEWAY6="$GATEWAY6"
 # Uncomment the lines you need and fill in your data.  You may not need all of
 # these for your wireless network.
 #IFNAME[4]="wlan0"
-#IPADDR[4]=""
-#NETMASK[4]=""
-#USE_DHCP[4]="yes"
+#IPADDRS[4]=""
 #DHCP_HOSTNAME[4]="icculus-wireless"
 #DHCP_KEEPRESOLV[4]="yes"
 #DHCP_KEEPNTP[4]="yes"
@@ -215,21 +200,21 @@ GATEWAY6="$GATEWAY6"
 #WLAN_WPADRIVER[4]="wext"
 #WLAN_WPAWAIT[4]=30
 
-
 # =============================================================================
 
 # Some examples of additional network parameters that you can use.
 #IFNAME[4]="wlan0"              # Use a different interface name instead of
                                 # the default 'eth4'
-#IPALIASES[4]="192.168.5.10/24" # A space delimited list of CIDR formatted IP
-                                # aliases to assign to the interface after it
-                                # has come up.  If no /<prefix> is given after
-                                # the IP address, /24 will be used as default.
+#IFOPTS[4]=""                   # A pipe (|) delimited list of interface type
+                                # specific options to apply.  These options
+                                # can be found in the ip-link(8) man page in
+                                # the approprite section for the interface
+                                # type being configured.
 #HWADDR[4]="00:01:23:45:67:89"  # Overrule the card's hardware MAC address
 #MTU[4]=""                      # The default MTU is 1500, but you might need
                                 # 1360 when you use NAT'ed IPSec traffic.
 #PROMISCUOUS[4]="yes"           # Set promiscuous mode on the interface.
-#DHCP_TIMEOUT[4]=15             # The default timeout for the DHCP client to
+#DHCP_TIMEOUT[4]="15"           # The default timeout for the DHCP client to
                                 # wait for server resonse is 15 seconds, but
                                 # you might want a shorter or longer wait.
 #DHCP_KEEPRESOLV[4]="yes"       # If you don't want /etc/resolv.conf overwritten
@@ -248,7 +233,7 @@ GATEWAY6="$GATEWAY6"
                                 # Increase the timeout if required.
 #USE_RA[4]="yes"                # Accept router advertisements even when SLAAC
                                 # is disabled on the interface.
-#WLAN_ESSID[4]=DARKSTAR         # An example of how you can override _any_
+#WLAN_ESSID[4]="DARKSTAR"       # An example of how you can override _any_
                                 # parameter defined in rc.wireless.conf, by
                                 # prepending 'WLAN_' to the parameter's name.
                                 # Useful with multiple wireless interfaces.
@@ -262,19 +247,20 @@ GATEWAY6="$GATEWAY6"
 #WLAN_WPADRIVER[4]="ndiswrapper"# Tell wpa_supplicant to specifically use the
                                 # ndiswrapper driver (if you leave this empty
                                 # the 'wext' driver is used by default)
-#WLAN_WPAWAIT[4]=30             # In case it takes long for the WPA association
+#WLAN_WPAWAIT[4]="30"           # In case it takes long for the WPA association
                                 # to finish, you can increase the wait time
                                 # (defaults to 10 seconds)
 
 # =============================================================================
 
-# Change this to "yes" for debugging output to stdout.
+# Change this to "yes" for debugging output to syslog (if available, stdout if
+# not).
 DEBUG_ETH_UP="no"
 
 # MAXNICS is the maximum number of interfaces that will be configured.
 # You may need to increase the MAXNICS value if you have many interfaces, or
 # you use multiple VLANs and/or bridges.  The default is 6.
-# MAXNICS="6"
+#MAXNICS="6"
 ENDFILE
 #
 ############################################################################
@@ -310,17 +296,13 @@ chmod 644 $ETCNETWORKS
 #		"named" name server.  Just add the names, addresses
 #		and any aliases to this file...
 #
-# By the way, Arnt Gulbrandsen <agulbra@nvg.unit.no> says that 127.0.0.1
-# should NEVER be named with the name of the machine. It causes problems
-# for some (stupid) programs, irc and reputedly talk. :^)
-#
 
 # For loopbacking.
 127.0.0.1		localhost
 ::1			localhost
 EOF
-[ -n "$IPADDR" ] && echo -e "$IPADDR\t\t$HOSTNM.$DOMAIN $HOSTNM" >>$HOSTS
-[ -n "$IPADDR6" ] && echo -e "$IPADDR6\t\t$HOSTNM.$DOMAIN $HOSTNM" >>$HOSTS
+[ -n "${IPADDRS[0]}" ] && echo -e "${IPADDRS[0]%%/*}\t\t$HOSTNM.$DOMAIN $HOSTNM" >>$HOSTS
+[ -n "${IP6ADDRS[0]}" ] && echo -e "${IP6ADDRS[0]%%/*}\t\t\t$HOSTNM.$DOMAIN $HOSTNM" >>$HOSTS
 chmod 644 $HOSTS
 #
 ############################################################################
@@ -356,17 +338,19 @@ fi
 rm -f $TMP/tempmsg /cardfound
 } # end write_config_files
 
-TMP=/var/log/setup/tmp
-if [ ! -d $TMP ]; then
- mkdir -p $TMP
- chmod 700 $TMP
-fi
+# Covert CIDR notation masks to old style dotted quad.
+cidr2mask() {
+  # https://forum.archive.openwrt.org/viewtopic.php?id=47986&p=1#p220781
+  set -- $(( 5 - ($1 / 8) )) 255 255 255 255 $(( (255 << (8 - ($1 % 8))) & 255 )) 0 0 0
+  [ $1 -gt 1 ] && shift $1 || shift
+  echo "${1-0}.${2-0}.${3-0}.${4-0}"
+}
 
-# This checks IP address syntax.
-# usage: syntax_check ADDRESS #-OF-EXPECTED-SEGMENTS (up to 4)
-# example: syntax_check 123.22.43.1 4
+# This checks IPv4 address syntax.
+# usage: syntax_check_v4 ADDRESS #-OF-EXPECTED-SEGMENTS (up to 4)
+# example: syntax_check_v4 123.22.43.1 4
 # returns: 0=found correct  1=too many fields  2=non numeric field found
-syntax_check_color() {
+syntax_check_v4() {
   RET_CODE=0
   SCRATCH=$1
   SCRATCH=`echo $SCRATCH | tr "." "/"`
@@ -387,11 +371,17 @@ syntax_check_color() {
   fi
   if [ "$3" = "WARN" -a ! "$RET_CODE" = "0" ]; then
     cat << EOF > $TMP/tempmsg
-The value you have entered seems to be non-standard. We were
-expecting $2 groups of numbers seperated by dots, like: 127.0.0.1
-Please enter a valid value.
+The IP address you entered:
+  $1
+is not valid.
+
+There should be $2 groups of numbers seperated by dots, for example:
+  192.168.1.1
+
+Please correct any mistakes in the IP.
 EOF
-    dialog --title "INVALID VALUE" --defaultno --msgbox "`cat $TMP/tempmsg`" 7 72
+    dialog --title "INVALID IP" --ok-button "Back" --msgbox \
+        "`cat $TMP/tempmsg`" 12 72
     rm -r $TMP/tempmsg
   else
     if [ "$3" = "ECHO" ]; then
@@ -400,6 +390,29 @@ EOF
   fi
   return $RET_CODE;
 }
+
+# This does cursary checks to validate an IPv6 address.
+syntax_check_v6() {
+  # We can only do a basic validation of the entered address
+  # as regexes for IPv6 addresses are very complex.
+  if [[ "$1" =~ ^[0-9a-fA-F:]+$ ]] && [[ "$1" =~ :[0-9a-fA-F]{1,4}$ ]]; then
+    return 0
+  else
+    dialog --title "INVALID IP" --ok-button "Back" --msgbox \
+"The IP address you entered:
+  $1
+is not valid.
+
+Please enter a valid IPv6 address." 9 72
+  fi
+  return 1
+}
+
+TMP=/var/log/setup/tmp
+if [ ! -d $TMP ]; then
+ mkdir -p $TMP
+ chmod 700 $TMP
+fi
 
 # Figure out where we are...  cheap hack.
 if [ ! -e etc/slackware-version -a ! -e /etc/installer -a ! -e bin/bash ]; then
@@ -414,88 +427,116 @@ HOSTS=etc/hosts			 	# Where hosts file is.
 ETCNETWORKS=etc/networks		# Where networks file is.
 #
 # defaults:
+IPADDRS=()
+IP6ADDRS=()
 USE_DHCP=""                             # Use DHCP?  "" == no.
 USE_DHCP6=""
 DHCP_HOSTNAME=""                        # This is our DHCP hostname.
 NETWORK=127.0.0.0
-IPADDR=127.0.0.1
-NETMASK=24	# Use CIDR now.
-IPADDR6=::1
-PREFIX6=64
 
-# Main loop:
 while [ 0 ]; do
-cat << EOF > $TMP/tempmsg
+  cat << EOF > $TMP/tempmsg
 First, we'll need the name you'd like to give your host.
-Only the base hostname is needed right now. (not the domain)
+Only the base hostname is needed right now - not the domain.
+For example:  darkstar
 
 Enter hostname:
 EOF
- dialog --title "ENTER HOSTNAME" --inputbox "`cat $TMP/tempmsg`" 11 65 \
- $HOSTNM 2> $TMP/SeThost
- if [ $? = 1 -o $? = 255 ]; then
+  dialog --title "ENTER HOSTNAME" --cancel-label "Exit" --inputbox \
+      "`cat $TMP/tempmsg`" 12 64 "$HOSTNM" 2> $TMP/SeThost
+  if [ $? = 1 -o $? = 255 ]; then
+    rm -f $TMP/SeThost $TMP/tempmsg
+    exit
+  fi
+  HOSTNM="`cat $TMP/SeThost`"
   rm -f $TMP/SeThost $TMP/tempmsg
-  exit
- fi
- HOSTNM="`cat $TMP/SeThost`"
- rm -f $TMP/SeThost $TMP/tempmsg
- if [ ! "$HOSTNM" = "" ]; then
-  break;
- fi
+  if [ "$HOSTNM" = "" ] || [[ ! "$HOSTNM" =~ ^[[:alnum:]-]+$ ]] || \
+      [ "${HOSTNM:0:1}" == "-" ] || [ "${HOSTNM: -1:1}" == "-" ]; then
+    dialog --title "HOSTNAME" --ok-button "Back" --msgbox \
+        "That doesn't appear to be a valid hostname.\n
+Hostnames can only contain letters, numbers and hyphens,
+and may not begin or end with a hyphen." 7 60
+    if [ $? = 1 -o $? = 255 ]; then
+      exit
+    fi
+  else
+    break
+  fi
 done
 
 while [ 0 ]; do
-cat << EOF > $TMP/tempmsg
+  cat << EOF > $TMP/tempmsg
 Now, we need the domain name for this machine, such as:
-
-example.org
-
+  example.org
 Do not supply a leading '.'
 
-Enter domain name for $HOSTNM: 
+Enter domain name for $HOSTNM:
 EOF
- dialog --title "ENTER DOMAINNAME FOR '$HOSTNM'" --inputbox \
-"`cat $TMP/tempmsg`" \
-14 64 $DOMAIN 2> $TMP/SeTdom
- if [ $? = 1 -o $? = 255 ]; then
+  dialog --title "ENTER DOMAINNAME FOR '$HOSTNM'" --cancel-label "Exit" \
+      --inputbox "`cat $TMP/tempmsg`" 12 59 "$DOMAIN" 2> $TMP/SeTdom
+  if [ $? = 1 -o $? = 255 ]; then
+    rm -f $TMP/SeTdom $TMP/tempmsg
+    exit
+  fi
+  DOMAIN="`cat $TMP/SeTdom`"
   rm -f $TMP/SeTdom $TMP/tempmsg
-  exit
- fi
- DOMAIN="`cat $TMP/SeTdom`"
- rm -f $TMP/SeTdom $TMP/tempmsg
- if [ ! "$DOMAIN" = "" ]; then
-  break;
- fi
+  # These regexes doon't catch everything, just basic syntax mistakes.
+  if [ "$DOMAIN" = "" ] || [[ ! "$DOMAIN" =~ ^([[:alnum:]]+[-.]*[[:alnum:]]+)+$ ]] || \
+      [[ "${DOMAIN:0:1}" =~ ^[.-]$ ]] || [[ "${DOMAIN: -1:1}" == ^[.-]$ ]]; then
+    dialog --title "DOMAINNAME" --ok-button "Back" --msgbox \
+      "That doesn't appear to be a valid domain name.\n
+Domain names can only contain letters and numbers, hyphens
+and dots, and may not begin or end with a hyphen or dot." 7 68
+    if [ $? = 1 -o $? = 255 ]; then
+      exit
+    fi
+  else
+    break
+  fi
 done
-
-# Write the hostname with domain to /etc/HOSTNAME:
-echo $HOSTNM.$DOMAIN > etc/HOSTNAME
 
 dialog --title "CONNECT VIA VLAN" --defaultno --yesno \
 "Some advanced networking set ups require a VLAN ID in order to \
-connect to the network.  Do you wish to configure a VLAN now? \n\n\
-Unless you are sure you require a VLAN, select 'No'." 8 68
-if [ $? = 0 ]; then
+connect to the network.  Do you wish to configure a VLAN ID now?\n\n\
+Unless you are sure you require a VLAN ID, select 'No'." 8 68
+ERRNO="$?"
+if [ "$ERRNO" = "255" ]; then
+  exit
+elif [ "$ERRNO" = "1" ]; then
+  true
+else
   while true; do
+    [ -r $TMP/SeTVLAN ] && VLAN="$(cat $TMP/SeTVLAN)"
     dialog --title "VLAN ID" --cancel-label "Skip" --inputbox \
-      "Enter the VLAN ID used on this network." 8 45 2>$TMP/reply
-    if [ $? = 0 ]; then
-      if ! (($(cat $TMP/reply))) 2>/dev/null; then
+        "Enter the VLAN ID used on this network:" 8 45 "$VLAN" 2>$TMP/reply
+    ERRNO="$?"
+    if [ "$ERRNO" = "255" ]; then
+      rm -f $TMP/SeTVLAN
+      exit
+    elif [ "$ERRNO" = "1" ]; then
+      unset VLAN
+      rm -f $TMP/SeTVLAN
+      break
+    else
+      VLAN="$(cat $TMP/reply)"
+      echo "$VLAN" >$TMP/SeTVLAN
+      if [[ ! "$VLAN" =~ ^[0-9]+$ ]]; then
         dialog --title "VLAN ID" --ok-button "Back" --msgbox \
-          "That doesn't appear to be a valid VLAN ID." 5 46
+            "That doesn't appear to be a valid VLAN ID." 5 46
+        if [ "$?" = "255" ]; then
+          exit
+        fi
         continue
       else
-        VLAN=".`cat $TMP/reply`"
+        rm -f $TMP/SeTVLAN
         break
       fi
-    else
-      break
     fi
   done
 fi
 
 dialog --title "CONFIGURATION TYPE FOR '$HOSTNM.$DOMAIN'" \
---default-item NetworkManager \
+--default-item NetworkManager --cancel-button "Exit" \
 --menu \
 "Now we need to know how your machine connects to the network.\n\
 If you have an internal network card and an assigned IP address, gateway, \
@@ -521,7 +562,8 @@ REPLY=`cat $TMP/reply`
 rm -f $TMP/reply
 
 if [ "$REPLY" = "DHCP" ]; then
-  dialog --title "SELECT DHCP TYPE" --default-item "DHCPv4" --menu \
+  dialog --title "SELECT DHCP TYPE" --default-item "DHCPv4" \
+      --cancel-button "Exit" --menu \
 "Please select the type of DHCP to use to configure your networking.
 Select 'DHCPv4' to configure for an IPv4 network (this is the most
 common type of network, and the safe choice).  Select 'DHCPv6' for a
@@ -542,16 +584,22 @@ pure IPv6 network, or 'Both' to try and set up both types of network." 13 73 3 \
     USE_DHCP="yes"
     USE_DHCP6="yes"
   fi
-  dialog --title "SET DHCP HOSTNAME"  --inputbox "Some network providers require \
+  dialog --title "SET DHCP HOSTNAME"  --cancel-label "Skip" \
+      --inputbox "Some network providers require \
 that the DHCP hostname be set in order to connect. If so, they'll have assigned \
 a hostname to your machine, which may look something like CC-NUMBER-A (this \
 depends on your ISP). If you were assigned a DHCP hostname, please enter it \
-below. If you do not have a DHCP hostname, just hit ENTER or Cancel." 13 62 \
-2> $TMP/SeTDHCPHOST
-  NEW_DHCPHOST="`cat $TMP/SeTDHCPHOST`"
+below. If you do not have a DHCP hostname, just leave it blank or select 'Skip'." 13 67 \
+      2> $TMP/SeTDHCPHOST
+  ERRNO="$?"
+  if [ "$ERRNO" = "255" ]; then
+    rm -f $TMP/SeTDHCPHOST
+    exit
+  elif [ "$ERRNO" = "0" ]; then
+    # OK, if we actually got something, use it.
+    DHCP_HOSTNAME="$(cat $TMP/SeTDHCPHOST)"
+  fi
   rm -f $TMP/SeTDHCPHOST
-  # OK, if we actually got something, use it.
-  DHCP_HOSTNAME="$NEW_DHCPHOST"
 elif [ "$REPLY" = "loopback" ]; then
   LOOPBACK="yes"
 elif [ "$REPLY" = "NetworkManager" ]; then
@@ -567,204 +615,215 @@ fi
 if [ "$LOOPBACK" = "no" -a ! "$USE_DHCP" = "yes" -a ! "$USE_SLAAC" = "yes" ]; then
   while [ 0 ]; do
     while [ 0 ]; do
-      if [ -r $TMP/SeTIP ]; then
-        IPADDR=`cat $TMP/SeTIP`
+      if [ -r $TMP/SeTIPSv4 ]; then
+        IPADDRS=($(cat $TMP/SeTIPSv4))
       fi
-      dialog --title "ENTER IPv4 ADDRESS FOR '$HOSTNM.$DOMAIN'" --inputbox \
-"Enter the IPv4 address for the local machine.  Example: 111.112.113.114
-If you do not want to configure a static IPv4 address, just hit ENTER. " \
-          9 75 $IPADDR 2> $TMP/SeTlip
-      if [ $? = 1 -o $? = 255 ]; then
-        rm -f $TMP/SeTlip
+      dialog --title "ENTER IPv4 ADDRESSES" --cancel-label "Skip" \
+          --colors --inputbox \
+"Enter the \Z1IPv4\Zn addresses for this host.  You may list one or more,
+space delimited, IPv4 addresses with netmasks in the format:
+  <IP address>/<CIDR netmask>
+For example:
+  111.112.113.114/24  or  111.112.113.114/24 10.0.1.114/8
+Old style netmask 255.255.255.0 is equilivant of 24 in CIDR style.
+If a netmask is not specified a default of 24 will be used.
+
+The first address entered will become the primary IPv4 address
+of this host.  If you do not want to configure a static IPv4
+address, just leave it blank or select 'Skip'." \
+          18 71 "${IPADDRS[*]}" 2> $TMP/SeTIPSv4
+      ERRNO="$?"
+      if [ "$ERRNO" = "1" ]; then
+        IPADDRS=()
+        rm -f $TMP/SeTIPSv4
+        break
+      elif [ "$ERRNO" = "255" ]; then
+        rm -f $TMP/SeTIPSv4
         exit
       fi
-      IPADDR="`cat $TMP/SeTlip`"
-      rm -f $TMP/SeTlip
-      if [ "$IPADDR" = "" ]; then
+      IPADDRS=($(cat $TMP/SeTIPSv4))
+      rm -f $TMP/SeTIPSv4
+      if [ "${IPADDRS[*]}" = "" ]; then
         break
       fi
-      syntax_check_color $IPADDR 4 WARN
-      if [ $? = 0 ]; then
-        echo $IPADDR > $TMP/SeTIP
-        break
-      fi
+      for ((I=0; I < ${#IPADDRS[@]}; I++)); do
+        IP="${IPADDRS[$I]%/*}"
+        MASK="${IPADDRS[$I]#*/}"
+        if [ "$IP" = "" ]; then
+          dialog --title "NO IPv4 ADDRESSES" --ok-button "Back" --msgbox \
+              "No IP specified in entry: ${IPADDRS[$I]}." 5 55
+          if [ "$?" = "255" ]; then
+            rm -f $TMP/SeTIPSv4
+            exit
+          fi
+          continue 2
+        fi
+        syntax_check_v4 "$IP" 4 WARN || continue 2
+        if [ "$MASK" = "" ] || [ "$IP" = "$MASK" ]; then
+          IPADDRS[$I]="$IP/24"
+          MASK="24"
+        fi
+        if [[ ! "$MASK" =~ ^[0-9]+$ ]] || (($MASK <= 0)) || (($MASK > 32)); then
+          dialog --title "INVALID NETMASK" --msgbox \
+"Invalid netmask specified for entry: ${IPADDRS[$I]}.
+Valid netmasks will be in the range 1-32." 6 65
+          if [ "$?" = "255" ]; then
+            rm -f $TMP/SeTIPSv4
+            exit
+          fi
+          echo "${IPADDRS[@]}" >$TMP/SeTIPSv4
+          continue 2
+        fi
+      done
+      rm -f $TMP/SeTIPSv4
+      break
     done
 
-    if [ ! "$IPADDR" = "" ]; then
+    if [ ! "${IPADDRS[*]}" = "" ]; then
       while [ 0 ]; do
-        if [ -r $TMP/SeTnetmask ]; then
-          NETMASK=`cat $TMP/SeTnetmask`
+        if [ -r $TMP/SeTgateway4 ]; then
+          GATEWAY="`cat $TMP/SeTgateway4`"
         fi
-        dialog --title "ENTER NETMASK FOR IPv4 NETWORK" --inputbox \
-"Enter the netmask for your IPv4 network.
-This will generally be a single number (eg, 24)
-or look something like this: 255.255.255.0." 10 55 $NETMASK 2> $TMP/SeTnmask
-        if [ $? = 1 -o $? = 255 ]; then
-          rm -f $TMP/SeTnmask
-          exit
-        fi
-        NETMASK="`cat $TMP/SeTnmask`"
-        rm -f $TMP/SeTnmask
-        if [ "$NETMASK" = "" ]; then
-          dialog --title "NETMASK REQUIRED" --msgbox \
-"You have configured this host with a v4
-IP address - a netmask is required." 6 43
-          continue
-        fi
-        if (($NETMASK == 0)) 2>/dev/null || (($NETMASK > 32)) 2>/dev/null; then
-          dialog --title "NETMASK INVALID" --msgbox \
-"The netmask you entered is not valid.
-Valid netmasks will be in the range 1-32." 6 45
-          continue
-        elif (($NETMASK)) 2>/dev/null; then
-          echo $NETMASK > $TMP/SeTnetmask
-          break
-        else
-          syntax_check_color $NETMASK 4 WARN
-          if [ $? = 0 ]; then
-            echo $NETMASK > $TMP/SeTnetmask
-            break
-          fi
-        fi
-      done
-      while [ 0 ]; do
-        if [ -r $TMP/SeTgateway ]; then
-          GATEWAY=`cat $TMP/SeTgateway`
-        fi
-        dialog --title "ENTER IPv4 GATEWAY ADDRESS" --inputbox \
+        dialog --title "ENTER IPv4 GATEWAY ADDRESS" --cancel-label "Skip" --inputbox \
 "Enter the address for the IPv4 gateway on your network, such as:
-  `echo $IPADDR | cut -f 1-3 -d .`.1
+  `echo ${IPADDRS[0]} | cut -f 1-3 -d .`.1
 
-If you don't have an IPv4 gateway on your network just hit ENTER
-without entering a gateway IP address.
+If you don't have an IPv4 gateway on your network, leave it blank
+or select 'Skip'.
 
-Enter IPv4 gateway address (aaa.bbb.ccc.ddd):" 14 68 $GATEWAY 2> $TMP/SeTgate
-        if [ $? = 1 -o $? = 255 ]; then
-          rm -f $TMP/SeTgate
+Enter IPv4 gateway address:" 14 69 "$GATEWAY" 2> $TMP/SeTgateway4
+        ERRNO="$?"
+        if [ "$ERRNO" = "1" ]; then
+          GATEWAY=""
+          rm -f $TMP/SeTgateway4
+          break
+        elif [ "$ERRNO" = "255" ]; then
+          rm -f $TMP/SeTgateway4
           exit
         fi
-        GATEWAY="`cat $TMP/SeTgate`"
-        rm -f $TMP/SeTgate
+        GATEWAY="`cat $TMP/SeTgateway4`"
+        rm -f $TMP/SeTgateway4
         if [ "$GATEWAY" = "" ]; then
-          echo > $TMP/SeTgateway
           break
         fi
-        syntax_check_color $GATEWAY 4 WARN
+        syntax_check_v4 "$GATEWAY" 4 WARN
         if [ $? = 0 ]; then
-          echo $GATEWAY > $TMP/SeTgateway
           break
         fi
       done
+      rm -f $TMP/SeTgateway4
     fi
 
     while [ 0 ]; do
-      if [ -r $TMP/SeTIP6 ]; then
-        IPADDR6=`cat $TMP/SeTIP6`
+      if [ -r $TMP/SeTIPSv6 ]; then
+        IP6ADDRS=($(cat $TMP/SeTIPSv6))
       fi
-      dialog --title "ENTER IPv6 ADDRESS FOR '$HOSTNM.$DOMAIN'" --inputbox \
-"Enter the IPv6 address for the local machine.
-Example: fe80:426c:ffff::365a
-If you do not want to configure a static IPv6 address, just hit ENTER." \
-          10 74 $IPADDR6 2> $TMP/SeTlip6
-      if [ $? = 1 -o $? = 255 ]; then
-        rm -f $TMP/SeTlip6
+      dialog --title "ENTER IPv6 ADDRESSES" --cancel-label "Skip" \
+          --colors --inputbox \
+"Enter the \Z1IPv6\Zn addresses for this host.  You may list one or more,
+space delimited, IPv6 addresses with their prefixes in the format:
+  <IP address>/<prefix>
+For example:
+  1a:1b:1c:1d::abc/64  or  1a:1b:1c:1d::abc/64 2b2c::2:3:4:abc/64
+If a prefix is not specified a default of 64 will be used.
+
+If you do not want to configure a static IPv6 address or don't
+know what to put, just leave it blank or select 'Skip'." \
+          16 70 "${IP6ADDRS[*]}" 2> $TMP/SeTIPSv6
+      ERRNO="$?"
+      if [ "$ERRNO" = "1" ]; then
+        IP6ADDRS=()
+        rm -f $TMP/SeTIPSv6
+        break
+      elif [ "$ERRNO" = "255" ]; then
+        rm -f $TMP/SeTIPSv6
         exit
       fi
-      IPADDR6="`cat $TMP/SeTlip6`"
-      rm -f $TMP/SeTlip6
-      if [ "$IPADDR6" = "" ]; then
-        if [ "$IPADDR" = "" ]; then
-          dialog --title "NO IP ADDRESSES" --yesno \
-"You have not configured any IP addresses for your system.
-Are you sure you want to proceed with no IPs?" 6 61
-          if [ $? = 0 ]; then
-            break 2
-          else
-            continue 2
-          fi
-        fi
-      else
-        # We can only do a basic validation of the entered address
-        # as regexes for IPv6 addresses are very complex.
-        if echo "$IPADDR6" | grep -E "^[0-9a-fA-F:]+$" >/dev/null; then
-          echo $IPADDR6 > $TMP/SeTIP6
-          break
-        else
-          dialog --title "INVALID IP ADDRESS" --msgbox \
-"The IP address you entered is not valid.
-Please enter a valid IPv6 address." 6 44
-          continue
-        fi
+      IP6ADDRS=($(cat $TMP/SeTIPSv6))
+      rm -f $TMP/SeTIPSv6
+      if [ "${IP6ADDRS[*]}" = "" ]; then
+        break
       fi
-    done
-
-    if [ ! "$IPADDR6" = "" ]; then
-      while [ 0 ]; do
-        if [ -r $TMP/SeTprefix6 ]; then
-          PREFIX6=`cat $TMP/SeTprefix6`
+      for ((I=0; I < ${#IP6ADDRS[@]}; I++)); do
+        IP="${IP6ADDRS[$I]%/*}"
+        PREFIX="${IP6ADDRS[$I]#*/}"
+        if [ "$IP" = "" ]; then
+          dialog --title "NO IPv6 ADDRESSES" --ok-button "Back" --msgbox \
+              "No IP specified in entry: ${IP6ADDRS[$I]}." 5 60
+          if [ "$?" = "255" ]; then
+            rm -f $TMP/SeTIPSv6
+            exit
+          fi
+          continue 2
         fi
-        dialog --title "ENTER IPv6 PREFIX FOR LOCAL NETWORK" --inputbox \
-"Enter your IPv6 prefix length.
-This will be a single number (eg, 64)" 9 55 $PREFIX6 2> $TMP/SeTprefix6
-        if [ $? = 1 -o $? = 255 ]; then
-          rm -f $TMP/SeTprefix6
-          exit
+        syntax_check_v6 "$IP" || continue 2
+        if [ "$PREFIX" = "" ] || [ "$IP" == "$PREFIX" ]; then
+          IP6ADDRS[$I]="$IP/64"
+          PREFIX="64"
         fi
-        PREFIX6="`cat $TMP/SeTprefix6`"
-        if [ "$PREFIX6" = "" ]; then
-          dialog --title "PREFIX REQUIRED" --msgbox \
-"You have configured this host with a v6
-IP address - a prefix is required." 6 43
-          continue
-        elif (($PREFIX6 == 0)) 2>/dev/null || (($PREFIX6 > 128)) 2>/dev/null || \
-            ! (($PREFIX6)) 2>/dev/null; then
-          dialog --title "PREFIX INVALID" --msgbox \
-"The prefix you entered is not valid.
-Valid prefixes will be in the range 1-128." \
-6 46
-          continue
-        else
-          echo $PREFIX6 >$TMP/SeTprefix6
-          break
+        if [[ ! "$PREFIX" =~ ^[0-9]+$ ]] || (($PREFIX <= 0)) || (($PREFIX > 128)); then
+          dialog --title "INVALID PREFIX" --msgbox \
+"Invalid prefix specified for entry: ${IP6ADDRS[$I]}.
+Valid prefixes will be in the range 1-128." 6 70
+          if [ "$?" = "255" ]; then
+            rm -f $TMP/SeTIPSv6
+            exit
+          fi
+          echo "${IP6ADDRS[@]}" >$TMP/SeTIPSv6
+          continue 2
         fi
       done
+      rm -f $TMP/SeTIPSv6
+      break
+    done
 
+    if [ ! "${IP6ADDRS[*]}" = "" ]; then
       while [ 0 ]; do
         if [ -r $TMP/SeTgateway6 ]; then
-          GATEWAY6=`cat $TMP/SeTgateway6`
+          GATEWAY6="`cat $TMP/SeTgateway6`"
         fi
-        dialog --title "ENTER IPv6 GATEWAY ADDRESS" --inputbox \
+        dialog --title "ENTER IPv6 GATEWAY ADDRESS" --cancel-label "Skip" --inputbox \
 "Enter the address for the IPv6 gateway on your network, such as:
   fe80:426c:ffff::1
 
-If you don't have an IPv6 gateway on your network just hit ENTER
-without entering a gateway IP address.
+If you don't have an IPv6 gateway on your network, leave it blank
+or select 'Skip'.
 
-Enter IPv6 gateway address:" 14 68 $GATEWAY6 2> $TMP/SeTgate6
-        if [ $? = 1 -o $? = 255 ]; then
-          rm -f $TMP/SeTgate6
+Enter IPv6 gateway address:" 14 69 "$GATEWAY6" 2> $TMP/SeTgateway6
+        ERRNO="$?"
+        if [ "$ERRNO" = "1" ]; then
+          GATEWAY6=""
+          rm -f $TMP/SeTgateway6
+          break
+        elif [ "$ERRNO" = "255" ]; then
+          rm -f $TMP/SeTgateway6
           exit
         fi
-        GATEWAY6="`cat $TMP/SeTgate6`"
-        rm -f $TMP/6SeTgate6
+        GATEWAY6="`cat $TMP/SeTgateway6`"
+        rm -f $TMP/SeTgateway6
         if [ "$GATEWAY6" = "" ]; then
-          echo > $TMP/SeTgateway6
-          break 2
+          break
         fi
-        # We can only do a basic validation of the entered address
-        # as regexes for IPv6 addresses are very complex.
-        if echo "$GATEWAY6" | grep -E "^[0-9a-fA-F:]+$" >/dev/null; then
-          echo $GATEWAY6 > $TMP/SeTgateway6
-          break 2
-        else
-          dialog --title "INVALID IP ADDRESS" --msgbox \
-"The IP address you entered is not valid.
-Please enter a valid IPv6 address." 6 44
-          continue
+        syntax_check_v6 "$GATEWAY6"
+        if [ $? = 0 ]; then
+          break
         fi
-        echo $GATEWAY6 > $TMP/SeTgateway6
       done
+      rm -f $TMP/SeTgateway6
     fi
+
+    if [ "${IPADDRS[*]}" = "" ] && [ "${IP6ADDRS[*]}" = "" ]; then
+      dialog --title "NO IP ADDRESSES" --colors --defaultno --yesno \
+"\Z1You have not configured any IP addresses for this host.
+Are you sure you want to proceed with no IPs?\Zn" 6 59
+      ERRNO="$?"
+      if [ "$ERRNO" = "255" ]; then
+        exit
+      elif [ "$ERRNO" = "1" ]; then
+        continue
+      fi
+    fi
+    break
   done
 fi
 
@@ -772,45 +831,74 @@ if [ "$LOOPBACK" = "no" ]; then
  dialog --title "USE A NAMESERVER?" --yesno "Do you wish to configure \
 a nameserver?" 5 42
  if [ $? = 0 ]; then
-  if [ ! "$IPADDR" = "" ]; then
+  if [ ! "${IPADDRS[*]}" = "" ]; then
     if [ ! "$GATEWAY" = "" ]; then
       DNSSAMPLE="$GATEWAY"
       DNSDEFAULT="$GATEWAY"
     else
-      DNSSAMPLE="`echo $IPADDR | cut -f 1-3 -d .`.1"
+      DNSSAMPLE="`echo ${IPADDRS[0]} | cut -f 1-3 -d .`.1"
+      DNSDEFAULT="${DNSSAMPLE%.1}."
     fi
   fi
-  if [ ! "$IPADDR6" = "" ]; then
+  if [ ! "${IP6ADDRS[*]}" = "" ]; then
     if [ ! "$GATEWAY6" = "" ]; then
-      DNSSAMPLE="$DNSSAMPLE or $GATEWAY6"
+      DNSSAMPLE="${DNSSAMPLE:+$DNSSAMPLE or }$GATEWAY6"
       # Keep the v4 nameserver the default, for now.
-      # DNSDEFAULT="$GATEWAY6"
+      DNSDEFAULT="${DNSDEFAULT:-$GATEWAY6}"
     else
-      DNSSAMPLE="or fe80:426c:ffff::1"
+      DNSSAMPLE="${DNSSAMPLE:+$DNSSAMPLE or }${IP6ADDRS[0]%:*}:1"
+      DNSDEFAULT="${DNSSAMPLE:-${IP6ADDRS[0]%:*}}:"
     fi
   fi
   while [ "$NAMESERVER" = "" ]; do
-   dialog --title "ENTER NAMESERVER IP ADDRESS" --inputbox \
+   dialog --title "ENTER NAMESERVER IP ADDRESS" --cancel-label "Skip" \
+       --inputbox \
 "Please give the IP address of the name server to use, such as
-  $DNSSAMPLE
+  ${DNSSAMPLE:-1:2:3:4::1}
 You can add more Domain Name Servers later by editing
   /$RESOLV.
 
-Primary name server to use:"  13 65 $DNSDEFAULT 2> $TMP/SeTns
-   if [ $? = 1 -o $? = 255 ]; then
-    rm -f $TMP/SeTns
-    break
+Primary name server to use:"  13 65 "$DNSDEFAULT" 2> $TMP/SeTns
+   ERRNO="$?"
+   if [ $ERRNO = 255 ]; then
+     rm -f $TMP/SeTns
+     exit
+   elif [ $ERRNO = 1 ]; then
+     rm -f $TMP/SeTns
+     NAMESERVER=""
+     break
+   else
+     NAMESERVER="`cat $TMP/SeTns`"
+     rm -f $TMP/SeTns
+     if [[ "$NAMESERVER" =~ ^.*:.*$ ]]; then
+       syntax_check_v6 "$NAMESERVER"
+       if [ ! $? = 0 ]; then
+         DNSDEFAULT="$NAMESERVER"
+         NAMESERVER=""
+         continue
+       fi
+     else
+       syntax_check_v4 "$NAMESERVER" 4 WARN
+       if [ ! $? = 0 ]; then
+         DNSDEFAULT="$NAMESERVER"
+         NAMESERVER=""
+         continue
+       fi
+     fi
+     break
    fi
-   NAMESERVER="`cat $TMP/SeTns`"
-   rm -f $TMP/SeTns
   done
  fi
+elif [ "$LOOPBACK" = "yes" ]; then
+  IPADDRS=(127.0.0.1/8)
+  IP6ADDRS=(::1/128)
+  VLAN=""
 fi
 
 # Check for existing network driver:
 unset DONOTPROBE
 if cat /proc/net/dev | grep eth0 1> /dev/null 2> /dev/null ; then
-  DONOTPROBE=true 
+  DONOTPROBE=true
 fi
 
 # Really, this rc.netdevice thing is mostly obsolete except for
@@ -883,40 +971,53 @@ if [ "$LOOPBACK" = "yes" -a ! "$NETWORKMANAGER" = "yes" ]; then
   dialog --title "NETWORK SETUP COMPLETE" --yesno "Your networking \
 system is now configured to use loopback:
 
-IP address: 127.0.0.1
-Netmask: 255.255.255.0
+IP addresses: 127.0.0.1/8 ::1/128
 
-Is this correct?  Press 'Yes' to continue, or 'No' to reconfigure." 10 70
+Is this correct?  Press 'Yes' to continue, or 'No' to abandon." 9 70
   RETVAL=$?
+  if [ "$RETVAL" = "255" ]; then
+    exit
+  fi
 elif [ "$LOOPBACK" = "yes" -a "$NETWORKMANAGER" = "yes" ]; then
   dialog --title "NETWORK SETUP COMPLETE" --yesno "Your networking \
 system is now configured to use NetworkManager for
 wired and wireless network management. To set up wireless networks
 and view status, add the Network Management control panel widget to
-your KDE desktop.
+your desktop.
 
-Is this correct? Press 'Yes' to confirm, or 'No' to reconfigure." 10 71
+Is this correct? Press 'Yes' to confirm, or 'No' to abandon." 10 71
   RETVAL=$?
+  if [ "$RETVAL" = "255" ]; then
+    exit
+  fi
 elif [ "$USE_SLAAC" = "yes" ]; then
   dialog --title "NETWORK SETUP COMPLETE" --yesno \
-"Your system is now set up to autoconfigure an IPv6 IP address.
-If this is correct, hit 'Yes' to confirm, or 'No' to cancel." 6 66
-RETVAL=$?
+"Your system is now set up to autoconfigure an IPv6 IP address:
+  Hostname:  $HOSTNM
+  Domain name:  $DOMAIN
+  VLAN ID:   ${VLAN:-(none)}
+  IP addresses:  (use IPv6 SLAAC)
+  Nameserver:   ${NAMESERVER:-(none)}
+
+If this is correct, hit 'Yes' to confirm, or 'No' to abandon." 12 66
+  RETVAL=$?
+  if [ "$RETVAL" = "255" ]; then
+    exit
+  fi
 elif [ "$USE_DHCP" = "" -a "$USE_DHCP6" = "" ]; then
   while [ 0 ]; do
     dialog --title "CONFIRM NETWORK SETUP" \
---ok-label Accept --extra-label Edit --cancel-label Restart --inputmenu \
+--ok-label Accept --extra-label Edit --cancel-label Abandon --inputmenu \
 "These are the settings you have entered. To accept them and complete \
 the networking setup, press ENTER. If you need to make any changes, you \
 can do that now using 'Edit' (or reconfigure later using 'netconfig')." \
 24 75 15 \
 "Hostname:" "$HOSTNM" \
 "Domain Name:" "$DOMAIN" \
-"IPv4 Address:" "$IPADDR" \
-"IPv4 Netmask:" "$NETMASK" \
+"VLAN ID:" "$VLAN" \
+"IPv4 Addresses:" "${IPADDRS[*]}" \
 "IPv4 Gateway:" "$GATEWAY" \
-"IPv6 Address:" "$IPADDR6" \
-"IPv6 Prefix:" "$PREFIX6" \
+"IPv6 Addresses:" "${IP6ADDRS[*]}" \
 "IPv6 Gateway:" "$GATEWAY6" \
 "Nameserver:" "$NAMESERVER" 2> $TMP/tempmsg
     RETVAL=$?
@@ -927,38 +1028,44 @@ can do that now using 'Edit' (or reconfigure later using 'netconfig')." \
         HOSTNM=$NEWVAL
       elif [ "$FIELD" = "Domain Name" ]; then
         DOMAIN=$NEWVAL
-      elif [ "$FIELD" = "IPv4 Address" ]; then
-        IPADDR=$NEWVAL
-      elif [ "$FIELD" = "IPv4 Netmask" ]; then
-        NETMASK=$NEWVAL
+      elif [ "$FIELD" = "VLAN ID" ]; then
+        VLAN=$NEWVAL
+      elif [ "$FIELD" = "IPv4 Addresses" ]; then
+        IPADDRS=( $NEWVAL )
       elif [ "$FIELD" = "IPv4 Gateway" ]; then
         GATEWAY=$NEWVAL
-      elif [ "$FIELD" = "IPv6 Address" ]; then
-        IPADDR6=$NEWVAL
-      elif [ "$FIELD" = "IPv6 Prefix" ]; then
-        PREFIX6=$NEWVAL
+      elif [ "$FIELD" = "IPv6 Addresses" ]; then
+        IP6ADDRS=( $NEWVAL )
       elif [ "$FIELD" = "IPv6 Gateway" ]; then
         GATEWAY6=$NEWVAL
       elif [ "$FIELD" = "Nameserver" ]; then
         NAMESERVER=$NEWVAL
       fi
+    elif [ "$RETVAL" = "255" ]; then
+      exit
     else
       break
     fi
   done
+  if [ ! "${IPADDRS[0]}" = "" ]; then
+    NM="$(cidr2mask "${IPADDRS[0]#*/}")"
+    BROADCAST="$(ipmask "$NM" "${IPADDRS[0]%/*}" | cut -f 1 -d ' ')"
+    NETWORK="$(ipmask "$NM" "${IPADDRS[0]%/*}" | cut -f 2 -d ' ')"
+  fi
 else # DHCP was used
   dialog --title "CONFIRM NETWORK SETUP" \
 --yesno "Your networking system is now configured to use DHCP:
 
   Hostname:  $HOSTNM
   Domain name:  $DOMAIN
-  DHCP hostname:  $DHCP_HOSTNAME
+  VLAN ID:  ${VLAN:-(none)}
+  DHCP hostname:  ${DHCP_HOSTNAME:-(none)}
   IP addresses:  (use DHCP server)
   Netmask & Prefix:  (use DHCP server)
   Gateways:  (use DHCP server)
   Nameserver:  (use DHCP server)
 
-Is this correct?  Press 'Yes' to continue, or 'No' to reconfigure." 15 76
+Is this correct?  Press 'Yes' to continue, or 'No' to reconfigure." 16 76
   RETVAL=$?
 fi
 
@@ -973,13 +1080,9 @@ if [ "$RETVAL" = "0" ]; then
   if [ "$NETWORKMANAGER" = "yes" -a -r etc/rc.d/rc.networkmanager ]; then
     chmod 755 etc/rc.d/rc.networkmanager
   fi
-  if [ "$1" = "" ]; then
-    dialog --msgbox "Settings accepted. Basic network configuration is complete." 6 40
-  fi
+  dialog --msgbox "Settings accepted. Basic network configuration is complete." 6 40
 else
-  if [ "$1" = "" ]; then
-    dialog --msgbox "Settings discarded. Run the 'netconfig' command again if you need to reconfigure your network settings." 6 60
-  fi
+  dialog --msgbox "Settings discarded. Run the 'netconfig' command again if you need to reconfigure your network settings." 6 60
 fi
 
 exit $RETVAL

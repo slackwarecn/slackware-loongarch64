@@ -47,7 +47,7 @@ i=0
 while [ $i -lt $MAXNICS ];
 do
   IFNAME[$i]=${IFNAME[$i]:=eth${i}}
-  i=$(($i+1))
+  i=$((i+1))
 done
 debug_log "List of interfaces: ${IFNAME[*]}"
 
@@ -130,7 +130,7 @@ virtif_create() {
   done
 }
 
-# Function to destory virtual interfaces
+# Function to destroy virtual interfaces
 virtif_destroy() {
   # argument is 'i' - the position of this interface in the VIRTIFNAME array.
   for i in $(seq 0 $((${#VIRTIFNAME[@]} - 1))); do
@@ -159,7 +159,7 @@ br_open() {
       debug_log "/sbin/ip link set dev ${IFNAME[$1]} type bridge $IFOPT"
       /sbin/ip link set dev ${IFNAME[$1]} type bridge $IFOPT
     fi
-  done <<<"${IFOPTS[$i]}|"	# The | on the end is required.
+  done <<<"${IFOPTS[$i]/%|*([[:blank:]])}|"	# The | on the end is required.
   debug_log "/sbin/ip link set dev ${IFNAME[$1]} up"
   /sbin/ip link set dev ${IFNAME[$1]} up
 }
@@ -206,7 +206,7 @@ bond_create() {
       debug_log "/sbin/ip link set dev ${IFNAME[$1]} type bond $IFOPT"
       /sbin/ip link set dev ${IFNAME[$1]} type bond $IFOPT
     fi
-  done <<<"${IFOPTS[$1]}|"	# The | on the end is required.
+  done <<<"${IFOPTS[$1]/%|*([[:blank:]])}|"	# The | on the end is required.
 }
 
 # Function to destroy a bond.
@@ -235,7 +235,7 @@ if_up() {
   i=0
   while [ $i -lt $MAXNICS ]; do
     [ "${IFNAME[$i]}" = "${1}" ] && break
-    i=$(($i+1))
+    i=$((i+1))
   done
   # If "i" is greater or equal to "MAXNICS" at this point, it means we didn't
   # find an entry in IFNAME array corresponding to "${1}", which likely means
@@ -288,7 +288,7 @@ if_up() {
             debug_log "/sbin/ip link set dev ${1} type vlan $IFOPT"
             /sbin/ip link set dev ${1} type vlan $IFOPT
           fi
-        done <<<"${IFOPTS[$i]}|"	# The | on the end is required.
+        done <<<"${IFOPTS[$i]/%|*([[:blank:]])}|"	# The | on the end is required.
       elif [ -z "${BONDNICS[$i]}" ] && [ -z "${BRNICS[$i]}" ]; then
         # Only apply IFOPTS for a physical interface if it's not been handled
         # by a higher level interface.
@@ -297,7 +297,7 @@ if_up() {
             debug_log "/sbin/ip link set dev ${1} $IFOPT"
             /sbin/ip link set dev ${1} $IFOPT
           fi
-        done <<<"${IFOPTS[$i]}|"	# The | on the end is required.
+        done <<<"${IFOPTS[$i]/%|*([[:blank:]])}|"	# The | on the end is required.
       fi
       # Set hardware address:
       if [ -n "${HWADDR[$i]}" ]; then
@@ -350,7 +350,6 @@ if_up() {
         # Note: ARM users should make use of the DHCP_NOIPV4LL[x]="yes" parameter in rc.inet1.conf - this is the correct
         # way to get the behaviour they seek.
         [ "${DHCP_NOIPV4LL[$i]}" = "yes" ] && DHCP_OPTIONS+=("-L")
-        [ -n "${DHCP_IPADDR[$i]}" ] && DHCP_OPTIONS+=("-r" "${DHCP_IPADDR[$i]}")
         echo "${1}: polling for DHCP server"
         # 15 seconds should be a reasonable default DHCP timeout.  30 was too much.
         debug_log "/sbin/dhcpcd -t ${DHCP_TIMEOUT[$i]:-15} ${DHCP_OPTIONS[*]} ${1}"
@@ -389,7 +388,7 @@ if_up() {
           /sbin/ip -6 address show dynamic dev ${1} 2>/dev/null | grep -Ewq 'inet6' && { IF_UP=1; break; }
           sleep 0.5
         done
-        if (($IF_UP != 1)); then
+        if ((IF_UP != 1)); then
           echo "${1}: timed out"
           info_log "${1}: failed to auto configure after ${SLAAC_TIMEOUT[$i]} seconds"
           debug_log "/sbin/ip address flush dev ${1}"
@@ -398,27 +397,8 @@ if_up() {
           /sbin/ip link set dev ${1} down
         fi
       fi
-      if [ "${USE_DHCP[$i]}" != "yes" ] && [ -n "${IPADDR[$i]}" ]; then # add a fixed v4 IP to the interface
-        info_log "${1}: setting fixed IPv4 address"
-        if [ -z "${NETMASK[$i]}" ]; then
-          info_log "${1}: no NETMASK set for primary IP ${IPADDR[$i]} - assuming 24 (aka, 255.255.255.0)"
-          NETMASK[$i]="24"
-        fi
-        debug_log "/sbin/ip -4 address add ${IPADDR[$i]}/${NETMASK[$i]#/} broadcast + dev ${1}"
-        if /sbin/ip -4 address add ${IPADDR[$i]}/${NETMASK[$i]#/} broadcast + dev ${1} && \
-            /sbin/ip link set dev ${1} up; then
-          IF_UP=1
-        else
-          info_log "${1}: failed to set IP ${IPADDR[$i]}"
-          debug_log "/sbin/ip address flush dev ${1}"
-          /sbin/ip address flush dev ${1}
-          debug_log "/sbin/ip link set dev ${1} down"
-          /sbin/ip link set dev ${1} down
-        fi
-      fi
-      if [ -e /proc/sys/net/ipv6 ] && [ "${USE_DHCP6[$i]}" != "yes" ] && [ "${USE_SLAAC[$i]}" != "yes" ] && \
-          [ -n "${IP6ADDRS[$i]}" ]; then # add fixed v6 IPs
-        info_log "${1}: setting fixed IPv6 addresses"
+      if [ -e /proc/sys/net/ipv6 ] && [ -n "${IP6ADDRS[$i]}" ]; then # add v6 IPs
+        info_log "${1}: setting IPv6 addresses"
         # IPv6's Duplicate Address Detection (DAD) causes a race condition when bringing up interfaces, as
         # described here:  https://www.agwa.name/blog/post/beware_the_ipv6_dad_race_condition
         # Disable DAD while bringing up the interface - but note that this means the loss of detection of a
@@ -433,8 +413,7 @@ if_up() {
             PREFIX="64"
           fi
           debug_log "/sbin/ip -6 address add $IP/$PREFIX dev ${1}"
-          if /sbin/ip -6 address add $IP/$PREFIX dev ${1} && \
-              /sbin/ip link set dev ${1} up; then
+          if /sbin/ip -6 address add $IP/$PREFIX dev ${1} && /sbin/ip link set dev ${1} up; then
             # Enable accepting of RA packets if explicitly told to.
             if [ "${USE_RA[$i]}" = "yes" ]; then
               debug_log "${1}: unconditionally accepting IPv6 RA"
@@ -443,7 +422,7 @@ if_up() {
             IF_UP=1
           else
             info_log "${1}: failed to set IP $IP"
-            if (($IF_UP != 1)); then # a v4 address was configured, don't flush it
+            if ((IF_UP != 1)); then # a v4 address was configured, don't flush it
               debug_log "/sbin/ip address flush dev ${1}"
               /sbin/ip address flush dev ${1}
               debug_log "/sbin/ip link set dev ${1} down"
@@ -455,27 +434,55 @@ if_up() {
         debug_log "${1}: resetting IPv6 DAD to default"
         cat /proc/sys/net/ipv6/conf/default/accept_dad >/proc/sys/net/ipv6/conf/${1}/accept_dad
       fi
-      if (($IF_UP == 1)); then # only do further config if the interface came up
-        info_log "${1}: setting fixed IPv4 alias addresses"
-        # Add extra IPv4 addresses to the interface:
-        if [ -n "${IPALIASES[$i]}" ]; then
-          NUM=0
-          for IPALIAS in ${IPALIASES[$i]}; do
-            IP="${IPALIAS%/*}"
-            NM="${IPALIAS#*/}"
-            if [ -z "$NM" ] || [ "$IP" == "$NM" ]; then
-              info_log "${1}: no netmask set for alias IP $IP - assuming 24 (aka, 255.255.255.0)"
-              NM="24"
-            fi
-            debug_log "/sbin/ip -4 address add $IP/$NM broadcast + dev ${1} label ${1}:$NUM"
-            if /sbin/ip -4 address add $IP/$NM broadcast + dev ${1} label ${1}:$NUM; then
-              NUM=$(($NUM + 1))
-            else
-              info_log "${1}: failed to add alias IP $IP"
-            fi
-          done
+      if [ -n "${IPADDRS[$i]}" ] || [ -n "${IPADDR[$i]}" ]; then # add v4 IPs
+        info_log "${1}: setting IPv4 addresses"
+        # Only use IPADDR if no dynamic configuration was done.
+        if [ "${USE_DHCP[$i]}" == "yes" ] || [ "${USE_DHCP6[$i]}" == "yes" ] || [ "${USE_SLAAC[$i]}" == "yes" ]; then
+          V4IPS="${IPADDRS[$i]}"
+        else
+          V4IPS="${IPADDRS[$i]} ${IPADDR[$i]}${NETMASK[$i]:+/${NETMASK[$i]}}"
         fi
-        # Force an MTU (possibly over-riding that set by DHCP or RA):
+        for V4IP in $V4IPS; do
+          IP="${V4IP%/*}"
+          NM="${V4IP#*/}"
+          if [ -z "$NM" ] || [ "$IP" == "$NM" ]; then
+            info_log "${1}: no netmask set for IP $IP - assuming 24 (aka, 255.255.255.0)"
+            NM="24"
+          fi
+          debug_log "/sbin/ip -4 address add $IP/$NM broadcast + dev ${1}"
+          if /sbin/ip -4 address add $IP/$NM broadcast + dev ${1} && /sbin/ip link set dev ${1} up; then
+            IF_UP=1
+          else
+            info_log "${1}: failed to set IP $IP"
+            if ((IF_UP != 1)); then # if at least one address was configured, don't flush the device
+              debug_log "/sbin/ip address flush dev ${1}"
+              /sbin/ip address flush dev ${1}
+              debug_log "/sbin/ip link set dev ${1} down"
+              /sbin/ip link set dev ${1} down
+            fi
+          fi
+        done
+      fi
+      if ((IF_UP == 1)) && [ -n "${IPALIASES[$i]}" ]; then # Only apply IPALIASES onto an up interface
+        info_log "${1}: setting extra IPv4 addresses"
+        NUM=0
+        for EXTRAIP in ${IPALIASES[$i]}; do
+          IP="${EXTRAIP%/*}"
+          NM="${EXTRAIP#*/}"
+          if [ -z "$NM" ] || [ "$IP" == "$NM" ]; then
+            info_log "${1}: no netmask set for alias IP $IP - assuming 24 (aka, 255.255.255.0)"
+            NM="24"
+          fi
+          debug_log "/sbin/ip -4 address add $IP/$NM broadcast + dev ${1} label ${1}:$NUM"
+          if /sbin/ip -4 address add $IP/$NM broadcast + dev ${1} label ${1}:$NUM; then
+            NUM=$((NUM + 1))
+          else
+            info_log "${1}: failed to add alias IP $IP"
+          fi
+        done
+      fi
+      if ((IF_UP == 1)); then
+        # Force an MTU (possibly overriding that set by DHCP or RA):
         if [ -n "${MTU[$i]}" ]; then
           info_log "${1}: setting custom MTU"
           debug_log "/sbin/ip link set dev ${1} mtu ${MTU[$i]}"
@@ -506,7 +513,7 @@ if_down() {
   i=0
   while [ $i -lt $MAXNICS ]; do
     [ "${IFNAME[$i]}" = "${1}" ] && break
-    i=$(($i+1))
+    i=$((i+1))
   done
   if [ $i -ge $MAXNICS ]; then
     info_log "${1}: skipping - you might need to increase MAXNICS"
@@ -518,12 +525,12 @@ if_down() {
       info_log "${1}: stopping dhcpcd"
       # When using -k, dhcpcd requires some command line options to match those used to invoke it:
       if [ "${USE_DHCP[$i]}" = "yes" ] && [ "${USE_DHCP6[$i]}" != "yes" ]; then # only v4 dhcp
-        DHCP_OPTIONS="-4"
+        DHCP_OPTIONS=( -4 )
       elif [ "${USE_DHCP[$i]}" != "yes" ] && [ "${USE_DHCP6[$i]}" = "yes" ]; then # only v6 dhcp
-        DHCP_OPTIONS="-6"
+        DHCP_OPTIONS=( -6 )
       fi
-      debug_log "/sbin/dhcpcd $DHCP_OPTIONS -k -d ${1}"
-      /sbin/dhcpcd $DHCP_OPTIONS -k -d ${1} 2>/dev/null || info_log "${1}: failed to stop dhcpcd"
+      debug_log "/sbin/dhcpcd ${DHCP_OPTIONS[*]} -k -d ${1}"
+      /sbin/dhcpcd "${DHCP_OPTIONS[*]}" -k -d ${1} 2>/dev/null || info_log "${1}: failed to stop dhcpcd"
     fi
     # Disable v6 IP auto configuration and RA before trying to clear the IP from the interface:
     if [ -e /proc/sys/net/ipv6 ]; then
@@ -618,7 +625,7 @@ start() {
 stop() {
   echo "Stopping the network interfaces..."
   gateway_down
-  for (( i = $MAXNICS - 1; i >= 0; i-- )); do
+  for (( i = MAXNICS - 1; i >= 0; i-- )); do
     if_down ${IFNAME[$i]}
   done
   virtif_destroy
@@ -629,6 +636,9 @@ stop() {
 ############
 ### MAIN ###
 ############
+
+# extglob is required for some functionallity.
+shopt -s extglob
 
 case "${1}" in
 start|up) # "start" (or "up") brings up all configured interfaces:

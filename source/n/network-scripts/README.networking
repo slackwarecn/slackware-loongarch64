@@ -1,0 +1,554 @@
+Slackware Network Configuration
+===============================
+
+Networking in Slackware is configured by the /etc/rc.d/rc.inet1 script, and the 
+configuration file /etc/rc.d/rc.inet1.conf.  Wireless interfaces are configured 
+just like any network interface, but accept many more configuration parameters.
+
+The rc.inet1.conf file contains a series of variable array definitions, with 
+each array index corresponding to a single network interface.  This means that 
+each set of parameters with an index of 0 configure the first interface (since 
+indexing starts at 0), parameters with an index of 1 configure the second 
+interface, and so on.  Not all parameters need to be set for each type of 
+interface, or interface number.  This is better illustrated with examples, 
+which you will find in the documentation below.
+
+
+Starting and Stopping Interfaces
+--------------------------------
+The way to start networking (configuring all NICs, bringing the interfaces up, 
+and creating a default route, if required) is by running the command:
+    /etc/rc.d/rc.inet1 start
+This command will configure all networking interfaces which are defined in the 
+configuration file, and is used at boot time to bring networking up.
+
+The counterpart to this is the:
+    /etc/rc.d/rc.inet1 stop
+command, which will bring all networking to a stop.  It is advised to use this 
+with caution as it can make your host completely inaccessable from the network.
+
+Restarting the whole network (all available network interfaces) and resetting 
+the default gateway (if set) is done in a similar fashion to starting it:
+    /etc/rc.d/rc.inet1 restart
+And will first deconfigure all interfaces, before bringing them back up - which
+is functionally equalivant to a 'stop' and 'start' operation.
+
+More specifically speaking, you can start/stop/restart any network interface on 
+an individual basis using the commands:
+       /etc/rc.d/rc.inet1 <interface>_start
+       /etc/rc.d/rc.inet1 <interface>_stop
+       /etc/rc.d/rc.inet1 <interface>_restart
+where <interface> is the name of an existing network interface (eth0, eth1, 
+wlan0, etc).
+
+
+Guided Networking Configuration
+-------------------------------
+The 'netconfig' script is capable of configuring basic networking parameters for 
+the first ethernet interface of the system, and writing an annotated 
+/etc/rc.d/rc.inet1.conf configuration file.  'netconfig' is usually invoked 
+during installation to configure the first ethernet interface of your freshly 
+installed system.
+
+'netconfig' is capable of configuring a set of IPv4 and/or IPv6 addresses for an 
+interface, or setting the interface to be configured using DHCP (both DHCPv4 and 
+DHCPv6) and IPv6 StateLess Address Auto Configuration (SLAAC).  The default 
+gateways and nameservers can also be configured through the guided interface.
+
+The option to use NetworkManager for interface configuration (instead of 
+rc.inet1.conf) is also available.
+
+For most users with a single ethernet interface, and simple IP configuration 
+requirements, 'netconfig' can completely configure the networking sub-system for 
+you.
+
+
+Deprecated and New IPv4 Configuration Syntax
+--------------------------------------------
+With the release of Slackware 15.0, several parameters used in older 
+rc.inet1.conf configurations have become deprecated and are substituted by a 
+new, singular, IP parameter for v4 addresses.
+
+Specifically, the following parameters used in previous rc.inet1.conf 
+configurations to configure IPv4 addresses have become deprecated:
+    IPADDR[x]=""
+    NETMASK[x]=""
+    IPALIASES[x]=""
+These parameters should no longer be used in new configurations.
+
+New configurations should use the updated syntax parameter:
+    IPADDRS[x]=""
+which can hold multiple, space delimited, IPv4 addresses with their CIDR 
+masks in order to configure an interface.
+
+The format for the addresses specified in this new parameter is:
+    IP-address/mask
+For example:
+    IPADDRS[0]="192.168.0.1/24 10.10.10.10/8"
+which would be the equilivant of old syntax:
+    IPADDR[0]="192.168.0.1"
+    NETMASK[0]="255.255.255.0"
+    IPALIASES[0]="10.10.10.10/8"
+
+If a mask (in CIDR notation) is not provided with the IP address in IPADDRS, it
+is assumed to be /24 (aka, 255.255.255.0).  A warning will also be emitted about 
+the missing mask.
+
+rc.inet1 is fully backwards compatible with the older syntax - old configuration 
+files will contiinue to be accepted for the foreseeable future, but 'netconfig' 
+has been adjusted to output the new syntax.
+
+Notes:
+  * When DHCP or SLAAC is used to dynamically configure the interface, IP 
+    addresses specified in IPADDRS will be added to the interface as alias IPs.
+    However, any address specified in IPADDR is *not* added to the interface in
+    order to maintain backwards semantics with the pre 15.0 rc.inet1.
+  * Should an rc.inet1.conf contain both the IPADDR and IPADDRS parameters 
+    (without DHCP or SLAAC being in use) the addresses listed in IPADDRS will be 
+    added to the interface after the IPADDR address is set.
+
+
+Manual Networking Configuration
+-------------------------------
+FIXME
+
+
+IPv6
+----
+  Overview
+  ~~~~~~~~
+
+  With the new IPv4 syntax detailed above, there is the addition of optional
+  configuration semantics for IPv6.
+
+  The IPv6 capabilities in Slackware 15.0+ are as follows:
+    * Dual stack.  Interfaces can be configured with an IPv4 address or an IPv6 
+      address, or both.
+    * Each interface can have single or multiple v4 and/or v6 IPs.
+    * Optional StateLess Address Auto Configuration (SLAAC) of v6 IP addresses, 
+      for quick and easy IPv6 configuration on supported networks.
+    * DHCPv6 support for server controlled dynamic address configuration.
+    * Fixed IPv6 addresses configured interfaces.
+
+  'netconfig' can be used for guided configuration of all of the above features, 
+  or they can be configured manually using the options below.
+
+
+  IPv6 Parameters
+  ~~~~~~~~~~~~~~~
+  v6 IPs can be configured via SLAAC, DHCP6 or statically using the following
+  new options for rc.inet1.conf:
+    USE_SLAAC[x]=""     Allow StateLess Address Auto Configuration of a
+                        (potentially) globally routable v6 IP.  With this 
+                        parameter set to "yes", the interface's v6 IP will ONLY 
+                        be configured via SLAAC, even if Router Advertisment 
+                        indicates DHCPv6 is available on the network - if SLAAC 
+                        is not available on the network, no IPv6 address will be 
+                        assigned.
+
+                        Since 'dhcpcd' is capable of handling SLAAC as well as
+                        DHCPv6, it is better practice to set USE_DHCP6[x]="yes" 
+                        to perform full auto configuration instead.
+
+    USE_DHCP6[x]=""     Use 'dhcpcd' to configure the interface.  This will 
+                        bring up the interface using DHCPv6, falling back to 
+                        SLAAC (if supported on the network), or will leave the 
+                        interface unconfigured after a timeout.  When this 
+                        parameter is set to "yes", the USE_SLAAC[x] option is 
+                        ignored.
+
+                        This is the preferred option to configure an interface
+                        dynamically - whether the network is setup for DHCPv6 or
+                        SLAAC, 'dhcpcd' will be able to configure the interface.
+
+    IP6ADDRS[x]=""      The static v6 IP addresses for the interface.  This
+                        parameter takes a list of v6 IP addresses and prefix
+                        lengths in CIDR notation, in a space delimited list.
+                        For example: IP6ADDRS[x]="a:b:c:d:e::1/48 1:2:3:4::5/64"
+
+                        If a prefix length is not given (separated from the IP
+                        address with a /), a length of 64 will be assumed, and
+                        a warning emitted about the unset value.
+
+                        When either the USE_DHCP6[x] or USE_SLAAC[x] options are
+                        set to "yes", the IP addresses listed in this parameter 
+                        are also added to the interface, but only upon sucessful 
+                        assigning of the dynamic IP address.
+
+  A static gateway can be configured using this parameter:
+    GATEWAY6=""         The default IPv6 gateway for the network.  This is a
+                        single IPv6 address in standard format, without a 
+                        prefix suffix.
+
+  The following lesser used misc options can be used for tailouring of the IPv6
+  configuration process:
+    USE_RA[x]=""        Normally, unless USE_SLAAC[x]="yes" is set, Router
+                        Advertisment (RA) is disabled for the interface as it
+                        can result in extraneous routes being added to the
+                        routing table.  With this option set to "yes", RA
+                        packets will be accepted on the interface even when DHCP
+                        or fixed IP addressing is used, and the routes
+                        advertised by the router will be added to the table.
+
+                        Conversely, if this parameter is explicitly set to "no", 
+                        RA will be disabled at all times - meaning SLAAC cannot 
+                        be performed even when USE_SLAAC[x]="yes" is set. The
+                        default (unset) is to enable RA when SLAAC is in use,
+                        and to disable it otherwise.
+
+                        The use of this parameter should rarely be required as
+                        rc.inet1 will do the right thing.
+
+    SLAAC_TIMEOUT[x]="" The time to wait (in seconds) for an interface to be
+                        configured by SLAAC.  When unset, the default is 15.
+                        Some networks may require a longer period for the router
+                        to broadcast an advertisement packet on the network, so
+                        may need to increase this value.
+
+
+  Disabling IPv6
+  ~~~~~~~~~~~~~~
+  For some use cases, where IPv6 support is not required at all, disabling IPv6
+  may be a better option than leaving the interface unconfigured.
+
+  There are two similar methods which can be used to disable IPv6.  Both of the
+  options involve creating (or replacing the content if it already exists in) 
+  the file:
+      /etc/modprobe.d/ipv6.conf
+  (which overrides any configuration in the /lib/modprobe.d/ipv6.conf file), 
+  with the content:
+      alias ipv6 off
+      alias net-pf-10 off
+  Or:
+      install ipv6 /bin/true
+      install net-pf-10 /bin/true
+
+  It is important to disable both the 'ipv6' and 'net-pf-10' modules since the
+  module can be automatically loaded by either name.
+
+
+  Changes From Previous Behaviour
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  * Previous to Slackware 15.0, if the network the host is connecting to is set 
+    up for StateLess Address Auto Configuration (SLAAC), the host would bring up 
+    an interface with a (potentially) globally routable IPv6 address with no
+    configuration by the user.  This has been changed so that all network
+    configuration must be explicitly enabled.  Thus, interfaces will no longer
+    automatically come up with a valid IPv6 address on networks which support 
+    auto configuration, without enabling the USE_SLAAC[x]="yes" parameter for 
+    the interface.  This is a security enhancement.
+
+  * Unless RA is explicitly enabled using the USE_RA[x]="yes" option, rc.inet1 
+    now disables RA (via the accept_ra tunable in /proc) for an interface before
+    trying to add any IPs configured for it.  This prevents RA on the network 
+    from automatically adding any routes to the table.  When USE_SLAAC[x]="yes" 
+    is set, RA is implicitly re-enabled for the interface (since SLAAC and RA 
+    are usually used together on a network), unless explicitly disabled with 
+    USE_RA[x]="no".  This is a change from previous versions of Slackware, which 
+    would auto configure routes without any user intevention.  This is a 
+    security enhancement.
+
+
+  Caveats
+  ~~~~~~~
+  * When being configured with the USE_DHCP[x]="yes" and USE_DHCP6[x]="yes" 
+    parameters for an interface (that is, configured to obtain both a v4 and v6 
+    addresses via DHCP), 'dhcpcd' will only wait until one type of IP is 
+    obtained before backgrounding - it will not wait for both a v4 AND v6 to be 
+    configured.  This means there is no way to know if the interface has been 
+    completely configured for both types of IP, as one type will continue to be 
+    sought in the background; but MAY ultimately fail.  This is an issue with 
+    the way dhcpcd operates, not an issue with rc.inet1.
+
+
+Bonding / Link Aggregation
+--------------------------
+  Overview
+  ~~~~~~~~
+  Bonding (or Link Aggregation) is a teccnique for combining two or more 
+  physical interfaces into a single, logical, interface; a logical interface 
+  which has all the capabilities of a single physical interface.
+
+  The Slackware bonding options provide full support for the features offered by 
+  the bonding kernel module, in the familiar Slackware parameter configuration 
+  syntax.  Included is the ability to select the bonding mode, easy addition of
+  interfaces to a bond using a new parameter in rc.inet1.conf, and the setting 
+  of bonding module options via a new, generic, IFOPTS[x] parameter.
+
+  At this time 'netconfig' is unable to configure bonded interfaces, so they 
+  must be configured manually with the parameters detailed below.
+
+
+  Bonding Parameters
+  ~~~~~~~~~~~~~~~~~~
+  Bonded interfaces can be configured via two new bond specific parameters for 
+  use in rc.inet1.conf, plus the new, generic, IFOPTS[x] parameter.  The new 
+  bonding parameters are:
+    BONDNICS[x]=""      The space delimited list of interfaces to add to this
+                        bond.  The interfaces will be brought up and configured
+                        while bringing up the interface, so do not need to be
+                        previously defined in rc.inet1.conf.  A bond can be
+                        created with only 1 interface, but does not become
+                        useful until at least 2 interfaces are configured.
+
+    BONDMODE[x]=""      This parameter sets the bonding mode for the logical
+                        interface.  If not specified when BONDNICS[x] has been
+                        used, the default is 'balance-rr'.  See below for a
+                        list of all bonding modes available.
+
+
+  Bonding Modes
+  ~~~~~~~~~~~~~
+  When a bonded logical interface is created, it needs to operate in a 
+  particular mode.  By default that mode is 'balance-rr'.  The following modes, 
+  along with details of their functionallity, are available using the kernel 
+  bonding driver:
+    802.3ad             Also known as LACP.  This mode requires a switch that 
+                        supports an IEEE 802.3ad.  The physical interfaces must
+                        share the same speed and duplex settings and form a 
+                        logical interface which provides fault tolerance and 
+                        load balancing.
+    active-backup       When in this mode only one interface set to active,
+                        while all other interfaces are in the backup state.  If
+                        the active interface fails, a backup interface replaces
+                        it as the only active interface in the bond.  This mode
+                        only provides fault tolerance, no load balancing.
+                        This mode requires that the 'primary <interface>'
+                        option be configured with the IFOPTS[x]="" parameter.
+    balance-alb         The receiving packets are load balanced through Address
+                        Resolution Protocol (ARP) negotiation.  This mode
+                        provides fault tolerance and load balancing.
+    balance-rr          This mode is also known as round-robin mode.  Packets
+                        are sequentially transmitted and received through each
+                        interface one by one.  This mode provides load
+                        balancing functionality along with fault tolerance.
+                        This is the default mode of operation.
+    balance-tlb         This mode ensures that outgoing traffic is distributed
+                        according to the load on each physical interface.  If 
+                        one interface fails to receive traffic, another 
+                        interface is assigned to the receiving role.  This mode
+                        provides fault tolerance and load balancing.
+    balance-xor         The source MAC address uses eXclusive OR (XOR) logic
+                        with the destination MAC address in order to determine 
+                        which physical interface the packet should be sent via.  
+                        This calculation ensures that the same physical (slave) 
+                        interface is selected for each destination host.  If the 
+                        physical interface to be used is in a failed state, one 
+                        of the backup interfaces is used instead.  This mode
+                        provides fault tolerance and load balancing.
+    broadcast           All packets are sent to all the physical (slaved) 
+                        interfaces at once.  This mode provides fault tolerence 
+                        but may result in duplicate packets arriving at the 
+                        destination host, assuming they are not screened out by 
+                        networking hardware.
+
+
+  Bonding Options
+  ~~~~~~~~~~~~~~~
+  Bonding specific options can be set using the the IFOPTS[x]="" paramter (which
+  takes a pipe (|) delimited list of options) for the interface being 
+  configured.  The following are the most useful options (but not an exhaustive 
+  list - see "Further Reading" below for more information) which can be set:
+    lacp_rate           This option specifies the rate at which the host will 
+                        ask the switch to transmit LACPDU packets in 802.3ad 
+                        mode.   Possible values are:
+                            slow          Transmit LACPDUs every 30 seconds.
+                            fast          Transmit LACPDUs every 1 second.
+                        The default is slow, but fast is recommended for rapid
+                        recovery after a physical link failure.
+    miimon              Specifies the MII link monitoring frequency in 
+                        milliseconds.  This determines how often the link state 
+                        of each physical (slaved) interface is checked for link 
+                        failures.  A value of zero disables MII link monitoring, 
+                        but this is NOT advised.  A value of 100 is a good 
+                        starting point.  The default value is 0, so be sure to 
+                        set this option with ALL bonding modes.
+    primary             The physical (slave) interface (eth0, eth1, etc) which 
+                        is to be used as the primary interface.  The specified 
+                        interface will always be the active slave while it is 
+                        available.  Only when the primary interface is off-line 
+                        will alternate interfaces be used.  This is useful when 
+                        one interface is preferred over another (e.g. when one
+                        interface has higher throughput than another).  This 
+                        option is only valid for "active-backup", "balance-tlb", 
+                        and "balance-alb" bonding modes.
+    xmit_hash_policy    Selects the transmit hash policy to use for interface 
+                        selection in "balance-xor", "802.3ad", and "balance-tlb" 
+                        bonding modes.  Possible values are:
+                            layer2        Use eXclusive OR (XOR) of source and 
+                                          destination MAC addresses and packet 
+                                          type ID fields to generate the hash.
+                                          This algorithm will place all traffic 
+                                          to a particular destination on the 
+                                          same phydivsl (slave) interface.
+                            layer2+3      Use a combination of layer2 and 
+                                          layer3 protocol information (MAC 
+                                          addresses and IP addresses) to 
+                                          generate the hash.  This algorithm 
+                                          will place all traffic to a particular 
+                                          destination on the same physical 
+                                          (slave) interface.  This policy is 
+                                          intended to provide a more balanced 
+                                          distribution of traffic than layer2 
+                                          alone.
+                            layer3+4      This policy uses upper layer protocol
+                                          information, when available, to 
+                                          generate the  hash.  This allows for 
+                                          traffic to a particular destination to 
+                                          span multiple physical (slave) 
+                                          interfaces, although a single 
+                                          connection will not span multiple 
+                                          slaves.
+                        The default value is layer2.  Additional (lesser used) 
+                        policies are available - see the "Further Reading" 
+                        section below for further details.
+
+
+  Caveats
+  ~~~~~~~
+  * The IFOPTS[x]="" parameter should always include the 'miimon' option - not 
+    using this option will result in network degradation.
+  * In "active-backup" mode, the "primary" option should also always be 
+    supplied.
+  * When using "802.3ad" mode, set "lacp_rate fast" for faster recovery from an
+    interface failure.  In other modes, the 'xmit_hash_policy' should be set.
+
+
+  Examples
+  ~~~~~~~~
+  FIXME: Add examples.
+
+
+  Further Reading
+  ~~~~~~~~~~~~~~~
+  Full documentation of the bonding layer is available in the kernel source
+  documentation at: /usr/src/linux/Documentation/networking/bonding.txt.
+
+
+VLANs (a.k.a, 802.1q)
+---------------------
+  Overview
+  ~~~~~~~~
+  Virtual LANs (VLANs) allow the segmentation of physical networks into 
+  multiple, isolated, private virtual networks, whilst using shared network 
+  switches and hardware.
+
+  VLANs work by applying tags to network frames to form virtual private LANs.
+  In this way, VLANs can keep network applications separate despite being 
+  connected to the same physical network, and without requiring multiple sets of 
+  cabling and networking devices to be deployed.
+
+  In essence, a VLAN is a collection of devices or network hosts that 
+  communicate with one another as if they make up a single LAN, but utilising
+  shared network hardware.
+
+  Because VLAN frames are tagged with a VLAN ID, it is possible to 'cherry-pick' 
+  those frames from the network by use of a VLAN interface on the host.
+
+  Slackware now allows configuration of such interfaces in order to allow a host 
+  to join a specific VLAN or VLANs.  The guided deployment in 'netconfig' has 
+  been updated to support the creation of such VLAN interfaces.
+
+  The configuration in rc.inet1.conf for VLANs is a simple modification of the 
+  existing support for declaration of a network interface using the standard 
+  Slackware IFNAME[x] parameter.  As shown in the examples below, VLANs 
+  interfaces can be built on top on top of regular, physical, interfaces, or on 
+  top of a bond interface to allow for link aggregation.
+
+  The new IFOPT[x] generic interface options parameter can be used to customise 
+  the usage and configuration of the VLAN interfaces, but is not required in a 
+  normal configuration setting.
+
+
+  Exposing VLANs
+  ~~~~~~~~~~~~~~
+  Configuring VLAN interfaces utilises the standard Slackware networking 
+  configuration syntax in rc.inet1.conf; with setting up an interface as simple
+  as changing the IFNAME[x]="" parameter.
+
+  VLAN interfaces can be configured quite simply in rc.inet1.conf, in the 
+  standard Slackware way of defining an interface.  The key to the configuration 
+  is to use the correct IFNAME[x]="" parameter for the underlying physical (or 
+  bond) interface and the tagged VLAN ID that should be exposed.  For example:
+      IFNAME[0]="eth0.10"
+      IFOPTS[0]=""
+      IPADDRS[0]="192.168.10.1/24"
+
+  The VLAN ID is taken from the full interface name, as set in the IFNAME[x] 
+  parameter which is comprised of the underlying physical (or bond) interface 
+  name, a period (.) and the VLAN ID to expose.  The above example would use the 
+  physical interface 'eth0', and expose the VLAN with ID 10, and configure the
+  interface with the IPv4 address 192.168.10.1 with a mask of 24.
+
+  IFOPTS[x]="" is a pipe (|) delimited list of VLAN kernel module specific 
+  settings to be applied to the interface.  The ip-link(8) man page contains 
+  details of exactly what settings can be used with this option (search for 
+  "VLAN Type Support").  For example:
+      IFOPTS[x]="protocol 802.1ad | reorder_hdr off"
+  Under normal circumstances, where a standard VLAN interface is required, no
+  options need be supplied.
+
+
+  Examples
+  ~~~~~~~~
+  FIXME: Add examples.
+
+
+Bridges
+-------
+
+
+Wireless (WiFi) Network Interfaces
+----------------------------------
+
+
+TUN/TAP
+-------
+
+
+Advanced networking configuration
+---------------------------------
+(stacking interface configs - bond, then VLAN, then bridge)
+
+  It is also possible to use a bond as the underlying interface, which allows
+  link aggregated VLAN interfaces to be created for network redundancy.  For 
+  example:
+      IFNAME[0]="bond0"
+      BONDNICS[0]="eth0 eth1"
+      BONDMODE[0]="active-backup"
+      IFOPTS[0]="miimon 100 | primary eth0"
+      IFNAME[1]="bond0.5"
+      IFNAME[2]="br0"
+      BRNICS[2]="bond0.5"
+      IPADDRS[2]="192.168.5.10/24"
+      IP6ADDRS[2]="a:b:c:d::1/64"
+  Would create a bond interface using the eth0 and eth1 physical ethernet 
+  interfaces, in an "active-backup" redundancy configuration with the primary 
+  interface being "eth0", exposing VLAN ID 5 and setting an IPv4 address of 
+  "192.168.5.10" mask "24", plus an IPv6 address of "a:b:c:d::1" prefix "64" 
+  for the interface.
+
+
+General Caveats
+---------------
+
+       The  network interface definitions are stored in variable arrays.  The bash shell has no facilities to retrieve the largest array index used.  There-
+       fore, the rc.inet1 script makes the assumption that array indexes stay below the value of 6.  Effectively this means that you can configure up  to  6
+       network interfaces in rc.inet1.conf by default.
+
+       If  you  want  to  configure more than six network interfaces, you will have to edit the file /etc/rc.d/rc.inet1.conf and change the value `6' in the
+       line:
+         #MAXNICS="6"
+       (at the very bottom of the file) to a value that is larger than the largest index value you use, and uncomment the line.
+
+       The /etc/rc.d/rc.wireless script is not meant to be run on its own by the user!
+
+
+rc.inet1 does not keep a record of how an interface was configured.  If the 
+interface config is changed in rc.inet1.conf from, say, DHCP to static IP, 
+restarting networking may fail because the previous type of interface config 
+cannot be stopped (because its type is unknown).  In this instance, it is easier 
+to reboot to start from fresh.  However, if reboot is not possible, it may be 
+required to bring the interface down manually (either by deconfiguring the IPs, 
+or killing dhcpcd) before trying to restart the interface.
+

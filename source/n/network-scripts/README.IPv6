@@ -1,0 +1,182 @@
+IPv6 for Slackware
+==================
+
+Features
+--------
+* Dual stack.  Interfaces can be configured with an IPv4 address or an IPv6
+  address, or both.
+* Each interface can have single or multiple v4 and/or v6 IPs.  Additional
+  v4 IPs are added as 'alias' interfaces, whereas v6 IPs are simply added
+  to the interface.
+* Optional StateLess Address Auto Configuration (SLAAC) of v6 IP addresses
+  (disabled by default).
+* DHCPv6 support for server controlled address configuration.
+* Fixed IP configuration of IPv6 interfaces.
+
+Configuration
+-------------
+v6 IPs can be configured via SLAAC, DHCP6 or statically using the following new
+options for rc.inet1.conf:
+  USE_SLAAC[x]=""	Allow StateLess Address Auto Configuration of a
+			(potentially) globally routable v6 IP. With this option
+			set to "yes", the interface's v6 IP will ONLY be
+			configured via SLAAC, even if RA indicates DHCP6 is
+			available on the network - if SLAAC is not available on
+			the network, no IPv6 address will be assigned.
+
+			Since dhcpcd is capable of handling SLAAC as well as
+			DHCP, it is better practice to set USE_DHCP6[x]="yes" to
+			perform full auto configuration instead.
+
+  USE_DHCP6[x]=""	Use dhcpcd to configure the interface.  This will bring
+			up the interface using DHCP6, falling back to SLAAC (if
+			configured on the network), or will leave the interface
+			unconfigured after a timeout.  When this option is set
+			to "yes", the USE_SLAAC[x] option is ignored.
+
+			This is the preferred option to configure an interface
+			dynamically - whether the network is setup for DHCP6 or
+			SLAAC, dhcpcd will be able to configure the interface.
+
+  IP6ADDRS[x]=""	The static v6 IP addresses for the interface.  This
+			option takes a list of v6 IP addresses and prefix
+			lengths in CIDR notation, in a space delimited list.
+			For example: IP6ADDRS[x]="a:b:c:d:e::1/48 1:2:3:4::5/64"
+
+			If a prefix length is not given (separated from the IP
+			address with a /), a length of 64 will be assumed, and
+			a warning emitted about the unset value.
+
+			When either the USE_DHCP6[x] or USE_SLAAC[x] options are
+			set to "yes", this setting is ignored - dynamic
+			configuration takes precedence over fixed IPs in
+			Slackware.
+
+  GATEWAY6=""		The default IPv6 gateway for the network.  This is a
+			IPv6 address in standard format.
+
+The following lesser used misc options have been added for use in rc.inet1.conf:
+  USE_RA[x]=""		Normally, unless USE_SLAAC[x]="yes" is set, Router
+			Advertisment (RA) is disabled for the interface as it
+			can result in extraneous routes being added to the
+			routing table.  With this option set to "yes", RA
+			packets will be accepted on the interface even when DHCP
+			or fixed IP addressing is used, and the routes
+			advertised by the router will be added to the table.
+
+			Conversely, if this option is explicitly set to "no", RA
+			will be disabled at all times - meaning SLAAC cannot be
+			performed even when USE_SLAAC[x]="yes" is set. The
+			default (unset) is to enable RA when SLAAC is in use,
+			and to disable it otherwise.
+
+			The use of this option should rarely be required as
+			rc.inet1 will do the right thing.
+
+  SLAAC_TIMEOUT[x]=""	The time to wait (in seconds) for an interface to be
+			configured by SLAAC.  When unset, the default is 15.
+			Some networks may require a longer period for the router
+			to broadcast an advertisement packet on the network.
+
+
+Disabling IPv6
+--------------
+For some use cases, where IPv6 support is not required at all, disabling IPv6
+may be a better option than leaving the interface unconfigured.
+
+There are two similar methods which can be used to disable IPv6.  Both of the
+options involve creating (or replacing the content if it already exists) the
+file /etc/modprobe.d/ipv6.conf (which overrides any configuration in the
+/lib/modprobe.d/ipv6.conf file), and making the content as follows:
+  alias ipv6 off
+  alias net-pf-10 off
+Or:
+  install ipv6 /bin/true
+  install net-pf-10 /bin/true
+
+It is important to disable both the 'ipv6' and 'net-pf-10' modules since the
+module can be automatically loaded by each name.
+
+
+Changes from previous Slackware versions
+----------------------------------------
+* Previously, if the network the host is connecting to is configured for
+  StateLess Address Auto Configuration (SLAAC), the host would bring up an
+  interface with a (potentially) globally routable IPv6 address with no
+  configuration by the user.  This has been changed so that all network
+  configuration must be explicitly enabled.  Thus, interfaces will no longer
+  automatically come up with a valid IPv6 address on networks which support auto
+  configuration, without enabling the USE_SLAAC[x]="yes" option for the
+  interface.  This is a security enhancement.
+
+* Unless RA is explicitly enabled using the USE_RA[x]="yes" option, rc.inet1 now
+  disables RA (via the accept_ra tunable in /proc) for an interface before
+  trying to add any IPs configured for it.  This prevents RA on the network from
+  automatically adding any routes to the table.  When USE_SLAAC[x]="yes" is set,
+  RA is implicitly re-enabled for the interface (since SLAAC and RA are usually
+  used together on a network), unless explicitly disabled with USE_RA[x]="no".
+  This is a change from previous versions of Slackware, which would auto
+  configure routes. This is a security enhancement in the same vein as above.
+
+* Interfaces will no longer be brought into the 'up' state unless they are
+  actually configured with an IP address.  In previous versions, no matter
+  whether the interface was assigned an IP (either via DHCP or a fixed IP) or
+  not, the interface would be left in the 'up' state after executing 'rc.inet1
+  start'.  This will no longer happen and is considered a clean-up of the
+  previous behaviour.
+
+* If no NETMASK[x] is set for an interface, rc.inet1 will now assume a
+  prefix/netmask of 24 (and will emit a warning). CIDR notation netmasks are now
+  recommended (with the leading / as optional), but the old style dotted-quad
+  notation is still accepted for IPv4.  This is a configuration enhancement.
+
+* In previous versions, the IP aliases configuration for IPv4 assumed a netmask
+  of /32, making the interface only addressable by itself.  Now, a netmask of
+  /24 is assumed where none is provided in the configuration.  This is a bugfix.
+
+* Sometime during this -current cycle, the call to dhcpcd gained a hard coded -L
+  (disable use of IPv4LL addresses as last resort) parameter which effectively
+  rendered the DHCP_NOIPV4LL[x] option redundant - the use of -L was not
+  contingent upon the value of DHCP_NOIPV4LL[x].  The hard coded -L has been
+  removed from the dhcpcd command line, restoring the behaviour of 14.2 and the
+  usefulness of the DHCP_NOIPV4LL[x] option.
+
+
+Known issues
+------------
+* When being invoked without the -4 or -6 option (that is, when both USE_DHCP[x]
+  and USE_DHCP6[x] are set), dhcpcd will only wait until one type of IP is
+  obtained before backgrounding - it will not wait for both a v4 AND v6 to be
+  configured.  This means there is no way to know if the interface has been
+  configured for both types of IP, as one type will continue to be sought in the
+  background; but may ultimately fail.  This is an issue with the way dhcpcd
+  operates and not an issue with rc.inet1.
+
+* Changes in interface configuration type from DHCP to fixed IP or stateless
+  will cause an issue where the dhcpcd daemon fails to be stopped during a
+  restart or stop/start operation because rc.inet1 is unaware of how an
+  interface was previously configured - it can only stop the interface based
+  upon its current configuration.  This is a by-product of the way the rc.inet1
+  script is coded (there is no record kept of the previous configuration type of
+  an interface) and is present (but doesn't seem to be documented anywhere) on
+  previous versions of Slackware.  This particular issue is not specifically
+  related to IPv6, but is documented here for completeness.
+
+* When being killed in if_down(), dhcpcd requires some command line options to
+  match those which were used to invoke it - not only does the interface name
+  need to match, but also the use of -4/-6.  This can cause a problem during a
+  restart or stop/start of the interface if the configuration for DHCP has
+  changed.  This manifests itself in the same way as the issue detailed above
+  and is no more serious.  In both cases, the end user must kill the dhcpcd
+  daemon manually.  This issue is caused by the new way dhcpcd is invoked when
+  using/not using IPv6.
+
+
+Thanks
+------
+* Robby Workman, for the original iproute2 version of rc.inet1 and advice.
+* David Spencer, for advice, debating, and testing the SLAAC implementation.
+
+-- 
+Darren 'Tadgy' Austin.
+<darren (at) afterdark.org.uk>

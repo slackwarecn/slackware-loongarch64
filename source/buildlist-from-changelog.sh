@@ -259,7 +259,7 @@ cat $TMPDIR/header $TMPDIR/kernel $TMPDIR/sobumps $TMPDIR/perl $TMPDIR/packages 
       echo "# UNHANDLED: $line" >> $TMPDIR/output
       continue
     fi
-    BUILDOPT="$(grep "^${PACKAGE}$" $(dirname $SLACKSRC/$KDESB)/modules/* | rev | cut -f 1 -d / | rev)"
+    BUILDOPT="$(grep "^${PACKAGE}$" $(dirname $SLACKSRC/$KDESB)/modules/* | rev | cut -f 1 -d / | rev | head -n 1)"
     echo "$KDESB $BUILDOPT" >> $TMPDIR/output
     continue
   fi

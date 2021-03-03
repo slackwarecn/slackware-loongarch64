@@ -30,7 +30,7 @@ PKG=$TMP/package-openssh
 
 PKGNAM=openssh
 VERSION=${VERSION:-$(echo openssh-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -85,14 +85,6 @@ chown -R root:root .
 
 # Restore support for tcpwrappers:
 zcat $CWD/openssh.tcp_wrappers.diff.gz | patch -p1 --verbose || exit 1
-
-# Fix ssh-copy-id EOF bug:
-zcat $CWD/ssh-copy-id.diff.gz | patch -p1 --verbose || exit 1
-
-# Fix sandbox with glibc-2.33 (needed on 32-bit platforms):
-if [ ! "$LIBDIRSUFFIX" = "64" ]; then
-  zcat $CWD/openssh-glibc-2.33.patch.gz | patch -p1 --verbose || exit 1
-fi
 
 # Choose correct options depending on whether PAM is installed:
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then

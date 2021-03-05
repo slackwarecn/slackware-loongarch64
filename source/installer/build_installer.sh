@@ -3,7 +3,7 @@ set +o posix
 
 # $Id: build_installer.sh,v 1.129 2011/04/13 23:03:07 eha Exp eha $
 #
-# Copyright 2005-2018  Stuart Winter, Surrey, England, UK
+# Copyright 2005-2021  Stuart Winter, Surrey, England, UK
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -186,9 +186,9 @@ case $ARCH in
     KEXTRAV[0]="-armv7"
     ;;
   aarch64)
-    KERNELS[0]=aarch64
+    KERNELS[0]=armv8
     # The -extraversion (appended to the $KVER) for the KERNELS[*]:
-    KEXTRAV[0]="-aarch64"
+    KEXTRAV[0]="-armv8"
     ;;
   i?86)
     # What kernel directories are in this installer?
@@ -510,7 +510,7 @@ mkdir -p -m755  etc/rc.d
 mkdir -p -m755  etc/dropbear
 mkdir -p -m755  floppy
 mkdir -p -m755  lib/modules
-[ "$ARCH" = "x86_64" ] && mkdir -p -m755  lib64
+[[ "${ARCH}" =~ (x86_64$|aarch64$) ]] && mkdir -p -m755  lib64
 mkdir -p -m700  lost+found
 mkdir -p -m755  mnt
 mkdir -p -m755  proc
@@ -1836,7 +1836,7 @@ sed -i 's?(version.*)?(version '"$INSTALLERVERSION"')?g' etc/issue
 
 case $ARCH in
 
-  arm*)
+  arm*|aarch64)
   #
   # ARM modifications:
   #
@@ -1911,19 +1911,14 @@ cd $PKG/$ARCH-installer-filesystem/
 echo "--- Creating your new initrd.img ---"
 # Leave a note in the installer image to help us work out which build version
 # it is -- just aids with bug reports for now:
-cat <<"EOF" > .installer-version
-Version details:
-----------------
-Installer............: $Revision: 1.129 $ ($Date: 2011/04/13 23:03:07 $)
-EOF
-cat << EOF >> .installer-version
-For Slackware version: $INSTALLERVERSION
-Build date...........: $( date )
+cat << EOF > .installer-version
+For Slackware version : $INSTALLERVERSION
+Build date............: $( date )
 
 Build details:
 --------------
-Installer arch.......: $ARCH
-Build host...........: $( uname -a )
+Installer arch target : $ARCH
+Build host............: $( uname -a )
 
 EOF
 

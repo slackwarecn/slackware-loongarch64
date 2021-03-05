@@ -89,7 +89,6 @@ for recipe in $RECIPES ; do
   echo "* Building kernels for recipe ${recipe}..."
   echo "*************************************************"
   echo
-  sleep 3
 
   # Build kernel-source package:
   KERNEL_SOURCE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_CONFIG="config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild)

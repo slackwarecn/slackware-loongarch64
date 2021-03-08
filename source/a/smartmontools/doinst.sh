@@ -23,3 +23,4 @@ preserve_perms() {
 
 preserve_perms etc/rc.d/rc.smartd.new
 config etc/smartd.conf.new
+config etc/default/smartd.new

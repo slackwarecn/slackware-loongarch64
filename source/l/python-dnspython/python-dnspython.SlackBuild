@@ -1,9 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Slackware build script for elementary-xfce
-
-# Copyright 2019  Robby Workman, Tuscaloosa, Alabama, USA
-# Copyright 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,19 +22,26 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=elementary-xfce
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+# First, convert the .zip file if needed:
+if ls *.zip 1> /dev/null 2> /dev/null ; then
+  unzip *.zip
+  tar cf $(basename *.zip .zip).tar $(basename *.zip .zip)
+  touch -r *.zip *.tar
+  plzip -9 *.tar
+  rm -r $(basename *.zip .zip)
+  rm *.zip
+fi
+
+PKGNAM=python-dnspython
+SRCNAM=dnspython
+VERSION=${VERSION:-$(echo ${SRCNAM}-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-
-# Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
-    # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    i?86) ARCH=i586 ;;
+    arm*) ARCH=arm ;;
+       *) ARCH=$( uname -m ) ;;
   esac
 fi
 
@@ -52,38 +56,13 @@ fi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-else
-  SLKCFLAGS="-O2"
-  LIBDIRSUFFIX=""
-fi
-
-rm -rf $PKG $TMP/package-optipng
+rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
+rm -rf $SRCNAM-$VERSION
+tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
+cd $SRCNAM-$VERSION || exit 1
 
-# First build a local copy of optipng
-rm -rf $(basename $CWD/optipng-*.tar.lz .tar.lz)
-tar xvf $CWD/optipng-*.tar.lz || exit 1
-cd optipng-*
-./configure || exit 1
-make $NUMJOBS -C src/optipng || exit 1
-mkdir $TMP/package-optipng
-cp src/optipng/optipng $TMP/package-optipng || exit 1
-
-# Now build elementary-xfce icon theme
-cd $TMP
-rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.lz
-cd $PKGNAM-$VERSION
 chown -R root:root .
 find -L . \
  \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
@@ -91,33 +70,23 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
   -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --mandir=/usr/man \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --build=$ARCH-slackware-linux \
-  || exit 1
-
-sed -i "s,xargs optipng,xargs $TMP/package-optipng/optipng,g" Makefile
-
-make $NUMJOBS || exit 1
-make install DESTDIR=$PKG || exit 1
-
-rm -f $PKG/usr/share/icons/*/{AUTHORS,CONTRIBUTORS,LICENSE}
+python3 setup.py install --root=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a \
-  AUTHORS CONTRIBUTORS LICENSE README.md \
+cp -a *.rst LICENSE* NOTICE PKG-INFO \
   $PKG/usr/doc/$PKGNAM-$VERSION
+find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 0644 {} \+
+
+# If there's a HISTORY.rst, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r HISTORY.rst ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat HISTORY.rst | head -n 1000 > $DOCSDIR/HISTORY.rst
+  touch -r HISTORY.rst $DOCSDIR/HISTORY.rst
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

@@ -24,6 +24,6 @@ cp -a etc/php.ini-production etc/php.ini.new
 config etc/php.ini.new
 cp -a etc/php-fpm.conf.default etc/php-fpm.conf.new
 config etc/php-fpm.conf.new
-cp -a etc/php-fpm.conf.default etc/php-fpm.conf.new
-config etc/php-fpm.conf.new
+cp -a etc/php-fpm.d/www.conf.default etc/php-fpm.d/www.conf.new
+config etc/php-fpm.d/www.conf.new
 config etc/httpd/mod_php.conf.new

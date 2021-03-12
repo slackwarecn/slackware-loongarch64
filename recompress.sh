@@ -615,6 +615,7 @@ gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
 gzip ./source/ap/mariadb/mysql_install_db.nopam.diff
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
+gzip ./source/ap/hplip/hplip.is_alive.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff

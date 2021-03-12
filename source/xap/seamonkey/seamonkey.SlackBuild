@@ -26,7 +26,7 @@ PKGNAM=seamonkey
 TARBALLVER=${VERSION:-$(basename $(ls seamonkey-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)}
 # Strip the end from beta versions:
 VERSION=$(echo $TARBALLVER | cut -f 1 -d b)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -59,12 +59,16 @@ fi
 if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
   OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1 -g0"}
+  # The elf hack has been causing failures on 32-bit x86:
+  ELFHACK="--disable-elf-hack"
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
   OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1 -g0"}
+  ELFHACK="--enable-elf-hack"
 else
   LIBDIRSUFFIX=""
   OPTIMIZE_FLAG=${OPTIMIZE_FLAG:-"-O1 -g0"}
+  ELFHACK="--enable-elf-hack"
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
@@ -156,10 +160,11 @@ OPTIONS="\
   --disable-necko-wifi \
   --enable-extensions=default \
   --enable-js-shell \
-  --enable-elf-hack \
+  $ELFHACK \
   --enable-release \
   --enable-calendar \
-  --without-system-nspr \
+  --with-system-nss \
+  --with-system-nspr \
   --with-system-zlib \
   --enable-application=comm/suite \
   --host=$ARCH-slackware-linux \

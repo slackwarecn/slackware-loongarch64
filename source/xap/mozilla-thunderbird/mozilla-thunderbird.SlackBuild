@@ -30,7 +30,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mozilla-thunderbird
 VERSION=$(basename $(ls thunderbird-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
 RELEASEVER=$(echo $VERSION | cut -f 1 -d e | cut -f 1 -d b)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Specify this variable for a localized build.
 # For example, to build a version of Thunderbird with Italian support, run
@@ -114,8 +114,8 @@ else
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
-export CC=${CC:-gcc}
-export CXX=${CXX:-g++}
+export CC=${CC:-clang}
+export CXX=${CXX:-clang++}
 
 # Keep memory usage as low as possible when linking:
 SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
@@ -238,6 +238,7 @@ if [ ! -z $MOZLOCALIZE ]; then
     mail/installer/package-manifest.in || exit 1
 fi
 
+export MACH_USE_SYSTEM_PYTHON="1"
 export BUILD_OFFICIAL=1
 export MOZILLA_OFFICIAL=1
 export MOZ_PHOENIX=1
@@ -280,6 +281,9 @@ echo "ac_add_options --disable-tests" >> .mozconfig
 ./mach build || exit 1
 ./mach buildsymbols || exit 1
 DESTDIR=$PKG ./mach install || exit 1
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 # Clean up the build time dependencies:
 rm -rf $TMP/mozilla-thunderbird-build-deps
@@ -353,6 +357,13 @@ EOF
   chown root:root $PKG/usr/bin/thunderbird
   chmod 755 $PKG/usr/bin/thunderbird
 fi
+
+# Fix duplicate binary, https://bugzilla.mozilla.org/show_bug.cgi?id=658850
+( cd $PKG/usr/lib$LIBDIRSUFFIX/thunderbird
+  if cmp thunderbird thunderbird-bin ; then
+    ln -sf thunderbird-bin thunderbird
+  fi
+)
 
 mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

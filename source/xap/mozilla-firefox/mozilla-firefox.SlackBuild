@@ -28,7 +28,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mozilla-firefox
 VERSION=$(basename $(ls firefox-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
 RELEASEVER=$(echo $VERSION | cut -f 1 -d r | cut -f 1 -d b | cut -f 1 -d e)
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Specify this variable for a localized build.
 # For example, to build a version of Firefox with Italian support, run
@@ -85,8 +85,8 @@ if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
-export CC=${CC:-gcc}
-export CXX=${CXX:-g++}
+export CC=${CC:-clang}
+export CXX=${CXX:-clang++}
 
 # Keep memory usage as low as possible when linking:
 SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
@@ -262,6 +262,7 @@ if [ ! -z $MOZLOCALIZE ]; then
     browser/installer/package-manifest.in || exit 1
 fi
 
+export MACH_USE_SYSTEM_PYTHON="1"
 export MOZILLA_OFFICIAL="1"
 export BUILD_OFFICIAL="1"
 export MOZ_PHOENIX="1"
@@ -320,6 +321,9 @@ fi
 
 ./mach buildsymbols || exit 1
 DESTDIR=$PKG ./mach install || exit 1
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 # Clean up the build time dependencies:
 rm -rf $TMP/mozilla-firefox-build-deps
@@ -397,6 +401,13 @@ EOF
   chown root:root $PKG/usr/bin/firefox
   chmod 755 $PKG/usr/bin/firefox
 fi
+
+# Fix duplicate binary, https://bugzilla.mozilla.org/show_bug.cgi?id=658850
+( cd $PKG/usr/lib$LIBDIRSUFFIX/firefox
+  if cmp firefox firefox-bin ; then
+    ln -sf firefox-bin firefox
+  fi
+)
 
 mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

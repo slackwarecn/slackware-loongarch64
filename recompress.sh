@@ -1029,7 +1029,7 @@ gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
-gzip ./source/xap/mozilla-firefox/unbreakdocs.diff
+gzip ./source/xap/mozilla-firefox/gkrust.a.no.networking.check.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/dropbear/doinst.sh
 gzip ./source/installer/sources/initrd/etc/keymaps.tar

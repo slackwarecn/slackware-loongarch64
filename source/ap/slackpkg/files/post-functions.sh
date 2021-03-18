@@ -124,6 +124,10 @@ runvimdiff() {
 }
 
 looknew() {
+	local ROWS SIZE FILES PROMPTTEXT TEXTLINES MAXROWS
+	local newcount f n fn
+	f=0
+	n=0
 
 	# with ONLY_NEW_DOTNEW set, slackpkg will search only for
 	# .new files installed in actual slackpkg's execution
@@ -133,59 +137,108 @@ looknew() {
 		ONLY_NEW_DOTNEW=""
 	fi
 
-	echo -e "\nSearching for NEW configuration files"
-	FILES=$(find ${ROOT}/etc ${ROOT}/var/yp ${ROOT}/usr/share/vim -name "*.new" ${ONLY_NEW_DOTNEW} \
+	printf "%s\n" "Searching for NEW configuration files..."
+
+	FILES=$( find \
+		${ROOT}/etc \
+		${ROOT}/var/yp \
+		${ROOT}/usr/share/vim \
+		-name "*.new" \
+		${ONLY_NEW_DOTNEW} \
 		-not -name "rc.inet1.conf.new" \
 		-not -name "group.new" \
 		-not -name "passwd.new" \
 		-not -name "shadow.new" \
-		-not -name "gshadow.new" 2>/dev/null | sort 2>/dev/null)
-	if [ "$FILES" != "" ]; then
-		newcount=$(echo "$FILES" | wc -l)
-		echo -ne "\n\
-Some packages had new configuration files installed ($newcount new files):\n\n"
+		-not -name "gshadow.new" 2>/dev/null |
+		sort -V 2>/dev/null )
 
-		SIZE=$(stty size)
+	if [ -n "$FILES" ]; then
+		newcount=$( echo "$FILES" | wc -l )
+		SIZE=$( stty size )
 		ROWS=${SIZE% *}
-		LISTMAX=$((ROWS-20))
 
-		if [ $newcount -le $LISTMAX ]; then
-			echo -e "$FILES"
-		else
-			F=0
-			for FN in $FILES; do
-				F=$((F+1))
-				echo "$FN"
-
-				if [ $F -ge $LISTMAX ]; then
-					F=0
-					echo -ne "\nPress SPACE for more, ENTER to skip"
-					IFS=$'\n' read -rn 1 junk
-					echo -e "\n"
-					
-					if [ "$junk" = " " ]; then
-						continue
-					elif [ "$junk" = "" ]; then
-						break
-					fi
-				fi
-			done
-		fi
-
-		echo -ne "\n\
-You have four choices:
+		# Set here so we can count the No. of lines
+		PROMPTTEXT="\n\
+What do you want (K/O/R/P)?
 
 	(K)eep the old files and consider .new files later
 
 	(O)verwrite all old files with the new ones"
-		[ "$ORIG_BACKUPS" != "off" ] && echo -ne ". The
+
+		[ "$ORIG_BACKUPS" != "off" ] && PROMPTTEXT+=". The
 	   old files will be stored with the suffix .orig"
-		echo -e "\n\n\
+
+		PROMPTTEXT+="\n\n\
 	(R)emove all .new files
 
-	(P)rompt K, O, R selection for every single file
+	(P)rompt K, O, R selection for every single file\n"
 
-What do you want (K/O/R/P)?"
+		printf "%s %s\n\n" "Some packages had new configuration" \
+			"files installed ($newcount new files):"
+
+		# No. of prompt etc. lines to print.
+		TEXTLINES=$(( $( printf %b "$PROMPTTEXT" | wc -l ) + 3 ))
+
+		if [ $(( newcount + TEXTLINES )) -lt $ROWS ]; then
+			# All files will fit on screen.
+			printf "%s\n" "$FILES"
+		else
+			# Won't all fit, so scroll a screenfull at a time.
+			# No. of lines minus 'Searching for' + 'Press SPACE...'
+			MAXROWS=$(( ROWS - 5 ))
+
+			for fn in $FILES; do
+				junk=" "
+				f=$(( f + 1 ))
+				n=$(( n + 1 ))
+				echo "$fn"
+
+				# Stop printing at bottom of screen
+				if [ $f -ge $MAXROWS ]; then
+
+					# No. of lines minus 'Press SPACE...'
+					MAXROWS=$(( ROWS - 2 ))
+					f=0
+					IFS=$( printf "\n" ) read -rn 1 -p "
+	Press SPACE for more, ENTER to skip" junk
+
+					# Enter pressed
+					if [ -z "$junk" ]; then
+						tput -S <<EOF
+						cuu 1
+						el 2
+						cuu 1
+						el 2
+EOF
+						break
+					else
+						# Space pressed
+						printf "\n"
+						tput -S <<EOF
+						cuu 1
+						el 2
+						cuu 1
+						el 2
+EOF
+					fi
+				fi
+			done
+
+			# Final prompt to stop list scrolling off the top
+			if [ ! -z "$junk" ] && [ $f -ne 0 ]; then
+				IFS=$( printf "\n" ) read -rn 1 -p "
+	Press any key to continue" junk
+				printf "\n"
+				tput -S <<EOF
+				cuu 1
+				el 2
+				cuu 1
+				el 2
+EOF
+			fi
+		fi
+
+		printf %b "$PROMPTTEXT"
 		answer
 		case $ANSWER in
 			K|k)
@@ -238,7 +291,9 @@ What do you want (K/O/R/P)?"
 				break
 			;;
 			*)
-				echo "OK! Your choice is nothing! slackpkg will Keep the old files for you to deal with later"
+				echo "
+OK! Your choice is nothing! slackpkg will Keep the old files \
+for you to deal with later"
 			;;
 		esac
 	else

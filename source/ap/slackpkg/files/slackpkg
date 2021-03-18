@@ -17,7 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# Project Page: http://slackpkg.org/
+# Project Page: https://slackpkg.org/
 # Roberto F. Batista (aka PiterPunk) piterpunk@slackware.com
 # Evaldo Gardenali (aka UdontKnow) evaldogardenali@fasternet.com.br
 #
@@ -52,7 +52,10 @@ fi
 VERSION=@VERSION@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 SLACKWARE_VERSION=$(cat /etc/slackware-version | cut -f2 -d\ )
-CONF=${CONF:-/etc/slackpkg}
+
+[ -z "$ROOT" ] && CONF=${CONF:-/etc/slackpkg}
+[ -n "$ROOT" ] && CONF=${CONF:-"${ROOT}/etc/slackpkg"}
+
 SOURCE=$(sed -n '
 	# Remove leading and trailing blanks
 	s/^[[:blank:]]*//
@@ -68,6 +71,7 @@ SOURCE=$(sed -n '
 	\@^https\{0,1\}://@p
 	\@^ftps\{0,1\}://@p' $CONF/mirrors)
 . $CONF/slackpkg.conf
+WORKDIR=${ROOT}/${WORKDIR}
 ERROR=""
 
 # Set temporary directory
@@ -238,6 +242,10 @@ while [ -n "$1" ] ; do
       fi
       shift $#
     ;;
+    blacklist)
+      CMD=$1
+      shift $#
+    ;;
     update)
       CMD=$1
       shift
@@ -324,12 +332,13 @@ case "$CMD" in
 			echo "Slackpkg: No updated packages since last check."
 		else
 			echo "Slackpkg: Updated packages are available since last check." >&2
+			PENDING_UPDATES=1
 		fi
 		;;
 	show-changelog)
 		# display changelog and exit
-		if [ -e ${ROOT}/${WORKDIR}/ChangeLog.txt ]; then
-			$MORECMD ${ROOT}/${WORKDIR}/ChangeLog.txt
+		if [ -e ${WORKDIR}/ChangeLog.txt ]; then
+			$MORECMD ${WORKDIR}/ChangeLog.txt
 		else
 			echo "ChangeLog.txt file not found. Aborting"
 		fi
@@ -472,17 +481,11 @@ case "$CMD" in
 		fi
 	;;
 	blacklist)
-		#
-		# If blacklist is called without package name, list
-		# all blacklisted packages
-		if [ "$INPUTLIST" = "" ]; then
-			echo -e "Packages in blacklist:\n"
-			grep -e "^\([a-z]\)" $CONF/blacklist | $MORECMD
-			cleanup
-		fi
-		
-		# As of 15.0, this function just runs /bin/false and exits with a comment
-		blacklist_pkg
+		echo -e "Edit /etc/slackpkg/blacklist to add or remove packages."
+		echo -e ""
+		echo -e "Packages in blacklist:\n"
+		grep -v "^#" $CONF/blacklist | $MORECMD
+		echo -e ""
 	;;
 	file-search)
 		PATTERN=$(echo $ARG | sed -e 's/\+/\\\+/g' -e 's/\./\\\./g' -e 's/ /\|/g')
@@ -523,7 +526,7 @@ case "$CMD" in
 				if ( found != 1 ) {
 			print \"No packages found! Try:\n\n\tslackpkg search $PATTERN\n\nand choose one (and ONLY one package).\n\"
 				}
-			}" ${ROOT}/${WORKDIR}/PACKAGES.TXT 2>/dev/null
+			}" ${WORKDIR}/PACKAGES.TXT 2>/dev/null
 	;;
 	new-config)
 		POSTINST=on
@@ -597,7 +600,7 @@ esac
 # That options don't change configurations files and, if 
 # someone remove the kernel, i hope he knows what is doing.
 #
-for i in check-updates remove search file-search update info \
+for i in check-updates remove search file-search update info blacklist \
 	 clean-system download generate-template remove-template; do
 	if [ "$CMD" = "$i" ]; then
 		POSTINST=off

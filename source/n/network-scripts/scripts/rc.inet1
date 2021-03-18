@@ -159,9 +159,13 @@ br_open() {
       debug_log "/sbin/ip link set dev ${IFNAME[$1]} type bridge $IFOPT"
       /sbin/ip link set dev ${IFNAME[$1]} type bridge $IFOPT
     fi
-  done <<<"${IFOPTS[$i]/%|*([[:blank:]])}|"	# The | on the end is required.
-  debug_log "/sbin/ip link set dev ${IFNAME[$1]} up"
-  /sbin/ip link set dev ${IFNAME[$1]} up
+  done <<<"${IFOPTS[$1]/%|*([[:blank:]])}|"	# The | on the end is required.
+  # Don't bring up the interface if it will be brought up later during IP configuration.
+  # This prevents a situation where SLAAC takes a while to apply if the interface is already up.
+  if [ -z "${IPADDRS[$1]}" ] && [ -z "${IP6ADDRS[$1]}" ] && [ -z "${IPADDR[$1]}" ] && [ "${USE_DHCP[$1]}" != "yes" ] && [ "${USE_DHCP6[$1]}" != "yes" ] && [ "${USE_SLAAC[$1]}" != "yes" ]; then
+    debug_log "/sbin/ip link set dev ${IFNAME[$1]} up"
+    /sbin/ip link set dev ${IFNAME[$1]} up
+  fi
 }
 
 # Function to disassemble a bridge interface.
@@ -323,6 +327,51 @@ if_up() {
       debug_log "/sbin/ip address flush dev ${1}"
       /sbin/ip address flush dev ${1}
       IF_UP=0
+      if [ -e /proc/sys/net/ipv6 ] && [ "${USE_DHCP6[$i]}" != "yes" ] && [ "${USE_SLAAC[$i]}" = "yes" ]; then # configure via SLAAC
+        info_log "${1}: enabling SLAAC"
+        # Enable accepting of RA packets, unless explicitly configured not to:
+        if [ "${USE_RA[$i]}" = "no" ]; then
+          debug_log "${1}: ignoring IPv6 RA"
+          echo "0" >/proc/sys/net/ipv6/conf/${1}/accept_ra
+        else
+          debug_log "${1}: accepting IPv6 RA"
+          echo "1" >/proc/sys/net/ipv6/conf/${1}/accept_ra
+        fi
+        # Set up SLAAC privacy enhancements if configured.
+        if [ "${SLAAC_PRIVIPGEN[$i]}" = "yes" ]; then
+          if [ -n "${SLAAC_SECRET[$i]}" ]; then
+            debug_log "${1}: seeding secret and enabling private IPv6 generation"
+            echo "${SLAAC_SECRET[$i]}" >/proc/sys/net/ipv6/conf/${1}/stable_secret
+            echo "2" >/proc/sys/net/ipv6/conf/${1}/addr_gen_mode
+          else
+            debug_log "${1}: using random secret and enabling private IPv6 generation"
+            echo -n >/proc/sys/net/ipv6/conf/${1}/stable_secret
+            echo "3" >/proc/sys/net/ipv6/conf/${1}/addr_gen_mode
+          fi
+        fi
+        if [ "${SLAAC_TEMPADDR[$i]}" = "yes" ]; then
+          debug_log "${1}: enabling SLAAC tempaddr"
+          echo "2" >/proc/sys/net/ipv6/conf/${1}/use_tempaddr
+        fi
+        # Enable auto configuration of interfaces:
+        echo "1" >/proc/sys/net/ipv6/conf/${1}/autoconf
+        # Bring the interface up:
+        debug_log "/sbin/ip link set dev ${1} up"
+        /sbin/ip link set dev ${1} up
+        echo "${1}: waiting for router announcement"
+        for ((j = ${SLAAC_TIMEOUT[$i]:=15} * 2; j--;)); do # by default, wait a max of 15 seconds for the interface to configure
+          /sbin/ip -6 address show dynamic dev ${1} 2>/dev/null | grep -Ewq 'inet6' && { IF_UP=1; break; }
+          sleep 0.5
+        done
+        if ((IF_UP != 1)); then
+          echo "${1}: timed out"
+          info_log "${1}: failed to auto configure after ${SLAAC_TIMEOUT[$i]} seconds"
+          debug_log "/sbin/ip address flush dev ${1}"
+          /sbin/ip address flush dev ${1}
+          debug_log "/sbin/ip link set dev ${1} down"
+          /sbin/ip link set dev ${1} down
+        fi
+      fi
       # Slackware historically favours dynamic configuration over fixed IP to configure interfaces, so keep that tradition:
       if [ "${USE_DHCP[$i]}" = "yes" ] || { [ -e /proc/sys/net/ipv6 ] && [ "${USE_DHCP6[$i]}" = "yes" ]; }; then # use dhcpcd
         info_log "${1}: starting dhcpcd"
@@ -362,35 +411,6 @@ if_up() {
           IF_UP=1
         else
           info_log "${1}: failed to obtain DHCP lease"
-          debug_log "/sbin/ip address flush dev ${1}"
-          /sbin/ip address flush dev ${1}
-          debug_log "/sbin/ip link set dev ${1} down"
-          /sbin/ip link set dev ${1} down
-        fi
-      fi
-      if [ -e /proc/sys/net/ipv6 ] && [ "${USE_DHCP6[$i]}" != "yes" ] && [ "${USE_SLAAC[$i]}" = "yes" ]; then # configure via SLAAC
-        info_log "${1}: enabling SLAAC"
-        # Enable accepting of RA packets, unless explicitly configured not to:
-        if [ "${USE_RA[$i]}" = "no" ]; then
-          debug_log "${1}: ignoring IPv6 RA"
-          echo "0" >/proc/sys/net/ipv6/conf/${1}/accept_ra
-        else
-          debug_log "${1}: accepting IPv6 RA"
-          echo "1" >/proc/sys/net/ipv6/conf/${1}/accept_ra
-        fi
-        # Enable auto configuration of interfaces:
-        echo "1" >/proc/sys/net/ipv6/conf/${1}/autoconf
-        # Bring the interface up:
-        debug_log "/sbin/ip link set dev ${1} up"
-        /sbin/ip link set dev ${1} up
-        echo "${1}: waiting for router announcement"
-        for ((j = ${SLAAC_TIMEOUT[$i]:=15} * 2; j--;)); do # by default, wait a max of 15 seconds for the interface to configure
-          /sbin/ip -6 address show dynamic dev ${1} 2>/dev/null | grep -Ewq 'inet6' && { IF_UP=1; break; }
-          sleep 0.5
-        done
-        if ((IF_UP != 1)); then
-          echo "${1}: timed out"
-          info_log "${1}: failed to auto configure after ${SLAAC_TIMEOUT[$i]} seconds"
           debug_log "/sbin/ip address flush dev ${1}"
           /sbin/ip address flush dev ${1}
           debug_log "/sbin/ip link set dev ${1} down"
@@ -545,11 +565,14 @@ if_down() {
     # Bring the interface down:
     debug_log "/sbin/ip link set dev ${1} down"
     /sbin/ip link set dev ${1} down
-    # Reset autoconf and accept_ra back to defaults:
+    # Reset everything back to defaults:
     if [ -e /proc/sys/net/ipv6 ]; then
-      debug_log "${1}: resetting IPv6 autoconf and RA to defaults"
+      debug_log "${1}: resetting IPv6 configuration to defaults"
       cat /proc/sys/net/ipv6/conf/default/autoconf >/proc/sys/net/ipv6/conf/${1}/autoconf
       cat /proc/sys/net/ipv6/conf/default/accept_ra >/proc/sys/net/ipv6/conf/${1}/accept_ra
+      cat /proc/sys/net/ipv6/conf/default/use_tempaddr >/proc/sys/net/ipv6/conf/${1}/use_tempaddr
+      cat /proc/sys/net/ipv6/conf/default/addr_gen_mode >/proc/sys/net/ipv6/conf/${1}/addr_gen_mode
+      echo -n >/proc/sys/net/ipv6/conf/${1}/stable_secret
     fi
     # If the interface is a bridge, then destroy it now:
     [ -n "${BRNICS[$i]}" ] && br_close $i

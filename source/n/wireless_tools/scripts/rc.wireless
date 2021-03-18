@@ -61,6 +61,9 @@
 # 11/Nov/2019 * Darren Austin *  Log to syslog, failling back to stdout.
 #                                Output error to stderr if not called from
 #                                rc.inet1.
+# 09/Mar/2021 * Darren Austin *  Don't leave the interface in an 'up' state upon
+#                                exit from the script - this causes problems for
+#                                SLAAC in rc.inet1 when control is returned.
 # ------------------------------------------------------------------------------
 
 # If possible, log events in /var/log/messages:
@@ -326,11 +329,10 @@ if [ "$WPA" = "wpa_supplicant" ] || [ "$WPA" = "wpaxsupplicant" ] && [ -x ${SUPP
 	  echo "$0:  WPA authentication did not complete, try running '/etc/rc.d/rc.inet1 ${INTERFACE}_start' in a few seconds." | $LOGGER
 	fi
 	# Bring interface up to avoid 'not ready' errors when calling iwconfig
-	$IFCOMMAND up
-	sleep 3
-
+        # Update 09/Mar/21: No point bringing it up here to be taken down at exit.
+	# $IFCOMMAND up
+	# sleep 3
 else
-
 	# ESSID need to be last: most devices re-perform the scanning/discovery
 	# when this is set, and things like encryption keys had better be
 	# defined if we want to discover the right set of APs/nodes.
@@ -344,5 +346,6 @@ else
 	  echo "$0:  $IWCOMMAND essid \"$ESSID\"" | $LOGGER
 	  $IWCOMMAND essid "$ESSID"
 	fi
-
 fi
+$IFCOMMAND down
+sleep 3

@@ -185,6 +185,7 @@ GATEWAY6="$GATEWAY6"
 # these for your wireless network.
 #IFNAME[4]="wlan0"
 #IPADDRS[4]=""
+#USE_DHCP[4]="yes"
 #DHCP_HOSTNAME[4]="icculus-wireless"
 #DHCP_KEEPRESOLV[4]="yes"
 #DHCP_KEEPNTP[4]="yes"
@@ -231,6 +232,16 @@ GATEWAY6="$GATEWAY6"
 #SLAAC_TIMEOUT[4]="15"          # The default timeout for auto configuration to
                                 # wait for the interface to come up is 15 sec.
                                 # Increase the timeout if required.
+#SLAAC_PRIVIPGEN[4]="yes"       # When assigning addresses via SLAAC, use the
+                                # 'private' (RFC7217) address generation method.
+                                # It is advisable to also set SLAAC_SECRET[x].
+#SLAAC_SECRET[4]="xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx"
+                                # When SLAAC_PRIVIPGEN[x]="yes" is set, this is
+                                # the secret to be used.  This must be in the
+                                # form of an IPv6 address.  When left unset, a
+                                # random secret is used (this is the default).
+#SLAAC_TEMPADDR[4]="yes"        # Use a temporary address with SLAAC to enhance
+                                # security.
 #USE_RA[4]="yes"                # Accept router advertisements even when SLAAC
                                 # is disabled on the interface.
 #WLAN_ESSID[4]="DARKSTAR"       # An example of how you can override _any_
@@ -481,8 +492,11 @@ EOF
   DOMAIN="`cat $TMP/SeTdom`"
   rm -f $TMP/SeTdom $TMP/tempmsg
   # These regexes doon't catch everything, just basic syntax mistakes.
-  if [ "$DOMAIN" = "" ] || [[ ! "$DOMAIN" =~ ^([[:alnum:]]+[-.]*[[:alnum:]]+)+$ ]] || \
-      [[ "${DOMAIN:0:1}" =~ ^[.-]$ ]] || [[ "${DOMAIN: -1:1}" == ^[.-]$ ]]; then
+  DN="${DOMAIN%.*}"
+  TLD="${DOMAIN##*.}"
+  if [ -z "$DOMAIN" ] || [ -z "$TLD" ] || [ -z "$DN" ] || [[ ! "$DOMAIN" =~ ^[^.-][[:alnum:].-]+[^.-]$ ]] || \
+      [[ ! "$DN" =~ ^[^.-][[:alnum:].-]+[^.-]$ ]] || [[ "$DN" =~ \.\. ]] || [[ "$DN" =~ -- ]] || \
+      [[ ! "$TLD" =~ ^[^-][[:alnum:]-]+[^-]$ ]]; then
     dialog --title "DOMAINNAME" --ok-button "Back" --msgbox \
       "That doesn't appear to be a valid domain name.\n
 Domain names can only contain letters and numbers, hyphens

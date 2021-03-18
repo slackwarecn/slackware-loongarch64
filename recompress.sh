@@ -569,7 +569,6 @@ gzip ./source/n/s-nail/s-nail.no.emptystart.diff
 gzip ./source/n/iputils/iputils.docbook.revert.diff
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/bind/doinst.sh
-gzip ./source/n/bind/bind-9.16.11.CVE-2020-8625.diff
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
 gzip ./source/n/irssi/doinst.sh

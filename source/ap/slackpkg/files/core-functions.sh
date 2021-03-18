@@ -7,7 +7,7 @@
 # Clean-up tmp and lock files
 #
 function cleanup() {
-	local retval=0
+	local retval=${PENDING_UPDATES:-0}
 	[ "$SPINNING" = "off" ] || tput cnorm
 	if [ -e $TMPDIR/error.log ]; then
 		retval=1
@@ -62,7 +62,7 @@ spinning() {
 function system_setup() {
 
 	# Create $WORKDIR just in case
-	mkdir -p "${ROOT}/${WORKDIR}"
+	mkdir -p "${WORKDIR}"
 
 	# Set LOCAL if mirror isn't through network 
 	# If mirror is through network, select the command to fetch
@@ -161,8 +161,12 @@ function system_setup() {
 	  mkdir $TEMPLATEDIR
 	fi
 
+	# Create initial blacklist of single package names from regexps in
+	# ${CONF}/blacklist.
+	mkregex_blacklist
+
 	SLACKCFVERSION=$(grep "# v[0-9.]\+" $CONF/slackpkg.conf | cut -f2 -dv)
-	CHECKSUMSFILE=${ROOT}/${WORKDIR}/CHECKSUMS.md5
+	CHECKSUMSFILE=${WORKDIR}/CHECKSUMS.md5
 	KERNELMD5=$(md5sum /boot/vmlinuz 2>/dev/null)
 	DIALOG_MAXARGS=${DIALOG_MAXARGS:-19500}
 	echo "$0 $VERSION - Slackware Linux $SLACKWARE_VERSION" > $TMPDIR/timestamp
@@ -197,7 +201,7 @@ ARCH values\n"
 
 	# Check if the config files are updated to the new slackpkg version
 	#
-	if [ "${ROOT}/${WORKDIR}" = "" ]; then
+	if [ "${WORKDIR}" = "" ]; then
 		echo -e "\
 \nYou need to upgrade your slackpkg.conf.\n\
 This is a new slackpkg version and many changes happened in config files.\n\
@@ -234,7 +238,7 @@ the problem.\n"
 
 	# Checking if is the first time running slackpkg
 	#                                               
-	if ! [ -f ${ROOT}/${WORKDIR}/pkglist ] && [ "$CMD" != "update" ]; then
+	if ! [ -f ${WORKDIR}/pkglist ] && [ "$CMD" != "update" ]; then
 		if [ "$SOURCE" = "" ]; then
                 	echo -e "\
 \nThis appears to be the first time you have run slackpkg.\n\
@@ -271,7 +275,7 @@ mirrors uncommented is not valid syntax.
 		cleanup
 	fi
 	MIRROR_VERSION=$(echo $SOURCE|sed "s/.*-//;s/.$//") 
-	if [ "$MIRROR_VERSION" = "current" ] && [ ! -f ${ROOT}/${WORKDIR}/current ]; then
+	if [ "$MIRROR_VERSION" = "current" ] && [ ! -f ${WORKDIR}/current ]; then
 		echo -n  "
 You have selected a mirror for Slackware -current in ${CONF}/mirrors,
 but Slackware version $SLACKWARE_VERSION appears to be installed.
@@ -283,7 +287,7 @@ Is this really what you want?
 To confirm your choice, press Y, else press N. Then, press Enter: "
 		read current
 		if [ "$current" = "Y" ] || [ "$current" = "y" ]; then
-			touch ${ROOT}/${WORKDIR}/current
+			touch ${WORKDIR}/current
 			echo -n  "
 Slackpkg will not show this warning again unless you remove the
 ${WORKDIR}/current file. 
@@ -293,7 +297,7 @@ ${WORKDIR}/current file.
 			cleanup
 		fi
 	fi
-	[ ! "$MIRROR_VERSION" = "current" ] &&  rm -f ${ROOT}/${WORKDIR}/current
+	[ ! "$MIRROR_VERSION" = "current" ] &&  rm -f ${WORKDIR}/current
 
 	# It will check if the mirror selected are ftp.slackware.com
 	# if set to "ftp.slackware.com" tell the user to choose another
@@ -343,8 +347,9 @@ use slackpkg.\n"
 	#
 	if ! [ $(which md5sum 2>/dev/null) ]; then
 		CHECKMD5=off
-	elif ! [ -f ${ROOT}/${WORKDIR}/CHECKSUMS.md5 ] && \
+	elif ! [ -f ${WORKDIR}/CHECKSUMS.md5 ] && \
 		[ "$CMD" != "update" ] && \
+		[ "$CMD" != "new-config" ] && \
 		[ "$CHECKMD5" = "on" ]; then
 		echo -e "\n\
 No CHECKSUMS.md5 found!  Please disable md5sums checking\n\
@@ -582,8 +587,37 @@ function listpkgname() {
 		cut -f1 -d\  | uniq > ${TMPDIR}/dpkg
 }
 
+# Create a blacklist of single package names from regexps in original blacklist
+# any sets such as kde/ are converted to single package names in the process
+# the final list will be used by 'applyblacklist' later.
+function mkregex_blacklist() {
+	# Check that we have the files we need
+	if [ ! -f ${WORKDIR}/pkglist ] || [ ! -f ${CONF}/blacklist ];then
+		return 1
+	fi
+
+	# Create tmp blacklist in a more usable format
+	sed -E "s,(^[[:blank:]]+|[[:blank:]]+$),,
+		/(^#|^$)/d
+		s,^, ,
+		s,$, ,
+		s,^ (extra|pasture|patches|slackware(|64)|testing)/ $,^\1 ,
+		s,^ ([^/]+)/ $, \\\.\\\/$PKGMAIN\\\/\1\$,
+		" ${CONF}/blacklist > ${TMPDIR}/blacklist.tmp
+
+	# Filter server and local package lists through blacklist
+	( cat ${WORKDIR}/pkglist
+		printf "%s\n" $ROOT/var/log/packages/* |
+			awk -f /usr/libexec/slackpkg/pkglist.awk
+	) | cut -d\  -f1-7 | grep -E -f ${TMPDIR}/blacklist.tmp |
+		awk '{print $2}' | sort -u | sed "s,[+],[+],g
+		s,$,-[^-]+-($ARCH|noarch|fw)-[^-]+,g" > ${TMPDIR}/blacklist
+}
+
+# Blacklist filter
+#
 function applyblacklist() {
-	grep -vE -f ${TMPDIR}/blacklist
+	grep -vxE -f ${TMPDIR}/blacklist
 }
 
 # Function to make install/reinstall/upgrade lists
@@ -595,22 +629,14 @@ function makelist() {
 
 	INPUTLIST=$@
 
-	grep -vE "(^#|^[[:blank:]]*$)" ${ROOT}/${CONF}/blacklist | \
-	sed -E "
-	s,^, ,
-	s,$, ,
-	s,^\s(extra|pasture|patches|slackware(|64)|testing)\s$,\1 ,
-	s,^\s(tgz|txz)\s$, \1,
-	s,^\s([^/]*)/\s$, ./$PKGMAIN/\1 ,
-	" \
-	> ${TMPDIR}/blacklist
-
 	if echo $CMD | grep -q install ; then
-		ls -1 $ROOT/var/log/packages/* | awk -f /usr/libexec/slackpkg/pkglist.awk > ${TMPDIR}/tmplist
+		ls -1 $ROOT/var/log/packages/* |
+			awk -f /usr/libexec/slackpkg/pkglist.awk > ${TMPDIR}/tmplist
 	else
-		ls -1 $ROOT/var/log/packages/* | awk -f /usr/libexec/slackpkg/pkglist.awk | applyblacklist > ${TMPDIR}/tmplist
+		ls -1 $ROOT/var/log/packages/* |
+			awk -f /usr/libexec/slackpkg/pkglist.awk > ${TMPDIR}/tmplist
 	fi
-	cat ${ROOT}/${WORKDIR}/pkglist | applyblacklist > ${TMPDIR}/pkglist
+	cat ${WORKDIR}/pkglist > ${TMPDIR}/pkglist
 
 	touch ${TMPDIR}/waiting
 
@@ -707,7 +733,7 @@ function makelist() {
 			done
 		;;
 		install-new)
-			for i in $(awk -f /usr/libexec/slackpkg/install-new.awk ${ROOT}/${WORKDIR}/ChangeLog.txt |\
+			for i in $(awk -f /usr/libexec/slackpkg/install-new.awk ${WORKDIR}/ChangeLog.txt |\
 				  sort -u ) dialog aaa_terminfo fontconfig \
 				ntfs-3g ghostscript wqy-zenhei-font-ttf \
 				xbacklight xf86-video-geode ; do
@@ -744,8 +770,8 @@ function makelist() {
 			if [ "$CMD" = "file-search" ]; then
 				# Search filelist.gz for possible matches
 				for i in ${PRIORITY[@]}; do
-					if [ -e ${ROOT}/${WORKDIR}/${i}-filelist.gz ]; then
-						PKGS="$(zegrep -w "${INPUTLIST}" ${ROOT}/${WORKDIR}/${i}-filelist.gz | \
+					if [ -e ${WORKDIR}/${i}-filelist.gz ]; then
+						PKGS="$(zegrep -w "${INPUTLIST}" ${WORKDIR}/${i}-filelist.gz | \
 							cut -d\  -f 1 | awk -F'/' '{print $NF}')"
 						for FULLNAME in $PKGS ; do
 							NAME=$(cutpkg ${FULLNAME})
@@ -757,8 +783,13 @@ function makelist() {
 				done
 			else
 				for i in ${PRIORITY[@]}; do
-					PKGS=$(grep "^${i}.*${PATTERN}" \
-						${TMPDIR}/pkglist | cut -f6 -d\ )
+
+					# Test for search pattern in blacklist first
+					grep -q "^${PATTERN}$" ${TMPDIR}/blacklist && continue
+
+					PKGS=$( cut -d\  -f1-7 ${TMPDIR}/pkglist |
+						grep "^${i}.*${PATTERN}" | cut -f6 -d\ )
+
 					for FULLNAME in $PKGS ; do
 						NAME=$(cutpkg ${FULLNAME})
 
@@ -769,9 +800,14 @@ function makelist() {
 				done
 			fi
 			rm -f $PKGNAMELIST
+			rm ${TMPDIR}/waiting
+
+			echo -e "DONE\n"
+			# We need to return early before the blacklist
+			return
 		;;	
 	esac
-	LIST=$(echo -e $LIST | tr \  "\n" | uniq )
+	LIST=$( printf "%s\n" $LIST | applyblacklist | uniq )
 
 	rm ${TMPDIR}/waiting
 
@@ -832,7 +868,14 @@ function searchlist() {
 		    echo "[${STATUS}] - ${INSTPKG}"
 		else
 		    STATUS="  upgrade  "
-		echo "[${STATUS}] - ${INSTPKG} --> ${RAWNAME}"
+				INSTPKG=$( printf "$INSTPKG" | tr '\n' ' ' )
+
+				if echo "$INSTPKG" | grep -q ' '; then
+					printf "%s - %s / %s\n            --> %s\n" \
+						"[${STATUS}]" ${INSTPKG} ${RAWNAME}
+				else
+					echo "[${STATUS}] - ${INSTPKG} --> ${RAWNAME}"
+				fi
 		fi
 		else
 		    echo "[${STATUS}] - ${RAWNAME}"
@@ -986,12 +1029,12 @@ function getpkg() {
 # Check if anything has changed. If so, return 1, else 0 if no change.
 function checkchangelog()
 {
-	if ! [ -e ${ROOT}/${WORKDIR}/CHECKSUMS.md5.asc ]; then
-		touch ${ROOT}/${WORKDIR}/CHECKSUMS.md5.asc
+	if ! [ -e ${WORKDIR}/CHECKSUMS.md5.asc ]; then
+		touch ${WORKDIR}/CHECKSUMS.md5.asc
 	fi
 
-	if ! [ -e ${ROOT}/${WORKDIR}/ChangeLog.txt ]; then
-		touch ${ROOT}/${WORKDIR}/ChangeLog.txt
+	if ! [ -e ${WORKDIR}/ChangeLog.txt ]; then
+		touch ${WORKDIR}/ChangeLog.txt
 	fi
 
 	# First we will download CHECKSUMS.md5.asc since it is a very small
@@ -1005,7 +1048,7 @@ function checkchangelog()
 Please check your mirror and try again."
 		cleanup
 	fi
-	if diff --brief ${ROOT}/${WORKDIR}/CHECKSUMS.md5.asc $TMPDIR/CHECKSUMS.md5.asc ; then
+	if diff --brief ${WORKDIR}/CHECKSUMS.md5.asc $TMPDIR/CHECKSUMS.md5.asc ; then
 		return 0
 	else
 		return 1
@@ -1092,10 +1135,10 @@ Please check your mirror and try again."
 		ISOK=$(checkmd5 ${TMPDIR}/FILELIST.TXT)
 	fi
 	if [ "$ISOK" = "1" ]; then 
-		if ! [ -e ${ROOT}/${WORKDIR}/LASTUPDATE ]; then
-			echo "742868196" > ${ROOT}/${WORKDIR}/LASTUPDATE
+		if ! [ -e ${WORKDIR}/LASTUPDATE ]; then
+			echo "742868196" > ${WORKDIR}/LASTUPDATE
 		fi
-		LASTUPDATE=$(cat ${ROOT}/${WORKDIR}/LASTUPDATE)
+		LASTUPDATE=$(cat ${WORKDIR}/LASTUPDATE)
 		ACTUALDATE=$(date -d "$(head -1 $TMPDIR/FILELIST.TXT)" "+%s")
 		if [ $ACTUALDATE -lt $LASTUPDATE ]; then
 			echo -e "\
@@ -1107,7 +1150,7 @@ Please check your mirror and try again."
 			fi
 			echo
 		fi
-		echo $ACTUALDATE > ${ROOT}/${WORKDIR}/LASTUPDATE
+		echo $ACTUALDATE > ${WORKDIR}/LASTUPDATE
 	else
 		rm $TMPDIR/FILELIST.TXT
 	fi
@@ -1146,10 +1189,10 @@ Please check your mirror and try again."
 	grep "\.t[blxg]z$" $FILELIST| \
 		awk -f /usr/libexec/slackpkg/pkglist.awk |\
 		sed -e 's/^M//g' > ${TMPDIR}/pkglist
-	cp ${TMPDIR}/pkglist ${ROOT}/${WORKDIR}/pkglist		
+	cp ${TMPDIR}/pkglist ${WORKDIR}/pkglist
 
 	# Create the slackware tree under TEMP directory
-	for i in $( cut -f7 -d\  ${ROOT}/${WORKDIR}/pkglist | sort -u ) ; do
+	for i in $( cut -f7 -d\  ${WORKDIR}/pkglist | sort -u ) ; do
 	  if ! [ -d ${ROOT}/${TEMP}/${i} ]; then
 	    mkdir -p ${ROOT}/${TEMP}/${i}
 	  fi
@@ -1165,11 +1208,11 @@ Please check your mirror and try again."
 		bunzip2 -c $TMPDIR/${i}-MANIFEST.bz2 | awk -f /usr/libexec/slackpkg/filelist.awk | \
 			gzip > ${TMPDIR}/${i}-filelist.gz
 	done
-	cp ${TMPDIR}/*-filelist.gz ${ROOT}/${WORKDIR}/
+	cp ${TMPDIR}/*-filelist.gz ${WORKDIR}/
 
-	if [ -r ${ROOT}/${WORKDIR}/filelist.gz ]; then
-		rm ${ROOT}/${WORKDIR}/filelist.gz
-		ln -s ${ROOT}/${WORKDIR}/${MAIN}-filelist.gz ${ROOT}/${WORKDIR}/filelist.gz
+	if [ -r ${WORKDIR}/filelist.gz ]; then
+		rm ${WORKDIR}/filelist.gz
+		ln -s ${WORKDIR}/${MAIN}-filelist.gz ${WORKDIR}/filelist.gz
 	fi
 
 	# Concatenate PACKAGE.TXT files
@@ -1178,20 +1221,20 @@ Please check your mirror and try again."
 	for i in $DIRS; do
 		cat $TMPDIR/${i}-PACKAGES.TXT >> $TMPDIR/PACKAGES.TXT
 	done
-	cp $TMPDIR/PACKAGES.TXT ${ROOT}/${WORKDIR}/PACKAGES.TXT
+	cp $TMPDIR/PACKAGES.TXT ${WORKDIR}/PACKAGES.TXT
 
 	if [ -e $TMPDIR/CHECKSUMS.md5 ]; then
-		cp $TMPDIR/CHECKSUMS.md5 ${ROOT}/${WORKDIR}/CHECKSUMS.md5 2>/dev/null
+		cp $TMPDIR/CHECKSUMS.md5 ${WORKDIR}/CHECKSUMS.md5 2>/dev/null
 	fi
 
 	if [ -e $TMPDIR/CHECKSUMS.md5.asc ]; then
 		cp $TMPDIR/CHECKSUMS.md5.asc \
-			${ROOT}/${WORKDIR}/CHECKSUMS.md5.asc 2>/dev/null
+			${WORKDIR}/CHECKSUMS.md5.asc 2>/dev/null
 	fi
 	# Finally, copy ChangeLog.txt
 	if [ -e $TMPDIR/ChangeLog.txt ]; then
 		cp $TMPDIR/ChangeLog.txt \
-			${ROOT}/${WORKDIR}/ChangeLog.txt 2>/dev/null
+			${WORKDIR}/ChangeLog.txt 2>/dev/null
 	fi
 }
 
@@ -1214,59 +1257,41 @@ function sanity_check() {
 		mv $ROOT/var/log/scripts/${i} $ROOT/var/log/scripts/${REVNAME}
 	done
 	
-	ls -1 $ROOT/var/log/packages/ | egrep "^.*-(${ARCH}|fw|noarch)-[^-]+$" | \
-				  batchcutpkg | sort > $TMPDIR/list1 
-	cat $TMPDIR/list1 | uniq > $TMPDIR/list2
-	FILES="$(diff $TMPDIR/list1 $TMPDIR/list2 | grep '<' | cut -f2 -d\ )"
-	if [ "$FILES" != "" ]; then
-		for i in $FILES ; do
-			grep -qx "${i}" ${CONF}/blacklist && continue
-			DOUBLEFILES="$DOUBLEFILES $i"
-		done
-		unset FILES
-	fi
+	DOUBLEFILES=$( ls -1 $ROOT/var/log/packages/ |
+		batchcutpkg | uniq -D | sort -u | sed "s,[+],[+],g" |
+		xargs -I '{}' find $ROOT/var/log/packages/ -regextype awk -regex \
+		".*/{}-[^-]+-($ARCH|noarch|fw)-[^-]+" | awk -F/ '{print $NF}' |
+		applyblacklist )
 
 	rm ${TMPDIR}/waiting
 	echo -e "DONE"
 
 	if [ "$DOUBLEFILES" != "" ]; then
 		echo -e "\
-You have a broken $ROOT/var/log/packages/ - with two versions of the same package.\n\
-The list of packages duplicated in your machine is shown below, but don't\n\
-worry about this list - when you select your action, slackpkg will show a\n\
-better list:\n"
-		for i in $DOUBLEFILES ; do
-			ls -1 $ROOT/var/log/packages/ |\
-				egrep -i -- "^${i}-[^-]+-(${ARCH}|fw|noarch)-"
-		done
+You have a broken $ROOT/var/log/packages/ - with multiple versions of the same package.\n\
+The list of packages duplicated in your machine is shown below:\n"
+		printf "%s\n" $DOUBLEFILES
+
 		echo -ne "\n\
-You can (R)emove, or (I)gnore these packages.\n\
+You can (R)emove one or more of, or (I)gnore these packages.\n\
 Select your action (R/I): "
 		read ANSWER
 		echo
 		case "$ANSWER" in
 			R|r)
-				for i in $DOUBLEFILES ; do
-					FILE=$(ls -1 $ROOT/var/log/packages/ |\
-						egrep -i -- "^${i}-[^-]+-(${ARCH}|fw|noarch)-")
-					FILES="$FILES $FILE"
-				done
-				showlist "$FILES" remove
+				showlist "$DOUBLEFILES" remove
 				remove_pkg
 			;;
 			*)
-				echo -e "\n\
-Remove or blacklist the affected packages in order for slackpkg to work properly.\n"
+				echo "Remove one or more of OR blacklist the affected packages in order
+for slackpkg to work properly.
+"
+				echo "To blacklist the affected packages, edit /etc/slackpkg/blacklist"
 				cleanup
 			;;
 		esac
 	fi
 }	
-
-function blacklist_pkg() {
-	echo -e "\nThis function no longer adds packages to your blacklist.\n\
-As of slackpkg 15.0, you will need to edit ${CONF}/blacklist instead.\n"
-}
 
 function remove_pkg() {
 	local i
@@ -1367,7 +1392,7 @@ generate_template() {
 	[ "$SPINNING" = "off" ] || spinning ${TMPDIR}/waiting &
 	for i in $ROOT/var/log/packages/* ; do 
 		PKGNAME=$( cutpkg $(basename $i))
-		grep -q " $PKGNAME " ${ROOT}/${WORKDIR}/pkglist && \
+		grep -q " $PKGNAME " ${WORKDIR}/pkglist && \
 			echo $PKGNAME >> $TMPDIR/$TEMPLATE.work
 	done  
 	rm $TMPDIR/waiting

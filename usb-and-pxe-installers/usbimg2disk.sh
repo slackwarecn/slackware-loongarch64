@@ -467,7 +467,9 @@ if [ "$FULLINSTALLER" = "yes" ]; then
   # Copy Slackware package tree (no sources) to the USB disk -
   # we already made sure that ${REPOSROOT} does not end with a '/'
   echo "--- Copying Slackware package tree to the USB drive..."
-  rsync -rpthDL --delete $EXCLUDES $REPOSROOT $MNTDIR2/
+  # --modify-window 2 since some filesystems (e.g. FAT32) can only store
+  # timestamps in multiples of 2 seconds. Thanks to jwoithe.
+  rsync -rpthDL --delete --modify-window 2 $EXCLUDES $REPOSROOT $MNTDIR2/
 fi
 
 # Unmount/remove stuff:

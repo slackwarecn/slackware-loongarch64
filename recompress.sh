@@ -489,6 +489,7 @@ gzip ./source/n/telnet/telnet-OpenBSD-014_telnet.diff
 gzip ./source/n/telnet/netkit-telnet-0.17.diff
 gzip ./source/n/telnet/netkit-telnet-0.17-ayt.patch
 gzip ./source/n/rsync.nolchmod.diff
+gzip ./source/n/alpine/maildir.patch
 gzip ./source/n/alpine/pinepgp-0.18.0-makefile-sed-fix.diff
 gzip ./source/n/alpine/alpine.manpage.diff
 gzip ./source/n/alpine/pinepgp.pinegpgp.in.diff

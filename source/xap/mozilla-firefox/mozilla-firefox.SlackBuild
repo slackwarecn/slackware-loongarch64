@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -88,13 +88,20 @@ fi
 export CC=${CC:-clang}
 export CXX=${CXX:-clang++}
 
-# Keep memory usage as low as possible when linking:
-SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
-export LDFLAGS="$SLKLDFLAGS"
-export MOZ_LINK_FLAGS="$SLKLDFLAGS"
-
 # Set linker to use:
-LINKER=bfd
+if [ "$CC" = "clang" ]; then
+  # Upstream default:
+  LINKER=lld
+else
+  LINKER=bfd
+fi
+
+# Keep memory usage as low as possible when linking:
+if [ ! "$LINKER" = "lld" ]; then
+  SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
+  export LDFLAGS="$SLKLDFLAGS"
+  export MOZ_LINK_FLAGS="$SLKLDFLAGS"
+fi
 
 # Put Rust objects on a diet to keep the linker from running into memory
 # issues (especially on 32-bit):
@@ -198,6 +205,9 @@ sed -i.allow-warnings -e '/#!\[deny(warnings)\]/a #![allow(unused_imports)]' \
 # Retain GTK+ v2 scrolling behavior:
 zcat $CWD/ff.ui.scrollToClick.diff.gz | patch -p1 --verbose || exit 1
 
+# Don't enable LTO for Rust unless the whole build uses it:
+zcat $CWD/0027-LTO-Only-enable-LTO-for-Rust-when-complete-build-use.patch.gz | patch -p1 --verbose || exit 1
+
 # Fetch localization, if requested
 # https://bugzilla.mozilla.org/show_bug.cgi?id=1256955
 if [ ! -z $MOZLOCALIZE ]; then
@@ -238,6 +248,7 @@ OPTIONS="\
   --disable-crashreporter \
   --disable-debug-symbols \
   --disable-debug \
+  --disable-elf-hack \
   --disable-updater \
   --disable-optimize"
 # Complains about missing APNG support in Slackware's libpng:

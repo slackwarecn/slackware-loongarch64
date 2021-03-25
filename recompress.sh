@@ -117,6 +117,7 @@ gzip ./source/a/udisks/udisks.no.pci-db.diff
 gzip ./source/a/udisks/udisks.glibc228.diff
 gzip ./source/a/dialog/dialog.all.use_height.diff
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
+gzip ./source/a/dialog/doinst.sh
 gzip ./source/a/dialog/dialog.no.aspect.ratio.autoajust.patch
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/grub/initrd_naming.patch

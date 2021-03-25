@@ -30,7 +30,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mozilla-thunderbird
 VERSION=$(basename $(ls thunderbird-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
 RELEASEVER=$(echo $VERSION | cut -f 1 -d e | cut -f 1 -d b)
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Specify this variable for a localized build.
 # For example, to build a version of Thunderbird with Italian support, run
@@ -92,25 +92,26 @@ if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 80386 | grep 32-
 fi
 
 if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS=""
+  SLKCFLAGS="-g0"
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O2 -g0"}
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS=""
+  SLKCFLAGS="-g0"
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O2 -g0"}
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-g0"
+  LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-fPIC"
+  SLKCFLAGS="-g0 -fPIC"
   LIBDIRSUFFIX="64"
-  OPTIMIZE=${OPTIMIZE:-"-O2 -g0"}
 elif [ "$ARCH" = "arm" ]; then
-  SLKCFLAGS="-march=armv4 -mtune=xscale"
+  SLKCFLAGS="-g0 -march=armv4 -mtune=xscale"
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O2 -g0"}
+elif [ "$ARCH" = "armel" ]; then
+  SLKCFLAGS="-g0 -march=armv4t"
+  LIBDIRSUFFIX=""
 else
-  SLKCFLAGS=""
+  SLKCFLAGS="-g0"
   LIBDIRSUFFIX=""
-  OPTIMIZE=${OPTIMIZE:-"-O2 -g0"}
 fi
 
 # Choose a compiler (gcc/g++ or clang/clang++):
@@ -222,6 +223,7 @@ OPTIONS="\
   --disable-install-strip \
   --enable-cpp-rtti \
   --enable-accessibility \
+  --enable-optimize \
   $GOOGLE_API_KEY \
   --disable-crashreporter \
   --disable-debug-symbols \
@@ -271,9 +273,6 @@ mkdir obj
 echo "mk_add_options MOZ_OBJDIR=$(pwd)/obj" >> .mozconfig
 # This directory is also needed or the build will fail:
 mkdir -p mozilla/obj
-
-# Set options for $OPTIMIZE:
-echo "ac_add_options --enable-optimize=\"${OPTIMIZE}\"" >> .mozconfig
 
 if [ "$COMPILE_X86_UNDER_X86_64" = "true" ]; then
   # Compile for i686 under an x86_64 kernel:

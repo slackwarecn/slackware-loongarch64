@@ -212,6 +212,7 @@ determine_blockdev_drivers() {
   MLIST=$(for i in $(find /sys/block/*/ -name "device" -print0 | xargs -0 -i'{}' readlink -f '{}' | sort -u); do
     /sbin/udevadm info --query=all --path=$i --attribute-walk | \
       sed -ne 's/^[[:blank:]]\+DRIVER[S]*=="\([^"]\+\)"$/\1/p' | \
+      sed -e 's/^mmcblk$/mmc_block/' | \
       xargs -I@ /sbin/modprobe --set-version $KVER --show-depends @ \
       2>/dev/null | grep -v "builtin " | \
       while read LINE ; do 

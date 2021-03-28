@@ -171,7 +171,7 @@ get_root_device() {
       DKEY=$(echo $RD | cut -f1 -d=)
       # The value can be LABEL=foo or LABEL='foo' or LABEL="foo"
       DVAL=$(echo $RD | cut -f2 -d= | tr -d "'\042")
-      RD=$(/sbin/blkid | grep -w $DKEY | grep -w $DVAL | cut -f1 -d:)
+      RD=$(/sbin/blkid --match-token $DKEY=$DVAL --list-one --output device)
     fi
   else
     RD=$(grep -m1 "^/dev/.*[[:blank:]]/[[:blank:]]" /proc/mounts | cut -f1 -d' ')

@@ -680,7 +680,6 @@ gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap
-gzip ./source/ap/ghostscript/ghostscript-9.53.3-freetype_fix-1.patch
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch
@@ -772,7 +771,6 @@ gzip ./source/l/netpbm/netpbm-manfix.patch
 gzip ./source/l/netpbm/netpbm-time.patch
 gzip ./source/l/netpbm/netpbm-python3.patch
 gzip ./source/l/netpbm/netpbm-security-code.patch
-gzip ./source/l/netpbm/netpbm-pamtojpeg2k.patch
 gzip ./source/l/netpbm/netpbm-ppmfadeusage.patch
 gzip ./source/l/netpbm/netpbm-cmuwtopbm.patch
 gzip ./source/l/netpbm/netpbm-CVE-2017-2587.patch

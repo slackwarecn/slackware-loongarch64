@@ -1007,7 +1007,6 @@ gzip ./source/xap/xscreensaver/clarify-desc-in-xfce-settings.patch
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
 gzip ./source/xap/xscreensaver/doinst.sh
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
-gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/gnuchess/eboard.assert.diff
 gzip ./source/xap/gnuchess/eboard.png16.diff
 gzip ./source/xap/gnuchess/eboard.ldl.diff

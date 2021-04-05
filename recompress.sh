@@ -803,6 +803,7 @@ gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/fuse3/rc.fuse3.no.source.lsb.init-functions.diff
 gzip ./source/l/gdk-pixbuf2/doinst.sh
 gzip ./source/l/qt5-webkit/qt5-webkit.bison27.patch
+gzip ./source/l/qt5-webkit/qt5-webkit.glib-2.68.0.diff
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/020_no-parallel-make.diff

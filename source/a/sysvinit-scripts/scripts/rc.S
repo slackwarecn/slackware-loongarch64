@@ -369,8 +369,6 @@ else
   /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
 fi
 
-# This should be empty as it's just a mountpoint now:
-rm -rf /var/run/*
 # Bind mount /run to /var/run:
 mount -o bind /run /var/run
 

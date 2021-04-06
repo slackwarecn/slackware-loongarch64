@@ -160,6 +160,13 @@ gzip ./source/a/file/recompile_magic.mgc.sh
 gzip ./source/a/file/file.short.diff
 gzip ./source/a/file/file.etc.file.diff
 gzip ./source/a/file/doinst.sh
+gzip ./source/a/file/git-patches/1c677c04c0fa43ecfeccdb9705dbbd19fb356891.patch
+gzip ./source/a/file/git-patches/2f62d5544d13ca32dc09504ec70358db581e9e65.patch
+gzip ./source/a/file/git-patches/64dcffa715049351327851c8b5a6f3430a32ff39.patch
+gzip ./source/a/file/git-patches/9e2becec20d023409a1671bf10a682f699350e85.patch
+gzip ./source/a/file/git-patches/6b34436ac766dae64749b8d14f18c6910be40131.patch
+gzip ./source/a/file/git-patches/f06015040e7ffb3be21bb7622f9f8291b749aaf9.patch
+gzip ./source/a/file/git-patches/576d713ec955faafdc9d7b783f3f4c27b7bc1793.patch
 gzip ./source/a/file/file.quiet.diff
 gzip ./source/a/bzip2/bzip2.saneso.diff
 gzip ./source/a/floppy/fdutils-5.5-20081027.diff
@@ -301,6 +308,7 @@ gzip ./source/a/lvm2/create-dm-run-dir.diff
 gzip ./source/a/lvm2/doinst.sh
 gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy
+gzip ./source/a/libblockdev/libblockdev.glib-2.68.0.diff
 gzip ./source/a/libblockdev/doinst.sh
 gzip ./source/a/lilo/lilo.gcc10.diff
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
@@ -893,6 +901,7 @@ gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/gtk+3/gtk.fix.missing.version-check.py.diff
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
+gzip ./source/l/speech-dispatcher/a2faab416e42cbdf3d73f98578a89eb7a235e25a.patch
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
@@ -1019,8 +1028,7 @@ gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/ssr/doinst.sh
-gzip ./source/xap/pan/495bfb2eb9228b5b5cef8b50e11af577e4b473f8.patch
-gzip ./source/xap/pan/0d775547f0e7cf7529538704814469e1db5496f2.patch
+gzip ./source/xap/pan/pan.glib-2.68.0.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff

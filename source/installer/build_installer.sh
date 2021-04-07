@@ -92,13 +92,14 @@ SHOWHELP=0        # Do not show help
 
 # Default actions for the script:
 case $ARCH in
+  aarch64) LIBDIRSUFFIX=64;&
   arm*|aarch64)
     ADD_NETMODS=1         # add network modules
     ADD_PCMCIAMODS=1      # add pcmcia modules
     ADD_MANPAGES=1
     COMPRESS_MODS=0       # already compressed in a/kernel-modules.t?z package already
     DISTRODIR=${DISTRODIR:-"slackware"} # below this you find a,ap,d,..,y
-    LIBDIRSUFFIX=""       # the default
+    LIBDIRSUFFIX=${LIBDIRSUFFIX:-""} # the default
     RECOMPILE=1           # recompile busybox/dropbear and add new binaries
     SPLIT_INITRD=0        # Do not create separate initrd for each kernel
     USBBOOT=0             # do not build the USB boot image

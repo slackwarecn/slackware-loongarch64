@@ -768,6 +768,8 @@ gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
+gzip ./source/l/poppler/d7aa275b0bca86ae174e7e504dd269df2a0234cf.patch
+gzip ./source/l/poppler/2ed4cd66401bc1d9683c94238e9024218d7be3ba.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch

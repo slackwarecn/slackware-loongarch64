@@ -3,8 +3,16 @@
 if ( ! $?KDEDIRS ) then
     setenv KDEDIRS /usr
 endif
-setenv PATH ${PATH}:/usr/lib/kf5:/usr/lib/kde4/libexec
 
+# Add KDE paths if they exist:
+if ( -d /usr/lib/kf5 ) then
+    setenv PATH ${PATH}:/usr/lib/kf5
+endif
+if ( -d /usr/lib/kde4/libexec ) then
+    setenv PATH ${PATH}:/usr/lib/kde4/libexec
+endif
+
+# Add /etc/kde/xdg to $XDG_CONFIG_DIRS:
 if ( $?XDG_CONFIG_DIRS ) then
     setenv XDG_CONFIG_DIRS ${XDG_CONFIG_DIRS}:/etc/kde/xdg
 else

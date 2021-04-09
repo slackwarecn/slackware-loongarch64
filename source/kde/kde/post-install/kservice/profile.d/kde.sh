@@ -2,8 +2,17 @@
 # KDE additions:
 KDEDIRS=/usr
 export KDEDIRS
-PATH="$PATH:/usr/lib/kf5:/usr/lib/kde4/libexec"
+
+# Add KDE paths if they exist:
+if [ -d /usr/lib/kf5 ]; then
+  PATH="$PATH:/usr/lib/kf5"
+fi
+if [ -d /usr/lib/kde4/libexec ]; then
+  PATH="$PATH:/usr/lib/kde4/libexec"
+fi
 export PATH
+
+# Add /etc/kde/xdg to $XDG_CONFIG_DIRS:
 if [ ! "$XDG_CONFIG_DIRS" = "" ]; then
   XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS:/etc/kde/xdg
 else

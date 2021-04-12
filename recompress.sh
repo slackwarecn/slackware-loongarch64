@@ -581,7 +581,6 @@ gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
 gzip ./source/n/wireless_tools/wireless_tools.nowhine.diff
 gzip ./source/n/irssi/doinst.sh
-gzip ./source/n/irssi/irssi.ctrl-space.diff
 gzip ./source/n/httpd/httpd.runasapache.diff
 gzip ./source/n/httpd/doinst.sh
 gzip ./source/n/dovecot/dovecot.default.shadow.auth.diff
@@ -803,7 +802,6 @@ gzip ./source/l/gtk+2/doinst.sh
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
 gzip ./source/l/libvisual/libvisual.glib.h.diff
-gzip ./source/l/mlt/mlt-opencv.patch
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/gnome-themes-extra/doinst.sh

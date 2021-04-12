@@ -30,7 +30,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ffmpeg
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -79,11 +79,12 @@ fi
 # Unfortunately ffmpeg's configure doesn't support --enable-feature=yes
 # syntax, so we have to do it the complicated way :/
 # Additional optional (autodetected) dependencies are:
-# - jack-audio-connection-kit
+# - bzip2
 # - libva
 # - libvdpau
 # - libX11
 # - libxcb
+# - nvdec/nvenc
 # - sdl2
 # - xz
 # - zlib
@@ -91,21 +92,16 @@ fi
 libx264=""    ; [ "${X264:-no}" != "no" ]         && libx264="--enable-libx264"
 libcelt=""    ; [ "${CELT:-no}" != "no" ]         && libcelt="--enable-libcelt"
 libdc1394=""  ; [ "${DC1394:-no}" != "no" ]       && libdc1394="--enable-libdc1394"
-libfrei0r=""  ; [ "${FREI0R:-no}" != "no" ]       && libfrei0r="--enable-frei0r"
 libgsm=""     ; [ "${GSM:-no}" != "no" ]          && libgsm="--enable-libgsm"
 librtmp=""    ; [ "${RTMP:-no}" != "no" ]         && librtmp="--enable-librtmp"
-libspeex=""   ; [ "${SPEEX:-yes}" != "no" ]       && libspeex="--enable-libspeex"
 libxvid=""    ; [ "${XVID:-no}" != "no" ]         && libxvid="--enable-libxvid"
 libass=""     ; [ "${ASS:-no}" != "no" ]          && libass="--enable-libass"
-libopenal=""  ; [ "${OPENAL:-no}" != "no" ]       && libopenal="--enable-openal"
 libiec61883=""; [ "${IEC61883:-no}" != "no" ]     && libiec61883="--enable-libiec61883"
 libilbc=""    ; [ "${ILBC:-no}" != "no" ]         && libilbc="--enable-libilbc"
 libmodplug="" ; [ "${MODPLUG:-no}" != "no" ]      && libmodplug="--enable-libmodplug"
-libopus=""    ; [ "${OPUS:-yes}" != "no" ]        && libopus="--enable-libopus"
 libtwolame="" ; [ "${TWOLAME:-no}" != "no" ]      && libtwolame="--enable-libtwolame"
 ladspa=""     ; [ "${LADSPA:-no}" != "no" ]       && ladspa="--enable-ladspa"
 libflite=""   ; [ "${FLITE:-no}" != "no" ]        && libflite="--enable-libflite"
-libvidstab="" ; [ "${VIDSTAB:-no}" != "no" ]      && libvidstab="--enable-libvidstab"
 libx265=""    ; [ "${X265:-no}" != "no" ]         && libx265="--enable-libx265"
 libzvbi=""    ; [ "${ZVBI:-no}" != "no" ]         && libzvbi="--enable-libzvbi"
 libopencv=""  ; [ "${OPENCV:-no}" != "no" ]       && libopencv="--enable-libopencv"
@@ -113,11 +109,19 @@ libgme=""     ; [ "${GME:-no}" != "no" ]          && libgme="--enable-libgme"
 libsnappy=""  ; [ "${SNAPPY:-no}" != "no" ]       && libsnappy="--enable-libsnappy"
 libzmq=""     ; [ "${ZMQ:-no}" != "no" ]          && libzmq="--enable-libzmq"
 libbs2b=""    ; [ "${BS2B:-no}" != "no" ]         && libbs2b="--enable-libbs2b"
-libebur128="" ; [ "${EBUR128:-no}" != "no" ]      && libebur128="--enable-libebur128"
 rubberband="" ; [ "${RUBBERBAND:-no}" != "no" ]   && rubberband="--enable-librubberband"
 tesseract=""  ; [ "${TESSERACT:-no}" != "no" ]    && tesseract="--enable-libtesseract"
-netcdf=""     ; [ "${NETCDF:-no}" != "no" ]       && netcdf="--enable-netcdf"
+libjack=""    ; [ "${JACK:-no}" != "no" ]         && libjack="--enable-libjack"
+libaom=""     ; [ "${AOM:-no}" != "no" ]          && libaom="--enable-libaom"
+lv2=""        ; [ "${LV2:-no}" != "no" ]          && lv2="--enable-lv2"
+libdav1d=""   ; [ "${DAV1D:-no}" != "no" ]        && libdav1d="--enable-libdav1d"
+rabbitmq=""   ; [ "${RABBITMQ:-no}" != "no" ]     && rabbitmq="--enable-librabbitmq"
+libcodec2=""  ; [ "${CODEC2:-no}" != "no" ]       && libcodec2="--enable-libcodec2"
+libsoxr=""    ; [ "${SOXR:-no}" != "no" ]         && libsoxr="--enable-libsoxr"
+libsrt=""     ; [ "${SRT:-no}" != "no" ]          && libsrt="--enable-libsrt"
+libzimg=""    ; [ "${ZIMG:-no}" != "no" ]          && libsrt="--enable-libzimg"
 chromaprint=""  ; [ "${CHROMAPRINT:-no}" != "no" ] && chromaprint="--enable-chromaprint"
+vapoursynth=""  ; [ "${VAPOURSYNTH:-no}" != "no" ] && vapoursynth="--enable-vapoursynth"
 opencore_amr="" ; [ "${OPENCORE:-no}" != "no" ] && \
   opencore_amr="--enable-libopencore-amrnb --enable-libopencore-amrwb"
 fdk=""          ; [ "${FDK_AAC:-no}" != "no" ]  && \
@@ -127,6 +131,9 @@ ssl=""          ; [ "${OPENSSL:-no}" != "no" ]  && \
 decklink=""   ; [ "${DECKLINK:-no}" != "no" ]   && \
   { decklink="--enable-decklink" ; \
     SLKCFLAGS="$SLKCFLAGS -I/usr/include/decklink" ; }
+vulkan=""     ; [ "${VULKAN:-no}" != "no" ]      && librsvg="--enable-vulkan"
+libglslang="" ; [ "${GLSLANG:-no}" != "no" ]     && libglslang="--enable-libglslang"
+liblensfun="" ; [ "${LENSFUN:-no}" != "no" ]     && liblensfun="--enable-liblensfun"
 
 # Default enabled features:
 fontconfig="" ; [ "${FONTCONFIG:-yes}" != "no" ]  && fontconfig="--enable-libfontconfig"
@@ -148,7 +155,14 @@ opengl=""     ; [ "${OPENGL:-yes}" != "no" ]      && opengl="--enable-opengl"
 openjpeg=""   ; [ "${JP2:-yes}" != "no" ]         && openjpeg="--enable-libopenjpeg"
 pulse=""      ; [ "${PULSEAUDIO:-yes}" != "no" ]  && pulse="--enable-libpulse"
 samba=""      ; [ "${SAMBA:-yes}" != "no" ]       && samba="--enable-libsmbclient"
-wavpack=""    ; [ "${WAVPACK:-yes}" != "no" ]     && wavpack="--enable-libwavpack"
+libfrei0r=""  ; [ "${FREI0R:-yes}" != "no" ]      && libfrei0r="--enable-frei0r"
+libspeex=""   ; [ "${SPEEX:-yes}" != "no" ]       && libspeex="--enable-libspeex"
+libopenal=""  ; [ "${OPENAL:-yes}" != "no" ]      && libopenal="--enable-openal"
+libopus=""    ; [ "${OPUS:-yes}" != "no" ]        && libopus="--enable-libopus"
+libvidstab="" ; [ "${VIDSTAB:-yes}" != "no" ]     && libvidstab="--enable-libvidstab"
+libxml2=""    ; [ "${LIBXML2:-yes}" != "no" ]     && libxml2="--enable-libxml2"
+librsvg=""    ; [ "${LIBRSVG:-yes}" != "no" ]     && librsvg="--enable-librsvg"
+libdrm=""     ; [ "${LIBDRM:-yes}" != "no" ]      && libdrm="--enable-libdrm"
 
 # No default patent encumbered features:
 aac=""        ; [ "${AAC:-no}" = "no" ]           && aac="--disable-encoder=aac"
@@ -203,7 +217,6 @@ CXXFLAGS="$SLKCFLAGS" \
   $libcdio \
   $libcelt \
   $libdc1394 \
-  $libebur128 \
   $libflite \
   $libfrei0r \
   $libgme \
@@ -231,7 +244,6 @@ CXXFLAGS="$SLKCFLAGS" \
   $libzmq \
   $libzvbi \
   $mp3lame \
-  $netcdf \
   $opencl \
   $opencore_amr \
   $opengl \
@@ -241,7 +253,22 @@ CXXFLAGS="$SLKCFLAGS" \
   $samba \
   $ssl \
   $tesseract \
-  $wavpack || exit 1
+  $liblensfun \
+  $libxml2 \
+  $librsvg \
+  $vulkan \
+  $libjack \
+  $libglslang \
+  $libdrm \
+  $libaom \
+  $lv2 \
+  $libdav1d \
+  $rabbitmq \
+  $libcodec2 \
+  $libsoxr \
+  $libsrt \
+  $libzimg \
+  $vapoursynth || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

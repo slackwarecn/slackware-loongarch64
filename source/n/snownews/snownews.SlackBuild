@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright  2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright  2009, 2010, 2018, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=snownews
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -77,6 +77,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Apply a few upstream commits:
+zcat $CWD/181d1a670a06bb3fecbd7ad990f222d6e2285dc9.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/1b88d708109272e6d65d57840fdb1dfadf7d9cec.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/e07998c23e0ec6fe8df9fd0b87bce09f36bd5c6c.patch.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -89,12 +94,7 @@ CFLAGS="$SLKCFLAGS" \
   --disable-static \
   --build=$ARCH-slackware-linux || exit 1
 
-# Use ncursesw instead of regular ncurses:
-sed -i 's|lncurses|lncursesw|g' platform_settings
-
 make $NUMJOBS || make || exit 1
-
-zcat $CWD/snownews.fake.destdir.diff.gz | patch -p1 --verbose || exit 1
 make install DESTDIR=$PKG || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -118,15 +118,15 @@ fi
 
 mkdir -p $PKG/usr/doc/snownews-$VERSION
 cp -a \
-  AUTHOR COPYING* CREDITS README* \
+  LICENSE* README* docs/CHANGES* docs/CREDITS* \
   $PKG/usr/doc/snownews-$VERSION
 
-# If there's a Changelog, installing at least part of the recent history
+# If there's a CHANGES file, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r Changelog ]; then
+if [ -r CHANGES ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat Changelog | head -n 1000 > $DOCSDIR/Changelog
-  touch -r Changelog $DOCSDIR/Changelog
+  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
+  touch -r CHANGES $DOCSDIR/CHANGES
 fi
 
 mkdir -p $PKG/install

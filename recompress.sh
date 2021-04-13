@@ -409,7 +409,9 @@ gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff
 gzip ./source/n/procmail/procmail.lfs.diff
 gzip ./source/n/procmail/procmail_3.22-5.diff
-gzip ./source/n/snownews/snownews.fake.destdir.diff
+gzip ./source/n/snownews/181d1a670a06bb3fecbd7ad990f222d6e2285dc9.patch
+gzip ./source/n/snownews/e07998c23e0ec6fe8df9fd0b87bce09f36bd5c6c.patch
+gzip ./source/n/snownews/1b88d708109272e6d65d57840fdb1dfadf7d9cec.patch
 gzip ./source/n/nfs-utils/doinst.sh
 gzip ./source/n/nfs-utils/nfs-utils.lwrap.needs.lnsl.diff
 gzip ./source/n/metamail/metamail.uue.getline.diff

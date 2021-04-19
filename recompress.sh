@@ -467,6 +467,7 @@ gzip ./source/n/mutt/doinst.sh
 gzip ./source/n/network-scripts/doinst.sh
 gzip ./source/n/netkit-rwho/rwhod_getloadavg.diff
 gzip ./source/n/netkit-rwho/netkit-rwho-0.17.diff
+gzip ./source/n/daemon/doinst.sh
 gzip ./source/n/ebtables/doinst.sh
 gzip ./source/n/ModemManager/WeDoNotHaveSystemD.patch
 gzip ./source/n/obexftp/patches/obexftp-norpath.patch

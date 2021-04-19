@@ -6,7 +6,7 @@
 # bugs these days. We're going to make /etc/localtime a symlink just
 # like everyone else does so that programs that expect it to be a link
 # can fetch the timezone without requiring any special patches.
-# If you insist on making /usr a seperate partition, you might want to
+# If you insist on making /usr a separate partition, you might want to
 # put the pointed-to directories and timezone file in your empty /usr
 # directory so that it is available before the real /usr is mounted.
 # Still not recommended though.

@@ -1123,6 +1123,7 @@ gzip ./source/x/x11/patch/xorg-server/0001-Always-install-vbe-and-int10-sdk-head
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
+gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh

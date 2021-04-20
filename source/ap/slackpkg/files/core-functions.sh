@@ -163,7 +163,7 @@ function system_setup() {
 
 	# Create initial blacklist of single package names from regexps in
 	# ${CONF}/blacklist.
-	mkregex_blacklist
+	[ "$CMD" != update ] && mkregex_blacklist
 
 	SLACKCFVERSION=$(grep "# v[0-9.]\+" $CONF/slackpkg.conf | cut -f2 -dv)
 	CHECKSUMSFILE=${WORKDIR}/CHECKSUMS.md5
@@ -327,6 +327,8 @@ to the closest mirror and is very slow.\n"
 	   [ "$CMD" != "search" ] && \
 	   [ "$CMD" != "file-search" ] && \
 	   [ "$CMD" != "check-updates" ] && \
+	   [ "$CMD" != "show-changelog" ] && \
+	   [ "$CMD" != "help" ] && \
 	   [ "$CMD" != "info" ]; then
 		echo -e "\n\
 Only root can install, upgrade, or remove packages.\n\
@@ -629,13 +631,9 @@ function makelist() {
 
 	INPUTLIST=$@
 
-	if echo $CMD | grep -q install ; then
-		ls -1 $ROOT/var/log/packages/* |
-			awk -f /usr/libexec/slackpkg/pkglist.awk > ${TMPDIR}/tmplist
-	else
-		ls -1 $ROOT/var/log/packages/* |
-			awk -f /usr/libexec/slackpkg/pkglist.awk > ${TMPDIR}/tmplist
-	fi
+	printf "%s\n" $ROOT/var/log/packages/* |
+		awk -f /usr/libexec/slackpkg/pkglist.awk > ${TMPDIR}/tmplist
+
 	cat ${WORKDIR}/pkglist > ${TMPDIR}/pkglist
 
 	touch ${TMPDIR}/waiting
@@ -784,9 +782,6 @@ function makelist() {
 			else
 				for i in ${PRIORITY[@]}; do
 
-					# Test for search pattern in blacklist first
-					grep -q "^${PATTERN}$" ${TMPDIR}/blacklist && continue
-
 					PKGS=$( cut -d\  -f1-7 ${TMPDIR}/pkglist |
 						grep "^${i}.*${PATTERN}" | cut -f6 -d\ )
 
@@ -800,14 +795,9 @@ function makelist() {
 				done
 			fi
 			rm -f $PKGNAMELIST
-			rm ${TMPDIR}/waiting
-
-			echo -e "DONE\n"
-			# We need to return early before the blacklist
-			return
 		;;	
 	esac
-	LIST=$( printf "%s\n" $LIST | applyblacklist | uniq )
+	LIST=$( printf "%s\n" $LIST | applyblacklist | sort | uniq )
 
 	rm ${TMPDIR}/waiting
 

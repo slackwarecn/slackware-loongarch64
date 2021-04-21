@@ -7,8 +7,10 @@
 
 PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
-# Try to mount /proc:
-/sbin/mount -v proc /proc -n -t proc 2> /dev/null
+# Mount /proc if it is not already mounted:
+if [ ! -r /proc/self/mounts ]; then
+  /sbin/mount -v proc /proc -n -t proc 2> /dev/null
+fi
 
 # Mount sysfs next, if the kernel supports it:
 if [ -d /sys ]; then

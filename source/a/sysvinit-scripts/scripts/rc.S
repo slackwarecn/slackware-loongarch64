@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # /etc/rc.d/rc.S:  System initialization script.
 #
@@ -8,17 +8,13 @@
 PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
 # Mount /proc if it is not already mounted:
-if [ ! -r /proc/self/mounts ]; then
+if [ ! -d /proc/sys ]; then
   /sbin/mount -v proc /proc -n -t proc 2> /dev/null
 fi
 
-# Mount sysfs next, if the kernel supports it:
-if [ -d /sys ]; then
-  if grep -wq sysfs /proc/filesystems ; then
-    if ! grep -wq sysfs /proc/mounts ; then
-      /sbin/mount -v sysfs /sys -n -t sysfs
-    fi
-  fi
+# Mount /sys if it is not already mounted:
+if [ ! -d /sys/kernel ]; then
+  /sbin/mount -v sysfs /sys -n -t sysfs 2> /dev/null
 fi
 
 # If /run exists, mount a tmpfs on it (unless the

@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/bash
 #
 # rc.K 		This file is executed by init when it goes into runlevel
 #		1, which is the administrative state. It kills all

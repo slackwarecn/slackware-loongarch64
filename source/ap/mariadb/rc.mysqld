@@ -31,9 +31,6 @@
 # uncommented to improve system security.
 SKIP="--skip-networking"
 
-# Uncomment the next line to use TokuDB
-#TOKUDB="--plugin-load=ha_tokudb"
-
 # Start mysqld:
 mysqld_start() {
   if [ -x /usr/bin/mysqld_safe ]; then
@@ -45,12 +42,7 @@ mysqld_start() {
       fi
     fi
 
-    if ! [ -z "$TOKUDB" ]; then
-      echo "never" > /sys/kernel/mm/transparent_hugepage/enabled
-      echo "never" > /sys/kernel/mm/transparent_hugepage/defrag
-    fi
-
-    /usr/bin/mysqld_safe --datadir=/var/lib/mysql --pid-file=/var/run/mysql/mysql.pid $SKIP $TOKUDB &
+    /usr/bin/mysqld_safe --datadir=/var/lib/mysql --pid-file=/var/run/mysql/mysql.pid $SKIP &
   fi
 }
 
@@ -70,10 +62,6 @@ mysqld_stop() {
     if [ "$second" = "60" ]; then
       echo "WARNING:  Gave up waiting for mysqld to exit!"
       sleep 15
-    fi
-    if ! [ -z "$TOKUDB" ]; then
-        echo "always" > /sys/kernel/mm/transparent_hugepage/enabled
-        echo "always" > /sys/kernel/mm/transparent_hugepage/defrag
     fi
   fi
 }

@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=file
 VERSION=${VERSION:-$(echo file-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -78,8 +78,6 @@ find . \
 
 # Make the default data directory /etc/file like it has always been:
 zcat $CWD/file.etc.file.diff.gz | patch -p1 --verbose || exit 1
-# This is needed after the patch above:
-autoreconf -vif || exit 1
 
 # Since we're going to include the compiled magic database now (otherwise
 # there seem to be libmagic related crashes), this patch probably doesn't
@@ -108,6 +106,12 @@ zcat $CWD/git-patches/64dcffa715049351327851c8b5a6f3430a32ff39.patch.gz | patch 
 zcat $CWD/git-patches/6b34436ac766dae64749b8d14f18c6910be40131.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/git-patches/9e2becec20d023409a1671bf10a682f699350e85.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/git-patches/f06015040e7ffb3be21bb7622f9f8291b749aaf9.patch.gz | patch -p1 --verbose || exit 1
+
+# Fix detection of XZ compressed data:
+zcat $CWD/0001-Fix-mime-type-XZ-after-Add-checksum-for-XZ.patch.gz | patch -p1 --verbose || exit 1
+
+# This is needed after the default data directory patch above:
+autoreconf -vif || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \

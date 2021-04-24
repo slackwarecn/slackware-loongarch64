@@ -168,6 +168,7 @@ gzip ./source/a/file/git-patches/6b34436ac766dae64749b8d14f18c6910be40131.patch
 gzip ./source/a/file/git-patches/f06015040e7ffb3be21bb7622f9f8291b749aaf9.patch
 gzip ./source/a/file/git-patches/576d713ec955faafdc9d7b783f3f4c27b7bc1793.patch
 gzip ./source/a/file/file.quiet.diff
+gzip ./source/a/file/0001-Fix-mime-type-XZ-after-Add-checksum-for-XZ.patch
 gzip ./source/a/bzip2/bzip2.saneso.diff
 gzip ./source/a/floppy/fdutils-5.5-20081027.diff
 gzip ./source/a/floppy/fdutils.mediaprm.diff

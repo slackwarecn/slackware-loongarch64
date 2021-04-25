@@ -11,7 +11,14 @@ dnsmasq_start() {
 
 # Stop dnsmasq:
 dnsmasq_stop() {
-  killall dnsmasq
+  # Try to use the .pid file first:
+  if pgrep -l -F /var/run/dnsmasq.pid 2> /dev/null | grep -q dnsmasq ; then
+    echo "Stopping dnsmasq."
+    pkill -F /var/run/dnsmasq.pid 2> /dev/null
+  else # kill any dnsmasq processes in this namespace:
+    echo "Stopping dnsmasq."
+    killall --ns $$ dnsmasq 2> /dev/null  
+  fi
 }
 
 # Restart dnsmasq:

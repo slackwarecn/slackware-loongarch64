@@ -21,6 +21,3 @@ preserve_perms() {
 }
 config etc/dnsmasq.conf.new
 preserve_perms etc/rc.d/rc.dnsmasq.new
-
-# This should be mostly useless...
-rm -f etc/rc.d/rc.dnsmasq.new

@@ -17,12 +17,6 @@ if [ -r etc/pam.d/cups.new ]; then
   config etc/pam.d/cups.new
 fi
 
-# This file will just have to go.  It appeared for a while during a -current
-# devel period and has never been part of a stable release.
-#config etc/modprobe.d/cups.blacklist.usblp.conf.new
-rm -f etc/modprobe.d/cups.blacklist.usblp.conf.new
-rm -f etc/modprobe.d/cups.blacklist.usblp.conf
-
 # Leave any new rc.cups with the same permissions as the old one:
 # This is a kludge, but it's because there's no --reference option
 # on busybox's 'chmod':

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # Copyright 2015, 2017, 2018, 2019  Eric Hameleers, Eindhoven, NL
 # All rights reserved.
 #
@@ -111,6 +111,13 @@ cd ..
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION

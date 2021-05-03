@@ -621,6 +621,7 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/ap/mariadb/rc.mysqld
+gzip ./source/ap/mariadb/mariadb.ConnectorName.cmake.diff
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
 gzip ./source/ap/mariadb/mysql_install_db.nopam.diff
@@ -771,8 +772,6 @@ gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
-gzip ./source/l/poppler/d7aa275b0bca86ae174e7e504dd269df2a0234cf.patch
-gzip ./source/l/poppler/2ed4cd66401bc1d9683c94238e9024218d7be3ba.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
@@ -1130,6 +1129,10 @@ gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
+gzip ./testing/source/mariadb/rc.mysqld
+gzip ./testing/source/mariadb/doinst.sh
+gzip ./testing/source/mariadb/mysql.no.plugin_auth_pam.diff
+gzip ./testing/source/mariadb/mysql_install_db.nopam.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

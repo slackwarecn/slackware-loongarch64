@@ -57,6 +57,8 @@ gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
 gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
+gzip ./source/d/meson/meson.import.copy.diff
+gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
 gzip ./source/d/binutils/patches/binutils-2.24-ldforcele.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.2-libtool-lib64.patch
@@ -410,9 +412,6 @@ gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff
 gzip ./source/n/procmail/procmail.lfs.diff
 gzip ./source/n/procmail/procmail_3.22-5.diff
-gzip ./source/n/snownews/181d1a670a06bb3fecbd7ad990f222d6e2285dc9.patch
-gzip ./source/n/snownews/e07998c23e0ec6fe8df9fd0b87bce09f36bd5c6c.patch
-gzip ./source/n/snownews/1b88d708109272e6d65d57840fdb1dfadf7d9cec.patch
 gzip ./source/n/nfs-utils/doinst.sh
 gzip ./source/n/nfs-utils/nfs-utils.lwrap.needs.lnsl.diff
 gzip ./source/n/metamail/metamail.uue.getline.diff

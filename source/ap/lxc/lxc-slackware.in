@@ -152,8 +152,11 @@ sed -i '/^c3\|^c4\|^c5\|^c6/s/^/# /' $rootfs/etc/inittab
 sed -i "s,pf::powerfail:/sbin/genpowerfail start,pf::powerfail:/sbin/shutdown -h now,g" $rootfs/etc/inittab
 sed -i "s,pg::powerokwait:/sbin/genpowerfail stop,pg::powerokwait:/sbin/shutdown -c,g" $rootfs/etc/inittab
 
+# create the library symlinks
+chroot $rootfs ldconfig
+
 # set a default combination for the luggage
-echo "root:root" | chroot $rootfs chpasswd
+echo "root:root" | chroot $rootfs chpasswd 2> /dev/null
 echo "Root default password is 'root', please change it!"
 
 # borrow the time configuration from the local machine
@@ -206,10 +209,11 @@ echo "$MIRROR/$PKGMAIN-$release/" > $CONF/mirrors
 touch $CONF/blacklist
 
 cat <<EOF > $CONF/slackpkg.conf
-# v2.8
+# v15.0
 ARCH=$arch
 TEMP=$cache/cache-$release-$arch
 WORKDIR=$cache/slackpkg-$release-$arch
+WGETFLAGS="--passive-ftp"
 DELALL=off
 CHECKMD5=on
 CHECKGPG=on
@@ -217,6 +221,7 @@ CHECKSIZE=off
 PRIORITY=( patches %PKGMAIN extra pasture testing )
 POSTINST=on
 ONLY_NEW_DOTNEW=off
+ORIG_BACKUPS=on
 ONOFF=on
 DOWNLOAD_ALL=on
 DIALOG=off
@@ -224,6 +229,7 @@ BATCH=on
 DEFAULT_ANSWER=y
 USE_INCLUDES=on
 SPINNING=off
+DIALOG_MAXARGS=139000
 EOF
 
 # thanks to Vincent Batts for this list of packages
@@ -232,11 +238,14 @@ EOF
 cat <<EOF > $CONF/templates/minimal-lxc.template
 aaa_base
 aaa_elflibs
+aaa_glibc-solibs
+aaa_libraries
 aaa_terminfo
 bash
 bin
 bzip2
 coreutils
+cracklib
 cyrus-sasl
 db48
 dcron
@@ -245,23 +254,27 @@ dialog
 diffutils
 e2fsprogs
 elfutils
+elogind
 elvis
 etc
 eudev
 findutils
 gawk
-glibc-solibs
 gnupg
 gnutls
 grep
 gzip
+hostname
 iproute2
 iputils
 kmod
+less
 libcap-ng
 libffi
 libmnl
+libpwquality
 libtasn1
+libtirpc
 libunistring
 logrotate
 mpfr
@@ -269,6 +282,7 @@ net-tools
 nettle
 network-scripts
 ncurses
+pam
 openssh
 openssl-solibs
 p11-kit

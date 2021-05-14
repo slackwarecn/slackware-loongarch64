@@ -3,7 +3,7 @@
 # Slackware build script for llvm
 
 # Copyright 2008-2016 Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -37,6 +37,29 @@ if [ -z "$ARCH" ]; then
     arm*) ARCH=arm ;;
        *) ARCH=$( uname -m ) ;;
   esac
+fi
+
+# Building clangd will be determined automatically unless BUILD_CLANG is
+# preset to YES or NO:
+if [ -z $BUILD_CLANGD ]; then
+  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+    BUILD_CLANGD=NO
+  else
+    BUILD_CLANGD=YES
+  fi
+fi
+if [ "$BUILD_CLANGD" = "NO" ]; then
+  CLANGD="-DCLANG_ENABLE_CLANGD=OFF"
+fi
+
+# Building lld will be determined automatically unless BUILD_LLD is
+# preset to YES or NO:
+if [ -z $BUILD_LLD ]; then
+  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+    BUILD_LLD=NO
+  else
+    BUILD_LLD=YES
+  fi
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -74,7 +97,7 @@ PY3=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_pyth
 # <linux/types.h> are defined, even though they are. gcc/g++ seem unaffected.
 # For now, not much choice other than to disable this.
 # Don't use icecream:
-PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
+#PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -89,14 +112,19 @@ cd $PKGNAM-${VERSION}/tools || cd $PKGNAM-${VERSION}.src/tools || exit 1
   #mv flang-${VERSION} flang 2>/dev/null || mv flang-${VERSION}.src flang || exit 1
   tar xvf $CWD/lldb-$VERSION.src.tar.xz || exit 1
   mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
-  tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
-  mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
+  if [ "$BUILD_CLANGD" = "YES" ]; then
+    tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
+    mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
+  fi
 cd ../
 
 cd tools/clang/tools || exit 1
   tar xvf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
   mv clang-tools-extra-${VERSION} extra 2>/dev/null \
     || mv clang-tools-extra-${VERSION}.src extra || exit 1
+  # HACK # Otherwise the build fails because files aren't found.
+  rm -rf $TMP/clang-tools-extra
+  cp -a extra $TMP/clang-tools-extra
 cd ../../../
 
 cd projects || exit 1
@@ -110,6 +138,9 @@ cd projects || exit 1
   mv libcxxabi-${VERSION} libcxxabi 2>/dev/null || mv libcxxabi-${VERSION}.src libcxxabi || exit 1
   tar xvf $CWD/polly-$VERSION.src.tar.xz || exit 1
   mv polly-${VERSION} polly 2>/dev/null || mv polly-${VERSION}.src polly || exit 1
+  # We just need a header file from this...
+  tar xvf $CWD/libunwind-${VERSION}.src.tar.xz || exit 1
+  mv libunwind-${VERSION} libunwind || mv libunwind-${VERSION}.src libunwind || exit 1
 cd ../
 
 # Support GCC built for i586-slackware-linux:
@@ -117,17 +148,6 @@ zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
 
 # Hack to fix build with polly. Maybe we should just not use polly... ?
 zcat $CWD/llvm.polly.hack.diff.gz | patch -p1 --verbose || exit 1
-
-# As of clang-tools-extra-7.0.0 we get the following error on i586 or i686:
-# CMakeFiles/clangDaemon.dir/Trace.cpp.o:Trace.cpp:function std::unique_ptr<clang::clangd::trace::(anonymous namespace)::JSONTracer::JSONSpan, std::default_delete<clang::clangd::trace::(anonymous namespace)::JSONTracer::JSONSpan> >::~unique_ptr(): error: undefined reference to '__atomic_load_8'
-# Attempts to try to fix this have failed here, so for now we will not build
-# clangd to avoid the failure. Any help with a proper fix is appreciated.
-# I have not reported this upstream since I suspect that it's an artifact
-# of our convoluted build method.
-case $ARCH in
-  i?86) CLANGD="-DCLANG_ENABLE_CLANGD=OFF" ;;
-     *) unset CLANGD ;;
-esac
 
 chown -R root:root .
 find . \
@@ -138,6 +158,11 @@ find . \
 
 mkdir build
 cd build
+  mkdir include
+  # Copy this LLVM libunwind header or it won't be found:
+  cp -a ../projects/libunwind/include/mach-o include
+  # Nuke LLVM libunwind as it conflicts with the one already on the system:
+  rm -r ../projects/libunwind
   cmake -GNinja \
     -DCMAKE_C_COMPILER="clang" \
     -DCMAKE_CXX_COMPILER="clang++" \

@@ -885,7 +885,6 @@ gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
-gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch
@@ -1125,10 +1124,6 @@ gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
-gzip ./testing/source/mariadb/rc.mysqld
-gzip ./testing/source/mariadb/doinst.sh
-gzip ./testing/source/mariadb/mysql.no.plugin_auth_pam.diff
-gzip ./testing/source/mariadb/mysql_install_db.nopam.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

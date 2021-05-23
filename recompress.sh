@@ -365,6 +365,7 @@ gzip ./source/a/dbus/doinst.sh
 gzip ./source/a/dbus/rc.messagebus
 gzip ./source/a/dbus/dbus-1.12.x-allow_root_globally.diff
 gzip ./source/a/dbus/dbus-enable-elogind.patch
+gzip ./source/a/mcelog/mcelog.logrotate.size.syntax.diff
 gzip ./source/a/mcelog/mcelog.init.diff
 gzip ./source/a/mcelog/doinst.sh
 gzip ./source/kde/kde/patch/ktorrent/geoip.dat

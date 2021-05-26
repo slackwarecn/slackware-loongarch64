@@ -1597,8 +1597,14 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     # Save the Hyper-V keyboard module:
     mkdir -p input.orig/serio
     cp -a input/serio/hyperv-keyboard.ko input.orig/serio
+    # Save any PCI controller modules:
+    if [ -d pci/controller ]; then
+      mkdir -p pci.orig/controller
+      cp -a pci/controller/* pci.orig/controller
+    fi
     rm -rf${VERBOSE1} ata atm bluetooth clocksource connector crypto dma idle infiniband input isdn kvm leds media memstick message mfd misc pci power rtc serial telephony uwb w1 watchdog
     mv input.orig input
+    mv pci.orig pci 2> /dev/null
 
     if [ "$ADD_KMS" = "1" ]; then
       # Keep video.ko and button.ko, needed by some gpu drivers.

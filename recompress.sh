@@ -72,7 +72,6 @@ gzip ./source/d/icecream/doinst.sh
 gzip ./source/d/automake/doinst.sh
 gzip ./source/d/intltool/no-guess-builddir.diff
 gzip ./source/d/intltool/intltool-0.51.0-perl-5.22.patch
-gzip ./source/d/m4/m4.glibc228.diff
 gzip ./source/d/distcc/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
 gzip ./source/d/libtool/doinst.sh

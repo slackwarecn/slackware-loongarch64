@@ -533,10 +533,7 @@ gzip ./source/n/netkit-timed/netkit-timed-0.17.diff
 gzip ./source/n/wget/doinst.sh
 gzip ./source/n/vsftpd/vsftpd.conf.diff
 gzip ./source/n/vsftpd/vsftpd.crypt.diff
-gzip ./source/n/vsftpd/0035-Modify-DH-enablement-patch-to-build-with-OpenSSL-1.1.patch
-gzip ./source/n/vsftpd/vsftpd.link-with-openssl-1.1.diff
 gzip ./source/n/vsftpd/doinst.sh
-gzip ./source/n/vsftpd/0021-Introduce-support-for-DHE-based-cipher-suites.patch
 gzip ./source/n/vsftpd/vsftpd.log
 gzip ./source/n/vsftpd/vsftpd.builddefs.diff
 gzip ./source/n/net-tools/net-tools.config.h

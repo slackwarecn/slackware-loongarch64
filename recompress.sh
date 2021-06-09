@@ -55,8 +55,11 @@ gzip ./source/d/gyp/gyp-python38.patch
 gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
+gzip ./source/d/gcc/patches/PR100101.2efbbba16a0630fac8cadcd6d9e0ffaabfadb79f.patch
 gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
+gzip ./source/d/gcc/patches/PR100102.5357ab75dedef403b0eebf9277d61d1cbeb5898f.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
+gzip ./source/d/gcc/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.patch
 gzip ./source/d/meson/meson.import.copy.diff
 gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/binutils/patches/binutils-2.20.51.0.10-sec-merge-emit.patch
@@ -748,7 +751,10 @@ gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/libusb/f6d2cb561402c3b6d3627c0eb89e009b503d9067.patch
+gzip ./source/l/alsa-lib/9621d0bff2e60b43e329ffa5059ab19f2914ec14.patch
+gzip ./source/l/alsa-lib/0e4ba2ea8c0402f12a645032a14693eb9b1278e6.patch
 gzip ./source/l/alsa-lib/doinst.sh
+gzip ./source/l/alsa-lib/ddfc32abf5697de1618b9e7ffdf57a0f97013090.patch
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
 gzip ./source/l/brotli/brotli.no.unrecognized.R.diff

@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=alsa-lib
 VERSION=${VERSION:-$(echo alsa-lib-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -80,6 +80,11 @@ cd alsa-lib-$VERSION || exit 1
 if [ ! -r src/conf/smixer.conf ]; then
   cp -a $CWD/smixer.conf src/conf
 fi
+
+# Fix regressions in 1.2.5:
+zcat $CWD/0e4ba2ea8c0402f12a645032a14693eb9b1278e6.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/9621d0bff2e60b43e329ffa5059ab19f2914ec14.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $CWD/ddfc32abf5697de1618b9e7ffdf57a0f97013090.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 # Untar the configuration files. We'll install them later.
 ( mkdir ucm-and-topology-configs

@@ -751,10 +751,7 @@ gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/libusb/f6d2cb561402c3b6d3627c0eb89e009b503d9067.patch
-gzip ./source/l/alsa-lib/9621d0bff2e60b43e329ffa5059ab19f2914ec14.patch
-gzip ./source/l/alsa-lib/0e4ba2ea8c0402f12a645032a14693eb9b1278e6.patch
 gzip ./source/l/alsa-lib/doinst.sh
-gzip ./source/l/alsa-lib/ddfc32abf5697de1618b9e7ffdf57a0f97013090.patch
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
 gzip ./source/l/brotli/brotli.no.unrecognized.R.diff

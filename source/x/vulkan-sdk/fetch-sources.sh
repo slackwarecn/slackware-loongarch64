@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Copyright 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2021  Heinz Wiesinger, Amsterdam, The Netherlands
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,102 +28,99 @@
 #
 # Example:  VERSION=1.1.92.1 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.2.162.2}
-BRANCH=${BRANCH:-sdk-1.2.162}
+VERSION=${VERSION:-latest}
 
-rm -rf Vulkan-*-*.tar.?z glslang* SPIRV-Tools* SPIRV-Headers* \
-	Vulkan-Headers-sdk-${VERSION}* \
-	Vulkan-ValidationLayers-sdk-${VERSION}* \
-	Vulkan-Loader-sdk-${VERSION}* \
-	Vulkan-Tools-sdk-${VERSION}*
+get_known_good() {
+JSON_PATH=$1
+DEP=$2
+KEY=$3
 
-
-git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-Headers.git Vulkan-Headers-sdk-${VERSION}
-rm -rf Vulkan-Headers-sdk-${VERSION}/.git
-tar cf Vulkan-Headers-sdk-${VERSION}.tar Vulkan-Headers-sdk-${VERSION}
-rm -rf Vulkan-Headers-sdk-${VERSION}
-plzip -9 Vulkan-Headers-sdk-${VERSION}.tar
-
-git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-ValidationLayers.git Vulkan-ValidationLayers-sdk-${VERSION}
-rm -rf Vulkan-ValidationLayers-sdk-${VERSION}/.git
-tar cf Vulkan-ValidationLayers-sdk-${VERSION}.tar Vulkan-ValidationLayers-sdk-${VERSION}
-rm -rf Vulkan-ValidationLayers-sdk-${VERSION}
-# Put this here since python's tarfile.open doesn't like tar.lz:
-GLSLANG_COMMIT=$(python3 - << EOF
+DEP_COMMIT=$(python3 - << EOF
 import json
-import tarfile
-with tarfile.open('Vulkan-ValidationLayers-sdk-$VERSION.tar') as layers:
-        known_good = layers.extractfile('Vulkan-ValidationLayers-sdk-${VERSION}/scripts/known_good.json')
-        known_good_info = json.loads(known_good.read())
-glslang = next(repo for repo in known_good_info['repos'] if repo['name'] == 'glslang')
-print(glslang['commit'])
-EOF
-)
-# Now it's safe to compress:
-plzip -9 Vulkan-ValidationLayers-sdk-${VERSION}.tar
-
-git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-Loader.git Vulkan-Loader-sdk-${VERSION}
-rm -rf Vulkan-Loader-sdk-${VERSION}/.git
-tar cf Vulkan-Loader-sdk-${VERSION}.tar Vulkan-Loader-sdk-${VERSION}
-rm -rf Vulkan-Loader-sdk-${VERSION}
-plzip -9 Vulkan-Loader-sdk-${VERSION}.tar
-
-git clone -b "$BRANCH" --single-branch https://github.com/KhronosGroup/Vulkan-Tools.git Vulkan-Tools-sdk-${VERSION}
-rm -rf Vulkan-Tools-sdk-${VERSION}/.git
-tar cf Vulkan-Tools-sdk-${VERSION}.tar Vulkan-Tools-sdk-${VERSION}
-rm -rf Vulkan-Tools-sdk-${VERSION}
-plzip -9 Vulkan-Tools-sdk-${VERSION}.tar
-
-git clone https://github.com/KhronosGroup/glslang.git
-cd glslang || exit
-git checkout "$GLSLANG_COMMIT"
-GLSLANG_VERSION=$(git rev-parse --short HEAD)
-rm -rf .git
-cd ..
-
-mv glslang "glslang-$GLSLANG_VERSION"
-
-SPIRV_TOOLS_COMMIT=$(python3 - << EOF
-import json
-with open('glslang-$GLSLANG_VERSION/known_good.json') as f:
+with open('$JSON_PATH') as f:
 	known_good = json.load(f)
-tools = next(commit for commit in known_good['commits'] if commit['name'] == 'spirv-tools')
-print(tools['commit'])
-EOF
-)
-
-git clone https://github.com/KhronosGroup/SPIRV-Tools.git
-cd SPIRV-Tools || exit
-git checkout "$SPIRV_TOOLS_COMMIT"
-SPIRV_TOOLS_VERSION="$(git rev-parse --short HEAD)"
-rm -rf .git
-cd ..
-mv SPIRV-Tools SPIRV-Tools-$SPIRV_TOOLS_VERSION
-tar cf SPIRV-Tools-$SPIRV_TOOLS_VERSION.tar SPIRV-Tools-$SPIRV_TOOLS_VERSION
-rm -rf SPIRV-Tools-$SPIRV_TOOLS_VERSION
-plzip -9 SPIRV-Tools-$SPIRV_TOOLS_VERSION.tar
-
-SPIRV_HEADERS_COMMIT=$(python3 - << EOF
-import json
-with open('glslang-$GLSLANG_VERSION/known_good.json') as f:
-	known_good = json.load(f)
-name = 'spirv-tools/external/spirv-headers'
-headers = next(commit for commit in known_good['commits'] if commit['name'] == name)
+name = '$DEP'
+headers = next(commit for commit in known_good['$KEY'] if commit['name'] == name)
 print(headers['commit'])
 EOF
 )
 
-git clone https://github.com/KhronosGroup/SPIRV-Headers.git
-cd SPIRV-Headers || exit
-git checkout "$SPIRV_HEADERS_COMMIT"
-SPIRV_HEADERS_VERSION="$(git rev-parse --short HEAD)"
-rm -rf .git
-cd ..
-mv SPIRV-Headers SPIRV-Headers-$SPIRV_HEADERS_VERSION
-tar cf SPIRV-Headers-$SPIRV_HEADERS_VERSION.tar SPIRV-Headers-$SPIRV_HEADERS_VERSION
-rm -rf SPIRV-Headers-$SPIRV_HEADERS_VERSION
-plzip -9 SPIRV-Headers-$SPIRV_HEADERS_VERSION.tar
+echo $DEP_COMMIT
+}
 
-tar cf glslang-$GLSLANG_VERSION.tar glslang-$GLSLANG_VERSION
-rm -rf glslang-$GLSLANG_VERSION
-plzip -9 glslang-$GLSLANG_VERSION.tar
+rm -f *.tar.lz
+
+wget https://vulkan.lunarg.com/doc/view/$VERSION/linux/release_notes.html
+
+VERSION=$(grep "Version" release_notes.html | grep "for Linux" | sed -e 's/<[^>]*>//g' | cut -d " " -f 2)
+
+for i in $(grep "Repo:" release_notes.html | cut -d "\"" -f 2); do
+  COMMIT=$(basename $i)
+  REPO=$(echo $i | cut -d "/" -f 1-5)
+  NAME=$(basename $REPO)
+
+  # release notes for bugfix releases contain the repo list multiple times
+  # only create tarballs for the most recent ones (on top)
+  if ! [ -e $NAME.fetched ]; then
+    git clone $REPO $NAME-$COMMIT
+    cd $NAME-$COMMIT
+      git reset --hard $COMMIT || git reset --hard origin/$COMMIT
+      git submodule update --init --recursive
+      git describe > .git-version
+    cd ..
+    tar --exclude-vcs -cf $NAME-$COMMIT.tar $NAME-$COMMIT
+    plzip -9 $NAME-$COMMIT.tar
+    touch $NAME.fetched
+
+    if [ "$NAME" = "glslang" -a ! -e SPIRV-Headers.fetched ]; then
+      SPIRV_HEADERS_COMMIT=$(get_known_good glslang-$COMMIT/known_good.json spirv-tools/external/spirv-headers commits)
+
+      git clone https://github.com/KhronosGroup/SPIRV-Headers.git SPIRV-Headers-$SPIRV_HEADERS_COMMIT
+      cd SPIRV-Headers-$SPIRV_HEADERS_COMMIT
+        git reset --hard $SPIRV_HEADERS_COMMIT || git reset --hard origin/$SPIRV_HEADERS_COMMIT
+        git submodule update --init --recursive
+        git describe > .git-version
+      cd ..
+      tar --exclude-vcs -cf SPIRV-Headers-$SPIRV_HEADERS_COMMIT.tar SPIRV-Headers-$SPIRV_HEADERS_COMMIT
+      plzip -9 SPIRV-Headers-$SPIRV_HEADERS_COMMIT.tar
+      rm -rf SPIRV-Headers-$SPIRV_HEADERS_COMMIT
+      touch SPIRV-Headers.fetched
+    elif [ "$NAME" = "Vulkan-ValidationLayers" -a ! -e robin-hood-hashing.fetched ]; then
+      ROBIN_HOOD_COMMIT=$(get_known_good Vulkan-ValidationLayers-$COMMIT/scripts/known_good.json robin-hood-hashing repos)
+
+      git clone https://github.com/martinus/robin-hood-hashing.git robin-hood-hashing-$ROBIN_HOOD_COMMIT
+      cd robin-hood-hashing-$ROBIN_HOOD_COMMIT
+        git reset --hard $ROBIN_HOOD_COMMIT || git reset --hard origin/$ROBIN_HOOD_COMMIT
+        git submodule update --init --recursive
+        git describe > .git-version
+      cd ..
+      tar --exclude-vcs -cf robin-hood-hashing-$ROBIN_HOOD_COMMIT.tar robin-hood-hashing-$ROBIN_HOOD_COMMIT
+      plzip -9 robin-hood-hashing-$ROBIN_HOOD_COMMIT.tar
+      rm -rf robin-hood-hashing-$ROBIN_HOOD_COMMIT
+      touch robin-hood-hashing.fetched
+    fi
+
+    rm -rf $NAME-$COMMIT
+  fi
+
+done
+
+if ! [ -e "Vulkan-ExtensionLayer.fetched" ]; then
+    git clone https://github.com/KhronosGroup/Vulkan-ExtensionLayer.git Vulkan-ExtensionLayer-sdk-$VERSION
+    cd Vulkan-ExtensionLayer-sdk-$VERSION
+      git reset --hard sdk-$VERSION || git reset --hard origin/sdk-$VERSION || \
+      git reset --hard sdk-$VERSION-TAG || git reset --hard origin/sdk-$VERSION-TAG || \
+      git reset --hard sdk.$VERSION-TAG || git reset --hard origin/sdk.$VERSION-TAG
+      git submodule update --init --recursive
+      git describe > .git-version
+    cd ..
+    tar --exclude-vcs -cf Vulkan-ExtensionLayer-sdk-$VERSION.tar Vulkan-ExtensionLayer-sdk-$VERSION
+    plzip -9 Vulkan-ExtensionLayer-sdk-$VERSION.tar
+    rm -rf Vulkan-ExtensionLayer-sdk-$VERSION
+    touch Vulkan-ExtensionLayer.fetched
+fi
+
+echo $VERSION > VERSION
+
+rm -f release_notes.html
+rm -f *.fetched

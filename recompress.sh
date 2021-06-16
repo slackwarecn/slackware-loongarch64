@@ -43,9 +43,6 @@ gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
 gzip ./source/d/llvm/llvm.polly.hack.diff
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
-gzip ./source/d/opencl-headers/cl.hpp
-gzip ./source/d/opencl-headers/cl2.hpp
-gzip ./source/d/opencl-headers/opencl.no.pragma.for.default.version.diff
 gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff

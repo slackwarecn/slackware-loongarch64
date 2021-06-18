@@ -316,13 +316,6 @@ gzip ./source/a/lilo/lilo.gcc10.diff
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff
-gzip ./source/a/upower/patches/0008-linux-Identify-keyboard-pointing-device-combos-as-ke.patch
-gzip ./source/a/upower/patches/0007-linux-Detect-Bluetooth-pens.patch
-gzip ./source/a/upower/patches/0003-linux-Fix-warning-when-bluez-Appearance-property-isn.patch
-gzip ./source/a/upower/patches/0002-linux-Fix-memory-leak-in-Bluez-backend.patch
-gzip ./source/a/upower/patches/0012-build-Use-a-newer-libplist-if-available.patch
-gzip ./source/a/upower/patches/0011-linux-Add-support-for-iPhone-XR-XS-models.patch
-gzip ./source/a/upower/patches/0006-lib-Add-Pen-device-type.patch
 gzip ./source/a/upower/doinst.sh
 gzip ./source/a/jfsutils/jfsutils.glibc228.diff
 gzip ./source/a/jfsutils/jfsutils.inttypes.h.diff
@@ -957,6 +950,7 @@ gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/doinst.sh
+gzip ./source/xap/seamonkey/seamonkey.nss-3.66.patch
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff

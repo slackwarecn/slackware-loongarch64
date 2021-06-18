@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
-VERSION=${VERSION:-1.52.1}
+VERSION=${VERSION:-1.53.0}
 BUILD=${BUILD:-1}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
@@ -34,9 +34,9 @@ BUILD=${BUILD:-1}
 SYSTEM_LLVM=${SYSTEM_LLVM:-YES}
 
 # Bootstrap variables (might not be kept updated for latest Rust):
-RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.51.0}
-RSTAGE0_DIR=${RSTAGE0_DIR:-2021-03-25}
-CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.51.0}
+RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.52.0}
+RSTAGE0_DIR=${RSTAGE0_DIR:-2021-05-06}
+CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.52.0}
 CSTAGE0_DIR=${CSTAGE0_DIR:-$RSTAGE0_DIR}
 
 # Automatically determine the architecture we're building on:
@@ -67,7 +67,7 @@ fi
 
 # If the bootstrap binaries are present, use those. Otherwise bootstrap from
 # installed compiler.
-if /bin/ls *-unknown-linux-gnu.tar.gz 1> /dev/null 2> /dev/null ; then
+if /bin/ls *-unknown-linux-gnu.tar.?z 1> /dev/null 2> /dev/null ; then
   LOCAL_BOOTSTRAP=no
 else
   LOCAL_BOOTSTRAP=yes
@@ -153,9 +153,7 @@ if [ "$LOCAL_BOOTSTRAP" != "yes" ] ; then
   cp $CWD/cargo-$CSTAGE0_VERSION-$BARCH-unknown-linux-gnu.tar.?z build/cache/$CSTAGE0_DIR
 fi
 
-# Build configuration. We'll go ahead and build with rpath because it may be
-# needed during the build, and then we'll strip the rpaths out of the
-# binaries later.
+# Build configuration:
 cat << EOF > config.toml
 [llvm]
 ccache = "/usr/bin/ccache"
@@ -165,6 +163,7 @@ link-shared = true
 build = "$BARCH-unknown-linux-$BABI"
 host = ["$TARCH-unknown-linux-$BABI"]
 target = ["$TARCH-unknown-linux-$BABI"]
+tools = ["analysis", "cargo", "clippy", "rls", "rustfmt", "src"]
 submodules = false
 vendor = true
 extended = true
@@ -178,7 +177,7 @@ mandir = "man"
 [rust]
 codegen-units = 0
 channel = "stable"
-rpath = true
+rpath = false
 codegen-tests = false
 ignore-git = true
 
@@ -232,7 +231,7 @@ elif [ "$BARCH" = "i686" ] ; then
 fi
 
 # Build and install:
-python3 x.py dist  || exit 1
+python3 ./x.py build || exit 1
 DESTDIR=$PKG python3 x.py install || exit 1
 
 # Eh, none of this is all that big. Might as well leave it around as a
@@ -258,11 +257,12 @@ find $PKG/usr/lib$LIBDIRSUFFIX -name "*.so" -exec chmod 755 "{}" \+
 find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
-# Remove any compiled-in RPATHs:
-find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | while read elfobject ; do
-  patchelf --remove-rpath $elfobject || exit 1
-done
+# Commented out (for now) since we disable rpaths in config.toml:
+## Remove any compiled-in RPATHs:
+#find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
+#  | cut -f 1 -d : | while read elfobject ; do
+#  patchelf --remove-rpath $elfobject || exit 1
+#done
 
 # Compress man pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+

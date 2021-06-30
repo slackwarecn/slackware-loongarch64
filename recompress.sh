@@ -538,6 +538,7 @@ gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-flush-debug-output.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
+gzip ./source/n/php/php.enchant-2.patch
 gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
@@ -795,6 +796,7 @@ gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/gnome-themes-extra/doinst.sh
+gzip ./source/l/gtkspell/gtkspell.enchant-2.diff
 gzip ./source/l/desktop-file-utils/doinst.sh
 gzip ./source/l/desktop-file-utils/desktop-file-utils.quiet.warnings.diff
 gzip ./source/l/fuse3/doinst.sh
@@ -1019,6 +1021,7 @@ gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/ssr/doinst.sh
 gzip ./source/xap/pan/pan.glib-2.68.0.diff
+gzip ./source/xap/pan/pan.enchant2.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff

@@ -952,7 +952,6 @@ gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/doinst.sh
-gzip ./source/xap/seamonkey/seamonkey.nss-3.66.patch
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff

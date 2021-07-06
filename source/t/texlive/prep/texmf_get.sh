@@ -2,7 +2,7 @@
 
 # texmf_get.sh
 #
-# Copyright 2016 - 2020  Johannes Schoepfer, Germany, slackbuilds@schoepfer.info
+# Copyright 2016 - 2021  Johannes Schoepfer, Germany, slackbuilds@schoepfer.info
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#  V 15.0.4
+#  V 15.0.5
 #
 #  Prepare xz-compressed tarballs of texlive-texmf-trees based on texlive.tlpdb
 #  This script takes care of dependencies(as far as these are present in texlive.tlpdb)
@@ -38,13 +38,14 @@
 #  packages from any collection.
 
 #set -e
-MAJORVERSION=2020
 mirror="http://mirror.ctan.org/systems/texlive/tlnet/"
+# Pre-test mirror for new releases
+#mirror="http://ftp.cstug.cz/pub/tex/local/tlpretest/"
 TMP=${TMP:-$PWD/tmp}	
 
 # Globally excluded packages, which are/contain
 # -useless without tlmgr-installer
-# -non-linux, e.g. texworks
+# -non-linux, e.g. texworks(windows binary)
 # -covered by an external package, e.g. asymptote on SBo
 # -obsolete, e.g. omega
 # -binaries provided already by texlive.Slackbuild
@@ -96,8 +97,6 @@ special_packages="
   ptex-fonts
   uptex-fonts
   "
-#Todo: split type1 fonts, or keep subset of type1 fonts in base
-#  cm-super
 
 # keep precompiled binaries, list binary, not package name 
 keep_precompiled="
@@ -108,6 +107,36 @@ texmf_editions () {
   
   # "excludes from -base", also dependencies are excluded
   PACKAGES="
+    albatross
+    antiqua
+    augie
+    aspectratio
+    calligra-type1
+    causets
+    chhaya
+    chifoot
+    chinese-jfm
+    color-edits
+    econlipsum
+    ekdosis
+    esvect
+    figchild
+    fonetika
+    hitreport
+    mahjong
+    matapli
+    newpax
+    numerica
+    pdfmanagement-testphase
+    profcollege
+    rojud
+    svrsymbols
+    tikz-among-us
+    tkz-berge
+    tkz-graph
+    tzplot
+    typicons
+    zztex
     cm-super
     biber
     bib2gls
@@ -166,6 +195,14 @@ texmf_editions () {
     # packages/collections and their dependencies for -extra
   PACKAGES="
     $(grep ^"name .*biblatex" $db | cut -d' ' -f2 )
+    aalok
+    algpseudocodex
+    association-matrix
+    beamerthemelalic
+    beamerthemenord
+    beaulivre
+    bithesis
+    bubblesort
     amiri
     arabi
     arabi-add
@@ -194,9 +231,11 @@ texmf_editions () {
     ctanupload
     dad
     duckuments
+    easybook
     ethiop-t1
     fibeamer
     fithesis
+    fonetika
     ghsystem
     gregoriotex
     hustthesis
@@ -212,20 +251,26 @@ texmf_editions () {
     lilyglyphs
     lni
     luatexko
+    lua-physical
     media9
     musuos
     mwe
     newtx
     nwejm
+    obnov
     padauk
     pdfwin
     pdfx
     powerdot-tuliplab
     powerdot-fuberlin
+    profcollege
     quran
+    quran-bn
     quran-de
+    quran-ur
     realhats
     resumecls
+    rojud
     sanskrit-t1
     sapthesis
     sduthesis
@@ -235,6 +280,7 @@ texmf_editions () {
     stellenbosch
     suanpan
     texdoctk
+    texnegar
     tudscr
     uantwerpendocs
     udesoftec
@@ -747,15 +793,14 @@ lint () {
 echo "Comparing content of all editions, this may take a while ..." 
 cd $TMP
 # check if all editions of same VERSION are there, take -base as reference
-lint_version=$( ls texlive-base-*tar.xz | head -n1 | cut -d'.' -f2 || exit 1)
-if [ -s texlive-extra-$MAJORVERSION.$lint_version.tar.xz \
-  -a -s texlive-docs-$MAJORVERSION.$lint_version.tar.xz  ]
+if [ -s texlive-extra-$VERSION.tar.xz \
+  -a -s texlive-docs-$VERSION.tar.xz  ]
 then
   for edition in base extra docs
   do
-    echo "Extracting index of texlive-${edition}-$MAJORVERSION.$lint_version.tar.xz ..."
+    echo "Extracting index of texlive-${edition}-$VERSION.tar.xz ..."
     # don't list directories
-    tar tf texlive-${edition}-$MAJORVERSION.$lint_version.tar.xz | grep -v '/'$ > $TMP/packages.$edition.lint
+    tar tf texlive-${edition}-$VERSION.tar.xz | grep -v '/'$ > $TMP/packages.$edition.lint
   done
 
   # compare content
@@ -819,8 +864,7 @@ echo "Building $edition tarball ..."
 # Set VERSION, get texlive.tlpdb and keep unshorten $db.orig 
 if [ ! -s ${db}.orig -o ! -s $db -o ! -s VERSION ]
 then
-  echo $MAJORVERSION.$(date +%y%m%d) > VERSION
-  #wget -q --show-progress -c -O ${db}.orig ${mirror}tlpkg/texlive.tlpdb 
+  echo $(date +%y%m%d) > VERSION
   wget -q --show-progress -c -O ${db}.orig.xz ${mirror}tlpkg/texlive.tlpdb.xz
   unxz ${db}.orig.xz 
    
@@ -945,7 +989,7 @@ do
     # Calculate package-minimal size, uncompressed and compressed
     mkdir -p calculate/texmf-dist
     tar xf $texmf/$package.tar.xz -C calculate/texmf-dist --exclude-from=$files_split.tmp
-    tar cf calculate/calc.tar.xz -I 'xz -9' calculate/texmf-dist
+    tar cf calculate/calc.tar.xz -I 'xz' calculate/texmf-dist
     size_minimal=$(du -bc calculate/calc.tar.xz | tail -n1 | sed "s/[[:space:]].*//")
     size_minimal_uncompressed="$(xz -l --verbose calculate/calc.tar.xz | grep "Uncompressed size" | cut -d'(' -f2 | cut -d' ' -f1 )"
     sed -i \
@@ -961,7 +1005,7 @@ do
   then
     mkdir -p calculate/texmf-dist
     tar xf $texmf/${package}.tar.xz -C calculate/texmf-dist $(paste $files_split.tmp)
-    tar cf calculate/calc.tar.xz -I 'xz -9' calculate/texmf-dist
+    tar cf calculate/calc.tar.xz -I 'xz' calculate/texmf-dist
     size_extended=$(du -bc calculate/calc.tar.xz | tail -n1 | sed "s/[[:space:]].*//")
     size_extended_uncompressed="$(xz -l --verbose calculate/calc.tar.xz | \
       grep "Uncompressed size" | cut -d'(' -f2 | cut -d' ' -f1 )"
@@ -1140,7 +1184,7 @@ rm -rf texmf-dist
 # compress the tarball as everything is in place now
 echo "Compressing $tarball ..."
 [ -f $tarball.xz ] && rm $tarball.xz
-xz -9 -T0 $tarball || exit 1
+xz -T0 $tarball || exit 1
 md5sum $tarball.xz
 ls -lh $tarball.xz
 echo "Logfile: $logfile"

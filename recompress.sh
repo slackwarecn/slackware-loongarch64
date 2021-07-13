@@ -857,6 +857,7 @@ gzip ./source/l/glib/glib-1.2.10-underquoted.patch
 gzip ./source/l/glib/glib-1.2.10-unused-dep.patch
 gzip ./source/l/glib/glib-1.2.10-gcc34.patch
 gzip ./source/l/glib/glib-1.2.10-no_undefined.patch
+gzip ./source/l/fluidsynth/doinst.sh
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch

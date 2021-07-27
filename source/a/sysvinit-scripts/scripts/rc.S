@@ -23,8 +23,6 @@ if [ -d /run ]; then
   if ! grep -wq "tmpfs /run tmpfs" /proc/mounts ; then
     /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755,size=32M,nodev,nosuid,noexec
   fi
-  # Make sure that mounts below /run are visible in both /run and /var/run:
-  /sbin/mount --make-shared /run
 fi
 
 # Load the loop device kernel module:
@@ -367,8 +365,10 @@ else
   /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
 fi
 
-# Bind mount /run to /var/run:
-mount -o bind /run /var/run
+# Make sure that /var/run is a symbolic link pointing to /run:
+if [ -d /run -a ! -L /var/run ]; then
+  (cd /var ; rm -rf run ; ln -sf /run run)
+fi
 
 # Enable swapping again.  This is needed in case a swapfile is used,
 # as it can't be enabled until the filesystem it resides on has been

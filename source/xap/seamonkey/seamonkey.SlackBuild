@@ -93,16 +93,6 @@ fi
 # Set linker to use:
 LINKER=bfd
 
-# Rust SIMD often fails to compile, may limit the processors that Seamonkey
-# can run on, and doesn't seem to provide much (if any) of a performance 
-# improvement, so it's disabled here by default:
-DISABLE_RUST_SIMD=${DISABLE_RUST_SIMD:-YES}
-if [ "$DISABLE_RUST_SIMD" = "YES" ]; then
-  RUST_SIMD="--disable-rust-simd"
-else
-  RUST_SIMD="--enable-rust-simd"
-fi
-
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 TMP=${TMP:-/tmp}
@@ -141,9 +131,6 @@ cd seamonkey-${TARBALLVER} || exit 1
 # Retain GTK+ v2 scrolling behavior:
 zcat $CWD/sm.ui.scrollToClick.diff.gz | patch -p2 --verbose || exit 1
 
-# Fix syntax for NSS 3.66+:
-zcat $CWD/seamonkey.nss-3.66.patch.gz | patch -p1 --verbose || exit 1
-
 # Make sure the perms/ownerships are sane:
 chown -R root:root .
 find . \
@@ -166,12 +153,12 @@ OPTIONS="\
   --disable-install-strip \
   --disable-tests \
   --disable-crashreporter \
+  --disable-rust-simd \
   --enable-accessibility \
   $GOOGLE_API_KEY \
   --disable-updater \
   --enable-chrome-format=omni \
   --disable-necko-wifi \
-  $RUST_SIMD \
   --enable-extensions=default \
   --enable-js-shell \
   $ELFHACK \

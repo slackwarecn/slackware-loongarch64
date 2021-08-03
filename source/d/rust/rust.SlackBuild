@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
 VERSION=${VERSION:-1.54.0}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 # YES is probably better (when it works...)
@@ -245,6 +245,13 @@ DESTDIR=$PKG python3 x.py install || exit 1
 sed -i "s,/tmp/package-rust/,/,g" $PKG/usr/lib$LIBDIRSUFFIX/rustlib/install.log $PKG/usr/lib$LIBDIRSUFFIX/rustlib/manifest-*
 # And a little compression doesn't hurt either:
 gzip -9 $PKG/usr/lib$LIBDIRSUFFIX/rustlib/manifest-*
+
+# Move bash completions to the system location:
+if [ -d $PKG/etc/bash_completion.d ]; then
+  mkdir -p $PKG/usr/share/bash-completion
+  mv $PKG/etc/bash_completion.d $PKG/usr/share/bash-completion/completions
+  rmdir $PKG/etc 2> /dev/null
+fi
 
 # Correct permissions on shared libraries:
 find $PKG/usr/lib$LIBDIRSUFFIX -name "*.so" -exec chmod 755 "{}" \+

@@ -654,8 +654,6 @@ gzip ./source/ap/soma/doinst.sh
 gzip ./source/ap/cups-filters/doinst.sh
 gzip ./source/ap/bpe/bpe.port.to.strerror.diff
 gzip ./source/ap/ispell/local.h.linux.diff
-gzip ./source/ap/diffutils/diffutils.mkdir_p.diff
-gzip ./source/ap/diffutils/diffutils-sdiff-no-waitpid.patch
 gzip ./source/ap/diffutils/doinst.sh
 gzip ./source/ap/moc/moc-ffmpeg4.patch
 gzip ./source/ap/terminus-font/terminus-font.Makefile.paths.diff

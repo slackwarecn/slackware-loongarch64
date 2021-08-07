@@ -696,6 +696,10 @@ gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/patches/0001-nsswitch-return-result-when-nss-database-is-locked.patch
 gzip ./source/l/glibc/patches/cdc31409bd4f878577059e70dbd52a28643ec609.patch
+gzip ./source/l/glibc/patches/CVE-2021-33574_2.patch
+gzip ./source/l/glibc/patches/CVE-2021-27645.patch
+gzip ./source/l/glibc/patches/CVE-2021-35942.patch
+gzip ./source/l/glibc/patches/CVE-2021-33574_1.patch
 gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/doinst.sh

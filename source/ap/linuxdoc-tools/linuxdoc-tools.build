@@ -23,7 +23,7 @@
 LINUXDOCTOOLSVER=$PKGVERSION
 
 # Bundled package versions:
-ASCIIDOCVER=8.6.10
+ASCIIDOCVER=9.1.0
 DSSSLSTYLESHEETSVER=1.79 # docbook-dsssl-*.tar.xz (plus -doc- source archive), not SRPM.
 XSLSTYLESHEETSVER=1.79.2 # docbook-style-xsl-*src.rpm ("DocBook XSL Stylesheets" in our ChangeLog.txt)
 DOCBOOKUTILSVER=0.6.14
@@ -31,7 +31,7 @@ SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
 GNOMEDOCUTILSVER=0.20.10
-GTKDOCVER=1.32
+GTKDOCVER=1.33.2
 SGMLSPLVER=1.03ii
 OPENJADEVER=1.3.2
 OPENSPVER=1.5.2
@@ -53,11 +53,11 @@ case $ARCH in
            export LIBDIRSUFFIX="64"
            export HOSTTARGET=""
            ;;
-  i?86)    export SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-           export LIBDIRSUFFIX=""
+  riscv)   export SLKCFLAGS="-O2"
+           export LIBDIRSUFFIX="64"
            export HOSTTARGET=""
            ;;
-  s390)    export SLKCFLAGS="-O2"
+  i?86)    export SLKCFLAGS="-O2 -march=i586 -mtune=i686"
            export LIBDIRSUFFIX=""
            export HOSTTARGET=""
            ;;
@@ -80,8 +80,8 @@ cd $TMP
 rm -rf asciidoc
 mkdir asciidoc && cd asciidoc
 rpm2cpio $CWD/sources/asciidoc-${ASCIIDOCVER}*.src.rpm | cpio -div || exit 1
-tar xvf asciidoc-py3-*.tar.*z
-cd asciidoc-py3-*/ || exit 1
+tar xvf asciidoc-py-*.tar.*z
+cd asciidoc-py-*/ || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -90,17 +90,13 @@ find . \
   -exec chmod 644 {} \;
 
 # Apply patches:
-#
 # Assemble patch list from spec file:
 # egrep '^Patch[0-9].*: ' *.spec | awk -F: '{print $2" \\"}'
-for i in \
- \
- asciidoc-python3.patch \
- asciidoc-python3-a2x-decode-fix.patch \
- asciidoc-python3-deprecation-warning.patch \
-  \
-  ; do patch -p1 --verbose < ../${i} || exit 1
-done || exit 1
+#for i in \
+# \
+#  \
+#  ; do patch -p1 --verbose < ../${i} || exit 1
+#done || exit 1
 
 # Configure:
 autoreconf -v
@@ -341,6 +337,7 @@ find . -name config.sub -print0 | xargs -0i cp -favv /usr/share/libtool/build-au
 # This is configured not to build the documentation.  If anybody really needs
 # it, let me know and I'll adjust the build script - it's just a PITA to
 # get working.
+CXXFLAGS="-fno-lifetime-dse" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -777,6 +774,8 @@ find . \
 # Assemble patch list from spec file (and see individual level-2 patch outside of 'for' loop below):
 # egrep '^Patch[0-9].*: ' *.spec | awk -F: '{print $2" \\"}'
 # Apply patches:
+# Note: 'docbook-style-xsl-non-recursive-string-subst.patch' is applied separately
+# as it needs a different patch level.
 for i in \
  \
  docbook-xsl-pagesetup.patch \
@@ -953,7 +952,7 @@ cd $TMP
 mkdir linuxdoc-tools && cd linuxdoc-tools
 #rpm2cpio $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm | cpio -div || exit 1
 #tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
-tar xvf $CWD/sources/linuxdoc-tools_$LINUXDOCTOOLSVER.tar.xz
+tar xvf $CWD/sources/linuxdoc-tools_$LINUXDOCTOOLSVER.tar.?z
 cd linuxdoc-tools-$LINUXDOCTOOLSVER || exit 1
 
 chown -R root:root .
@@ -971,8 +970,10 @@ export PATH=$( echo $PATH | sed -e 's?:/usr/share/texmf/bin??g' -e 's?/usr/share
 
 # Apply patches (these were originally taken from the Fedora SRPM but broken out later
 # when the 'original' source from Debian began to be used)
+# We used to apply 'linuxdoc-tools-0.9.13-letter.patch.xz' but it won't apply to the
+# latest linuxdoc-tools source.  It simply changed the default page size to 'Letter'.
+# Probably not too much to worry about there.
 for i in \
-  linuxdoc-tools-0.9.13-letter.patch.xz \
   linuxdoc-tools-0.9.20-lib64.patch.xz ; do
     xzcat $CWD/sources/$i | patch -p1 || exit 1
 done || exit 1
@@ -1118,19 +1119,30 @@ for i in \
 done || exit 1
 
 # Configure:
+mkdir meson-build
+pushd meson-build
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 CPPFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man || exit 1
+meson setup \
+   --prefix=/usr \
+   --libdir=/usr/lib${LIBDIRSUFFIX} \
+   --libexecdir=/usr/libexec \
+   --bindir=/usr/bin \
+   --sbindir=/usr/sbin \
+   --includedir=/usr/include \
+   --datadir=/usr/share \
+   --mandir=/usr/man \
+   --sysconfdir=/etc \
+   --localstatedir=/var \
+   .. || exit 1
 
 # Build:
-make || exit 1
+"${NINJA:=ninja}" $NUMJOBS --verbose || exit 1
 
 # Install:
-make install || exit 1
+DESTDIR=/ $NINJA install --verbose || exit 1
+popd
 
 # Copy docs:
 mkdir -vpm755 /usr/doc/gtk-doc-$GTKDOCVER

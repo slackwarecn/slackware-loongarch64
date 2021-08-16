@@ -52,9 +52,7 @@ gzip ./source/d/gyp/gyp-python38.patch
 gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
-gzip ./source/d/gcc/patches/PR100101.2efbbba16a0630fac8cadcd6d9e0ffaabfadb79f.patch
 gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
-gzip ./source/d/gcc/patches/PR100102.5357ab75dedef403b0eebf9277d61d1cbeb5898f.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
 gzip ./source/d/gcc/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.patch
 gzip ./source/d/meson/meson.import.copy.diff
@@ -569,6 +567,7 @@ gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/s-nail/s-nail.no.emptystart.diff
 gzip ./source/n/iputils/iputils.docbook.revert.diff
+gzip ./source/n/openresolv/doinst.sh
 gzip ./source/n/dhcpcd/doinst.sh
 gzip ./source/n/bind/doinst.sh
 gzip ./source/n/wireless_tools/doinst.sh
@@ -636,7 +635,6 @@ gzip ./source/ap/cdrtools/doinst.sh
 gzip ./source/ap/cdrtools/cdrtools-3.01-fix-20151126-mkisofs-isoinfo.patch
 gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
-gzip ./source/ap/squashfs-tools/squashfs-tools.glibc228.diff
 gzip ./source/ap/vim/vim.vimrc.diff
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules
@@ -763,6 +761,7 @@ gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
+gzip ./source/l/gst-plugins-good/gst-plugins-good.gcc11.patch
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
 gzip ./source/l/netpbm/netpbm-glibc.patch
@@ -798,6 +797,7 @@ gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/ocl-icd/0001-Updated-to-support-latest-Khronos-headers.patch
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
+gzip ./source/l/gtk4/doinst.sh
 gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/gtkspell/gtkspell.enchant-2.diff
 gzip ./source/l/desktop-file-utils/doinst.sh
@@ -813,6 +813,7 @@ gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch
 gzip ./source/l/pulseaudio/doinst.sh
+gzip ./source/l/pulseaudio/pulseaudio-autostart-meson.build.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
 gzip ./source/l/PyQt5/patches/pyqt5-python2-crash.patch
@@ -862,6 +863,7 @@ gzip ./source/l/fluidsynth/doinst.sh
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
+gzip ./source/l/libwpd/libwpd.gcc11.diff
 gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch
 gzip ./source/l/gamin/0001-Poll-files-on-nfs4.patch
 gzip ./source/l/gamin/gaminrc
@@ -889,6 +891,7 @@ gzip ./source/l/id3lib/patches/id3lib.manpages.patch
 gzip ./source/l/id3lib/patches/id3lib.nullpointer_check.patch
 gzip ./source/l/id3lib/patches/id3lib.utf8_writing.patch
 gzip ./source/l/id3lib/patches/id3lib.c_wrapper.patch
+gzip ./source/l/gtk+3/gtk.array-bounds.gcc11.diff
 gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/gtk+3/gtk.fix.missing.version-check.py.diff
 gzip ./source/l/system-config-printer/doinst.sh
@@ -899,8 +902,14 @@ gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
+gzip ./source/l/qt5/patches/qtconcurrentthreadengine.h-gcc11.patch
+gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
+gzip ./source/l/qt5/patches/0006-Fix-build-with-GCC-11-include-limits.patch
+gzip ./source/l/qt5/patches/qt5-qtdeclarative-gcc11.patch
+gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
 gzip ./source/l/qt5/patches/qt5.mysql.h.diff
+gzip ./source/l/qt5/patches/qt5-qtwebengine-gcc11.patch
 gzip ./source/l/qt5/patches/qtwebengine-everywhere-src-5.15.2-%231904652.patch
 gzip ./source/l/qt5/doinst.sh
 gzip ./source/l/mozjs78/autoconf/autoconf-2.13-consolidated_fixes-1.patch
@@ -914,11 +923,12 @@ gzip ./source/l/mozjs78/patches/icu_sources_data-Write-command-output-to-our-std
 gzip ./source/l/mozjs78/patches/init_patch.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_style_check_disable_s390x.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_checks_disable.patch
+gzip ./source/l/cryfs/27587ea1acec5f939a31217f1c43953378f18821.patch
+gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
-gzip ./source/xap/mozilla-thunderbird/mozilla-firefox.xpcom_arm.patch
 gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff
@@ -978,6 +988,7 @@ gzip ./source/xap/sane/doinst.sh
 gzip ./source/xap/fluxbox/xinitrc.fluxbox
 gzip ./source/xap/fluxbox/fluxbox.keys.diff
 gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
+gzip ./source/xap/fluxbox/fluxbox.gcc11.patch
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff
@@ -1021,6 +1032,7 @@ gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/ssr/doinst.sh
+gzip ./source/xap/pan/pan.gcc11.diff
 gzip ./source/xap/pan/pan.glib-2.68.0.diff
 gzip ./source/xap/pan/pan.enchant2.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff

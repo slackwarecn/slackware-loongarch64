@@ -50,14 +50,6 @@ LANG=C
 # this to something other than "YES":
 MOZ_ALLOW_DOWNGRADE=${MOZ_ALLOW_DOWNGRADE:-YES}
 
-# This can be set to YES or NO:
-ENABLE_CALENDAR=${ENABLE_CALENDAR:-YES}
-if [ "$ENABLE_CALENDAR" = "NO" ]; then
-  ENABLE_CALENDAR="--disable-calendar"
-else
-  ENABLE_CALENDAR="--enable-calendar"
-fi
-
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -192,8 +184,6 @@ fi
 # Arch-dependent patches:
 case "$ARCH" in
     armv7hl) ARCH_CONFIG="--with-arch=armv7-a --with-float-abi=hard --with-fpu=vfpv3-d16 --disable-elf-hack"
-             # Make Thunderbird compile on ARM platforms lacking neon support:
-             zcat $CWD/mozilla-firefox.xpcom_arm.patch.gz | patch -p1 --verbose || exit 1
              ;;
     *)       ARCH_CONFIG=" "
              ;;
@@ -216,7 +206,6 @@ OPTIONS="\
   --with-system-nspr \
   --enable-alsa \
   --enable-application=comm/mail \
-  $ENABLE_CALENDAR \
   --enable-default-toolkit=cairo-gtk3-wayland \
   --enable-linker=$LINKER \
   --disable-strip \
@@ -291,8 +280,8 @@ DESTDIR=$PKG ./mach install || exit 1
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Clean up the build time dependencies:
-rm -rf $TMP/mozilla-thunderbird-build-deps
+## Clean up the build time dependencies:
+#rm -rf $TMP/mozilla-thunderbird-build-deps
 
 # We don't need these (just symlinks anyway):
 rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/thunderbird-devel-$RELEASEVER

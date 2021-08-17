@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=python2-module-collection
 VERSION=2.7.18
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -456,6 +456,35 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/pyxdg-0.26
 cp -a \
   AUTHORS COPYING ChangeLog INSTALL PKG-INFO README TODO \
   $PKG/usr/doc/$PKGNAM-$VERSION/pyxdg-0.26
+
+# dbus-python-1.2.16:
+cd $TMP/$PKGNAM-$VERSION || exit 1
+tar xf $CWD/modules/dbus-python-1.2.16.tar.lz
+cd dbus-python-1.2.16
+fix_perms
+PYTHON_VERSION=2 \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --disable-html-docs \
+  --enable-shared=yes \
+  --enable-static=no \
+  --build=$ARCH-slackware-linux \
+  --host=$ARCH-slackware-linux \
+  || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/dbus-python-1.2.16
+cp -a \
+  AUTHORS COPYING* INSTALL NEWS README* \
+  $PKG/usr/doc/$PKGNAM-$VERSION/dbus-python-1.2.16
+
+# Remove overlap with main package:
+rm -rf $PKG/usr/include
+rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

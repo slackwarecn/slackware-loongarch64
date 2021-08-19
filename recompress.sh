@@ -796,7 +796,6 @@ gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
 gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
-gzip ./source/l/ocl-icd/0001-Updated-to-support-latest-Khronos-headers.patch
 gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/gtk4/doinst.sh
 gzip ./source/l/gnome-themes-extra/doinst.sh

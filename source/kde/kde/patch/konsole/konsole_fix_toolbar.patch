@@ -1,0 +1,69 @@
+diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainWindow.cpp
+--- konsole-21.08.0.orig/src/MainWindow.cpp	2021-08-04 18:48:59.000000000 -0300
++++ konsole-21.08.0.new/src/MainWindow.cpp	2021-08-18 00:11:52.801474543 -0300
+@@ -56,6 +56,8 @@
+ #include "terminalDisplay/TerminalDisplay.h"
+ #include "widgets/ViewContainer.h"
+ 
++#include <konsoledebug.h>
++
+ using namespace Konsole;
+ 
+ MainWindow::MainWindow() :
+@@ -103,7 +105,7 @@
+ 
+     // create view manager
+     _viewManager = new ViewManager(this, actionCollection());
+-    connect(_viewManager, &Konsole::ViewManager::empty, this, &Konsole::MainWindow::close);
++    connect(_viewManager, &Konsole::ViewManager::empty, this, &QWidget::close);
+     connect(_viewManager, &Konsole::ViewManager::activeViewChanged, this,
+             &Konsole::MainWindow::activeViewChanged);
+     connect(_viewManager, &Konsole::ViewManager::unplugController, this,
+@@ -129,8 +131,10 @@
+     // in terminal applications
+     KAcceleratorManager::setNoAccel(menuBar());
+ 
+-    // create menus
+-    createGUI();
++    constexpr KXmlGuiWindow::StandardWindowOptions guiOpts = ToolBar | Keys | Save | Create;
++    const QString xmlFile = componentName() + QLatin1String("ui.rc"); // Typically "konsoleui.rc"
++    // The "Create" flag will make it call createGUI()
++    setupGUI(guiOpts, xmlFile);
+ 
+     // remember the original menu accelerators for later use
+     rememberMenuAccelerators();
+@@ -889,7 +893,15 @@
+ #if KWINDOWSYSTEM_VERSION < QT_VERSION_CHECK(5,82,0)
+         KWindowEffects::enableBlurBehind(winId(), blur);
+ #else
+-        KWindowEffects::enableBlurBehind(windowHandle(), blur);
++        // Set the WA_NativeWindow attribute to force the creation of the QWindow.
++        // Without this QWidget::windowHandle() returns 0.
++        // See https://phabricator.kde.org/D23108
++        setAttribute(Qt::WA_NativeWindow);
++        if (QWindow *window = windowHandle()) {
++            KWindowEffects::enableBlurBehind(window, blur);
++        } else {
++            qCWarning(KonsoleDebug) << "Blur effect couldn't be enabled.";
++        }
+ #endif
+     }
+ }
+@@ -935,9 +947,14 @@
+         menuBar()->setVisible(_menuBarInitialVisibility);
+         _toggleMenuBarAction->setChecked(_menuBarInitialVisibility);
+         _menuBarInitialVisibilityApplied = true;
+-        if (!KonsoleSettings::saveGeometryOnExit()) {
+-            resize(sizeHint());
+-        }
++    }
++
++    if (!KonsoleSettings::saveGeometryOnExit()) {
++        // Delay resizing to here, so that the other parts of the UI
++        // (ViewManager, TabbedViewContainer, TerminalDisplay ... etc)
++        // have been created and TabbedViewContainer::sizeHint() returns
++        // a usuable size.
++        resize(sizeHint());
+     }
+ 
+     // Call parent method

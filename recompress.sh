@@ -949,7 +949,6 @@ gzip ./source/xap/xpdf/lang/xpdf-turkish.diff
 gzip ./source/xap/xpdf/lang/xpdf-greek.diff
 gzip ./source/xap/xpdf/patches/xpdfrc.diff
 gzip ./source/xap/xpdf/doinst.sh
-gzip ./source/xap/pavucontrol/sigsegv_on_quit.patch
 gzip ./source/xap/pavucontrol/doinst.sh
 gzip ./source/xap/seyon/seyon_2.20c-16.diff
 gzip ./source/xap/ddd/doinst.sh

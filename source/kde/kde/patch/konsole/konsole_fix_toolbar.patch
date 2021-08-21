@@ -1,6 +1,29 @@
-diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainWindow.cpp
---- konsole-21.08.0.orig/src/MainWindow.cpp	2021-08-04 18:48:59.000000000 -0300
-+++ konsole-21.08.0.new/src/MainWindow.cpp	2021-08-18 00:11:52.801474543 -0300
+--- ./src/MainWindow.h.orig	2021-08-04 16:48:59.000000000 -0500
++++ ./src/MainWindow.h	2021-08-19 19:24:14.000000000 -0500
+@@ -200,6 +200,7 @@
+     bool _menuBarInitialVisibility;
+     bool _menuBarInitialVisibilityApplied;
+     bool _blurEnabled = false;
++    bool _isSavedUiState = false;
+ };
+ }
+ 
+--- ./src/MainWindow.cpp.orig	2021-08-04 16:48:59.000000000 -0500
++++ ./src/MainWindow.cpp	2021-08-19 19:24:14.000000000 -0500
+@@ -11,12 +11,12 @@
+ #include <QMouseEvent>
+ #include <QMenu>
+ #include <QMenuBar>
+-#include <QStatusBar>
+ 
+ // KDE
+ #include <KAcceleratorManager>
+ #include <KActionCollection>
+ #include <KActionMenu>
++#include <KCrash>
+ #include <KIconUtils>
+ #include <KShortcutsDialog>
+ #include <KLocalizedString>
 @@ -56,6 +56,8 @@
  #include "terminalDisplay/TerminalDisplay.h"
  #include "widgets/ViewContainer.h"
@@ -10,7 +33,43 @@ diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainW
  using namespace Konsole;
  
  MainWindow::MainWindow() :
-@@ -103,7 +105,7 @@
+@@ -68,13 +70,22 @@
+     _menuBarInitialVisibility(true),
+     _menuBarInitialVisibilityApplied(false)
+ {
+-    if (!KonsoleSettings::saveGeometryOnExit()) {
++    KSharedConfigPtr konsoleConfig = KSharedConfig::openConfig(QStringLiteral("konsolerc"));
++    KConfigGroup cg = konsoleConfig->group(QStringLiteral("MainWindow"));
++    const bool isGroup = cg.exists();
++    if (isGroup) {
++        const QString stateConfig = cg.readEntry(QStringLiteral("State"));
++
++        // If "stateConfig" is empty then this is the very first run,
++        // i.e. no konsolerc file in $HOME
++        _isSavedUiState = !stateConfig.isEmpty();
++    }
++
++    if (isGroup && !KonsoleSettings::saveGeometryOnExit()) {
+         // If we are not using the global Konsole save geometry on exit,
+         // remove all geometry data from [MainWindow] in Konsolerc, so KWin will
+         // manage it directly
+-        KSharedConfigPtr konsoleConfig = KSharedConfig::openConfig(QStringLiteral("konsolerc"));
+-        KConfigGroup group = konsoleConfig->group("MainWindow");
+-        QMap<QString, QString> configEntries = group.entryMap();
++        QMap<QString, QString> configEntries = cg.entryMap();
+         QMapIterator<QString, QString> i(configEntries);
+ 
+         while (i.hasNext()) {
+@@ -91,7 +102,7 @@
+                 || i.key().contains(QLatin1String(" YPosition"))
+ #endif
+             ) {
+-                group.deleteEntry(i.key());
++                cg.deleteEntry(i.key());
+             }
+         }
+     }
+@@ -103,7 +114,7 @@
  
      // create view manager
      _viewManager = new ViewManager(this, actionCollection());
@@ -19,7 +78,7 @@ diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainW
      connect(_viewManager, &Konsole::ViewManager::activeViewChanged, this,
              &Konsole::MainWindow::activeViewChanged);
      connect(_viewManager, &Konsole::ViewManager::unplugController, this,
-@@ -129,8 +131,10 @@
+@@ -129,8 +140,10 @@
      // in terminal applications
      KAcceleratorManager::setNoAccel(menuBar());
  
@@ -32,7 +91,20 @@ diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainW
  
      // remember the original menu accelerators for later use
      rememberMenuAccelerators();
-@@ -889,7 +893,15 @@
+@@ -146,11 +159,7 @@
+     connect(KonsoleSettings::self(), &Konsole::KonsoleSettings::configChanged, this,
+             &Konsole::MainWindow::applyKonsoleSettings);
+ 
+-
+-    // KXMLGui is making the status bar always visible, we need to fix in a proper way.
+-    if (statusBar() != nullptr) {
+-        statusBar()->installEventFilter(this);
+-    }
++    KCrash::initialize();
+ }
+ 
+ void MainWindow::updateUseTransparency()
+@@ -889,7 +898,15 @@
  #if KWINDOWSYSTEM_VERSION < QT_VERSION_CHECK(5,82,0)
          KWindowEffects::enableBlurBehind(winId(), blur);
  #else
@@ -49,7 +121,7 @@ diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainW
  #endif
      }
  }
-@@ -935,9 +947,14 @@
+@@ -935,9 +952,14 @@
          menuBar()->setVisible(_menuBarInitialVisibility);
          _toggleMenuBarAction->setChecked(_menuBarInitialVisibility);
          _menuBarInitialVisibilityApplied = true;
@@ -58,7 +130,7 @@ diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainW
 -        }
 +    }
 +
-+    if (!KonsoleSettings::saveGeometryOnExit()) {
++    if (!_isSavedUiState || !KonsoleSettings::saveGeometryOnExit()) {
 +        // Delay resizing to here, so that the other parts of the UI
 +        // (ViewManager, TabbedViewContainer, TerminalDisplay ... etc)
 +        // have been created and TabbedViewContainer::sizeHint() returns
@@ -67,3 +139,18 @@ diff -Naur konsole-21.08.0.orig/src/MainWindow.cpp konsole-21.08.0.new/src/MainW
      }
  
      // Call parent method
+@@ -971,13 +993,7 @@
+             default: ;
+         }
+     }
+-    if (qobject_cast<QStatusBar*>(obj) != nullptr) {
+-        switch(event->type()) {
+-            case QEvent::Show: statusBar()->hide(); break;
+-            default: return true;
+-        }
+-        return true;
+-    }
++
+     return KXmlGuiWindow::eventFilter(obj, event);
+ }
+ 

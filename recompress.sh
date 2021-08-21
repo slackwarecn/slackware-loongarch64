@@ -830,6 +830,7 @@ gzip ./source/l/freetype/freetype.sh
 gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
+gzip ./source/l/freetype/6e9d8d314ff6ab23177b9162c0b96616460bb84e.patch
 gzip ./source/l/freetype/freetype.csh
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff

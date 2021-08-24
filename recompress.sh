@@ -394,7 +394,6 @@ gzip ./source/n/rdist/rdist-6.1.5-10.ssh.diff
 gzip ./source/n/rdist/rdist-6.1.5-04.bison.diff
 gzip ./source/n/rdist/rdist-6.1.5-03.hardlink.diff
 gzip ./source/n/rdist/rdist-6.1.5-12.stat64.diff
-gzip ./source/n/bluez/refresh_adv_manager_for_non-LE_devices.diff
 gzip ./source/n/bluez/bluez-5.51-obexd_without_systemd-1.patch
 gzip ./source/n/bluez/doinst.sh
 gzip ./source/n/iproute2/doinst.sh
@@ -783,7 +782,6 @@ gzip ./source/l/netpbm/netpbm-gcc4.patch
 gzip ./source/l/netpbm/netpbm-noppmtompeg.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
-gzip ./source/l/glib2/glib.allow.gtk-doc-1.32.diff
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff

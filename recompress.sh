@@ -52,6 +52,7 @@ gzip ./source/d/gyp/gyp-python38.patch
 gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
+gzip ./source/d/gcc/patches/7185690.diff
 gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
 gzip ./source/d/gcc/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.patch

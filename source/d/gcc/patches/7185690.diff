@@ -1,0 +1,27 @@
+From 71856902b87505ff8ab6845533b598bffe5333bb Mon Sep 17 00:00:00 2001
+From: Ian Lance Taylor <iant@golang.org>
+Date: Sat, 21 Aug 2021 12:42:19 -0700
+Subject: [PATCH] compiler: correct condition for calling memclrHasPointers
+
+When compiling append(s, make([]typ, ln)...), where typ has a pointer,
+and the append fits within the existing capacity of s, the condition
+used to clear out the new elements was reversed.
+
+Fixes golang/go#47771
+
+Change-Id: Ia880adc08ab723afe3f927e65c9e081f9f717f90
+---
+
+diff --git a/gcc/go/gofrontend/expressions.cc b/gcc/go/gofrontend/expressions.cc
+index 8d4d168..ddb1d91 100644
+--- a/gcc/go/gofrontend/expressions.cc
++++ b/gcc/go/gofrontend/expressions.cc
+@@ -9350,7 +9350,7 @@
+               ref2 = Expression::make_cast(uint_type, ref2, loc);
+               cond = Expression::make_binary(OPERATOR_GT, ref, ref2, loc);
+               zero = Expression::make_integer_ul(0, int_type, loc);
+-              call = Expression::make_conditional(cond, call, zero, loc);
++              call = Expression::make_conditional(cond, zero, call, loc);
+             }
+         }
+       else

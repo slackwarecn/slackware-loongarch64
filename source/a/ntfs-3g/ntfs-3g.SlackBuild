@@ -3,7 +3,7 @@
 # Slackware build script for ntfs-3g
 
 # Copyright 2008  Antonio Hernandez Blas <hba.nihilismus@gmail.com>
-# Copyright 2012, 2013, 2015, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2015, 2016, 2018, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ntfs-3g
 SRCNAM=ntfs-3g_ntfsprogs
-VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -74,7 +74,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP || exit 1
 rm -rf $SRCNAM-$VERSION
-tar xvf $CWD/$SRCNAM-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
 cd $SRCNAM-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -113,22 +113,11 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 # any better ideas, I'd like to hear them.
 chmod 4711 $PKG/bin/ntfs-3g
 
-## Add the HAL fdi file so that automount uses ntfs-3g for mounting
-## This should work with the "volume.fstype.alternative.*" in hal-0.5.12+
-#mkdir -p $PKG/usr/share/hal/fdi/policy/10osvendor
-#cat $CWD/10-ntfs-3g-policy.fdi \
-#  > $PKG/usr/share/hal/fdi/policy/10osvendor/10-ntfs-3g-policy.fdi
-
 # Create a mount.ntfs -> mount.ntfs-3g symlink.
 # This causes ntfs-3g to always be used when mounting NTFS filesystems.
 # NOTE:  This also seems to make mounting with the old ntfs filesystem
 # impossible.  But does anyone care?
 ( cd $PKG/sbin ; ln -s mount.ntfs-3g mount.ntfs )
-
-## Add a udev rule to use ntfs-3g instead of ntfs:
-## (This is not needed if the mount.ntfs symlink is made)
-#mkdir -p $PKG/lib/udev/rules.d
-#cat $CWD/99-ntfs-3g.rules > $PKG/lib/udev/rules.d/99-ntfs-3g.rules
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

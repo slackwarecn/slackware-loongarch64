@@ -14,9 +14,8 @@
 #       If this environment variable is set, GLib assumes that filenames are
 #       in the locale encoding rather than in UTF-8.
 
-# If the LANG you have set contains any form of "UTF", we will guess you are
-# using a UTF-8 locale.  Hopefully we're correct.
-echo $LANG | grep -iq UTF
+# Determine if the locale is UTF-8:
+locale charmap 2> /dev/null | grep -q UTF-8
 if ($status == 0) then
   setenv G_FILENAME_ENCODING "@locale"
 endif

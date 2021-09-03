@@ -91,26 +91,37 @@ bind_start() {
 
 # Stop all running copies of BIND (/usr/sbin/named):
 bind_stop() {
-  echo "Stopping BIND:  /usr/sbin/rndc $RDNC_OPTIONS stop"
-  /usr/sbin/rndc $RDNC_OPTIONS stop
-  # A problem with using "/usr/sbin/rndc stop" is that if you
-  # managed to get multiple copies of named running it will
-  # only stop one of them and then can't stop the others even
-  # if you run it again. So, after doing things the nice way
-  # we'll do them the old-fashioned way. If you don't like
-  # it you can comment it out, but unless you have a lot of
-  # other programs you run called "named" this is unlikely
-  # to have any ill effects:
-  sleep 1
-  if ps axc | grep -q named ; then
-    echo "Stopping all named processes in this namespace:  /bin/killall --ns \$\$ named"
-    /bin/killall --ns $$ named 2> /dev/null
+  # If you've set up rndc, we can use this to make shutting down BIND faster.
+  # If you have /etc/rndc.conf, or you have /etc/rndc.key, or $RNDC_OPTIONS is
+  # not empty, we'll try it.
+  if [ -r /etc/rndc.conf -o -r /etc/rndc.key -o ! -z "$RNDC_OPTIONS" ]; then
+    if [ -z "$RNDC_OPTIONS" ]; then
+      echo "Stopping BIND:  /usr/sbin/rndc stop"
+    else
+      echo "Stopping BIND:  /usr/sbin/rndc $RNDC_OPTIONS stop"
+    fi
+    /usr/sbin/rndc $RNDC_OPTIONS stop
+    # Wait for up to $TIMEOUT seconds before moving on to try killall:
+    TIMEOUT=${TIMEOUT:-10}
+    while [ "$TIMEOUT" -gt "0" ]; do
+      # Exit the timeout loop if there are no named processes:
+      if ! ps axco command | grep -q -e "^named$"; then
+        break
+      fi
+      sleep 1
+      TIMEOUT=$(expr $TIMEOUT - 1)
+    done
+  fi
+  # Kill named processes if there are any running:
+  if ps axco command | grep -q -e "^named$"; then
+    echo "Stopping all named processes in this namespace:  /bin/killall -SIGTERM --ns \$\$ named"
+    /bin/killall -SIGTERM --ns $$ named 2> /dev/null
   fi
 }
 
 # Reload BIND:
 bind_reload() {
-  /usr/sbin/rndc $RDNC_OPTIONS reload
+  /usr/sbin/rndc $RNDC_OPTIONS reload
 }
 
 # Restart BIND:
@@ -121,7 +132,7 @@ bind_restart() {
 
 # Get BIND status:
 bind_status() {
-  /usr/sbin/rndc $RDNC_OPTIONS status
+  /usr/sbin/rndc $RNDC_OPTIONS status
 }
 
 case "$1" in

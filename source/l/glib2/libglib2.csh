@@ -15,7 +15,7 @@
 #       in the locale encoding rather than in UTF-8.
 
 # Determine if the locale is UTF-8:
-locale charmap 2> /dev/null | grep -q UTF-8
+locale charmap | grep -q UTF-8
 if ($status == 0) then
   setenv G_FILENAME_ENCODING "@locale"
 endif

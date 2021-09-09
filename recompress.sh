@@ -134,6 +134,7 @@ gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/grub/initrd_naming.patch
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/doinst.sh
+gzip ./source/a/grub/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch
 gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff
 gzip ./source/a/devs/makedev_2.3.1.hd.diff
 gzip ./source/a/devs/makedev_2.3.1-46.2.diff
@@ -773,7 +774,6 @@ gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
-gzip ./source/l/gst-plugins-good/gst-plugins-good.gcc11.patch
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
 gzip ./source/l/netpbm/netpbm-glibc.patch

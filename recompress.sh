@@ -132,6 +132,7 @@ gzip ./source/a/dialog/doinst.sh
 gzip ./source/a/dialog/dialog.no.aspect.ratio.autoajust.patch
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/grub/initrd_naming.patch
+gzip ./source/a/grub/0001-skip-new-files-in-etc-grub.d.patch
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/doinst.sh
 gzip ./source/a/grub/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch
@@ -982,6 +983,7 @@ gzip ./source/xap/gv/gv-dat.patch
 gzip ./source/xap/gv/gv-resource.patch
 gzip ./source/xap/gv/gv-aarch64.patch
 gzip ./source/xap/gv/gv-bug1071238.patch
+gzip ./source/xap/libnma/doinst.sh
 gzip ./source/xap/x3270/doinst.sh
 gzip ./source/xap/xaos/xaos.6
 gzip ./source/xap/rxvt-unicode/rxvt-unicode.utempter.diff

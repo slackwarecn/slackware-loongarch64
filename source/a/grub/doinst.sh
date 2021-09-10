@@ -11,6 +11,8 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/grub.d/40_custom.new
-rm -f etc/grub.d/40_custom.new
+# Process config files in etc/grub.d/:
+for file in etc/grub.d/*.new ; do
+  config $file
+done
 config etc/default/grub.new

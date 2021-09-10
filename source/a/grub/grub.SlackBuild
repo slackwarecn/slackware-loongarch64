@@ -28,7 +28,7 @@ PKGNAM=grub
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # Better to use _ than ~ in the package filenames version:
 PKGVER=$(echo $VERSION | tr '~' '_')
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -115,6 +115,9 @@ zcat $CWD/0198-align-struct-efi_variable-better.patch.gz | patch -p1 --verbose |
 # Fix unreadable XFS filesystem with v4 superblock:
 zcat $CWD/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch.gz | patch -p1 --verbose || exit 1
 
+# Skip processing any files in /etc/grub.d/ that end in .new:
+zcat $CWD/0001-skip-new-files-in-etc-grub.d.patch.gz | patch -p1 --verbose || exit 1
+
 # Regenerate build system to fix dependency on outdated automake:
 autoreconf -vif
 
@@ -151,8 +154,10 @@ fi
 # Always end with regular build:
 build_grub || exit 1
 
-# Preserve the contents of /etc/grub.d/40_custom:
-mv $PKG/etc/grub.d/40_custom $PKG/etc/grub.d/40_custom.new
+# Preserve files in /etc/grub.d/:
+for file in $PKG/etc/grub.d/*_* ; do
+  mv ${file} ${file}.new
+done
 
 # Strip binaries:
 ( cd $PKG

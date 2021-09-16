@@ -18,6 +18,7 @@ if [ -e etc/rc.d/rc.bind ]; then
   mv etc/rc.d/rc.bind.new.incoming etc/rc.d/rc.bind.new
 fi
 
+config etc/default/named.new
 config etc/named.conf.new
 config etc/rc.d/rc.bind.new
 
@@ -28,9 +29,10 @@ if [ ! -d var/named ]; then
 fi
 
 # Generate /etc/rndc.key if there's none there,
-# and there also no /etc/rndc.conf (the other
+# and there's also no /etc/rndc.conf (the other
 # way to set this up).
 if [ ! -r etc/rndc.key -a ! -r /etc/rndc.conf ]; then
   chroot . /sbin/ldconfig
-  chroot . /usr/sbin/rndc-confgen -r /dev/urandom -a 2> /dev/null
+  chroot . /usr/sbin/rndc-confgen -a 2> /dev/null
+  chroot . /bin/chown named:named /etc/rndc.key 2> /dev/null
 fi

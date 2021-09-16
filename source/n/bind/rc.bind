@@ -1,19 +1,8 @@
 #!/bin/sh
 # Start/stop/restart the BIND name server daemon (named).
 
-# Start BIND. In the past it was more secure to run BIND as a non-root
-# user (for example, with '-u daemon'), but the modern version of BIND
-# knows how to use the kernel's capability mechanism to drop all root
-# privileges except the ability to bind() to a privileged port and set
-# process resource limits, so running as a non-root user is not needed.
-# But if you want to run as a non-root user anyway, the command options
-# can be set like this in /etc/default/named:
-#       NAMED_OPTIONS="-u daemon"
-# So you will not have to edit this script.
-#
-# Please note that if you run BIND as a non-root user, your files in
-# /var/named may need to be chowned to this user or else named will
-# refuse to start.
+# Start BIND. By default this will run with user "named". If you'd like to
+# change this or other options, see: /etc/default/named
 
 # You might also consider running BIND in a "chroot jail",
 # a discussion of which may be found in
@@ -27,6 +16,17 @@
 if [ -f /etc/default/named ] ; then . /etc/default/named ; fi
 if [ -f /etc/default/rndc ] ; then . /etc/default/rndc ; fi
 
+# In case /etc/default/named was missing:
+if [ -z "$BIND_USER" ]; then
+  BIND_USER="named"
+fi
+if [ -z "$BIND_GROUP" ]; then
+  BIND_GROUP="named"
+fi
+if [ -z "$BIND_OPTIONS" ]; then
+  BIND_OPTIONS="-u $BIND_USER"
+fi
+
 # Sanity check. If /usr/sbin/named is missing then it
 # doesn't make much sense to try to run this script:
 if [ ! -x /usr/sbin/named ]; then
@@ -34,40 +34,16 @@ if [ ! -x /usr/sbin/named ]; then
   exit 1
 fi
 
-# Function to find the user BIND is running as in $NAMED_OPTIONS:
-find_bind_user() {
-  if echo $NAMED_OPTIONS | grep -wq "\-u" ; then
-    unset BIND_USER USER_FOUND
-    echo $NAMED_OPTIONS | tr ' ' '\n' | while read element ; do
-      if [ "$USER_FOUND" = "true" ]; then
-        BIND_USER="$element"
-        echo $BIND_USER
-        break
-      elif [ "$element" = "-u" ]; then
-        USER_FOUND="true"
-      fi
-    done
-  else
-    echo "root"
-  fi
-}
-
 # Start BIND. As many times as you like. ;-)
 # Seriously, don't run "rc.bind start" if BIND is already
 # running or you'll get more than one copy running.
 bind_start() {
   # Make sure /var/run/named exists:
   mkdir -p /var/run/named
-  # If we are running as a non-root user, we'll need to be sure that
-  # /var/run/named is chowned properly to that user. Your files in
-  # /var/named may need to be chowned as well, but that will be up to
-  # the sysadmin to do.
-  BIND_USER="$(find_bind_user)"
-  if [ ! "$BIND_USER" = "root" ]; then
-    chown -R $BIND_USER /var/run/named
-  else # prevent error if switching back to running as root:
-    chown -R root /var/run/named
-  fi
+  # Make sure that /var/run/named has correct ownership:
+  chown -R ${BIND_USER}:${BIND_GROUP} /var/run/named
+  # Make sure that /var/named has correct ownership:
+  chown -R ${BIND_USER}:${BIND_GROUP} /var/named
   # Start named:
   if [ -x /usr/sbin/named ]; then
     echo "Starting BIND:  /usr/sbin/named $NAMED_OPTIONS"

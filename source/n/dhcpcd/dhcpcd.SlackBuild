@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2014, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2013, 2014, 2017, 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,6 +25,21 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=dhcpcd
 VERSION=${VERSION:-$(echo dhcpcd-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# By default, Slackware builds dhcpcd with privilege separation, which improves
+# security by ensuring that any security vulnerabilies such as buffer overflows
+# or shell metacharacter insertion would gain access to an unprivileged user
+# (the dhcpcd user) rather than the root user. However, this creates issues
+# when using dhcpcd with NetworkManager. With privilege separation enabled,
+# the network won't return properly after suspend/resume.
+#
+# If you use dhcpcd with NetworkManager and this functionality is important to
+# you, rebuild dhcpcd with this command:
+#
+# PRIVSEP=no ./dhcpcd.SlackBuild
+#
+# Then upgrade to the generated package.
+PRIVSEP=${PRIVSEP:-yes}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -85,6 +100,15 @@ patch -p1 --verbose < $CWD/patches/dhcpcd.conf-request_ntp_server_by_default.pat
 # /etc/rc.d/rc.S, and /var should not be on a network filesystem.  As such,
 # we'll use the FHS layout instead of putting things in /etc/dhcpc 
 
+# Set options to build with or without privsep:
+if [ "$PRIVSEP" = "yes" ]; then
+  PRIVSEP_OPTIONS="--enable-privsep --privsepuser=dhcpcd"
+  unset TAG
+else
+  PRIVSEP_OPTIONS="--disable-privsep"
+  TAG="_noprivsep"
+fi
+
 # Yes, /lib/dhcpcd is correct, even on x86_64.
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -96,6 +120,7 @@ CFLAGS="$SLKCFLAGS" \
   --libexecdir=/lib/dhcpcd \
   --mandir=/usr/man \
   --rundir=/run \
+  $PRIVSEP_OPTIONS \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
@@ -138,5 +163,4 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/dhcpcd-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/dhcpcd-$VERSION-$ARCH-$BUILD$TAG.txz

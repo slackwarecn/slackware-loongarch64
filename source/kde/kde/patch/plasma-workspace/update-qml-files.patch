@@ -1,0 +1,278 @@
+diff -u -r plasma-workspace-5.22.5.orig/applets/devicenotifier/package/contents/ui/DeviceItem.qml plasma-workspace-5.22.5/applets/devicenotifier/package/contents/ui/DeviceItem.qml
+--- plasma-workspace-5.22.5.orig/applets/devicenotifier/package/contents/ui/DeviceItem.qml	2021-08-31 06:52:18.000000000 -0500
++++ plasma-workspace-5.22.5/applets/devicenotifier/package/contents/ui/DeviceItem.qml	2021-09-17 01:37:28.000000000 -0500
+@@ -1,24 +1,11 @@
+ /*
+- *   Copyright 2011 Viranch Mehta <viranch.mehta@gmail.com>
+- *   Copyright 2012 Jacopo De Simoi <wilderkde@gmail.com>
+- *   Copyright 2016 Kai Uwe Broulik <kde@privat.broulik.de>
+- *   Copyright 2020 Nate Graham <nate@kde.org>
+- *
+- *   This program is free software; you can redistribute it and/or modify
+- *   it under the terms of the GNU Library General Public License as
+- *   published by the Free Software Foundation; either version 2 or
+- *   (at your option) any later version.
+- *
+- *   This program is distributed in the hope that it will be useful,
+- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *   GNU General Public License for more details
+- *
+- *   You should have received a copy of the GNU Library General Public
+- *   License along with this program; if not, write to the
+- *   Free Software Foundation, Inc.,
+- *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+- */
++    SPDX-FileCopyrightText: 2011 Viranch Mehta <viranch.mehta@gmail.com>
++    SPDX-FileCopyrightText: 2012 Jacopo De Simoi <wilderkde@gmail.com>
++    SPDX-FileCopyrightText: 2016 Kai Uwe Broulik <kde@privat.broulik.de>
++    SPDX-FileCopyrightText: 2020 Nate Graham <nate@kde.org>
++
++    SPDX-License-Identifier: LGPL-2.0-or-later
++*/
+ 
+ import QtQuick 2.0
+ import QtQuick.Controls 2.12 as QQC2
+@@ -44,7 +31,8 @@
+     readonly property double totalSpace: sdSource.data[udi] && sdSource.data[udi]["Size"] ? sdSource.data[udi]["Size"] : -1.0
+     property bool freeSpaceKnown: freeSpace > 0 && totalSpace > 0
+ 
+-    readonly property bool isRootVolume: sdSource.data[udi]["File Path"] ? sdSource.data[udi]["File Path"] == "/" : false
++    readonly property bool isRootVolume: sdSource.data[udi] && sdSource.data[udi]["File Path"] ? sdSource.data[udi]["File Path"] == "/" : false
++    readonly property bool isRemovable: sdSource.data[udi] && sdSource.data[udi]["Removable"] ? sdSource.data[udi]["Removable"] : false
+ 
+     onOperationResultChanged: {
+         if (!popupIconTimer.running) {
+@@ -73,6 +61,15 @@
+         }
+     }
+ 
++    Connections {
++         target: plasmoid.action("unmountAllDevices")
++         function onTriggered() {
++             if (model["Removable"] && isMounted) {
++                 actionTriggered();
++             }
++         }
++     }
++
+     // this keeps the delegate around for 5 seconds after the device has been
+     // removed in case there was a message, such as "you can now safely remove this"
+     ListView.onRemove: {
+@@ -123,7 +120,7 @@
+         var operationName
+         var operation
+         var wasMounted = isMounted;
+-        if (!sdSource.data[udi].Removable || !isMounted) {
++        if (!isRemovable || !isMounted) {
+             service = hpSource.serviceForSource(udi);
+             operation = service.operationDescription('invokeAction');
+             operation.predicate = "test-predicate-openinwindow.desktop";
+@@ -140,26 +137,23 @@
+ 
+     // When there's no better icon available, show a placeholder icon instead
+     // of nothing
+-    icon: sdSource.data[udi] == undefined ? "device-notifier" : sdSource.data[udi].Icon
++    icon: sdSource.data[udi] ? sdSource.data[udi].Icon : "device-notifier"
+ 
+     iconEmblem: {
+-        if (sdSource.data[udi] != undefined) {
+-            if (deviceItem.hasMessage) {
+-                if (deviceItem.message.solidError === 0) {
+-                    return "emblem-information"
+-                } else {
+-                    return "emblem-error"
+-                }
+-            } else if (deviceItem.state == 0 && Emblems && Emblems[0]) {
+-                return Emblems[0]
++        if (deviceItem.hasMessage) {
++            if (deviceItem.message.solidError === 0) {
++                return "emblem-information"
+             } else {
+-                return ""
++                return "emblem-error"
+             }
++        } else if (deviceItem.state == 0 && Emblems && Emblems[0]) {
++            return Emblems[0]
++        } else {
++            return ""
+         }
+-        return ""
+     }
+ 
+-    title: sdSource.data[udi] == undefined ? "" : sdSource.data[udi].Description
++    title: sdSource.data[udi] ? sdSource.data[udi].Description : ""
+ 
+     subtitle: {
+         if (deviceItem.hasMessage) {
+@@ -176,9 +170,9 @@
+             }
+             return ""
+         } else if (deviceItem.state == 1) {
+-            return i18nc("Accessing is a less technical word for Mounting; translation should be short and mean \'Currently mounting this device\'", "Accessing...")
++            return i18nc("Accessing is a less technical word for Mounting; translation should be short and mean \'Currently mounting this device\'", "Accessing…")
+         } else {
+-            return i18nc("Removing is a less technical word for Unmounting; translation should be short and mean \'Currently unmounting this device\'", "Removing...")
++            return i18nc("Removing is a less technical word for Unmounting; translation should be short and mean \'Currently unmounting this device\'", "Removing…")
+         }
+     }
+ 
+@@ -196,15 +190,15 @@
+ 
+     defaultActionButtonAction: QQC2.Action {
+         icon.name: {
+-            if (!sdSource.data[udi].Removable) {
+-                return "document-open-folder"
+-            } else {
++            if (isRemovable) {
+                 return isMounted ? "media-eject" : "document-open-folder"
++            } else {
++                return "document-open-folder"
+             }
+         }
+         text: {
+             // It's possible for the root volume to be on a removable disk
+-            if (!sdSource.data[udi].Removable || deviceItem.isRootVolume) {
++            if (!isRemovable || isRootVolume) {
+                 return i18n("Open in File Manager")
+             } else {
+                 var types = model["Device Types"];
+@@ -236,7 +230,7 @@
+                 if (modelData.predicate != "test-predicate-openinwindow.desktop") {
+                     return true;
+                 }
+-                return sdSource.data[udi].Removable && deviceItem.isMounted;
++                return deviceItem.isRemovable && deviceItem.isMounted;
+             }
+             onTriggered: {
+                 var service = hpSource.serviceForSource(udi);
+@@ -257,7 +251,7 @@
+         icon.name: "media-mount"
+ 
+         // Only show for unmounted removable devices
+-        enabled: sdSource.data[udi].Removable && !deviceItem.isMounted
++        enabled: deviceItem.isRemovable && !deviceItem.isMounted
+ 
+         onTriggered: {
+             var service = sdSource.serviceForSource(udi);
+diff -u -r plasma-workspace-5.22.5.orig/applets/devicenotifier/package/contents/ui/FullRepresentation.qml plasma-workspace-5.22.5/applets/devicenotifier/package/contents/ui/FullRepresentation.qml
+--- plasma-workspace-5.22.5.orig/applets/devicenotifier/package/contents/ui/FullRepresentation.qml	2021-08-31 06:52:18.000000000 -0500
++++ plasma-workspace-5.22.5/applets/devicenotifier/package/contents/ui/FullRepresentation.qml	2021-09-17 01:37:39.000000000 -0500
+@@ -1,26 +1,12 @@
+ /*
+- *   Copyright 2011 Viranch Mehta <viranch.mehta@gmail.com>
+- *   Copyright 2012 Jacopo De Simoi <wilderkde@gmail.com>
+- *   Copyright 2014 David Edmundson <davidedmundson@kde.org>
+- *   Copyright 2014 Marco Martin <mart@kde.org>
+- *   Copyright 2020 Nate Graham <nate@kde.org>
+- *
+- *
+- *   This program is free software; you can redistribute it and/or modify
+- *   it under the terms of the GNU Library General Public License as
+- *   published by the Free Software Foundation; either version 2 or
+- *   (at your option) any later version.
+- *
+- *   This program is distributed in the hope that it will be useful,
+- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *   GNU General Public License for more details
+- *
+- *   You should have received a copy of the GNU Library General Public
+- *   License along with this program; if not, write to the
+- *   Free Software Foundation, Inc.,
+- *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+- */
++    SPDX-FileCopyrightText: 2011 Viranch Mehta <viranch.mehta@gmail.com>
++    SPDX-FileCopyrightText: 2012 Jacopo De Simoi <wilderkde@gmail.com>
++    SPDX-FileCopyrightText: 2014 David Edmundson <davidedmundson@kde.org>
++    SPDX-FileCopyrightText: 2014 Marco Martin <mart@kde.org>
++    SPDX-FileCopyrightText: 2020 Nate Graham <nate@kde.org>
++
++    SPDX-License-Identifier: LGPL-2.0-or-later
++*/
+ 
+ import QtQuick 2.2
+ import QtQuick.Window 2.2
+@@ -149,7 +135,7 @@
+             section {
+                 property: "Type Description"
+                 delegate: Item {
+-                    height: childrenRect.height
++                    height: Math.floor(childrenRect.height)
+                     width: notifierDialog.width
+                     PlasmaExtras.Heading {
+                         level: 3
+diff -u -r plasma-workspace-5.22.5.orig/applets/devicenotifier/package/contents/ui/devicenotifier.qml plasma-workspace-5.22.5/applets/devicenotifier/package/contents/ui/devicenotifier.qml
+--- plasma-workspace-5.22.5.orig/applets/devicenotifier/package/contents/ui/devicenotifier.qml	2021-08-31 06:52:18.000000000 -0500
++++ plasma-workspace-5.22.5/applets/devicenotifier/package/contents/ui/devicenotifier.qml	2021-09-17 01:37:49.000000000 -0500
+@@ -1,24 +1,11 @@
+ /*
+- *   Copyright 2011 Viranch Mehta <viranch.mehta@gmail.com>
+- *   Copyright 2012 Jacopo De Simoi <wilderkde@gmail.com>
+- *   Copyright 2014 David Edmundson <davidedmundson@kde.org>
+- *   Copyright 2016 Kai Uwe Broulik <kde@privat.broulik.de>
+- *
+- *   This program is free software; you can redistribute it and/or modify
+- *   it under the terms of the GNU Library General Public License as
+- *   published by the Free Software Foundation; either version 2 or
+- *   (at your option) any later version.
+- *
+- *   This program is distributed in the hope that it will be useful,
+- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *   GNU General Public License for more details
+- *
+- *   You should have received a copy of the GNU Library General Public
+- *   License along with this program; if not, write to the
+- *   Free Software Foundation, Inc.,
+- *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+- */
++    SPDX-FileCopyrightText: 2011 Viranch Mehta <viranch.mehta@gmail.com>
++    SPDX-FileCopyrightText: 2012 Jacopo De Simoi <wilderkde@gmail.com>
++    SPDX-FileCopyrightText: 2014 David Edmundson <davidedmundson@kde.org>
++    SPDX-FileCopyrightText: 2016 Kai Uwe Broulik <kde@privat.broulik.de>
++
++    SPDX-License-Identifier: LGPL-2.0-or-later
++*/
+ 
+ import QtQuick 2.0
+ import QtQuick.Layouts 1.1
+@@ -88,6 +75,7 @@
+         onSourceAdded: {
+             disconnectSource(source);
+             connectSource(source);
++            sdSource.connectedSources = sources
+         }
+         onSourceRemoved: {
+             disconnectSource(source);
+@@ -111,7 +99,6 @@
+     PlasmaCore.DataSource {
+         id: sdSource
+         engine: "soliddevice"
+-        connectedSources: hpSource.sources
+         interval: 0
+         property string last
+         onSourceAdded: {
+@@ -235,6 +222,13 @@
+             Plasmoid.status = PlasmaCore.Types.PassiveStatus;
+         }
+ 
++        plasmoid.setAction("unmountAllDevices", i18n("Remove All"), "media-eject");
++        plasmoid.action("unmountAllDevices").visible = Qt.binding(() => {
++            return devicenotifier.mountedRemovables > 1;
++        });
++ 
++        plasmoid.setActionSeparator("sep0");
++
+         plasmoid.setAction("showRemovableDevices", i18n("Removable Devices"), "drive-removable-media");
+         devicenotifier.showRemovableDevicesAction = plasmoid.action("showRemovableDevices");
+         devicenotifier.showRemovableDevicesAction.checkable = true;
+@@ -264,7 +258,7 @@
+ 
+         if (devicenotifier.openAutomounterKcmAuthorized) {
+             plasmoid.removeAction("configure");
+-            plasmoid.setAction("configure", i18nc("Open auto mounter kcm", "Configure Removable Devices..."), "configure")
++            plasmoid.setAction("configure", i18nc("Open auto mounter kcm", "Configure Removable Devices…"), "configure")
+         }
+     }
+ 

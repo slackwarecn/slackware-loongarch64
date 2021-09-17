@@ -515,6 +515,7 @@ gzip ./source/n/nn/nn_6.7.3-10.diff
 gzip ./source/n/nn/nn.badnntphost.diff
 gzip ./source/n/nn/m-x86_64.h
 gzip ./source/n/nn/NNTP
+gzip ./source/n/NetworkManager/patches/9cc2591fe871b29ce9a743dfb2cd189cb1580bde.dhcpcd.graceful.exit.patch
 gzip ./source/n/NetworkManager/doinst.sh
 gzip ./source/n/netwatch/netwatch.phonemyself.diff
 gzip ./source/n/netwatch/netwatch.makefile.diff

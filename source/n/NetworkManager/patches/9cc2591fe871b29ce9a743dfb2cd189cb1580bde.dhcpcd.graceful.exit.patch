@@ -1,0 +1,119 @@
+From 9cc2591fe871b29ce9a743dfb2cd189cb1580bde Mon Sep 17 00:00:00 2001
+From: Roy Marples <roy@marples.name>
+Date: Thu, 16 Sep 2021 20:36:49 +0100
+Subject: [PATCH] dhcpcd: stop dhcpcd using nm_dhcp_client_stop_pid rather than
+ killing
+
+NetworkManager can stop/start a DHCP client faster than dhcpcd can
+gracefully exit.
+
+As such, refactor nm_dhcp_client_stop_pid so that a specific signal
+can be sent which allows dhcpcd to gracefully stop on SIGTERM and
+release on SIGALRM.
+---
+ src/core/dhcp/nm-dhcp-client.c   |  6 +++---
+ src/core/dhcp/nm-dhcp-client.h   |  2 +-
+ src/core/dhcp/nm-dhcp-dhclient.c |  2 +-
+ src/core/dhcp/nm-dhcp-dhcpcd.c   | 22 ++++------------------
+ 4 files changed, 9 insertions(+), 23 deletions(-)
+
+diff --git a/src/core/dhcp/nm-dhcp-client.c b/src/core/dhcp/nm-dhcp-client.c
+index f88c79c0be..727296d158 100644
+--- a/src/core/dhcp/nm-dhcp-client.c
++++ b/src/core/dhcp/nm-dhcp-client.c
+@@ -429,14 +429,14 @@ watch_cleanup(NMDhcpClient *self)
+ }
+ 
+ void
+-nm_dhcp_client_stop_pid(pid_t pid, const char *iface)
++nm_dhcp_client_stop_pid(pid_t pid, const char *iface, int sig)
+ {
+     char *name = iface ? g_strdup_printf("dhcp-client-%s", iface) : NULL;
+ 
+     g_return_if_fail(pid > 1);
+ 
+     nm_utils_kill_child_sync(pid,
+-                             SIGTERM,
++                             sig,
+                              LOGD_DHCP,
+                              name ?: "dhcp-client",
+                              NULL,
+@@ -457,7 +457,7 @@ stop(NMDhcpClient *self, gboolean release)
+     if (priv->pid > 0) {
+         /* Clean up the watch handler since we're explicitly killing the daemon */
+         watch_cleanup(self);
+-        nm_dhcp_client_stop_pid(priv->pid, priv->iface);
++        nm_dhcp_client_stop_pid(priv->pid, priv->iface, SIGTERM);
+     }
+     priv->pid = -1;
+ }
+diff --git a/src/core/dhcp/nm-dhcp-client.h b/src/core/dhcp/nm-dhcp-client.h
+index 2e7e021650..439b873dec 100644
+--- a/src/core/dhcp/nm-dhcp-client.h
++++ b/src/core/dhcp/nm-dhcp-client.h
+@@ -197,7 +197,7 @@ void nm_dhcp_client_stop(NMDhcpClient *self, gboolean release);
+ /* Backend helpers for subclasses */
+ void nm_dhcp_client_stop_existing(const char *pid_file, const char *binary_name);
+ 
+-void nm_dhcp_client_stop_pid(pid_t pid, const char *iface);
++void nm_dhcp_client_stop_pid(pid_t pid, const char *iface, int sig);
+ 
+ void nm_dhcp_client_start_timeout(NMDhcpClient *self);
+ 
+diff --git a/src/core/dhcp/nm-dhcp-dhclient.c b/src/core/dhcp/nm-dhcp-dhclient.c
+index 970a51f5dd..21fc857d26 100644
+--- a/src/core/dhcp/nm-dhcp-dhclient.c
++++ b/src/core/dhcp/nm-dhcp-dhclient.c
+@@ -627,7 +627,7 @@ stop(NMDhcpClient *client, gboolean release)
+ 
+         if (dhclient_start(client, NULL, TRUE, &rpid, 0, NULL)) {
+             /* Wait a few seconds for the release to happen */
+-            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client));
++            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client), SIGTERM);
+         }
+     }
+ }
+diff --git a/src/core/dhcp/nm-dhcp-dhcpcd.c b/src/core/dhcp/nm-dhcp-dhcpcd.c
+index 7522156bef..db694a2c11 100644
+--- a/src/core/dhcp/nm-dhcp-dhcpcd.c
++++ b/src/core/dhcp/nm-dhcp-dhcpcd.c
+@@ -162,31 +162,17 @@ stop(NMDhcpClient *client, gboolean release)
+ {
+     NMDhcpDhcpcd *self = NM_DHCP_DHCPCD(client);
+     pid_t         pid;
+-    int           sig, errsv;
++    int           sig;
+ 
+     pid = nm_dhcp_client_get_pid(client);
+     if (pid > 1) {
+         sig = release ? SIGALRM : SIGTERM;
+         _LOGD("sending %s to dhcpcd pid %d", sig == SIGALRM ? "SIGALRM" : "SIGTERM", pid);
+ 
+-        /* dhcpcd-9.x features privilege separation.
+-         * It's not our job to track all these processes so we rely on dhcpcd
+-         * to always cleanup after itself.
+-         * Because it also re-parents itself to PID 1, the process cannot be
+-         * reaped or waited for.
+-         * As such, just send the correct signal.
+-         */
+-        if (kill(pid, sig) == -1) {
+-            errsv = errno;
+-            _LOGE("failed to kill dhcpcd %d:%s", errsv, strerror(errsv));
+-        }
+-
+-        /* When this function exits NM expects the PID to be -1.
+-         * This means we also need to stop watching the pid.
+-         * If we need to know the exit status then we need to refactor NM
+-         * to allow a non -1 to mean we're waiting to exit still.
+-         */
++        /* We need to remove the watch before stopping the process */
+         nm_dhcp_client_stop_watch_child(client, pid);
++
++        nm_dhcp_client_stop_pid(pid, nm_dhcp_client_get_iface(client), sig);
+     }
+ }
+ 
+-- 
+GitLab
+
+

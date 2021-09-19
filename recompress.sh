@@ -934,6 +934,7 @@ gzip ./source/l/mozjs78/patches/icu_sources_data-Write-command-output-to-our-std
 gzip ./source/l/mozjs78/patches/init_patch.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_style_check_disable_s390x.patch
 gzip ./source/l/mozjs78/patches/spidermonkey_checks_disable.patch
+gzip ./source/l/gd/gd.f4bc1f5c26925548662946ed7cfa473c190a104a.patch
 gzip ./source/l/cryfs/27587ea1acec5f939a31217f1c43953378f18821.patch
 gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
 gzip ./source/xap/hexchat/doinst.sh

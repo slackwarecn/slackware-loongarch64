@@ -658,6 +658,7 @@ gzip ./source/ap/tmux/doinst.sh
 gzip ./source/ap/tmux/tmux.conf
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.glibc228.diff
+gzip ./source/ap/mpg123/mpg123.lib64.diff
 gzip ./source/ap/texinfo/update-info-dir.8
 gzip ./source/ap/texinfo/update-info-dir
 gzip ./source/ap/texinfo/doinst.sh

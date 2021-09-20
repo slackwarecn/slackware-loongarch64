@@ -1044,8 +1044,6 @@ gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/ssr/doinst.sh
-gzip ./source/xap/pan/pan.gcc11.diff
-gzip ./source/xap/pan/pan.glib-2.68.0.diff
 gzip ./source/xap/pan/pan.enchant2.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh

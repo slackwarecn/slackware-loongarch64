@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libva
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -92,11 +92,14 @@ meson setup \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --buildtype=release \
-  -Denable_va_messaging=false \
   .. || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
+
+# Add a default config file to reduce message verbosity:
+mkdir -p $PKG/etc
+cat $CWD/libva.conf > $PKG/etc/libva.conf.new
 
 # Fix a couple of mistakenly executable header files:
 chmod 644 $PKG/usr/include/va/*.h
@@ -108,6 +111,7 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a COPYING* NEWS README* $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

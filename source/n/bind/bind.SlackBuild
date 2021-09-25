@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=bind
 VERSION=${VERSION:-$(echo ${PKGNAM}-[0-9]*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -112,9 +112,11 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 )
 
 # We like a lot of symlinks.
-( cd $PKG/usr/man/man3
-  sh $CWD/3link.sh
-)
+if [ -d $PKG/usr/man/man3 ]; then
+  ( cd $PKG/usr/man/man3
+    sh $CWD/3link.sh
+  )
+fi
 
 # Install init script:
 mkdir -p $PKG/etc/rc.d
@@ -122,7 +124,6 @@ cp -a $CWD/rc.bind $PKG/etc/rc.d/rc.bind.new
 chmod 644 $PKG/etc/rc.d/rc.bind.new
 
 # Install default options file for named:
-mkdir $PKG/etc/default
 cat $CWD/default.named > $PKG/etc/default/named.new
 
 # Fix library perms:
@@ -152,7 +153,9 @@ cp -a \
   $PKG/usr/doc/${PKGNAM}-$VERSION 
 
 # This one should have the correct perms of the config file:
-chmod 644 $PKG/usr/doc/${PKGNAM}-$VERSION/misc/rndc.conf-sample
+if [ -r $PKG/usr/doc/${PKGNAM}-$VERSION/misc/rndc.conf-sample ]; then
+  chmod 644 $PKG/usr/doc/${PKGNAM}-$VERSION/misc/rndc.conf-sample
+fi
 
 # One format of this is plenty.  Especially get rid of the bloated PDF.
 ( cd $PKG/usr/doc/bind-$VERSION/arm

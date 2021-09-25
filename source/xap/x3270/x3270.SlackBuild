@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2012, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012, 2018, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,10 +23,10 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=x3270
-VERSION=3.3
+VERSION=4.0
 TARBVER=${TARBVER:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 VERSION=$(echo $TARBVER | cut -f 1,2 -d .)
-BUILD=${BUILD:-7}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -47,13 +47,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i586" ]; then
+if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
@@ -83,7 +77,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf x3270-$VERSION
 tar xvf $CWD/x3270-$TARBVER.tar.?z* || exit 1
-cd x3270-3.3 || exit 1
+cd x3270-$VERSION || exit 1
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -95,38 +89,47 @@ CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc/X11 \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --mandir=/usr/man \
+  --infodir=/usr/info \
+  --with-fontdir=/usr/share/fonts/misc \
+  --disable-static \
+  --disable-b3270 \
+  --disable-c3270 \
+  --disable-pr3287 \
+  --disable-s3270 \
+  --disable-tcl3270 \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+make install.man DESTDIR=$PKG || exit 1
 
 mv $PKG/etc/X11/x3270/ibm_hosts $PKG/etc/X11/x3270/ibm_hosts.new
+
 find $PKG -name fonts.dir -exec rm {} \+
-if [ -d $PKG/usr/lib$LIBDIRSUFFIX/X11/fonts/misc ]; then
-  mkdir -p $PKG/usr/share/fonts
-  mv $PKG/usr/lib$LIBDIRSUFFIX/X11/fonts/misc $PKG/usr/share/fonts
-  rmdir $PKG/usr/lib$LIBDIRSUFFIX/X11/fonts/misc 2> /dev/null
-  rmdir $PKG/usr/lib$LIBDIRSUFFIX/X11/fonts 2> /dev/null
-  rmdir $PKG/usr/lib$LIBDIRSUFFIX/X11 2> /dev/null
-  rmdir $PKG/usr/lib$LIBDIRSUFFIX 2> /dev/null
-fi
+find $PKG -name .gitignore -exec rm {} \+
 
 mkdir -p $PKG/etc/X11/app-defaults
-cat X3270.xad > $PKG/etc/X11/app-defaults/X3270
+cat x3270/fb-x3270 > $PKG/etc/X11/app-defaults/X3270
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mkdir -p $PKG/usr/man/man{1,5}
-for file in x3270-script.man x3270.man x3270if.man ; do
-  cat $file | gzip -9c > $PKG/usr/man/man1/`basename $file .man`.1.gz
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
 done
-cat ibm_hosts.man | gzip -9c > $PKG/usr/man/man5/ibm_hosts.5.gz
 
 mkdir -p $PKG/usr/doc/x3270-$TARBVER
 cp -a \
-  LICENSE README* Examples html \
+  x3270/LICENSE* x3270/README* x3270/Examples x3270/html \
+  README* \
   $PKG/usr/doc/x3270-$TARBVER
 
 mkdir -p $PKG/install
@@ -135,4 +138,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/x3270-$TARBVER-$ARCH-$BUILD.txz
-

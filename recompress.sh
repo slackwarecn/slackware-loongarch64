@@ -111,6 +111,7 @@ gzip ./source/a/sysvinit/sysvinit.wrong.version.in.init.c.again.diff
 gzip ./source/a/sysvinit/sysvinit.paths.diff
 gzip ./source/a/coreutils/coreutils-dircolors.csh
 gzip ./source/a/coreutils/no_ls_quoting.patch
+gzip ./source/a/coreutils/e8b56ebd536e82b15542a00c888109471936bfda.patch
 gzip ./source/a/coreutils/doinst.sh
 gzip ./source/a/coreutils/coreutils.uname.diff
 gzip ./source/a/coreutils/coreutils-dircolors.sh

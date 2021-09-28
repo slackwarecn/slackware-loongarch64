@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=coreutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -80,6 +80,16 @@ rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
+# Fix chmod exit status:
+touch -r NEWS NEWS.timestamp
+touch -r src/chmod.c src/chmod.c.timestamp
+touch -r tests/local.mk tests/local.mk.timestamp
+zcat $CWD/e8b56ebd536e82b15542a00c888109471936bfda.patch.gz | patch -p1 --verbose || exit 1
+touch -r NEWS.timestamp NEWS
+touch -r src/chmod.c.timestamp src/chmod.c
+touch -r tests/local.mk.timestamp tests/local.mk
+rm -f NEWS.timestamp src/chmod.c.timestamp tests/local.mk.timestamp
+
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -111,7 +121,6 @@ DEFAULT_POSIX2_VERSION=199209 \
   --infodir=/usr/info \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --without-gmp \
   --enable-install-program=arch \
   --build=$ARCH-slackware-linux || exit 1
 

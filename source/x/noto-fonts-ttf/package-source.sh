@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -41,8 +41,9 @@ PACKAGE_NON_NOTO=${PACKAGE_NON_NOTO:-NO}
 PACKAGE_UNCOMMON_WEIGHTS=${PACKAGE_UNCOMMON_WEIGHTS:-NO}
 
 # Package unique unhinted fonts? This used to be needed solely for the symbol
-# font, but there are hinted versions now. Suggest NO.
-PACKAGE_UNHINTED_FONTS=${PACKAGE_UNHINTED_FONTS:-NO}
+# font, but there are hinted versions now. There are a few other fonts that are
+# only available as unhinted though.
+PACKAGE_UNHINTED_FONTS=${PACKAGE_UNHINTED_FONTS:-YES}
 
 # Create a temporary extraction directory:
 EXTRACT_DIR=$(mktemp -d)
@@ -86,7 +87,8 @@ EXTRACT_DIR=$(mktemp -d)
     rm -f --verbose noto-fonts/unhinted/*
   fi
   mkdir fonts
-  mv noto-fonts/*hinted/* fonts
+  mv noto-fonts/unhinted/* fonts
+  mv noto-fonts/hinted/* fonts
   # Unless we selected to take non-Noto fonts (these are usually the ChromeOS
   # fonts), eliminate any fonts that do not begin with Noto:
   if [ "$PACKAGE_NON_NOTO" = "NO" ]; then

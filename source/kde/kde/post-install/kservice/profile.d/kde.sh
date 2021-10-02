@@ -5,7 +5,7 @@ export KDEDIRS
 
 # Add KDE paths if they exist:
 if [ -d /usr/lib/kf5 ]; then
-  PATH="$PATH:/usr/lib/kf5"
+  PATH="$PATH:/usr/lib/libexec/kf5"
 fi
 if [ -d /usr/lib/kde4/libexec ]; then
   PATH="$PATH:/usr/lib/kde4/libexec"

@@ -6,7 +6,7 @@ endif
 
 # Add KDE paths if they exist:
 if ( -d /usr/lib/kf5 ) then
-    setenv PATH ${PATH}:/usr/lib/kf5
+    setenv PATH ${PATH}:/usr/lib/libexec/kf5
 endif
 if ( -d /usr/lib/kde4/libexec ) then
     setenv PATH ${PATH}:/usr/lib/kde4/libexec

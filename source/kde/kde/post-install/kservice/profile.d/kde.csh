@@ -5,18 +5,21 @@ if ( ! $?KDEDIRS ) then
 endif
 
 # Add KDE paths if they exist:
-if ( -d /usr/lib/kf5 ) then
+if ( -d /usr/lib/libexec/kf5 ) then
     setenv PATH ${PATH}:/usr/lib/libexec/kf5
 endif
 if ( -d /usr/lib/kde4/libexec ) then
     setenv PATH ${PATH}:/usr/lib/kde4/libexec
 endif
 
-# Add /etc/kde/xdg to $XDG_CONFIG_DIRS:
-if ( $?XDG_CONFIG_DIRS ) then
+# If there's no $XDG_CONFIG_DIRS variable, set it to /etc/xdg:
+if ( ! $?XDG_CONFIG_DIRS ) then
+    setenv XDG_CONFIG_DIRS /etc/xdg
+endif
+
+# Add /etc/kde/xdg to $XDG_CONFIG_DIRS (if it exists):
+if ( -d /etc/kde/xdg ) then
     setenv XDG_CONFIG_DIRS ${XDG_CONFIG_DIRS}:/etc/kde/xdg
-else
-    setenv XDG_CONFIG_DIRS /etc/xdg:/etc/kde/xdg
 endif
 
 # Commented out, since PAM should take care of this:

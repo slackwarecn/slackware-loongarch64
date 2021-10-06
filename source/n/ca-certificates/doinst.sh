@@ -11,7 +11,11 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/ca-certificates.conf.new
+# Actually, with this being auto-generated and strongly tied to the
+# filelist in this package, it's not a good idea to try to preserve
+# this config file. For local certs, simply install them in the
+# /usr/local/share/ca-certificates directory.
+#config etc/ca-certificates.conf.new
 
 if [ -x /usr/sbin/update-ca-certificates ]; then
   /usr/sbin/update-ca-certificates --fresh 1> /dev/null 2> /dev/null

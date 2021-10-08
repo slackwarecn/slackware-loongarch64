@@ -136,9 +136,9 @@ done | tac | while IFS= read -r line ; do
   elif echo "$line" | grep -q -e ":  Upgraded.$" -e ":  Rebuilt.$" -e ":  Added.$" ; then
     # Output the name of the matching built package under ${SLACKPKGS}.
     PACKAGE=$(findpkg $(echo $line | cut -f 1 -d :) | rev | cut -f 1,2 -d / | rev)
-    if echo $PACKAGE | grep -q "^a/aaa_elflibs" ; then
-      # The aaa_elflibs package must be build last, so put it in its own list:
-      LISTPKG=aaa_elflibs
+    if echo $PACKAGE | grep -q "^a/aaa_libraries" ; then
+      # The aaa_libraries package must be build last, so put it in its own list:
+      LISTPKG=aaa_libraries
     elif echo $PACKAGE | grep -q "^kde/" ; then
       # KDE packages should be built after all sobumps and normal packages:
       LISTPKG=kde
@@ -214,7 +214,7 @@ EOF
 fi
 
 # Convert the buildlist from *.txz packages to SlackBuilds:
-cat $TMPDIR/header $TMPDIR/kernel $TMPDIR/sobumps $TMPDIR/perl $TMPDIR/packages $TMPDIR/kde $TMPDIR/aaa_elflibs 2> /dev/null | while IFS= read -r line ; do
+cat $TMPDIR/header $TMPDIR/kernel $TMPDIR/sobumps $TMPDIR/perl $TMPDIR/packages $TMPDIR/kde $TMPDIR/aaa_libraries 2> /dev/null | while IFS= read -r line ; do
   if echo "$line" | grep -q "^#" ; then
     # Commented out line:
     echo "$line" >> $TMPDIR/output

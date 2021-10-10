@@ -48,6 +48,7 @@ gzip ./source/d/vala/no.gvc-compat.c.diff
 gzip ./source/d/gyp/gyp-ninja-build.patch
 gzip ./source/d/gyp/gyp-fix-cmake.patch
 gzip ./source/d/gyp/gyp-python38.patch
+gzip ./source/d/gyp/gyp-python310.patch
 gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh

@@ -926,6 +926,7 @@ gzip ./source/l/qt5/patches/qtwebengine-everywhere-src-5.15.2-%231904652.patch
 gzip ./source/l/qt5/doinst.sh
 gzip ./source/l/mozjs78/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs78/patches/fix-soname.patch
+gzip ./source/l/mozjs78/patches/Fixup-compatibility-of-mozbuild-with-Python-3.10.patch
 gzip ./source/l/mozjs78/patches/armv7_disable_WASM_EMULATE_ARM_UNALIGNED_FP_ACCESS.patch
 gzip ./source/l/mozjs78/patches/tests-increase-timeout.patch
 gzip ./source/l/mozjs78/patches/icu_sources_data.py-Decouple-from-Mozilla-build-system.patch

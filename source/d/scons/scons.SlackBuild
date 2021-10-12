@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2015, 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2015  Heinz Wiesinger, Amsterdam, The Netherlands
 # All rights reserved.
 #
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=scons
 VERSION=${VERSION:-$(echo scons-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -87,6 +87,12 @@ rm -f $PKG/usr/bin/*.bat
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
+# Relocate manual pages:
+if [ -r $PKG/usr/scons.1 ]; then
+  mkdir -p $PKG/usr/man/man1
+  mv $PKG/usr/*.1 $PKG/usr/man/man1
+fi
+
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+
 for i in $( find $PKG/usr/man -type l ) ; do
@@ -94,18 +100,18 @@ for i in $( find $PKG/usr/man -type l ) ; do
   rm $i
 done
 
-# For some reason, SCons no longer ships a man page. If there is not a man page
-# present, install the last known version. It's better than nothing.
-if [ ! -r $PKG/usr/man/man1/scons.1.gz ]; then
-  mkdir -p $PKG/usr/man/man1
-  cp -a $CWD/scons.1.gz $PKG/usr/man/man1
-  chown root:root $PKG/usr/man/man1/scons.1.gz
-  chmod 644 $PKG/usr/man/man1/scons.1.gz
-else
-  echo "ERROR: actually found scons man page! Please comment out the section of"
-  echo "the build script that tries to install it, and delete the old man page."
-  exit 1
-fi
+## For some reason, SCons no longer ships a man page. If there is not a man page
+## present, install the last known version. It's better than nothing.
+#if [ ! -r $PKG/usr/man/man1/scons.1.gz ]; then
+#  mkdir -p $PKG/usr/man/man1
+#  cp -a $CWD/scons.1.gz $PKG/usr/man/man1
+#  chown root:root $PKG/usr/man/man1/scons.1.gz
+#  chmod 644 $PKG/usr/man/man1/scons.1.gz
+#else
+#  echo "ERROR: actually found scons man page! Please comment out the section of"
+#  echo "the build script that tries to install it, and delete the old man page."
+#  exit 1
+#fi
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/
 cp -a \

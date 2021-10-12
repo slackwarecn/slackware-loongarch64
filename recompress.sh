@@ -166,6 +166,7 @@ gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
 gzip ./source/a/mkinitrd/mkinitrd.tempfile.to.mktemp.patch
 gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
 gzip ./source/a/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
+gzip ./source/a/mkinitrd/0003-blacklist.40-usb_modeswitch.rules.patch
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/file/file.xz.magic
 gzip ./source/a/file/file.zisofs.magic

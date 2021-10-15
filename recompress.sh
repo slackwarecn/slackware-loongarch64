@@ -79,6 +79,7 @@ gzip ./source/d/binutils/patches/binutils-missing-man-pages.patch
 gzip ./source/d/binutils/patches/binutils-export-demangle.h.patch
 gzip ./source/d/binutils/patches/binutils-gold-mismatched-section-flags.patch
 gzip ./source/d/icecream/doinst.sh
+gzip ./source/d/automake/automake.python.3.10.diff
 gzip ./source/d/automake/doinst.sh
 gzip ./source/d/intltool/no-guess-builddir.diff
 gzip ./source/d/intltool/intltool-0.51.0-perl-5.22.patch

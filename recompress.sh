@@ -177,15 +177,7 @@ gzip ./source/a/file/recompile_magic.mgc.sh
 gzip ./source/a/file/file.short.diff
 gzip ./source/a/file/file.etc.file.diff
 gzip ./source/a/file/doinst.sh
-gzip ./source/a/file/git-patches/1c677c04c0fa43ecfeccdb9705dbbd19fb356891.patch
-gzip ./source/a/file/git-patches/2f62d5544d13ca32dc09504ec70358db581e9e65.patch
-gzip ./source/a/file/git-patches/64dcffa715049351327851c8b5a6f3430a32ff39.patch
-gzip ./source/a/file/git-patches/9e2becec20d023409a1671bf10a682f699350e85.patch
-gzip ./source/a/file/git-patches/6b34436ac766dae64749b8d14f18c6910be40131.patch
-gzip ./source/a/file/git-patches/f06015040e7ffb3be21bb7622f9f8291b749aaf9.patch
-gzip ./source/a/file/git-patches/576d713ec955faafdc9d7b783f3f4c27b7bc1793.patch
 gzip ./source/a/file/file.quiet.diff
-gzip ./source/a/file/0001-Fix-mime-type-XZ-after-Add-checksum-for-XZ.patch
 gzip ./source/a/bzip2/bzip2.saneso.diff
 gzip ./source/a/floppy/fdutils-5.5-20081027.diff
 gzip ./source/a/floppy/fdutils.mediaprm.diff
@@ -633,6 +625,7 @@ gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/hplip.is_alive.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
+gzip ./source/ap/hplip/hplip.python3.10.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch

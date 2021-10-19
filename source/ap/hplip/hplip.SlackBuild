@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=hplip
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -89,6 +89,9 @@ zcat $CWD/fix-desktop-file.patch.gz | patch -p1 --verbose || exit 1
 # Fix for deprecated python function:
 zcat $CWD/hplip.is_alive.diff.gz | patch -p1 --verbose || exit 1
 
+# Patch for Python 3.10:
+zcat $CWD/hplip.python3.10.diff.gz | patch -p1 --verbose || exit 1
+
 # Choose correct options depending on whether PAM is installed:
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
   unset SHADOW_OPTIONS
@@ -130,7 +133,7 @@ done
 # Needed because Makefile.am was patched:
 autoreconf -vif || exit 1
 
-CFLAGS="$SLKCFLAGS -I/usr/include/python3.8" \
+CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 PYTHON=/usr/bin/python3 \
 ./configure \

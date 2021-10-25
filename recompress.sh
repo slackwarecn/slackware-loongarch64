@@ -619,8 +619,6 @@ gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
-gzip ./source/ap/mariadb/mysql.no.plugin_auth_pam.diff
-gzip ./source/ap/mariadb/mysql_install_db.nopam.diff
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/hplip.is_alive.diff

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2015  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2015, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Show libraries that are only present in the aaa_elflibs that is currently
+# Show libraries that are only present in the aaa_libraries that is currently
 # installed on the system.
 
 cleanup() {
@@ -33,8 +33,8 @@ trap 'cleanup' 2 14 15          # trap CTRL+C and kill
 TMPDIR="$(mktemp -d /tmp/find-aaaelfliborphans.XXXXXX)"
 
 cp -a /var/log/packages/* $TMPDIR
-rm -f $TMPDIR/aaa_elflibs-*
-cat /var/log/packages/aaa_elflibs-* | grep -v -e PACKAGE -e aaa_elflibs: -e FILE -e '^\./$' -e install/ | grep -v '/$' | while read file ; do
+rm -f $TMPDIR/aaa_libraries-*
+cat /var/log/packages/aaa_libraries-* | grep -v -e PACKAGE -e aaa_libraries: -e FILE -e '^\./$' -e install/ | grep -v '/$' | while read file ; do
   if ! grep -q $file $TMPDIR/* ; then
     echo $file
   fi

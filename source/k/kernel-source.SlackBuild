@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,6 +27,9 @@ BUILD=${BUILD:-1}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
+# If CONFIG_PREEMPT=y and CONFIG_PREEMPT_DYNAMIC=y, then set a default preempt
+# mode (none, voluntary, or full):
+CONFIG_PREEMPT_DEFAULT_MODE=${CONFIG_PREEMPT_DEFAULT_MODE:-none}
 
 # If a $VERSION is not passed to this script, use the newest linux-*.tar.xz
 # found in this directory:
@@ -145,6 +148,21 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
     echo "Saving new .config as: $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
     cp -a .config $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}
   fi
+
+  # If CONFIG_PREEMPT=y and CONFIG_PREEMPT_DYNAMIC=y, then set a default preempt
+  # mode (none, voluntary, or full):
+  if grep -wq CONFIG_PREEMPT=y .config ; then
+    if grep -wq CONFIG_PREEMPT_DYNAMIC=y .config ; then
+      # Sanity check:
+      if ! echo $CONFIG_PREEMPT_DEFAULT_MODE | grep -wq -e none -e voluntary -e full ; then
+        echo "ERROR: Invalid mode for CONFIG_PREEMPT_DEFAULT_MODE: $CONFIG_PREEMPT_DEFAULT_MODE"
+        exit 1
+      fi
+      echo "Setting default PREEMPT mode: $CONFIG_PREEMPT_DEFAULT_MODE"
+      sed -i "s/^int preempt_dynamic_mode = preempt_dynamic_full;$/int preempt_dynamic_mode = preempt_dynamic_$CONFIG_PREEMPT_DEFAULT_MODE;/g" kernel/sched/core.c
+    fi
+  fi
+
   echo "Building kernel and modules (needed before clean for building NVIDIA to work)..."
   make ${NUMJOBS} || exit 1
   make ${NUMJOBS} modules || exit 1

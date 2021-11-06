@@ -750,6 +750,7 @@ gzip ./source/l/ncurses/ncurses.mkhashsize.diff
 gzip ./source/l/ncurses/doinst.sh
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
+gzip ./source/l/libxml2/libxml2.python3-unicode-errors.patch
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/libusb/f6d2cb561402c3b6d3627c0eb89e009b503d9067.patch

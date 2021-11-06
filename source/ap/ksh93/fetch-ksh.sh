@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,31 +20,31 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Use 2020.0.1 branch. Verify first that there's no better branch with
+# Use master (ksh93u+m) branch. Verify first that there's no better branch with
 # "git branch -a" in the unpruned repo.
-BRANCH=${1:-2020.0.1}
+BRANCH=${1:-master}
 
 # Clear download area:
-rm -rf ast
+rm -rf ksh
 
 # Clone repository:
-git clone https://github.com/att/ast
+git clone https://github.com/ksh93/ksh
 
 # checkout $BRANCH:
-( cd ast 
+( cd ksh
   git checkout $BRANCH || exit 1
 )
 
-HEADISAT="$( cd ast && git log -1 --format=%h )"
-DATE="$( cd ast && git log -1 --format=%cd --date=format:%Y%m%d )"
+HEADISAT="$( cd ksh && git log -1 --format=%h )"
+DATE="$( cd ksh && git log -1 --format=%cd --date=format:%Y%m%d )"
 # Cleanup.  We're not packing up the whole git repo.
-( cd ast && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+( cd ksh && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 # No need to package these:
-( cd ast && rm -rf lib/package/tgz )
-mv ast att-ast-${DATE}_${HEADISAT}
-tar cf att-ast-${DATE}_${HEADISAT}.tar att-ast-${DATE}_${HEADISAT}
-plzip -9 -n 6 -f att-ast-${DATE}_${HEADISAT}.tar
-rm -rf att-ast-${DATE}_${HEADISAT}
+( cd ksh && rm -rf lib/package/tgz )
+mv ksh ksh-${DATE}_${HEADISAT}
+tar cf ksh-${DATE}_${HEADISAT}.tar ksh-${DATE}_${HEADISAT}
+plzip -9 -n 6 -f ksh-${DATE}_${HEADISAT}.tar
+rm -rf ksh-${DATE}_${HEADISAT}
 echo
-echo "ast branch $BRANCH with HEAD at $HEADISAT packaged as att-ast-${DATE}_${HEADISAT}.tar.lz"
+echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${DATE}_${HEADISAT}.tar.lz"
 echo

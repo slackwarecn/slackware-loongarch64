@@ -2,7 +2,7 @@
 #
 # Copyright 1993, 1994, 1999  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2001, 2003, 2004  Slackware Linux, Inc., Concord, CA
-# Copyright 2006, 2007, 2018  Patrick Volkerding, Sebeka, Minnesota USA
+# Copyright 2006, 2007, 2018, 2021 Patrick Volkerding, Sebeka, Minnesota USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is 
@@ -421,42 +421,59 @@ if [ -f ${T_PX}/etc/fstab ]; then
      --title "Slackware Linux Setup is complete" "$@" \
      --msgbox "\nPlease remove the installation disc.\n" 7 40
   fi
-  # Offer to reboot or drop to shell:
-  dialog \
+
+  # Offer to reboot or drop to shell or power off.
+  exec 3>&1
+  installerexittype=$( dialog \
+     --clear \
      --title "Slackware Linux Setup is complete" "$@" \
-     --yesno \
-     "\nWould you like to reboot your system?\n\n\n\
-If you choose \"No\", you will be dropped to a shell.\n" 11 50
-    retval=$?
-    if [ $retval = 1 ]; then
-      clear
-      echo
-      echo "You may now reboot your system once you are ready."
-      echo "You can issue the 'reboot' command; or if your system has"
-      echo "a keyboard attached, you can use the key combination: control+alt+delete"
-      echo
-    else
-      touch /reboot
-    fi
+     --default-item Reboot "$@" \
+     --menu "Slackware Linux setup is complete.
+             \n\nYou may now reboot your machine into the Slackware OS.\n
+             \nIf you have some post-installation tweaks you'd like to make manually, you can open a shell.\n
+             \
+             \nIf you want to make some changes to the hardware before booting the
+               Slackware OS, you may wish to power off computer.\n" \
+             17 80 3 \
+	     Shell	 "" \
+	     Reboot	 "" \
+	     "Power Off" "" \
+   2>&1 1>&3 )
+   retval=$?
+   exec 3>&-
 fi
 
 # Fix the date:
 /sbin/fixdate
 
-# final cleanup
+# Final cleanup
 rm -f $TMP/tagfile $TMP/SeT* $TMP/tar-error $TMP/PKGTOOL_REMOVED
 rm -f /var/log/mount/treecache
 rmdir /var/log/mntiso 2>/dev/null
 rm -rf $TMP/treecache
 rm -rf $TMP/pkgcache
 rmdir ${T_PX}/tmp/orbit-root 2> /dev/null
+sync
 
-# If the OS had been installed and the user elected to reboot:
-if [ -f /reboot ]; then
-   clear
-   echo "** Starting reboot **"
-   sleep 1
-   reboot
-fi
+# Handle installer exit types:
+case "$installerexittype" in
+   "Reboot")
+       clear
+       printf "\n** Starting reboot **\n\n"
+       sleep 1.5
+       reboot ;;
+   "Power Off")
+       clear
+       printf "\n** Powering off **\n\n"
+       sleep 1.5
+       poweroff ;;
+   "Shell")
+       # Note: the shell the user receives at this point is the parent from which
+       # they entered this 'setup' script.  This is why we don't explictly open a shell here.
+       clear
+       printf "\nYou may now reboot your system once you are ready.\n"
+       printf "You can issue the 'reboot' command; or if your system has\n"
+       printf "a keyboard attached, you can use the key combination: control+alt+delete\n\n" ;;
+esac
 
-# end slackware setup script
+# End of Slackware setup script

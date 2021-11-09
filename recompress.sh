@@ -654,6 +654,7 @@ gzip ./source/ap/tmux/tmux.conf
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.glibc228.diff
 gzip ./source/ap/mpg123/mpg123.lib64.diff
+gzip ./source/ap/texinfo/texinfo.fix.pt_BR.patch
 gzip ./source/ap/texinfo/update-info-dir.8
 gzip ./source/ap/texinfo/update-info-dir
 gzip ./source/ap/texinfo/doinst.sh
@@ -750,6 +751,7 @@ gzip ./source/l/ncurses/ncurses.mkhashsize.diff
 gzip ./source/l/ncurses/doinst.sh
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
+gzip ./source/l/libxml2/7955b0d6fbbe49392ccc2e511edd00fbbfcb5a10.patch
 gzip ./source/l/libxml2/libxml2.python3-unicode-errors.patch
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh

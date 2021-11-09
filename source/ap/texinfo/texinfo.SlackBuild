@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=texinfo
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -87,6 +87,8 @@ find . \
 # The --disable-perl-xs below prevents some perl extensions from being replaced
 # by C versions which have been known to choke over UTF-8 issues:
 
+zcat $CWD/texinfo.fix.pt_BR.patch.gz | patch -p1 --verbose || exit 1
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -99,6 +101,7 @@ CFLAGS="$SLKCFLAGS" \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
+make update-po || exit 1
 make install DESTDIR=$PKG || exit 1
 
 gzip -9 $PKG/usr/info/*info*

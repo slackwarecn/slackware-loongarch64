@@ -4,14 +4,20 @@
 #		0 (halt) or runlevel 6 (reboot). It kills all processes,
 #		unmounts file systems and then either halts or reboots.
 #
-# Version:	@(#)/etc/rc.d/rc.6	2.47 Sat Jan 13 13:37:26 PST 2001
+# Version:	@(#)/etc/rc.d/rc.6	15.0 Wed Nov 10 21:19:42 UTC 2021
 #
 # Author:	Miquel van Smoorenburg <miquels@drinkel.nl.mugnet.org>
 # Modified by:  Patrick J. Volkerding, <volkerdi@slackware.com>
-#
 
 # Set the path.
 PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
+
+# If we are in an lxc container, set $container to skip parts of the script.
+# Thanks to Matteo Bernardini <ponce@slackbuilds.org> and Chris Willing for
+# the initial work making this script lxc compatible.
+if grep -aq container=lxc /proc/1/environ 2> /dev/null ; then
+  container="lxc"
+fi
 
 # If there are SystemV init scripts for this runlevel, run them.
 if [ -x /etc/rc.d/rc.sysvinit ]; then
@@ -43,7 +49,7 @@ esac
 
 # Save the system time to the hardware clock using hwclock --systohc.
 # This will also create or update the timestamps in /etc/adjtime.
-if [ -x /sbin/hwclock ]; then
+if [ -x /sbin/hwclock -a -z "$container" ]; then
   # Check for a broken motherboard RTC clock (where ioports for rtc are
   # unknown) to prevent hwclock causing a hang:
   if ! grep -q " : rtc" /proc/ioports ; then
@@ -112,7 +118,7 @@ if [ -x /etc/rc.d/rc.openldap ]; then
 fi
 
 # Stop the haveged entropy daemon:
-if [ -x /etc/rc.d/rc.haveged ]; then
+if [ -x /etc/rc.d/rc.haveged -a -z "$container" ]; then
   /etc/rc.d/rc.haveged stop
 fi
 
@@ -172,7 +178,7 @@ if /bin/ls /etc/dhcpc/*.pid 1> /dev/null 2> /dev/null ; then
 fi
 
 # Shut down PCMCIA devices:
-if [ -x /etc/rc.d/rc.pcmcia ]; then
+if [ -x /etc/rc.d/rc.pcmcia -a -z "$container" ]; then
   /etc/rc.d/rc.pcmcia stop
   # The cards might need a little extra time here to deactivate:
   /bin/sleep 5
@@ -184,12 +190,12 @@ if [ -x /sbin/accton -a -r /var/log/pacct ]; then
 fi
 
 # Terminate acpid before syslog:
-if [ -x /etc/rc.d/rc.acpid -a -r /var/run/acpid.pid ]; then # quit
+if [ -x /etc/rc.d/rc.acpid -a -r /var/run/acpid.pid -a -z "$container" ]; then # quit
   /etc/rc.d/rc.acpid stop
 fi
 
 # Stop udev:
-if [ -x /etc/rc.d/rc.udev ]; then
+if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
   /etc/rc.d/rc.udev force-stop
 fi
 
@@ -205,48 +211,52 @@ fi
 
 # Try to turn off quota.
 if /bin/grep -q quota /etc/fstab ; then
-  if [ -x /sbin/quotaoff ]; then
+  if [ -x /sbin/quotaoff -a -z "$container" ]; then
     echo "Turning off filesystem quotas."
     /sbin/quotaoff -a
   fi
 fi
 
 # Carry a random seed between reboots.
-echo "Saving random seed from /dev/urandom in /etc/random-seed."
-# Use the pool size from /proc, or 4096 bits:
-if [ -r /proc/sys/kernel/random/poolsize ]; then
-  /bin/dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
-else
-  /bin/dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
+if [ -z "$container" ]; then
+  echo "Saving random seed from /dev/urandom in /etc/random-seed."
+  # Use the pool size from /proc, or 4096 bits:
+  if [ -r /proc/sys/kernel/random/poolsize ]; then
+    /bin/dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
+  else
+    /bin/dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
+  fi
+  /bin/chmod 600 /etc/random-seed
 fi
-/bin/chmod 600 /etc/random-seed
 
 # Before unmounting file systems write a reboot or halt record to wtmp.
 $shutdown_command -w
 
 # Turn off swap:
-if [ ! "$(cat /proc/swaps | wc -l)" = "1" ]; then
+if [ ! "$(cat /proc/swaps | wc -l)" = "1" -a -z "$container" ]; then
   echo "Turning off swap."
   /sbin/swapoff -a
   /bin/sync
 fi
 
 # Umount all tmpfs mounts except /dev/shm and under /run:
-cat /proc/mounts | grep " tmpfs " | grep -v -e " /run " -e " /run/" -e " /dev/shm " | while read mount ; do
-  umount --recursive -v $(echo $mount | cut -f 2 -d ' ') 2> /dev/null
-done
+if [ -z "$container" ]; then
+  cat /proc/mounts | grep " tmpfs " | grep -v -e " /run " -e " /run/" -e " /dev/shm " | while read mount ; do
+    umount --recursive -v $(echo $mount | cut -f 2 -d ' ') 2> /dev/null
+  done
+fi
 
 # Unmount local file systems:
-echo "Unmounting local file systems:"
-/bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
-
-# JFS needs a sync here or the / partition cannot be remounted read-only.
-# In spite of this, it seems that a JFS root partition will always be checked
-# (and found to be clean) at boot:
-/bin/sync
-
-echo "Remounting root filesystem read-only:"
-/bin/mount -v -n -o remount,ro /
+if [ -z "$container" ]; then
+  echo "Unmounting local file systems:"
+  /bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
+  # JFS needs a sync here or the / partition cannot be remounted read-only.
+  # In spite of this, it seems that a JFS root partition will always be checked
+  # (and found to be clean) at boot:
+  /bin/sync
+  echo "Remounting root filesystem read-only:"
+  /bin/mount -v -n -o remount,ro /
+fi
 
 # This never hurts:
 /bin/sync
@@ -273,9 +283,11 @@ if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
 fi
 
 # Deactivate LVM volume groups:
-if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
-  echo "Deactivating LVM volume groups:"
-  /sbin/vgchange -an
+if [ -z "$container" ]; then
+  if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
+    echo "Deactivating LVM volume groups:"
+    /sbin/vgchange -an
+  fi
 fi
 
 # This never hurts again (especially since root-on-LVM always fails
@@ -290,7 +302,7 @@ fi
 # This is to ensure all processes have completed on SMP machines:
 wait
 
-if [ -x /sbin/genpowerd ]; then
+if [ -x /sbin/genpowerd -a -z "$container" ]; then
   # See if this is a powerfail situation:
   if /bin/egrep -q "FAIL|SCRAM" /etc/upsstatus 2> /dev/null ; then
     # Signal UPS to shut off the inverter:
@@ -306,6 +318,11 @@ if [ -x /sbin/genpowerd ]; then
   fi
 fi
 
+if [ "$container" = "lxc" ]; then
+  # Confirm successful shutdown of the container:
+  echo "LXC container stopped."
+fi
+
 # Now halt (poweroff with APM or ACPI enabled kernels) or reboot.
 if [ "$shutdown_command" = "reboot" ]; then
   echo "Rebooting."
@@ -313,4 +330,3 @@ if [ "$shutdown_command" = "reboot" ]; then
 else
   /sbin/poweroff
 fi
-

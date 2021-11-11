@@ -1,0 +1,39 @@
+From 2ef0c19e3ebfd99c1c89bf13dee0ec198c5ef559 Mon Sep 17 00:00:00 2001
+From: Patrick J. Volkerding <volkerdi@slackware.com>
+Date: Wed, 10 Nov 2021 16:22:43 -0600
+Subject: [PATCH] Skip bridge and bond configuration in LXC container
+
+Add LXC detection at the beginning of the script to set container="lxc" if an
+LXC container is detected. Later, use this to skip bridge and bond creation in
+an LXC container. Patched script works in both LXC and on bare metal.
+
+--- ./etc/rc.d/rc.inet1.new.orig	2021-03-08 18:13:50.484386646 -0600
++++ ./etc/rc.d/rc.inet1.new	2021-11-10 02:32:58.780223136 -0600
+@@ -2,7 +2,14 @@
+ # /etc/rc.d/rc.inet1
+ # This script is used to bring up the various network interfaces.
+ #
+-# @(#)/etc/rc.d/rc.inet1 10.2  Sun Jul 24 12:45:56 PDT 2005  (pjv)
++# @(#)/etc/rc.d/rc.inet1 15.0  Wed Nov 10 08:17:22 UTC 2021  (pjv)
++
++# If we are in an lxc container, set $container to skip parts of the script.
++# Thanks to Matteo Bernardini <ponce@slackbuilds.org> and Chris Willing for
++# the initial work making this script lxc compatible.
++if grep -aq container=lxc /proc/1/environ 2> /dev/null ; then
++  container="lxc"
++fi
+ 
+ ############################
+ # READ NETWORK CONFIG FILE #
+@@ -254,9 +261,9 @@
+   # bond or bridge, configure the interfaces with IPs of 0.0.0.0 and set the
+   # MAC address with HWADDR.  Then, finally, define the bond or bridge.
+   # If the interface is a bond, create it.
+-  [ -n "${BONDNICS[$i]}" ] && bond_create $i
++  [ -n "${BONDNICS[$i]}" -a -z "$container" ] && bond_create $i
+   # If the interface is a bridge, create it.
+-  [ -n "${BRNICS[$i]}" ] && br_open $i
++  [ -n "${BRNICS[$i]}" -a -z "$container" ] && br_open $i
+   if [ -e /sys/class/net/${1%%[:.]*} ]; then # interface exists
+     if ! /sbin/ip address show scope global dev ${1} 2>/dev/null | grep -Ewq '(inet|inet6)' || \
+         ! /sbin/ip link show dev ${1} | grep -wq "state UP"; then # interface not up or not configured

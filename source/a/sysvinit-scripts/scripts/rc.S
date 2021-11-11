@@ -7,26 +7,33 @@
 
 PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 
+# If we are in an lxc container, set $container to skip parts of the script.
+# Thanks to Matteo Bernardini <ponce@slackbuilds.org> and Chris Willing for
+# the initial work making this script lxc compatible.
+if grep -aq container=lxc /proc/1/environ 2> /dev/null ; then
+  container="lxc"
+fi
+
 # Mount /proc if it is not already mounted:
-if [ ! -d /proc/sys ]; then
+if [ ! -d /proc/sys -a -z "$container" ]; then
   /sbin/mount -v proc /proc -n -t proc 2> /dev/null
 fi
 
 # Mount /sys if it is not already mounted:
-if [ ! -d /sys/kernel ]; then
+if [ ! -d /sys/kernel -a -z "$container" ]; then
   /sbin/mount -v sysfs /sys -n -t sysfs 2> /dev/null
 fi
 
 # If /run exists, mount a tmpfs on it (unless the
 # initrd has already done so):
-if [ -d /run ]; then
+if [ -d /run -a -z "$container" ]; then
   if ! grep -wq "tmpfs /run tmpfs" /proc/mounts ; then
     /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755,size=32M,nodev,nosuid,noexec
   fi
 fi
 
 # Load the loop device kernel module:
-if [ -x /etc/rc.d/rc.loop ]; then
+if [ -x /etc/rc.d/rc.loop -a -z "$container" ]; then
   /etc/rc.d/rc.loop start
 fi
 
@@ -40,34 +47,36 @@ fi
 # So use it.  :-)
 if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
-    if [ -x /etc/rc.d/rc.udev ]; then
+    if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
       /etc/rc.d/rc.udev start
     fi
   fi
 fi
 
 # Mount Control Groups filesystem interface:
-if grep -wq cgroup /proc/filesystems ; then
-  if [ -d /sys/fs/cgroup ]; then
-    # See linux-*/Documentation/cgroups/cgroups.txt (section 1.6)
-    # Check if we have some tools to autodetect the available cgroup controllers
-    if [ -x /bin/cut -a -x /bin/tail ]; then
-      # Mount a tmpfs as the cgroup filesystem root
-      mount -t tmpfs -o mode=0755,size=8M cgroup_root /sys/fs/cgroup
-      # Autodetect available controllers and mount them in subfolders
-      controllers="$(/bin/cut -f 1 /proc/cgroups | /bin/tail -n +2)"
-      for i in $controllers; do
-        mkdir /sys/fs/cgroup/$i
-        mount -t cgroup -o $i $i /sys/fs/cgroup/$i
-      done
-      unset i controllers
+if [ -z "$container" ]; then
+  if grep -wq cgroup /proc/filesystems ; then
+    if [ -d /sys/fs/cgroup ]; then
+      # See linux-*/Documentation/cgroups/cgroups.txt (section 1.6)
+      # Check if we have some tools to autodetect the available cgroup controllers
+      if [ -x /bin/cut -a -x /bin/tail ]; then
+        # Mount a tmpfs as the cgroup filesystem root
+        mount -t tmpfs -o mode=0755,size=8M cgroup_root /sys/fs/cgroup
+        # Autodetect available controllers and mount them in subfolders
+        controllers="$(/bin/cut -f 1 /proc/cgroups | /bin/tail -n +2)"
+        for i in $controllers; do
+          mkdir /sys/fs/cgroup/$i
+          mount -t cgroup -o $i $i /sys/fs/cgroup/$i
+        done
+        unset i controllers
+      else
+        # We can't use autodetection so fall back mounting them all together
+        mount -t cgroup cgroup /sys/fs/cgroup
+      fi
     else
-      # We can't use autodetection so fall back mounting them all together
-      mount -t cgroup cgroup /sys/fs/cgroup
+      mkdir -p /dev/cgroup
+      mount -t cgroup cgroup /dev/cgroup
     fi
-  else
-    mkdir -p /dev/cgroup
-    mount -t cgroup cgroup /dev/cgroup
   fi
 fi
 
@@ -76,21 +85,23 @@ fi
 # /etc/lvm/backup/ (LVM2).  This is created by /sbin/vgscan, so to
 # use LVM you must run /sbin/vgscan yourself the first time (and
 # create some VGs and LVs).
-# Create LVM lock/run directories:
-mkdir -p -m 0700 /run/lvm /run/lock /run/lock/lvm
-if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
-  echo "Initializing LVM (Logical Volume Manager):"
-  # Check for device-mapper support.
-  if ! grep -wq device-mapper /proc/devices ; then
-    # Try to load a device-mapper kernel module:
-    /sbin/modprobe -q dm-mod
-  fi
-  # Scan for new volume groups:
-  /sbin/vgscan --mknodes --ignorelockingfailure 2> /dev/null
-  if [ $? = 0 ]; then
-    # Make volume groups available to the kernel.
-    # This should also make logical volumes available.
-    /sbin/vgchange -ay --ignorelockingfailure
+if [ -z "$container" ]; then
+  # Create LVM lock/run directories:
+  mkdir -p -m 0700 /run/lvm /run/lock /run/lock/lvm
+  if [ -r /etc/lvmtab -o -d /etc/lvm/backup ]; then
+    echo "Initializing LVM (Logical Volume Manager):"
+    # Check for device-mapper support.
+    if ! grep -wq device-mapper /proc/devices ; then
+      # Try to load a device-mapper kernel module:
+      /sbin/modprobe -q dm-mod
+    fi
+    # Scan for new volume groups:
+    /sbin/vgscan --mknodes --ignorelockingfailure 2> /dev/null
+    if [ $? = 0 ]; then
+      # Make volume groups available to the kernel.
+      # This should also make logical volumes available.
+      /sbin/vgchange -ay --ignorelockingfailure
+    fi
   fi
 fi
 
@@ -124,7 +135,7 @@ fi
 # be formatted as a new encrypted volume with a random key on boot, and used as
 # swap.
 #
-if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
+if [ -f /etc/crypttab -a -x /sbin/cryptsetup -a -z "$container" ]; then
   # First, check for device-mapper support.
   if ! grep -wq device-mapper /proc/devices ; then
     # If device-mapper exists as a module, try to load it.
@@ -172,25 +183,29 @@ if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
 fi
 
 # Enable swapping:
-/sbin/swapon -a 2> /dev/null
+if [ -z "$container" ]; then
+  /sbin/swapon -a 2> /dev/null
+fi
 
 # Set the tick and frequency for the system clock.
 # Default values are: TICK=10000 and FREQ=0
-TICK=10000
-FREQ=0
-# If there's a /etc/default/adjtimex config file, source it to override
-# the default TICK and FREQ:
-if [ -r /etc/default/adjtimex ]; then
-  . /etc/default/adjtimex
-fi
-if /sbin/adjtimex --tick $TICK --frequency $FREQ; then
-  echo "Setting the system clock rate:  /sbin/adjtimex --tick $TICK --frequency $FREQ"
-else
-  echo "Failed to set system clock with adjtimex, possibly invalid parameters? (TICK=$TICK FREQ=$FREQ)"
+if [ -z "$container" ]; then
+  TICK=10000
+  FREQ=0
+  # If there's a /etc/default/adjtimex config file, source it to override
+  # the default TICK and FREQ:
+  if [ -r /etc/default/adjtimex ]; then
+    . /etc/default/adjtimex
+  fi
+  if /sbin/adjtimex --tick $TICK --frequency $FREQ; then
+    echo "Setting the system clock rate:  /sbin/adjtimex --tick $TICK --frequency $FREQ"
+  else
+    echo "Failed to set system clock with adjtimex, possibly invalid parameters? (TICK=$TICK FREQ=$FREQ)"
+  fi
 fi
 
 # Set the system time from the hardware clock using hwclock --hctosys.
-if [ -x /sbin/hwclock ]; then
+if [ -x /sbin/hwclock -a -z "$container" ]; then
   # Check for a broken motherboard RTC clock (where ioports for rtc are
   # unknown) to prevent hwclock causing a hang:
   if ! grep -q " : rtc" /proc/ioports ; then
@@ -214,106 +229,113 @@ if [ -x /sbin/hwclock ]; then
 fi
 
 # Test to see if the root partition is read-only, like it ought to be.
-READWRITE=no
-if touch /fsrwtestfile 2>/dev/null; then
-  rm -f /fsrwtestfile
-  READWRITE=yes
-else
-  echo "Testing root filesystem status:  read-only filesystem"
+if [ -z "$container" ]; then
+  READWRITE=no
+  if touch /fsrwtestfile 2>/dev/null; then
+    rm -f /fsrwtestfile
+    READWRITE=yes
+  else
+    echo "Testing root filesystem status:  read-only filesystem"
+  fi
 fi
 
 # See if a forced filesystem check was requested at shutdown:
-if [ -r /etc/forcefsck ]; then
+if [ -r /etc/forcefsck -a -z "$container" ]; then
   FORCEFSCK="-f"
 fi
 
-# If we're using F2FS for the root filesystem, don't check it as it doesn't
-# allow checking a read-only filesystem:
-if grep -q ' / f2fs ' /proc/mounts ; then
-  echo "Remounting root device with read-write enabled."
-  /sbin/mount -w -v -n -o remount /
-elif [ ! $READWRITE = yes ]; then
-  # Check the root filesystem:
-  RETVAL=0
-  if [ ! -r /etc/fastboot ]; then
-    echo "Checking root filesystem:"
-    /sbin/fsck $FORCEFSCK -C -a /
-    RETVAL=$?
-  fi
-  # An error code of 2 or higher will require a reboot.
-  if [ $RETVAL -ge 2 ]; then
-    # An error code equal to or greater than 4 means that some errors
-    # could not be corrected.  This requires manual attention, so we
-    # offer a chance to try to fix the problem in single-user mode:
-    if [ $RETVAL -ge 4 ]; then
-      echo
-      echo "***********************************************************"
-      echo "*** An error occurred during the root filesystem check. ***"
-      echo "*** You will now be given a chance to log into the      ***"
-      echo "*** system in single-user mode to fix the problem.      ***"
-      echo "***                                                     ***"
-      echo "*** If you are using the ext2 filesystem, running       ***"
-      echo "*** 'e2fsck -v -y <partition>' might help.              ***"
-      echo "***********************************************************"
-      echo
-      echo "Once you exit the single-user shell, the system will reboot."
-      echo
-      PS1="(Repair filesystem) \#"; export PS1
-      sulogin
-    else # With an error code of 2 or 3, reboot the machine automatically:
-      echo
-      echo "***********************************"
-      echo "*** The filesystem was changed. ***"
-      echo "*** The system will now reboot. ***"
-      echo "***********************************"
-      echo
+# Check the root filesystem:
+if [ -z "$container" ]; then
+  # If we're using F2FS for the root filesystem, don't check it as it doesn't
+  # allow checking a read-only filesystem:
+  if grep -q ' / f2fs ' /proc/mounts ; then
+    echo "Remounting root device with read-write enabled."
+    /sbin/mount -w -v -n -o remount /
+  elif [ ! $READWRITE = yes ]; then
+    # Check the root filesystem:
+    RETVAL=0
+    if [ ! -r /etc/fastboot ]; then
+      echo "Checking root filesystem:"
+      /sbin/fsck $FORCEFSCK -C -a /
+      RETVAL=$?
     fi
-    echo "Unmounting file systems."
-    /sbin/umount -a -r
-    /sbin/mount -n -o remount,ro /
-    echo "Rebooting system."
-    reboot -f
-  fi
-  # Remount the root filesystem in read-write mode
-  echo "Remounting root device with read-write enabled."
-  /sbin/mount -w -v -n -o remount /
-  if [ $? -gt 0 ] ; then
-    echo "FATAL:  Attempt to remount root device as read-write failed!  This is going to"
-    echo "cause serious problems."
-  fi
-else
-  echo "Testing root filesystem status:  read-write filesystem"
-  echo
-  echo "ERROR: Root partition has already been mounted read-write. Cannot check!"
-  echo
-  echo "For filesystem checking to work properly, your system must initially mount"
-  echo "the root partition as read only.  If you're booting with LILO, add a line:"
-  echo
-  echo "   read-only"
-  echo
-  echo "to the Linux section in your /etc/lilo.conf and type 'lilo' to reinstall it."
-fi # Done checking root filesystem
+    # An error code of 2 or higher will require a reboot.
+    if [ $RETVAL -ge 2 ]; then
+      # An error code equal to or greater than 4 means that some errors
+      # could not be corrected.  This requires manual attention, so we
+      # offer a chance to try to fix the problem in single-user mode:
+      if [ $RETVAL -ge 4 ]; then
+        echo
+        echo "***********************************************************"
+        echo "*** An error occurred during the root filesystem check. ***"
+        echo "*** You will now be given a chance to log into the      ***"
+        echo "*** system in single-user mode to fix the problem.      ***"
+        echo "***                                                     ***"
+        echo "*** If you are using the ext2 filesystem, running       ***"
+        echo "*** 'e2fsck -v -y <partition>' might help.              ***"
+        echo "***********************************************************"
+        echo
+        echo "Once you exit the single-user shell, the system will reboot."
+        echo
+        PS1="(Repair filesystem) \#"; export PS1
+        sulogin
+      else # With an error code of 2 or 3, reboot the machine automatically:
+        echo
+        echo "***********************************"
+        echo "*** The filesystem was changed. ***"
+        echo "*** The system will now reboot. ***"
+        echo "***********************************"
+        echo
+      fi
+      echo "Unmounting file systems."
+      /sbin/umount -a -r
+      /sbin/mount -n -o remount,ro /
+      echo "Rebooting system."
+      reboot -f
+    fi
+    # Remount the root filesystem in read-write mode
+    echo "Remounting root device with read-write enabled."
+    /sbin/mount -w -v -n -o remount /
+    if [ $? -gt 0 ] ; then
+      echo "FATAL:  Attempt to remount root device as read-write failed!  This is going to"
+      echo "cause serious problems."
+    fi
+  else
+    echo "Testing root filesystem status:  read-write filesystem"
+    echo
+    echo "ERROR: Root partition has already been mounted read-write. Cannot check!"
+    echo
+    echo "For filesystem checking to work properly, your system must initially mount"
+    echo "the root partition as read only.  If you're booting with LILO, add a line:"
+    echo
+    echo "   read-only"
+    echo
+    echo "to the Linux section in your /etc/lilo.conf and type 'lilo' to reinstall it."
+  fi # Done checking root filesystem
+fi
 
 # If /etc/mtab is a symlink (probably to /proc/mounts) then we don't want to mess with it.
 if [ ! -L /etc/mtab -o ! -r /etc/mtab ]; then
   # /etc/mtab is a file (or doesn't exist), so we'll handle it the old way:
   # Any /etc/mtab that exists here is old, so we start with a new one:
   /bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
-  # Add /, /proc, /sys, and /dev/shm mounts to /etc/mtab:
-  /sbin/mount -f -w /
-  if [ -d /proc/sys ]; then
-    /sbin/mount -f -t proc proc /proc
-  fi
-  if [ -d /sys/bus ]; then
-    /sbin/mount -f -t sysfs sysfs /sys
-  fi
-  if grep -q '^[^ ]\+ /dev/shm ' /proc/mounts 2> /dev/null ; then
-    /sbin/mount -f -t tmpfs tmpfs /dev/shm
+  if [ -z "$container" ]; then
+    # Add /, /proc, /sys, and /dev/shm mounts to /etc/mtab:
+    /sbin/mount -f -w /
+    if [ -d /proc/sys ]; then
+      /sbin/mount -f -t proc proc /proc
+    fi
+    if [ -d /sys/bus ]; then
+      /sbin/mount -f -t sysfs sysfs /sys
+    fi
+    if grep -q '^[^ ]\+ /dev/shm ' /proc/mounts 2> /dev/null ; then
+      /sbin/mount -f -t tmpfs tmpfs /dev/shm
+    fi
   fi
 fi
 
 # Configure ISA Plug-and-Play devices:
-if [ -r /etc/isapnp.conf ]; then
+if [ -r /etc/isapnp.conf -a -z "$container" ]; then
   if [ -x /sbin/isapnp ]; then
     /sbin/isapnp /etc/isapnp.conf
   fi
@@ -321,31 +343,33 @@ fi
 
 # Run the kernel module script.  This updates the module dependencies and
 # also supports manually loading kernel modules through rc.modules.local.
-if [ -x /etc/rc.d/rc.modules ]; then
+if [ -x /etc/rc.d/rc.modules -a -z "$container" ]; then
   /etc/rc.d/rc.modules
 fi
 
 # Configure kernel parameters:
-if [ -x /sbin/sysctl -a -r /etc/sysctl.conf ]; then
+if [ -x /sbin/sysctl -a -r /etc/sysctl.conf -a -z "$container" ]; then
   echo "Configuring kernel parameters:  /sbin/sysctl -e --system"
   /sbin/sysctl -e --system
-elif [ -x /sbin/sysctl  ]; then
+elif [ -x /sbin/sysctl -a -z "$container" ]; then
   echo "Configuring kernel parameters:  /sbin/sysctl -e --system"
   # Don't say "Applying /etc/sysctl.conf" or complain if the file doesn't exist
   /sbin/sysctl -e --system 2> /dev/null | grep -v "Applying /etc/sysctl.conf"
 fi
 
 # Check all the non-root filesystems:
-if [ ! -r /etc/fastboot ]; then
+if [ ! -r /etc/fastboot -a -z "$container" ]; then
   echo "Checking non-root filesystems:"
   /sbin/fsck $FORCEFSCK -C -R -A -a
 fi
 
 # Mount usbfs only if it is found in /etc/fstab:
-if grep -wq usbfs /proc/filesystems; then
-  if ! grep -wq usbfs /proc/mounts ; then
-    if grep -wq usbfs /etc/fstab; then
-      /sbin/mount -v /proc/bus/usb
+if [ -z "$container" ]; then
+  if grep -wq usbfs /proc/filesystems; then
+    if ! grep -wq usbfs /proc/mounts ; then
+      if grep -wq usbfs /etc/fstab; then
+        /sbin/mount -v /proc/bus/usb
+      fi
     fi
   fi
 fi
@@ -355,14 +379,16 @@ fi
 # because those have already been mounted.  Also check that
 # devpts is not already mounted before attempting to mount
 # it.  With a 2.6.x or newer kernel udev mounts devpts.
-echo "Mounting non-root local filesystems:"
-if /bin/grep -wq devpts /proc/mounts ; then
-  # This pipe after the mount command is just to convert the new
-  # mount verbose output back to the old format that contained
-  # more useful information:
-  /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs,nodevpts | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
-else
-  /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
+if [ -z "$container" ]; then
+  echo "Mounting non-root local filesystems:"
+  if /bin/grep -wq devpts /proc/mounts ; then
+    # This pipe after the mount command is just to convert the new
+    # mount verbose output back to the old format that contained
+    # more useful information:
+    /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs,nodevpts | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
+  else
+    /sbin/mount -a -v -t nonfs,nosmbfs,nocifs,noproc,nosysfs | grep successfully | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep " ${dev} " ; done
+  fi
 fi
 
 # Make sure that /var/run is a symbolic link pointing to /run:
@@ -373,7 +399,9 @@ fi
 # Enable swapping again.  This is needed in case a swapfile is used,
 # as it can't be enabled until the filesystem it resides on has been
 # mounted read-write.
-/sbin/swapon -a 2> /dev/null
+if [ -z "$container" ]; then
+  /sbin/swapon -a 2> /dev/null
+fi
 
 # Start libcgroup services:
 if [ -x /etc/rc.d/rc.cgconfig -a -x /etc/rc.d/rc.cgred -a -d /sys/fs/cgroup ]; then
@@ -430,19 +458,21 @@ fi
 # CAREFUL!  This can make some systems hang if the rc.serial script isn't
 # set up correctly.  If this happens, you may have to edit the file from a
 # boot disk, and/or set it as non-executable:
-if [ -x /etc/rc.d/rc.serial ]; then
+if [ -x /etc/rc.d/rc.serial -a -z "$container" ]; then
   /etc/rc.d/rc.serial start
 fi
 
 # Carry an entropy pool between reboots to improve randomness.
-if [ -f /etc/random-seed ]; then
-  echo "Using /etc/random-seed to initialize /dev/urandom."
-  cat /etc/random-seed > /dev/urandom
+if [ -z "$container" ]; then
+  if [ -f /etc/random-seed ]; then
+    echo "Using /etc/random-seed to initialize /dev/urandom."
+    cat /etc/random-seed > /dev/urandom
+  fi
+  # Use the pool size from /proc, or 4096 bits:
+  if [ -r /proc/sys/kernel/random/poolsize ]; then
+    dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
+  else
+    dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
+  fi
+  chmod 600 /etc/random-seed
 fi
-# Use the pool size from /proc, or 4096 bits:
-if [ -r /proc/sys/kernel/random/poolsize ]; then
-  dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
-else
-  dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
-fi
-chmod 600 /etc/random-seed

@@ -1,0 +1,20 @@
+From d5e9803b79f3bf909b01c3ff3a5cdb0d7594dba0 Mon Sep 17 00:00:00 2001
+From: Patrick J. Volkerding <volkerdi@slackware.com>
+Date: Wed, 10 Nov 2021 16:27:08 -0600
+Subject: [PATCH] Ensure proper rc.networkmanager permissions
+
+In case rc.networkmanager was made executable by the admin or with a previous
+run of netconfig, we need to disable it if networkmanager wasn't selected in
+this netconfig run.
+
+--- ./sbin/netconfig.orig	2021-04-16 13:51:20.261045081 -0500
++++ ./sbin/netconfig	2021-11-10 16:14:09.388939104 -0600
+@@ -1071,6 +1071,8 @@
+   write_config_files
+   if [ "$NETWORKMANAGER" = "yes" -a -r etc/rc.d/rc.networkmanager ]; then
+     chmod 755 etc/rc.d/rc.networkmanager
++  elif [ ! "$NETWORKMANAGER" = "yes" -a -x etc/rc.d/rc.networkmanager ]; then
++    chmod 644 etc/rc.d/rc.networkmanager
+   fi
+   dialog --msgbox "Settings accepted. Basic network configuration is complete." 6 40
+ else

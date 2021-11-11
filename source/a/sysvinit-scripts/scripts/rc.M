@@ -14,6 +14,13 @@
 # Tell the viewers what's going to happen.
 echo "Going multiuser..."
 
+# If we are in an lxc container, set $container to skip parts of the script.
+# Thanks to Matteo Bernardini <ponce@slackbuilds.org> and Chris Willing for
+# the initial work making this script lxc compatible.
+if grep -aq container=lxc /proc/1/environ 2> /dev/null ; then
+  container="lxc"
+fi
+
 # Update all the shared library links:
 if [ -x /sbin/ldconfig ]; then
   echo "Updating shared library links:  /sbin/ldconfig &"
@@ -22,17 +29,19 @@ fi
 
 # Call the setterm init script to set screen blanking and power management
 # defaults:
-if [ -x /etc/rc.d/rc.setterm ]; then
+if [ -x /etc/rc.d/rc.setterm -a -z "$container" ]; then
   /etc/rc.d/rc.setterm
 fi
 
-# Set the hostname.
-if [ -r /etc/HOSTNAME ]; then
-  /bin/hostname $(cat /etc/HOSTNAME)
-else
-  # fall back on this old default:
-  echo "darkstar.example.net" > /etc/HOSTNAME
-  /bin/hostname $(cat /etc/HOSTNAME)
+# Set the hostname:
+if [ -z "$container" ]; then
+  if [ -r /etc/HOSTNAME ]; then
+    /bin/hostname $(cat /etc/HOSTNAME)
+  else
+    # fall back on this old default:
+    echo "darkstar.example.net" > /etc/HOSTNAME
+    /bin/hostname $(cat /etc/HOSTNAME)
+  fi
 fi
 
 # Set the permissions on /var/log/dmesg according to whether the kernel
@@ -68,7 +77,7 @@ fi
 # Hopefully this situation will be unified in the future, but for now
 # that's how it is...
 #
-if [ -x /etc/rc.d/rc.pcmcia ]; then
+if [ -x /etc/rc.d/rc.pcmcia -a -z "$container" ]; then
   /etc/rc.d/rc.pcmcia start
   # The cards might need a little extra time here to initialize.
   sleep 5
@@ -90,19 +99,19 @@ fi
 # to look for device changes and to generate persistent rules if needed.
 if grep -wq sysfs /proc/mounts && grep -q devtmpfs /proc/filesystems ; then
   if ! grep -wq nohotplug /proc/cmdline ; then
-    if [ -x /etc/rc.d/rc.udev ]; then
+    if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
       /etc/rc.d/rc.udev start
     fi
   fi
 fi
 
 # Start the haveged entropy daemon:
-if [ -x /etc/rc.d/rc.haveged ]; then
+if [ -x /etc/rc.d/rc.haveged -a -z "$container" ]; then
   /etc/rc.d/rc.haveged start
 fi
 
 # Start the rngd entropy daemon:
-if [ -x /etc/rc.d/rc.rngd ]; then
+if [ -x /etc/rc.d/rc.rngd -a -z "$container" ]; then
   /etc/rc.d/rc.rngd start
 fi
 
@@ -167,12 +176,12 @@ chmod 755 / 2> /dev/null
 chmod 1777 /tmp /var/tmp
 
 # Start ACPI daemon.
-if [ -x /etc/rc.d/rc.acpid ]; then
+if [ -x /etc/rc.d/rc.acpid -a -z "$container" ]; then
   /etc/rc.d/rc.acpid start
 fi
 
 # Enable CPU frequency scaling:
-if [ -x /etc/rc.d/rc.cpufreq ]; then
+if [ -x /etc/rc.d/rc.cpufreq -a -z "$container" ]; then
   /etc/rc.d/rc.cpufreq start
 fi
 
@@ -258,7 +267,7 @@ fi
 
 # Start smartd, which monitors the status of S.M.A.R.T. compatible
 # hard drives and reports any problems:
-if [ -x /etc/rc.d/rc.smartd ]; then
+if [ -x /etc/rc.d/rc.smartd -a -z "$container" ]; then
   /etc/rc.d/rc.smartd start
 fi
 
@@ -269,7 +278,7 @@ fi
 # /usr/doc/genpower-*/ directory.
 # You'll also need to configure a similar block in /etc/rc.d/rc.6 if you want
 # support for stopping the UPS's inverter after the machine halts.
-#if [ -x /sbin/genpowerd ]; then
+#if [ -x /sbin/genpowerd -a -z "$container" ]; then
 #  echo "Starting genpowerd daemon..."
 #  /sbin/genpowerd
 #fi
@@ -339,7 +348,7 @@ elif [ -x /etc/rc.d/rc.postfix -a -x usr/sbin/postdrop ]; then
 fi
 
 # Load ALSA (sound) defaults:
-if [ -x /etc/rc.d/rc.alsa ]; then
+if [ -x /etc/rc.d/rc.alsa -a -z "$container" ]; then
   /etc/rc.d/rc.alsa
 fi
 

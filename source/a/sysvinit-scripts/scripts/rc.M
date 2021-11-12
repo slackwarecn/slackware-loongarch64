@@ -5,7 +5,7 @@
 #		levels 1 through 6).  It usually does mounting of file
 #		systems et al.
 #
-# Version:	@(#)/etc/rc.d/rc.M	2.23	Wed Feb 26 19:20:58 PST 2003
+# Version:	@(#)/etc/rc.d/rc.M  15.0  Fri Nov 12 18:51:28 UTC 2021
 #
 # Author:	Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
 #		Heavily modified by Patrick Volkerding <volkerdi@slackware.com>
@@ -334,19 +334,6 @@ if grep -q quota /etc/fstab ; then
   fi
 fi
 
-# Start the SASL authentication server.  This provides SASL
-# authentication services for sendmail/postfix:
-if [ -x /etc/rc.d/rc.saslauthd ]; then
-  /etc/rc.d/rc.saslauthd start
-fi
-
-# Start the mail server. Try the rc.sendmail script first, then try rc.postfix.
-if [ -x /etc/rc.d/rc.sendmail -a -x usr/sbin/makemap ]; then
-  /etc/rc.d/rc.sendmail start
-elif [ -x /etc/rc.d/rc.postfix -a -x usr/sbin/postdrop ]; then
-  /etc/rc.d/rc.postfix start
-fi
-
 # Load ALSA (sound) defaults:
 if [ -x /etc/rc.d/rc.alsa -a -z "$container" ]; then
   /etc/rc.d/rc.alsa
@@ -362,14 +349,15 @@ if [ -x /etc/rc.d/rc.keymap ]; then
   /etc/rc.d/rc.keymap
 fi
 
-# Start the MySQL database:
+# Start the MariaDB database:
 if [ -x /etc/rc.d/rc.mysqld ]; then
   /etc/rc.d/rc.mysqld start
 fi
 
-# Start Apache web server:
-if [ -x /etc/rc.d/rc.httpd ]; then
-  /etc/rc.d/rc.httpd start
+# Start the SASL authentication server.  This provides SASL
+# authentication services for sendmail/postfix:
+if [ -x /etc/rc.d/rc.saslauthd ]; then
+  /etc/rc.d/rc.saslauthd start
 fi
 
 # Start OpenLDAP:
@@ -387,7 +375,19 @@ if [ -x /etc/rc.d/rc.dovecot ]; then
   /etc/rc.d/rc.dovecot start
 fi
 
-# Start Samba (a file/print server for Win95/NT machines).
+# Start the mail server. Try the rc.sendmail script first, then try rc.postfix.
+if [ -x /etc/rc.d/rc.sendmail -a -x usr/sbin/makemap ]; then
+  /etc/rc.d/rc.sendmail start
+elif [ -x /etc/rc.d/rc.postfix -a -x usr/sbin/postdrop ]; then
+  /etc/rc.d/rc.postfix start
+fi
+
+# Start Apache web server:
+if [ -x /etc/rc.d/rc.httpd ]; then
+  /etc/rc.d/rc.httpd start
+fi
+
+# Start Samba (a file/print server for Windows machines).
 # Samba can be started in /etc/inetd.conf instead.
 if [ -x /etc/rc.d/rc.samba ]; then
   /etc/rc.d/rc.samba start

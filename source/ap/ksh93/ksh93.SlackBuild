@@ -45,19 +45,10 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-# ast considers this an i386 arch, so we'll humor it
-# but package with our real arch label...
-if [ "$ARCH" = "x86_64" ]; then
-  SARCH=i386-64
-else
-  SARCH=i386
-fi
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
 
-CWD=$(pwd)
-TMP=/tmp/build-ksh93
-PKG=/tmp/package-ksh93
-
-rm -rf $TMP $PKG
+rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 
@@ -72,32 +63,40 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-/bin/ksh ./bin/package
-/bin/ksh ./bin/package make mamake ||:
-/bin/ksh ./bin/package make mamake ||:
-/bin/ksh ./bin/package make -S || exit 1
+# ast uses its own architecture labels
+SARCH=$(bin/package host type) || exit
 
-mkdir -p $PKG/bin
-cp arch/linux.$SARCH/bin/ksh $PKG/bin/ksh.new
-strip --strip-unneeded $PKG/bin/ksh.new
+bin/package make || exit
 
-#cp arch/linux.$SARCH/lib/libshell.so.1.1 /usr/lib
-#cp arch/linux.$SARCH/lib/libshell.a /usr/lib
-#cp arch/linux.$SARCH/lib/libast.so.5.4 /usr/lib
-#cp arch/linux.$SARCH/lib/libast.a /usr/lib
-#cp arch/linux.$SARCH/src/cmd/ksh93/cc-g,-fpic/libshell.so.1.1 /usr/lib
-#cp arch/linux.$SARCH/src/cmd/ksh93/cc-g,-fpic/libshell.a /usr/lib
-#cp arch/linux.$SARCH/src/lib/libast/libast.so.5.4 /usr/lib
-#cp arch/linux.$SARCH/src/cmd/ksh93/cc-g,-fpic/libast.a /usr/lib
-#strip /usr/lib/libast.so.5.4 /usr/lib/libshell.so.1.1
+mkdir -p $PKG/bin $PKG/usr/bin
+cp arch/$SARCH/bin/ksh $PKG/bin/ksh.new || exit
+cp arch/$SARCH/bin/shcomp $PKG/usr/bin/ || exit
+
+# this may be re-enabled and updated someday when ksh 93u+m
+# regains the ability to build and use dynamic libraries...
+#cp arch/$SARCH/lib/libshell.so.1.1 /usr/lib
+#cp arch/$SARCH/lib/libshell.a /usr/lib
+#cp arch/$SARCH/lib/libast.so.5.4 /usr/lib
+#cp arch/$SARCH/lib/libast.a /usr/lib
+#cp arch/$SARCH/src/cmd/ksh93/cc-g,-fpic/libshell.so.1.1 /usr/lib
+#cp arch/$SARCH/src/cmd/ksh93/cc-g,-fpic/libshell.a /usr/lib
+#cp arch/$SARCH/src/lib/libast/libast.so.5.4 /usr/lib
+#cp arch/$SARCH/src/cmd/ksh93/cc-g,-fpic/libast.a /usr/lib
 
 mkdir -p $PKG/usr/man/man1
-sed -e "s#\.nr Z 0#\.nr Z 1#g" src/cmd/ksh93/sh.1 > \
-       $PKG/usr/man/man1/ksh.1
-#mkdir -p $PKG/usr/man/man1
-#cp src/cmd/ksh93/shell.3 $PKG/usr/man/man3
-#cp src/cmd/ksh93/nval.3 $PKG/usr/man/man3
-gzip -9 $PKG/usr/man/man?/*
+cp src/cmd/ksh93/sh.1 $PKG/usr/man/man1/ksh.1
+LD_LIBRARY_PATH=$PKG/lib $PKG/usr/bin/shcomp --nroff 2> $PKG/usr/man/man1/shcomp.1 || :
+#mkdir -p $PKG/usr/man/man3
+#cp src/cmd/ksh93/shell.3 $PKG/usr/man/man3/
+#cp src/cmd/ksh93/nval.3 $PKG/usr/man/man3/
+( cd $PKG/usr/man/man1 ; ln -sf ksh.1 rksh.1 )
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 ## Install locale files:
 #mkdir -p $PKG/usr/share
@@ -118,52 +117,31 @@ gzip -9 $PKG/usr/man/man?/*
 #( cd /usr/lib rm -rf libast.so ; ln -sf libast.so.5.4 libast.so )
 
 ( cd $PKG/bin ; ln -sf ksh rksh )
-( cd $PKG/usr/man/man1 ; ln -sf ksh.1.gz rksh.1.gz )
 
-mkdir -p $PKG/usr/doc/ksh93-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 ( cd src/cmd/ksh93
   cp -a COMPATIBILITY* DESIGN* OBSOLETE* README* RELEASE* TYPES* \
-     $PKG/usr/doc/ksh93-$VERSION
+     $PKG/usr/doc/$PKGNAM-$VERSION
 )
-cp -a CHANGELOG* CONTRIBUTING* README* \
-  $PKG/usr/doc/ksh93-$VERSION
-mkdir -p $PKG/usr/doc/ksh93-$VERSION/LICENSE
-cp -a LICENSE $PKG/usr/doc/ksh93-$VERSION/LICENSE/LICENSE
-cp -a lib/package/LICENSES/* $PKG/usr/doc/ksh93-$VERSION/LICENSE
-find . -name "*.def" -exec cp -a "{}" $PKG/usr/doc/ksh93-$VERSION/LICENSE \;
-find . -name "*.lic" -exec cp -a "{}" $PKG/usr/doc/ksh93-$VERSION/LICENSE \;
-
-chown -R root:root $PKG/usr/doc/ksh93-$VERSION
-find $PKG/usr/doc/ksh93-$VERSION -type f -exec chmod 644 "{}" \;
-find $PKG/usr/doc/ksh93-$VERSION -type d -exec chmod 755 "{}" \;
+cp -a ANNOUNCE* CHANGELOG* CONTRIBUTING* LICENSE* NEWS* README* \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/LICENSES
+cp -a lib/package/LICENSES/* $PKG/usr/doc/$PKGNAM-$VERSION/LICENSES
+find . -name "*.def" -exec cp -a "{}" $PKG/usr/doc/$PKGNAM-$VERSION/LICENSES \;
+find . -name "*.lic" -exec cp -a "{}" $PKG/usr/doc/$PKGNAM-$VERSION/LICENSES \;
+chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION
+find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 644 "{}" \;
+find $PKG/usr/doc/$PKGNAM-$VERSION -type d -exec chmod 755 "{}" \;
 
 #chmod 755 $PKG/usr/lib/libshell.so.1.1
 #chmod 755 $PKG/usr/lib/libast.so.5.4
 
-mkdir -p $PKG/install
-cat <<EOF >> $PKG/install/doinst.sh
-# Backup the old copy if we find one, move the new one in place
-if [ -f bin/ksh ]; then
-   mv bin/ksh bin/ksh.old
-fi
-mv bin/ksh.new bin/ksh
-if [ -f bin/ksh.old ]; then
-  rm -f bin/ksh.old
-fi
-
-# Add entries to /etc/shells if we need them
-if [ ! -r etc/shells ] ; then
-   touch etc/shells
-   chmod 644 etc/shells
-fi
- 
-if ! grep -q "/bin/ksh" etc/shells ; then
-   echo "/bin/ksh" >> etc/shells
-fi
-EOF
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n /tmp/ksh93-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

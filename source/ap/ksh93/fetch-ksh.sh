@@ -20,31 +20,26 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Use master (ksh93u+m) branch. Verify first that there's no better branch with
+set -o errexit
+
+# Use 1.0 (ksh93u+m) branch. Verify first that there's no better branch with
 # "git branch -a" in the unpruned repo.
-BRANCH=${1:-master}
+BRANCH=${1:-1.0}
 
 # Clear download area:
 rm -rf ksh
 
-# Clone repository:
-git clone https://github.com/ksh93/ksh
+# Clone repository and check out $BRANCH:
+git clone -b "$BRANCH" https://github.com/ksh93/ksh
 
-# checkout $BRANCH:
-( cd ksh
-  git checkout $BRANCH || exit 1
-)
-
-HEADISAT="$( cd ksh && git log -1 --format=%h )"
-DATE="$( cd ksh && git log -1 --format=%cd --date=format:%Y%m%d )"
+HEADISAT=$( cd ksh && git log -1 --format=%h )
+VERSION=$(sed -n '/^#define SH_RELEASE_SVER/ { s/.*"\(.*\)".*/\1/; s/-/_/g; p; }' ksh/src/cmd/ksh93/include/version.h)
 # Cleanup.  We're not packing up the whole git repo.
-( cd ksh && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-# No need to package these:
-( cd ksh && rm -rf lib/package/tgz )
-mv ksh ksh-${DATE}_${HEADISAT}
-tar cf ksh-${DATE}_${HEADISAT}.tar ksh-${DATE}_${HEADISAT}
-plzip -9 -n 6 -f ksh-${DATE}_${HEADISAT}.tar
-rm -rf ksh-${DATE}_${HEADISAT}
+rm -rf ksh/.git*
+mv ksh "ksh-${BRANCH}_${HEADISAT}"
+tar cf "ksh-${BRANCH}_${HEADISAT}.tar" "ksh-${BRANCH}_${HEADISAT}"
+plzip -9 -n 6 -f "ksh-${BRANCH}_${HEADISAT}.tar"
+rm -rf "ksh-${BRANCH}_${HEADISAT}"
 echo
-echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${DATE}_${HEADISAT}.tar.lz"
+echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${BRANCH}_${HEADISAT}.tar.lz"
 echo

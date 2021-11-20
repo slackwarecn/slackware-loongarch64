@@ -28,8 +28,9 @@ config etc/my.cnf.d/server.cnf.new
 config etc/my.cnf.d/spider.cnf.new
 config etc/logrotate.d/mysql.new
 
-# Not supported in every $ARCH:
-if [ -r etc/my.cnf.d/tokudb.cnf.new ]; then
-  config etc/my.cnf.d/tokudb.cnf.new
+# This one is only comments, so remove it if it's left behind:
+if [ -r etc/security/user_map.conf.new ]; then
+  config etc/security/user_map.conf.new
 fi
+rm -f etc/security/user_map.conf.new
 

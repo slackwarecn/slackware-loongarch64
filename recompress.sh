@@ -486,11 +486,7 @@ gzip ./source/n/ca-certificates/doinst.sh
 gzip ./source/n/ca-certificates/update-ca-certificates.c_rehash.diff
 gzip ./source/n/krb5/doinst.sh
 gzip ./source/n/iptraf-ng/iptraf-ng.paths.diff
-gzip ./source/n/nss-pam-ldapd/548efe5333b56a0a042843a044e0348317f80065.patch
-gzip ./source/n/nss-pam-ldapd/fea0f5ed287b04406afca0835b1a333bd1fe617b.patch
-gzip ./source/n/nss-pam-ldapd/1025d5de336d8c9585b79df3154b5649da344281.patch
 gzip ./source/n/nss-pam-ldapd/doinst.sh
-gzip ./source/n/nss-pam-ldapd/b33551895b3c02dc7082363c6aae13f8e336f4e5.patch
 gzip ./source/n/rsync/rsync.no_lchmod.diff
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,9 @@ VERSION=${VERSION:-$(echo cdrtools-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -
 BUILD=${BUILD:-6}
 
 ZISOFSTOOLS=1.0.8
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+# This package does not support parallel build:
+#NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+unset NUMJOBS
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -66,7 +68,13 @@ find . \
 
 zcat $CWD/cdrtools-3.01-fix-20151126-mkisofs-isoinfo.patch.gz | patch -p1 --verbose || exit 1
 
-make -e $NUMJOBS INS_BASE=/usr DEFMANBASE=. || make -e INS_BASE=/usr DEFMANBASE=. || exit 1
+# When running make below, you'll see "errors" like these:
+# config.h:34:10: fatal error: lconfig.h: No such file or directory
+#    34 | #include "lconfig.h"
+# However, lconfig.h will eventually be generated from lconfig.h.in, the build
+# will restart, and the package will be correctly built. Since there are no
+# ill effects from this I see no compelling reason to try to patch it here.
+make -e INS_BASE=/usr DEFMANBASE=. || exit 1
 make -e install INS_BASE=/usr DEFMANBASE=. DESTDIR=$PKG || exit 1
 
 # I don't know why this couldn't be "/etc/cdrtools" or something, but since
@@ -134,7 +142,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 CFLAGS="-O2" ./configure --prefix=/usr --build=$ARCH-slackware-linux
-make $NUMJOBS || make || exit 1
+make || exit 1
 cat mkzftree > $PKG/usr/bin/mkzftree
 chmod 0755 $PKG/usr/bin/mkzftree
 cat mkzftree.1 | gzip -9c > $PKG/usr/man/man1/mkzftree.1.gz

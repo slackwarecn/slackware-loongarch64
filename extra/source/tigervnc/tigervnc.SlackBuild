@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=tigervnc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 XORGVER=${XORGVER:-$(echo xorg-server-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Do we build the java applet (needs jdk)?
 JAVA_APPLET=${JAVA_APPLET:-"OFF"}
@@ -194,23 +194,19 @@ for PSIZE in 16 24 32 48; do
     $PKG/usr/share/icons/hicolor/${PSIZE}x${PSIZE}/apps/tigervnc.png
 done
 
-# Remove bogus vncserver script and replace it with the last good one (from
-# tigervnc-1.10.1):
-rm $PKG/usr/libexec/vncserver
-rmdir $PKG/usr/libexec
-rm $PKG/usr/man/man8/vncserver.8
-cp -a $CWD/vncserver $PKG/usr/bin
-chown root:root $PKG/usr/bin/vncserver
-chmod 755 $PKG/usr/bin/vncserver
-cp -a $CWD/vncserver.1 $PKG/usr/man/man1/vncserver.1
-chown root:root $PKG/usr/man/man1/vncserver.1
-chmod 644 $PKG/usr/man/man1/vncserver.1
-
-# This option is not available in recent versions of tigervnc:
-( cd $PKG/usr/bin
-  zcat $CWD/patches/vncserver.no.rfbwait.diff.gz | patch -p1 --verbose || exit 1
+# Check some additional locations for a suitable startup script, in this order:
+# 1. $HOME/.vnc/xstartup
+# 2. $HOME/.xinitrc
+# 3. /etc/X11/xinit/xinitrc
+( cd $PKG/usr/libexec
+  zcat $CWD/patches/vncserver.xinitrc.diff.gz | patch -p1 --verbose || exit 1
   rm -f vncserver.orig
 ) || exit 1
+
+# Make a symlink for vncserver in the old location:
+if [ ! -r $PKG/usr/bin/vncserver ]; then
+  ( cd $PKG/usr/bin ; ln -sf ../libexec/vncserver . )
+fi
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

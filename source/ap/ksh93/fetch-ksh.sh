@@ -33,13 +33,16 @@ rm -rf ksh
 git clone -b "$BRANCH" https://github.com/ksh93/ksh
 
 HEADISAT=$( cd ksh && git log -1 --format=%h )
+DATE="$( cd ksh && git log -1 --format=%cd --date=format:%Y%m%d )"
+LONGDATE="$( cd ksh && git log -1 --format=%cd --date=format:%c )"
 VERSION=$(sed -n '/^#define SH_RELEASE_SVER/ { s/.*"\(.*\)".*/\1/; s/-/_/g; p; }' ksh/src/cmd/ksh93/include/version.h)
 # Cleanup.  We're not packing up the whole git repo.
 rm -rf ksh/.git*
-mv ksh "ksh-${BRANCH}_${HEADISAT}"
-tar cf "ksh-${BRANCH}_${HEADISAT}.tar" "ksh-${BRANCH}_${HEADISAT}"
-plzip -9 -n 6 -f "ksh-${BRANCH}_${HEADISAT}.tar"
-rm -rf "ksh-${BRANCH}_${HEADISAT}"
+mv ksh "ksh-${BRANCH}_${DATE}_${HEADISAT}"
+tar cf "ksh-${BRANCH}_${DATE}_${HEADISAT}.tar" "ksh-${BRANCH}_${DATE}_${HEADISAT}"
+plzip -9 -n 6 -f "ksh-${BRANCH}_${DATE}_${HEADISAT}.tar"
+touch -d "$LONGDATE" ksh-${BRANCH}_${DATE}_${HEADISAT}.tar.lz
+rm -rf "ksh-${BRANCH}_${DATE}_${HEADISAT}"
 echo
-echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${BRANCH}_${HEADISAT}.tar.lz"
+echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${BRANCH}_${DATE}_${HEADISAT}.tar.lz"
 echo

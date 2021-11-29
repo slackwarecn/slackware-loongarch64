@@ -640,7 +640,6 @@ gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/madplay/madplay-0.15.2b-fix-segfault.patch
 gzip ./source/ap/zsh/doinst.sh
 gzip ./source/ap/cdrtools/doinst.sh
-gzip ./source/ap/cdrtools/cdrtools-3.01-fix-20151126-mkisofs-isoinfo.patch
 gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/vim/vim.vimrc.diff

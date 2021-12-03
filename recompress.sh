@@ -3,6 +3,10 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
+gzip ./extra/source/php80/php-fpm.conf.diff
+gzip ./extra/source/php80/doinst.sh
+gzip ./extra/source/php80/php.imap.api.diff
+gzip ./extra/source/php80/php.ini-development.diff
 gzip ./extra/source/xv/xv-3.10a.patch
 gzip ./extra/source/xv/xv-libpng-1.5.patch
 gzip ./extra/source/xv/xv.prefix_x86_64.diff
@@ -26,11 +30,11 @@ gzip ./extra/source/tigervnc/patches/xorg-server/0001-Always-install-vbe-and-int
 gzip ./extra/source/tigervnc/patches/vncserver.xinitrc.diff
 gzip ./extra/source/tigervnc/patches/xserver120.patch
 gzip ./extra/source/tigervnc/doinst.sh
+gzip ./extra/source/php81/php-fpm.conf.diff
+gzip ./extra/source/php81/doinst.sh
+gzip ./extra/source/php81/php.imap.api.diff
+gzip ./extra/source/php81/php.ini-development.diff
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
-gzip ./extra/source/php8/php-fpm.conf.diff
-gzip ./extra/source/php8/doinst.sh
-gzip ./extra/source/php8/php.imap.api.diff
-gzip ./extra/source/php8/php.ini-development.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/python3/python.sysconfig.py.x86_64.diff
@@ -693,6 +697,7 @@ gzip ./source/ap/screen/45suppress_remap.patch
 gzip ./source/ap/screen/doinst.sh
 gzip ./source/ap/groff/groff.man.mdoc.local
 gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
+gzip ./source/ap/rpm/rpm.install4j.compat.diff
 gzip ./source/ap/rpm/doinst.sh
 gzip ./source/ap/rpm/Packages
 gzip ./source/ap/man-db/doinst.sh
@@ -840,7 +845,6 @@ gzip ./source/l/freetype/freetype.sh
 gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
-gzip ./source/l/freetype/6e9d8d314ff6ab23177b9162c0b96616460bb84e.patch
 gzip ./source/l/freetype/freetype.csh
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff

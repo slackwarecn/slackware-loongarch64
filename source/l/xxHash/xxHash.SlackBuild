@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xxHash
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -98,6 +98,17 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Fix manpage links:
+( cd $PKG/usr/man/man1
+  for file in *.1 ; do
+    if [ -L $file ]; then
+      LINK=$(basename $(readlink $file))
+      rm $file
+      ln -sf $LINK $file
+    fi
+  done
+)
 
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+

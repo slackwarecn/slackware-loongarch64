@@ -941,6 +941,7 @@ gzip ./source/l/gd/gd.f4bc1f5c26925548662946ed7cfa473c190a104a.patch
 gzip ./source/l/cryfs/27587ea1acec5f939a31217f1c43953378f18821.patch
 gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
 gzip ./source/xap/hexchat/doinst.sh
+gzip ./source/xap/mozilla-thunderbird/d30c921928a12fccd5085888011f899ff1c788cd.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
@@ -1052,6 +1053,7 @@ gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
+gzip ./source/xap/mozilla-firefox/d30c921928a12fccd5085888011f899ff1c788cd.patch
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf

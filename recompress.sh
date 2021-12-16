@@ -1128,13 +1128,9 @@ gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
-gzip ./source/x/x11/patch/xorg-server/xorg-server.CVE-2021-4010.6c4c53010772e3cb4cb8acd54950c8eec9c00d21.patch
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
-gzip ./source/x/x11/patch/xorg-server/xorg-server.CVE-2021-4011.e56f61c79fc3cee26d83cda0f84ae56d5979f768.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
-gzip ./source/x/x11/patch/xorg-server/xorg-server.CVE-2021-4008.ebce7e2d80e7c80e1dda60f2f0bc886f1106ba60.patch
-gzip ./source/x/x11/patch/xorg-server/xorg-server.CVE-2021-4009.b5196750099ae6ae582e1f46bd0a6dad29550e02.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/fix-pci-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff

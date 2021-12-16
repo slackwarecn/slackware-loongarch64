@@ -1,2 +1,2 @@
-lftpget http://us.php.net/distributions/php-7.4.26.tar.xz.asc
-lftpget http://us.php.net/distributions/php-7.4.26.tar.xz
+lftpget http://us.php.net/distributions/php-7.4.27.tar.xz.asc
+lftpget http://us.php.net/distributions/php-7.4.27.tar.xz

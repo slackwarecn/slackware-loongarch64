@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # This is 'probe', a wrapper for using fdisk to gather drive info for
 # the Slackware setup scripts.  I hate to bounce this much garbage through
 # a tmpdir, but it looks like large variables can make ash crash...
@@ -140,16 +140,24 @@ list_amiraid() {
   fi
 }
 
+#list_mmc() {
+#  # find drive
+#  DRV=`expr $2 / 8`
+#  NUM=`expr $2 % 8`
+#  if [ "$NUM" = "0" ]; then
+#     fdisk -l /dev/mmcblk$DRV >> $TMP/SeTfdisk
+#     #output_gpt_partitions /dev/mmcblk$DRV >> $TMP/SeTfdisk
+#  else
+#     return
+#  fi
+#}
 list_mmc() {
-  # find drive
-  DRV=`expr $2 / 8`
-  NUM=`expr $2 % 8`
-  if [ "$NUM" = "0" ]; then
-     fdisk -l /dev/mmcblk$DRV >> $TMP/SeTfdisk
-     #output_gpt_partitions /dev/mmcblk$DRV >> $TMP/SeTfdisk
-  else
-     return
-  fi
+  local device
+  # Filter out any partitions on the block device, as we'll use
+  # fdisk to capture those:
+  lsblk -o name,type -ripnd /dev/mmcblk* | egrep 'disk$' | awk '{print $1}' | while read device ; do
+    fdisk -l $device >> $TMP/SeTfdisk
+  done
 }
 
 list_nvme() {

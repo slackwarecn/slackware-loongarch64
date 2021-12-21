@@ -20,4 +20,5 @@ fi
 
 config etc/snmp/snmpd.conf.new
 config etc/rc.d/rc.snmpd.new
+config etc/default/snmpd.new
 

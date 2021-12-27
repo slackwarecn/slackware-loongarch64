@@ -3,6 +3,7 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
+gzip ./extra/source/rust-for-mozilla/link_libffi.diff
 gzip ./extra/source/php80/php-fpm.conf.diff
 gzip ./extra/source/php80/doinst.sh
 gzip ./extra/source/php80/php.imap.api.diff

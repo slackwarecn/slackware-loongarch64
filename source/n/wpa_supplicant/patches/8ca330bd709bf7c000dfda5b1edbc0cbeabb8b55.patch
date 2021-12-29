@@ -1,0 +1,230 @@
+From 8ca330bd709bf7c000dfda5b1edbc0cbeabb8b55 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <jouni@codeaurora.org>
+Date: Fri, 5 Feb 2021 00:28:17 +0200
+Subject: Flush pending control interface message for an interface to be
+ removed
+
+wpa_supplicant_ctrl_iface_deinit() was executed only if the
+per-interface control interface initialization had been completed. This
+is not the case if driver initialization fails and that could result in
+leaving behind references to the freed wpa_s instance in a corner case
+where control interface messages ended up getting queued.
+
+Fix this by calling wpa_supplicant_ctrl_iface_deinit() in all cases to
+cancel the potential eloop timeout for wpas_ctrl_msg_queue_timeout with
+the reference to the wpa_s pointer. In addition, flush any pending
+message from the global queue for this interface since such a message
+cannot be of use after this and there is no need to leave them in the
+queue until the global control interface gets deinitialized.
+
+Signed-off-by: Jouni Malinen <jouni@codeaurora.org>
+---
+ wpa_supplicant/ctrl_iface.h            | 10 +++++---
+ wpa_supplicant/ctrl_iface_named_pipe.c |  5 +++-
+ wpa_supplicant/ctrl_iface_udp.c        |  6 ++++-
+ wpa_supplicant/ctrl_iface_unix.c       | 43 +++++++++++++++++++++++++++++++++-
+ wpa_supplicant/eapol_test.c            |  6 ++---
+ wpa_supplicant/preauth_test.c          |  6 ++---
+ wpa_supplicant/wpa_supplicant.c        | 10 ++++----
+ 7 files changed, 66 insertions(+), 20 deletions(-)
+
+diff --git a/wpa_supplicant/ctrl_iface.h b/wpa_supplicant/ctrl_iface.h
+index 510668d..dfbd25a 100644
+--- a/wpa_supplicant/ctrl_iface.h
++++ b/wpa_supplicant/ctrl_iface.h
+@@ -70,14 +70,17 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s);
+ 
+ /**
+  * wpa_supplicant_ctrl_iface_deinit - Deinitialize control interface
++ * @wpa_s: Pointer to wpa_supplicant data
+  * @priv: Pointer to private data from wpa_supplicant_ctrl_iface_init()
+  *
+  * Deinitialize the control interface that was initialized with
+- * wpa_supplicant_ctrl_iface_init().
++ * wpa_supplicant_ctrl_iface_init() and any data related to the wpa_s instance.
++ * @priv may be %NULL if the control interface has not yet been initialized.
+  *
+  * Required to be implemented in each control interface backend.
+  */
+-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv);
++void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
++				      struct ctrl_iface_priv *priv);
+ 
+ /**
+  * wpa_supplicant_ctrl_iface_wait - Wait for ctrl_iface monitor
+@@ -128,7 +131,8 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
+ }
+ 
+ static inline void
+-wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
++wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
++				 struct ctrl_iface_priv *priv)
+ {
+ }
+ 
+diff --git a/wpa_supplicant/ctrl_iface_named_pipe.c b/wpa_supplicant/ctrl_iface_named_pipe.c
+index 79ff787..bddc041 100644
+--- a/wpa_supplicant/ctrl_iface_named_pipe.c
++++ b/wpa_supplicant/ctrl_iface_named_pipe.c
+@@ -462,8 +462,11 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
+ }
+ 
+ 
+-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
++void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
++				      struct ctrl_iface_priv *priv)
+ {
++	if (!priv)
++		return;
+ 	while (priv->ctrl_dst)
+ 		ctrl_close_pipe(priv->ctrl_dst);
+ 	if (priv->sec_attr_set)
+diff --git a/wpa_supplicant/ctrl_iface_udp.c b/wpa_supplicant/ctrl_iface_udp.c
+index 1512080..1cbf7fa 100644
+--- a/wpa_supplicant/ctrl_iface_udp.c
++++ b/wpa_supplicant/ctrl_iface_udp.c
+@@ -490,8 +490,12 @@ fail:
+ }
+ 
+ 
+-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
++void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
++				      struct ctrl_iface_priv *priv)
+ {
++	if (!priv)
++		return;
++
+ 	if (priv->sock > -1) {
+ 		eloop_unregister_read_sock(priv->sock);
+ 		if (priv->ctrl_dst) {
+diff --git a/wpa_supplicant/ctrl_iface_unix.c b/wpa_supplicant/ctrl_iface_unix.c
+index 953fd2c..639573d 100644
+--- a/wpa_supplicant/ctrl_iface_unix.c
++++ b/wpa_supplicant/ctrl_iface_unix.c
+@@ -800,12 +800,52 @@ static int wpas_ctrl_iface_reinit(struct wpa_supplicant *wpa_s,
+ }
+ 
+ 
+-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
++static void
++wpas_global_ctrl_iface_flush_queued_msg(struct wpa_global *global,
++					struct wpa_supplicant *wpa_s)
++{
++	struct ctrl_iface_global_priv *gpriv;
++	struct ctrl_iface_msg *msg, *prev_msg;
++	unsigned int count = 0;
++
++	if (!global || !global->ctrl_iface)
++		return;
++
++	gpriv = global->ctrl_iface;
++	dl_list_for_each_safe(msg, prev_msg, &gpriv->msg_queue,
++			      struct ctrl_iface_msg, list) {
++		if (msg->wpa_s == wpa_s) {
++			count++;
++			dl_list_del(&msg->list);
++			os_free(msg);
++		}
++	}
++
++	if (count) {
++		wpa_printf(MSG_DEBUG,
++			   "CTRL: Dropped %u pending message(s) for interface that is being removed",
++			count);
++	}
++}
++
++
++void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
++				      struct ctrl_iface_priv *priv)
+ {
+ 	struct wpa_ctrl_dst *dst, *prev;
+ 	struct ctrl_iface_msg *msg, *prev_msg;
+ 	struct ctrl_iface_global_priv *gpriv;
+ 
++	if (!priv) {
++		/* Control interface has not yet been initialized, so there is
++		 * nothing to deinitialize here. However, there might be a
++		 * pending message for this interface, so get rid of any such
++		 * entry before completing interface removal. */
++		wpas_global_ctrl_iface_flush_queued_msg(wpa_s->global, wpa_s);
++		eloop_cancel_timeout(wpas_ctrl_msg_queue_timeout, wpa_s, NULL);
++		return;
++	}
++
+ 	if (priv->sock > -1) {
+ 		char *fname;
+ 		char *buf, *dir = NULL;
+@@ -877,6 +917,7 @@ free_dst:
+ 			}
+ 		}
+ 	}
++	wpas_global_ctrl_iface_flush_queued_msg(wpa_s->global, wpa_s);
+ 	eloop_cancel_timeout(wpas_ctrl_msg_queue_timeout, priv->wpa_s, NULL);
+ 	os_free(priv);
+ }
+diff --git a/wpa_supplicant/eapol_test.c b/wpa_supplicant/eapol_test.c
+index d137ad6..e256ac5 100644
+--- a/wpa_supplicant/eapol_test.c
++++ b/wpa_supplicant/eapol_test.c
+@@ -674,10 +674,8 @@ static void test_eapol_clean(struct eapol_test_data *e,
+ 	os_free(e->radius_conf);
+ 	e->radius_conf = NULL;
+ 	scard_deinit(wpa_s->scard);
+-	if (wpa_s->ctrl_iface) {
+-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
+-		wpa_s->ctrl_iface = NULL;
+-	}
++	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
++	wpa_s->ctrl_iface = NULL;
+ 
+ 	ext_password_deinit(wpa_s->ext_pw);
+ 	wpa_s->ext_pw = NULL;
+diff --git a/wpa_supplicant/preauth_test.c b/wpa_supplicant/preauth_test.c
+index de49948..97c16fb 100644
+--- a/wpa_supplicant/preauth_test.c
++++ b/wpa_supplicant/preauth_test.c
+@@ -193,10 +193,8 @@ static void test_eapol_clean(struct wpa_supplicant *wpa_s)
+ 	pmksa_candidate_free(wpa_s->wpa);
+ 	wpa_sm_deinit(wpa_s->wpa);
+ 	scard_deinit(wpa_s->scard);
+-	if (wpa_s->ctrl_iface) {
+-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
+-		wpa_s->ctrl_iface = NULL;
+-	}
++	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
++	wpa_s->ctrl_iface = NULL;
+ 	wpa_config_free(wpa_s->conf);
+ }
+ 
+diff --git a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
+index 90e8a46..835b335 100644
+--- a/wpa_supplicant/wpa_supplicant.c
++++ b/wpa_supplicant/wpa_supplicant.c
+@@ -1158,8 +1158,8 @@ int wpa_supplicant_reload_configuration(struct wpa_supplicant *wpa_s)
+ 		    os_strcmp(conf->ctrl_interface,
+ 			      wpa_s->conf->ctrl_interface) != 0);
+ 
+-	if (reconf_ctrl && wpa_s->ctrl_iface) {
+-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
++	if (reconf_ctrl) {
++		wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
+ 		wpa_s->ctrl_iface = NULL;
+ 	}
+ 
+@@ -6748,10 +6748,8 @@ static void wpa_supplicant_deinit_iface(struct wpa_supplicant *wpa_s,
+ 	if (terminate)
+ 		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_TERMINATING);
+ 
+-	if (wpa_s->ctrl_iface) {
+-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
+-		wpa_s->ctrl_iface = NULL;
+-	}
++	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
++	wpa_s->ctrl_iface = NULL;
+ 
+ #ifdef CONFIG_MESH
+ 	if (wpa_s->ifmsh) {
+-- 
+cgit v0.12
+

@@ -1,0 +1,25 @@
+From aab9ad500096d67919f7e4f12a7466a74770d3a5 Mon Sep 17 00:00:00 2001
+From: Patrick J. Volkerding <volkerdi@slackware.com>
+Date: Sun, 2 Jan 2022 14:17:08 -0600
+Subject: [PATCH] Add hostname-labeled loopback entries for DHCP
+
+This addresses a regression since the netconfig in Slackware 14.2. Previously,
+when selecting to configure the machine with DHCP we would have entries with
+the loopback addresses that were labeled with the machine's hostname.
+Without these, a machine will not be able to contact itself using its own
+hostname unless something else is providing matching name service, and we
+do not want to have to rely on this.
+
+--- ./sbin/netconfig.orig	2022-01-02 14:07:01.168594490 -0600
++++ ./sbin/netconfig	2022-01-02 14:14:30.835569617 -0600
+@@ -554,6 +554,10 @@
+ rm -f $TMP/reply
+ 
+ if [ "$REPLY" = "DHCP" ]; then
++  # We need the line below to make sure there are entries for loopback in
++  # /etc/hosts labeled with the machine's hostname, otherwise we might not
++  # be able to reach our own machine using the hostname.
++  LOOPBACK="yes"
+   dialog --title "SELECT DHCP TYPE" --default-item "DHCPv4" \
+       --cancel-button "Exit" --menu \
+ "Please select the type of DHCP to use to configure your networking.

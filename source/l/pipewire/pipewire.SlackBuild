@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright 2020  Eric Hameleers, Eindhoven, NL
-# Copyright 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=pipewire
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -113,6 +113,19 @@ cd ..
 # Create system config file override directory:
 mkdir -p $PKG/etc/pipewire
 
+# Add sample configuation files:
+mkdir -p $PKG/etc/xdg/autostart
+cp -a $CWD/pipewire.desktop.sample $PKG/etc/xdg/autostart
+cp -a $CWD/pipewire-media-session.desktop.sample $PKG/etc/xdg/autostart
+cp -a $CWD/pipewire-pulse.desktop.sample $PKG/etc/xdg/autostart
+chown root:root $PKG/etc/xdg/autostart/*
+chmod 644 $PKG/etc/xdg/autostart/*
+mkdir -p $PKG/usr/sbin
+cp -a $CWD/pipewire-disable.sh $PKG/usr/sbin
+cp -a $CWD/pipewire-enable.sh $PKG/usr/sbin
+chown root:root $PKG/usr/sbin/pipewire-disable.sh $PKG/usr/sbin/pipewire-enable.sh
+chmod 755 $PKG/usr/sbin/pipewire-disable.sh $PKG/usr/sbin/pipewire-enable.sh
+
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
@@ -128,6 +141,14 @@ mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
   CODE_OF_CONDUCT* COPYING* INSTALL* LICENSE* NEWS* PROTOCOL* README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a NEWS file, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r NEWS ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat NEWS | head -n 1000 > $DOCSDIR/NEWS
+  touch -r NEWS $DOCSDIR/NEWS
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

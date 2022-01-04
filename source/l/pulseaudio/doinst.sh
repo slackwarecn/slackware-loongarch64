@@ -26,6 +26,7 @@ config etc/pulse/client.conf.new
 config etc/pulse/daemon.conf.new
 config etc/pulse/default.pa.new
 config etc/pulse/system.pa.new
+config etc/xdg/autostart/pulseaudio.desktop.new
 preserve_perms etc/rc.d/rc.pulseaudio.new
 
 # Make sure the pulse user is in the audio group:

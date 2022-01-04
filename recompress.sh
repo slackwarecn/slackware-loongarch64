@@ -1137,6 +1137,7 @@ gzip ./source/x/x11/patch/xdm/xdm-1.1.11-setproctitle-include.patch
 gzip ./source/x/x11/patch/xdm/xdm.glibc.crypt.diff
 gzip ./source/x/x11/patch/xdm/xdm-1.1.11-arc4random-include.patch
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
+gzip ./source/x/x11/patch/xf86-video-vmware/50ab008cb965dc9e47e0a84a1950e2485bbd3c44.patch
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-autobind-GPUs-to-the-screen.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch

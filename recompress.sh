@@ -905,6 +905,7 @@ gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
+gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch

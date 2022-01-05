@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=doxygen
 VERSION=${VERSION:-$(basename $(echo doxygen-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev) .src)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -87,7 +87,7 @@ cd build
     -DDOC_INSTALL_DIR:STRING="/doc/doxygen-$VERSION" \
     -DBUILD_SHARED_LIBS=OFF \
     -Dbuild_app=ON \
-    -Dbuild_doc=OFF \
+    -Dbuild_doc=ON \
     -Dbuild_parse=ON \
     -Dbuild_search=ON \
     -Dbuild_wizard=ON \
@@ -95,17 +95,18 @@ cd build
     -Duse_sqlite3=ON \
     -G "Unix Makefiles" .. || exit 1
   make $NUMJOBS || make || exit 1
+  make $NUMJOBS  docs || make docs || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Install manpages:
-mkdir -p $PKG/usr/man/man1
-cp -a doc/*.1 $PKG/usr/man/man1
-chown root:root $PKG/usr/man/man1/*
-chmod 644 $PKG/usr/man/man1/*
+# Fix manpages location:
+if [ -d $PKG/usr/share/man ]; then
+  mv $PKG/usr/share/man $PKG/usr
+  rmdir $PKG/usr/share
+fi
 
 # Compress and if needed symlink the man pages:
 if [ -d $PKG/usr/man ]; then

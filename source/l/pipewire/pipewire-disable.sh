@@ -22,9 +22,11 @@
 # This script will attempt to disable pipewire as the default audio server,
 # changing it back to pulseaudio.
 
-# Rename the XDG autostart files:
+# Remove or rename the XDG autostart files:
 for file in /etc/xdg/autostart/pipewire-media-session.desktop /etc/xdg/autostart/pipewire-pulse.desktop /etc/xdg/autostart/pipewire.desktop ; do
-  if [ -r $file ]; then
+  if [ -r ${file}.sample ]; then
+    rm -f $file
+  elif [ -r $file ]; then
     mv ${file} ${file}.sample
   fi
 done

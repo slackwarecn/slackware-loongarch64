@@ -340,7 +340,6 @@ gzip ./source/a/sysvinit-functions/doinst.sh
 gzip ./source/a/mdadm/doinst.sh
 gzip ./source/a/os-prober/os-prober.lvm2.diff
 gzip ./source/a/os-prober/os-prober.reiserfs.diff
-gzip ./source/a/tcsh/tcsh.nobuiltincolorls.diff
 gzip ./source/a/tcsh/doinst.sh
 gzip ./source/a/dcron/patches/0006-Fixed-a-bug-whereby-syncs-killed-all-waiting-jobs.patch
 gzip ./source/a/dcron/patches/0007-Update-main.c.patch

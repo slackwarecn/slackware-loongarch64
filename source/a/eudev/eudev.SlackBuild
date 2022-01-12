@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2018, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=eudev
 VERSION=${VERSION:-$(echo eudev-*.tar.* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -79,6 +79,13 @@ zcat $CWD/eudev.ignore_bind_unbind_events.diff.gz | patch -p1 --verbose || exit 
 # Don't require groups that we don't need:
 zcat $CWD/eudev.no.renderD.no.kvm.diff.gz | patch -p1 --verbose || exit 1
 
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 ./configure \
   --prefix=/usr \
   --with-rootprefix=/ \
@@ -153,7 +160,7 @@ chmod 0755 $PKG/lib/udev/*
 
 mkdir -p $PKG/usr/doc/eudev-$VERSION
 cp -a \
-  COPYING* README* TODO \
+  BUILD* CONTRIBUTING* COPYING* LEGACY* NOTES* README* TODO* \
   $PKG/usr/doc/eudev-$VERSION
 
 # Compress and fix manpage symlinks:

@@ -898,7 +898,6 @@ gzip ./source/l/openal-soft/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
-gzip ./source/l/SDL2/e2ade2bfc46d915cd306c63c830b81d800b2575f.patch
 gzip ./source/l/SDL2/SDL2-2.0.9-khrplatform.patch
 gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff

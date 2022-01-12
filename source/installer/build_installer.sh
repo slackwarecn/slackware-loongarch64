@@ -912,6 +912,7 @@ ap/ddrescue \
 ap/dmidecode \
 ap/lsscsi \
 ap/neofetch \
+ap/nvme-cli \
 ap/terminus-font \
 d/gcc \
 d/gcc-g++ \
@@ -1160,6 +1161,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRSBIN} \
         chpasswd \
         dnsmasq \
         ntpdate \
+        nvme \
         parted \
         partprobe \
         partx \
@@ -2256,6 +2258,7 @@ if [ -d usr/man ]; then
       man1/lzip.1.bz2 \
       man1/plzip.1.bz2 \
       man1/neofetch.1.bz2 \
+      man1/nvme.1.bz2 \
     ; do
       mkdir -p man/$(dirname $manpage)
       cp -a man.full/$manpage man/$manpage

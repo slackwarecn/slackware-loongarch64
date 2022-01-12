@@ -1,0 +1,38 @@
+From 926f864756e5586f38574c166abdb5befa3dc771 Mon Sep 17 00:00:00 2001
+From: David Edmundson <kde@davidedmundson.co.uk>
+Date: Wed, 8 Dec 2021 13:08:43 +0000
+Subject: [PATCH] [libtaskmanager] Increase buffer for pipewire format
+ negotiation
+
+Libtaskmanager's buffer for spa_builder  is too small on certain
+configurations. Because podBuilder->state.offset is never reset, the
+buffer space can run out when EGL returns a long list of dma_buf
+modifiers, causing PipeWire negotiation to fail.
+
+An example is when EGL returns 20 modifiers. There are 6 formats defined
+in pipewiresourcestream.cpp, for each format it will construct 2 frames,
+one with 21*8=168 bytes long of modifiers. The modifier lists for all
+frames will be 6*168=1008 bytes (only 16 bytes left of 1024 bytes), let
+alone other frames.
+
+BUG: 446061
+---
+ libtaskmanager/declarative/pipewiresourcestream.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libtaskmanager/declarative/pipewiresourcestream.cpp b/libtaskmanager/declarative/pipewiresourcestream.cpp
+index a6713ae76..f1d3032a5 100644
+--- a/libtaskmanager/declarative/pipewiresourcestream.cpp
++++ b/libtaskmanager/declarative/pipewiresourcestream.cpp
+@@ -260,7 +260,7 @@ bool PipeWireSourceStream::createStream(uint nodeid)
+     pwNodeId = nodeid;
+     pw_stream_add_listener(pwStream, &streamListener, &pwStreamEvents, this);
+ 
+-    uint8_t buffer[1024];
++    uint8_t buffer[4096];
+     spa_pod_builder podBuilder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+ 
+     const QVector<spa_video_format> formats =
+-- 
+GitLab
+

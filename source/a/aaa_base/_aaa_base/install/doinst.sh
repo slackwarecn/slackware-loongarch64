@@ -1,10 +1,8 @@
-# Invite the new admin to register their machine with the Linux Counter:
-if [ ! -f var/spool/mail/root ]; then
- mv var/spool/mail/root.new var/spool/mail/root
-else
+# Send root a welcome email unless we detect that it's there already:
+if ! grep -q "Welcome to Linux (Slackware 15.0)" var/spool/mail/root 2> /dev/null ; then
  cat var/spool/mail/root.new >> var/spool/mail/root
- rm var/spool/mail/root.new
 fi
+rm var/spool/mail/root.new
 # (Starting with Slackware 8.1) note:  These links are now replaced by
 # copies of the header files that were used to compile glibc (in the
 # kernel-headers package).  The version number on the kernel-headers

@@ -1,0 +1,52 @@
+From 70d23b891e95bc6911389773f320a4406a12bd87 Mon Sep 17 00:00:00 2001
+From: Lufan Zhong <lufanzhong@gmail.com>
+Date: Sun, 26 Dec 2021 19:33:09 +0000
+Subject: [PATCH] runners/shell: Port from KToolInvocation::invokeTerminal to
+ KTerminalLauncherJob
+
+kinit is being deprecated; this change will allow it to open a terminal and execute
+commands normally without kinit being present.
+
+BUG: 437131
+FIXED-IN: 5.24
+---
+ runners/shell/shellrunner.cpp | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/runners/shell/shellrunner.cpp b/runners/shell/shellrunner.cpp
+index 03b54e1f1..be4058acf 100644
+--- a/runners/shell/shellrunner.cpp
++++ b/runners/shell/shellrunner.cpp
+@@ -12,8 +12,9 @@
+ #include <KLocalizedString>
+ #include <KNotificationJobUiDelegate>
+ #include <KShell>
+-#include <KToolInvocation>
++#include <KTerminalLauncherJob>
+ #include <QAction>
++#include <QProcessEnvironment>
+ #include <QRegularExpression>
+ #include <QStandardPaths>
+ 
+@@ -62,7 +63,17 @@ void ShellRunner::run(const Plasma::RunnerContext &context, const Plasma::QueryM
+ {
+     if (match.selectedAction()) {
+         const QVariantList data = match.data().toList();
+-        KToolInvocation::invokeTerminal(data.at(0).toString(), data.at(1).toStringList());
++        const QStringList list = data.at(1).toStringList();
++        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
++        for (const auto& str : list)
++        {
++            const int pos = str.indexOf('=');
++            env.insert(str.left(pos), str.mid(pos+1));
++        }
++        auto job = new KTerminalLauncherJob(data.at(0).toString());
++        job->setProcessEnvironment(env);
++        job->setUiDelegate(new KNotificationJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled));
++        job->start();
+         return;
+     }
+ 
+-- 
+GitLab
+

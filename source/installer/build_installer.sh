@@ -1533,7 +1533,7 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
            cp -a fs.orig/{udf*,isofs*,cifs*,ext*,fat*,fscache,jfs*,lockd,nfs,nfs_common,jbd*,nls,reiserfs,xfs,binfmt*,mbcache*,exportfs*} fs/
          ;;
          *86*)
-           cp -a fs.orig/{cifs*,fscache,lockd,nfs,nfs_common,ntfs3} fs/
+           cp -a fs.orig/{cifs*,exfat,fscache,lockd,nfs,nfs_common,ntfs3} fs/
          ;;
          *)
            cp -a fs.orig/cifs* fs/
@@ -1593,9 +1593,10 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     # Done with block directory
     # Grab a few modules from staging:
     mv staging staging.orig
-    mv staging.orig/hv staging
-    mv staging.orig/exfat staging
-    mv staging.orig/speakup staging
+    # These all seem to have been merged...
+    #mv staging.orig/hv staging
+    #mv staging.orig/exfat staging
+    #mv staging.orig/speakup staging
     rm -rf${VERBOSE1} staging.orig
     # Save the Hyper-V keyboard module:
     mkdir -p input.orig/serio

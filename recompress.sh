@@ -1008,6 +1008,7 @@ gzip ./source/xap/fvwm/xinitrc.fvwm2
 gzip ./source/xap/sane/sane-frontends-1.0.14-sane_cap_always_settable.diff
 gzip ./source/xap/sane/dll.conf.additions
 gzip ./source/xap/sane/doinst.sh
+gzip ./source/xap/fluxbox/dcdde4d32c93d01df205bc06d7dfcbd356be031f.patch
 gzip ./source/xap/fluxbox/xinitrc.fluxbox
 gzip ./source/xap/fluxbox/fluxbox.keys.diff
 gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff

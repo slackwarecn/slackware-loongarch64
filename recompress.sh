@@ -544,15 +544,6 @@ gzip ./source/n/nc/nc-110-21.diff
 gzip ./source/n/nc/nc.diff
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-message.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
-gzip ./source/n/wpa_supplicant/patches/0001-AP-Silently-ignore-management-frame-from-unexpected-.patch
-gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-flush-debug-output.patch
-gzip ./source/n/wpa_supplicant/patches/a0541334a6394f8237a4393b7372693cd7e96f15.patch
-gzip ./source/n/wpa_supplicant/patches/0001-P2P-Fix-a-corner-case-in-peer-addition-based-on-PD-R.patch
-gzip ./source/n/wpa_supplicant/patches/0003-WPS-UPnP-Handle-HTTP-initiation-failures-for-events-.patch
-gzip ./source/n/wpa_supplicant/patches/8ca330bd709bf7c000dfda5b1edbc0cbeabb8b55.patch
-gzip ./source/n/wpa_supplicant/patches/0001-P2P-Fix-copying-of-secondary-device-types-for-P2P-gr.patch
-gzip ./source/n/wpa_supplicant/patches/0001-WPS-UPnP-Do-not-allow-event-subscriptions-with-URLs-.patch
-gzip ./source/n/wpa_supplicant/patches/0002-WPS-UPnP-Fix-event-message-generation-using-a-long-U.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
@@ -853,6 +844,7 @@ gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.csh
+gzip ./source/l/gst-plugins-bad-free/1267.patch
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff
 gzip ./source/l/sdl/sdl-1.2.14-fix-mouse-clicking.patch

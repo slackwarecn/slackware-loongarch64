@@ -855,9 +855,11 @@ gzip ./source/l/adwaita-icon-theme/doinst.sh
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-round_gtf_gtfcalc_c.patch
 gzip ./source/l/svgalib/svgalib.nohelper.diff
+gzip ./source/l/svgalib/svgalib-1.9.21-demos.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-quickmath-h-redefinitions.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-vga_getmodenumber.patch
 gzip ./source/l/svgalib/svgalib.prefix.diff
+gzip ./source/l/svgalib/svgalib-1.9.25.no_asm.patch
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-change-in-GNU-.patch
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
@@ -917,6 +919,7 @@ gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
+gzip ./source/l/qt5/patches/24.diff
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
 gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch

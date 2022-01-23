@@ -1571,6 +1571,7 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
          rm -rf${VERBOSE1} cdrom ide md scsi
          mkdir scsi
          mv scsi.orig/hv_storvsc.ko scsi
+         mv scsi.orig/sg.ko scsi
          rm -rf${VERBOSE1} scsi.orig
          mkdir md
          mv md.orig/dm-bufio.ko md

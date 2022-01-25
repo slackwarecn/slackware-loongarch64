@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mkinitrd
 VERSION=${VERSION:-1.4.11}
 BB=1.32.1
-BUILD=${BUILD:-26}
+BUILD=${BUILD:-27}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -125,6 +125,9 @@ chmod 755 $PKG/sbin/mkinitrd
 # Don't include 40-usb_modeswitch.rules on the initrd:
 ( cd $PKG/sbin ; zcat $CWD/0003-blacklist.40-usb_modeswitch.rules.patch.gz | patch -p1 --verbose || exit 1) || exit 1
 rm -f $PKG/sbin/mkinitrd.orig
+# Use -R if we detect the root partition is a partition of a RAID device:
+( cd $PKG/usr/share/mkinitrd ; zcat $CWD/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch.gz | patch -p1 --verbose || exit 1) || exit 1
+rm -f $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh.orig
 
 mkdir -p $PKG/usr/man/man{5,8}
 cat $CWD/mkinitrd.conf.5 | gzip -9c > $PKG/usr/man/man5/mkinitrd.conf.5.gz

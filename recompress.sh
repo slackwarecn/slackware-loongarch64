@@ -174,6 +174,7 @@ gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
 gzip ./source/a/mkinitrd/mkinitrd.tempfile.to.mktemp.patch
 gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
+gzip ./source/a/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
 gzip ./source/a/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
 gzip ./source/a/mkinitrd/0003-blacklist.40-usb_modeswitch.rules.patch
 gzip ./source/a/mlocate/doinst.sh
@@ -706,7 +707,9 @@ gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/patches/0001-nsswitch-return-result-when-nss-database-is-locked.patch
+gzip ./source/l/glibc/patches/glibc.CVE-2021-3999.patch
 gzip ./source/l/glibc/patches/cdc31409bd4f878577059e70dbd52a28643ec609.patch
+gzip ./source/l/glibc/patches/glibc.CVE-2021-3998.patch
 gzip ./source/l/glibc/patches/CVE-2021-33574_2.patch
 gzip ./source/l/glibc/patches/CVE-2021-27645.patch
 gzip ./source/l/glibc/patches/CVE-2021-38604.patch
@@ -901,6 +904,8 @@ gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch
+gzip ./source/l/expat/5f100ffa78b74da8020b71d1582a8979193c1359.patch
+gzip ./source/l/expat/178d26f50af21ec23d6e43814b9b602590b5865c.patch
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch
 gzip ./source/l/id3lib/patches/id3lib.vbr_stack_smash.patch
 gzip ./source/l/id3lib/patches/id3lib.cppheaders.patch

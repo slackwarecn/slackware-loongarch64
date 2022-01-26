@@ -172,6 +172,7 @@ gzip ./source/a/gpm/gpm.types.diff
 gzip ./source/a/gpm/mouseconfig
 gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
+gzip ./source/a/mkinitrd/0005-support-modules-compressed-with-xz.patch
 gzip ./source/a/mkinitrd/mkinitrd.tempfile.to.mktemp.patch
 gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
 gzip ./source/a/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch

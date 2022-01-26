@@ -903,6 +903,7 @@ gzip ./source/l/pilot-link/pilot-link.png14.diff
 gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
+gzip ./source/l/polkit/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch
 gzip ./source/l/expat/5f100ffa78b74da8020b71d1582a8979193c1359.patch
 gzip ./source/l/expat/178d26f50af21ec23d6e43814b9b602590b5865c.patch

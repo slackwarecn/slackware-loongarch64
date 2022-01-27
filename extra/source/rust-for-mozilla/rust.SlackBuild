@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
 VERSION=${VERSION:-1.54.0}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 # YES is probably better (when it works...)
@@ -263,6 +263,10 @@ find $PKG/usr/lib$LIBDIRSUFFIX -name "*.so" -exec chmod 755 "{}" \+
 # Strip ELF objects:
 find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+
+# Get rid of a possible duplicated libLLVM. Not only is it large, but it also
+# throws an error at boot with ldconfig:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libLLVM-*.so.old
 
 # Commented out (for now) since we disable rpaths in config.toml:
 ## Remove any compiled-in RPATHs:

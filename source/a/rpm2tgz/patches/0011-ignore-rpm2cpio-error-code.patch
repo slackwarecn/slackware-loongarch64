@@ -1,0 +1,44 @@
+--- ./rpm2targz.orig	2022-01-28 23:51:56.398715512 -0600
++++ ./rpm2targz	2022-01-28 23:53:21.350717413 -0600
+@@ -50,6 +50,7 @@
+     echo "          as documention to /usr/doc/\$PRGNAM-\$VERSION/"
+     echo "  -d    attempt a wellformed slack-desc from the rpm meta data"
+     echo "  -c    reset all directory permissions to 755 and ownership to root:root."
++    echo "  -i    continue to repackage even if rpm2cpio reports an error"
+     echo
+   else
+     echo "Usage:      $0 <file.rpm>"
+@@ -99,7 +100,7 @@
+   usage
+ fi
+ 
+-ARGS=$(getopt "hsSndrc" $* )
++ARGS=$(getopt "hisSndrc" $* )
+ set -- ${ARGS}
+ for i; do
+   case "$1" in
+@@ -127,6 +128,10 @@
+       CHOWN="true"
+       shift
+       ;;
++    -i)
++      IGNOREERROR="true"
++      shift
++      ;;
+     --)
+       shift
+       break
+@@ -160,8 +165,11 @@
+   ofn=$TMPDIR/$(basename $i .rpm).cpio
+   if which rpm2cpio 1> /dev/null 2> /dev/null ; then
+     rpm2cpio $i > $ofn 2> /dev/null
+-    if [ ! $? = 0 ]; then
+-      echo "ERROR:  rpm2cpio failed.  (maybe $i is not an RPM?)"
++    ERRORCODE=$?
++    if [ ! $ERRORCODE = 0 -a ! "$IGNOREERROR" = "true" ]; then
++      echo "ERROR:  rpm2cpio failed (returned error code $ERRORCODE). Maybe $i is not an RPM?"
++      echo "If you wish to try again, you may ignore the error code and force $0 to try to"
++      echo "create a package by adding this option: -i"
+       rm -rf $TMPDIR
+       continue
+     fi

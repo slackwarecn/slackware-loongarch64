@@ -128,12 +128,14 @@ gzip ./source/a/coreutils/DIR_COLORS
 gzip ./source/a/rpm2tgz/patches/0002-fix-spurious-path-to-rpm-file-with-n-option.patch
 gzip ./source/a/rpm2tgz/patches/0005-gzip-man-info-pages.patch
 gzip ./source/a/rpm2tgz/patches/0006-should-we-use-.txz-format-in-slackware-current.patch
+gzip ./source/a/rpm2tgz/patches/0011-ignore-rpm2cpio-error-code.patch
 gzip ./source/a/rpm2tgz/patches/0003-allow-every-user-to-use-rpm2tgz.patch
 gzip ./source/a/rpm2tgz/patches/0008-Avoid-none-values-in-slack-desc.patch
 gzip ./source/a/rpm2tgz/patches/0007-Add-support-for-.txz-packages-and-rpm2txz-symlink.patch
 gzip ./source/a/rpm2tgz/patches/0004-produce-more-compliant-slack-desc.patch
 gzip ./source/a/rpm2tgz/patches/0001-fix-d-handling.patch
 gzip ./source/a/rpm2tgz/patches/0009-Add-c-option-just-as-makepkg-c-y.patch
+gzip ./source/a/rpm2tgz/patches/0010-no-absolute-filenames-extracting-cpio.patch
 gzip ./source/a/udisks/udisks.no.pci-db.diff
 gzip ./source/a/udisks/udisks.glibc228.diff
 gzip ./source/a/dialog/dialog.all.use_height.diff

@@ -908,9 +908,6 @@ gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch
-gzip ./source/l/expat/5c168279c5ad4668e5e48fe13374fe7a7de4b573.patch
-gzip ./source/l/expat/5f100ffa78b74da8020b71d1582a8979193c1359.patch
-gzip ./source/l/expat/178d26f50af21ec23d6e43814b9b602590b5865c.patch
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch
 gzip ./source/l/id3lib/patches/id3lib.vbr_stack_smash.patch
 gzip ./source/l/id3lib/patches/id3lib.cppheaders.patch

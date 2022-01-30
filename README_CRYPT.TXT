@@ -124,10 +124,9 @@ you can skip this command:
 
 * Prepare the partition for encryption. You will be asked twice to enter
 a passphrase. Note that a passphrase is not limited to a single word. The
-passphrase may contain spaces. We will use a key size of 256 bits. The
-default cipher is 'aes', with mode 'cbc-essiv:sha256' which is safe enough.
+passphrase may contain spaces.
 
-  # cryptsetup -s 256 -y luksFormat /dev/sdx2
+  # cryptsetup -y luksFormat /dev/sdx2
 
 You can dump information about the encrypted partition to your console by
 running the following command:
@@ -402,10 +401,9 @@ would want to fill your partition with random data first):
 
 * Prepare the partition for encryption. You will be asked twice to enter
 a passphrase.  Note that a passphrase is not limited to a single word.  The
-passphrase may contain spaces.  We will use a key size of 256 bits.  The
-default cipher is 'aes', with mode 'cbc-essiv:sha256' which is safe enough.
+passphrase may contain spaces.
 
-  # cryptsetup -s 256 -y luksFormat /dev/sdx2
+  # cryptsetup -y luksFormat /dev/sdx2
 
 * Open the encrypted partition so that we can start using the mapped device
 which exposes the partition as an unencrypted block device.  The command

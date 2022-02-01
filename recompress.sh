@@ -904,6 +904,7 @@ gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
 gzip ./source/l/pipewire/doinst.sh
+gzip ./source/l/libcanberra/libcanberra-0.30-wayland-1.patch
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch

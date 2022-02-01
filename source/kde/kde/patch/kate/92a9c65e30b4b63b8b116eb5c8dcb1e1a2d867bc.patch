@@ -1,0 +1,39 @@
+From 92a9c65e30b4b63b8b116eb5c8dcb1e1a2d867bc Mon Sep 17 00:00:00 2001
+From: Waqar Ahmed <waqar.17a@gmail.com>
+Date: Sun, 16 Jan 2022 18:39:50 +0500
+Subject: [PATCH] step down warning level when LSP not found
+
+Currently it gives an error which results in the widget popping up
+everytime you open a file for which you don't have LSP. However, one may
+have intentionally not installed the LSP for a language.
+
+BUG: 448549
+---
+ addons/lspclient/lspclientservermanager.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/addons/lspclient/lspclientservermanager.cpp b/addons/lspclient/lspclientservermanager.cpp
+index 551926e23..24e3f275b 100644
+--- a/addons/lspclient/lspclientservermanager.cpp
++++ b/addons/lspclient/lspclientservermanager.cpp
+@@ -737,13 +737,13 @@ private:
+                 server.reset(new LSPClientServer(cmdline, root, realLangId, serverConfig.value(QStringLiteral("initializationOptions")), folders));
+                 connect(server.data(), &LSPClientServer::stateChanged, this, &self_type::onStateChanged, Qt::UniqueConnection);
+                 if (!server->start()) {
+-                    QString errorMessage = i18n("Failed to start server: %1", cmdline.join(QLatin1Char(' ')));
++                    QString message = i18n("Failed to start server: %1", cmdline.join(QLatin1Char(' ')));
+                     const auto url = serverConfig.value(QStringLiteral("url")).toString();
+                     if (!url.isEmpty()) {
+-                        errorMessage += QStringLiteral("\n") + i18n("Please check your PATH for the binary");
+-                        errorMessage += QStringLiteral("\n") + i18n("See also %1 for installation or details", url);
++                        message += QStringLiteral("\n") + i18n("Please check your PATH for the binary");
++                        message += QStringLiteral("\n") + i18n("See also %1 for installation or details", url);
+                     }
+-                    showMessage(errorMessage, KTextEditor::Message::Error);
++                    showMessage(message, KTextEditor::Message::Warning);
+                 } else {
+                     showMessage(i18n("Started server %2: %1", cmdline.join(QLatin1Char(' ')), serverDescription(server.data())),
+                                 KTextEditor::Message::Positive);
+-- 
+GitLab
+

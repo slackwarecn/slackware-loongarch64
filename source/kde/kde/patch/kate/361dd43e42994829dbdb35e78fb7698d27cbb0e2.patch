@@ -1,0 +1,87 @@
+From 361dd43e42994829dbdb35e78fb7698d27cbb0e2 Mon Sep 17 00:00:00 2001
+From: Mark Nauwelaerts <mark.nauwelaerts@gmail.com>
+Date: Mon, 13 Dec 2021 20:52:57 +0100
+Subject: [PATCH] lspclient: consider some additional server capabilities
+
+---
+ addons/lspclient/lspclientprotocol.h        | 14 +++++++++++++-
+ addons/lspclient/lspclientserver.cpp        |  9 ++++++++-
+ addons/lspclient/lspclientservermanager.cpp |  2 +-
+ 3 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/addons/lspclient/lspclientprotocol.h b/addons/lspclient/lspclientprotocol.h
+index 0fb7f4485..9de0ec511 100644
+--- a/addons/lspclient/lspclientprotocol.h
++++ b/addons/lspclient/lspclientprotocol.h
+@@ -21,6 +21,8 @@
+ #include <KTextEditor/Cursor>
+ #include <KTextEditor/Range>
+ 
++#include <optional>
++
+ // Following types roughly follow the types/interfaces as defined in LSP protocol spec
+ // although some deviation may arise where it has been deemed useful
+ // Moreover, to avoid introducing a custom 'optional' type, absence of an optional
+@@ -51,6 +53,16 @@ struct LSPResponseError {
+ 
+ enum class LSPDocumentSyncKind { None = 0, Full = 1, Incremental = 2 };
+ 
++struct LSPSaveOptions {
++    bool includeText = false;
++};
++
++// only used parts for now
++struct LSPTextDocumentSyncOptions {
++    LSPDocumentSyncKind change = LSPDocumentSyncKind::None;
++    std::optional<LSPSaveOptions> save;
++};
++
+ struct LSPCompletionOptions {
+     bool provider = false;
+     bool resolveProvider = false;
+@@ -81,7 +93,7 @@ struct LSPWorkspaceFoldersServerCapabilities {
+ };
+ 
+ struct LSPServerCapabilities {
+-    LSPDocumentSyncKind textDocumentSync = LSPDocumentSyncKind::None;
++    LSPTextDocumentSyncOptions textDocumentSync;
+     bool hoverProvider = false;
+     LSPCompletionOptions completionProvider;
+     LSPSignatureHelpOptions signatureHelpProvider;
+diff --git a/addons/lspclient/lspclientserver.cpp b/addons/lspclient/lspclientserver.cpp
+index 8739d46c9..a7094fde2 100644
+--- a/addons/lspclient/lspclientserver.cpp
++++ b/addons/lspclient/lspclientserver.cpp
+@@ -344,8 +344,15 @@ static void from_json(LSPServerCapabilities &caps, const QJsonObject &json)
+     };
+ 
+     auto sync = json.value(QStringLiteral("textDocumentSync"));
+-    caps.textDocumentSync = static_cast<LSPDocumentSyncKind>(
++    caps.textDocumentSync.change = static_cast<LSPDocumentSyncKind>(
+         (sync.isObject() ? sync.toObject().value(QStringLiteral("change")) : sync).toInt(static_cast<int>(LSPDocumentSyncKind::None)));
++    if (sync.isObject()) {
++        auto syncObject = sync.toObject();
++        auto save = syncObject.value(QStringLiteral("save"));
++        if (save.isObject() || save.toBool()) {
++            caps.textDocumentSync.save = {save.toObject().value(QStringLiteral("includeText")).toBool()};
++        }
++    }
+     caps.hoverProvider = toBoolOrObject(json.value(QStringLiteral("hoverProvider")));
+     from_json(caps.completionProvider, json.value(QStringLiteral("completionProvider")));
+     from_json(caps.signatureHelpProvider, json.value(QStringLiteral("signatureHelpProvider")));
+diff --git a/addons/lspclient/lspclientservermanager.cpp b/addons/lspclient/lspclientservermanager.cpp
+index 1fbcf928f..1e03801ea 100644
+--- a/addons/lspclient/lspclientservermanager.cpp
++++ b/addons/lspclient/lspclientservermanager.cpp
+@@ -931,7 +931,7 @@ private:
+         auto it = m_docs.find(doc);
+         if (it != m_docs.end() && it->server) {
+             const auto &caps = it->server->capabilities();
+-            if (caps.textDocumentSync == LSPDocumentSyncKind::Incremental) {
++            if (caps.textDocumentSync.change == LSPDocumentSyncKind::Incremental) {
+                 return &(*it);
+             }
+         }
+-- 
+GitLab
+

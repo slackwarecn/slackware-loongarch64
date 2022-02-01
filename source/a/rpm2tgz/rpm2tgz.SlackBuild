@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rpm2tgz
 VERSION=1.2.2
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-6}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -78,10 +78,12 @@ cat $CWD/rpm2targz > $PKG/usr/bin/rpm2targz
   zcat $CWD/patches/0007-Add-support-for-.txz-packages-and-rpm2txz-symlink.patch.gz | patch -p1 || exit 1
   zcat $CWD/patches/0008-Avoid-none-values-in-slack-desc.patch.gz | patch -p1 || exit 1
   zcat $CWD/patches/0009-Add-c-option-just-as-makepkg-c-y.patch.gz | patch -p1 || exit 1
-  # Make sure that if someone created an RPM with absolute filenames that we
-  # don't allow it to write all over the / directory when we're just trying
-  # to extract it to make the .tgz:
-  zcat $CWD/patches/0010-no-absolute-filenames-extracting-cpio.patch.gz | patch -p1 || exit 1
+  ## NO - cpio is stupid and strips the leading '/' from symlinks to absolute
+  ## paths with --no-absolute-filenames. :-/
+  ## Make sure that if someone created an RPM with absolute filenames that we
+  ## don't allow it to write all over the / directory when we're just trying
+  ## to extract it to make the .tgz:
+  #zcat $CWD/patches/0010-no-absolute-filenames-extracting-cpio.patch.gz | patch -p1 || exit 1
   # Allow ignoring rpm2cpio error code. Some RPMs can be extracted, but
   # throw an error anyway.
   zcat $CWD/patches/0011-ignore-rpm2cpio-error-code.patch.gz | patch -p1 || exit 1

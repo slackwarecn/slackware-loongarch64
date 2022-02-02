@@ -18,7 +18,7 @@ xorriso -as mkisofs \
   -eltorito-alt-boot \
   -e isolinux/efiboot.img \
   -no-emul-boot -isohybrid-gpt-basdat \
-  -m 'source' \
+  -m 'source/' \
   -volid "SlackDVD" \
   -output /tmp/slackware-dvd.iso \
   .
@@ -55,7 +55,7 @@ xorriso -as mkisofs \
   -eltorito-alt-boot \
   -e isolinux/efiboot.img \
   -no-emul-boot -isohybrid-gpt-basdat \
-  -m 'source' \
+  -m 'source/' \
   -volid "SlackDVD" \
   -output - \
   . \

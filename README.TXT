@@ -1,17 +1,17 @@
+Welcome to Slackware 15.0!  (64-bit x86_64 edition)
 
-Welcome to Slackware 14.2!  (64-bit x86_64 edition)
+Slackware 15.0 is a complete distribution of the Linux operating system.
 
-Slackware 14.2 is a complete distribution of the Linux operating system.
+Here are some versions of major components of Slackware 15.0:
 
-Here are some versions of major components of Slackware 14.2:
-
-- Linux kernel           4.4.14
-- C compiler             gcc-5.3.0
-- Binutils               2.26
-- GNU C Library          glibc-2.23
-- X Window System        X11R7.7
-- KDE                    4.14.21 (KDE 4.14.3 with kdelibs-4.14.21)
-- Xfce                   4.12.1
+- Linux kernel           5.15.19
+- GCC compiler           11.2.0
+- LLVM compiler          13.0.0
+- Rust compiler          1.58.1
+- Binutils               2.37
+- GNU C Library          2.33
+- KDE Plasma             5.23.5
+- Xfce                   4.16
 
 For installation instructions, see the file 'Slackware-HOWTO'.
 
@@ -20,7 +20,7 @@ For important hints about this release, see the file 'CHANGES_AND_HINTS.TXT'.
 These are some of the important files and directories found on the Slackware
 FTP site:
 
-  ftp://ftp.slackware.com/pub/slackware/slackware64-14.2/
+  ftp://ftp.slackware.com/pub/slackware/slackware64-15.0/
 
 Thanks to cwo.com for continuing to help us with hosting for our web site,
 and to the OSU Open Source Lab for hosting our archives at ftp.slackware.com
@@ -30,9 +30,9 @@ If you're reading this on a CD-ROM, these directories will probably be
 split across several discs.
 
 .
-|-- ANNOUNCE.14.2        Announcement for Slackware 14.2.
-|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 14.1
-|                        to 14.2 and common pitfalls.
+|-- ANNOUNCE.15.0        Announcement for Slackware 15.0.
+|-- CHANGES_AND_HINTS.TXT  A summary of major changes from Slackware 14.2
+|                        to 15.0 and common pitfalls.
 |-- CHECKSUMS.md5        MD5 format file checksums.
 |-- COPYING              The GNU Public License, version 2.
 |-- COPYING3             The GNU Public License, version 3.
@@ -57,15 +57,16 @@ split across several discs.
 |
 |-- Slackware-HOWTO      Instructions for installing Slackware from CD.
 |                        If you're new to Slackware, start with this.
-|-- UPGRADE.TXT          How to upgrade from Slackware 14.1 to Slackware 14.2.
+|-- UPGRADE.TXT          How to upgrade from Slackware 14.2 to Slackware 15.0.
 |
 |-- extra/               Extra packages for Slackware like:
 |   |                    aspell-word-lists, bash-completion, bittornado,
-|   |                    bittorrent, brltty, emacspeak, mplayerplug-in,
-|   |                    recordmydesktop, tigervnc, wicd, and xf86-video-fbdev.
+|   |                    brltty, fltk, getty-ps, php80, php81, rust (for
+|   |                    Mozilla), sendmail, tigervnc, xf86-video-fbdev,
+|   |                    xf86-video-nouveau-blacklist, xfractint, and xv.
 |   |                    Scripts are also included to repackage some
 |   |                    non-redistributable binaries into Slackware packages:
-|   |                    google-chrome, java, and flashplayer-plugin.
+|   |                    google-chrome and java.
 |   |
 |   `-- source/          Source code for the extra packages.
 |
@@ -79,16 +80,16 @@ split across several discs.
 |   |
 |   `-- initrd.img       Installation initrd (can also be loaded with Loadlin)
 |
-|-- kernels/             Precompiled Linux 4.4.14 kernel images.
+|-- kernels/             Precompiled Linux 5.15.19 kernel images.
 |   |
 |   `-- huge.s           The default standard install kernel for Slackware.
 |                        This supports pretty much everything in the
-|                        4.4.14 kernel, including Speakup.  This kernel
-|                        requires an x86_64 (also known as AMD64, EM64T, or
-|                        Intel 64) capable 64-bit CPU.
+|                        5.15.19 kernel, and includes support for Speakup.
+|                        This kernel requires an x86_64 (also known as AMD64,
+|                        EM64T, or Intel 64) capable 64-bit CPU.
 |    
 |-- slackware64/         This directory contains the core software packages
-|   |                    for Slackware 14.2.
+|   |                    for Slackware 15.0.
 |   |
 |   |-- a/               The A (base) package series.
 |   |-- ap/              The AP (applications) package series.
@@ -96,8 +97,7 @@ split across several discs.
 |   |-- e/               The E (GNU Emacs) package series.
 |   |-- f/               The F (FAQ/Documentation) package series.
 |   |-- k/               The K (kernel source) package series.
-|   |-- kde/             The KDE package series.
-|   |-- kdei/            The KDE internationalization package series.
+|   |-- kde/             The KDE Plasma package series.
 |   |-- l/               The L (libraries) package series.
 |   |-- n/               The N (networking) package series.
 |   |-- t/               The T (TeX) package series.
@@ -118,7 +118,6 @@ split across several discs.
 |   |-- installer/       Source for utilities used in the installer.
 |   |-- k/               Source for the K (kernel source) series.
 |   |-- kde/             Source for the KDE series.
-|   |-- kdei/            Source for the KDEI series.
 |   |-- l/               Source for the L (libraries) series.
 |   |-- n/               Source for the N (networking) series.
 |   |-- t/               Source for the T (TeX) series.
@@ -130,9 +129,8 @@ split across several discs.
 |
 |-- testing/             This directory contains packages being tested
 |   |                    for possible use in future versions of Slackware.
-|   |                    For this release, it contains efibootmgr-0.6.0,
-|   |                    tmux-2.2, and sample kernel configuration files
-|   |                    for Linux 4.6.
+|   |                    For this release, it contains sample kernel
+|   |                    configuration files for Linux 5.16.5.
 |   |
 |   `--- source/         This directory contains source code for the 
 |                        packages in testing.
@@ -150,23 +148,15 @@ split across several discs.
     `-- usbimg2disk.sh    Script to make a partitioned USB flash installer
                           from usbboot.img.
 
+Slackware relies on user contributions for funding. If you'd like to help,
+visit one of these links:
 
-If you like Slackware, please consider supporting the project by becoming
-a Slackware subscriber.  The announcement (ANNOUNCE_14.2) in this directory
-has information about ordering or subscribing to the Slackware CD-ROM or
-DVD releases.  Note that the x86_64 release is only available as part of the
-DVD.  You can find out about ordering Slackware on media, or read more about
-it (and check out other Slackware-related items for sale) by visiting the
-Slackware store.  We also gratefully accept financial contributions under
-the "All" section of the store site menu.
+https://www.patreon.com/slackwarelinux
+https://paypal.me/volkerdi
 
-Thanks for your consideration and help!
-
-    http://store.slackware.com
-
+Contibutions are not tax deductible. Thanks for your support in any amount!
 
 Enjoy!
 
 Patrick Volkerding
 volkerdi@slackware.com
-

@@ -869,6 +869,7 @@ gzip ./source/l/svgalib/svgalib-1.9.25.no_asm.patch
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-change-in-GNU-.patch
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
+gzip ./source/l/lcms2/fdbfb7694f9d7048d53674b79ddfc38068bfdaf7.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch

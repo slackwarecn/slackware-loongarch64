@@ -759,6 +759,9 @@ make $SILENTMAKE DESTDIR=$PKG/$ARCH-installer-filesystem/ MULTI="1" install || e
   done
 )
 
+# Evidently dropbearmulti wants dbclient in /usr/bin:
+( cd $PKG/$ARCH-installer-filesystem/usr/bin ; ln -sf ../../bin/dbclient . )
+
 }
 
 ############### Build nano #####################################################
@@ -822,6 +825,47 @@ if [ ! -z $I_AM_DIDIER ]; then
     make install DESTDIR=$PKG/$ARCH-installer-filesystem/
   )
 fi
+
+}
+
+
+############### Build dnsmasq ##################################################
+
+build_dnsmasq()
+{
+echo "--- Building dnsmasq ---"
+# Extract source:
+cd $TMP
+if [ -d $CWD/sources/dnsmasq ]; then
+  DNSMASQPATH=$CWD/sources/dnsmasq
+elif [ -d $SRCDIR/sources/dnsmasq ]; then
+  DNSMASQPATH=$SRCDIR/sources/dnsmasq
+fi
+[ ! -d $DNSMASQPATH ] && ( echo "No directory '$DNSMASQPATH'" ; exit 1 )
+DNSMASQPKG=$(ls -1 $DNSMASQPATH/dnsmasq-*.tar.?z | head -1)
+DNSMASQVER=$(echo $DNSMASQPKG | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+tar x${VERBOSE2}f $DNSMASQPKG
+
+echo "--- Compiling DNSMASQ version '$DNSMASQVER' ---"
+cd dnsmasq* || exit 1
+
+zcat $DNSMASQPATH/dnsmasq.leasedir.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $DNSMASQPATH/dnsmasq.libidn2.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+zcat $DNSMASQPATH/dnsmasq-2.80-SIOCGSTAMP.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+make $NUMJOBS all-i18n PREFIX=/usr MANDIR=/usr/man COPTS=" " || exit 1
+
+# Install into installer's filesystem:
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/sbin
+cp -a src/dnsmasq $PKG/$ARCH-installer-filesystem/usr/sbin/dnsmasq
+strip --strip-unneeded $PKG/$ARCH-installer-filesystem/usr/sbin/dnsmasq
+chown root:root $PKG/$ARCH-installer-filesystem/usr/sbin/dnsmasq
+chmod 755 $PKG/$ARCH-installer-filesystem/usr/sbin/dnsmasq
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/man/man8
+cat man/dnsmasq.8 | gzip -9c > $PKG/$ARCH-installer-filesystem/usr/man/man8/dnsmasq.8.gz
 
 }
 
@@ -934,7 +978,6 @@ l/readline \
 l/zlib \
 l/zstd \
 n/dhcpcd \
-n/dnsmasq \
 n/iproute2 \
 n/krb5 \
 n/libgcrypt \
@@ -1159,7 +1202,6 @@ cp --remove-destination -fa${VERBOSE1} \
 cd $TMP/extract-packages/usr/sbin
 cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRSBIN} \
         chpasswd \
-        dnsmasq \
         ntpdate \
         nvme \
         parted \
@@ -2323,6 +2365,9 @@ else
   else
     unpack_oldinitrd
   fi
+
+  # Build a simplified version of dnsmasq for PXE installs:
+  build_dnsmasq
 
   # Are we adding the nano editor?
   if [ $ADD_NANO -eq 1 ]; then

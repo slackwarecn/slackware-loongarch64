@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2009, 2010, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2009, 2010, 2018, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=findutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -64,7 +64,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf findutils-$VERSION
-tar xvf $CWD/findutils-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/findutils-$VERSION.tar.?z || exit 1
 cd findutils-$VERSION || exit 1
 
 chown -R root:root .
@@ -79,14 +79,10 @@ find . \
 # like to be yelled at.
 zcat $CWD/findutils.no.default.options.warnings.diff.gz | patch -p1 --verbose || exit 1
 
-# Don't include updatedb, locate, frcode:
-zcat $CWD/findutils.nolocate.diff.gz | patch -p1 --verbose || exit 1
-
-autoreconf -vif
-
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --localstatedir=/var \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --build=$ARCH-slackware-linux || exit 1
@@ -95,11 +91,22 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 make install-man DESTDIR=$PKG || exit 1
 
+# Remove stray directory:
+rmdir $PKG/var 2> /dev/null
+
 # Now there is only FTS find, but make the old symlink in case any scripts
 # out there are using it:
 ( cd $PKG/usr/bin
   ln -sf find ftsfind
 )
+
+# Don't include updatedb, locate, frcode:
+rm -f $PKG/usr/bin/{locate,updatedb}
+rm -f $PKG/usr/libexec/frcode
+rmdir $PKG/usr/libexec 2> /dev/null
+rm -f $PKG/usr/man/man1/{locate.1,updatedb.1}
+rm -f $PKG/usr/man/man5/locatedb.5
+rmdir $PKG/usr/man/man5 2> /dev/null
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2017, 2018, 2019, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2015, 2017, 2018, 2019, 2021, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -94,14 +94,11 @@ CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-ssl \
-  --enable-gnutls=yes \
   --enable-cdsassl=no \
   --docdir=/usr/doc \
+  --mandir=/usr/man \
   $PAM_OPTIONS \
   $SHADOW_OPTIONS \
-  --disable-avahi \
-  --disable-dnssd \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || exit 1
@@ -160,13 +157,6 @@ rmdir --parents $PKG/etc/dbus-1/system.d/
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Remove preformatted manpages and move the manpages to /usr/man:
-( cd $PKG/usr/share/man
-  find . -type d -name "cat*" | xargs rm -rf
-  cd ..
-  mv man ..
-)
-
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+
 for i in $( find $PKG/usr/man -type l ) ; do
@@ -180,13 +170,16 @@ done
   rmdir $PKG/usr/share/doc
   cd $PKG/usr/doc
   ln -sf cups-$VERSION cups )
+  cp -a \
+    CHANGES* CONTRIBUTING* CREDITS* DEVELOPING* INSTALL* LICENSE* NOTICE* README* SECURITY* \
+    $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r CHANGES.txt ]; then
+if [ -r CHANGES.md ]; then
   DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
-  cat CHANGES.txt | head -n 1000 > $DOCSDIR/CHANGES.txt
-  touch -r CHANGES.txt $DOCSDIR/CHANGES.txt
+  cat CHANGES.md | head -n 1000 > $DOCSDIR/CHANGES.md
+  touch -r CHANGES.md $DOCSDIR/CHANGES.md
 fi
 
 # I'm sorry, but PDF files are almost as bloated and annoying as

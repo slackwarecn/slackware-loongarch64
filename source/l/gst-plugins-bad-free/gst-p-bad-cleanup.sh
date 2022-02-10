@@ -32,6 +32,7 @@ bayer
 camerabin
 camerabin2
 cdxaparse
+codecalpha
 coloreffects
 colorspace
 compositor
@@ -179,7 +180,7 @@ done
 echo
 
 if test "x$unknown" != "x"; then
-  echo -n "Aborting due to unkown modules: "
+  echo -n "Aborting due to unknown modules: "
   echo "$unknown" | sed "s/ /\n  /g"
   exit 1
 fi

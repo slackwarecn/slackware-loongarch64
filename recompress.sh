@@ -358,7 +358,6 @@ gzip ./source/a/dcron/run-parts
 gzip ./source/a/patch/0001-Refuse-to-apply-ed-scripts-by-default.patch
 gzip ./source/a/pcmciautils/doinst.sh
 gzip ./source/a/findutils/findutils.no.default.options.warnings.diff
-gzip ./source/a/findutils/findutils.nolocate.diff
 gzip ./source/a/kbd/sources/kbd-1.15-unicode_start.patch
 gzip ./source/a/kbd/sources/kbd-1.15.2-po.patch
 gzip ./source/a/kbd/sources/kbd-1.15-resizecon-x86_64.patch
@@ -703,7 +702,6 @@ gzip ./source/ap/rpm/rpm.install4j.compat.diff
 gzip ./source/ap/rpm/doinst.sh
 gzip ./source/ap/rpm/Packages
 gzip ./source/ap/man-db/doinst.sh
-gzip ./source/ap/man-db/dont_write_in_usr.diff
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
@@ -850,7 +848,6 @@ gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.csh
-gzip ./source/l/gst-plugins-bad-free/1267.patch
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff
 gzip ./source/l/sdl/sdl-1.2.14-fix-mouse-clicking.patch
@@ -869,7 +866,6 @@ gzip ./source/l/svgalib/svgalib-1.9.25.no_asm.patch
 gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-change-in-GNU-.patch
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
-gzip ./source/l/lcms2/fdbfb7694f9d7048d53674b79ddfc38068bfdaf7.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
@@ -952,7 +948,6 @@ gzip ./source/l/gd/gd.f4bc1f5c26925548662946ed7cfa473c190a104a.patch
 gzip ./source/l/cryfs/27587ea1acec5f939a31217f1c43953378f18821.patch
 gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
 gzip ./source/xap/hexchat/doinst.sh
-gzip ./source/xap/mozilla-thunderbird/d30c921928a12fccd5085888011f899ff1c788cd.patch
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
@@ -1065,7 +1060,6 @@ gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
-gzip ./source/xap/mozilla-firefox/d30c921928a12fccd5085888011f899ff1c788cd.patch
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
@@ -1075,6 +1069,9 @@ gzip ./source/xap/mozilla-firefox/gkrust.a.no.networking.check.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/dropbear/doinst.sh
 gzip ./source/installer/sources/initrd/etc/keymaps.tar
+gzip ./source/installer/sources/dnsmasq/dnsmasq.leasedir.diff
+gzip ./source/installer/sources/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch
+gzip ./source/installer/sources/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/x/liberation-fonts-ttf/doinst.sh
 gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh

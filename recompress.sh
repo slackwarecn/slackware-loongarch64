@@ -68,14 +68,11 @@ gzip ./source/d/gcc/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.
 gzip ./source/d/meson/meson.import.copy.diff
 gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/binutils/patches/binutils-special-sections-in-groups.patch
-gzip ./source/d/binutils/patches/binutils-bfd-close-fds.patch
 gzip ./source/d/binutils/patches/binutils-gold-i386-gnu-property-notes.patch
 gzip ./source/d/binutils/patches/binutils-use-long-long.patch
-gzip ./source/d/binutils/patches/binutils-dwarf-5-dir0.patch
 gzip ./source/d/binutils/patches/binutils-gold-warn-unsupported.patch
 gzip ./source/d/binutils/patches/binutils-readelf-other-sym-info.patch
 gzip ./source/d/binutils/patches/binutils-filename-in-error-messages.patch
-gzip ./source/d/binutils/patches/binutils-testsuite-fixes.patch
 gzip ./source/d/binutils/patches/binutils-version.patch
 gzip ./source/d/binutils/patches/binutils-revert-PLT-elision.patch
 gzip ./source/d/binutils/patches/binutils-no-config-h-check.patch
@@ -84,7 +81,6 @@ gzip ./source/d/binutils/patches/binutils-fix-testsuite-failures.patch
 gzip ./source/d/binutils/patches/binutils-libtool-lib64.patch
 gzip ./source/d/binutils/patches/binutils-2.27-aarch64-ifunc.patch
 gzip ./source/d/binutils/patches/binutils-CVE-2019-1010204.patch
-gzip ./source/d/binutils/patches/binutils-missing-man-pages.patch
 gzip ./source/d/binutils/patches/binutils-export-demangle.h.patch
 gzip ./source/d/binutils/patches/binutils-gold-mismatched-section-flags.patch
 gzip ./source/d/icecream/doinst.sh

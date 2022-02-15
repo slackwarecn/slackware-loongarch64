@@ -1,3 +1,15 @@
+# Prevent/fix bad permissions on /var/spool/mail/root:
+if [ ! -r var/spool/mail/root ]; then
+  touch var/spool/mail/root
+  chown root:mail var/spool/mail/root
+  chmod 660 var/spool/mail/root
+fi
+# If there is a previous root mailbox that is world readable, then
+# fix the ownership/permissions:
+if /bin/ls -l var/spool/mail/root | grep -q rw-r--r ; then
+  chown root:mail var/spool/mail/root
+  chmod 660 var/spool/mail/root
+fi
 # Send root a welcome email unless we detect that it's there already:
 if ! grep -q "Welcome to Linux (Slackware 15.0)" var/spool/mail/root 2> /dev/null ; then
  cat var/spool/mail/root.new >> var/spool/mail/root

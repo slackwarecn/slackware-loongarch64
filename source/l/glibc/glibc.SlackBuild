@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=glibc
 VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
@@ -151,8 +151,6 @@ apply_patches() {
   zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
   # Support ru_RU.CP1251 locale:
   zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
-  # Add a C.UTF-8 locale:
-  zcat $CWD/glibc-c-utf8-locale.patch.gz | patch -p1 --verbose || exit 1
   # Don't use AM/PM format for date(1). That's just plain crazy.
   zcat $CWD/glibc-2.32.en_US.no.am.pm.date.format.diff.gz | patch -p1 --verbose || exit 1
   # Other regression fixes from git:
@@ -404,7 +402,24 @@ cp -a $PKG/lib${LIBDIRSUFFIX}/* lib${LIBDIRSUFFIX}
 ( cd lib${LIBDIRSUFFIX}
   mkdir incoming
   mv *so* incoming
-  mv incoming/libSegFault.so .
+  mv incoming/libmemusage.so .
+  # Beginning with glibc-2.34, shared objects are using their ABI sonames
+  # directly, which is frankly, a terrible idea. It might help other package
+  # managers, but doesn't do us any favors where we already had a system for
+  # dealing with upgrades (and downgrades!). We'll change these libraries to
+  # use the versioned naming system of glibc-2.33 and earlier so that we don't
+  # have to handle these files differently and so that it's easy to see what
+  # version of glibc is in use at a glance.
+  cd incoming
+  for library in *.so.* ; do
+    mv $library $(echo $library | cut -f 1 -d .)-${VERSION}.so
+  done
+  # This one is a special case. We don't want an $ARCH embedded in the
+  # filename. It prevents using the same install scripts on all $ARCH
+  # and does no good since we'll never have multiple $ARCH libraries
+  # installed in the same directory anyway. So give it the previous name
+  # format:
+  mv ld-linux*-${VERSION}.so ld-${VERSION}.so
 )
 mkdir -p usr
 cp -a $PKG/usr/bin usr
@@ -460,7 +475,24 @@ fix_doinst
 ( cd lib${LIBDIRSUFFIX}
   mkdir incoming
   mv *so* incoming
-  mv incoming/libSegFault.so .
+  mv incoming/libmemusage.so .
+  # Beginning with glibc-2.34, shared objects are using their ABI sonames
+  # directly, which is frankly, a terrible idea. It might help other package
+  # managers, but doesn't do us any favors where we already had a system for
+  # dealing with upgrades (and downgrades!). We'll change these libraries to
+  # use the versioned naming system of glibc-2.33 and earlier so that we don't
+  # have to handle these files differently and so that it's easy to see what
+  # version of glibc is in use at a glance.
+  cd incoming
+  for library in *.so.* ; do
+    mv $library $(echo $library | cut -f 1 -d .)-${VERSION}.so
+  done
+  # This one is a special case. We don't want an $ARCH embedded in the
+  # filename. It prevents using the same install scripts on all $ARCH
+  # and does no good since we'll never have multiple $ARCH libraries
+  # installed in the same directory anyway. So give it the previous name
+  # format:
+  mv ld-linux*-${VERSION}.so ld-${VERSION}.so
 )
 # Build the package:
 /sbin/makepkg -l y -c n $TMP/glibc-$VERSION-$SLACKWARE_ARCH-$BUILD.txz

@@ -49,6 +49,7 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
+gzip ./source/d/rcs/rcs-5.10.0-SIGSTKSZ.patch
 gzip ./source/d/llvm/llvm.polly.hack.diff
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/rust/link_libffi.diff
@@ -84,7 +85,6 @@ gzip ./source/d/binutils/patches/binutils-CVE-2019-1010204.patch
 gzip ./source/d/binutils/patches/binutils-export-demangle.h.patch
 gzip ./source/d/binutils/patches/binutils-gold-mismatched-section-flags.patch
 gzip ./source/d/icecream/doinst.sh
-gzip ./source/d/automake/automake.python.3.10.diff
 gzip ./source/d/automake/doinst.sh
 gzip ./source/d/intltool/no-guess-builddir.diff
 gzip ./source/d/intltool/intltool-0.51.0-perl-5.22.patch
@@ -101,6 +101,7 @@ gzip ./source/d/make/make-4.0-noclock_gettime.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/scons/scons.1
+gzip ./source/e/emacs/emacs.glibc-2.34.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -565,6 +566,7 @@ gzip ./source/n/netkit-rsh/netkit-rsh.arg_max.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.auth.c.stddef.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.union_wait.diff
 gzip ./source/n/ntp/ntp.nano.diff
+gzip ./source/n/ntp/ntp.glibc-2.34.diff
 gzip ./source/n/ntp/doinst.sh
 gzip ./source/n/lynx/lynx-CVE-2008-4690.patch
 gzip ./source/n/lynx/doinst.sh
@@ -643,6 +645,7 @@ gzip ./source/ap/zsh/doinst.sh
 gzip ./source/ap/cdrtools/doinst.sh
 gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
+gzip ./source/ap/vim/ctags.use-conventional-unused-marker.patch
 gzip ./source/ap/vim/vim.vimrc.diff
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules
@@ -703,17 +706,8 @@ gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
-gzip ./source/l/glibc/patches/0001-nsswitch-return-result-when-nss-database-is-locked.patch
-gzip ./source/l/glibc/patches/glibc.CVE-2021-3999.patch
-gzip ./source/l/glibc/patches/cdc31409bd4f878577059e70dbd52a28643ec609.patch
-gzip ./source/l/glibc/patches/glibc.CVE-2021-3998.patch
-gzip ./source/l/glibc/patches/CVE-2021-33574_2.patch
-gzip ./source/l/glibc/patches/CVE-2021-27645.patch
-gzip ./source/l/glibc/patches/CVE-2021-38604.patch
-gzip ./source/l/glibc/patches/CVE-2021-35942.patch
-gzip ./source/l/glibc/patches/CVE-2021-33574_1.patch
-gzip ./source/l/glibc/glibc-c-utf8-locale.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
+gzip ./source/l/fuse/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
 gzip ./source/l/fuse/doinst.sh
 gzip ./source/l/gtk+/gtk+-1.2.10-ppc64.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-expose.patch
@@ -774,6 +768,7 @@ gzip ./source/l/GConf/doinst.sh
 gzip ./source/l/libiodbc/libiodbc.disable.rpath.diff
 gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
+gzip ./source/l/gvfs/gvfs.ftbfs.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
@@ -844,6 +839,7 @@ gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.csh
+gzip ./source/l/gcr/b3ca1d02bb0148ca787ac4aead164d7c8ce2c4d8.patch
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff
 gzip ./source/l/sdl/sdl-1.2.14-fix-mouse-clicking.patch
@@ -864,6 +860,7 @@ gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff
+gzip ./source/l/shared-mime-info/git_meson_buildfix.patch
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch
 gzip ./source/l/glib/glib-1.2.10-autotools.patch
@@ -902,6 +899,8 @@ gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch
+gzip ./source/l/glade/glade.remove.extra.da.from.LINGUAS.diff
+gzip ./source/l/glade/glade.ftbfs.diff
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch
 gzip ./source/l/id3lib/patches/id3lib.vbr_stack_smash.patch
 gzip ./source/l/id3lib/patches/id3lib.cppheaders.patch
@@ -918,9 +917,11 @@ gzip ./source/l/speech-dispatcher/a2faab416e42cbdf3d73f98578a89eb7a235e25a.patch
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh
+gzip ./source/l/dconf-editor/dconf-editor.ftbfs.diff
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/24.diff
+gzip ./source/l/qt5/patches/qt5-glibc-2.34.patch
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
 gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
@@ -1008,6 +1009,7 @@ gzip ./source/xap/fluxbox/xinitrc.fluxbox
 gzip ./source/xap/fluxbox/fluxbox.keys.diff
 gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/fluxbox/fluxbox.gcc11.patch
+gzip ./source/xap/network-manager-applet/network-manager-applet.ftbfs.diff
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff
@@ -1091,6 +1093,7 @@ gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
+gzip ./source/x/vulkan-sdk/gfxreconstruct-sdk.glibc-2.35.diff
 gzip ./source/x/mesa/doinst.sh
 gzip ./source/x/urw-core35-fonts-otf/doinst.sh
 gzip ./source/x/ibus-hangul/doinst.sh

@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=fuse
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -78,6 +78,11 @@ find . \
  -exec chmod 755 {} \+ -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
+
+# patch to build with glibc-2.34 from https://src.fedoraproject.org/rpms/fuse/raw/rawhide/f/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
+zcat $CWD/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch.gz | patch -Esp1 --verbose || exit 1
+
+autoreconf -vif
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \

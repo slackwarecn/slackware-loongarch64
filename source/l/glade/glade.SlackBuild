@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Slackware build script for glade
-
 # Copyright 2011, 2020  Robby Workman, Tuscaloosa, Alabama, USA
+# Copyright 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# 
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=glade
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-6}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -79,8 +79,8 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-# Well, this is dumb:
-sed -i "s,python-3.8-embed,python-3.9-embed," meson.build
+zcat $CWD/glade.ftbfs.diff.gz | patch -p1 --verbose || exit 1
+zcat $CWD/glade.remove.extra.da.from.LINGUAS.diff.gz | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
@@ -100,6 +100,7 @@ meson setup \
   --localstatedir=/var \
   --buildtype=release \
   -Dgladeui=true \
+  -Dgtk_doc=false \
   .. || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1

@@ -921,14 +921,11 @@ gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/dconf-editor/dconf-editor.ftbfs.diff
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
-gzip ./source/l/qt5/patches/24.diff
-gzip ./source/l/qt5/patches/qt5-glibc-2.34.patch
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
 gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
 gzip ./source/l/qt5/patches/qt5.mysql.h.diff
 gzip ./source/l/qt5/patches/qt5-qtwebengine-gcc11.patch
-gzip ./source/l/qt5/patches/qtwebengine-everywhere-src-5.15.2-%231904652.patch
 gzip ./source/l/qt5/doinst.sh
 gzip ./source/l/mozjs78/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs78/patches/fix-soname.patch

@@ -30,6 +30,9 @@ cd qt5
   git checkout kde/5.15
   ./init-repository
 
+  # Sync qtwebengine version with the rest of qt5
+  sed -i -E "s/5.15.(.*)/5.15.3/" qtwebengine/.qmake.conf
+
   for i in $(find . -type d -name "qt*" -maxdepth 1); do
     cd $i
       ../qtbase/bin/syncqt.pl -version $BRANCH

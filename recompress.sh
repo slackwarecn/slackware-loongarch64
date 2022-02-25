@@ -8,6 +8,7 @@ gzip ./extra/source/php80/php-fpm.conf.diff
 gzip ./extra/source/php80/doinst.sh
 gzip ./extra/source/php80/php.imap.api.diff
 gzip ./extra/source/php80/php.ini-development.diff
+gzip ./extra/source/xv/xv.no.jasper.diff
 gzip ./extra/source/xv/xv-3.10a.patch
 gzip ./extra/source/xv/xv-libpng-1.5.patch
 gzip ./extra/source/xv/xv.prefix_x86_64.diff

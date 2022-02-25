@@ -1,6 +1,29 @@
---- ./configure.ac.orig	2020-02-13 18:40:54.000000000 -0600
-+++ ./configure.ac	2020-02-14 19:28:45.566081482 -0600
-@@ -1532,6 +1532,62 @@
+--- ./sshd.8.orig	2022-02-23 05:31:11.000000000 -0600
++++ ./sshd.8	2022-02-24 13:28:36.533888569 -0600
+@@ -908,6 +908,12 @@
+ This file should be writable only by the user, and need not be
+ readable by anyone else.
+ .Pp
++.It Pa /etc/hosts.allow
++.It Pa /etc/hosts.deny
++Access controls that should be enforced by tcp-wrappers are defined here.
++Further details are described in
++.Xr hosts_access 5 .
++.Pp
+ .It Pa /etc/hosts.equiv
+ This file is for host-based authentication (see
+ .Xr ssh 1 ) .
+@@ -1010,6 +1016,7 @@
+ .Xr ssh-keygen 1 ,
+ .Xr ssh-keyscan 1 ,
+ .Xr chroot 2 ,
++.Xr hosts_access 5 ,
+ .Xr login.conf 5 ,
+ .Xr moduli 5 ,
+ .Xr sshd_config 5 ,
+--- ./configure.ac.orig	2022-02-23 05:31:11.000000000 -0600
++++ ./configure.ac	2022-02-24 13:30:10.535883370 -0600
+@@ -1599,6 +1599,62 @@
  	AC_MSG_RESULT([no])
  fi
  
@@ -63,19 +86,19 @@
  # Check whether user wants to use ldns
  LDNS_MSG="no"
  AC_ARG_WITH(ldns,
-@@ -5389,6 +5445,7 @@
+@@ -5593,6 +5649,7 @@
  echo "                   OSF SIA support: $SIA_MSG"
  echo "                 KerberosV support: $KRB5_MSG"
  echo "                   SELinux support: $SELINUX_MSG"
 +echo "              TCP Wrappers support: $TCPW_MSG"
- echo "              MD5 password support: $MD5_MSG"
  echo "                   libedit support: $LIBEDIT_MSG"
  echo "                   libldns support: $LDNS_MSG"
---- ./sshd.c.orig	2020-02-13 18:40:54.000000000 -0600
-+++ ./sshd.c	2020-02-14 19:30:12.694084273 -0600
-@@ -124,6 +124,13 @@
- #include "ssherr.h"
- #include "sk-api.h"
+ echo "  Solaris process contract support: $SPC_MSG"
+--- ./sshd.c.orig	2022-02-23 05:31:11.000000000 -0600
++++ ./sshd.c	2022-02-24 13:28:36.533888569 -0600
+@@ -129,6 +129,13 @@
+ #include "srclimit.h"
+ #include "dh.h"
  
 +#ifdef LIBWRAP
 +#include <tcpd.h>
@@ -87,7 +110,7 @@
  /* Re-exec fds */
  #define REEXEC_DEVCRYPTO_RESERVED_FD	(STDERR_FILENO + 1)
  #define REEXEC_STARTUP_PIPE_FD		(STDERR_FILENO + 2)
-@@ -2107,6 +2114,26 @@
+@@ -2138,6 +2145,26 @@
  	the_active_state = ssh;
  	ssh_packet_set_server(ssh);
  
@@ -114,26 +137,3 @@
  	check_ip_options(ssh);
  
  	/* Prepare the channels layer */
---- ./sshd.8.orig	2020-02-13 18:40:54.000000000 -0600
-+++ ./sshd.8	2020-02-14 19:28:45.574081482 -0600
-@@ -893,6 +893,12 @@
- This file should be writable only by the user, and need not be
- readable by anyone else.
- .Pp
-+.It Pa /etc/hosts.allow
-+.It Pa /etc/hosts.deny
-+Access controls that should be enforced by tcp-wrappers are defined here.
-+Further details are described in
-+.Xr hosts_access 5 .
-+.Pp
- .It Pa /etc/hosts.equiv
- This file is for host-based authentication (see
- .Xr ssh 1 ) .
-@@ -995,6 +1001,7 @@
- .Xr ssh-keygen 1 ,
- .Xr ssh-keyscan 1 ,
- .Xr chroot 2 ,
-+.Xr hosts_access 5 ,
- .Xr login.conf 5 ,
- .Xr moduli 5 ,
- .Xr sshd_config 5 ,

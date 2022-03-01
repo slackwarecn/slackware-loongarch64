@@ -50,7 +50,6 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
-gzip ./source/d/rcs/rcs-5.10.0-SIGSTKSZ.patch
 gzip ./source/d/llvm/llvm.polly.hack.diff
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
 gzip ./source/d/rust/link_libffi.diff
@@ -749,7 +748,6 @@ gzip ./source/l/ncurses/ncurses.mkhashsize.diff
 gzip ./source/l/ncurses/doinst.sh
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
-gzip ./source/l/libxml2/7955b0d6fbbe49392ccc2e511edd00fbbfcb5a10.patch
 gzip ./source/l/libxml2/libxml2.python3-unicode-errors.patch
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh

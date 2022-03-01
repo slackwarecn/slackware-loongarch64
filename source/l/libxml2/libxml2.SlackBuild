@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libxml2
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -81,18 +81,25 @@ find . \
 
 zcat $CWD/libxml2.do-not-check-crc.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/libxml2.python3-unicode-errors.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/7955b0d6fbbe49392ccc2e511edd00fbbfcb5a10.patch.gz | patch -p1 --verbose || exit 1
 
 # Fixes for python-3.9.x:
 sed -i '/if Py/{s/Py/(Py/;s/)/))/}' python/{types.c,libxml.c}
 sed -i '/_PyVerify_fd/,+1d' python/types.c
 sed -i 's/test.test/#&/' python/tests/tstLastError.py
 
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
   --with-python=/usr/bin/python3 \
   --build=$ARCH-slackware-linux || exit 1
@@ -110,6 +117,7 @@ CFLAGS="$SLKCFLAGS" \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
   --with-python=/usr/bin/python \
   --build=$ARCH-slackware-linux || exit 1
@@ -126,14 +134,19 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-mv $PKG/usr/share/doc $PKG/usr
-mv $PKG/usr/doc/libxml2-python-$VERSION $PKG/usr/doc/libxml2-$VERSION
+mv $PKG/usr/share/doc/libxml2-python-$VERSION $PKG/usr/doc/libxml2-$VERSION
+rmdir $PKG/usr/share/doc
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README* \
+  AUTHORS* COPYING* Copyright* INSTALL* NEWS* README* TODO* \
   $PKG/usr/doc/libxml2-$VERSION
 find $PKG/usr/doc/libxml2-$VERSION -type f | xargs chmod 644
 
-gzip -9 $PKG/usr/man/man?/*.?
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

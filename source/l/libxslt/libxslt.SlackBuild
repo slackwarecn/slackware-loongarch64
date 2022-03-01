@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libxslt
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -81,6 +81,14 @@ sed -i '/#include <xlocale.h>/d' libxslt/xsltlocale.h
 # on infinite recursion:
 zcat $CWD/libxslt.xsltMaxDepth.diff.gz | patch -p1 --verbose || exit 1
 
+# Configure, build, and install:
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -98,14 +106,31 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 mv $PKG/usr/share/doc $PKG/usr
 mv $PKG/usr/doc/libxslt-python-$VERSION $PKG/usr/doc/libxslt-$VERSION
 cp -a \
-  AUTHORS COPYING* Copyright FEATURES INSTALL IPR NEWS README TODO libxslt.spec \
+  AUTHORS* COPYING* ChangeLog Copyright* FEATURES* HACKING* INSTALL* NEWS* README* TODO* libxslt.spec \
   $PKG/usr/doc/libxslt-$VERSION
 find $PKG/usr/doc/libxslt-$VERSION -type f | xargs chmod 644
+rm -rf $PKG/usr/share/gtk-doc
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
+# Nevermind... this hasn't been updated in a decade:
+rm -r $DOCSDIR/ChangeLog
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-gzip -9 $PKG/usr/man/man?/*.?
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

@@ -36,6 +36,6 @@ if /bin/ls build-deps*.txz 1> /dev/null 2> /dev/null ; then # use prebuilt autoc
 else
   # We need to use the incredibly ancient autoconf-2.13 for this  :/
   ( cd $CWD/build-deps/autoconf ; ./autoconf.build ) || exit 1
-  # And node.js... WHY
-  ( cd $CWD/build-deps/nodejs ; ./nodejs.build ) || exit 1
+  ## And node.js... WHY
+  #( cd $CWD/build-deps/nodejs ; ./nodejs.build ) || exit 1
 fi

@@ -58,6 +58,9 @@ for i in $(grep "Repo:" release_notes.html | cut -d "\"" -f 2); do
   COMMIT=$(basename $i)
   REPO=$(echo $i | cut -d "/" -f 1-5)
   NAME=$(basename $REPO)
+  echo ""
+  echo "$NAME"
+  echo ""
 
   # release notes for bugfix releases contain the repo list multiple times
   # only create tarballs for the most recent ones (on top)
@@ -66,7 +69,7 @@ for i in $(grep "Repo:" release_notes.html | cut -d "\"" -f 2); do
     cd $NAME-$COMMIT
       git reset --hard $COMMIT || git reset --hard origin/$COMMIT
       git submodule update --init --recursive
-      git describe > .git-version
+      git describe --tags > .git-version
     cd ..
     tar --exclude-vcs -cf $NAME-$COMMIT.tar $NAME-$COMMIT
     plzip -9 $NAME-$COMMIT.tar
@@ -79,7 +82,7 @@ for i in $(grep "Repo:" release_notes.html | cut -d "\"" -f 2); do
       cd SPIRV-Headers-$SPIRV_HEADERS_COMMIT
         git reset --hard $SPIRV_HEADERS_COMMIT || git reset --hard origin/$SPIRV_HEADERS_COMMIT
         git submodule update --init --recursive
-        git describe > .git-version
+        git describe --tags > .git-version
       cd ..
       tar --exclude-vcs -cf SPIRV-Headers-$SPIRV_HEADERS_COMMIT.tar SPIRV-Headers-$SPIRV_HEADERS_COMMIT
       plzip -9 SPIRV-Headers-$SPIRV_HEADERS_COMMIT.tar
@@ -92,7 +95,7 @@ for i in $(grep "Repo:" release_notes.html | cut -d "\"" -f 2); do
       cd robin-hood-hashing-$ROBIN_HOOD_COMMIT
         git reset --hard $ROBIN_HOOD_COMMIT || git reset --hard origin/$ROBIN_HOOD_COMMIT
         git submodule update --init --recursive
-        git describe > .git-version
+        git describe --tags > .git-version
       cd ..
       tar --exclude-vcs -cf robin-hood-hashing-$ROBIN_HOOD_COMMIT.tar robin-hood-hashing-$ROBIN_HOOD_COMMIT
       plzip -9 robin-hood-hashing-$ROBIN_HOOD_COMMIT.tar
@@ -112,7 +115,7 @@ if ! [ -e "Vulkan-ExtensionLayer.fetched" ]; then
       git reset --hard sdk-$VERSION-TAG || git reset --hard origin/sdk-$VERSION-TAG || \
       git reset --hard sdk.$VERSION-TAG || git reset --hard origin/sdk.$VERSION-TAG
       git submodule update --init --recursive
-      git describe > .git-version
+      git describe --tags > .git-version
     cd ..
     tar --exclude-vcs -cf Vulkan-ExtensionLayer-sdk-$VERSION.tar Vulkan-ExtensionLayer-sdk-$VERSION
     plzip -9 Vulkan-ExtensionLayer-sdk-$VERSION.tar

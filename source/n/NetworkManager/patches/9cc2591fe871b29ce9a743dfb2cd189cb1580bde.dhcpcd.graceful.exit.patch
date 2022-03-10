@@ -1,57 +1,6 @@
-From 9cc2591fe871b29ce9a743dfb2cd189cb1580bde Mon Sep 17 00:00:00 2001
-From: Roy Marples <roy@marples.name>
-Date: Thu, 16 Sep 2021 20:36:49 +0100
-Subject: [PATCH] dhcpcd: stop dhcpcd using nm_dhcp_client_stop_pid rather than
- killing
-
-NetworkManager can stop/start a DHCP client faster than dhcpcd can
-gracefully exit.
-
-As such, refactor nm_dhcp_client_stop_pid so that a specific signal
-can be sent which allows dhcpcd to gracefully stop on SIGTERM and
-release on SIGALRM.
----
- src/core/dhcp/nm-dhcp-client.c   |  6 +++---
- src/core/dhcp/nm-dhcp-client.h   |  2 +-
- src/core/dhcp/nm-dhcp-dhclient.c |  2 +-
- src/core/dhcp/nm-dhcp-dhcpcd.c   | 22 ++++------------------
- 4 files changed, 9 insertions(+), 23 deletions(-)
-
-diff --git a/src/core/dhcp/nm-dhcp-client.c b/src/core/dhcp/nm-dhcp-client.c
-index f88c79c0be..727296d158 100644
---- a/src/core/dhcp/nm-dhcp-client.c
-+++ b/src/core/dhcp/nm-dhcp-client.c
-@@ -429,14 +429,14 @@ watch_cleanup(NMDhcpClient *self)
- }
- 
- void
--nm_dhcp_client_stop_pid(pid_t pid, const char *iface)
-+nm_dhcp_client_stop_pid(pid_t pid, const char *iface, int sig)
- {
-     char *name = iface ? g_strdup_printf("dhcp-client-%s", iface) : NULL;
- 
-     g_return_if_fail(pid > 1);
- 
-     nm_utils_kill_child_sync(pid,
--                             SIGTERM,
-+                             sig,
-                              LOGD_DHCP,
-                              name ?: "dhcp-client",
-                              NULL,
-@@ -457,7 +457,7 @@ stop(NMDhcpClient *self, gboolean release)
-     if (priv->pid > 0) {
-         /* Clean up the watch handler since we're explicitly killing the daemon */
-         watch_cleanup(self);
--        nm_dhcp_client_stop_pid(priv->pid, priv->iface);
-+        nm_dhcp_client_stop_pid(priv->pid, priv->iface, SIGTERM);
-     }
-     priv->pid = -1;
- }
-diff --git a/src/core/dhcp/nm-dhcp-client.h b/src/core/dhcp/nm-dhcp-client.h
-index 2e7e021650..439b873dec 100644
---- a/src/core/dhcp/nm-dhcp-client.h
-+++ b/src/core/dhcp/nm-dhcp-client.h
-@@ -197,7 +197,7 @@ void nm_dhcp_client_stop(NMDhcpClient *self, gboolean release);
+--- ./src/core/dhcp/nm-dhcp-client.h.orig	2022-03-06 07:02:58.000000000 -0600
++++ ./src/core/dhcp/nm-dhcp-client.h	2022-03-09 15:07:05.974017045 -0600
+@@ -260,7 +260,7 @@
  /* Backend helpers for subclasses */
  void nm_dhcp_client_stop_existing(const char *pid_file, const char *binary_name);
  
@@ -60,24 +9,9 @@ index 2e7e021650..439b873dec 100644
  
  void nm_dhcp_client_start_timeout(NMDhcpClient *self);
  
-diff --git a/src/core/dhcp/nm-dhcp-dhclient.c b/src/core/dhcp/nm-dhcp-dhclient.c
-index 970a51f5dd..21fc857d26 100644
---- a/src/core/dhcp/nm-dhcp-dhclient.c
-+++ b/src/core/dhcp/nm-dhcp-dhclient.c
-@@ -627,7 +627,7 @@ stop(NMDhcpClient *client, gboolean release)
- 
-         if (dhclient_start(client, NULL, TRUE, &rpid, 0, NULL)) {
-             /* Wait a few seconds for the release to happen */
--            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client));
-+            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client), SIGTERM);
-         }
-     }
- }
-diff --git a/src/core/dhcp/nm-dhcp-dhcpcd.c b/src/core/dhcp/nm-dhcp-dhcpcd.c
-index 7522156bef..db694a2c11 100644
---- a/src/core/dhcp/nm-dhcp-dhcpcd.c
-+++ b/src/core/dhcp/nm-dhcp-dhcpcd.c
-@@ -162,31 +162,17 @@ stop(NMDhcpClient *client, gboolean release)
+--- ./src/core/dhcp/nm-dhcp-dhcpcd.c.orig	2022-02-23 09:40:42.000000000 -0600
++++ ./src/core/dhcp/nm-dhcp-dhcpcd.c	2022-03-09 15:07:05.974017045 -0600
+@@ -158,31 +158,17 @@
  {
      NMDhcpDhcpcd *self = NM_DHCP_DHCPCD(client);
      pid_t         pid;
@@ -113,7 +47,42 @@ index 7522156bef..db694a2c11 100644
      }
  }
  
--- 
-GitLab
-
-
+--- ./src/core/dhcp/nm-dhcp-dhclient.c.orig	2022-02-23 09:40:42.000000000 -0600
++++ ./src/core/dhcp/nm-dhcp-dhclient.c	2022-03-09 15:07:05.974017045 -0600
+@@ -617,7 +617,7 @@
+ 
+         if (dhclient_start(client, NULL, TRUE, &rpid, NULL)) {
+             /* Wait a few seconds for the release to happen */
+-            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client));
++            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client), SIGTERM);
+         }
+     }
+ }
+--- ./src/core/dhcp/nm-dhcp-client.c.orig	2022-03-06 07:02:58.000000000 -0600
++++ ./src/core/dhcp/nm-dhcp-client.c	2022-03-09 15:08:51.964019416 -0600
+@@ -204,14 +204,14 @@
+ }
+ 
+ void
+-nm_dhcp_client_stop_pid(pid_t pid, const char *iface)
++nm_dhcp_client_stop_pid(pid_t pid, const char *iface, int sig)
+ {
+     char *name = iface ? g_strdup_printf("dhcp-client-%s", iface) : NULL;
+ 
+     g_return_if_fail(pid > 1);
+ 
+     nm_utils_kill_child_sync(pid,
+-                             SIGTERM,
++                             sig,
+                              LOGD_DHCP,
+                              name ?: "dhcp-client",
+                              NULL,
+@@ -232,7 +232,7 @@
+     if (priv->pid > 0) {
+         /* Clean up the watch handler since we're explicitly killing the daemon */
+         watch_cleanup(self);
+-        nm_dhcp_client_stop_pid(priv->pid, priv->config.iface);
++        nm_dhcp_client_stop_pid(priv->pid, priv->config.iface, SIGTERM);
+     }
+     priv->pid = -1;
+ }

@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sysfsutils
-VERSION=2.1.0
-BUILD=${BUILD:-4}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -57,7 +57,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf sysfsutils-$VERSION
-tar xvf $CWD/sysfsutils-$VERSION.tar.bz2 || exit 1
+tar xvf $CWD/sysfsutils-$VERSION.tar.?z || exit 1
 cd sysfsutils-$VERSION || exit 1
 chown -R root:root .
 find . \
@@ -66,27 +66,40 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+if [ ! -r configure ]; then
+  if [ -x ./autogen ]; then
+    NOCONFIGURE=1 ./autogen
+  else
+    autoreconf -vif
+  fi
+fi
+
 ./configure \
   --prefix=/usr \
   --libdir=/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
   --enable-static=no \
   --build=$ARCH-slackware-linux || exit 1
 make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Unless things start whining later that this libtool junk is
-# required for some reason, out it goes.  Especially in /lib,
-# where probably nothing would find it anyway.
-rm -f $PKG/lib${LIBDIRSUFFIX}/*.la
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
 # .so links should really go in /usr/lib:
 rm $PKG/lib${LIBDIRSUFFIX}/*.so
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+
 # sanity check
 if [ ! -L $PKG/lib${LIBDIRSUFFIX}/libsysfs.so.2 ]; then
   exit 1
 fi
 ( cd $PKG/usr/lib${LIBDIRSUFFIX} ; ln -sf /lib${LIBDIRSUFFIX}/libsysfs.so.2 libsysfs.so )
+
+# pkgconfig directory should go in /usr/lib${LIBDIRSUFFIX}
+if [ -d $PKG/lib${LIBDIRSUFFIX}/pkgconfig -a ! -d $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig ]; then
+  mv $PKG/lib${LIBDIRSUFFIX}/pkgconfig $PKG/usr/lib${LIBDIRSUFFIX}
+fi
 
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -95,8 +108,10 @@ fi
 
 mkdir -p $PKG/usr/doc/sysfsutils-$VERSION
 cp -a \
-  AUTHORS COPYING CREDITS NEWS README TODO \
+  AUTHORS* COPYING* CREDITS* NEWS* README* TODO* \
+  cmd/GPL* \
   docs/* \
+  lib/LGPL* \
   $PKG/usr/doc/sysfsutils-$VERSION
 
 # Compress and/or relink manpages:
@@ -119,4 +134,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 makepkg -l y -c n $TMP/sysfsutils-$VERSION-$ARCH-$BUILD.txz
-

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2018, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,9 +23,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gmime
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -66,7 +66,7 @@ fi
 
 cd $TMP
 rm -rf ${PKGNAM}-${VERSION}
-tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/${PKGNAM}-$VERSION.tar.?z || exit 1
 cd ${PKGNAM}-$VERSION
 
 # Make sure ownerships and permissions are sane:
@@ -78,6 +78,13 @@ find . \
   -exec chmod 644 {} \+
 
 # Configure:
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -85,6 +92,7 @@ CFLAGS="$SLKCFLAGS" \
   --localstatedir=/var/lib \
   --sysconfdir=/etc \
   --mandir=/usr/man \
+  --disable-gtk-doc \
   --disable-static \
   --program-prefix= \
   --program-suffix= \
@@ -127,7 +135,7 @@ fi
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING INSTALL NEWS PORTING README TODO \
+  AUTHORS* COPYING* INSTALL* NEWS* PORTING* README* TODO* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
@@ -135,4 +143,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
-

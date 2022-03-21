@@ -23,5 +23,5 @@ set path = ( $path $QT5DIR/bin )
 # post your solution on LQ. Thanks. :-)
 file /bin/cat | grep -wq 32-bit
 if ( "$?" == "0" ) then
-  setenv QTWEBENGINE_CHROMIUM_FLAGS="--disable-seccomp-filter-sandbox"
+  setenv QTWEBENGINE_CHROMIUM_FLAGS "--disable-seccomp-filter-sandbox"
 endif

@@ -1008,7 +1008,6 @@ gzip ./source/xap/fluxbox/xinitrc.fluxbox
 gzip ./source/xap/fluxbox/fluxbox.keys.diff
 gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/fluxbox/fluxbox.gcc11.patch
-gzip ./source/xap/network-manager-applet/network-manager-applet.ftbfs.diff
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff

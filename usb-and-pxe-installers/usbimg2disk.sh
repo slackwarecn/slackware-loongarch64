@@ -218,6 +218,8 @@ if [ -n "$REPODIR" ]; then
     # This also takes care of stripping a trailing '/', which is required
     # for the rsync command to work as intended:
     REPOSROOT="$(cd $(dirname $REPODIR); pwd)/$(basename $REPODIR)"
+    # Use this to set the space requirement:
+    MININSFREE=$(expr $(du -s ${REPOSROOT}/slackware* | cut -f 1) / 1024)
   fi
 fi
 
@@ -237,7 +239,7 @@ else
 fi
 
 # Prepare the environment:
-MININSFREE=2200               # minimum in MB required for a Slackware tree
+MININSFREE=${MININSFREE:-3134} # minimum in MB required for a Slackware tree
 UNATTENDED=${UNATTENDED:-0}   # unattended means: never ask questions.
 REFORMAT=${REFORMAT:-0}       # do not try to reformat by default
 LOGFILE=${LOGFILE:-/dev/null} # silence by default

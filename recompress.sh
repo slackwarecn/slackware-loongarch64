@@ -604,7 +604,6 @@ gzip ./source/n/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/n/cyrus-sasl/rc.saslauthd
 gzip ./source/n/cyrus-sasl/doinst.sh
 gzip ./source/n/netatalk/doinst.sh
-gzip ./source/n/netatalk/netatalk-invalid_dircache_entries.patch
 gzip ./source/xfce/xfce4-whiskermenu-plugin/doinst.sh
 gzip ./source/xfce/xfce4-power-manager/doinst.sh
 gzip ./source/xfce/xfce4-taskmanager/doinst.sh

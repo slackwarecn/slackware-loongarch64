@@ -860,7 +860,6 @@ gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
 gzip ./source/l/shared-mime-info/doinst.sh
 gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff
-gzip ./source/l/shared-mime-info/git_meson_buildfix.patch
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch
 gzip ./source/l/glib/glib-1.2.10-autotools.patch

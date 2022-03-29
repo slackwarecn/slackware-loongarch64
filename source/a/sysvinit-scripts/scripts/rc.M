@@ -376,9 +376,9 @@ if [ -x /etc/rc.d/rc.dovecot ]; then
 fi
 
 # Start the mail server. Try the rc.sendmail script first, then try rc.postfix.
-if [ -x /etc/rc.d/rc.sendmail -a -x usr/sbin/makemap ]; then
+if [ -x /etc/rc.d/rc.sendmail -a -x /usr/sbin/makemap ]; then
   /etc/rc.d/rc.sendmail start
-elif [ -x /etc/rc.d/rc.postfix -a -x usr/sbin/postdrop ]; then
+elif [ -x /etc/rc.d/rc.postfix -a -x /usr/sbin/postdrop ]; then
   /etc/rc.d/rc.postfix start
 fi
 

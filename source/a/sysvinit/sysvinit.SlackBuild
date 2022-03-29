@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -71,7 +71,12 @@ zcat $CWD/sysvinit.always.define.version.diff.gz | patch -p1 --verbose || exit 1
 # Use /dev/initctl instead of /run/initctl ; this is a named pipe and probably
 # should be in /dev anyway, but more importantly, having the upgraded package
 # expect it in /run breaks shutdown/reboot without manual intervention:
-zcat $CWD/sysvinit.use_dev_initctl_not_run_initctl.diff.gz | patch -p1 --verbose || exit 1
+for replace in src/shutdown.c src/Makefile src/initreq.h src/init.c doc/initctl doc/Install man/init.8 man/initctl.5 man/po/* ; do
+  sed -i "s|run/initctl|dev/initctl|g" $replace
+done
+
+# Since they usually don't update the version here, let's try to make sure:
+sed -i "s/define VERSION.*/define VERSION \"$VERSION\"/g" src/init.c
 
 mkdir -p $PKG/usr/doc/sysvinit-$VERSION
 cp -a COPYING* COPYRIGHT* README* \
@@ -111,7 +116,7 @@ mkdir -p $PKG/usr/man/man{1,5,8}
 for page in last.1 ; do
   cat $page | gzip -9c > $PKG/usr/man/man1/$page.gz
 done
-for page in inittab.5 initscript.5 ; do
+for page in initctl.5 inittab.5 initscript.5 ; do
   cat $page | gzip -9c > $PKG/usr/man/man5/$page.gz
 done
 for page in halt.8 init.8 killall5.8 poweroff.8 reboot.8 runlevel.8 \

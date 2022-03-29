@@ -111,7 +111,6 @@ gzip ./source/a/attr/doinst.sh
 gzip ./source/a/etc/nsswitch.conf
 gzip ./source/a/etc/doinst.sh
 gzip ./source/a/syslinux/syslinux.glibc228.diff
-gzip ./source/a/sysvinit/sysvinit.use_dev_initctl_not_run_initctl.diff
 gzip ./source/a/sysvinit/sysvinit.always.define.version.diff
 gzip ./source/a/sysvinit/doinst.sh
 gzip ./source/a/sysvinit/sysvinit.paths.diff

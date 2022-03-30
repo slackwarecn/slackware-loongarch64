@@ -103,9 +103,9 @@ We are going to 'chroot' into our fresh installation:
     Next, while we are in the chroot, create the initrd with LVM support -
 in the example command line I assume that the root filesystem is 'ext4',
 we used the LV '/dev/myvg/root' as the root device, and are running the
-Slackware 14.2 default kernel '4.4.14':
+Slackware 15.0 default kernel '5.15.19':
 
-  # mkinitrd -c -k 4.4.14 -m ext4 -f ext4 -r /dev/myvg/root -L
+  # mkinitrd -c -k 5.15.19 -m ext4 -f ext4 -r /dev/myvg/root -L
 
     The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd, so open the
@@ -117,7 +117,7 @@ filename added by 'liloconfig' is '/boot/vmlinuz' which is a symbolic link to
 the huge SMP kernel.  Remember that we need a 'generic' kernel with the initrd.
 The end result should look somewhat like this:
 
-  image = /boot/vmlinuz-generic-4.4.14
+  image = /boot/vmlinuz-generic-5.15.19
     initrd = /boot/initrd.gz
     root = /dev/myvg/root
     label = linux

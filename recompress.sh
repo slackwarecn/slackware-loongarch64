@@ -688,6 +688,7 @@ gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap
+gzip ./source/ap/ghostscript/ef6bd6d61a3b5649dda077822d68de4e89133174.patch
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch

@@ -101,7 +101,6 @@ gzip ./source/d/make/make-4.0-noclock_gettime.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/d/scons/scons.1
-gzip ./source/e/emacs/emacs.glibc-2.34.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -416,7 +415,6 @@ gzip ./source/n/tftp-hpa/tftp-hpa.fcommon.diff
 gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff
 gzip ./source/n/procmail/procmail.lfs.diff
-gzip ./source/n/procmail/procmail_3.22-5.diff
 gzip ./source/n/nfs-utils/doinst.sh
 gzip ./source/n/nfs-utils/nfs-utils.lwrap.needs.lnsl.diff
 gzip ./source/n/metamail/metamail.uue.getline.diff
@@ -688,7 +686,6 @@ gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap
-gzip ./source/ap/ghostscript/ef6bd6d61a3b5649dda077822d68de4e89133174.patch
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
 gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch
@@ -787,7 +784,6 @@ gzip ./source/l/netpbm/netpbm-security-code.patch
 gzip ./source/l/netpbm/netpbm-ppmfadeusage.patch
 gzip ./source/l/netpbm/netpbm-cmuwtopbm.patch
 gzip ./source/l/netpbm/netpbm-CVE-2017-2587.patch
-gzip ./source/l/netpbm/netpbm-security-scripts.patch
 gzip ./source/l/netpbm/netpbm-gcc4.patch
 gzip ./source/l/netpbm/netpbm-noppmtompeg.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh

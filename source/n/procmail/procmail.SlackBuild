@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=procmail
-VERSION=3.22
-BUILD=${BUILD:-6}
+VERSION=3.24
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -55,9 +55,8 @@ explodepkg $CWD/_procmail.tar.gz
 
 cd $TMP
 rm -rf procmail-$VERSION
-tar xvf $CWD/procmail-$VERSION.tar.gz || exit 1
+tar xvf $CWD/procmail-$VERSION.tar.?z || exit 1
 cd procmail-$VERSION || exit 1
-zcat $CWD/procmail_3.22-5.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/procmail.lfs.diff.gz | patch -p1 --verbose || exit 1
 chown -R root:root .
 find . \
@@ -66,7 +65,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-sed -i "s/getline/procmail_getline/g" src/fields.c src/formail.c src/formisc.c src/formisc.h
+#sed -i "s/getline/procmail_getline/g" src/fields.c src/formail.c src/formisc.c src/formisc.h
+
+sed -i "s|#LOCKINGTEST=/tmp .|LOCKINGTEST=/tmp|g" Makefile
 
 make || exit 1
 
@@ -87,7 +88,7 @@ cd ..
 
 mkdir -p $PKG/usr/doc/procmail-$VERSION
 cp -a \
-  Artistic COPYING* FAQ FEATURES HISTORY INSTALL KNOWN_BUGS \
+  Artistic* COPYING* FAQ* FEATURES* HISTORY* INSTALL* KNOWN_BUGS* \
   README* examples \
   $PKG/usr/doc/procmail-$VERSION
 

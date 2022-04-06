@@ -257,6 +257,7 @@ gzip ./source/a/util-linux/setserial-rc.serial.diff
 gzip ./source/a/util-linux/util-linux.do.not.list.ram.devices.diff
 gzip ./source/a/util-linux/bsdstrings-util-linux_overflow.diff
 gzip ./source/a/util-linux/util-linux.fdisk-no-solaris.diff
+gzip ./source/a/util-linux/seedrng.8
 gzip ./source/a/util-linux/adjtimex_1.29-2.2.diff
 gzip ./source/a/util-linux/doinst.sh
 gzip ./source/a/util-linux/ziptool-fix_build.patch

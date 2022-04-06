@@ -463,16 +463,55 @@ if [ -x /etc/rc.d/rc.serial -a -z "$container" ]; then
 fi
 
 # Carry an entropy pool between reboots to improve randomness.
+# To do this properly, we need to utilize the "seedrng" utility, since that
+# supports the ioctls in recent kernels that allow the RNG to be initialized
+# after seeding. Otherwise using the script methods that were previously
+# recommended in the kernel source, it could take a long time for entropy
+# written to /dev/urandom to actually add to the entropy, and the new seed
+# that's output immediately afterward might actually have less entropy. This
+# would only be an issue in case a power failure occured before a proper
+# shutdown, or if a proper shutdown happened before enough time had gone by
+# to generate good entropy. We'll favor using seedrng, but if it's missing
+# (shouldn't be) then we'll fall back on using the script method.
 if [ -z "$container" ]; then
+  # Make sure the new seed storage directory exists:
+  if [ ! -d /var/lib/seedrng ]; then
+    mkdir -p /var/lib/seedrng
+    chmod 700 /var/lib/seedrng
+  fi
+  # If the old /etc/random-seed exists and no seedrng-generated seeds exist,
+  # then we might as well use it for non-creditable entropy:
   if [ -f /etc/random-seed ]; then
-    echo "Using /etc/random-seed to initialize /dev/urandom."
-    cat /etc/random-seed > /dev/urandom
+    if ! /bin/ls /var/lib/seedrng/seed.* 1> /dev/null 2> /dev/null ; then
+      echo "Moving /etc/random-seed to /var/lib/seedrng/seed.no-credit."
+      mv /etc/random-seed /var/lib/seedrng/seed.no-credit
+      chmod 400 /var/lib/seedrng/seed.no-credit
+    fi
   fi
-  # Use the pool size from /proc, or 4096 bits:
-  if [ -r /proc/sys/kernel/random/poolsize ]; then
-    dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
-  else
-    dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
+  # If we have the seedrng utility, we will use it to initialize the RNG:
+  if [ -x /usr/sbin/seedrng ]; then
+    /usr/sbin/seedrng
+  else # we have to fall back on the old method:
+    if ! /bin/ls /var/lib/seedrng/seed.* 1> /dev/null 2> /dev/null ; then
+      echo "WARNING: no usable RNG seed was found in /var/lib/seedrng."
+    else
+      echo "The SeedRNG utility was not found. Seeding the RNG with an inferior method."
+      SEED="$(cat /var/lib/seedrng/seed.* | base64)"
+      rm -f /var/lib/seedrng/seed.*
+      sync /var/lib/seedrng
+      echo "$SEED" | base64 -d > /dev/urandom
+      # The seed saved below isn't going to be as large as the pool size, but
+      # it would only be used if the power fails before a proper shutdown is
+      # done. Nevertheless we'll try to get a little entropy saved from our
+      # previous seed(s) plus some bits from /dev/urandom (which *might* have
+      # some additional entropy in it). It's probably better than nothing.
+      echo "Saving a new uncreditable seed:  /var/lib/seedrng/seed.no-credit"
+      {
+        head -c 512 /dev/urandom
+        echo "$SEED" | base64 -d
+      } | sha256sum | cut -d ' ' -f 1 > /var/lib/seedrng/seed.no-credit
+      chmod 400 /var/lib/seedrng/seed.no-credit
+      unset SEED
+    fi
   fi
-  chmod 600 /etc/random-seed
 fi

@@ -218,15 +218,32 @@ if /bin/grep -q quota /etc/fstab ; then
 fi
 
 # Carry a random seed between reboots.
+# Doing this properly requires the seedrng utility.
 if [ -z "$container" ]; then
-  echo "Saving random seed from /dev/urandom in /etc/random-seed."
-  # Use the pool size from /proc, or 4096 bits:
-  if [ -r /proc/sys/kernel/random/poolsize ]; then
-    /bin/dd if=/dev/urandom of=/etc/random-seed count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
-  else
-    /bin/dd if=/dev/urandom of=/etc/random-seed count=1 bs=512 2> /dev/null
+  # Any old seed that exists here shall be deemed useless:
+  if [ -f /etc/random-seed ]; then
+    rm -f /etc/random-seed
   fi
-  /bin/chmod 600 /etc/random-seed
+  if [ -x /usr/sbin/seedrng ]; then
+    /usr/sbin/seedrng
+  else # we have to fall back on the old method:
+    # Make sure the new seed storage directory exists:
+    if [ ! -d /var/lib/seedrng ]; then
+      mkdir -p /var/lib/seedrng
+      chmod 700 /var/lib/seedrng
+    fi
+    echo "The SeedRNG utility was not found. Generating a non-creditable and"
+    echo "inferior RNG seed: /var/lib/seedrng/seed.no-credit"
+    # To get a seed that matches the pool size, we'll use dd. This assumes that
+    # by the time the machine was shut down that the kernel had generated nearly
+    # a full entropy pool, but there is no guarantee of this.
+    if [ -r /proc/sys/kernel/random/poolsize ]; then
+      /bin/dd if=/dev/urandom of=/var/lib/seedrng/seed.no-credit count=1 bs=$(expr $(cat /proc/sys/kernel/random/poolsize) / 8) 2> /dev/null
+    else
+      /bin/dd if=/dev/urandom of=/var/lib/seedrng/seed.no-credit count=1 bs=512 2> /dev/null
+    fi
+    /bin/chmod 400 /var/lib/seedrng/seed.no-credit
+  fi
 fi
 
 # Before unmounting file systems write a reboot or halt record to wtmp.

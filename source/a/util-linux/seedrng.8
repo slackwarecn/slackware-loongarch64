@@ -1,0 +1,41 @@
+.TH seedrng 8
+.SH NAME
+seedrng \- seed the Linux kernel random number generator
+.SH SYNOPSIS
+.B seedrng
+.SH DESCRIPTION
+.B SeedRNG
+SeedRNG is a simple program made for seeding the Linux kernel random
+number generator from seed files. The program takes no arguments, must
+be run as root, and always attempts to do something useful.
+
+This program is useful in light of the fact that the Linux kernel RNG
+cannot be initialized from shell scripts, and new seeds cannot be safely
+generated from boot time shell scripts either.
+
+It should be run once at init time and once at shutdown time. It can be
+run at other times without detriment as well. Whenever it is run, it writes
+existing seed files into the RNG pool, and then creates a new seed file.
+If the RNG is initialized at the time of creating a new seed file, then that
+new seed file is marked as "creditable", which means it can be used to
+initialize the RNG. Otherwise, it is marked as "non-creditable", in which
+case it is still used to seed the RNG's pool, but will not initialize the
+RNG.
+
+In order to ensure that entropy only ever stays the same or increases from
+one seed file to the next, old seed values are hashed together with new seed
+values when writing new seed files:
+
+.BR
+new_seed = new_seed[:-32] || HASH(fixed_prefix || real_time || boot_time || old_seed_len || old_seed || new_seed_len || new_seed)
+
+The seed is stored in /var/lib/seedrng/, which can be adjusted at
+compile time. If the SEEDRNG_SKIP_CREDIT environment variable is set to 1,
+true, yes, or y, then seeds never credit the RNG, even if the seed file
+is creditable.
+
+.SH FILES
+.IR /var/lib/seedrng/seed.credit
+.IR /var/lib/seedrng/seed.no-credit
+.SH AUTHOR
+Jason A. Donenfeld <Jason@zx2c4.com>

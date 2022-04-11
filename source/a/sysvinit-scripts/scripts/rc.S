@@ -474,44 +474,38 @@ fi
 # to generate good entropy. We'll favor using seedrng, but if it's missing
 # (shouldn't be) then we'll fall back on using the script method.
 if [ -z "$container" ]; then
-  # Make sure the new seed storage directory exists:
-  if [ ! -d /var/lib/seedrng ]; then
-    mkdir -p /var/lib/seedrng
-    chmod 700 /var/lib/seedrng
-  fi
   # If the old /etc/random-seed exists and no seedrng-generated seeds exist,
   # then we might as well use it for non-creditable entropy:
+  OLD_UMASK="$(umask)"
+  umask 077
   if [ -f /etc/random-seed ]; then
-    if ! /bin/ls /var/lib/seedrng/seed.* 1> /dev/null 2> /dev/null ; then
-      echo "Moving /etc/random-seed to /var/lib/seedrng/seed.no-credit."
-      mv /etc/random-seed /var/lib/seedrng/seed.no-credit
-      chmod 400 /var/lib/seedrng/seed.no-credit
-    fi
+    echo "Appending /etc/random-seed to /var/lib/seedrng/seed.no-credit."
+    SEED="$(base64 /etc/random-seed)"
+    rm -f /etc/random-seed
+    sync /etc
+    mkdir -p /var/lib/seedrng
+    echo "$SEED" | base64 -d >> /var/lib/seedrng/seed.no-credit
   fi
   # If we have the seedrng utility, we will use it to initialize the RNG:
   if [ -x /usr/sbin/seedrng ]; then
     /usr/sbin/seedrng
   else # we have to fall back on the old method:
-    if ! /bin/ls /var/lib/seedrng/seed.* 1> /dev/null 2> /dev/null ; then
-      echo "WARNING: no usable RNG seed was found in /var/lib/seedrng."
-    else
-      echo "The SeedRNG utility was not found. Seeding the RNG with an inferior method."
-      SEED="$(cat /var/lib/seedrng/seed.* | base64)"
-      rm -f /var/lib/seedrng/seed.*
-      sync /var/lib/seedrng
-      echo "$SEED" | base64 -d > /dev/urandom
-      # The seed saved below isn't going to be as large as the pool size, but
-      # it would only be used if the power fails before a proper shutdown is
-      # done. Nevertheless we'll try to get a little entropy saved from our
-      # previous seed(s) plus some bits from /dev/urandom (which *might* have
-      # some additional entropy in it). It's probably better than nothing.
-      echo "Saving a new uncreditable seed:  /var/lib/seedrng/seed.no-credit"
-      {
-        head -c 512 /dev/urandom
-        echo "$SEED" | base64 -d
-      } | sha256sum | cut -d ' ' -f 1 > /var/lib/seedrng/seed.no-credit
-      chmod 400 /var/lib/seedrng/seed.no-credit
-      unset SEED
-    fi
+    echo "The SeedRNG utility was not found. Seeding the RNG with an inferior method."
+    SEED="$(cat /var/lib/seedrng/seed.* 2> /dev/null | base64)"
+    rm -f /var/lib/seedrng/seed.*
+    sync /var/lib/seedrng
+    echo "$SEED" | base64 -d > /dev/urandom
+    # The seed saved below isn't going to be as large as the pool size.
+    # Nevertheless we'll try to get a little entropy saved from our
+    # previous seed(s) plus some bits from /dev/urandom (which *might* have
+    # some additional entropy in it). It's probably better than nothing.
+    echo "Saving a new uncreditable seed: /var/lib/seedrng/seed.no-credit"
+    POOLSIZE=$(expr $(cat /proc/sys/kernel/random/poolsize 2> /dev/null || echo 4096) / 8)
+    {
+      head -c $POOLSIZE /dev/urandom
+      echo "$SEED" | base64 -d
+    } | sha512sum | cut -d ' ' -f 1 > /var/lib/seedrng/seed.no-credit
   fi
+  unset SEED
+  umask "$OLD_UMASK"
 fi

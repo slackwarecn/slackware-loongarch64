@@ -738,7 +738,6 @@ gzip ./source/l/gtk+/gtk+-1.2.10-ukfont.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-fontwarning.patch
 gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff
-gzip ./source/l/boost/0001-b2-fix-install.patch
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff

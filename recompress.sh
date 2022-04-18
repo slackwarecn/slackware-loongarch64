@@ -115,7 +115,6 @@ gzip ./source/a/sysvinit/doinst.sh
 gzip ./source/a/sysvinit/sysvinit.paths.diff
 gzip ./source/a/coreutils/coreutils-dircolors.csh
 gzip ./source/a/coreutils/no_ls_quoting.patch
-gzip ./source/a/coreutils/e8b56ebd536e82b15542a00c888109471936bfda.patch
 gzip ./source/a/coreutils/doinst.sh
 gzip ./source/a/coreutils/coreutils.uname.diff
 gzip ./source/a/coreutils/coreutils-dircolors.sh
@@ -488,7 +487,6 @@ gzip ./source/n/ca-certificates/update-ca-certificates.c_rehash.diff
 gzip ./source/n/krb5/doinst.sh
 gzip ./source/n/iptraf-ng/iptraf-ng.paths.diff
 gzip ./source/n/nss-pam-ldapd/doinst.sh
-gzip ./source/n/rsync/rsync.no_lchmod.diff
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh

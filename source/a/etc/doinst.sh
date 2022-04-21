@@ -98,9 +98,9 @@ chroot . /usr/sbin/usermod -d /var/lib/sddm sddm > /dev/null 2> /dev/null
 chroot . /usr/sbin/usermod --groups video sddm > /dev/null 2> /dev/null
 
 # Also ensure ownerships/perms:
-chown root.utmp var/run/utmp var/log/wtmp
+chown root:utmp var/run/utmp var/log/wtmp
 chmod 664 var/run/utmp var/log/wtmp
-chown root.shadow etc/shadow etc/gshadow
+chown root:shadow etc/shadow etc/gshadow
 chmod 640 etc/shadow etc/gshadow
 
 # Match permissions on any leftover config z-dot-in-non-root-path scripts
@@ -112,4 +112,3 @@ fi
 if [ -r etc/profile.d/z-dot-in-non-root-path.sh.new ]; then
   touch -r etc/profile.d/z-dot-in-non-root-path.sh etc/profile.d/z-dot-in-non-root-path.sh.new
 fi
-

@@ -1,5 +1,85 @@
---- ./plugins/infowidget/GeoIP.h.orig	2021-08-15 00:18:01.329498947 -0500
-+++ ./plugins/infowidget/GeoIP.h	2021-08-15 00:18:01.329498947 -0500
+--- ./plugins/infowidget/peerviewmodel.h.orig	2022-04-13 21:50:05.000000000 -0500
++++ ./plugins/infowidget/peerviewmodel.h	2022-04-22 13:03:03.206722648 -0500
+@@ -61,12 +61,7 @@
+         QString country;
+         QIcon flag;
+ 
+-        Item(bt::PeerInterface *peer
+-#if BUILD_WITH_GEOIP
+-             ,
+-             GeoIPManager *geo_ip
+-#endif
+-        );
++        Item(bt::PeerInterface *peer, GeoIPManager *geo_ip);
+ 
+         bool changed() const;
+         QVariant data(int col) const;
+@@ -76,9 +71,7 @@
+ 
+ private:
+     QVector<Item *> items;
+-#if BUILD_WITH_GEOIP
+-    GeoIPManager *geo_ip = nullptr;
+-#endif
++    GeoIPManager *geo_ip;
+ };
+ 
+ }
+--- ./plugins/infowidget/geoipmanager.h.orig	2022-04-13 21:50:05.000000000 -0500
++++ ./plugins/infowidget/geoipmanager.h	2022-04-22 13:03:03.206722648 -0500
+@@ -7,7 +7,21 @@
+ #define KT_GEOIPMANAGER_H
+ 
+ #include <QObject>
++#include <QThread>
++#include <QUrl>
++
++#ifdef USE_SYSTEM_GEOIP
+ #include <GeoIP.h>
++#else
++#include "GeoIP.h"
++#endif
++
++class KJob;
++
++namespace bt
++{
++class DecompressThread;
++}
+ 
+ namespace kt
+ {
+@@ -42,8 +56,28 @@
+      */
+     QString countryCode(int country_id);
+ 
++    /// Get the database URL
++    static QUrl geoIPUrl()
++    {
++        return geoip_url;
++    }
++
++    /// Set the database URL
++    static void setGeoIPUrl(const QUrl &url);
++
++    /// Download the database
++    void downloadDataBase();
++
++private Q_SLOTS:
++    void databaseDownloadFinished(KJob *job);
++    void decompressFinished();
++
+ private:
+     GeoIP *geo_ip;
++    QString geoip_data_file;
++    QString download_destination;
++    bt::DecompressThread *decompress_thread;
++    static QUrl geoip_url;
+ };
+ 
+ }
+--- ./plugins/infowidget/GeoIP.h.orig	2022-04-22 13:03:03.205722648 -0500
++++ ./plugins/infowidget/GeoIP.h	2022-04-22 13:03:03.205722648 -0500
 @@ -0,0 +1,148 @@
 +/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 2; tab-width: 2 -*- */
 +/* GeoIP.h
@@ -149,125 +229,153 @@
 +#endif
 +
 +#endif /* GEOIP_H */
---- ./plugins/infowidget/geoipmanager.cpp.orig	2021-08-04 21:50:44.000000000 -0500
-+++ ./plugins/infowidget/geoipmanager.cpp	2021-08-15 00:18:01.329498947 -0500
-@@ -20,16 +20,47 @@
+--- ./plugins/infowidget/peerviewmodel.cpp.orig	2022-04-13 21:50:05.000000000 -0500
++++ ./plugins/infowidget/peerviewmodel.cpp	2022-04-22 13:03:03.206722648 -0500
+@@ -13,13 +13,10 @@
+ #include <KLocalizedString>
+ 
+ #include "flagdb.h"
++#include "geoipmanager.h"
+ #include <interfaces/torrentinterface.h>
+ #include <util/functions.h>
+ 
+-#if BUILD_WITH_GEOIP
+-#include "geoipmanager.h"
+-#endif
+-
+ using namespace bt;
  
  namespace kt
+@@ -28,12 +25,7 @@
+ static bool icons_loaded = false;
+ static FlagDB flagDB(22, 18);
+ 
+-PeerViewModel::Item::Item(bt::PeerInterface *peer
+-#if BUILD_WITH_GEOIP
+-                          ,
+-                          GeoIPManager *geo_ip
+-#endif
+-                          )
++PeerViewModel::Item::Item(bt::PeerInterface *peer, GeoIPManager *geo_ip)
+     : peer(peer)
  {
-+QUrl GeoIPManager::geoip_url = QUrl(QStringLiteral("http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz"));
-+
- GeoIPManager::GeoIPManager(QObject *parent)
-     : QObject(parent)
+     stats = peer->getStats();
+@@ -47,13 +39,13 @@
+             flagDB.addFlagSource(path + QStringLiteral("/%1/flag.png"));
+     }
+ 
+-#if BUILD_WITH_GEOIP
+-    int country_id = geo_ip->findCountry(stats.ip_address);
+-    if (country_id > 0) {
+-        country = geo_ip->countryName(country_id);
+-        flag = flagDB.getFlag(geo_ip->countryCode(country_id));
++    if (geo_ip) {
++        int country_id = geo_ip->findCountry(stats.ip_address);
++        if (country_id > 0) {
++            country = geo_ip->countryName(country_id);
++            flag = flagDB.getFlag(geo_ip->countryCode(country_id));
++        }
+     }
+-#endif
+ }
+ 
+ bool PeerViewModel::Item::changed() const
+@@ -191,10 +183,9 @@
+ 
+ PeerViewModel::PeerViewModel(QObject *parent)
+     : QAbstractTableModel(parent)
 +    , geo_ip(nullptr)
-+    , decompress_thread(nullptr)
  {
-+#ifdef USE_SYSTEM_GEOIP
-     geo_ip = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_STANDARD);
-+#else
-+    geoip_data_file = QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("geoip.dat"));
-+    if (geoip_data_file.isEmpty())
-+        geoip_data_file = QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("GeoIP.dat"));
-+
-+    if (geoip_data_file.isEmpty()) {
-+        downloadDataBase();
-+    } else {
-+        geo_ip = GeoIP_open(QFile::encodeName(geoip_data_file).data(), 0);
-+        if (geo_ip) {
-+            QFileInfo fi(geoip_data_file);
-+            QDateTime now = QDateTime::currentDateTime();
-+            if (fi.lastModified().daysTo(now) >= 30) {
-+                // if the last time the geoip file was modified, was more then
-+                // 30 days ago, redownload it
-+                downloadDataBase();
-+            }
-+        }
-+    }
-+#endif
+-#if BUILD_WITH_GEOIP
+     geo_ip = new GeoIPManager(this);
+-#endif
  }
  
- GeoIPManager::~GeoIPManager()
+ PeerViewModel::~PeerViewModel()
+@@ -204,12 +195,7 @@
+ 
+ void PeerViewModel::peerAdded(bt::PeerInterface *peer)
  {
-     if (geo_ip)
-         GeoIP_delete(geo_ip);
-+
-+    if (decompress_thread) {
-+        decompress_thread->cancel();
-+        decompress_thread->wait();
-+        delete decompress_thread;
-+    }
+-    items.append(new Item(peer
+-#if BUILD_WITH_GEOIP
+-                          ,
+-                          geo_ip
+-#endif
+-                          ));
++    items.append(new Item(peer, geo_ip));
+     insertRow(items.count() - 1);
  }
  
- int GeoIPManager::findCountry(const QString &addr)
-@@ -56,4 +87,66 @@
-         return QString();
- }
+--- ./plugins/infowidget/CMakeLists.txt.orig	2022-04-13 21:50:05.000000000 -0500
++++ ./plugins/infowidget/CMakeLists.txt	2022-04-22 13:06:19.029711817 -0500
+@@ -1,23 +1,31 @@
+-# Add an option to compile & link against system GeoIP
++# Add an option to compile & link against system GeoIP (off by default)
+ option(BUILD_WITH_GEOIP
+ 	"Link InfoWidget plugin against system GeoIP library and use system-wide default GeoIP Country database"
+-	ON)
++	OFF)
  
-+void GeoIPManager::downloadDataBase()
-+{
-+#ifndef USE_SYSTEM_GEOIP
-+    Out(SYS_INW | LOG_NOTICE) << "Downloading GeoIP database: " << geoip_url << endl;
-+    download_destination = kt::DataDir(CreateIfNotExists) + geoip_url.fileName();
-+    KIO::CopyJob *job = KIO::copy(geoip_url, QUrl::fromLocalFile(download_destination), KIO::Overwrite | KIO::HideProgressInfo);
-+    connect(job, &KIO::CopyJob::result, this, &GeoIPManager::databaseDownloadFinished);
-+#endif
-+}
+-if (BUILD_WITH_GEOIP)
++if (WITH_SYSTEM_GEOIP)
+ 	find_path(GEOIP_INCLUDE_DIR NAMES GeoIP.h PATHS / ${INCLUDE_INSTALL_DIR}/)
+-	find_library(GEOIP_LIBRARY NAMES GeoIP PATHS ${LIB_INSTALL_DIR})
++	find_library(GEOIP_LIBRARY NAMES GeoIP PATHS ${KDE4_LIB_DIR} ${LIB_INSTALL_DIR})
+ 	
+ 	if (NOT GEOIP_INCLUDE_DIR OR NOT GEOIP_LIBRARY)
+-		set(BUILD_WITH_GEOIP OFF CACHE BOOL
++		set(WITH_SYSTEM_GEOIP OFF CACHE BOOL
+ 		  "GeoIP development files could not be found on this system. Forcing this option to OFF"
+ 		  FORCE)
+-		message(WARNING "GeoIP library development files could not be found on your system.")
+-	else()
+-        message(STATUS "   Linking InfoWidget against system GeoIP library")
+-        include_directories(${GEOIP_INCLUDE_DIR})
+-        set(geoip_link ${GEOIP_LIBRARY})
+-    endif()
+-endif(BUILD_WITH_GEOIP)
++               message(SEND_ERROR
++                 "GeoIP library development files could not be found on your system. Embedding a local copy of GeoIP instead")
++       endif(NOT GEOIP_INCLUDE_DIR OR NOT GEOIP_LIBRARY)
++endif(WITH_SYSTEM_GEOIP)
 +
-+void GeoIPManager::databaseDownloadFinished(KJob *job)
-+{
-+    if (job->error()) {
-+        Out(SYS_INW | LOG_IMPORTANT) << "Failed to download GeoIP database: " << job->errorString() << endl;
-+        return;
-+    }
++if (WITH_SYSTEM_GEOIP)
++       message(STATUS "   Linking InfoWidget against system GeoIP library")
++       add_definitions( -DUSE_SYSTEM_GEOIP )
++       include_directories(GEOIP_INCLUDE_DIR)
++       set(geoip_link ${GEOIP_LIBRARY})
++else(WITH_SYSTEM_GEOIP)
++       message(STATUS "   Compiling GeoIP support directly into InfoWidget plugin")
++       set(geoip_src GeoIP.c)
++endif(WITH_SYSTEM_GEOIP)
 +
-+    if (download_destination.endsWith(QLatin1String(".dat")) || download_destination.endsWith(QLatin1String(".DAT"))) {
-+        Out(SYS_INW | LOG_NOTICE) << "GeoIP database downloaded, opening ...  " << endl;
-+        geoip_data_file = download_destination;
-+        if (geo_ip) {
-+            GeoIP_delete(geo_ip);
-+            geo_ip = nullptr;
-+        }
-+        geo_ip = GeoIP_open(QFile::encodeName(geoip_data_file).data(), 0);
-+        if (!geo_ip)
-+            Out(SYS_INW | LOG_NOTICE) << "Failed to open GeoIP database  " << endl;
-+    } else {
-+        Out(SYS_INW | LOG_NOTICE) << "GeoIP database downloaded, decompressing ...  " << endl;
-+        // decompress the file
-+        decompress_thread = new bt::DecompressThread(download_destination, kt::DataDir() + QLatin1String("geoip.dat"));
-+        connect(decompress_thread, &bt::DecompressThread::finished, this, &GeoIPManager::decompressFinished, Qt::QueuedConnection);
-+        decompress_thread->start(QThread::IdlePriority);
-+    }
-+}
-+
-+void GeoIPManager::decompressFinished()
-+{
-+    Out(SYS_INW | LOG_NOTICE) << "GeoIP database decompressed, opening ...  " << endl;
-+    if (!decompress_thread->error()) {
-+        geoip_data_file = kt::DataDir() + QLatin1String("geoip.dat");
-+        if (geo_ip) {
-+            GeoIP_delete(geo_ip);
-+            geo_ip = nullptr;
-+        }
-+        geo_ip = GeoIP_open(QFile::encodeName(geoip_data_file).data(), 0);
-+        if (!geo_ip)
-+            Out(SYS_INW | LOG_NOTICE) << "Failed to open GeoIP database  " << endl;
-+    }
-+
-+    decompress_thread->wait();
-+    delete decompress_thread;
-+    decompress_thread = nullptr;
-+}
-+
-+void GeoIPManager::setGeoIPUrl(const QUrl &url)
-+{
-+    geoip_url = url;
-+}
-+
-+///////////////////////////////////
-+
- }
---- ./plugins/infowidget/GeoIP.c.orig	2021-08-15 00:18:01.329498947 -0500
-+++ ./plugins/infowidget/GeoIP.c	2021-08-15 00:18:01.329498947 -0500
+ 
+ ktorrent_add_plugin(ktorrent_infowidget)
+ 
+@@ -36,19 +44,14 @@
+ 	trackerview.cpp
+ 	trackermodel.cpp
+ 	addtrackersdialog.cpp
++	${geoip_src}
++	geoipmanager.cpp
+ 	flagdb.cpp
+ 	iwfiletreemodel.cpp
+ 	iwfilelistmodel.cpp
+ 	webseedstab.cpp
+ 	webseedsmodel.cpp)
+ 
+-if (BUILD_WITH_GEOIP)
+-    target_sources(ktorrent_infowidget PRIVATE geoipmanager.cpp)
+-    add_definitions(-DBUILD_WITH_GEOIP=1)
+-else()
+-    add_definitions(-DBUILD_WITH_GEOIP=0)
+-endif()
+-
+ ki18n_wrap_ui(ktorrent_infowidget iwprefpage.ui statustab.ui chunkdownloadview.ui trackerview.ui webseedstab.ui)
+ kconfig_add_kcfg_files(ktorrent_infowidget infowidgetpluginsettings.kcfgc)
+ 
+--- ./plugins/infowidget/GeoIP.c.orig	2022-04-22 13:03:03.206722648 -0500
++++ ./plugins/infowidget/GeoIP.c	2022-04-22 13:03:03.206722648 -0500
 @@ -0,0 +1,968 @@
 +/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 2; tab-width: 2 -*- */
 +/* GeoIP.c
@@ -1237,206 +1345,8 @@
 +{
 +    return gi->databaseType;
 +}
---- ./plugins/infowidget/CMakeLists.txt.orig	2021-08-04 21:50:44.000000000 -0500
-+++ ./plugins/infowidget/CMakeLists.txt	2021-08-15 00:20:25.218503074 -0500
-@@ -1,23 +1,30 @@
--# Add an option to compile & link against system GeoIP
--option(BUILD_WITH_GEOIP
-+# Add an option to compile & link against system GeoIP (off by default)
-+option(WITH_SYSTEM_GEOIP 
- 	"Link InfoWidget plugin against system GeoIP library and use system-wide default GeoIP Country database"
--	ON)
-+	OFF)
- 
--if (BUILD_WITH_GEOIP)
-+if (WITH_SYSTEM_GEOIP)
- 	find_path(GEOIP_INCLUDE_DIR NAMES GeoIP.h PATHS / ${INCLUDE_INSTALL_DIR}/)
--	find_library(GEOIP_LIBRARY NAMES GeoIP PATHS ${LIB_INSTALL_DIR})
-+	find_library(GEOIP_LIBRARY NAMES GeoIP PATHS ${KDE4_LIB_DIR} ${LIB_INSTALL_DIR})
- 	
- 	if (NOT GEOIP_INCLUDE_DIR OR NOT GEOIP_LIBRARY)
--		set(BUILD_WITH_GEOIP OFF CACHE BOOL
-+		set(WITH_SYSTEM_GEOIP OFF CACHE BOOL
- 		  "GeoIP development files could not be found on this system. Forcing this option to OFF"
- 		  FORCE)
--		message(WARNING "GeoIP library development files could not be found on your system.")
--	else()
--        message(STATUS "   Linking InfoWidget against system GeoIP library")
--        include_directories(GEOIP_INCLUDE_DIR)
--        set(geoip_link ${GEOIP_LIBRARY})
--    endif()
--endif(BUILD_WITH_GEOIP)
-+		message(SEND_ERROR
-+		  "GeoIP library development files could not be found on your system. Embedding a local copy of GeoIP instead")
-+	endif(NOT GEOIP_INCLUDE_DIR OR NOT GEOIP_LIBRARY)
-+endif(WITH_SYSTEM_GEOIP)
-+
-+if (WITH_SYSTEM_GEOIP)
-+	message(STATUS "   Linking InfoWidget against system GeoIP library")
-+	add_definitions( -DUSE_SYSTEM_GEOIP )
-+	include_directories(GEOIP_INCLUDE_DIR)
-+	set(geoip_link ${GEOIP_LIBRARY})
-+else(WITH_SYSTEM_GEOIP)
-+	message(STATUS "   Compiling GeoIP support directly into InfoWidget plugin")
-+	set(geoip_src GeoIP.c)
-+endif(WITH_SYSTEM_GEOIP)    
- 
- add_library(ktorrent_infowidget MODULE)
- 
-@@ -36,19 +43,14 @@
- 	trackerview.cpp
- 	trackermodel.cpp
- 	addtrackersdialog.cpp
-+	${geoip_src}
-+	geoipmanager.cpp
- 	flagdb.cpp
- 	iwfiletreemodel.cpp
- 	iwfilelistmodel.cpp
- 	webseedstab.cpp
- 	webseedsmodel.cpp)
- 
--if (BUILD_WITH_GEOIP)
--    target_sources(ktorrent_infowidget PRIVATE geoipmanager.cpp)
--    add_definitions(-DBUILD_WITH_GEOIP=1)
--else()
--    add_definitions(-DBUILD_WITH_GEOIP=0)
--endif()
--
- ki18n_wrap_ui(ktorrent_infowidget iwprefpage.ui statustab.ui chunkdownloadview.ui trackerview.ui webseedstab.ui)
- kconfig_add_kcfg_files(ktorrent_infowidget infowidgetpluginsettings.kcfgc)
- 
---- ./plugins/infowidget/geoipmanager.h.orig	2021-08-04 21:50:44.000000000 -0500
-+++ ./plugins/infowidget/geoipmanager.h	2021-08-15 00:18:01.330498947 -0500
-@@ -7,7 +7,21 @@
- #define KT_GEOIPMANAGER_H
- 
- #include <QObject>
-+#include <QThread>
-+#include <QUrl>
-+
-+#ifdef USE_SYSTEM_GEOIP
- #include <GeoIP.h>
-+#else
-+#include "GeoIP.h"
-+#endif
-+
-+class KJob;
-+
-+namespace bt
-+{
-+class DecompressThread;
-+}
- 
- namespace kt
- {
-@@ -42,8 +56,28 @@
-      */
-     QString countryCode(int country_id);
- 
-+    /// Get the database URL
-+    static QUrl geoIPUrl()
-+    {
-+        return geoip_url;
-+    }
-+
-+    /// Set the database URL
-+    static void setGeoIPUrl(const QUrl &url);
-+
-+    /// Download the database
-+    void downloadDataBase();
-+
-+private Q_SLOTS:
-+    void databaseDownloadFinished(KJob *job);
-+    void decompressFinished();
-+
- private:
-     GeoIP *geo_ip;
-+    QString geoip_data_file;
-+    QString download_destination;
-+    bt::DecompressThread *decompress_thread;
-+    static QUrl geoip_url;
- };
- 
- }
---- ./plugins/infowidget/peerviewmodel.cpp.orig	2021-08-04 21:50:44.000000000 -0500
-+++ ./plugins/infowidget/peerviewmodel.cpp	2021-08-15 00:18:01.330498947 -0500
-@@ -13,13 +13,10 @@
- #include <KLocalizedString>
- 
- #include "flagdb.h"
-+#include "geoipmanager.h"
- #include <interfaces/torrentinterface.h>
- #include <util/functions.h>
- 
--#if BUILD_WITH_GEOIP
--#include "geoipmanager.h"
--#endif
--
- using namespace bt;
- 
- namespace kt
-@@ -28,12 +25,7 @@
- static bool icons_loaded = false;
- static FlagDB flagDB(22, 18);
- 
--PeerViewModel::Item::Item(bt::PeerInterface *peer
--#if BUILD_WITH_GEOIP
--                          ,
--                          GeoIPManager *geo_ip
--#endif
--                          )
-+PeerViewModel::Item::Item(bt::PeerInterface *peer, GeoIPManager *geo_ip)
-     : peer(peer)
- {
-     stats = peer->getStats();
-@@ -47,13 +39,13 @@
-             flagDB.addFlagSource(path + QStringLiteral("/%1/flag.png"));
-     }
- 
--#if BUILD_WITH_GEOIP
--    int country_id = geo_ip->findCountry(stats.ip_address);
--    if (country_id > 0) {
--        country = geo_ip->countryName(country_id);
--        flag = flagDB.getFlag(geo_ip->countryCode(country_id));
-+    if (geo_ip) {
-+        int country_id = geo_ip->findCountry(stats.ip_address);
-+        if (country_id > 0) {
-+            country = geo_ip->countryName(country_id);
-+            flag = flagDB.getFlag(geo_ip->countryCode(country_id));
-+        }
-     }
--#endif
- }
- 
- bool PeerViewModel::Item::changed() const
-@@ -191,10 +183,9 @@
- 
- PeerViewModel::PeerViewModel(QObject *parent)
-     : QAbstractTableModel(parent)
-+    , geo_ip(nullptr)
- {
--#if BUILD_WITH_GEOIP
-     geo_ip = new GeoIPManager(this);
--#endif
- }
- 
- PeerViewModel::~PeerViewModel()
-@@ -204,12 +195,7 @@
- 
- void PeerViewModel::peerAdded(bt::PeerInterface *peer)
- {
--    items.append(new Item(peer
--#if BUILD_WITH_GEOIP
--                          ,
--                          geo_ip
--#endif
--                          ));
-+    items.append(new Item(peer, geo_ip));
-     insertRow(items.count() - 1);
- }
- 
---- ./plugins/infowidget/infowidgetplugin.cpp.orig	2021-08-04 21:50:44.000000000 -0500
-+++ ./plugins/infowidget/infowidgetplugin.cpp	2021-08-15 00:18:01.330498947 -0500
+--- ./plugins/infowidget/infowidgetplugin.cpp.orig	2022-04-13 21:50:05.000000000 -0500
++++ ./plugins/infowidget/infowidgetplugin.cpp	2022-04-22 13:03:03.206722648 -0500
 @@ -18,6 +18,7 @@
  
  #include "chunkdownloadview.h"
@@ -1445,30 +1355,120 @@
  #include "infowidgetpluginsettings.h"
  #include "iwprefpage.h"
  #include "monitor.h"
---- ./plugins/infowidget/peerviewmodel.h.orig	2021-08-04 21:50:44.000000000 -0500
-+++ ./plugins/infowidget/peerviewmodel.h	2021-08-15 00:18:01.331498947 -0500
-@@ -61,12 +61,7 @@
-         QString country;
-         QIcon flag;
+--- ./plugins/infowidget/geoipmanager.cpp.orig	2022-04-13 21:50:05.000000000 -0500
++++ ./plugins/infowidget/geoipmanager.cpp	2022-04-22 13:03:03.206722648 -0500
+@@ -20,16 +20,47 @@
  
--        Item(bt::PeerInterface *peer
--#if BUILD_WITH_GEOIP
--             ,
--             GeoIPManager *geo_ip
--#endif
--        );
-+        Item(bt::PeerInterface *peer, GeoIPManager *geo_ip);
+ namespace kt
+ {
++QUrl GeoIPManager::geoip_url = QUrl(QStringLiteral("http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz"));
++
+ GeoIPManager::GeoIPManager(QObject *parent)
+     : QObject(parent)
++    , geo_ip(nullptr)
++    , decompress_thread(nullptr)
+ {
++#ifdef USE_SYSTEM_GEOIP
+     geo_ip = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_STANDARD);
++#else
++    geoip_data_file = QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("geoip.dat"));
++    if (geoip_data_file.isEmpty())
++        geoip_data_file = QStandardPaths::locate(QStandardPaths::AppDataLocation, QStringLiteral("GeoIP.dat"));
++
++    if (geoip_data_file.isEmpty()) {
++        downloadDataBase();
++    } else {
++        geo_ip = GeoIP_open(QFile::encodeName(geoip_data_file).data(), 0);
++        if (geo_ip) {
++            QFileInfo fi(geoip_data_file);
++            QDateTime now = QDateTime::currentDateTime();
++            if (fi.lastModified().daysTo(now) >= 30) {
++                // if the last time the geoip file was modified, was more then
++                // 30 days ago, redownload it
++                downloadDataBase();
++            }
++        }
++    }
++#endif
+ }
  
-         bool changed() const;
-         QVariant data(int col) const;
-@@ -76,9 +71,7 @@
+ GeoIPManager::~GeoIPManager()
+ {
+     if (geo_ip)
+         GeoIP_delete(geo_ip);
++
++    if (decompress_thread) {
++        decompress_thread->cancel();
++        decompress_thread->wait();
++        delete decompress_thread;
++    }
+ }
  
- private:
-     QVector<Item *> items;
--#if BUILD_WITH_GEOIP
--    GeoIPManager *geo_ip = nullptr;
--#endif
-+    GeoIPManager *geo_ip;
- };
+ int GeoIPManager::findCountry(const QString &addr)
+@@ -56,4 +87,66 @@
+         return QString();
+ }
  
++void GeoIPManager::downloadDataBase()
++{
++#ifndef USE_SYSTEM_GEOIP
++    Out(SYS_INW | LOG_NOTICE) << "Downloading GeoIP database: " << geoip_url << endl;
++    download_destination = kt::DataDir(CreateIfNotExists) + geoip_url.fileName();
++    KIO::CopyJob *job = KIO::copy(geoip_url, QUrl::fromLocalFile(download_destination), KIO::Overwrite | KIO::HideProgressInfo);
++    connect(job, &KIO::CopyJob::result, this, &GeoIPManager::databaseDownloadFinished);
++#endif
++}
++
++void GeoIPManager::databaseDownloadFinished(KJob *job)
++{
++    if (job->error()) {
++        Out(SYS_INW | LOG_IMPORTANT) << "Failed to download GeoIP database: " << job->errorString() << endl;
++        return;
++    }
++
++    if (download_destination.endsWith(QLatin1String(".dat")) || download_destination.endsWith(QLatin1String(".DAT"))) {
++        Out(SYS_INW | LOG_NOTICE) << "GeoIP database downloaded, opening ...  " << endl;
++        geoip_data_file = download_destination;
++        if (geo_ip) {
++            GeoIP_delete(geo_ip);
++            geo_ip = nullptr;
++        }
++        geo_ip = GeoIP_open(QFile::encodeName(geoip_data_file).data(), 0);
++        if (!geo_ip)
++            Out(SYS_INW | LOG_NOTICE) << "Failed to open GeoIP database  " << endl;
++    } else {
++        Out(SYS_INW | LOG_NOTICE) << "GeoIP database downloaded, decompressing ...  " << endl;
++        // decompress the file
++        decompress_thread = new bt::DecompressThread(download_destination, kt::DataDir() + QLatin1String("geoip.dat"));
++        connect(decompress_thread, &bt::DecompressThread::finished, this, &GeoIPManager::decompressFinished, Qt::QueuedConnection);
++        decompress_thread->start(QThread::IdlePriority);
++    }
++}
++
++void GeoIPManager::decompressFinished()
++{
++    Out(SYS_INW | LOG_NOTICE) << "GeoIP database decompressed, opening ...  " << endl;
++    if (!decompress_thread->error()) {
++        geoip_data_file = kt::DataDir() + QLatin1String("geoip.dat");
++        if (geo_ip) {
++            GeoIP_delete(geo_ip);
++            geo_ip = nullptr;
++        }
++        geo_ip = GeoIP_open(QFile::encodeName(geoip_data_file).data(), 0);
++        if (!geo_ip)
++            Out(SYS_INW | LOG_NOTICE) << "Failed to open GeoIP database  " << endl;
++    }
++
++    decompress_thread->wait();
++    delete decompress_thread;
++    decompress_thread = nullptr;
++}
++
++void GeoIPManager::setGeoIPUrl(const QUrl &url)
++{
++    geoip_url = url;
++}
++
++///////////////////////////////////
++
  }

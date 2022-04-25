@@ -746,7 +746,6 @@ gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/libxml2/libxml2.python3-unicode-errors.patch
 gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh
-gzip ./source/l/libusb/f6d2cb561402c3b6d3627c0eb89e009b503d9067.patch
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
@@ -1146,6 +1145,9 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
+gzip ./testing/source/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
+gzip ./testing/source/gcc/patches/gcc-no_fixincludes.diff
+gzip ./testing/source/gcc/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.patch
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

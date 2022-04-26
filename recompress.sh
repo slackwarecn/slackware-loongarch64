@@ -170,6 +170,7 @@ gzip ./source/a/gpm/inputattach.c
 gzip ./source/a/quota/quota.lwrap.needs.lnsl.diff
 gzip ./source/a/mkinitrd/0005-support-modules-compressed-with-xz.patch
 gzip ./source/a/mkinitrd/mkinitrd.tempfile.to.mktemp.patch
+gzip ./source/a/mkinitrd/0006-coreutils-9.1-ensure-target-dir-exists.patch
 gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
 gzip ./source/a/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
 gzip ./source/a/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
@@ -880,7 +881,7 @@ gzip ./source/l/openal-soft/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
-gzip ./source/l/SDL2/SDL2-2.0.9-khrplatform.patch
+gzip ./source/l/SDL2/SDL2.no-werror-declaration-after-statement.diff
 gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch

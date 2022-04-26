@@ -341,6 +341,17 @@ else
   /bin/sh
 fi
 
+# Mount additional filesystems
+if [ -f /addfstab ]; then
+  while read DEV MNTPNT FS OPTS DUMP PASSNO ; do
+    if echo $DEV | grep -qE '(LABEL|UUID)=' ; then
+      DEV=$(findfs $DEV)
+    fi
+    echo $DEV "/mnt/"$MNTPNT $FS "ro,"$OPTS $DUMP $PASSNO >> /etc/fstab
+  done < /addfstab
+  mount -a
+fi
+
 # Need to make sure OPTIONS+="db_persist" exists for all dm devices
 # That should be handled in /sbin/mkinitrd now
 /sbin/udevadm info --cleanup-db

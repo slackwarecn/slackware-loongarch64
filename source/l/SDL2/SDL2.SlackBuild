@@ -85,21 +85,22 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Fix video-opengles1 build failure:
-zcat $CWD/SDL2-2.0.9-khrplatform.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/SDL2.no-werror-declaration-after-statement.diff.gz | patch -p1 --backup --suffix=.orig || exit 1
 
-# Configure:
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --sysconfdir=/etc \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --build=$ARCH-slackware-linux || exit 1
-
-# Build and install:
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Configure, build, and install:
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 # Don't package the static libraries:
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
@@ -107,9 +108,6 @@ make install DESTDIR=$PKG || exit 1
     rm -f $(basename $file .so).a
   done
 )
-
-# Don't package .la files:
-rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
 
 # Strip binaries:
 ( cd $PKG

@@ -57,6 +57,9 @@
 #   to add libargon2 and libgcc_s for cryptsetup LUKS2 support; add
 #   jfs and xfs repair tools to initrd if those filesystems are used; 
 #   fixes and enhancements to docs
+# Modified by Piter Punk <piterpunk@slackware.com> 25 April 2022
+#   Add support to specify additional filesystems to be mounted by
+#   initrd. Useful for those that have a separated '/usr'
 
 MKINITRD_VERSION=1.4.11
 
@@ -127,8 +130,11 @@ initrd, and the script is easy to modify.  Be creative.  :-)
   -B      Add /sbin/btrfs to enable scanning for a root filesystem that is
           part of a Btrfs multi-device filesystem.
   -M      Add the files in /etc/modprobe.d/ and /lib/modprobe.d/ to the initrd
-  -P      Prepend the output image with the microcode CPIO archive given in arguments.
+  -P      Prepend the output image with the microcode CPIO archive given in 
+          arguments.
   -R      Add support for RAID partitions
+  -MNT    Additional filesystems to be mounted by initrd. Multiple mount 
+          entries can be specified in a list separated by colon (:).
   -V      Display version number
 
 A simple example:  Build an initrd for a reiserfs root partition:
@@ -428,8 +434,11 @@ while [ ! -z "$1" ]; do
         exit 1
       fi
       shift 2
-    ;;
-
+      ;;
+    -MNT)
+      MOUNT_LIST="$2"
+      shift 2
+      ;;
     -R)
       RAID=1
       shift
@@ -662,6 +671,14 @@ if [ ! -z "$CRYPT" -o ! -z "$LVM" ]; then
   mkdir -p $SOURCE_TREE/lib/udev/rules.d
   echo 'KERNEL=="dm-[0-9]*", OPTIONS+="db_persist"' > \
     $SOURCE_TREE/lib/udev/rules.d/95-dm-initrd.rules
+fi
+
+# If there is additional filesystems to be mounted, copy their configuration
+# from system's /etc/fstab:
+if [ ! -z "$MOUNT_LIST" ]; then
+  for MOUNT_POINT in $(echo $MOUNT_LIST | tr : \ ); do 
+    grep '^[^#[:space:]]\+[[:space:]]\+'$MOUNT_POINT'[[:space:]]' /etc/fstab
+  done > $SOURCE_TREE/addfstab
 fi
 
 # Make module directories:

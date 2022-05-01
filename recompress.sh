@@ -906,7 +906,6 @@ gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/gtk+3/gtk.fix.missing.version-check.py.diff
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
-gzip ./source/l/speech-dispatcher/a2faab416e42cbdf3d73f98578a89eb7a235e25a.patch
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
 gzip ./source/l/dconf-editor/doinst.sh

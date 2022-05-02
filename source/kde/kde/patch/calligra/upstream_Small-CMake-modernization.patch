@@ -1,0 +1,128 @@
+From 2ac46db52c6ad401f67ae5b5fcd859a5872f0311 Mon Sep 17 00:00:00 2001
+From: Pierre Ducroquet <pinaraf@pinaraf.info>
+Date: Sat, 1 May 2021 15:08:57 +0200
+Subject: [PATCH] Small CMake modernization
+
+Since we are now on CMake 3.2+, we can simplify policies.
+And in order to simplify further, remove our use of
+deprecated features in CMake.
+---
+ CMakeLists.txt                                | 21 +------------------
+ cmake/modules/MacroCalligraAddBenchmark.cmake |  2 +-
+ filters/words/msword-odf/wv2/CMakeLists.txt   |  7 +------
+ .../wv2/src/generator/CMakeLists.txt          |  7 +------
+ .../rtf/import/3rdparty/rtf-qt/CMakeLists.txt |  7 +------
+ 5 files changed, 5 insertions(+), 39 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fe6502493ed..b237f68fcb6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -4,24 +4,9 @@ project(calligra)
+ 
+ message(STATUS "Using CMake version: ${CMAKE_VERSION}")
+ 
+-if (POLICY CMP0002)
+-    cmake_policy(SET CMP0002 OLD)
+-endif()
+-if (POLICY CMP0017)
+-    cmake_policy(SET CMP0017 NEW)
+-endif ()
+ if (POLICY CMP0022)
+     cmake_policy(SET CMP0022 OLD)
+ endif ()
+-if (POLICY CMP0026)
+-    cmake_policy(SET CMP0026 OLD)
+-endif()
+-if (POLICY CMP0046)
+-    cmake_policy(SET CMP0046 OLD)
+-endif ()
+-if (POLICY CMP0059)
+-    cmake_policy(SET CMP0059 OLD)
+-endif()
+ if (POLICY CMP0063)
+     cmake_policy(SET CMP0063 NEW)
+ endif()
+@@ -105,11 +90,7 @@ endif()
+ message(STATUS "Release build: ${RELEASE_BUILD}")
+ 
+ # use CPP-11
+-if (CMAKE_VERSION VERSION_LESS "3.1")
+-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+-else ()
+-    set (CMAKE_CXX_STANDARD 11)
+-endif ()
++set (CMAKE_CXX_STANDARD 11)
+ 
+ ############
+ #############
+diff --git a/cmake/modules/MacroCalligraAddBenchmark.cmake b/cmake/modules/MacroCalligraAddBenchmark.cmake
+index bfd1e1dc938..ad428a8459d 100644
+--- a/cmake/modules/MacroCalligraAddBenchmark.cmake
++++ b/cmake/modules/MacroCalligraAddBenchmark.cmake
+@@ -41,7 +41,7 @@ macro (CALLIGRA_ADD_BENCHMARK _test_NAME)
+         endif()
+     endforeach(_filename)
+ 
+-    get_target_property( loc ${_test_NAME} LOCATION )
++    set(loc $<TARGET_FILE:${_test_NAME}>)
+     if(WIN32)
+       if(MSVC_IDE)
+         string(REGEX REPLACE "\\$\\(.*\\)" "\${CTEST_CONFIGURATION_TYPE}" loc "${loc}")
+diff --git a/filters/words/msword-odf/wv2/CMakeLists.txt b/filters/words/msword-odf/wv2/CMakeLists.txt
+index 6f9cddfe018..421c20b60f1 100644
+--- a/filters/words/msword-odf/wv2/CMakeLists.txt
++++ b/filters/words/msword-odf/wv2/CMakeLists.txt
+@@ -1,12 +1,7 @@
+-cmake_minimum_required(VERSION 2.8.0)
++cmake_minimum_required(VERSION 3.2)
+ 
+ add_definitions(-DUNICODE -D_UNICODE)
+ 
+-#cmake_policy CMP0017 was introduced in version 2.8.4
+-if(${CMAKE_VERSION} VERSION_GREATER 2.8.3)
+-    cmake_policy(SET CMP0017 NEW)
+-endif()
+-
+ # wv2 versioning
+ set( WV2_MAJOR_VERSION 0 )
+ set( WV2_MINOR_VERSION 9 )
+diff --git a/filters/words/msword-odf/wv2/src/generator/CMakeLists.txt b/filters/words/msword-odf/wv2/src/generator/CMakeLists.txt
+index 7d5086a0ebd..10d1c022e9e 100644
+--- a/filters/words/msword-odf/wv2/src/generator/CMakeLists.txt
++++ b/filters/words/msword-odf/wv2/src/generator/CMakeLists.txt
+@@ -1,10 +1,5 @@
+ # Generate parsers for some Word structures.
+-cmake_minimum_required(VERSION 2.8.0)
+-
+-#cmake_policy CMP0017 was introduced in version 2.8.4
+-if(${CMAKE_VERSION} VERSION_GREATER 2.8.3)
+-    cmake_policy(SET CMP0017 NEW)
+-endif()
++cmake_minimum_required(VERSION 3.2.0)
+ 
+ set( scanner_word95
+ 	${CMAKE_CURRENT_BINARY_DIR}/word95_generated.h
+diff --git a/filters/words/rtf/import/3rdparty/rtf-qt/CMakeLists.txt b/filters/words/rtf/import/3rdparty/rtf-qt/CMakeLists.txt
+index 41e932d5869..cbd6ad9a83e 100644
+--- a/filters/words/rtf/import/3rdparty/rtf-qt/CMakeLists.txt
++++ b/filters/words/rtf/import/3rdparty/rtf-qt/CMakeLists.txt
+@@ -1,14 +1,9 @@
+ project( RtfReader )
+ 
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.2)
+ 
+ include(GenerateExportHeader)
+ 
+-#cmake_policy CMP0017 was introduced in version 2.8.4
+-if(${CMAKE_VERSION} VERSION_GREATER 2.8.3)
+-    cmake_policy(SET CMP0017 NEW)
+-endif()
+-
+ find_package(Qt5 5.2.0 REQUIRED Gui)
+ 
+ add_subdirectory( src )
+-- 
+2.35.1
+

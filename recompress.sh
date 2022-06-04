@@ -1027,7 +1027,6 @@ gzip ./source/xap/geeqie/doinst.sh
 gzip ./source/xap/geeqie/fix-build-re-docs.diff
 gzip ./source/xap/audacious/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c
-gzip ./source/xap/xscreensaver/clarify-desc-in-xfce-settings.patch
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
 gzip ./source/xap/xscreensaver/doinst.sh
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff

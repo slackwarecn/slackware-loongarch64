@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -105,8 +105,13 @@ if [ ! -r $BUILDLIST -a ! -r ${BUILDLIST}.lock ]; then
   for script in ${SLACKWARE_SOURCE_DIRECTORY}*/*/*.SlackBuild ; do
     # Only add the script if the SlackBuild name matches the directory name:
     if [ "$(basename $(echo $script | cut -f 1 -d ' ') .SlackBuild)" = "$(echo $(dirname $(echo $script | cut -f 1 -d ' ')) | rev | cut -f 1 -d / | rev)" ]; then
+      # Don't try to build isapnptools on x86_64:
       if [ "$uname -m)" = "x86_64" -a "$(basename $(echo $script | cut -f 1 -d ' '))" = "isapnptools.SlackBuild" ]; then
-        # Don't try to build isapnptools on x86_64.
+        continue
+      fi
+      # Never try to build the devs package. It is obsolete and "upgrading" to it breaks
+      # things on systems running udev.
+      if [ "$(basename $(echo $script | cut -f 1 -d ' '))" = "devs.SlackBuild" ]; then
         continue
       fi
       echo $script >> $BUILDLIST

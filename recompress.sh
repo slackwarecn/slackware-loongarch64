@@ -62,9 +62,7 @@ gzip ./source/d/gyp/gyp-python310.patch
 gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
-gzip ./source/d/gcc/patches/gfortran.deferred-shape-vs-assumed-shape.patch
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
-gzip ./source/d/gcc/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.patch
 gzip ./source/d/meson/meson.import.copy.diff
 gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/binutils/patches/binutils-special-sections-in-groups.patch
@@ -1143,7 +1141,6 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
-gzip ./testing/source/gcc/patches/gcc-no_fixincludes.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

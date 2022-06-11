@@ -83,7 +83,6 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "gcc-gnat-$VERSION-$ARCH-$BUILD.txz"
   echo "gcc-objc-$VERSION-$ARCH-$BUILD.txz"
   echo "gcc-go-$VERSION-$ARCH-$BUILD.txz"
-  echo "gcc-brig-$VERSION-$ARCH-$BUILD.txz"
   echo "gcc-gdc-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
@@ -142,14 +141,12 @@ PKG2=$TMP/package-gcc-g++
 PKG3=$TMP/package-gcc-gfortran
 PKG4=$TMP/package-gcc-gnat
 PKG6=$TMP/package-gcc-objc
-#PKG7=$TMP/package-gcc-g++-gch
 PKG8=$TMP/package-gcc-go
-PKG9=$TMP/package-gcc-brig
 PKG10=$TMP/package-gcc-gdc
 
 # Clear the build locations:
-rm -rf $PKG{1,2,3,4,6,8,9,10}
-mkdir -p $PKG{1,2,3,4,6,8,9,10}/usr/doc/gcc-$VERSION
+rm -rf $PKG{1,2,3,4,6,8,10}
+mkdir -p $PKG{1,2,3,4,6,8,10}/usr/doc/gcc-$VERSION
 
 # Insert package descriptions:
 mkdir -p $PKG{1,2,3,4,6,8,9,10}/install
@@ -158,21 +155,13 @@ cat $CWD/slack-desc.gcc-g++ > $PKG2/install/slack-desc
 cat $CWD/slack-desc.gcc-gfortran > $PKG3/install/slack-desc
 cat $CWD/slack-desc.gcc-gnat > $PKG4/install/slack-desc
 cat $CWD/slack-desc.gcc-objc > $PKG6/install/slack-desc
-#cat $CWD/slack-desc.gcc-g++-gch > $PKG7/install/slack-desc
 cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
-cat $CWD/slack-desc.gcc-brig > $PKG9/install/slack-desc
 cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
 
 cd gcc-$SRCVER || exit 1
 
 # Smite the fixincludes:
 zcat $CWD/patches/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-
-# Fix a gfortran bug:
-zcat $CWD/patches/gfortran.deferred-shape-vs-assumed-shape.patch.gz | patch -p0 --verbose --backup --suffix=.orig || exit 1
-
-# Fix regressions in 10.3.0 (and presumably 11.1.0 since they still apply cleanly):
-zcat $CWD/patches/PR100102-2.a1b3484a8e6c53c8084723e3f1738d402374198e.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 # Fix perms/owners:
 chown -R root:root .
@@ -262,14 +251,6 @@ mkdir -p $PKG8/usr/doc/gcc-${VERSION}/gcc/go
   $PKG8/usr/doc/gcc-${VERSION}/gcc/go
 )
 
-mkdir -p $PKG9/usr/doc/gcc-${VERSION}/gcc/brig
-( cd gcc/brig || exit 0
-  if [ -r ChangeLog ]; then
-    cat ChangeLog | head -n 1000 > $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
-    touch -r ChangeLog $PKG9/usr/doc/gcc-${VERSION}/gcc/brig/ChangeLog
-  fi
-)
-
 mkdir -p $PKG10/usr/doc/gcc-${VERSION}/gcc/d
 ( cd gcc/d || exit 0
   if [ -r ChangeLog ]; then
@@ -350,7 +331,7 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
      --infodir=/usr/info \
      --enable-shared \
      --enable-bootstrap \
-     --enable-languages=ada,brig,c,c++,d,fortran,go,lto,objc,obj-c++ \
+     --enable-languages=ada,c,c++,d,fortran,go,lto,objc,obj-c++ \
      --enable-threads=posix \
      --enable-checking=release \
      --enable-objc-gc \
@@ -598,18 +579,6 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   mv $PKG1/usr/man/man1/gofmt.1.gz usr/man/man1
 ) || exit 1
 
-# gcc-brig:
-( cd $PKG9
-  mkdir -p usr/bin
-  mv $PKG1/usr/bin/*brig* usr/bin
-  mkdir -p usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libhsail* usr/lib${LIBDIRSUFFIX}
-  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/brig1 usr/libexec/gcc/$TARGET/$VERSION
-  mkdir -p usr/man/man1
-  mv $PKG1/usr/man/man1/gccbrig.1.gz usr/man/man1
-) || exit 1
-
 # gcc-gdc:
 ( cd $PKG10
   mkdir -p usr/bin
@@ -646,8 +615,6 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   makepkg -l y -c n $TMP/gcc-objc-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG8
   makepkg -l y -c n $TMP/gcc-go-$VERSION-$ARCH-$BUILD.txz )
-( cd $PKG9
-  makepkg -l y -c n $TMP/gcc-brig-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG10
   makepkg -l y -c n $TMP/gcc-gdc-$VERSION-$ARCH-$BUILD.txz )
 

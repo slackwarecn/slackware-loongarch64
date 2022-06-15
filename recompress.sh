@@ -911,6 +911,7 @@ gzip ./source/l/dconf-editor/dconf-editor.ftbfs.diff
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
+gzip ./source/l/qt5/patches/qt5-webengine-gcc12.patch
 gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
 gzip ./source/l/qt5/patches/qt5.mysql.h.diff

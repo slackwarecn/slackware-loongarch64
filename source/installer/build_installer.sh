@@ -3,7 +3,7 @@ set +o posix
 
 # $Id: build_installer.sh,v 1.129 2011/04/13 23:03:07 eha Exp eha $
 #
-# Copyright 2005-2021  Stuart Winter, Surrey, England, UK
+# Copyright 2005-2022  Stuart Winter, Surrey, England, UK
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -970,6 +970,7 @@ l/libidn2 \
 l/libnsl \
 l/libunistring \
 l/libusb \
+l/lz4 \
 l/lzo \
 l/parted \
 l/pcre \
@@ -1316,6 +1317,7 @@ cp  -fa${VERBOSE1} \
         libidn2*.so* \
         libjson-c.so* \
         liblz.so* \
+        liblz4.so* \
         liblzo*.so* \
         libparted*so* \
         libreadline*.so* \

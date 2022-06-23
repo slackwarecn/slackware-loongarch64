@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2017, 2018, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=speex
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
-BUILD=${BUILD:-4}
+SRCNAM=speex-Speex
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 3- -d -)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -74,9 +75,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
-cd $PKGNAM-$VERSION || exit 1
+rm -rf $SRCNAM-$VERSION
+tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
+cd $SRCNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -86,6 +87,13 @@ find . \
   -exec chmod 644 {} \+
 
 # Configure:
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \

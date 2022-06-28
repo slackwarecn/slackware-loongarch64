@@ -3,7 +3,7 @@
 # Slackware build script for llvm
 
 # Copyright 2008-2016 Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -52,16 +52,6 @@ if [ "$BUILD_CLANGD" = "NO" ]; then
   CLANGD="-DCLANG_ENABLE_CLANGD=OFF"
 fi
 
-# Building lld will be determined automatically unless BUILD_LLD is
-# preset to YES or NO:
-if [ -z $BUILD_LLD ]; then
-  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
-    BUILD_LLD=NO
-  else
-    BUILD_LLD=YES
-  fi
-fi
-
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
 # could be useful to other scripts.
@@ -72,6 +62,7 @@ fi
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
+BUILDDIR=${TMP}/llvm-build-${VERSION}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -99,23 +90,28 @@ PY3=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_pyth
 # Don't use icecream:
 #PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
 
-rm -rf $PKG
-mkdir -p $TMP $PKG
-cd $TMP
+rm -rf $PKG $BUILDDIR
+mkdir -p $TMP $PKG $BUILDDIR
+cd $BUILDDIR
+
+# Add a fake configure script so the cleanup script used here at Slackware
+# knows to delete this stuff later. Other folks can just ignore this... it
+# doesn't have any other purpose.
+touch configure
+chmod 755 configure
+
 rm -rf $PKGNAM-${VERSION}.src $PKGNAM-${VERSION}
 tar xvf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
 
-cd $PKGNAM-${VERSION}/tools || cd $PKGNAM-${VERSION}.src/tools || exit 1
+cd $PKGNAM-${VERSION}.src/tools || cd $PKGNAM-${VERSION}/tools || exit 1
   tar xvf $CWD/clang-$VERSION.src.tar.xz || exit 1
   mv clang-${VERSION} clang 2>/dev/null || mv clang-${VERSION}.src clang || exit 1
   #tar xvf $CWD/flang-$VERSION.src.tar.xz || exit 1
   #mv flang-${VERSION} flang 2>/dev/null || mv flang-${VERSION}.src flang || exit 1
   tar xvf $CWD/lldb-$VERSION.src.tar.xz || exit 1
   mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
-  if [ "$BUILD_LLD" = "YES" ]; then
-    tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
-    mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
-  fi
+  tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
+  mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
 cd ../
 
 cd tools/clang/tools || exit 1
@@ -140,7 +136,7 @@ cd projects || exit 1
   mv polly-${VERSION} polly 2>/dev/null || mv polly-${VERSION}.src polly || exit 1
   # We just need a header file from this...
   tar xvf $CWD/libunwind-${VERSION}.src.tar.xz || exit 1
-  mv libunwind-${VERSION} libunwind || mv libunwind-${VERSION}.src libunwind || exit 1
+  mv libunwind-${VERSION}.src libunwind || mv libunwind-${VERSION} libunwind || exit 1
 cd ../
 
 # Support GCC built for i586-slackware-linux:
@@ -148,6 +144,22 @@ zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
 
 # Hack to fix build with polly. Maybe we should just not use polly... ?
 zcat $CWD/llvm.polly.hack.diff.gz | patch -p1 --verbose || exit 1
+
+# We require libatomic on 32-bit platforms:
+if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+  zcat $CWD/lldb.32-bit.link.libatomic.diff.gz | patch -p1 --verbose || exit 1
+fi
+
+# Won't build without this. See https://github.com/llvm/llvm-project/issues/54941
+#zcat $CWD/llvm.bypass.broken.benchmarks.diff.gz | patch -p1 --verbose || exit 1
+
+# These hackish links seem to be required...
+cd ..
+ln -sf */utils/gn/secondary/third-party .
+ln -sf */runtimes .
+ln -sf */projects/libcxx .
+ln -sf */projects/libcxxabi .
+cd -
 
 chown -R root:root .
 find . \
@@ -171,7 +183,9 @@ cd build
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DLLVM_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON \
+    -DLLVM_BUILD_LLVM_DYLIB=ON \
+    -DLLVM_LINK_LLVM_DYLIB=ON \
+    -DCLANG_LINK_CLANG_DYLIB=ON \
     -DLLVM_USE_LINKER=gold \
     -DLLVM_ENABLE_RTTI=ON \
     -DLLVM_ENABLE_FFI=ON \
@@ -181,6 +195,8 @@ cd build
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/${VERSION}" \
     -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF" \
     -DLLDB_USE_SYSTEM_SIX=1 \
+    -DLLVM_INCLUDE_BENCHMARKS=OFF \
+    -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     $CLANGD \
     ..  || exit 1
 

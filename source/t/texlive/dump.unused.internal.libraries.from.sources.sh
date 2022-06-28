@@ -7,7 +7,6 @@ tar xf texlive-${VERSION}-source.tar.xz || exit 1
 mv texlive-${VERSION}-source.tar.xz texlive-${VERSION}-source.tar.xz.orig
 ( cd texlive-${VERSION}-source/libs && rm -rf cairo freetype2 gd gmp graphite2 harfbuzz mpfr icu libpng pixman potrace zlib )
 ( cd texlive-${VERSION}-source/utils && rm -rf asymptote )
-( cd texlive-${VERSION}-source/texk && rm -rf dvisvgm )
 ( cd texlive-${VERSION}-source/texk/texlive && rm -rf w*_wrapper )
 tar cf texlive-${VERSION}-source.tar texlive-${VERSION}-source
 rm -r texlive-${VERSION}-source

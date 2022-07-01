@@ -941,6 +941,7 @@ a/procps-ng \
 a/reiserfsprogs \
 a/sed \
 a/shadow \
+a/smartmontools \
 a/sysfsutils \
 a/syslinux \
 a/tar \
@@ -1211,6 +1212,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRSBIN} \
         dmidecode \
         mount.cifs \
         sm-notify \
+        smartctl \
         sparsify \
         umount.cifs \
         zerofree \
@@ -2305,6 +2307,8 @@ if [ -d usr/man ]; then
       man1/plzip.1.bz2 \
       man1/neofetch.1.bz2 \
       man1/nvme.1.bz2 \
+      man8/dmidecode.8.bz2 \
+      man8/smartctl.8.bz2 \
     ; do
       mkdir -p man/$(dirname $manpage)
       cp -a man.full/$manpage man/$manpage

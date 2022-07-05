@@ -27,7 +27,23 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=llvm
 VERSION=${VERSION:-$(echo llvm-*.tar.xz | rev | cut -f 4- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
+
+# For the two options below, either set both to OFF or *only one* to ON:
+
+# Build using -DBUILD_SHARED_LIBS=ON.
+# While this is not the officially recommended way to build LLVM, it produces
+# a smaller package and the compiler seems to be reliable when built this way.
+BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS:=ON}
+
+# Build using -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DCLANG_LINK_CLANG_DYLIB=ON:
+# This is the recommended way to built LLVM with shared libraries, however
+# the resulting package is twice as large and also wasn't able to build
+# Firefox or Thunderbird here. If you rebuild LLVM with this option, you'll
+# also need to recompile spirv-llvm-translator, mesa, and possibly other
+# third party packages. The resulting compiler has not been reliable here.
+# I would not recommend using this option, but feel free to try it.
+LLVM_BUILD_LLVM_DYLIB=${LLVM_BUILD_LLVM_DYLIB:=OFF}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -168,6 +184,15 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Collect shared library options. If both of the configurable options are set
+# to ON, the last one we check will be the one we use.
+if [ "$BUILD_SHARED_LIBS" = "ON" ]; then
+  SHARED_LIBRARY_OPTIONS="-DBUILD_SHARED_LIBS=ON"
+fi
+if [ "$LLVM_BUILD_LLVM_DYLIB" = "ON" ]; then
+  SHARED_LIBRARY_OPTIONS="-DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DCLANG_LINK_CLANG_DYLIB=ON"
+fi
+
 mkdir build
 cd build
   mkdir include
@@ -183,9 +208,7 @@ cd build
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DLLVM_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_BUILD_TYPE=Release \
-    -DLLVM_BUILD_LLVM_DYLIB=ON \
-    -DLLVM_LINK_LLVM_DYLIB=ON \
-    -DCLANG_LINK_CLANG_DYLIB=ON \
+    $SHARED_LIBRARY_OPTIONS \
     -DLLVM_USE_LINKER=gold \
     -DLLVM_ENABLE_RTTI=ON \
     -DLLVM_ENABLE_FFI=ON \

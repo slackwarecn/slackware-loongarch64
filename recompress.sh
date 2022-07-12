@@ -762,7 +762,6 @@ gzip ./source/l/GConf/doinst.sh
 gzip ./source/l/libiodbc/libiodbc.disable.rpath.diff
 gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
-gzip ./source/l/gvfs/gvfs.ftbfs.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff

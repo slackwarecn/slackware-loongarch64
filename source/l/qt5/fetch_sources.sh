@@ -20,7 +20,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-BRANCH="5.15.4"
+BRANCH="5.15.5"
 
 rm -f qt-everywhere-src-*.tar*
 
@@ -31,7 +31,7 @@ cd qt5
   ./init-repository
 
   # Sync qtwebengine version with the rest of qt5
-  sed -i -E "s/5.15.(.*)/5.15.4/" qtwebengine/.qmake.conf
+  sed -i -E "s/5.15.(.*)/$BRANCH/" qtwebengine/.qmake.conf
 
   for i in $(find . -type d -name "qt*" -maxdepth 1); do
     cd $i

@@ -194,7 +194,6 @@ gzip ./source/a/lbzip2/lbzip2.glibc228.diff
 gzip ./source/a/libpwquality/doinst.sh
 gzip ./source/a/lrzip/doinst.sh
 gzip ./source/a/sysklogd/doinst.sh
-gzip ./source/a/tar/tar-1.13.bzip2.diff
 gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/genpower/genpower.halt.diff
 gzip ./source/a/genpower/genpower.var.diff

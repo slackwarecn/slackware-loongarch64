@@ -139,6 +139,8 @@ fi
 # Unmount any NFS, SMB, or CIFS filesystems:
 echo "Unmounting remote filesystems:"
 /bin/umount -v -a -l -f -r -t nfs,nfs4,smbfs,cifs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g"
+# Update PATH hashes:
+hash -r
 
 # Stop D-Bus:
 if [ -x /etc/rc.d/rc.messagebus ]; then
@@ -147,7 +149,7 @@ fi
 
 # Try to shut down pppd:
 PS="$(ps ax)"
-if echo "$PS" | /bin/grep -q -w pppd ; then
+if echo "$PS" | grep -q -w pppd ; then
   if [ -x /usr/sbin/ppp-off ]; then
     /usr/sbin/ppp-off
   fi
@@ -162,7 +164,7 @@ fi
 
 # Bring down the networking system, but first make sure that this
 # isn't a diskless client with the / partition mounted via NFS:
-if ! /bin/mount | /bin/grep -q -e 'on / type nfs' -e 'on / type nfs4' ; then
+if ! /bin/mount | grep -q -e 'on / type nfs' -e 'on / type nfs4' ; then
   if [ -x /etc/rc.d/rc.inet1 ]; then
     /etc/rc.d/rc.inet1 stop
   fi
@@ -210,7 +212,7 @@ if [ ! "$1" = "fast" ]; then
 fi
 
 # Try to turn off quota.
-if /bin/grep -q quota /etc/fstab ; then
+if grep -q quota /etc/fstab ; then
   if [ -x /sbin/quotaoff -a -z "$container" ]; then
     echo "Turning off filesystem quotas."
     /sbin/quotaoff -a
@@ -268,6 +270,8 @@ fi
 if [ -z "$container" ]; then
   echo "Unmounting local file systems:"
   /bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
+  # Update PATH hashes:
+  hash -r
   # JFS needs a sync here or the / partition cannot be remounted read-only.
   # In spite of this, it seems that a JFS root partition will always be checked
   # (and found to be clean) at boot:
@@ -322,7 +326,7 @@ wait
 
 if [ -x /sbin/genpowerd -a -z "$container" ]; then
   # See if this is a powerfail situation:
-  if /bin/egrep -q "FAIL|SCRAM" /etc/upsstatus 2> /dev/null ; then
+  if egrep -q "FAIL|SCRAM" /etc/upsstatus 2> /dev/null ; then
     # Signal UPS to shut off the inverter:
     /sbin/genpowerd -k
     if [ ! $? = 0 ]; then

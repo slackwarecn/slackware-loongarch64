@@ -99,7 +99,6 @@ gzip ./source/d/make/make-4.3-j8k.patch
 gzip ./source/d/make/make-4.0-noclock_gettime.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
-gzip ./source/d/scons/scons.1
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch
@@ -351,6 +350,7 @@ gzip ./source/a/dcron/crontab.root
 gzip ./source/a/dcron/doinst.sh
 gzip ./source/a/dcron/run-parts
 gzip ./source/a/patch/0001-Refuse-to-apply-ed-scripts-by-default.patch
+gzip ./source/a/cryptsetup/doinst.sh
 gzip ./source/a/pcmciautils/doinst.sh
 gzip ./source/a/findutils/findutils.no.default.options.warnings.diff
 gzip ./source/a/kbd/sources/kbd-1.15-unicode_start.patch

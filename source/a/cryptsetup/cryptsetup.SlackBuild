@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=cryptsetup
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -87,6 +87,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --enable-cryptsetup-reencrypt \
   --enable-libargon2 \
+  --disable-asciidoc \
   --mandir=/usr/man \
   --docdir=/usr/doc/cryptsetup-$VERSION \
   --build=$ARCH-slackware-linux || exit 1
@@ -118,9 +119,14 @@ mkdir -p $PKG/sbin
   ln -sf ../../sbin/cryptsetup .
 )
 
+# Add the rc script:
+mkdir -p $PKG/etc/rc.d
+cat $CWD/rc.luks > $PKG/etc/rc.d/rc.luks.new
+chmod 755 $PKG/etc/rc.d/rc.luks.new
+
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README* TODO FAQ \
+  AUTHORS* COPYING* INSTALL* NEWS* README* TODO* FAQ* \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 # Convert pdf files to text. We do not package bloated PDFs.
@@ -159,6 +165,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

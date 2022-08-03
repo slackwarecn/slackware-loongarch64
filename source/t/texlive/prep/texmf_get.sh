@@ -612,7 +612,7 @@ esac
 
 echo "Building $edition tarball ..."
 
-# Set VERSION, get texlive.tlpdb and keep unshorten $db.orig 
+# Set VERSION, get texlive.tlpdb and strip it, keep texlive.tlpdb.orig 
 if [ ! -s ${db}.orig -o ! -s $db -o ! -s VERSION ]
 then
   for run in {1..10}
@@ -620,7 +620,7 @@ then
     wget -q --show-progress -t1 -c -O ${db}.orig.xz ${mirror}tlpkg/texlive.tlpdb.xz
     [ -s "${db}.orig.xz" ] && break
   done
-  unxz ${db}.orig.xz || exit 1
+  unxz -f ${db}.orig.xz || exit 1
   echo $(date +%y%m%d) > VERSION
 
   # remove most content from $db to be faster on later processing. 

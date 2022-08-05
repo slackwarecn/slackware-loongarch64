@@ -7,11 +7,11 @@
 .ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
 .el .TP "\\$1"
 ..
-.TH RUN-PARTS 8 "14 Apr 2002" "Slackware Version 8.1.0
+.TH RUN-PARTS 8 "05 Aug 2022" "Slackware Version 15.1"
 .SH NAME
 run-parts \- run scripts found in a directory
 .SH SYNOPSIS
-.B run-parts <directory>
+.B run-parts [ --list | --test ] <directory>
 .LP
 .SH DESCRIPTION
 .B run-parts
@@ -28,9 +28,49 @@ can be called once a day from root's crontab to run all the scripts found in
 automatically skips files with certain suffixes that are generally associated
 with backup or extra files.  Any file that ends in one of these will be silently
 ignored:  ~ ^ , .bak .new .rpmsave .rpmorig .rpmnew .swp
+
+The execution of files can be allowed or denied by creating file
+.B jobs.allow
+or
+.B jobs.deny
+which work similarly to other allow/deny config files. The file must be
+created in the specified directory.
+
+Randomization of jobs can be configured in the
+.IR /etc/default/run-parts
+file. To enable randomization of jobs, set the RANDOMIZE parameter to 1
+and set the RANDOM parameter to an integer which determines a random
+seed. Additionally, you may configure the RANDOMTIME parameter (again,
+by specifying an integer) to provide an additional level of
+randomization. Jobs are not randomized when the RANDOM and RANDOMTIME
+parameters are set to 0. Values in these two parameters must be set to
+1 or larger to provide a good enough randomization.
+
+Randomization of cron jobs can be useful for shared networks, where
+multiple cron jobs executed at once can cause spikes in traffic,
+especially during daily jobs. With randomized jobs, the workload is
+evenly distributed throughout the day.
+
+.TP
+.B --list
+print names of all files (not limited to executables), but don't run
+them. This option can't be used with
+.B test
+option.
+.TP
+.B --test
+print names of files, which would be run.
+
+.SH EXAMPLE OF CONFIGURATION FILE
+.nf
+RANDOMIZE=1
+RANDOM=4
+RANDOMTIME=8
+.fi
+
 .SH AUTHOR
-Patrick J. Volkerding <volkerdi@slackware.com>, with ideas borrowed from the
-Red Hat and Debian versions of this utility.
+Written for Fedora by Marcela Ma■lá■ová, modified slightly for Slackware by
+Patrick J. Volkerding <volkerdi@slackware.com>.
 .SH "SEE ALSO"
 .BR crond(8),
 .BR crontab(8).

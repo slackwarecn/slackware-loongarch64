@@ -1,0 +1,40 @@
+diff -Naur elilo-3.16-source.orig/x86_64/sysdeps.h elilo-3.16-source/x86_64/sysdeps.h
+--- elilo-3.16-source.orig/x86_64/sysdeps.h	2012-11-19 19:01:04.000000000 -0200
++++ elilo-3.16-source/x86_64/sysdeps.h	2022-08-05 15:51:02.700147207 -0300
+@@ -184,7 +184,12 @@
+ /* 0xA0 */	UINT16 mca_info_len;		/* LDR */
+ /* 0xA2 */	UINT8 mca_info_buf[0x10];	/* LDR */
+ 
+-/* 0xB2 */	UINT8 pad_4[0x10E];		/* unused */
++/* 0xB2 */	UINT8 pad_41[0x8A];		/* unused */
++
++/* Confidential Computing Blob */
++/* 0x13C */	UINT32 cc_blob_address;		/* LDR */
++
++/* 0x140 */	UINT8 pad_42[0x80];		/* unused */
+ 
+ /* EFI boot loader signature. */
+ /* 0x1C0 */	UINT8 efi_loader_sig[4];	/* LDR */
+diff -Naur elilo-3.16-source.orig/x86_64/system.c elilo-3.16-source/x86_64/system.c
+--- elilo-3.16-source.orig/x86_64/system.c	2013-03-29 16:03:15.000000000 -0300
++++ elilo-3.16-source/x86_64/system.c	2022-08-05 15:50:45.772968102 -0300
+@@ -684,6 +684,11 @@
+ 	ZeroMem(bp->s.hd1_info, sizeof bp->s.hd1_info);
+ 
+ 	/*
++	 * Disable Confidential Computing blob
++	 */
++	bp->s.cc_blob_address = 0;
++
++	/*
+ 	 * Memory info.
+ 	 */
+ 
+@@ -826,6 +831,7 @@
+ 		CHECK_OFFSET(hd1_info, 0x90, L"");
+ 		CHECK_OFFSET(mca_info_len, 0xA0, L"%xh");
+ 		CHECK_OFFSET(mca_info_buf, 0xA2, L"");
++		CHECK_OFFSET(cc_blob_address, 0x13C, L"%xh");
+ 		CHECK_OFFSET(efi_loader_sig, 0x1C0, L"'%-4.4a'");
+ 		CHECK_OFFSET(efi_sys_tbl, 0x1C4, L"%xh");
+ 		CHECK_OFFSET(efi_mem_desc_size, 0x1C8, L"%xh");

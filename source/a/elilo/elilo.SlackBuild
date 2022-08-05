@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013, 2014, 2016, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2014, 2016, 2017, 2018, 2019, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=elilo
 VERSION=${VERSION:-$(echo $PKGNAM*.tar.?z* | rev | cut -f 2 -d - | rev)}
-BUILD=${BUILD:-12}
+BUILD=${BUILD:-13}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -75,6 +75,9 @@ tar xvf elilo-${VERSION}-source.tar.gz || exit 1
 # things, as the loaders themselves seldom need to be rebuilt. Besides,
 # elilo can be rather fragile, so we don't want to rebuild it without a
 # good reason and risk breaking it.
+#
+# These EFI binaries were built with Slackware 14.2. Newer compilers might
+# cause bloat, or other issues.
 tar xvf $CWD/elilo.loader.binaries.tar.xz || exit 1
 
 chown -R root:root .
@@ -90,6 +93,10 @@ grep -r -l StrnCpy * | xargs sed -i "s/StrnCpy/elilo_StrnCpy/g"
 
 # Increase kernel size limit from 8MB to 16MB (nobody will ever need more than 640K ;-):
 zcat $CWD/elilo.double.kernel.size.limit.diff.gz | patch -p1 --verbose || exit 1
+
+# Disable the Confidential Computing blob which was leading to boot failures
+# with the 5.19.0 kernel and the EFI stub enabled:
+zcat $CWD/elilo.zeroes.cc_blob_address.diff.gz | patch -p1 --verbose || exit 1
 
 # We will build the tools from source.
 # However, we will package the pre-built EFI binaries, since we would

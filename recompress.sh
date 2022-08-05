@@ -3,6 +3,7 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
+gzip ./extra/source/rust-for-mozilla/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
 gzip ./extra/source/rust-for-mozilla/link_libffi.diff
 gzip ./extra/source/php80/php-fpm.conf.diff
 gzip ./extra/source/php80/doinst.sh
@@ -50,9 +51,11 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
+gzip ./source/d/llvm/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
 gzip ./source/d/llvm/lldb.32-bit.link.libatomic.diff
 gzip ./source/d/llvm/llvm.polly.hack.diff
 gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
+gzip ./source/d/rust/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
 gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff
@@ -237,6 +240,7 @@ gzip ./source/a/libcgroup/libcgroup.init.diff
 gzip ./source/a/libcgroup/libcgroup.loop.diff
 gzip ./source/a/libcgroup/doinst.sh
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
+gzip ./source/a/elilo/elilo.zeroes.cc_blob_address.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh
 gzip ./source/a/e2fsprogs/e2fsprogs.no.64bit.by.default.diff
 gzip ./source/a/e2fsprogs/doinst.sh

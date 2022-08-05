@@ -1,46 +1,100 @@
-#!/bin/sh
-# run-parts:  Runs all the scripts found in a directory.
+#!/bin/bash
+# run-parts - concept taken from Debian
 
 # keep going when something fails
 set +e
 
 if [ $# -lt 1 ]; then
-  echo "Usage: run-parts <directory>"
-  exit 1
+	echo "Usage: run-parts [--list | --test] <dir>"
+	exit 1
 fi
+
+while [ $# -gt 1 ]; do
+	case $1 in
+		--list)
+			list=1
+			shift
+			break
+			;;
+		--test)
+			test=1
+			shift
+			break
+			;;
+		--)
+			# -- end of options
+			shift
+			break
+			;;
+		*)
+			# directory
+			break
+			;;
+	esac
+done
 
 if [ ! -d $1 ]; then
-  echo "Not a directory: $1"
-  echo "Usage: run-parts <directory>"
-  exit 1
+	echo "Not a directory: $1"
+	exit 1
 fi
 
-# There are several types of files that we would like to
-# ignore automatically, as they are likely to be backups
-# of other scripts:
-IGNORE_SUFFIXES="~ ^ , .bak .new .rpmsave .rpmorig .rpmnew .swp"
+if [ -f /etc/default/run-parts ]; then
+	. /etc/default/run-parts
+fi
 
-# Main loop:
-for SCRIPT in $1/* ; do
-  # If this is not a regular file, skip it:
-  if [ ! -f $SCRIPT ]; then
-    continue
-  fi
-  # Determine if this file should be skipped by suffix:
-  SKIP=false
-  for SUFFIX in $IGNORE_SUFFIXES ; do
-    if [ ! "$(basename $SCRIPT $SUFFIX)" = "$(basename $SCRIPT)" ]; then
-      SKIP=true
-      break
-    fi
-  done
-  if [ "$SKIP" = "true" ]; then
-    continue
-  fi
-  # If we've made it this far, then run the script if it's executable:
-  if [ -x $SCRIPT ]; then
-    $SCRIPT || echo "$SCRIPT failed."
-  fi
+# Ignore *~ and *, scripts
+for i in $(LC_ALL=C; echo ${1%/}/*[^~,]) ; do
+	[ -d $i ] && continue
+	# Don't run *.{bak,new,rpmsave,rpmorig,rpmnew,swp,cfsaved} scripts
+	[ "${i%.bak}" != "${i}" ] && continue
+	[ "${i%.new}" != "${i}" ] && continue
+	[ "${i%.rpmsave}" != "${i}" ] && continue
+        [ "${i%.rpmorig}" != "${i}" ] && continue
+        [ "${i%.rpmnew}" != "${i}" ] && continue
+        [ "${i%.swp}" != "${i}" ] && continue
+	[ "${i%.cfsaved}" != "${i}" ] && continue
+	[ "${i%,v}" != "${i}" ] && continue
+
+	# jobs.deny prevents specific files from being executed
+	# jobs.allow prohibits all non-named jobs from being run.
+	# can be used in conjunction but there's no reason to do so. 
+	if [ -r $1/jobs.deny ]; then
+		grep -q "^$(basename $i)$" $1/jobs.deny && continue
+	fi
+	if [ -r $1/jobs.allow ]; then
+		grep -q "^$(basename $i)$" $1/jobs.allow || continue
+	fi
+
+	if [ -e $i ]; then
+		if [ -r $1/whitelist ]; then
+			grep -q "^$(basename $i)$" $1/whitelist && continue
+		fi
+
+		if [ ${list:-0} = 1 ]; then
+			echo $i;
+		elif [ -x $i ]; then
+			if [ ${test:-0} = 1 ]; then
+				echo $i;
+				continue
+			fi
+			if [ "$RANDOMIZE" != "" ]; then
+				let "rtime = $RANDOM"
+				if [ "$RANDOMTIME" != "" ]; then
+					let "rtime %= $RANDOMTIME"
+				else
+					let "rtime %= 300"
+				fi
+				sleep $rtime
+			fi
+
+			# run executable files
+			logger -p cron.notice -t "run-parts[$$]" "($1) starting $(basename $i)"
+			$i 2>&1 | sed '1i\
+'"$i"':\
+'
+			logger -p cron.notice -t "run-parts[$$]" "($1) finished $(basename $i)"
+		fi
+	fi
 done
 
 exit 0

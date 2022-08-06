@@ -941,6 +941,7 @@ gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/double_t.x86.diff
 gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
@@ -1053,6 +1054,7 @@ gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-firefox/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/0027-LTO-Only-enable-LTO-for-Rust-when-complete-build-use.patch

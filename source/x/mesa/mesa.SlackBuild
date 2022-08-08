@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,14 +24,15 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=mesa
 VERSION=${VERSION:-$(echo $PKGNAM-[0-9]*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-DEMOVERS=${DEMOVERS:-8.4.0}
-BUILD=${BUILD:-3}
+AMBERVERS=${DEMOVERS:-21.3.9}
+DEMOVERS=${DEMOVERS:-8.5.0}
+BUILD=${BUILD:-1}
+BUILD_AMBER=${BUILD_AMBER:-YES}
 BUILD_DEMOS=${BUILD_DEMOS:-YES}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Be sure this list is up-to-date:
-DRI_DRIVERS="i915,i965,r100,r200,nouveau"
 GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,iris,crocus,zink"
 
 if [ -z "$ARCH" ]; then
@@ -130,7 +131,6 @@ meson setup \
   -Dgallium-opencl=icd \
   -Dgallium-nine=true \
   -Dosmesa=true \
-  -Ddri-drivers=$DRI_DRIVERS \
   -Dgallium-drivers=$GALLIUM_DRIVERS \
   -Dvulkan-drivers=amd,intel,swrast \
   -Dvulkan-layers=device-select,intel-nullhw,overlay \
@@ -160,44 +160,23 @@ fi
   fi
 )
 
+if [ "$BUILD_AMBER" = "YES" ]; then
+  . $CWD/mesa-amber.build
+fi
+
 if [ "$BUILD_DEMOS" = "YES" ]; then
-  # Now build/install a small subset of the demos:
-  export CWD SLKCFLAGS NUMJOBS PKG
-  ( cd $TMP
-    rm -rf mesa-demos-$DEMOVERS
-    tar xvf $CWD/mesa-demos-$DEMOVERS.tar.?z* || exit 1
-    cd mesa-demos-$DEMOVERS
-    chown -R root:root .
-    find . \
-      \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-      -exec chmod 755 {} \+ -o \
-    \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-      -exec chmod 644 {} \+
-    CFLAGS="$SLKCFLAGS" \
-    ./configure \
-      --prefix=/usr \
-      --build=$ARCH-slackware-linux || exit 1
-    make $NUMJOBS || exit 1
-    # Install all the demos (including the pointless ones) at first, in a
-    # temporary location:
-    make install DESTDIR=$PKG/cruft || exit 1
-    # Install gears and glinfo, as well as a few other demos:
-    mkdir -p $PKG/usr/bin
-    for demo in eglinfo gears glinfo glthreads glxcontexts glxdemo glxgears \
-      glxgears_fbconfig glxheads glxinfo glxpbdemo glxpixmap ; do
-      mv --verbose $PKG/cruft/usr/bin/$demo $PKG/usr/bin
-  done
-    # Remove cruft:
-    rm -rf $PKG/cruft
-  ) || exit 1
+  . $CWD/mesa-demos.build
 fi
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-find $PKG/usr/man -type f -exec gzip -9 {} \+
-for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+# Compress man pages, if any:
+if [ -d $PKG/usr/man ]; then
+  find $PKG/usr/man -type f -exec gzip -9 {} \+
+  for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; rm $i ; done
+fi
 
 # Compress info files, if any:
 if [ -d $PKG/usr/info ]; then
@@ -205,12 +184,10 @@ if [ -d $PKG/usr/info ]; then
   gzip -9 $PKG/usr/info/*
 fi
 
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/html
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  docs/COPYING* docs/relnotes/${VERSION}.html docs/README* docs/GL* \
+  CODEOWNERS* README* docs/README* docs/license* docs/relnotes/${VERSION}.* \
   $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a docs/*.html $PKG/usr/doc/$PKGNAM-$VERSION/html
-rm -f $PKG/usr/doc/$PKGNAM-$VERSION/html/relnotes*.html
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
@@ -218,4 +195,3 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz
-

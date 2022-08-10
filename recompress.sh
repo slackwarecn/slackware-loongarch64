@@ -74,7 +74,6 @@ gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/doxygen/5198966c8d5fec89116d025c74934ac03ea511fa.patch
 gzip ./source/d/binutils/patches/binutils-special-sections-in-groups.patch
 gzip ./source/d/binutils/patches/binutils-gold-i386-gnu-property-notes.patch
-gzip ./source/d/binutils/patches/binutils-use-long-long.patch
 gzip ./source/d/binutils/patches/binutils-gold-warn-unsupported.patch
 gzip ./source/d/binutils/patches/binutils-readelf-other-sym-info.patch
 gzip ./source/d/binutils/patches/binutils-filename-in-error-messages.patch
@@ -85,7 +84,6 @@ gzip ./source/d/binutils/patches/binutils-do-not-link-with-static-libstdc++.patc
 gzip ./source/d/binutils/patches/binutils-fix-testsuite-failures.patch
 gzip ./source/d/binutils/patches/binutils-libtool-lib64.patch
 gzip ./source/d/binutils/patches/binutils-2.27-aarch64-ifunc.patch
-gzip ./source/d/binutils/patches/binutils-CVE-2019-1010204.patch
 gzip ./source/d/binutils/patches/binutils-export-demangle.h.patch
 gzip ./source/d/binutils/patches/binutils-gold-mismatched-section-flags.patch
 gzip ./source/d/icecream/doinst.sh
@@ -977,6 +975,7 @@ gzip ./source/xap/xgames/xcolormap.diff
 gzip ./source/xap/xgames/spider.diff
 gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/seamonkey/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh

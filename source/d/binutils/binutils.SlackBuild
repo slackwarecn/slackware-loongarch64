@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=binutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -109,18 +109,11 @@ zcat $CWD/patches/binutils-no-config-h-check.patch.gz | patch -p1 --verbose || e
 zcat $CWD/patches/binutils-version.patch.gz | patch -p1 --verbose || exit 1
 sed -i -e 's/%''{release}/slack151/g' bfd/Makefile{.am,.in}
 
-# Use the "unsigned long long" type for pointers on hosts where long is a
-# 32-bit type but pointers are a 64-bit type.  Necessary because users expect
-# to be able to install both the x86 and x86_64 versions of binutils on the
-# same machine, so they need identical versions of the bfd.h header file.
-zcat $CWD/patches/binutils-use-long-long.patch.gz | patch -p1 --verbose || exit 1
-
 # Work around a bug caused by binutils using an ancient libtool:
 zcat $CWD/patches/binutils-libtool-lib64.patch.gz | patch -p1 --verbose || exit 1
 
 # Various regression fixes:
 zcat $CWD/patches/binutils-2.27-aarch64-ifunc.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-CVE-2019-1010204.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/patches/binutils-do-not-link-with-static-libstdc++.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/patches/binutils-filename-in-error-messages.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/patches/binutils-gold-i386-gnu-property-notes.patch.gz | patch -p1 --verbose || exit 1
@@ -170,7 +163,7 @@ CFLAGS="$SLKCFLAGS" \
   --enable-64-bit-bfd \
   --enable-plugins \
   --enable-threads \
-  --enable-targets=i386-efi-pe,${TARGET} \
+  --enable-targets=i386-efi-pe,bpf-unknown-none,${TARGET} \
   --enable-install-libiberty \
   --enable-gold=yes \
   --enable-ld=default \

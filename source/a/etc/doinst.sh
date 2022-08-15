@@ -54,6 +54,8 @@ config etc/shells.new
 config etc/services.new
 config etc/issue.net.new
 config etc/nsswitch.conf.new
+config etc/profile.d/home-profile.d.csh.new
+config etc/profile.d/home-profile.d.sh.new
 config etc/profile.d/lang.csh.new
 config etc/profile.d/lang.sh.new
 config etc/profile.d/z-dot-in-non-root-path.csh.new

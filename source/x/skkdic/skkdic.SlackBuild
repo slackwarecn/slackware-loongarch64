@@ -3,7 +3,7 @@
 # Slackware build script for skkdic
 
 # Copyright 2015-2016  Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2016, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2016, 2020, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,8 +27,9 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=skkdic
 SRCVER=${SRCVER:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-VERSION=${VERSION:-$(echo $SRCVER | cut -f 1 -d 'T')}
-BUILD=${BUILD:-3}
+SRCDATE=${SRCDATE:-$(echo $SRCVER | cut -f 1 -d '.')}
+VERSION=${VERSION:-$(echo $SRCVER | cut -f 2 -d '.' | sed "s|git||")}
+BUILD=${BUILD:-1}
 ARCH=noarch
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
@@ -37,7 +38,7 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 # the name of the created package would be, and then exit. This information
 # could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
-  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  echo "$PKGNAM-$SRCDATE-$ARCH-$BUILD.txz"
   exit 0
 fi
 
@@ -47,9 +48,9 @@ PKG=$TMP/package-skkdic
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf skkdic-$VERSION
+rm -rf dict-$VERSION
 tar xvf $CWD/skkdic-$SRCVER.tar.?z || exit 1
-cd skkdic-$VERSION || exit 1
+cd dict-$VERSION || exit 1
 chown -R root:root .
 
 find . \
@@ -71,13 +72,14 @@ for i in SKK-JISYO* zipcode/SKK-JISYO*; do
   install -p -m 644 "$i" $PKG/usr/share/skk
 done
 
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a ChangeLog READMEs/committers.txt edict_doc.txt $CWD/README-skkdic.rh.ja \
-  $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a zipcode/README.ja $PKG/usr/doc/$PKGNAM-$VERSION/README-zipcode.ja
+mkdir -p $PKG/usr/doc/$PKGNAM-$SRCDATE/zipcode
+cp -a ChangeLog committers.md edict_doc.html unicode-license.txt README.md \
+  $PKG/usr/doc/$PKGNAM-$SRCDATE
+cp -a zipcode/README.md \
+  $PKG/usr/doc/$PKGNAM-$SRCDATE/zipcode
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$SRCDATE-$ARCH-$BUILD.txz

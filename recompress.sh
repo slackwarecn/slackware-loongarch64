@@ -376,9 +376,8 @@ gzip ./source/a/dbus/dbus-enable-elogind.patch
 gzip ./source/a/mcelog/mcelog.logrotate.size.syntax.diff
 gzip ./source/a/mcelog/mcelog.init.diff
 gzip ./source/a/mcelog/doinst.sh
+gzip ./source/kde/fcitx5-configtool/doinst.sh
 gzip ./source/kde/kde/patch/ktorrent/geoip.dat
-gzip ./source/kde/kcm-fcitx/doinst.sh
-gzip ./source/kde/kcm-fcitx/destroy-erroroverlay-with-base-widget.patch
 gzip ./source/y/bsd-games/hangman-words
 gzip ./source/y/bsd-games/patches/0008-quiz-Add-answers-to-adults-babies.-Closes-659528.patch
 gzip ./source/y/bsd-games/patches/0007-Unsorted-Debian-patches.patch
@@ -1071,16 +1070,16 @@ gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff
 gzip ./source/x/hack-fonts-ttf/doinst.sh
+gzip ./source/x/fcitx5-gtk/doinst.sh
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff
 gzip ./source/x/wqy-zenhei-font-ttf/fixup-fontconfig-file.diff
 gzip ./source/x/wqy-zenhei-font-ttf/64-wqy-zenhei.conf
 gzip ./source/x/xdg-user-dirs/doinst.sh
 gzip ./source/x/ibus-libpinyin/doinst.sh
 gzip ./source/x/dejavu-fonts-ttf/doinst.sh
-gzip ./source/x/fcitx/doinst.sh
-gzip ./source/x/fcitx/fcitx-autostart.patch
 gzip ./source/x/ibus-table/doinst.sh
 gzip ./source/x/ibus-anthy/doinst.sh
+gzip ./source/x/anthy-unicode/doinst.sh
 gzip ./source/x/noto-cjk-fonts-ttf/doinst.sh
 gzip ./source/x/motif/xinitrc.mwm
 gzip ./source/x/motif/motif-2.3.4-no_demos.patch
@@ -1141,6 +1140,7 @@ gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-phys
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
 gzip ./source/x/x11/patch/igt-gpu-tools/963917a3565466832a3b2fc22e9285d34a0bf944.patch
+gzip ./source/x/fcitx5/doinst.sh
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh

@@ -893,8 +893,6 @@ gzip ./source/l/polkit/CVE-2021-4115.patch
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/polkit/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch
 gzip ./source/l/polkit/0001-configure-fix-elogind-support.patch
-gzip ./source/l/glade/glade.remove.extra.da.from.LINGUAS.diff
-gzip ./source/l/glade/glade.ftbfs.diff
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch
 gzip ./source/l/id3lib/patches/id3lib.vbr_stack_smash.patch
 gzip ./source/l/id3lib/patches/id3lib.cppheaders.patch

@@ -882,7 +882,6 @@ gzip ./source/l/openal-soft/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
-gzip ./source/l/SDL2/SDL2.no-werror-declaration-after-statement.diff
 gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch

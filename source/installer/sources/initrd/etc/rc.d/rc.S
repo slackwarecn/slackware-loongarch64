@@ -13,6 +13,16 @@
 # Mount sysfs next:
 /sbin/mount -v sysfs /sys -t sysfs 1> /dev/null
 
+# Set a root password for the Slackware Installer if set as a Kernel cmdline:
+# This is intended for network installations where otherwise the root password
+# would be unset.
+# Note: this does not configure the OS root password.
+# Passwords should be set as follows within the Kernel cmdline:
+#   instrootpw=yourpassword
+if grep.bin -qoP 'instrootpw=\K\S+' /proc/cmdline ; then
+  /bin/echo "root:$( grep.bin -oP 'instrootpw=\K\S+' /proc/cmdline )" | /bin/busybox chpasswd
+fi
+
 # Activate swap:
 /sbin/swapon -a 1> /dev/null
 

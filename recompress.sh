@@ -38,6 +38,7 @@ gzip ./extra/source/php81/doinst.sh
 gzip ./extra/source/php81/php.imap.api.diff
 gzip ./extra/source/php81/php.ini-development.diff
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
+gzip ./source/d/python-setuptools/setuptools.x86_64.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/python3/python.sysconfig.py.x86_64.diff
@@ -67,8 +68,6 @@ gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
-gzip ./source/d/gcc/patches/2701442d0cf6292f6624443c15813d6d1a3562fe.diff
-gzip ./source/d/gcc/patches/f35d65517a59565758107c5b1a51a5fa382f8d1a.diff
 gzip ./source/d/meson/meson.import.copy.diff
 gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/doxygen/5198966c8d5fec89116d025c74934ac03ea511fa.patch

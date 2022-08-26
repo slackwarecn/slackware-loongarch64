@@ -789,7 +789,6 @@ gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff
-gzip ./source/l/babl/babl.ftbfs.diff
 gzip ./source/l/gtk+2/gtk.gtk-faq.diff
 gzip ./source/l/gtk+2/gtk.xid.nowarningflood.diff
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.am.diff

@@ -1,0 +1,1843 @@
+diff -u -r --new-file glibc-2.36/NEWS glibc-20220831_b3736d1a3c/NEWS
+--- glibc-2.36/NEWS	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/NEWS	2022-08-31 21:08:54.000000000 -0500
+@@ -5,6 +5,17 @@
+ Please send GNU C library bug reports via <https://sourceware.org/bugzilla/>
+ using `glibc' in the "product" field.
+ 
++Version 2.36.1
++
++The following bugs are resolved with this release:
++
++  [28846] CMSG_NXTHDR may trigger -Wstrict-overflow warning
++  [29446] _dlopen now ignores dl_caller argument in static mode
++  [29485] Linux: Terminate subprocess on late failure in tst-pidfd
++  [29490] alpha: New __brk_call implementation is broken
++  [29528] elf: Call __libc_early_init for reused namespaces
++  [29539] libc: LD_TRACE_LOADED_OBJECTS changed how vDSO library are
++
+ Version 2.36
+ 
+ Major new features:
+diff -u -r --new-file glibc-2.36/bits/socket.h glibc-20220831_b3736d1a3c/bits/socket.h
+--- glibc-2.36/bits/socket.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/bits/socket.h	2022-08-31 21:08:52.000000000 -0500
+@@ -245,6 +245,12 @@
+ 			 + CMSG_ALIGN (sizeof (struct cmsghdr)))
+ #define CMSG_LEN(len)   (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
+ 
++/* Given a length, return the additional padding necessary such that
++   len + __CMSG_PADDING(len) == CMSG_ALIGN (len).  */
++#define __CMSG_PADDING(len) ((sizeof (size_t) \
++                              - ((len) & (sizeof (size_t) - 1))) \
++                             & (sizeof (size_t) - 1))
++
+ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *__mhdr,
+ 				      struct cmsghdr *__cmsg) __THROW;
+ #ifdef __USE_EXTERN_INLINES
+@@ -254,18 +260,38 @@
+ _EXTERN_INLINE struct cmsghdr *
+ __NTH (__cmsg_nxthdr (struct msghdr *__mhdr, struct cmsghdr *__cmsg))
+ {
++  /* We may safely assume that __cmsg lies between __mhdr->msg_control and
++     __mhdr->msg_controllen because the user is required to obtain the first
++     cmsg via CMSG_FIRSTHDR, set its length, then obtain subsequent cmsgs
++     via CMSG_NXTHDR, setting lengths along the way.  However, we don't yet
++     trust the value of __cmsg->cmsg_len and therefore do not use it in any
++     pointer arithmetic until we check its value.  */
++
++  unsigned char * __msg_control_ptr = (unsigned char *) __mhdr->msg_control;
++  unsigned char * __cmsg_ptr = (unsigned char *) __cmsg;
++
++  size_t __size_needed = sizeof (struct cmsghdr)
++                         + __CMSG_PADDING (__cmsg->cmsg_len);
++
++  /* The current header is malformed, too small to be a full header.  */
+   if ((size_t) __cmsg->cmsg_len < sizeof (struct cmsghdr))
+-    /* The kernel header does this so there may be a reason.  */
+     return (struct cmsghdr *) 0;
+ 
++  /* There isn't enough space between __cmsg and the end of the buffer to
++  hold the current cmsg *and* the next one.  */
++  if (((size_t)
++         (__msg_control_ptr + __mhdr->msg_controllen - __cmsg_ptr)
++       < __size_needed)
++      || ((size_t)
++            (__msg_control_ptr + __mhdr->msg_controllen - __cmsg_ptr
++             - __size_needed)
++          < __cmsg->cmsg_len))
++
++    return (struct cmsghdr *) 0;
++
++  /* Now, we trust cmsg_len and can use it to find the next header.  */
+   __cmsg = (struct cmsghdr *) ((unsigned char *) __cmsg
+ 			       + CMSG_ALIGN (__cmsg->cmsg_len));
+-  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) __mhdr->msg_control
+-					+ __mhdr->msg_controllen)
+-      || ((unsigned char *) __cmsg + CMSG_ALIGN (__cmsg->cmsg_len)
+-	  > ((unsigned char *) __mhdr->msg_control + __mhdr->msg_controllen)))
+-    /* No more entries.  */
+-    return (struct cmsghdr *) 0;
+   return __cmsg;
+ }
+ #endif	/* Use `extern inline'.  */
+diff -u -r --new-file glibc-2.36/dlfcn/dlopen.c glibc-20220831_b3736d1a3c/dlfcn/dlopen.c
+--- glibc-2.36/dlfcn/dlopen.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/dlfcn/dlopen.c	2022-08-31 21:08:52.000000000 -0500
+@@ -90,7 +90,7 @@
+ void *
+ __dlopen (const char *file, int mode, void *dl_caller)
+ {
+-  return dlopen_implementation (file, mode, RETURN_ADDRESS (0));
++  return dlopen_implementation (file, mode, dl_caller);
+ }
+ 
+ void *
+diff -u -r --new-file glibc-2.36/elf/Makefile glibc-20220831_b3736d1a3c/elf/Makefile
+--- glibc-2.36/elf/Makefile	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/elf/Makefile	2022-08-31 21:08:54.000000000 -0500
+@@ -408,6 +408,7 @@
+   tst-dlmopen4 \
+   tst-dlmopen-dlerror \
+   tst-dlmopen-gethostbyname \
++  tst-dlmopen-twice \
+   tst-dlopenfail \
+   tst-dlopenfail-2 \
+   tst-dlopenrpath \
+@@ -834,6 +835,8 @@
+   tst-dlmopen1mod \
+   tst-dlmopen-dlerror-mod \
+   tst-dlmopen-gethostbyname-mod \
++  tst-dlmopen-twice-mod1 \
++  tst-dlmopen-twice-mod2 \
+   tst-dlopenfaillinkmod \
+   tst-dlopenfailmod1 \
+   tst-dlopenfailmod2 \
+@@ -2967,3 +2970,25 @@
+ 	grep -q '^Fatal glibc error: Cannot allocate TLS block$$' $@ \
+ 	  && grep -q '^status: 127$$' $@; \
+ 	  $(evaluate-test)
++
++$(objpfx)tst-audit-tlsdesc: $(objpfx)tst-audit-tlsdesc-mod1.so \
++			    $(objpfx)tst-audit-tlsdesc-mod2.so \
++			    $(shared-thread-library)
++ifeq (yes,$(have-mtls-dialect-gnu2))
++# The test is valid for all TLS types, but we want to exercise GNU2
++# TLS if possible.
++CFLAGS-tst-audit-tlsdesc-mod1.c += -mtls-dialect=gnu2
++CFLAGS-tst-audit-tlsdesc-mod2.c += -mtls-dialect=gnu2
++endif
++$(objpfx)tst-audit-tlsdesc-dlopen: $(shared-thread-library)
++$(objpfx)tst-audit-tlsdesc-dlopen.out: $(objpfx)tst-audit-tlsdesc-mod1.so \
++				       $(objpfx)tst-audit-tlsdesc-mod2.so
++$(objpfx)tst-audit-tlsdesc-mod1.so: $(objpfx)tst-audit-tlsdesc-mod2.so
++$(objpfx)tst-audit-tlsdesc.out: $(objpfx)tst-auditmod-tlsdesc.so
++tst-audit-tlsdesc-ENV = LD_AUDIT=$(objpfx)tst-auditmod-tlsdesc.so
++$(objpfx)tst-audit-tlsdesc-dlopen.out: $(objpfx)tst-auditmod-tlsdesc.so
++tst-audit-tlsdesc-dlopen-ENV = LD_AUDIT=$(objpfx)tst-auditmod-tlsdesc.so
++
++$(objpfx)tst-dlmopen-twice.out: \
++  $(objpfx)tst-dlmopen-twice-mod1.so \
++  $(objpfx)tst-dlmopen-twice-mod2.so
+diff -u -r --new-file glibc-2.36/elf/dl-cache.c glibc-20220831_b3736d1a3c/elf/dl-cache.c
+--- glibc-2.36/elf/dl-cache.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/elf/dl-cache.c	2022-08-31 21:08:52.000000000 -0500
+@@ -509,8 +509,9 @@
+      we are accessing. Therefore we must make the copy of the
+      mapping data without using malloc.  */
+   char *temp;
+-  temp = alloca (strlen (best) + 1);
+-  strcpy (temp, best);
++  size_t best_len = strlen (best) + 1;
++  temp = alloca (best_len);
++  memcpy (temp, best, best_len);
+   return __strdup (temp);
+ }
+ 
+diff -u -r --new-file glibc-2.36/elf/dl-open.c glibc-20220831_b3736d1a3c/elf/dl-open.c
+--- glibc-2.36/elf/dl-open.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/elf/dl-open.c	2022-08-31 21:08:52.000000000 -0500
+@@ -844,11 +844,14 @@
+ 	  _dl_signal_error (EINVAL, file, NULL, N_("\
+ no more namespaces available for dlmopen()"));
+ 	}
+-      else if (nsid == GL(dl_nns))
+-	{
+-	  __rtld_lock_initialize (GL(dl_ns)[nsid]._ns_unique_sym_table.lock);
+-	  ++GL(dl_nns);
+-	}
++
++      if (nsid == GL(dl_nns))
++	++GL(dl_nns);
++
++      /* Initialize the new namespace.  Most members are
++	 zero-initialized, only the lock needs special treatment.  */
++      memset (&GL(dl_ns)[nsid], 0, sizeof (GL(dl_ns)[nsid]));
++      __rtld_lock_initialize (GL(dl_ns)[nsid]._ns_unique_sym_table.lock);
+ 
+       _dl_debug_update (nsid)->r_state = RT_CONSISTENT;
+     }
+diff -u -r --new-file glibc-2.36/elf/rtld.c glibc-20220831_b3736d1a3c/elf/rtld.c
+--- glibc-2.36/elf/rtld.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/elf/rtld.c	2022-08-31 21:08:52.000000000 -0500
+@@ -2122,6 +2122,12 @@
+ 	    if (l->l_faked)
+ 	      /* The library was not found.  */
+ 	      _dl_printf ("\t%s => not found\n",  l->l_libname->name);
++	    else if (strcmp (l->l_libname->name, l->l_name) == 0)
++	      /* Print vDSO like libraries without duplicate name.  Some
++		 consumers depend of this format.  */
++	      _dl_printf ("\t%s (0x%0*Zx)\n", l->l_libname->name,
++			  (int) sizeof l->l_map_start * 2,
++			  (size_t) l->l_map_start);
+ 	    else
+ 	      _dl_printf ("\t%s => %s (0x%0*Zx)\n",
+ 			  DSO_FILENAME (l->l_libname->name),
+diff -u -r --new-file glibc-2.36/elf/tst-dlmopen-twice-mod1.c glibc-20220831_b3736d1a3c/elf/tst-dlmopen-twice-mod1.c
+--- glibc-2.36/elf/tst-dlmopen-twice-mod1.c	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/elf/tst-dlmopen-twice-mod1.c	2022-08-31 21:08:52.000000000 -0500
+@@ -0,0 +1,37 @@
++/* Initialization of libc after dlmopen/dlclose/dlmopen (bug 29528).  Module 1.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <stdio.h>
++
++static void __attribute__ ((constructor))
++init (void)
++{
++  puts ("info: tst-dlmopen-twice-mod1.so loaded");
++  fflush (stdout);
++}
++
++static void __attribute__ ((destructor))
++fini (void)
++{
++  puts ("info: tst-dlmopen-twice-mod1.so about to be unloaded");
++  fflush (stdout);
++}
++
++/* Large allocation.  The second module does not have this, so it
++   should load libc at a different address.  */
++char large_allocate[16 * 1024 * 1024];
+diff -u -r --new-file glibc-2.36/elf/tst-dlmopen-twice-mod2.c glibc-20220831_b3736d1a3c/elf/tst-dlmopen-twice-mod2.c
+--- glibc-2.36/elf/tst-dlmopen-twice-mod2.c	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/elf/tst-dlmopen-twice-mod2.c	2022-08-31 21:08:52.000000000 -0500
+@@ -0,0 +1,50 @@
++/* Initialization of libc after dlmopen/dlclose/dlmopen (bug 29528).  Module 2.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <ctype.h>
++#include <stdio.h>
++
++static void __attribute__ ((constructor))
++init (void)
++{
++  puts ("info: tst-dlmopen-twice-mod2.so loaded");
++  fflush (stdout);
++}
++
++static void __attribute__ ((destructor))
++fini (void)
++{
++  puts ("info: tst-dlmopen-twice-mod2.so about to be unloaded");
++  fflush (stdout);
++}
++
++int
++run_check (void)
++{
++  puts ("info: about to call isalpha");
++  fflush (stdout);
++
++  volatile char ch = 'a';
++  if (!isalpha (ch))
++    {
++      puts ("error: isalpha ('a') is not true");
++      fflush (stdout);
++      return 1;
++    }
++  return 0;
++}
+diff -u -r --new-file glibc-2.36/elf/tst-dlmopen-twice.c glibc-20220831_b3736d1a3c/elf/tst-dlmopen-twice.c
+--- glibc-2.36/elf/tst-dlmopen-twice.c	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/elf/tst-dlmopen-twice.c	2022-08-31 21:08:52.000000000 -0500
+@@ -0,0 +1,34 @@
++/* Initialization of libc after dlmopen/dlclose/dlmopen (bug 29528).  Main.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <support/xdlfcn.h>
++#include <support/check.h>
++
++static int
++do_test (void)
++{
++  void *handle = xdlmopen (LM_ID_NEWLM, "tst-dlmopen-twice-mod1.so", RTLD_NOW);
++  xdlclose (handle);
++  handle = xdlmopen (LM_ID_NEWLM, "tst-dlmopen-twice-mod2.so", RTLD_NOW);
++  int (*run_check) (void) = xdlsym (handle, "run_check");
++  TEST_COMPARE (run_check (), 0);
++  xdlclose (handle);
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff -u -r --new-file glibc-2.36/include/bits/wchar2-decl.h glibc-20220831_b3736d1a3c/include/bits/wchar2-decl.h
+--- glibc-2.36/include/bits/wchar2-decl.h	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/include/bits/wchar2-decl.h	2022-08-31 21:08:52.000000000 -0500
+@@ -0,0 +1 @@
++#include <wcsmbs/bits/wchar2-decl.h>
+diff -u -r --new-file glibc-2.36/misc/syslog.c glibc-20220831_b3736d1a3c/misc/syslog.c
+--- glibc-2.36/misc/syslog.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/misc/syslog.c	2022-08-31 21:08:53.000000000 -0500
+@@ -193,28 +193,32 @@
+       int vl = __vsnprintf_internal (bufs + l, sizeof bufs - l, fmt, apc,
+                                      mode_flags);
+       if (0 <= vl && vl < sizeof bufs - l)
+-        {
+-          buf = bufs;
+-          bufsize = l + vl;
+-        }
++        buf = bufs;
++      bufsize = l + vl;
+ 
+       va_end (apc);
+     }
+ 
+   if (buf == NULL)
+     {
+-      buf = malloc (l * sizeof (char));
++      buf = malloc ((bufsize + 1) * sizeof (char));
+       if (buf != NULL)
+ 	{
+ 	  /* Tell the cancellation handler to free this buffer.  */
+ 	  clarg.buf = buf;
+ 
+ 	  if (has_ts)
+-	    __snprintf (bufs, sizeof bufs,
++	    __snprintf (buf, l + 1,
+ 			SYSLOG_HEADER (pri, timestamp, &msgoff, pid));
+ 	  else
+-	    __snprintf (bufs, sizeof bufs,
++	    __snprintf (buf, l + 1,
+ 			SYSLOG_HEADER_WITHOUT_TS (pri, &msgoff));
++
++	  va_list apc;
++	  va_copy (apc, ap);
++	  __vsnprintf_internal (buf + l, bufsize - l + 1, fmt, apc,
++				mode_flags);
++	  va_end (apc);
+ 	}
+       else
+         {
+diff -u -r --new-file glibc-2.36/misc/tst-syslog.c glibc-20220831_b3736d1a3c/misc/tst-syslog.c
+--- glibc-2.36/misc/tst-syslog.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/misc/tst-syslog.c	2022-08-31 21:08:53.000000000 -0500
+@@ -68,21 +68,19 @@
+     LOG_DEBUG
+   };
+ 
+-enum
+-  {
+-    ident_length = 64,
+-    msg_length = 64
+-  };
++#define IDENT_LENGTH 64
++#define MSG_LENGTH   1024
+ 
+ #define SYSLOG_MSG_BASE "syslog_message"
+ #define OPENLOG_IDENT   "openlog_ident"
++static char large_message[MSG_LENGTH];
+ 
+ struct msg_t
+   {
+     int priority;
+     int facility;
+-    char ident[ident_length];
+-    char msg[msg_length];
++    char ident[IDENT_LENGTH];
++    char msg[MSG_LENGTH];
+     pid_t pid;
+   };
+ 
+@@ -148,6 +146,37 @@
+ }
+ 
+ static void
++send_syslog_large (int options)
++{
++  int facility = LOG_USER;
++  int priority = LOG_INFO;
++
++  syslog (facility | priority, "%s %d %d", large_message, facility,
++	  priority);
++}
++
++static void
++send_vsyslog_large (int options)
++{
++  int facility = LOG_USER;
++  int priority = LOG_INFO;
++
++  call_vsyslog (facility | priority, "%s %d %d", large_message, facility,
++		priority);
++}
++
++static bool
++check_syslog_message_large (const struct msg_t *msg, int msgnum, int options,
++			    pid_t pid)
++{
++  TEST_COMPARE (msg->facility, LOG_USER);
++  TEST_COMPARE (msg->priority, LOG_INFO);
++  TEST_COMPARE_STRING (msg->msg, large_message);
++
++  return false;
++}
++
++static void
+ send_openlog (int options)
+ {
+   /* Define a non-default IDENT and a not default facility.  */
+@@ -179,6 +208,17 @@
+   closelog ();
+ }
+ 
++static void
++send_openlog_large (int options)
++{
++  /* Define a non-default IDENT and a not default facility.  */
++  openlog (OPENLOG_IDENT, options, LOG_LOCAL0);
++
++  syslog (LOG_INFO, "%s %d %d", large_message, LOG_LOCAL0, LOG_INFO);
++
++  closelog ();
++}
++
+ static bool
+ check_openlog_message (const struct msg_t *msg, int msgnum,
+                        int options, pid_t pid)
+@@ -189,7 +229,7 @@
+   int expected_priority = priorities[msgnum % array_length (priorities)];
+   TEST_COMPARE (msg->priority, expected_priority);
+ 
+-  char expected_ident[ident_length];
++  char expected_ident[IDENT_LENGTH];
+   snprintf (expected_ident, sizeof (expected_ident), "%s%s%.0d%s:",
+             OPENLOG_IDENT,
+             options & LOG_PID ? "[" : "",
+@@ -211,15 +251,38 @@
+   return true;
+ }
+ 
++static bool
++check_openlog_message_large (const struct msg_t *msg, int msgnum,
++			     int options, pid_t pid)
++{
++  char expected_ident[IDENT_LENGTH];
++  snprintf (expected_ident, sizeof (expected_ident), "%s%s%.0d%s:",
++            OPENLOG_IDENT,
++            options & LOG_PID ? "[" : "",
++            options & LOG_PID ? pid : 0,
++            options & LOG_PID ? "]" : "");
++
++  TEST_COMPARE_STRING (msg->ident, expected_ident);
++  TEST_COMPARE_STRING (msg->msg, large_message);
++  TEST_COMPARE (msg->priority, LOG_INFO);
++  TEST_COMPARE (msg->facility, LOG_LOCAL0);
++
++  return false;
++}
++
+ static struct msg_t
+ parse_syslog_msg (const char *msg)
+ {
+   struct msg_t r = { .pid = -1 };
+   int number;
+ 
++#define STRINPUT(size)  XSTRINPUT(size)
++#define XSTRINPUT(size) "%" # size "s"
++
+   /* The message in the form:
+-     <179>Apr  8 14:51:19 tst-syslog: syslog message 176 3  */
+-  int n = sscanf (msg, "<%3d>%*s %*d %*d:%*d:%*d %32s %64s %*d %*d",
++     <179>Apr  8 14:51:19  tst-syslog: message 176 3  */
++  int n = sscanf (msg, "<%3d>%*s %*d %*d:%*d:%*d " STRINPUT(IDENT_LENGTH)
++		       " " STRINPUT(MSG_LENGTH) " %*d %*d",
+                   &number, r.ident, r.msg);
+   TEST_COMPARE (n, 3);
+ 
+@@ -246,7 +309,7 @@
+ 
+   /* The message in the form:
+      openlog_ident: syslog_message 128 0  */
+-  int n = sscanf (msg, "%32s %64s %d %d",
++  int n = sscanf (msg, STRINPUT(IDENT_LENGTH) " " STRINPUT(MSG_LENGTH) " %d %d",
+       r.ident, r.msg, &facility, &priority);
+   TEST_COMPARE (n, 4);
+ 
+@@ -281,7 +344,7 @@
+   int msgnum = 0;
+   while (1)
+     {
+-      char buf[512];
++      char buf[2048];
+       size_t l = xrecvfrom (server_udp, buf, sizeof (buf), 0,
+                             (struct sockaddr *) &addr, &addrlen);
+       buf[l] = '\0';
+@@ -325,7 +388,7 @@
+ 
+   int client_tcp = xaccept (server_tcp, NULL, NULL);
+ 
+-  char buf[512], *rb = buf;
++  char buf[2048], *rb = buf;
+   size_t rbl = sizeof (buf);
+   size_t prl = 0;  /* Track the size of the partial record.  */
+   int msgnum = 0;
+@@ -393,20 +456,34 @@
+ }
+ 
+ static void
+-check_syslog_console (void)
++check_syslog_console_read_large (FILE *fp)
++{
++  char buf[2048];
++  TEST_VERIFY (fgets (buf, sizeof (buf), fp) != NULL);
++  struct msg_t msg = parse_syslog_console (buf);
++
++  TEST_COMPARE_STRING (msg.ident, OPENLOG_IDENT ":");
++  TEST_COMPARE_STRING (msg.msg, large_message);
++  TEST_COMPARE (msg.priority, LOG_INFO);
++  TEST_COMPARE (msg.facility, LOG_LOCAL0);
++}
++
++static void
++check_syslog_console (void (*syslog_send)(int),
++		      void (*syslog_check)(FILE *fp))
+ {
+   xmkfifo (_PATH_CONSOLE, 0666);
+ 
+   pid_t sender_pid = xfork ();
+   if (sender_pid == 0)
+     {
+-      send_openlog (LOG_CONS);
++      syslog_send (LOG_CONS);
+       _exit (0);
+     }
+ 
+   {
+     FILE *fp = xfopen (_PATH_CONSOLE, "r+");
+-    check_syslog_console_read (fp);
++    syslog_check (fp);
+     xfclose (fp);
+   }
+ 
+@@ -425,16 +502,28 @@
+ }
+ 
+ static void
+-check_syslog_perror (void)
++send_openlog_callback_large (void *clousure)
++{
++  int options = *(int *) clousure;
++  send_openlog_large (options);
++}
++
++static void
++check_syslog_perror (bool large)
+ {
+   struct support_capture_subprocess result;
+-  result = support_capture_subprocess (send_openlog_callback,
++  result = support_capture_subprocess (large
++				       ? send_openlog_callback_large
++				       : send_openlog_callback,
+                                        &(int){LOG_PERROR});
+ 
+   FILE *mfp = fmemopen (result.err.buffer, result.err.length, "r");
+   if (mfp == NULL)
+     FAIL_EXIT1 ("fmemopen: %m");
+-  check_syslog_console_read (mfp);
++  if (large)
++    check_syslog_console_read_large (mfp);
++  else
++    check_syslog_console_read (mfp);
+   xfclose (mfp);
+ 
+   support_capture_subprocess_check (&result, "tst-openlog-child", 0,
+@@ -462,10 +551,31 @@
+   check_syslog_tcp (send_openlog, LOG_PID, check_openlog_message);
+ 
+   /* Check the LOG_CONS option.  */
+-  check_syslog_console ();
++  check_syslog_console (send_openlog, check_syslog_console_read);
+ 
+   /* Check the LOG_PERROR option.  */
+-  check_syslog_perror ();
++  check_syslog_perror (false);
++
++  /* Similar tests as before, but with a large message to trigger the
++     syslog path that uses dynamically allocated memory.  */
++  memset (large_message, 'a', sizeof large_message - 1);
++  large_message[sizeof large_message - 1] = '\0';
++
++  check_syslog_udp (send_syslog_large, 0, check_syslog_message_large);
++  check_syslog_tcp (send_syslog_large, 0, check_syslog_message_large);
++
++  check_syslog_udp (send_vsyslog_large, 0, check_syslog_message_large);
++  check_syslog_tcp (send_vsyslog_large, 0, check_syslog_message_large);
++
++  check_syslog_udp (send_openlog_large, 0, check_openlog_message_large);
++  check_syslog_tcp (send_openlog_large, 0, check_openlog_message_large);
++
++  check_syslog_udp (send_openlog_large, LOG_PID, check_openlog_message_large);
++  check_syslog_tcp (send_openlog_large, LOG_PID, check_openlog_message_large);
++
++  check_syslog_console (send_openlog_large, check_syslog_console_read_large);
++
++  check_syslog_perror (true);
+ 
+   return 0;
+ }
+diff -u -r --new-file glibc-2.36/scripts/glibcextract.py glibc-20220831_b3736d1a3c/scripts/glibcextract.py
+--- glibc-2.36/scripts/glibcextract.py	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/scripts/glibcextract.py	2022-08-31 21:08:53.000000000 -0500
+@@ -17,6 +17,7 @@
+ # License along with the GNU C Library; if not, see
+ # <https://www.gnu.org/licenses/>.
+ 
++import collections
+ import os.path
+ import re
+ import subprocess
+@@ -173,3 +174,21 @@
+             if not allow_extra_2:
+                 ret = 1
+     return ret
++
++CompileResult = collections.namedtuple("CompileResult", "returncode output")
++
++def compile_c_snippet(snippet, cc, extra_cc_args=''):
++    """Compile and return whether the SNIPPET can be build with CC along
++       EXTRA_CC_ARGS compiler flags.  Return a CompileResult with RETURNCODE
++       being 0 for success, or the failure value and the compiler output.
++    """
++    with tempfile.TemporaryDirectory() as temp_dir:
++        c_file_name = os.path.join(temp_dir, 'test.c')
++        obj_file_name = os.path.join(temp_dir, 'test.o')
++        with open(c_file_name, 'w') as c_file:
++            c_file.write(snippet + '\n')
++        cmd = cc.split() + extra_cc_args.split() + ['-c', '-o', obj_file_name,
++                c_file_name]
++        r = subprocess.run(cmd, check=False, stdout=subprocess.PIPE,
++                stderr=subprocess.STDOUT)
++        return CompileResult(r.returncode, r.stdout)
+diff -u -r --new-file glibc-2.36/socket/Makefile glibc-20220831_b3736d1a3c/socket/Makefile
+--- glibc-2.36/socket/Makefile	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/socket/Makefile	2022-08-31 21:08:53.000000000 -0500
+@@ -34,6 +34,7 @@
+ tests := \
+   tst-accept4 \
+   tst-sockopt \
++  tst-cmsghdr \
+   # tests
+ 
+ tests-internal := \
+diff -u -r --new-file glibc-2.36/socket/tst-cmsghdr-skeleton.c glibc-20220831_b3736d1a3c/socket/tst-cmsghdr-skeleton.c
+--- glibc-2.36/socket/tst-cmsghdr-skeleton.c	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/socket/tst-cmsghdr-skeleton.c	2022-08-31 21:08:53.000000000 -0500
+@@ -0,0 +1,92 @@
++/* Test ancillary data header creation.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++/* We use the preprocessor to generate the function/macro tests instead of
++   using indirection because having all the macro expansions alongside
++   each other lets the compiler warn us about suspicious pointer
++   arithmetic across subsequent CMSG_{FIRST,NXT}HDR expansions.  */
++
++#include <stdint.h>
++
++#define RUN_TEST_CONCAT(suffix) run_test_##suffix
++#define RUN_TEST_FUNCNAME(suffix) RUN_TEST_CONCAT (suffix)
++
++static void
++RUN_TEST_FUNCNAME (CMSG_NXTHDR_IMPL) (void)
++{
++  struct msghdr m = {0};
++  struct cmsghdr *cmsg;
++  char cmsgbuf[3 * CMSG_SPACE (sizeof (PAYLOAD))] = {0};
++
++  m.msg_control = cmsgbuf;
++  m.msg_controllen = sizeof (cmsgbuf);
++
++  /* First header should point to the start of the buffer.  */
++  cmsg = CMSG_FIRSTHDR (&m);
++  TEST_VERIFY_EXIT ((char *) cmsg == cmsgbuf);
++
++  /* If the first header length consumes the entire buffer, there is no
++     space remaining for additional headers.  */
++  cmsg->cmsg_len = sizeof (cmsgbuf);
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg == NULL);
++
++  /* The first header length is so big, using it would cause an overflow.  */
++  cmsg = CMSG_FIRSTHDR (&m);
++  TEST_VERIFY_EXIT ((char *) cmsg == cmsgbuf);
++  cmsg->cmsg_len = SIZE_MAX;
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg == NULL);
++
++  /* The first header leaves just enough space to hold another header.  */
++  cmsg = CMSG_FIRSTHDR (&m);
++  TEST_VERIFY_EXIT ((char *) cmsg == cmsgbuf);
++  cmsg->cmsg_len = sizeof (cmsgbuf) - sizeof (struct cmsghdr);
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg != NULL);
++
++  /* The first header leaves space but not enough for another header.  */
++  cmsg = CMSG_FIRSTHDR (&m);
++  TEST_VERIFY_EXIT ((char *) cmsg == cmsgbuf);
++  cmsg->cmsg_len ++;
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg == NULL);
++
++  /* The second header leaves just enough space to hold another header.  */
++  cmsg = CMSG_FIRSTHDR (&m);
++  TEST_VERIFY_EXIT ((char *) cmsg == cmsgbuf);
++  cmsg->cmsg_len = CMSG_LEN (sizeof (PAYLOAD));
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg != NULL);
++  cmsg->cmsg_len = sizeof (cmsgbuf)
++                   - CMSG_SPACE (sizeof (PAYLOAD)) /* First header.  */
++                   - sizeof (struct cmsghdr);
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg != NULL);
++
++  /* The second header leaves space but not enough for another header.  */
++  cmsg = CMSG_FIRSTHDR (&m);
++  TEST_VERIFY_EXIT ((char *) cmsg == cmsgbuf);
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg != NULL);
++  cmsg->cmsg_len ++;
++  cmsg = CMSG_NXTHDR_IMPL (&m, cmsg);
++  TEST_VERIFY_EXIT (cmsg == NULL);
++
++  return;
++}
+diff -u -r --new-file glibc-2.36/socket/tst-cmsghdr.c glibc-20220831_b3736d1a3c/socket/tst-cmsghdr.c
+--- glibc-2.36/socket/tst-cmsghdr.c	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/socket/tst-cmsghdr.c	2022-08-31 21:08:53.000000000 -0500
+@@ -0,0 +1,56 @@
++/* Test ancillary data header creation.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <sys/socket.h>
++#include <gnu/lib-names.h>
++#include <support/xdlfcn.h>
++#include <support/check.h>
++
++#define PAYLOAD "Hello, World!"
++
++/* CMSG_NXTHDR is a macro that calls an inline function defined in
++   bits/socket.h.  In case the function cannot be inlined, libc.so carries
++   a copy.  Both versions need to be tested.  */
++
++#define CMSG_NXTHDR_IMPL CMSG_NXTHDR
++#include "tst-cmsghdr-skeleton.c"
++#undef CMSG_NXTHDR_IMPL
++
++static struct cmsghdr * (* cmsg_nxthdr) (struct msghdr *, struct cmsghdr *);
++
++#define CMSG_NXTHDR_IMPL cmsg_nxthdr
++#include "tst-cmsghdr-skeleton.c"
++#undef CMSG_NXTHDR_IMPL
++
++static int
++do_test (void)
++{
++  static void *handle;
++
++  run_test_CMSG_NXTHDR ();
++
++  handle = xdlopen (LIBC_SO, RTLD_LAZY);
++  cmsg_nxthdr = (struct cmsghdr * (*) (struct msghdr *, struct cmsghdr *))
++                  xdlsym (handle, "__cmsg_nxthdr");
++
++  run_test_cmsg_nxthdr ();
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff -u -r --new-file glibc-2.36/sysdeps/mach/hurd/bits/socket.h glibc-20220831_b3736d1a3c/sysdeps/mach/hurd/bits/socket.h
+--- glibc-2.36/sysdeps/mach/hurd/bits/socket.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/mach/hurd/bits/socket.h	2022-08-31 21:08:53.000000000 -0500
+@@ -249,6 +249,12 @@
+ 			 + CMSG_ALIGN (sizeof (struct cmsghdr)))
+ #define CMSG_LEN(len)   (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
+ 
++/* Given a length, return the additional padding necessary such that
++   len + __CMSG_PADDING(len) == CMSG_ALIGN (len).  */
++#define __CMSG_PADDING(len) ((sizeof (size_t) \
++                              - ((len) & (sizeof (size_t) - 1))) \
++                             & (sizeof (size_t) - 1))
++
+ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *__mhdr,
+ 				      struct cmsghdr *__cmsg) __THROW;
+ #ifdef __USE_EXTERN_INLINES
+@@ -258,18 +264,38 @@
+ _EXTERN_INLINE struct cmsghdr *
+ __NTH (__cmsg_nxthdr (struct msghdr *__mhdr, struct cmsghdr *__cmsg))
+ {
++  /* We may safely assume that __cmsg lies between __mhdr->msg_control and
++     __mhdr->msg_controllen because the user is required to obtain the first
++     cmsg via CMSG_FIRSTHDR, set its length, then obtain subsequent cmsgs
++     via CMSG_NXTHDR, setting lengths along the way.  However, we don't yet
++     trust the value of __cmsg->cmsg_len and therefore do not use it in any
++     pointer arithmetic until we check its value.  */
++
++  unsigned char * __msg_control_ptr = (unsigned char *) __mhdr->msg_control;
++  unsigned char * __cmsg_ptr = (unsigned char *) __cmsg;
++
++  size_t __size_needed = sizeof (struct cmsghdr)
++                         + __CMSG_PADDING (__cmsg->cmsg_len);
++
++  /* The current header is malformed, too small to be a full header.  */
+   if ((size_t) __cmsg->cmsg_len < sizeof (struct cmsghdr))
+-    /* The kernel header does this so there may be a reason.  */
+     return (struct cmsghdr *) 0;
+ 
++  /* There isn't enough space between __cmsg and the end of the buffer to
++  hold the current cmsg *and* the next one.  */
++  if (((size_t)
++         (__msg_control_ptr + __mhdr->msg_controllen - __cmsg_ptr)
++       < __size_needed)
++      || ((size_t)
++            (__msg_control_ptr + __mhdr->msg_controllen - __cmsg_ptr
++             - __size_needed)
++          < __cmsg->cmsg_len))
++
++    return (struct cmsghdr *) 0;
++
++  /* Now, we trust cmsg_len and can use it to find the next header.  */
+   __cmsg = (struct cmsghdr *) ((unsigned char *) __cmsg
+ 			       + CMSG_ALIGN (__cmsg->cmsg_len));
+-  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) __mhdr->msg_control
+-					+ __mhdr->msg_controllen)
+-      || ((unsigned char *) __cmsg + CMSG_ALIGN (__cmsg->cmsg_len)
+-	  > ((unsigned char *) __mhdr->msg_control + __mhdr->msg_controllen)))
+-    /* No more entries.  */
+-    return (struct cmsghdr *) 0;
+   return __cmsg;
+ }
+ #endif	/* Use `extern inline'.  */
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/Makefile glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/Makefile
+--- glibc-2.36/sysdeps/unix/sysv/linux/Makefile	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/Makefile	2022-08-31 21:08:54.000000000 -0500
+@@ -265,6 +265,14 @@
+ 	  < /dev/null > $@ 2>&1; $(evaluate-test)
+ $(objpfx)tst-mount-consts.out: $(sysdeps-linux-python-deps)
+ 
++tests-special += $(objpfx)tst-mount-compile.out
++$(objpfx)tst-mount-compile.out: ../sysdeps/unix/sysv/linux/tst-mount-compile.py
++	$(sysdeps-linux-python) \
++	  ../sysdeps/unix/sysv/linux/tst-mount-compile.py \
++	    $(sysdeps-linux-python-cc) \
++	  < /dev/null > $@ 2>&1; $(evaluate-test)
++$(objpfx)tst-mount-compile.out: $(sysdeps-linux-python-deps)
++
+ tst-rseq-disable-ENV = GLIBC_TUNABLES=glibc.pthread.rseq=0
+ 
+ endif # $(subdir) == misc
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/alpha/brk_call.h glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/alpha/brk_call.h
+--- glibc-2.36/sysdeps/unix/sysv/linux/alpha/brk_call.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/alpha/brk_call.h	2022-08-31 21:08:53.000000000 -0500
+@@ -21,8 +21,7 @@
+ {
+   unsigned long int result = INTERNAL_SYSCALL_CALL (brk, addr);
+   if (result == -ENOMEM)
+-    /* Mimic the default error reporting behavior.  */
+-    return addr;
+-  else
+-    return (void *) result;
++    /* Mimic the generic error reporting behavior.  */
++    result = INTERNAL_SYSCALL_CALL (brk, 0);
++  return (void *) result;
+ }
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/bits/socket.h glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/bits/socket.h
+--- glibc-2.36/sysdeps/unix/sysv/linux/bits/socket.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/bits/socket.h	2022-08-31 21:08:53.000000000 -0500
+@@ -307,6 +307,12 @@
+ 			 + CMSG_ALIGN (sizeof (struct cmsghdr)))
+ #define CMSG_LEN(len)   (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
+ 
++/* Given a length, return the additional padding necessary such that
++   len + __CMSG_PADDING(len) == CMSG_ALIGN (len).  */
++#define __CMSG_PADDING(len) ((sizeof (size_t) \
++                              - ((len) & (sizeof (size_t) - 1))) \
++                             & (sizeof (size_t) - 1))
++
+ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *__mhdr,
+ 				      struct cmsghdr *__cmsg) __THROW;
+ #ifdef __USE_EXTERN_INLINES
+@@ -316,18 +322,38 @@
+ _EXTERN_INLINE struct cmsghdr *
+ __NTH (__cmsg_nxthdr (struct msghdr *__mhdr, struct cmsghdr *__cmsg))
+ {
++  /* We may safely assume that __cmsg lies between __mhdr->msg_control and
++     __mhdr->msg_controllen because the user is required to obtain the first
++     cmsg via CMSG_FIRSTHDR, set its length, then obtain subsequent cmsgs
++     via CMSG_NXTHDR, setting lengths along the way.  However, we don't yet
++     trust the value of __cmsg->cmsg_len and therefore do not use it in any
++     pointer arithmetic until we check its value.  */
++
++  unsigned char * __msg_control_ptr = (unsigned char *) __mhdr->msg_control;
++  unsigned char * __cmsg_ptr = (unsigned char *) __cmsg;
++
++  size_t __size_needed = sizeof (struct cmsghdr)
++                         + __CMSG_PADDING (__cmsg->cmsg_len);
++
++  /* The current header is malformed, too small to be a full header.  */
+   if ((size_t) __cmsg->cmsg_len < sizeof (struct cmsghdr))
+-    /* The kernel header does this so there may be a reason.  */
+     return (struct cmsghdr *) 0;
+ 
++  /* There isn't enough space between __cmsg and the end of the buffer to
++  hold the current cmsg *and* the next one.  */
++  if (((size_t)
++         (__msg_control_ptr + __mhdr->msg_controllen - __cmsg_ptr)
++       < __size_needed)
++      || ((size_t)
++            (__msg_control_ptr + __mhdr->msg_controllen - __cmsg_ptr
++             - __size_needed)
++          < __cmsg->cmsg_len))
++
++    return (struct cmsghdr *) 0;
++
++  /* Now, we trust cmsg_len and can use it to find the next header.  */
+   __cmsg = (struct cmsghdr *) ((unsigned char *) __cmsg
+ 			       + CMSG_ALIGN (__cmsg->cmsg_len));
+-  if ((unsigned char *) (__cmsg + 1) > ((unsigned char *) __mhdr->msg_control
+-					+ __mhdr->msg_controllen)
+-      || ((unsigned char *) __cmsg + CMSG_ALIGN (__cmsg->cmsg_len)
+-	  > ((unsigned char *) __mhdr->msg_control + __mhdr->msg_controllen)))
+-    /* No more entries.  */
+-    return (struct cmsghdr *) 0;
+   return __cmsg;
+ }
+ #endif	/* Use `extern inline'.  */
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/cmsg_nxthdr.c glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/cmsg_nxthdr.c
+--- glibc-2.36/sysdeps/unix/sysv/linux/cmsg_nxthdr.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/cmsg_nxthdr.c	2022-08-31 21:08:53.000000000 -0500
+@@ -23,18 +23,38 @@
+ struct cmsghdr *
+ __cmsg_nxthdr (struct msghdr *mhdr, struct cmsghdr *cmsg)
+ {
++  /* We may safely assume that cmsg lies between mhdr->msg_control and
++     mhdr->msg_controllen because the user is required to obtain the first
++     cmsg via CMSG_FIRSTHDR, set its length, then obtain subsequent cmsgs
++     via CMSG_NXTHDR, setting lengths along the way.  However, we don't yet
++     trust the value of cmsg->cmsg_len and therefore do not use it in any
++     pointer arithmetic until we check its value.  */
++
++  unsigned char * msg_control_ptr = (unsigned char *) mhdr->msg_control;
++  unsigned char * cmsg_ptr = (unsigned char *) cmsg;
++
++  size_t size_needed = sizeof (struct cmsghdr)
++                       + __CMSG_PADDING (cmsg->cmsg_len);
++
++  /* The current header is malformed, too small to be a full header.  */
+   if ((size_t) cmsg->cmsg_len < sizeof (struct cmsghdr))
+-    /* The kernel header does this so there may be a reason.  */
+-    return NULL;
++    return (struct cmsghdr *) 0;
++
++  /* There isn't enough space between cmsg and the end of the buffer to
++  hold the current cmsg *and* the next one.  */
++  if (((size_t)
++         (msg_control_ptr + mhdr->msg_controllen - cmsg_ptr)
++       < size_needed)
++      || ((size_t)
++            (msg_control_ptr + mhdr->msg_controllen - cmsg_ptr
++             - size_needed)
++          < cmsg->cmsg_len))
++
++    return (struct cmsghdr *) 0;
+ 
++  /* Now, we trust cmsg_len and can use it to find the next header.  */
+   cmsg = (struct cmsghdr *) ((unsigned char *) cmsg
+ 			     + CMSG_ALIGN (cmsg->cmsg_len));
+-  if ((unsigned char *) (cmsg + 1) > ((unsigned char *) mhdr->msg_control
+-				      + mhdr->msg_controllen)
+-      || ((unsigned char *) cmsg + CMSG_ALIGN (cmsg->cmsg_len)
+-	  > ((unsigned char *) mhdr->msg_control + mhdr->msg_controllen)))
+-    /* No more entries.  */
+-    return NULL;
+   return cmsg;
+ }
+ libc_hidden_def (__cmsg_nxthdr)
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
+--- glibc-2.36/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h	2022-08-31 21:08:53.000000000 -0500
+@@ -122,6 +122,7 @@
+ #define __NR_mbind 235
+ #define __NR_membarrier 283
+ #define __NR_memfd_create 279
++#define __NR_memfd_secret 447
+ #define __NR_migrate_pages 238
+ #define __NR_mincore 232
+ #define __NR_mkdirat 34
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
+--- glibc-2.36/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h	2022-08-31 21:08:53.000000000 -0500
+@@ -127,6 +127,7 @@
+ #define __NR_mbind 235
+ #define __NR_membarrier 283
+ #define __NR_memfd_create 279
++#define __NR_memfd_secret 447
+ #define __NR_migrate_pages 238
+ #define __NR_mincore 232
+ #define __NR_mkdirat 34
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/sys/mount.h glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/sys/mount.h
+--- glibc-2.36/sysdeps/unix/sysv/linux/sys/mount.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/sys/mount.h	2022-08-31 21:08:53.000000000 -0500
+@@ -27,77 +27,113 @@
+ #include <stddef.h>
+ #include <sys/ioctl.h>
+ 
+-#define BLOCK_SIZE	1024
++#ifdef __has_include
++# if __has_include ("linux/mount.h")
++#  include "linux/mount.h"
++# endif
++#endif
++
++
+ #define BLOCK_SIZE_BITS	10
++#define BLOCK_SIZE	(1<<BLOCK_SIZE_BITS)
+ 
+ 
+ /* These are the fs-independent mount-flags: up to 16 flags are
+    supported  */
+ enum
+ {
++#undef MS_RDONLY
+   MS_RDONLY = 1,		/* Mount read-only.  */
+ #define MS_RDONLY	MS_RDONLY
++#undef MS_NOSUID
+   MS_NOSUID = 2,		/* Ignore suid and sgid bits.  */
+ #define MS_NOSUID	MS_NOSUID
++#undef MS_NODEV
+   MS_NODEV = 4,			/* Disallow access to device special files.  */
+ #define MS_NODEV	MS_NODEV
++#undef MS_NOEXEC
+   MS_NOEXEC = 8,		/* Disallow program execution.  */
+ #define MS_NOEXEC	MS_NOEXEC
++#undef MS_SYNCHRONOUS
+   MS_SYNCHRONOUS = 16,		/* Writes are synced at once.  */
+ #define MS_SYNCHRONOUS	MS_SYNCHRONOUS
++#undef MS_REMOUNT
+   MS_REMOUNT = 32,		/* Alter flags of a mounted FS.  */
+ #define MS_REMOUNT	MS_REMOUNT
++#undef MS_MANDLOCK
+   MS_MANDLOCK = 64,		/* Allow mandatory locks on an FS.  */
+ #define MS_MANDLOCK	MS_MANDLOCK
++#undef MS_DIRSYNC
+   MS_DIRSYNC = 128,		/* Directory modifications are synchronous.  */
+ #define MS_DIRSYNC	MS_DIRSYNC
++#undef MS_NOSYMFOLLOW
+   MS_NOSYMFOLLOW = 256,		/* Do not follow symlinks.  */
+ #define MS_NOSYMFOLLOW	MS_NOSYMFOLLOW
++#undef MS_NOATIME
+   MS_NOATIME = 1024,		/* Do not update access times.  */
+ #define MS_NOATIME	MS_NOATIME
++#undef MS_NODIRATIME
+   MS_NODIRATIME = 2048,		/* Do not update directory access times.  */
+ #define MS_NODIRATIME	MS_NODIRATIME
++#undef MS_BIND
+   MS_BIND = 4096,		/* Bind directory at different place.  */
+ #define MS_BIND		MS_BIND
++#undef MS_MOVE
+   MS_MOVE = 8192,
+ #define MS_MOVE		MS_MOVE
++#undef MS_REC
+   MS_REC = 16384,
+ #define MS_REC		MS_REC
++#undef MS_SILENT
+   MS_SILENT = 32768,
+ #define MS_SILENT	MS_SILENT
++#undef MS_POSIXACL
+   MS_POSIXACL = 1 << 16,	/* VFS does not apply the umask.  */
+ #define MS_POSIXACL	MS_POSIXACL
++#undef MS_UNBINDABLE
+   MS_UNBINDABLE = 1 << 17,	/* Change to unbindable.  */
+ #define MS_UNBINDABLE	MS_UNBINDABLE
++#undef MS_PRIVATE
+   MS_PRIVATE = 1 << 18,		/* Change to private.  */
+ #define MS_PRIVATE	MS_PRIVATE
++#undef MS_SLAVE
+   MS_SLAVE = 1 << 19,		/* Change to slave.  */
+ #define MS_SLAVE	MS_SLAVE
++#undef MS_SHARED
+   MS_SHARED = 1 << 20,		/* Change to shared.  */
+ #define MS_SHARED	MS_SHARED
++#undef MS_RELATIME
+   MS_RELATIME = 1 << 21,	/* Update atime relative to mtime/ctime.  */
+ #define MS_RELATIME	MS_RELATIME
++#undef MS_KERNMOUNT
+   MS_KERNMOUNT = 1 << 22,	/* This is a kern_mount call.  */
+ #define MS_KERNMOUNT	MS_KERNMOUNT
++#undef MS_I_VERSION
+   MS_I_VERSION =  1 << 23,	/* Update inode I_version field.  */
+ #define MS_I_VERSION	MS_I_VERSION
++#undef MS_STRICTATIME
+   MS_STRICTATIME = 1 << 24,	/* Always perform atime updates.  */
+ #define MS_STRICTATIME	MS_STRICTATIME
++#undef MS_LAZYTIME
+   MS_LAZYTIME = 1 << 25,	/* Update the on-disk [acm]times lazily.  */
+ #define MS_LAZYTIME	MS_LAZYTIME
++#undef MS_ACTIVE
+   MS_ACTIVE = 1 << 30,
+ #define MS_ACTIVE	MS_ACTIVE
++#undef MS_NOUSER
+   MS_NOUSER = 1 << 31
+ #define MS_NOUSER	MS_NOUSER
+ };
+ 
+ /* Flags that can be altered by MS_REMOUNT  */
++#undef MS_RMT_MASK
+ #define MS_RMT_MASK (MS_RDONLY|MS_SYNCHRONOUS|MS_MANDLOCK|MS_I_VERSION \
+ 		     |MS_LAZYTIME)
+ 
+ 
+ /* Magic mount flag number. Has to be or-ed to the flag values.  */
+ 
++#undef MS_MGC_VAL
+ #define MS_MGC_VAL 0xc0ed0000	/* Magic flag number to indicate "new" flags */
+ #define MS_MGC_MSK 0xffff0000	/* Magic flag number mask */
+ 
+@@ -106,20 +142,35 @@
+    is probably as bad and I don't want to create yet another include
+    file.  */
+ 
++#undef BLKROSET
+ #define BLKROSET   _IO(0x12, 93) /* Set device read-only (0 = read-write).  */
++#undef BLKROGET
+ #define BLKROGET   _IO(0x12, 94) /* Get read-only status (0 = read_write).  */
++#undef BLKRRPART
+ #define BLKRRPART  _IO(0x12, 95) /* Re-read partition table.  */
++#undef BLKGETSIZE
+ #define BLKGETSIZE _IO(0x12, 96) /* Return device size.  */
++#undef BLKFLSBUF
+ #define BLKFLSBUF  _IO(0x12, 97) /* Flush buffer cache.  */
++#undef BLKRASET
+ #define BLKRASET   _IO(0x12, 98) /* Set read ahead for block device.  */
++#undef BLKRAGET
+ #define BLKRAGET   _IO(0x12, 99) /* Get current read ahead setting.  */
++#undef BLKFRASET
+ #define BLKFRASET  _IO(0x12,100) /* Set filesystem read-ahead.  */
++#undef BLKFRAGET
+ #define BLKFRAGET  _IO(0x12,101) /* Get filesystem read-ahead.  */
++#undef BLKSECTSET
+ #define BLKSECTSET _IO(0x12,102) /* Set max sectors per request.  */
++#undef BLKSECTGET
+ #define BLKSECTGET _IO(0x12,103) /* Get max sectors per request.  */
++#undef BLKSSZGET
+ #define BLKSSZGET  _IO(0x12,104) /* Get block device sector size.  */
++#undef BLKBSZGET
+ #define BLKBSZGET  _IOR(0x12,112,size_t)
++#undef BLKBSZSET
+ #define BLKBSZSET  _IOW(0x12,113,size_t)
++#undef BLKGETSIZE64
+ #define BLKGETSIZE64 _IOR(0x12,114,size_t) /* return device size.  */
+ 
+ 
+@@ -137,9 +188,6 @@
+ };
+ 
+ 
+-/* fsopen flags.  */
+-#define FSOPEN_CLOEXEC          0x00000001
+-
+ /* fsmount flags.  */
+ #define FSMOUNT_CLOEXEC         0x00000001
+ 
+@@ -157,6 +205,7 @@
+ #define MOUNT_ATTR_NOSYMFOLLOW  0x00200000 /* Do not follow symlinks.  */
+ 
+ 
++#ifndef MOUNT_ATTR_SIZE_VER0
+ /* For mount_setattr.  */
+ struct mount_attr
+ {
+@@ -165,6 +214,7 @@
+   uint64_t propagation;
+   uint64_t userns_fd;
+ };
++#endif
+ 
+ #define MOUNT_ATTR_SIZE_VER0    32 /* sizeof first published struct */
+ 
+@@ -185,26 +235,31 @@
+ #define FSPICK_EMPTY_PATH       0x00000008
+ 
+ 
++#ifndef FSOPEN_CLOEXEC
+ /* The type of fsconfig call made.   */
+ enum fsconfig_command
+ {
+   FSCONFIG_SET_FLAG       = 0,    /* Set parameter, supplying no value */
+-#define FSCONFIG_SET_FLAG FSCONFIG_SET_FLAG
++# define FSCONFIG_SET_FLAG FSCONFIG_SET_FLAG
+   FSCONFIG_SET_STRING     = 1,    /* Set parameter, supplying a string value */
+-#define FSCONFIG_SET_STRING FSCONFIG_SET_STRING
++# define FSCONFIG_SET_STRING FSCONFIG_SET_STRING
+   FSCONFIG_SET_BINARY     = 2,    /* Set parameter, supplying a binary blob value */
+-#define FSCONFIG_SET_BINARY FSCONFIG_SET_BINARY
++# define FSCONFIG_SET_BINARY FSCONFIG_SET_BINARY
+   FSCONFIG_SET_PATH       = 3,    /* Set parameter, supplying an object by path */
+-#define FSCONFIG_SET_PATH FSCONFIG_SET_PATH
++# define FSCONFIG_SET_PATH FSCONFIG_SET_PATH
+   FSCONFIG_SET_PATH_EMPTY = 4,    /* Set parameter, supplying an object by (empty) path */
+-#define FSCONFIG_SET_PATH_EMPTY FSCONFIG_SET_PATH_EMPTY
++# define FSCONFIG_SET_PATH_EMPTY FSCONFIG_SET_PATH_EMPTY
+   FSCONFIG_SET_FD         = 5,    /* Set parameter, supplying an object by fd */
+-#define FSCONFIG_SET_FD FSCONFIG_SET_FD
++# define FSCONFIG_SET_FD FSCONFIG_SET_FD
+   FSCONFIG_CMD_CREATE     = 6,    /* Invoke superblock creation */
+-#define FSCONFIG_CMD_CREATE FSCONFIG_CMD_CREATE
++# define FSCONFIG_CMD_CREATE FSCONFIG_CMD_CREATE
+   FSCONFIG_CMD_RECONFIGURE = 7,   /* Invoke superblock reconfiguration */
+-#define FSCONFIG_CMD_RECONFIGURE FSCONFIG_CMD_RECONFIGURE
++# define FSCONFIG_CMD_RECONFIGURE FSCONFIG_CMD_RECONFIGURE
+ };
++#endif
++
++/* fsopen flags.  */
++#define FSOPEN_CLOEXEC          0x00000001
+ 
+ /* open_tree flags.  */
+ #define OPEN_TREE_CLONE    1         /* Clone the target tree and attach the clone */
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/syscall-names.list glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/syscall-names.list
+--- glibc-2.36/sysdeps/unix/sysv/linux/syscall-names.list	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/syscall-names.list	2022-08-31 21:08:53.000000000 -0500
+@@ -21,8 +21,8 @@
+ # This file can list all potential system calls.  The names are only
+ # used if the installed kernel headers also provide them.
+ 
+-# The list of system calls is current as of Linux 5.18.
+-kernel 5.18
++# The list of system calls is current as of Linux 5.19.
++kernel 5.19
+ 
+ FAST_atomic_update
+ FAST_cmpxchg
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/tst-mount-compile.py glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-mount-compile.py
+--- glibc-2.36/sysdeps/unix/sysv/linux/tst-mount-compile.py	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-mount-compile.py	2022-08-31 21:08:53.000000000 -0500
+@@ -0,0 +1,66 @@
++#!/usr/bin/python3
++# Check if glibc provided sys/mount.h can be used along related kernel
++# headers.
++# Copyright (C) 2022 Free Software Foundation, Inc.
++# This file is part of the GNU C Library.
++#
++# The GNU C Library is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# The GNU C Library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with the GNU C Library; if not, see
++# <https://www.gnu.org/licenses/>.
++
++import argparse
++import sys
++
++import glibcextract
++
++
++def main():
++    """The main entry point."""
++    parser = argparse.ArgumentParser(
++        description='Check if glibc provided sys/mount.h can be '
++                    ' used along related kernel headers.')
++    parser.add_argument('--cc', metavar='CC',
++                        help='C compiler (including options) to use')
++    args = parser.parse_args()
++
++    if glibcextract.compile_c_snippet(
++            '#include <linux/mount.h>',
++            args.cc).returncode != 0:
++        sys.exit (77)
++
++    def check(testname, snippet):
++        # Add -Werror to catch macro redefinitions and _ISOMAC to avoid
++        # internal glibc definitions.
++        r = glibcextract.compile_c_snippet(snippet, args.cc,
++                '-Werror -D_ISOMAC')
++        if r.returncode != 0:
++            print('error: test {}:\n{}'.format(testname, r.output.decode()))
++        return r.returncode
++
++    status = max(
++        check("sys/mount.h + linux/mount.h",
++              "#include <sys/mount.h>\n"
++              "#include <linux/mount.h>"),
++        check("sys/mount.h + linux/fs.h",
++              "#include <sys/mount.h>\n"
++              "#include <linux/fs.h>"),
++        check("linux/mount.h + sys/mount.h",
++              "#include <linux/mount.h>\n"
++              "#include <sys/mount.h>"),
++        check("linux/fs.h + sys/mount.h",
++              "#include <linux/fs.h>\n"
++              "#include <sys/mount.h>"))
++    sys.exit(status)
++
++if __name__ == '__main__':
++    main()
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/tst-mount-consts.py glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-mount-consts.py
+--- glibc-2.36/sysdeps/unix/sysv/linux/tst-mount-consts.py	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-mount-consts.py	2022-08-31 21:08:54.000000000 -0500
+@@ -33,6 +33,11 @@
+                         help='C compiler (including options) to use')
+     args = parser.parse_args()
+ 
++    if glibcextract.compile_c_snippet(
++            '#include <linux/mount.h>',
++            args.cc).returncode != 0:
++        sys.exit (77)
++
+     linux_version_headers = glibcsyscalls.linux_kernel_version(args.cc)
+     # Constants in glibc were updated to match Linux v5.16.  When glibc
+     # constants are updated this value should be updated to match the
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/tst-pidfd-consts.py glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-pidfd-consts.py
+--- glibc-2.36/sysdeps/unix/sysv/linux/tst-pidfd-consts.py	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-pidfd-consts.py	2022-08-31 21:08:53.000000000 -0500
+@@ -33,11 +33,13 @@
+                         help='C compiler (including options) to use')
+     args = parser.parse_args()
+ 
+-    linux_version_headers = glibcsyscalls.linux_kernel_version(args.cc)
+-    # Linux started to provide pidfd.h with 5.10.
+-    if linux_version_headers < (5, 10):
++    if glibcextract.compile_c_snippet(
++            '#include <linux/pidfd.h>',
++            args.cc).returncode != 0:
+         sys.exit (77)
+-    linux_version_glibc = (5, 18)
++
++    linux_version_headers = glibcsyscalls.linux_kernel_version(args.cc)
++    linux_version_glibc = (5, 19)
+     sys.exit(glibcextract.compare_macro_consts(
+                 '#include <sys/pidfd.h>\n',
+                 '#include <asm/fcntl.h>\n'
+diff -u -r --new-file glibc-2.36/sysdeps/unix/sysv/linux/tst-pidfd.c glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-pidfd.c
+--- glibc-2.36/sysdeps/unix/sysv/linux/tst-pidfd.c	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/sysdeps/unix/sysv/linux/tst-pidfd.c	2022-08-31 21:08:53.000000000 -0500
+@@ -147,8 +147,11 @@
+        may be denied if the process doesn't have CAP_SYS_PTRACE or
+        if a LSM security_ptrace_access_check denies access.  */
+     if (fd == -1 && errno == EPERM)
+-      FAIL_UNSUPPORTED ("don't have permission to use pidfd_getfd on pidfd, "
+-			"skipping test");
++      {
++	TEST_COMPARE (pidfd_send_signal (pidfd, SIGKILL, NULL, 0), 0);
++	FAIL_UNSUPPORTED ("don't have permission to use pidfd_getfd on pidfd, "
++			  "skipping test");
++      }
+     TEST_VERIFY (fd > 0);
+ 
+     char *path = xasprintf ("/proc/%d/fd/%d", pid, remote_fd);
+diff -u -r --new-file glibc-2.36/wcsmbs/Makefile glibc-20220831_b3736d1a3c/wcsmbs/Makefile
+--- glibc-2.36/wcsmbs/Makefile	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/wcsmbs/Makefile	2022-08-31 21:08:54.000000000 -0500
+@@ -22,8 +22,9 @@
+ 
+ include ../Makeconfig
+ 
+-headers	:= wchar.h bits/wchar.h bits/wchar2.h bits/wchar-ldbl.h uchar.h \
+-	   bits/types/__mbstate_t.h bits/types/mbstate_t.h bits/types/wint_t.h
++headers	:= wchar.h bits/wchar.h bits/wchar2.h bits/wchar2-decl.h \
++	   bits/wchar-ldbl.h uchar.h bits/types/__mbstate_t.h \
++	   bits/types/mbstate_t.h bits/types/wint_t.h
+ 
+ routines := wcscat wcschr wcscmp wcscpy wcscspn wcsdup wcslen wcsncat \
+ 	    wcsncmp wcsncpy wcspbrk wcsrchr wcsspn wcstok wcsstr wmemchr \
+@@ -73,6 +74,8 @@
+ $(objpfx)tst-wcstod-nan-locale.out: $(gen-locales)
+ $(objpfx)tst-c16-surrogate.out: $(gen-locales)
+ $(objpfx)tst-c32-state.out: $(gen-locales)
++$(objpfx)test-c8rtomb.out: $(gen-locales)
++$(objpfx)test-mbrtoc8.out: $(gen-locales)
+ endif
+ 
+ $(objpfx)tst-wcstod-round: $(libm)
+diff -u -r --new-file glibc-2.36/wcsmbs/bits/wchar2-decl.h glibc-20220831_b3736d1a3c/wcsmbs/bits/wchar2-decl.h
+--- glibc-2.36/wcsmbs/bits/wchar2-decl.h	1969-12-31 18:00:00.000000000 -0600
++++ glibc-20220831_b3736d1a3c/wcsmbs/bits/wchar2-decl.h	2022-08-31 21:08:54.000000000 -0500
+@@ -0,0 +1,124 @@
++/* Checking macros for wchar functions.  Declarations only.
++   Copyright (C) 2004-2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _BITS_WCHAR2_DECL_H
++#define _BITS_WCHAR2_DECL_H 1
++
++#ifndef _WCHAR_H
++# error "Never include <bits/wchar2-decl.h> directly; use <wchar.h> instead."
++#endif
++
++
++extern wchar_t *__wmemcpy_chk (wchar_t *__restrict __s1,
++			       const wchar_t *__restrict __s2, size_t __n,
++			       size_t __ns1) __THROW;
++extern wchar_t *__wmemmove_chk (wchar_t *__s1, const wchar_t *__s2,
++				size_t __n, size_t __ns1) __THROW;
++
++
++#ifdef __USE_GNU
++
++extern wchar_t *__wmempcpy_chk (wchar_t *__restrict __s1,
++				const wchar_t *__restrict __s2, size_t __n,
++				size_t __ns1) __THROW;
++
++#endif
++
++
++extern wchar_t *__wmemset_chk (wchar_t *__s, wchar_t __c, size_t __n,
++			       size_t __ns) __THROW;
++extern wchar_t *__wcscpy_chk (wchar_t *__restrict __dest,
++			      const wchar_t *__restrict __src,
++			      size_t __n) __THROW;
++extern wchar_t *__wcpcpy_chk (wchar_t *__restrict __dest,
++			      const wchar_t *__restrict __src,
++			      size_t __destlen) __THROW;
++extern wchar_t *__wcsncpy_chk (wchar_t *__restrict __dest,
++			       const wchar_t *__restrict __src, size_t __n,
++			       size_t __destlen) __THROW;
++extern wchar_t *__wcpncpy_chk (wchar_t *__restrict __dest,
++			       const wchar_t *__restrict __src, size_t __n,
++			       size_t __destlen) __THROW;
++extern wchar_t *__wcscat_chk (wchar_t *__restrict __dest,
++			      const wchar_t *__restrict __src,
++			      size_t __destlen) __THROW;
++extern wchar_t *__wcsncat_chk (wchar_t *__restrict __dest,
++			       const wchar_t *__restrict __src,
++			       size_t __n, size_t __destlen) __THROW;
++extern int __swprintf_chk (wchar_t *__restrict __s, size_t __n,
++			   int __flag, size_t __s_len,
++			   const wchar_t *__restrict __format, ...)
++     __THROW /* __attribute__ ((__format__ (__wprintf__, 5, 6))) */;
++extern int __vswprintf_chk (wchar_t *__restrict __s, size_t __n,
++			    int __flag, size_t __s_len,
++			    const wchar_t *__restrict __format,
++			    __gnuc_va_list __arg)
++     __THROW /* __attribute__ ((__format__ (__wprintf__, 5, 0))) */;
++
++#if __USE_FORTIFY_LEVEL > 1
++
++extern int __fwprintf_chk (__FILE *__restrict __stream, int __flag,
++			   const wchar_t *__restrict __format, ...);
++extern int __wprintf_chk (int __flag, const wchar_t *__restrict __format,
++			  ...);
++extern int __vfwprintf_chk (__FILE *__restrict __stream, int __flag,
++			    const wchar_t *__restrict __format,
++			    __gnuc_va_list __ap);
++extern int __vwprintf_chk (int __flag, const wchar_t *__restrict __format,
++			   __gnuc_va_list __ap);
++
++#endif
++
++extern wchar_t *__fgetws_chk (wchar_t *__restrict __s, size_t __size, int __n,
++			      __FILE *__restrict __stream) __wur;
++
++#ifdef __USE_GNU
++
++extern wchar_t *__fgetws_unlocked_chk (wchar_t *__restrict __s, size_t __size,
++				       int __n, __FILE *__restrict __stream)
++       __wur;
++
++#endif
++
++extern size_t __wcrtomb_chk (char *__restrict __s, wchar_t __wchar,
++			     mbstate_t *__restrict __p,
++			     size_t __buflen) __THROW __wur;
++extern size_t __mbsrtowcs_chk (wchar_t *__restrict __dst,
++			       const char **__restrict __src,
++			       size_t __len, mbstate_t *__restrict __ps,
++			       size_t __dstlen) __THROW;
++extern size_t __wcsrtombs_chk (char *__restrict __dst,
++			       const wchar_t **__restrict __src,
++			       size_t __len, mbstate_t *__restrict __ps,
++			       size_t __dstlen) __THROW;
++
++#ifdef	__USE_XOPEN2K8
++
++extern size_t __mbsnrtowcs_chk (wchar_t *__restrict __dst,
++				const char **__restrict __src, size_t __nmc,
++				size_t __len, mbstate_t *__restrict __ps,
++				size_t __dstlen) __THROW;
++extern size_t __wcsnrtombs_chk (char *__restrict __dst,
++				const wchar_t **__restrict __src,
++				size_t __nwc, size_t __len,
++				mbstate_t *__restrict __ps, size_t __dstlen)
++       __THROW;
++
++#endif
++
++#endif /* bits/wchar2-decl.h.  */
+diff -u -r --new-file glibc-2.36/wcsmbs/bits/wchar2.h glibc-20220831_b3736d1a3c/wcsmbs/bits/wchar2.h
+--- glibc-2.36/wcsmbs/bits/wchar2.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/wcsmbs/bits/wchar2.h	2022-08-31 21:08:54.000000000 -0500
+@@ -21,9 +21,6 @@
+ #endif
+ 
+ 
+-extern wchar_t *__wmemcpy_chk (wchar_t *__restrict __s1,
+-			       const wchar_t *__restrict __s2, size_t __n,
+-			       size_t __ns1) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wmemcpy_alias,
+ 				(wchar_t *__restrict __s1,
+ 				 const wchar_t *__restrict __s2, size_t __n),
+@@ -45,8 +42,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wmemmove_chk (wchar_t *__s1, const wchar_t *__s2,
+-				size_t __n, size_t __ns1) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wmemmove_alias, (wchar_t *__s1,
+ 						   const wchar_t *__s2,
+ 						   size_t __n), wmemmove);
+@@ -66,9 +61,6 @@
+ 
+ 
+ #ifdef __USE_GNU
+-extern wchar_t *__wmempcpy_chk (wchar_t *__restrict __s1,
+-				const wchar_t *__restrict __s2, size_t __n,
+-				size_t __ns1) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wmempcpy_alias,
+ 				(wchar_t *__restrict __s1,
+ 				 const wchar_t *__restrict __s2,
+@@ -91,8 +83,6 @@
+ #endif
+ 
+ 
+-extern wchar_t *__wmemset_chk (wchar_t *__s, wchar_t __c, size_t __n,
+-			       size_t __ns) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wmemset_alias, (wchar_t *__s, wchar_t __c,
+ 						  size_t __n), wmemset);
+ extern wchar_t *__REDIRECT_NTH (__wmemset_chk_warn,
+@@ -110,9 +100,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wcscpy_chk (wchar_t *__restrict __dest,
+-			      const wchar_t *__restrict __src,
+-			      size_t __n) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wcscpy_alias,
+ 				(wchar_t *__restrict __dest,
+ 				 const wchar_t *__restrict __src), wcscpy);
+@@ -127,9 +114,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wcpcpy_chk (wchar_t *__restrict __dest,
+-			      const wchar_t *__restrict __src,
+-			      size_t __destlen) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wcpcpy_alias,
+ 				(wchar_t *__restrict __dest,
+ 				 const wchar_t *__restrict __src), wcpcpy);
+@@ -144,9 +128,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wcsncpy_chk (wchar_t *__restrict __dest,
+-			       const wchar_t *__restrict __src, size_t __n,
+-			       size_t __destlen) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wcsncpy_alias,
+ 				(wchar_t *__restrict __dest,
+ 				 const wchar_t *__restrict __src,
+@@ -168,9 +149,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wcpncpy_chk (wchar_t *__restrict __dest,
+-			       const wchar_t *__restrict __src, size_t __n,
+-			       size_t __destlen) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wcpncpy_alias,
+ 				(wchar_t *__restrict __dest,
+ 				 const wchar_t *__restrict __src,
+@@ -192,9 +170,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wcscat_chk (wchar_t *__restrict __dest,
+-			      const wchar_t *__restrict __src,
+-			      size_t __destlen) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wcscat_alias,
+ 				(wchar_t *__restrict __dest,
+ 				 const wchar_t *__restrict __src), wcscat);
+@@ -209,9 +184,6 @@
+ }
+ 
+ 
+-extern wchar_t *__wcsncat_chk (wchar_t *__restrict __dest,
+-			       const wchar_t *__restrict __src,
+-			       size_t __n, size_t __destlen) __THROW;
+ extern wchar_t *__REDIRECT_NTH (__wcsncat_alias,
+ 				(wchar_t *__restrict __dest,
+ 				 const wchar_t *__restrict __src,
+@@ -228,10 +200,6 @@
+ }
+ 
+ 
+-extern int __swprintf_chk (wchar_t *__restrict __s, size_t __n,
+-			   int __flag, size_t __s_len,
+-			   const wchar_t *__restrict __format, ...)
+-     __THROW /* __attribute__ ((__format__ (__wprintf__, 5, 6))) */;
+ 
+ extern int __REDIRECT_NTH_LDBL (__swprintf_alias,
+ 				(wchar_t *__restrict __s, size_t __n,
+@@ -258,11 +226,6 @@
+    : swprintf (s, n, __VA_ARGS__))
+ #endif
+ 
+-extern int __vswprintf_chk (wchar_t *__restrict __s, size_t __n,
+-			    int __flag, size_t __s_len,
+-			    const wchar_t *__restrict __format,
+-			    __gnuc_va_list __arg)
+-     __THROW /* __attribute__ ((__format__ (__wprintf__, 5, 0))) */;
+ 
+ extern int __REDIRECT_NTH_LDBL (__vswprintf_alias,
+ 				(wchar_t *__restrict __s, size_t __n,
+@@ -283,16 +246,6 @@
+ 
+ #if __USE_FORTIFY_LEVEL > 1
+ 
+-extern int __fwprintf_chk (__FILE *__restrict __stream, int __flag,
+-			   const wchar_t *__restrict __format, ...);
+-extern int __wprintf_chk (int __flag, const wchar_t *__restrict __format,
+-			  ...);
+-extern int __vfwprintf_chk (__FILE *__restrict __stream, int __flag,
+-			    const wchar_t *__restrict __format,
+-			    __gnuc_va_list __ap);
+-extern int __vwprintf_chk (int __flag, const wchar_t *__restrict __format,
+-			   __gnuc_va_list __ap);
+-
+ # ifdef __va_arg_pack
+ __fortify_function int
+ wprintf (const wchar_t *__restrict __fmt, ...)
+@@ -328,8 +281,6 @@
+ 
+ #endif
+ 
+-extern wchar_t *__fgetws_chk (wchar_t *__restrict __s, size_t __size, int __n,
+-			      __FILE *__restrict __stream) __wur;
+ extern wchar_t *__REDIRECT (__fgetws_alias,
+ 			    (wchar_t *__restrict __s, int __n,
+ 			     __FILE *__restrict __stream), fgetws) __wur;
+@@ -351,9 +302,6 @@
+ }
+ 
+ #ifdef __USE_GNU
+-extern wchar_t *__fgetws_unlocked_chk (wchar_t *__restrict __s, size_t __size,
+-				       int __n, __FILE *__restrict __stream)
+-  __wur;
+ extern wchar_t *__REDIRECT (__fgetws_unlocked_alias,
+ 			    (wchar_t *__restrict __s, int __n,
+ 			     __FILE *__restrict __stream), fgetws_unlocked)
+@@ -379,9 +327,6 @@
+ #endif
+ 
+ 
+-extern size_t __wcrtomb_chk (char *__restrict __s, wchar_t __wchar,
+-			     mbstate_t *__restrict __p,
+-			     size_t __buflen) __THROW __wur;
+ extern size_t __REDIRECT_NTH (__wcrtomb_alias,
+ 			      (char *__restrict __s, wchar_t __wchar,
+ 			       mbstate_t *__restrict __ps), wcrtomb) __wur;
+@@ -404,10 +349,6 @@
+ }
+ 
+ 
+-extern size_t __mbsrtowcs_chk (wchar_t *__restrict __dst,
+-			       const char **__restrict __src,
+-			       size_t __len, mbstate_t *__restrict __ps,
+-			       size_t __dstlen) __THROW;
+ extern size_t __REDIRECT_NTH (__mbsrtowcs_alias,
+ 			      (wchar_t *__restrict __dst,
+ 			       const char **__restrict __src,
+@@ -431,10 +372,6 @@
+ }
+ 
+ 
+-extern size_t __wcsrtombs_chk (char *__restrict __dst,
+-			       const wchar_t **__restrict __src,
+-			       size_t __len, mbstate_t *__restrict __ps,
+-			       size_t __dstlen) __THROW;
+ extern size_t __REDIRECT_NTH (__wcsrtombs_alias,
+ 			      (char *__restrict __dst,
+ 			       const wchar_t **__restrict __src,
+@@ -458,10 +395,6 @@
+ 
+ 
+ #ifdef	__USE_XOPEN2K8
+-extern size_t __mbsnrtowcs_chk (wchar_t *__restrict __dst,
+-				const char **__restrict __src, size_t __nmc,
+-				size_t __len, mbstate_t *__restrict __ps,
+-				size_t __dstlen) __THROW;
+ extern size_t __REDIRECT_NTH (__mbsnrtowcs_alias,
+ 			      (wchar_t *__restrict __dst,
+ 			       const char **__restrict __src, size_t __nmc,
+@@ -485,11 +418,6 @@
+ }
+ 
+ 
+-extern size_t __wcsnrtombs_chk (char *__restrict __dst,
+-				const wchar_t **__restrict __src,
+-				size_t __nwc, size_t __len,
+-				mbstate_t *__restrict __ps, size_t __dstlen)
+-     __THROW;
+ extern size_t __REDIRECT_NTH (__wcsnrtombs_alias,
+ 			      (char *__restrict __dst,
+ 			       const wchar_t **__restrict __src,
+diff -u -r --new-file glibc-2.36/wcsmbs/uchar.h glibc-20220831_b3736d1a3c/wcsmbs/uchar.h
+--- glibc-2.36/wcsmbs/uchar.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/wcsmbs/uchar.h	2022-08-31 21:08:54.000000000 -0500
+@@ -34,8 +34,16 @@
+ /* Declare the C2x char8_t typedef in C2x modes, but only if the C++
+   __cpp_char8_t feature test macro is not defined.  */
+ #if __GLIBC_USE (ISOC2X) && !defined __cpp_char8_t
++#if __GNUC_PREREQ (10, 0) && defined __cplusplus
++/* Suppress the diagnostic regarding char8_t being a keyword in C++20.  */
++# pragma GCC diagnostic push
++# pragma GCC diagnostic ignored "-Wc++20-compat"
++#endif
+ /* Define the 8-bit character type.  */
+ typedef unsigned char char8_t;
++#if __GNUC_PREREQ (10, 0) && defined __cplusplus
++# pragma GCC diagnostic pop
++#endif
+ #endif
+ 
+ #ifndef __USE_ISOCXX11
+diff -u -r --new-file glibc-2.36/wcsmbs/wchar.h glibc-20220831_b3736d1a3c/wcsmbs/wchar.h
+--- glibc-2.36/wcsmbs/wchar.h	2022-07-29 17:03:09.000000000 -0500
++++ glibc-20220831_b3736d1a3c/wcsmbs/wchar.h	2022-08-31 21:08:54.000000000 -0500
+@@ -864,14 +864,21 @@
+ 
+ /* Define some macros helping to catch buffer overflows.  */
+ #if __USE_FORTIFY_LEVEL > 0 && defined __fortify_function
+-# include <bits/wchar2.h>
++/* Declare all functions from bits/wchar2-decl.h first.  */
++# include <bits/wchar2-decl.h>
+ #endif
+ 
+-#include <bits/floatn.h>
++/* The following headers provide asm redirections.  These redirections must
++   appear before the first usage of these functions, e.g. in bits/wchar.h.  */
+ #if defined __LDBL_COMPAT || __LDOUBLE_REDIRECTS_TO_FLOAT128_ABI == 1
+ # include <bits/wchar-ldbl.h>
+ #endif
+ 
++#if __USE_FORTIFY_LEVEL > 0 && defined __fortify_function
++/* Now include the function definitions and redirects too.  */
++# include <bits/wchar2.h>
++#endif
++
+ __END_DECLS
+ 
+ #endif /* wchar.h  */

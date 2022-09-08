@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=grep
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -95,11 +95,16 @@ make install DESTDIR=$PKG || exit 1
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
+# Replace the fgrep/egrep scripts with less annoying versions:
+cat $CWD/scripts/fgrep > $PKG/bin/fgrep
+cat $CWD/scripts/egrep > $PKG/bin/egrep
+chmod 755 $PKG/bin/?grep
+
 # Make symlinks in /usr/bin:
 mkdir -p $PKG/usr/bin
 ( cd $PKG/usr/bin
   ln -sf ../../bin/grep .
-  ln -sf ../../bin/grep -E .
+  ln -sf ../../bin/egrep .
   ln -sf ../../bin/fgrep .
 )
 

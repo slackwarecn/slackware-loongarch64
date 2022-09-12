@@ -974,7 +974,7 @@ l/libusb \
 l/lz4 \
 l/lzo \
 l/parted \
-l/pcre \
+l/pcre2 \
 l/popt \
 l/readline \
 l/zlib \
@@ -1296,7 +1296,6 @@ cp  -fa${VERBOSE1} \
         libmount.so* \
         libnsl.so* \
         libpam*.so* \
-        libpcre.so* \
         libpopt*.so* \
         libsmartcols.so* \
         libssl*so* \
@@ -1322,6 +1321,7 @@ cp  -fa${VERBOSE1} \
         liblz4.so* \
         liblzo*.so* \
         libparted*so* \
+        libpcre2-8.so* \
         libreadline*.so* \
         libstdc++*.so* \
         libunistring*.so* \

@@ -159,6 +159,7 @@ gzip ./source/a/eudev/60-cdrom_id.rules.diff
 gzip ./source/a/eudev/eudev.no.renderD.no.kvm.diff
 gzip ./source/a/eudev/eudev.ignore_bind_unbind_events.diff
 gzip ./source/a/eudev/doinst.sh
+gzip ./source/a/aaa_libraries/doinst.sh
 gzip ./source/a/gpm/gpm-1.20.1-lib-silent.patch
 gzip ./source/a/gpm/setup.mouse
 gzip ./source/a/gpm/gpm-1.20.1-select-1.patch

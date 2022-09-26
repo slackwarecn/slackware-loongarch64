@@ -599,7 +599,6 @@ gzip ./source/n/dhcp/doinst.sh
 gzip ./source/n/proftpd/doinst.sh
 gzip ./source/n/dnsmasq/rc.dnsmasq
 gzip ./source/n/dnsmasq/dnsmasq.leasedir.diff
-gzip ./source/n/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch
 gzip ./source/n/dnsmasq/doinst.sh
 gzip ./source/n/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/n/cyrus-sasl/rc.saslauthd
@@ -647,6 +646,7 @@ gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/vim/ctags.use-conventional-unused-marker.patch
 gzip ./source/ap/vim/vim.vimrc.diff
+gzip ./source/ap/vim/doinst.sh
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules
 gzip ./source/ap/usbmuxd/doinst.sh

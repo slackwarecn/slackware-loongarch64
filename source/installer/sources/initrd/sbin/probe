@@ -155,9 +155,10 @@ list_mmc() {
   local device
   # Filter out any partitions on the block device, as we'll use
   # fdisk to capture those:
-  lsblk -o name,type -ripnd /dev/mmcblk* | grep -E 'disk$' | awk '{print $1}' | while read device ; do
-    fdisk -l $device >> $TMP/SeTfdisk
-  done
+  grep -qE 'mmcblk[0-9]' /proc/partitions && {
+    lsblk -o name,type -ripnd /dev/mmcblk* | grep -E 'disk$' | awk '{print $1}' | while read device ; do
+      fdisk -l $device >> $TMP/SeTfdisk
+    done ;}
 }
 
 list_nvme() {
@@ -324,6 +325,9 @@ list_lvm
 # List CRYPT volumes:
 list_crypt
 
+# List MMC (e.g. SD cards) partitions:
+list_mmc
+
 ## This is obsolete, since fdisk handles GPT now.
 ## List GPT partitions:
 #cat /proc/partitions | while read line ; do
@@ -412,8 +416,6 @@ if cat /proc/partitions | grep -E '/|[0-9]' 1>/dev/null 2>/dev/null ; then # new
       list_cciss $(( $MAJOR - 104 )) $MINOR
     elif [ "$MAJOR" = "114" ]; then
       list_ataraid $MAJOR $MINOR
-    elif [ "$MAJOR" = "179" ]; then
-      list_mmc $MAJOR $MINOR
     elif [ "$MAJOR" = "259" ]; then
       if echo $line | grep -q p; then
         list_nvme $DEVNAME

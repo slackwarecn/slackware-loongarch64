@@ -11,4 +11,6 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/ndctl/monitor.conf.new
+config etc/ndctl.conf.d/ndctl.conf.new
+config etc/ndctl.conf.d/monitor.conf.new
+config etc/daxctl.conf.d/daxctl.example.conf.new

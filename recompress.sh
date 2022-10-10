@@ -667,7 +667,9 @@ gzip ./source/ap/cups-filters/doinst.sh
 gzip ./source/ap/bpe/bpe.port.to.strerror.diff
 gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/doinst.sh
-gzip ./source/ap/moc/moc-ffmpeg4.patch
+gzip ./source/ap/moc/0007-cur-dts.patch
+gzip ./source/ap/moc/0005-avcodec-include.patch
+gzip ./source/ap/moc/0006-uncast-warnings.patch
 gzip ./source/ap/terminus-font/terminus-font.Makefile.paths.diff
 gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
@@ -750,6 +752,7 @@ gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff
 gzip ./source/l/ncurses/ncurses.mkhashsize.diff
 gzip ./source/l/ncurses/doinst.sh
+gzip ./source/l/clucene/clucene.ctime.diff
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/libxml2/libxml2.python3-unicode-errors.patch
@@ -773,6 +776,7 @@ gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
+gzip ./source/l/opencv/0004-Add-missing-header-for-LIBAVCODEC_VERSION_INT.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
@@ -848,6 +852,7 @@ gzip ./source/l/sdl/SDL_ttf.shaded.text.diff
 gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
+gzip ./source/l/ffmpeg/add-av_stream_get_first_dts-for-chromium.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-round_gtf_gtfcalc_c.patch
 gzip ./source/l/svgalib/svgalib.nohelper.diff
@@ -888,6 +893,7 @@ gzip ./source/l/openal-soft/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
+gzip ./source/l/QtAV/ffmpeg5.patch
 gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
@@ -917,6 +923,7 @@ gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/dconf-editor/dconf-editor.ftbfs.diff
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
+gzip ./source/l/qt5/patches/qt5-webengine-ffmpeg5.patch
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
 gzip ./source/l/qt5/patches/qt5-webengine-gcc12.patch
 gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
@@ -981,6 +988,7 @@ gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
+gzip ./source/xap/xine-lib/020-xine-lib-ffmpeg-5.1-fix.patch
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
 gzip ./source/xap/windowmaker/wmaker.inst.diff
@@ -1028,6 +1036,7 @@ gzip ./source/xap/xsane/xsane-0.999-coverity.patch
 gzip ./source/xap/xsane/xsane-0.998-preview-selection.patch
 gzip ./source/xap/xsane/xsane-0.999-no-file-selected.patch
 gzip ./source/xap/xsane/xsane-0.998-wmclass.patch
+gzip ./source/xap/blackbox/blackbox.ctime.diff
 gzip ./source/xap/blackbox/blackbox.menu
 gzip ./source/xap/blackbox/startblackbox
 gzip ./source/xap/blackbox/xinitrc.blackbox
@@ -1044,10 +1053,13 @@ gzip ./source/xap/gnuchess/eboard.png16.diff
 gzip ./source/xap/gnuchess/eboard.ldl.diff
 gzip ./source/xap/gnuchess/doinst.sh
 gzip ./source/xap/gnuchess/xboard.conf.diff
+gzip ./source/xap/ffmpegthumbnailer/198.patch
+gzip ./source/xap/ffmpegthumbnailer/efb5b618.patch
 gzip ./source/xap/easytag/easytag.revert.ogg.handle.patch
 gzip ./source/xap/easytag/easytag.no.freedb.musicbrainz.org.diff
 gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
+gzip ./source/xap/ssr/0003-Fix-build-with-ffmpeg-5.0.patch
 gzip ./source/xap/ssr/doinst.sh
 gzip ./source/xap/pan/pan.enchant2.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff

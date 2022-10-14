@@ -1296,6 +1296,7 @@ cp  -fa${VERBOSE1} \
         libmount.so* \
         libnsl.so* \
         libpam*.so* \
+        libpcre2-8.so* \
         libpopt*.so* \
         libsmartcols.so* \
         libssl*so* \
@@ -1321,7 +1322,6 @@ cp  -fa${VERBOSE1} \
         liblz4.so* \
         liblzo*.so* \
         libparted*so* \
-        libpcre2-8.so* \
         libreadline*.so* \
         libstdc++*.so* \
         libunistring*.so* \

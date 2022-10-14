@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=freerdp
+PKGNAM=kuserfeedback
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -89,41 +89,31 @@ find . \
 mkdir cmake-build
 cd cmake-build
   cmake \
-    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    $KDE_OPT_ARGS \
+    -DKDE_PLATFORM_FEATURE_DISABLE_DEPRECATED=TRUE \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DWITH_ALSA=ON \
-    -DWITH_PULSE=ON \
-    -DWITH_CHANNELS=ON \
-    -DBUILTIN_CHANNELS=ON \
-    -DWITH_CUPS=ON \
-    -DWITH_PCSC=ON \
-    -DWITH_JPEG=ON \
-    -DWITH_FFMPEG=ON \
-    -DWITH_DSP_FFMPEG=ON \
-    -DWITH_WAYLAND=ON \
-    -DWITH_GSSAPI=OFF \
-    -DCHANNEL_URBDRC=ON \
-    -DCHANNEL_URBDRC_CLIENT=ON \
-    -DWITH_SERVER=ON \
-    -DWITH_CAIRO=ON \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DSYSCONF_INSTALL_DIR=/etc/kde \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DLIB_INSTALL_DIR=lib$LIBDIRSUFFIX \
+    -DQT_PLUGIN_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/plugins \
+    -DQML_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/qml \
+    -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
     -DBUILD_TESTING=OFF \
+    -DQca-qt5_DIR=/usr/lib${LIBDIRSUFFIX}/cmake/Qca \
+    -DBUILD_SHARED_LIBS=ON \
     .. || exit 1
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..
 
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-# Move man pages:
-if [ -d $PKG/usr/share/man ]; then
-  mv $PKG/usr/share/man $PKG/usr
-  rmdir $PKG/usr/share
-fi
 
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+
@@ -131,6 +121,14 @@ for i in $( find $PKG/usr/man -type l ) ; do
   ln -s $( readlink $i ).gz $i.gz
   rm $i
 done
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
 
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION

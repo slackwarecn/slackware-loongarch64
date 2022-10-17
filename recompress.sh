@@ -1086,6 +1086,8 @@ gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff
+gzip ./source/x/xorg-server-xwayland/CVE-2022-3551.patch
+gzip ./source/x/xorg-server-xwayland/CVE-2022-3550.patch
 gzip ./source/x/hack-fonts-ttf/doinst.sh
 gzip ./source/x/fcitx5-gtk/doinst.sh
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff
@@ -1148,10 +1150,11 @@ gzip ./source/x/x11/patch/xdm/xdm.arc4random.diff
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
+gzip ./source/x/x11/patch/xorg-server/CVE-2022-3551.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
+gzip ./source/x/x11/patch/xorg-server/CVE-2022-3550.patch
 gzip ./source/x/x11/patch/xorg-server/06_use-intel-only-on-pre-gen4.diff
-gzip ./source/x/x11/patch/xorg-server/failed/0001-Always-install-vbe-and-int10-sdk-headers.patch
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff

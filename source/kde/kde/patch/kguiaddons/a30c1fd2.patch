@@ -1,0 +1,48 @@
+From a30c1fd20870c425e586cec3d46d7eb944509b89 Mon Sep 17 00:00:00 2001
+From: David Edmundson <kde@davidedmundson.co.uk>
+Date: Mon, 17 Oct 2022 16:56:57 +0100
+Subject: [PATCH] systemclipboard: Don't signals data source cancellation
+
+Right now we emit "selectionChanged" when either:
+ - we get an external new selection
+ - our own selection gets cancelled
+
+Semantically that's correct, if our own selection gets cancelled there's
+no data in the clipboard, globally it's changed.
+
+Pragmatically, we don't need to know about the latter event. It's not
+useful information for userspace code - and worst means we process
+events twice if clipboard is transferred from klipper to a client.
+
+This fixes a major issue with klipper when a user disables middle click
+paste. The compositor sends a cancel event on new clipboards, klipper
+detects the clipboard is empty and populates it.
+
+BUG: 460248
+---
+ src/systemclipboard/waylandclipboard.cpp | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/systemclipboard/waylandclipboard.cpp b/src/systemclipboard/waylandclipboard.cpp
+index c2fbdd6..af74902 100644
+--- a/src/systemclipboard/waylandclipboard.cpp
++++ b/src/systemclipboard/waylandclipboard.cpp
+@@ -456,7 +456,6 @@ void DataControlDevice::setSelection(std::unique_ptr<DataControlSource> selectio
+     m_selection = std::move(selection);
+     connect(m_selection.get(), &DataControlSource::cancelled, this, [this]() {
+         m_selection.reset();
+-        Q_EMIT selectionChanged();
+     });
+     set_selection(m_selection->object());
+     Q_EMIT selectionChanged();
+@@ -467,7 +466,6 @@ void DataControlDevice::setPrimarySelection(std::unique_ptr<DataControlSource> s
+     m_primarySelection = std::move(selection);
+     connect(m_primarySelection.get(), &DataControlSource::cancelled, this, [this]() {
+         m_primarySelection.reset();
+-        Q_EMIT primarySelectionChanged();
+     });
+ 
+     if (zwlr_data_control_device_v1_get_version(object()) >= ZWLR_DATA_CONTROL_DEVICE_V1_SET_PRIMARY_SELECTION_SINCE_VERSION) {
+-- 
+GitLab
+

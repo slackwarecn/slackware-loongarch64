@@ -1086,8 +1086,6 @@ gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff
-gzip ./source/x/xorg-server-xwayland/CVE-2022-3551.patch
-gzip ./source/x/xorg-server-xwayland/CVE-2022-3550.patch
 gzip ./source/x/hack-fonts-ttf/doinst.sh
 gzip ./source/x/fcitx5-gtk/doinst.sh
 gzip ./source/x/wqy-zenhei-font-ttf/wqy-zenhei.fix.fontconfig.warning.diff

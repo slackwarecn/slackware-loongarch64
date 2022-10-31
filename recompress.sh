@@ -96,9 +96,6 @@ gzip ./source/d/python2/python.readline.set_pre_input_hook.diff
 gzip ./source/d/python2/python.no-static-library.diff
 gzip ./source/d/python2/python.x86_64.diff
 gzip ./source/d/pkg-config/doinst.sh
-gzip ./source/d/make/make-4.3-getcwd.patch
-gzip ./source/d/make/make-4.3-j8k.patch
-gzip ./source/d/make/make-4.0-noclock_gettime.patch
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
 gzip ./source/e/emacs/doinst.sh

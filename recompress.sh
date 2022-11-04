@@ -879,6 +879,7 @@ gzip ./source/l/fluidsynth/doinst.sh
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
+gzip ./source/l/mozilla-nss/CVE-2022-3479.patch
 gzip ./source/l/libwpd/libwpd.gcc11.diff
 gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch
 gzip ./source/l/gamin/0001-Poll-files-on-nfs4.patch

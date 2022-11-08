@@ -69,8 +69,6 @@ gzip ./source/d/gyp/gyp-python39.patch
 gzip ./source/d/gyp/gyp-python3.patch
 gzip ./source/d/mercurial/doinst.sh
 gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
-gzip ./source/d/meson/meson.import.copy.diff
-gzip ./source/d/meson/39bb5e07eab736b525abfc66eb5ad0dd626aedc6.patch
 gzip ./source/d/binutils/patches/binutils-special-sections-in-groups.patch
 gzip ./source/d/binutils/patches/binutils-gold-i386-gnu-property-notes.patch
 gzip ./source/d/binutils/patches/binutils-gold-warn-unsupported.patch

@@ -40,6 +40,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
@@ -69,6 +70,10 @@ if [ "$ARCH" = "i586" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS=" "
+#  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -129,23 +134,30 @@ meson setup \
   --localstatedir=/var \
   --buildtype=release \
   -Dplatforms=x11,wayland \
-  -Dgallium-opencl=icd \
-  -Dgallium-nine=true \
-  -Dosmesa=true \
-  -Dgallium-drivers=$GALLIUM_DRIVERS \
-  -Dvulkan-drivers=amd,intel,swrast \
-  -Dvulkan-layers=device-select,intel-nullhw,overlay \
-  -Dvideo-codecs="$CODECS" \
-  -Dglvnd=true \
-  -Dllvm=enabled \
-  -Dshared-llvm=enabled \
-  -Dshared-glapi=enabled \
-  -Degl=enabled \
-  -Dgles1=enabled \
-  -Dgles2=enabled \
-  -Dopengl=true \
-  -Dglx=dri \
+    -D b_ndebug=true \
+    -D platforms=x11,wayland \
+    -D gallium-drivers=iris \
+    -Dvulkan-drivers=swrast \
+    -Dvulkan-layers=device-select,intel-nullhw,overlay \
+    -D egl=enabled \
+    -D gles2=enabled \
+    -D glvnd=true \
+    -D glx=dri \
+    -D libunwind=disabled \
+    -D lmsensors=enabled \
+    -D osmesa=true \
+    -D shared-glapi=enabled \
+    -D microsoft-clc=disabled \
+    -D valgrind=disabled \
+    -D lmsensors=false \
+    -D llvm=disabled \
+    -D osmesa=false \
   .. || exit 1
+
+  sed -i 's/\-msse2//g' build.ninja
+  sed -i 's/\-mstackrealign//g' build.ninja
+  sed -i 's/\-Werror=implicit-function-declaration//g' build.ninja
+
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
@@ -162,13 +174,13 @@ fi
   fi
 )
 
-if [ "$BUILD_AMBER" = "YES" ]; then
-  . $CWD/mesa-amber.build
-fi
-
-if [ "$BUILD_DEMOS" = "YES" ]; then
-  . $CWD/mesa-demos.build
-fi
+#if [ "$BUILD_AMBER" = "YES" ]; then
+#  . $CWD/mesa-amber.build
+#fi
+#
+#if [ "$BUILD_DEMOS" = "YES" ]; then
+#  . $CWD/mesa-demos.build
+#fi
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

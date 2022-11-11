@@ -35,6 +35,7 @@ if [ -z "$ARCH" ]; then
     i?86)    export ARCH=i586 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
+    loongarch64)    export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
@@ -72,6 +73,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -79,6 +83,7 @@ fi
 
 case "$ARCH" in
     arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    loong64)    TARGET=loongarch64-slackware-linux-gnu ;;
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
@@ -112,17 +117,17 @@ sed -i -e 's/%''{release}/slack151/g' bfd/Makefile{.am,.in}
 # Work around a bug caused by binutils using an ancient libtool:
 zcat $CWD/patches/binutils-libtool-lib64.patch.gz | patch -p1 --verbose || exit 1
 
-# Various regression fixes:
-zcat $CWD/patches/binutils-2.27-aarch64-ifunc.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-do-not-link-with-static-libstdc++.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-filename-in-error-messages.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-gold-i386-gnu-property-notes.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-gold-mismatched-section-flags.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-gold-warn-unsupported.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-readelf-other-sym-info.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-revert-PLT-elision.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-special-sections-in-groups.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/patches/binutils-testsuite-fixes.patch.gz | patch -p1 --verbose || exit 1
+## Various regression fixes:
+#zcat $CWD/patches/binutils-2.27-aarch64-ifunc.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-do-not-link-with-static-libstdc++.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-filename-in-error-messages.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-gold-i386-gnu-property-notes.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-gold-mismatched-section-flags.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-gold-warn-unsupported.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-readelf-other-sym-info.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-revert-PLT-elision.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-special-sections-in-groups.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/patches/binutils-testsuite-fixes.patch.gz | patch -p1 --verbose || exit 1
 
 ## COMMENTED OUT as nothing touches configure-related files in these
 ## directories, and the latest autoconf isn't working to rebuild them.
@@ -159,13 +164,12 @@ CFLAGS="$SLKCFLAGS" \
   --with-docdir=/usr/doc/binutils-$VERSION \
   --disable-compressed-debug-sections \
   --enable-shared \
-  --enable-multilib \
+  --disable-multilib \
   --enable-64-bit-bfd \
   --enable-plugins \
   --enable-threads \
-  --enable-targets=i386-efi-pe,bpf-unknown-none,${TARGET} \
+  --enable-targets=i386-efi-pe,${TARGET} \
   --enable-install-libiberty \
-  --enable-gold=yes \
   --enable-ld=default \
   --enable-initfini-array \
   $WERROR \

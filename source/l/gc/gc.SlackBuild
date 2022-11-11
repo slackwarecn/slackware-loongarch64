@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -63,6 +64,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -75,6 +79,7 @@ cd $PKGNAM-$VERSION 2> /dev/null || cd $PKGNAM-$(echo $VERSION | cut -b 1-3) || 
 tar xvf $CWD/libatomic_ops-$LAO_VERSION.tar.?z || exit 1
 mv libatomic_ops-$LAO_VERSION libatomic_ops
 chown -R root:root .
+cat $CWD/gc-8.0.6-add-loongarch.patch | patch -p1 || exit
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
   -exec chmod 755 {} \+ -o \
@@ -102,7 +107,7 @@ CFLAGS="$SLKCFLAGS -DUSE_GET_STACKBASE_FOR_MAIN" \
   --enable-parallel-mark \
   --enable-threads=posix \
   --with-libatomic-ops=no \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux-gnu || exit 1
 
 # NOTE:  Using --disable-static exports a subset of symbols, and has caused
 # some things that use gc to break.  So it is recommended to build the static

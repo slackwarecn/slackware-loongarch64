@@ -1161,7 +1161,6 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
-gzip ./testing/source/rust/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
 gzip ./testing/source/rust/link_libffi.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh

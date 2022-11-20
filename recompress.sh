@@ -670,7 +670,6 @@ gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
 gzip ./source/ap/ksh93/doinst.sh
 gzip ./source/ap/dc3dd/dc3dd.glibc228.diff
-gzip ./source/ap/flac/flac.man.diff
 gzip ./source/ap/sc/sc-7.16-3.diff
 gzip ./source/ap/sqlite/COPYRIGHT
 gzip ./source/ap/nano/doinst.sh
@@ -878,11 +877,6 @@ gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
 gzip ./source/l/mozilla-nss/CVE-2022-3479.patch
 gzip ./source/l/libwpd/libwpd.gcc11.diff
-gzip ./source/l/gamin/fix-double-lock-in-inotify-helper-c.patch
-gzip ./source/l/gamin/0001-Poll-files-on-nfs4.patch
-gzip ./source/l/gamin/gaminrc
-gzip ./source/l/gamin/doinst.sh
-gzip ./source/l/gamin/no_g_const_return.patch
 gzip ./source/l/pygtk/pygtk-Drop-the-PangoFont-find_shaper-virtual-method.patch
 gzip ./source/l/pygtk/pygtk-fix-pango-object-leaks.patch
 gzip ./source/l/gnome-keyring/doinst.sh

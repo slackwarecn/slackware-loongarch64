@@ -127,7 +127,6 @@ gzip ./source/a/rpm2tgz/patches/0009-Add-c-option-just-as-makepkg-c-y.patch
 gzip ./source/a/rpm2tgz/patches/0010-no-absolute-filenames-extracting-cpio.patch
 gzip ./source/a/udisks/udisks.no.pci-db.diff
 gzip ./source/a/udisks/udisks.glibc228.diff
-gzip ./source/a/gawk/0001-Add-missing-UPREF.patch
 gzip ./source/a/dialog/dialog.all.use_height.diff
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
 gzip ./source/a/dialog/doinst.sh
@@ -792,6 +791,7 @@ gzip ./source/l/netpbm/netpbm-gcc4.patch
 gzip ./source/l/netpbm/netpbm-noppmtompeg.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
+gzip ./source/l/glib2/glib-2.74.1-gnome-keyring-cpu.patch
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff

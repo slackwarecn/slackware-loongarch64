@@ -1,0 +1,48 @@
+commit 0370a7a40fe9523ea334dcb8a2a60f1418595b49
+Author: Dmitry Goncharov <dgoncharov@users.sf.net>
+Date:   Sun Nov 6 07:36:26 2022 -0500
+
+    [SV 63307] Spawn children with the default disposition of sigpipe.
+    
+    * src/main.c (main): Set sigpipe disposition to a handler, rather than
+    SIG_IGN, in order for children to have the default sigpipe disposition.
+    * tests/scripts/misc/sigpipe: Add sigpipe tests.
+
+diff --git a/src/main.c b/src/main.c
+index eec93656..d8857696 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1152,6 +1152,15 @@ temp_stdin_unlink ()
+     }
+ }
+ 
++#ifdef SIGPIPE
++static void
++handle_sigpipe (int sig)
++{
++  /* Suppress unused variable warning.  */
++  sig = sig;
++}
++#endif
++
+ #ifdef _AMIGA
+ int
+ main (int argc, char **argv)
+@@ -1182,9 +1191,15 @@ main (int argc, char **argv, char **envp)
+   /* Useful for attaching debuggers, etc.  */
+   SPIN ("main-entry");
+ 
+-  /* Don't die if our stdout sends us SIGPIPE.  */
++  /* Don't die if our stdout sends us SIGPIPE to get temporary files removed.
++   * If make has inherited SIG_IGN, keep running with SIG_IGN to let make's
++   * children inherit SIG_IGN.
++   * Othwerwise, set sigpipe disposition to a handler, in order for children to
++   * have the default sigpipe disposition.  */
++
+ #ifdef SIGPIPE
+-  bsd_signal (SIGPIPE, SIG_IGN);
++  if (bsd_signal (SIGPIPE, handle_sigpipe) == SIG_IGN)
++    bsd_signal (SIGPIPE, SIG_IGN);
+ #endif
+ 
+ #ifdef HAVE_ATEXIT

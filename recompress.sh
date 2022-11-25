@@ -791,7 +791,6 @@ gzip ./source/l/netpbm/netpbm-gcc4.patch
 gzip ./source/l/netpbm/netpbm-noppmtompeg.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
-gzip ./source/l/glib2/glib-2.74.1-gnome-keyring-cpu.patch
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff

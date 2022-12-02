@@ -232,6 +232,9 @@ gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff
 gzip ./source/a/libcgroup/libcgroup.loop.diff
 gzip ./source/a/libcgroup/doinst.sh
+gzip ./source/a/gptfdisk/popt-1.19-follow-up.patch
+gzip ./source/a/gptfdisk/util-linux-2.38.patch
+gzip ./source/a/gptfdisk/popt-1.19.patch
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/elilo/elilo.zeroes.cc_blob_address.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh
@@ -792,7 +795,6 @@ gzip ./source/l/netpbm/netpbm-noppmtompeg.patch
 gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
 gzip ./source/l/glib2/doinst.sh
-gzip ./source/l/glib2/glib.g_str_equal.diff
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff
 gzip ./source/l/gtk+2/gtk.gtk-faq.diff

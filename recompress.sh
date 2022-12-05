@@ -992,6 +992,7 @@ gzip ./source/xap/gv/gv-dat.patch
 gzip ./source/xap/gv/gv-resource.patch
 gzip ./source/xap/gv/gv-aarch64.patch
 gzip ./source/xap/gv/gv-bug1071238.patch
+gzip ./source/xap/libnma/gschema-Remove-path-from-eap-schema.patch
 gzip ./source/xap/libnma/doinst.sh
 gzip ./source/xap/x3270/doinst.sh
 gzip ./source/xap/xaos/xaos.6

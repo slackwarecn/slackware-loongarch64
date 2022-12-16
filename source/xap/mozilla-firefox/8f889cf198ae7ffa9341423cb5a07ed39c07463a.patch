@@ -1,0 +1,801 @@
+From 8f889cf198ae7ffa9341423cb5a07ed39c07463a Mon Sep 17 00:00:00 2001
+From: Mike Hommey <mh@glandium.org>
+Date: Thu, 15 Dec 2022 16:36:52 +0900
+Subject: [PATCH] Replace the use of Hash with a custom trait
+
+The custom trait is expected to consistently give the result that Hash
+gives on 64-bits little-endian, but on all platforms
+---
+ uniffi_bindgen/src/interface/attributes.rs |  19 ++--
+ uniffi_bindgen/src/interface/callbacks.rs  |  11 +-
+ uniffi_bindgen/src/interface/enum_.rs      |   5 +-
+ uniffi_bindgen/src/interface/error.rs      |   3 +-
+ uniffi_bindgen/src/interface/function.rs   |  17 ++--
+ uniffi_bindgen/src/interface/literal.rs    |  11 +-
+ uniffi_bindgen/src/interface/mod.rs        |  28 +++---
+ uniffi_bindgen/src/interface/object.rs     |  37 +++----
+ uniffi_bindgen/src/interface/record.rs     |   5 +-
+ uniffi_bindgen/src/interface/types/mod.rs  |   3 +-
+ uniffi_checksum_derive/Cargo.toml          |  22 ++++
+ uniffi_checksum_derive/src/lib.rs          | 111 +++++++++++++++++++++
+ uniffi_meta/Cargo.toml                     |   1 +
+ uniffi_meta/src/lib.rs                     |  89 +++++++++++++++--
+ 14 files changed, 288 insertions(+), 74 deletions(-)
+ create mode 100644 uniffi_checksum_derive/Cargo.toml
+ create mode 100644 uniffi_checksum_derive/src/lib.rs
+
+diff --git a/uniffi_bindgen/src/interface/attributes.rs b/uniffi_bindgen/src/interface/attributes.rs
+index 49b885520..3c9bd522b 100644
+--- a/uniffi_bindgen/src/interface/attributes.rs
++++ b/uniffi_bindgen/src/interface/attributes.rs
+@@ -15,13 +15,14 @@
+ //! if we grow significantly more complicated attribute handling.
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ /// Represents an attribute parsed from UDL, like `[ByRef]` or `[Throws]`.
+ ///
+ /// This is a convenience enum for parsing UDL attributes and erroring out if we encounter
+ /// any unsupported ones. These don't convert directly into parts of a `ComponentInterface`, but
+ /// may influence the properties of things like functions and arguments.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub(super) enum Attribute {
+     ByRef,
+     Enum,
+@@ -119,7 +120,7 @@ where
+ 
+ /// Attributes that can be attached to an `enum` definition in the UDL.
+ /// There's only one case here: using `[Error]` to mark an enum as an error class.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct EnumAttributes(Vec<Attribute>);
+ 
+ impl EnumAttributes {
+@@ -155,7 +156,7 @@ impl<T: TryInto<EnumAttributes, Error = anyhow::Error>> TryFrom<Option<T>> for E
+ ///
+ /// This supports the `[Throws=ErrorName]` attribute for functions that
+ /// can produce an error.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct FunctionAttributes(Vec<Attribute>);
+ 
+ impl FunctionAttributes {
+@@ -198,7 +199,7 @@ impl<T: TryInto<FunctionAttributes, Error = anyhow::Error>> TryFrom<Option<T>>
+ ///
+ /// This supports the `[ByRef]` attribute for arguments that should be passed
+ /// by reference in the generated Rust scaffolding.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct ArgumentAttributes(Vec<Attribute>);
+ 
+ impl ArgumentAttributes {
+@@ -233,7 +234,7 @@ impl<T: TryInto<ArgumentAttributes, Error = anyhow::Error>> TryFrom<Option<T>>
+ }
+ 
+ /// Represents UDL attributes that might appear on an `interface` definition.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct InterfaceAttributes(Vec<Attribute>);
+ 
+ impl InterfaceAttributes {
+@@ -287,7 +288,7 @@ impl<T: TryInto<InterfaceAttributes, Error = anyhow::Error>> TryFrom<Option<T>>
+ ///
+ /// This supports the `[Throws=ErrorName]` attribute for constructors that can produce
+ /// an error, and the `[Name=MethodName]` for non-default constructors.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct ConstructorAttributes(Vec<Attribute>);
+ 
+ impl ConstructorAttributes {
+@@ -326,7 +327,7 @@ impl TryFrom<&weedle::attribute::ExtendedAttributeList<'_>> for ConstructorAttri
+ ///
+ /// This supports the `[Throws=ErrorName]` attribute for methods that can produce
+ /// an error, and the `[Self=ByArc]` attribute for methods that take `Arc<Self>` as receiver.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct MethodAttributes(Vec<Attribute>);
+ 
+ impl MethodAttributes {
+@@ -375,7 +376,7 @@ impl<T: TryInto<MethodAttributes, Error = anyhow::Error>> TryFrom<Option<T>> for
+ /// Actually we only support one of these right now, `[Self=ByArc]`.
+ /// We might add more in future, e.g. a `[Self=ByRef]` if there are cases
+ /// where we need to force the receiver to be taken by reference.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub(super) enum SelfType {
+     ByArc, // Method receiver is `Arc<Self>`.
+ }
+@@ -398,7 +399,7 @@ impl TryFrom<&weedle::attribute::IdentifierOrString<'_>> for SelfType {
+ /// Represents UDL attributes that might appear on a typedef
+ ///
+ /// This supports the `[External="crate_name"]` and `[Custom]` attributes for types.
+-#[derive(Debug, Clone, Hash, Default)]
++#[derive(Debug, Clone, Checksum, Default)]
+ pub(super) struct TypedefAttributes(Vec<Attribute>);
+ 
+ impl TypedefAttributes {
+diff --git a/uniffi_bindgen/src/interface/callbacks.rs b/uniffi_bindgen/src/interface/callbacks.rs
+index 654652afe..886f02b29 100644
+--- a/uniffi_bindgen/src/interface/callbacks.rs
++++ b/uniffi_bindgen/src/interface/callbacks.rs
+@@ -33,9 +33,10 @@
+ //! # Ok::<(), anyhow::Error>(())
+ //! ```
+ 
+-use std::hash::{Hash, Hasher};
++use std::hash::Hasher;
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ use super::ffi::{FFIArgument, FFIFunction, FFIType};
+ use super::object::Method;
+@@ -88,16 +89,16 @@ impl CallbackInterface {
+     }
+ }
+ 
+-impl Hash for CallbackInterface {
+-    fn hash<H: Hasher>(&self, state: &mut H) {
++impl Checksum for CallbackInterface {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
+         // We don't include the FFIFunc in the hash calculation, because:
+         //  - it is entirely determined by the other fields,
+         //    so excluding it is safe.
+         //  - its `name` property includes a checksum derived from  the very
+         //    hash value we're trying to calculate here, so excluding it
+         //    avoids a weird circular depenendency in the calculation.
+-        self.name.hash(state);
+-        self.methods.hash(state);
++        self.name.checksum(state);
++        self.methods.checksum(state);
+     }
+ }
+ 
+diff --git a/uniffi_bindgen/src/interface/enum_.rs b/uniffi_bindgen/src/interface/enum_.rs
+index 04eba0d25..b8fe0ddd7 100644
+--- a/uniffi_bindgen/src/interface/enum_.rs
++++ b/uniffi_bindgen/src/interface/enum_.rs
+@@ -77,6 +77,7 @@
+ //! ```
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ use super::record::Field;
+ use super::types::{Type, TypeIterator};
+@@ -87,7 +88,7 @@ use super::{APIConverter, ComponentInterface};
+ ///
+ /// Enums are passed across the FFI by serializing to a bytebuffer, with a
+ /// i32 indicating the variant followed by the serialization of each field.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub struct Enum {
+     pub(super) name: String,
+     pub(super) variants: Vec<Variant>,
+@@ -174,7 +175,7 @@ impl APIConverter<Enum> for weedle::InterfaceDefinition<'_> {
+ /// Represents an individual variant in an Enum.
+ ///
+ /// Each variant has a name and zero or more fields.
+-#[derive(Debug, Clone, Default, Hash)]
++#[derive(Debug, Clone, Default, Checksum)]
+ pub struct Variant {
+     pub(super) name: String,
+     pub(super) fields: Vec<Field>,
+diff --git a/uniffi_bindgen/src/interface/error.rs b/uniffi_bindgen/src/interface/error.rs
+index 7e9b571a1..adae769f0 100644
+--- a/uniffi_bindgen/src/interface/error.rs
++++ b/uniffi_bindgen/src/interface/error.rs
+@@ -83,6 +83,7 @@
+ //! ```
+ 
+ use anyhow::Result;
++use uniffi_meta::Checksum;
+ 
+ use super::enum_::{Enum, Variant};
+ use super::types::{Type, TypeIterator};
+@@ -94,7 +95,7 @@ use super::{APIConverter, ComponentInterface};
+ /// they're handled in the FFI very differently. We create them in `uniffi::call_with_result()` if
+ /// the wrapped function returns an `Err` value
+ /// struct and assign an integer error code to each variant.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub struct Error {
+     pub name: String,
+     enum_: Enum,
+diff --git a/uniffi_bindgen/src/interface/function.rs b/uniffi_bindgen/src/interface/function.rs
+index 4eff0795c..869c1b59b 100644
+--- a/uniffi_bindgen/src/interface/function.rs
++++ b/uniffi_bindgen/src/interface/function.rs
+@@ -32,9 +32,10 @@
+ //! # Ok::<(), anyhow::Error>(())
+ //! ```
+ use std::convert::TryFrom;
+-use std::hash::{Hash, Hasher};
++use std::hash::Hasher;
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ use super::ffi::{FFIArgument, FFIFunction};
+ use super::literal::{convert_default_value, Literal};
+@@ -142,18 +143,18 @@ impl From<uniffi_meta::FnMetadata> for Function {
+     }
+ }
+ 
+-impl Hash for Function {
+-    fn hash<H: Hasher>(&self, state: &mut H) {
++impl Checksum for Function {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
+         // We don't include the FFIFunc in the hash calculation, because:
+         //  - it is entirely determined by the other fields,
+         //    so excluding it is safe.
+         //  - its `name` property includes a checksum derived from  the very
+         //    hash value we're trying to calculate here, so excluding it
+         //    avoids a weird circular depenendency in the calculation.
+-        self.name.hash(state);
+-        self.arguments.hash(state);
+-        self.return_type.hash(state);
+-        self.attributes.hash(state);
++        self.name.checksum(state);
++        self.arguments.checksum(state);
++        self.return_type.checksum(state);
++        self.attributes.checksum(state);
+     }
+ }
+ 
+@@ -185,7 +186,7 @@ impl APIConverter<Function> for weedle::namespace::OperationNamespaceMember<'_>
+ /// Represents an argument to a function/constructor/method call.
+ ///
+ /// Each argument has a name and a type, along with some optional metadata.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub struct Argument {
+     pub(super) name: String,
+     pub(super) type_: Type,
+diff --git a/uniffi_bindgen/src/interface/literal.rs b/uniffi_bindgen/src/interface/literal.rs
+index 8b333c614..1aa1c8785 100644
+--- a/uniffi_bindgen/src/interface/literal.rs
++++ b/uniffi_bindgen/src/interface/literal.rs
+@@ -8,12 +8,13 @@
+ //! which appear in places such as default arguments.
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ use super::types::Type;
+ 
+ // Represents a literal value.
+ // Used for e.g. default argument values.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub enum Literal {
+     Boolean(bool),
+     String(String),
+@@ -35,13 +36,19 @@ pub enum Literal {
+ 
+ // Represent the radix of integer literal values.
+ // We preserve the radix into the generated bindings for readability reasons.
+-#[derive(Debug, Clone, Copy, Hash)]
++#[derive(Debug, Clone, Copy)]
+ pub enum Radix {
+     Decimal = 10,
+     Octal = 8,
+     Hexadecimal = 16,
+ }
+ 
++impl Checksum for Radix {
++    fn checksum<H: ::core::hash::Hasher>(&self, state: &mut H) {
++        state.write(&(*self as u64).to_le_bytes());
++    }
++}
++
+ pub(super) fn convert_default_value(
+     default_value: &weedle::literal::DefaultValue<'_>,
+     type_: &Type,
+diff --git a/uniffi_bindgen/src/interface/mod.rs b/uniffi_bindgen/src/interface/mod.rs
+index 9aa92e9b0..eb40ea3fd 100644
+--- a/uniffi_bindgen/src/interface/mod.rs
++++ b/uniffi_bindgen/src/interface/mod.rs
+@@ -47,7 +47,7 @@
+ use std::{
+     collections::HashSet,
+     convert::TryFrom,
+-    hash::{Hash, Hasher},
++    hash::Hasher,
+     iter,
+ };
+ 
+@@ -77,7 +77,7 @@ pub use record::{Field, Record};
+ 
+ pub mod ffi;
+ pub use ffi::{FFIArgument, FFIFunction, FFIType};
+-use uniffi_meta::{MethodMetadata, ObjectMetadata};
++use uniffi_meta::{Checksum, MethodMetadata, ObjectMetadata};
+ 
+ /// The main public interface for this module, representing the complete details of an interface exposed
+ /// by a rust component and the details of consuming it via an extern-C FFI layer.
+@@ -672,20 +672,16 @@ impl ComponentInterface {
+     }
+ }
+ 
+-/// `ComponentInterface` structs can be hashed, but this is mostly a convenient way to
+-/// produce a checksum of their contents. They're not really intended to live in a hashtable.
+-impl Hash for ComponentInterface {
+-    fn hash<H: Hasher>(&self, state: &mut H) {
+-        // We can't hash `self.types`, but its contents are implied by the other fields
+-        // anyway, so it's safe to ignore it.
+-        self.uniffi_version.hash(state);
+-        self.namespace.hash(state);
+-        self.enums.hash(state);
+-        self.records.hash(state);
+-        self.functions.hash(state);
+-        self.objects.hash(state);
+-        self.callback_interfaces.hash(state);
+-        self.errors.hash(state);
++impl Checksum for ComponentInterface {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        Checksum::checksum(&self.uniffi_version, state);
++        Checksum::checksum(&self.namespace, state);
++        Checksum::checksum(&self.enums, state);
++        Checksum::checksum(&self.records, state);
++        Checksum::checksum(&self.functions, state);
++        Checksum::checksum(&self.objects, state);
++        Checksum::checksum(&self.callback_interfaces, state);
++        Checksum::checksum(&self.errors, state);
+     }
+ }
+ 
+diff --git a/uniffi_bindgen/src/interface/object.rs b/uniffi_bindgen/src/interface/object.rs
+index e366123b5..3bd6bfabe 100644
+--- a/uniffi_bindgen/src/interface/object.rs
++++ b/uniffi_bindgen/src/interface/object.rs
+@@ -58,10 +58,11 @@
+ //! ```
+ 
+ use std::convert::TryFrom;
+-use std::hash::{Hash, Hasher};
++use std::hash::Hasher;
+ use std::{collections::HashSet, iter};
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ use super::ffi::{FFIArgument, FFIFunction, FFIType};
+ use super::function::Argument;
+@@ -190,17 +191,17 @@ impl Object {
+     }
+ }
+ 
+-impl Hash for Object {
+-    fn hash<H: Hasher>(&self, state: &mut H) {
++impl Checksum for Object {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
+         // We don't include the FFIFunc in the hash calculation, because:
+         //  - it is entirely determined by the other fields,
+         //    so excluding it is safe.
+         //  - its `name` property includes a checksum derived from  the very
+         //    hash value we're trying to calculate here, so excluding it
+         //    avoids a weird circular depenendency in the calculation.
+-        self.name.hash(state);
+-        self.constructors.hash(state);
+-        self.methods.hash(state);
++        self.name.checksum(state);
++        self.constructors.checksum(state);
++        self.methods.checksum(state);
+     }
+ }
+ 
+@@ -299,17 +300,17 @@ impl Constructor {
+     }
+ }
+ 
+-impl Hash for Constructor {
+-    fn hash<H: Hasher>(&self, state: &mut H) {
++impl Checksum for Constructor {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
+         // We don't include the FFIFunc in the hash calculation, because:
+         //  - it is entirely determined by the other fields,
+         //    so excluding it is safe.
+         //  - its `name` property includes a checksum derived from  the very
+         //    hash value we're trying to calculate here, so excluding it
+         //    avoids a weird circular depenendency in the calculation.
+-        self.name.hash(state);
+-        self.arguments.hash(state);
+-        self.attributes.hash(state);
++        self.name.checksum(state);
++        self.arguments.checksum(state);
++        self.attributes.checksum(state);
+     }
+ }
+ 
+@@ -450,19 +451,19 @@ impl From<uniffi_meta::MethodMetadata> for Method {
+     }
+ }
+ 
+-impl Hash for Method {
+-    fn hash<H: Hasher>(&self, state: &mut H) {
++impl Checksum for Method {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
+         // We don't include the FFIFunc in the hash calculation, because:
+         //  - it is entirely determined by the other fields,
+         //    so excluding it is safe.
+         //  - its `name` property includes a checksum derived from  the very
+         //    hash value we're trying to calculate here, so excluding it
+         //    avoids a weird circular depenendency in the calculation.
+-        self.name.hash(state);
+-        self.object_name.hash(state);
+-        self.arguments.hash(state);
+-        self.return_type.hash(state);
+-        self.attributes.hash(state);
++        self.name.checksum(state);
++        self.object_name.checksum(state);
++        self.arguments.checksum(state);
++        self.return_type.checksum(state);
++        self.attributes.checksum(state);
+     }
+ }
+ 
+diff --git a/uniffi_bindgen/src/interface/record.rs b/uniffi_bindgen/src/interface/record.rs
+index c55200eb1..dd6a48e2c 100644
+--- a/uniffi_bindgen/src/interface/record.rs
++++ b/uniffi_bindgen/src/interface/record.rs
+@@ -45,6 +45,7 @@
+ //! ```
+ 
+ use anyhow::{bail, Result};
++use uniffi_meta::Checksum;
+ 
+ use super::types::{Type, TypeIterator};
+ use super::{
+@@ -58,7 +59,7 @@ use super::{APIConverter, ComponentInterface};
+ /// In the FFI these are represented as a byte buffer, which one side explicitly
+ /// serializes the data into and the other serializes it out of. So I guess they're
+ /// kind of like "pass by clone" values.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub struct Record {
+     pub(super) name: String,
+     pub(super) fields: Vec<Field>,
+@@ -109,7 +110,7 @@ impl APIConverter<Record> for weedle::DictionaryDefinition<'_> {
+ }
+ 
+ // Represents an individual field on a Record.
+-#[derive(Debug, Clone, Hash)]
++#[derive(Debug, Clone, Checksum)]
+ pub struct Field {
+     pub(super) name: String,
+     pub(super) type_: Type,
+diff --git a/uniffi_bindgen/src/interface/types/mod.rs b/uniffi_bindgen/src/interface/types/mod.rs
+index 8a0131c9f..65426926f 100644
+--- a/uniffi_bindgen/src/interface/types/mod.rs
++++ b/uniffi_bindgen/src/interface/types/mod.rs
+@@ -25,6 +25,7 @@ use std::{collections::hash_map::Entry, collections::BTreeSet, collections::Hash
+ 
+ use anyhow::{bail, Result};
+ use heck::ToUpperCamelCase;
++use uniffi_meta::Checksum;
+ 
+ use super::ffi::FFIType;
+ 
+@@ -36,7 +37,7 @@ pub(super) use resolver::{resolve_builtin_type, TypeResolver};
+ /// Represents all the different high-level types that can be used in a component interface.
+ /// At this level we identify user-defined types by name, without knowing any details
+ /// of their internal structure apart from what type of thing they are (record, enum, etc).
+-#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
++#[derive(Debug, Clone, Eq, PartialEq, Checksum, Ord, PartialOrd)]
+ pub enum Type {
+     // Primitive types.
+     UInt8,
+diff --git a/uniffi_checksum_derive/Cargo.toml b/uniffi_checksum_derive/Cargo.toml
+new file mode 100644
+index 000000000..a04c31aab
+--- /dev/null
++++ b/uniffi_checksum_derive/Cargo.toml
+@@ -0,0 +1,22 @@
++[package]
++name = "uniffi_checksum_derive"
++version = "0.21.0"
++authors = ["Firefox Sync Team <sync-team@mozilla.com>"]
++description = "a multi-language bindings generator for rust (checksum custom derive)"
++documentation = "https://mozilla.github.io/uniffi-rs"
++homepage = "https://mozilla.github.io/uniffi-rs"
++repository = "https://github.com/mozilla/uniffi-rs"
++license = "MPL-2.0"
++edition = "2021"
++keywords = ["ffi", "bindgen"]
++
++[lib]
++proc-macro = true
++
++[dependencies]
++quote = "1.0"
++syn = { version = "1.0", features = ["derive"] }
++
++[features]
++default = []
++nightly = []
+diff --git a/uniffi_checksum_derive/src/lib.rs b/uniffi_checksum_derive/src/lib.rs
+new file mode 100644
+index 000000000..c79064d8b
+--- /dev/null
++++ b/uniffi_checksum_derive/src/lib.rs
+@@ -0,0 +1,111 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++#![cfg_attr(feature = "nightly", feature(proc_macro_expand))]
++
++//! Custom derive for uniffi_meta::Checksum
++
++use proc_macro::TokenStream;
++use quote::{format_ident, quote};
++use syn::{parse_macro_input, Data, DeriveInput, Fields, Index};
++
++#[proc_macro_derive(Checksum)]
++pub fn checksum_derive(input: TokenStream) -> TokenStream {
++    let input: DeriveInput = parse_macro_input!(input);
++
++    let name = input.ident;
++
++    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
++
++    let code = match input.data {
++        Data::Enum(enum_)
++            if enum_.variants.len() == 1
++                && enum_
++                    .variants
++                    .iter()
++                    .all(|variant| matches!(variant.fields, Fields::Unit)) =>
++        {
++            quote!()
++        }
++        Data::Enum(enum_) => {
++            let match_inner = enum_.variants.iter().enumerate().map(|(num, variant)| {
++                let num = num as u64;
++                let ident = &variant.ident;
++                if variant.discriminant.is_some() {
++                    panic!("#[derive(Checksum)] doesn't support explicit discriminants in enums");
++                }
++                let discriminant = quote! { state.write(&#num.to_le_bytes()) };
++                match &variant.fields {
++                    Fields::Unnamed(fields) => {
++                        let field_idents = fields
++                            .unnamed
++                            .iter()
++                            .enumerate()
++                            .map(|(num, _)| format_ident!("__self_{}", num))
++                            .collect::<Vec<_>>();
++                        let field_stmts = field_idents
++                            .iter()
++                            .map(|ident| quote! { Checksum::checksum(#ident, state); });
++                        quote! {
++                            Self::#ident(#(#field_idents,)*) => {
++                                #discriminant;
++                                #(#field_stmts)*
++                            }
++                        }
++                    }
++                    Fields::Named(fields) => {
++                        let field_idents = fields
++                            .named
++                            .iter()
++                            .map(|field| field.ident.as_ref().unwrap())
++                            .collect::<Vec<_>>();
++                        let field_stmts = field_idents
++                            .iter()
++                            .map(|ident| quote! { Checksum::checksum(#ident, state); });
++                        quote! {
++                            Self::#ident { #(#field_idents,)* } => {
++                                #discriminant;
++                                #(#field_stmts)*
++                            }
++                        }
++                    }
++                    Fields::Unit => quote! { Self::#ident => #discriminant, },
++                }
++            });
++            quote! {
++                match self {
++                    #(#match_inner)*
++                }
++            }
++        }
++        Data::Struct(struct_) => {
++            let stmts =
++                struct_
++                    .fields
++                    .iter()
++                    .enumerate()
++                    .map(|(num, field)| match field.ident.as_ref() {
++                        Some(ident) => quote! { Checksum::checksum(&self.#ident, state); },
++                        None => {
++                            let i = Index::from(num);
++                            quote! { Checksum::checksum(&self.#i, state); }
++                        }
++                    });
++            quote! {
++                #(#stmts)*
++            }
++        }
++        Data::Union(_) => {
++            panic!("#[derive(Checksum)] is not supported for unions");
++        }
++    };
++
++    quote! {
++        impl #impl_generics Checksum for #name #ty_generics #where_clause {
++            fn checksum<__H: ::core::hash::Hasher>(&self, state: &mut __H) {
++                #code
++            }
++        }
++    }
++    .into()
++}
+diff --git a/uniffi_meta/Cargo.toml b/uniffi_meta/Cargo.toml
+index ca33156df..358b6ef4c 100644
+--- a/uniffi_meta/Cargo.toml
++++ b/uniffi_meta/Cargo.toml
+@@ -10,3 +10,4 @@ keywords = ["ffi", "bindgen"]
+ 
+ [dependencies]
+ serde = { version = "1.0.136", features = ["derive"] }
++uniffi_checksum_derive = { version = "0.21.0", path = "../uniffi_checksum_derive" }
+diff --git a/uniffi_meta/src/lib.rs b/uniffi_meta/src/lib.rs
+index 6cfa733e9..2555ae19c 100644
+--- a/uniffi_meta/src/lib.rs
++++ b/uniffi_meta/src/lib.rs
+@@ -6,10 +6,79 @@ use std::{
+     collections::hash_map::DefaultHasher,
+     hash::{Hash, Hasher},
+ };
++pub use uniffi_checksum_derive::Checksum;
+ 
+ use serde::{Deserialize, Serialize};
+ 
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++pub trait Checksum {
++    fn checksum<H: Hasher>(&self, state: &mut H);
++}
++
++impl Checksum for bool {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        Hash::hash(self, state);
++    }
++}
++
++impl Checksum for u64 {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        state.write(&self.to_le_bytes());
++    }
++}
++
++impl Checksum for i64 {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        state.write(&self.to_le_bytes());
++    }
++}
++
++impl<T: Checksum> Checksum for Box<T> {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        (**self).checksum(state)
++    }
++}
++
++impl<T: Checksum> Checksum for [T] {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        state.write(&(self.len() as u64).to_le_bytes());
++        for item in self {
++            Checksum::checksum(item, state);
++        }
++    }
++}
++
++impl<T: Checksum> Checksum for Vec<T> {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        Checksum::checksum(&**self, state);
++    }
++}
++
++impl<T: Checksum> Checksum for Option<T> {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        match self {
++            None => state.write(&0u64.to_le_bytes()),
++            Some(value) => {
++                state.write(&1u64.to_le_bytes());
++                Checksum::checksum(value, state)
++            }
++        }
++    }
++}
++
++impl Checksum for str {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        state.write(self.as_bytes());
++        state.write_u8(0xff);
++    }
++}
++
++impl Checksum for String {
++    fn checksum<H: Hasher>(&self, state: &mut H) {
++        (**self).checksum(state)
++    }
++}
++
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub struct FnMetadata {
+     pub module_path: Vec<String>,
+     pub name: String,
+@@ -23,7 +92,7 @@ impl FnMetadata {
+     }
+ }
+ 
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub struct MethodMetadata {
+     pub module_path: Vec<String>,
+     pub self_name: String,
+@@ -39,14 +108,14 @@ impl MethodMetadata {
+     }
+ }
+ 
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub struct FnParamMetadata {
+     pub name: String,
+     #[serde(rename = "type")]
+     pub ty: Type,
+ }
+ 
+-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Checksum, Deserialize, Serialize)]
+ pub enum Type {
+     U8,
+     U16,
+@@ -78,21 +147,21 @@ pub enum Type {
+     },
+ }
+ 
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub struct RecordMetadata {
+     pub module_path: Vec<String>,
+     pub name: String,
+     pub fields: Vec<FieldMetadata>,
+ }
+ 
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub struct FieldMetadata {
+     pub name: String,
+     #[serde(rename = "type")]
+     pub ty: Type,
+ }
+ 
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub struct ObjectMetadata {
+     pub module_path: Vec<String>,
+     pub name: String,
+@@ -112,9 +181,9 @@ impl ObjectMetadata {
+ ///
+ /// To be used as a checksum of FFI symbols, as a safeguard against different UniFFI versions being
+ /// used for scaffolding and bindings generation.
+-pub fn checksum<T: Hash>(val: &T) -> u16 {
++pub fn checksum<T: Checksum>(val: &T) -> u16 {
+     let mut hasher = DefaultHasher::new();
+-    val.hash(&mut hasher);
++    val.checksum(&mut hasher);
+     (hasher.finish() & 0x000000000000FFFF) as u16
+ }
+ 
+@@ -124,7 +193,7 @@ pub fn fn_ffi_symbol_name(mod_path: &[String], name: &str, checksum: u16) -> Str
+ }
+ 
+ /// Enum covering all the possible metadata types
+-#[derive(Clone, Debug, Hash, Deserialize, Serialize)]
++#[derive(Clone, Debug, Checksum, Deserialize, Serialize)]
+ pub enum Metadata {
+     Func(FnMetadata),
+     Method(MethodMetadata),

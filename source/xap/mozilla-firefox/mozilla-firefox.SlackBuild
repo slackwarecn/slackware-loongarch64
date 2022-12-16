@@ -317,6 +317,28 @@ fi
 # Add the $OPTIONS above to .mozconfig:
 for option in $OPTIONS; do echo "ac_add_options $option" >> .mozconfig; done
 
+# Patch to match ./toolkit/components/ that have been regenerated with:
+# ./mach uniffi generate
+# This works around a build failure with 108.0 on i686. It also seems to break
+# the previously working x86_64 build, so we'll only apply it for i686.
+# Hopefully we can drop this when 108.0.1 ships.
+if [ "$ARCH" = "i686" ]; then
+  zcat $CWD/regenerated-uniffi-toolkit-components.diff.gz | patch -p1 --verbose || exit 1
+fi
+
+# This is the upstream patch to fix the above issue, but unfortunately it
+# doesn't apply completely and also causes an additional crate to be downloaded
+# at build time, which won't do. I'll leave it here for reference in case
+# anyone is interested, but we'll use the above kludge instead and wait for
+# a proper fixed release from upstream for this to be correctly handled.
+#
+# [PATCH] Replace the use of Hash with a custom trait
+# The custom trait is expected to consistently give the result that Hash
+# gives on 64-bits little-endian, but on all platforms
+#( cd ./third_party/rust
+#  zcat $CWD/8f889cf198ae7ffa9341423cb5a07ed39c07463a.patch.gz | patch -p1 --verbose || exit 1
+#)
+
 # https://developer.mozilla.org/en-US/docs/Building_with_Profile-Guided_Optimization
 # Thanks to ArchLinux and Gentoo for the additional hints.
 if [ "$PGO" = "yes" ]; then
@@ -349,37 +371,24 @@ rm -rf $PKG/usr/lib${LIBDIRSUFFIX}/firefox-devel-$RELEASEVER
 # Nor these:
 rm -rf $PKG/usr/include
 
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/firefox-$RELEASEVER
-  #mv defaults/profile/mimeTypes.rdf defaults/profile/mimeTypes.rdf.orig || exit 1
-  if [ -d defaults/profile ]; then
-    zcat $CWD/mimeTypes.rdf > defaults/profile/mimeTypes.rdf || exit 1
-  fi
-  # OK, this patch is useless on 7.x.  We'll float without it and see what happens.
-  # Perhaps it won't make a difference or should be worked around elsewhere.
-  #zcat $CWD/firefox.moz_plugin_path.diff.gz \
-  #  | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
-  #  | patch -p1 --verbose --backup --suffix=.orig || exit 1
-  # Clean up if the above patch was successful:
-  #rm -f firefox.orig
-) || exit
+# 2022-12, COMMENTING OUT AS OBSOLETE
+#( cd $PKG/usr/lib${LIBDIRSUFFIX}/firefox
+#  #mv defaults/profile/mimeTypes.rdf defaults/profile/mimeTypes.rdf.orig || exit 1
+#  if [ -d defaults/profile ]; then
+#    zcat $CWD/mimeTypes.rdf > defaults/profile/mimeTypes.rdf || exit 1
+#  fi
+#  # OK, this patch is useless on 7.x.  We'll float without it and see what happens.
+#  # Perhaps it won't make a difference or should be worked around elsewhere.
+#  #zcat $CWD/firefox.moz_plugin_path.diff.gz \
+#  #  | sed -e "s#usr/lib#usr/lib${LIBDIRSUFFIX}#g" \
+#  #  | patch -p1 --verbose --backup --suffix=.orig || exit 1
+#  # Clean up if the above patch was successful:
+#  #rm -f firefox.orig
+#) || exit
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/mozilla/plugins
 mkdir -p $PKG/usr/share/applications
 cat $CWD/mozilla-firefox.desktop > $PKG/usr/share/applications/mozilla-firefox.desktop
-
-# These files/directories are usually created if Firefox is run as root,
-# which on many systems might (and possibly should) be never.  Therefore, if we
-# don't see them we'll put stubs in place to prevent startup errors.
-( cd $PKG/usr/lib${LIBDIRSUFFIX}/firefox-$RELEASEVER
-  if [ -d extensions/talkback\@mozilla.org ]; then
-    if [ ! -r extensions/talkback\@mozilla.org/chrome.manifest ]; then
-      echo > extensions/talkback\@mozilla.org/chrome.manifest
-    fi
-  fi
-  if [ ! -d updates ]; then
-    mkdir -p updates/0
-  fi
-)
 
 # Need some default icons in the right place:
 for i in 16 22 24 32 48 256; do

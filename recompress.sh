@@ -1141,10 +1141,8 @@ gzip ./source/x/x11/patch/luit/luit_use_system_extensions.diff
 gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
-gzip ./source/x/x11/patch/xorg-server/CVE-2022-3551.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff
 gzip ./source/x/x11/patch/xorg-server/x11.startwithblackscreen.diff
-gzip ./source/x/x11/patch/xorg-server/CVE-2022-3550.patch
 gzip ./source/x/x11/patch/xorg-server/06_use-intel-only-on-pre-gen4.diff
 gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
@@ -1158,6 +1156,7 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
+gzip ./testing/source/rust/link_libffi.diff
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

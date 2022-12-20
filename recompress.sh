@@ -845,6 +845,7 @@ gzip ./source/l/gcr/b3ca1d02bb0148ca787ac4aead164d7c8ce2c4d8.patch
 gzip ./source/l/gcr/doinst.sh
 gzip ./source/l/gcr/gcr.meson.disable.schemas-compile.update-mime.update-icon-cache.diff
 gzip ./source/l/sdl/sdl-1.2.14-fix-mouse-clicking.patch
+gzip ./source/l/sdl/CVE-2021-33657.patch
 gzip ./source/l/sdl/SDL_ttf.shaded.text.diff
 gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch

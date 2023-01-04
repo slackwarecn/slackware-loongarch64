@@ -773,7 +773,6 @@ gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
 gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
-gzip ./source/l/opencv/0004-Add-missing-header-for-LIBAVCODEC_VERSION_INT.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
 gzip ./source/l/netpbm/netpbm-xwdfix.patch
 gzip ./source/l/netpbm/netpbm-docfix.patch
@@ -880,6 +879,9 @@ gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
 gzip ./source/l/mozilla-nss/CVE-2022-3479.patch
 gzip ./source/l/libwpd/libwpd.gcc11.diff
+gzip ./source/l/libtiff/patches/CVE-2022-2056_2057_2058.patch
+gzip ./source/l/libtiff/patches/CVE-2022-34526.patch
+gzip ./source/l/libtiff/patches/CVE-2022-3970.patch
 gzip ./source/l/pygtk/pygtk-Drop-the-PangoFont-find_shaper-virtual-method.patch
 gzip ./source/l/pygtk/pygtk-fix-pango-object-leaks.patch
 gzip ./source/l/gnome-keyring/doinst.sh
@@ -999,6 +1001,7 @@ gzip ./source/xap/libnma/doinst.sh
 gzip ./source/xap/x3270/doinst.sh
 gzip ./source/xap/xaos/xaos.6
 gzip ./source/xap/rxvt-unicode/rxvt-unicode.utempter.diff
+gzip ./source/xap/rxvt-unicode/CVE-2022-4170.diff
 gzip ./source/xap/gparted/doinst.sh
 gzip ./source/xap/fvwm/startfvwm2
 gzip ./source/xap/fvwm/doinst.sh

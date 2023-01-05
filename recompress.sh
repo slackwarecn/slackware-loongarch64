@@ -1161,6 +1161,7 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
+gzip ./testing/source/linux-6.1.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

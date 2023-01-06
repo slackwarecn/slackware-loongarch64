@@ -1066,13 +1066,11 @@ gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
-gzip ./source/xap/mozilla-firefox/8f889cf198ae7ffa9341423cb5a07ed39c07463a.patch
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-firefox/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-firefox/mimeTypes.rdf
 gzip ./source/xap/mozilla-firefox/mozilla-firefox-mimeTypes-fix.diff
 gzip ./source/xap/mozilla-firefox/0027-LTO-Only-enable-LTO-for-Rust-when-complete-build-use.patch
-gzip ./source/xap/mozilla-firefox/regenerated-uniffi-toolkit-components.diff
 gzip ./source/xap/mozilla-firefox/gkrust.a.no.networking.check.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/dropbear/doinst.sh

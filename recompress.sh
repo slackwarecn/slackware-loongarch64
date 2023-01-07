@@ -548,6 +548,7 @@ gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/php.enchant-2.patch
+gzip ./source/n/php/CVE-2022-31631.patch
 gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
@@ -877,7 +878,6 @@ gzip ./source/l/fluidsynth/doinst.sh
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
-gzip ./source/l/mozilla-nss/CVE-2022-3479.patch
 gzip ./source/l/libwpd/libwpd.gcc11.diff
 gzip ./source/l/libtiff/patches/CVE-2022-2056_2057_2058.patch
 gzip ./source/l/libtiff/patches/CVE-2022-34526.patch

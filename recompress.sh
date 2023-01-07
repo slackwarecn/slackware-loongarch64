@@ -397,6 +397,7 @@ gzip ./source/y/bsd-games/patches/0015-primes-Update-to-NetBSD-CVS-2018-02-03.pa
 gzip ./source/y/bsd-games/patches/0011-Fix-format-security-compiling-errors.patch
 gzip ./source/y/bsd-games/patches/0012-Fix-include-stdio.h-C-incompatibility.patch
 gzip ./source/y/bsd-games/patches/bsd-games.pom.diff
+gzip ./source/k/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./source/n/rdist/rdist-6.1.5-14.fix-msgsndnotify-loop.diff
 gzip ./source/n/rdist/rdist-6.1.5-11.mkstemp.diff
 gzip ./source/n/rdist/rdist-6.1.5-01.links.diff
@@ -1159,7 +1160,6 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
-gzip ./testing/source/linux-6.1.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./pasture/source/php/php-fpm.conf.diff
 gzip ./pasture/source/php/doinst.sh
 gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch

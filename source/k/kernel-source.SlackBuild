@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -45,6 +45,54 @@ if [ -z "$ARCH" ]; then
     *) ARCH=$(uname -m) ;;
   esac
 fi
+
+# This function will revert or apply patches that are present here.
+# Directories that are currently supported:
+# patches-revert-${VERSION} (revert patches from this directory if kernel version matches)
+# patches-revert-${ARCH} (revert patches from this directory if $ARCH matches)
+# patches-${VERSION} (apply patches from this directory if kernel version matches)
+# patches-${ARCH} (apply patches from this directory if $ARCH matches)
+# All the applied/reverted patches will be copied to the root of the kernel source tree.
+apply_patches() {
+  # First do patches-revert:
+  if [ -d $CWD/patches-revert-${VERSION} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Reverting kernel patches in $CWD/patches-revert-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-revert-${VERSION}/*.gz | patch -p1 -R --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-revert-${VERSION}/*.gz | patch -p1 -R --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-revert-${VERSION}/*.gz .
+  fi
+  if [ -d $CWD/patches-revert-${ARCH} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Reverting kernel patches in $CWD/patches-revert-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-revert-${ARCH}/*.gz | patch -p1 -R --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-revert-${ARCH}/*.gz | patch -p1 -R --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-revert-${ARCH}/*.gz .
+  fi
+  # Then apply patches:
+  if [ -d $CWD/patches-${VERSION} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Applying kernel patches in $CWD/patches-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-${VERSION}/*.gz .
+  fi
+  if [ -d $CWD/patches-${ARCH} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Applying kernel patches in $CWD/patches-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-${ARCH}/*.gz .
+  fi
+}
 
 # Kernel extraversion, such as "-smp" on 32-bit. There's usually no need to set
 # this unless you're using something unusual. We use it to find which .config
@@ -99,9 +147,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   cd $TEMPDIR
   tar xf $CWD/linux-${VERSION}.tar.?z || exit 1
   cd linux*
-  if [ -d $CWD/patches-${VERSION} ]; then
-    zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
-  fi
+  apply_patches
   PACKAGE_VERSION=$(grep "^VERSION = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^PATCHLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^SUBLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev)$(grep "^EXTRAVERSION = " Makefile | rev | cut -f 1 -d ' ' | rev)
   cd $CWD
   rm -rf $TEMPDIR
@@ -121,11 +167,7 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
   echo "Making /usr/src/linux symlink..." 
   ln -sf linux-* linux
   cd linux-*
-  if [ -d $CWD/patches-${VERSION} ]; then
-    echo "Applying kernel patches in $CWD/patches-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
-    zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-    cp -a $CWD/patches-${VERSION}/*.gz .
-  fi
+  apply_patches VERBOSE
   echo "Copying $CWD/kernel-configs/${KERNEL_CONFIG} to .config..."
   cp -a $CWD/kernel-configs/${KERNEL_CONFIG} .config
   echo "Fixing permissions/ownership..."

@@ -140,17 +140,6 @@ list_amiraid() {
   fi
 }
 
-#list_mmc() {
-#  # find drive
-#  DRV=`expr $2 / 8`
-#  NUM=`expr $2 % 8`
-#  if [ "$NUM" = "0" ]; then
-#     fdisk -l /dev/mmcblk$DRV >> $TMP/SeTfdisk
-#     #output_gpt_partitions /dev/mmcblk$DRV >> $TMP/SeTfdisk
-#  else
-#     return
-#  fi
-#}
 list_mmc() {
   local device
   # Filter out any partitions on the block device, as we'll use
@@ -445,4 +434,38 @@ sed -i -e "s/Linux filesystem/Linux/g" $TMP/SeTfdisk
 sed -i -e "s/EFI System/EFI System Partition/g" $TMP/SeTfdisk
 sed -i -e "s,EFI (FAT-12/16/32),EFI System Partition,g" $TMP/SeTfdisk
 
+# Filter out reserved file system labels for Slackware ARM/AArch64 and the
+# Slackware A-i-O (All in One Offline) Installer file systems.
+# This prevents them from being offered as candidates for formatting/mounting
+# during the installation.
+#
+# Labels:
+# SLKins = Media (usually a USB stick) containing the Slackware install media
+#          This FS label isn't required to locate the media, but it's helpful
+#          as a way to exclude the media from the list of candidates.
+#          This label is included within the Installation Guide for the USB
+#          media installation option.
+# SLKins_aio-pkgs =
+#          The label of the partition on the All-In-One Installer that contains the
+#          Slackware packages.
+# SLKhwm_bw = Hardware Model Bootware - native Bootware for the RPi
+#
+# 'SLKroot' is used to identify the OS root file system on ARM, but we don't
+# filter it out because it's *supposed* to appear as a candidate within the
+# menu.  Whilst we don't ship any images that contain a file system with this label,
+# the user might be reinstalling, thus would never be presented with the partition.
+#
+# SLKboot = Slackware OS /boot partition, but is only reserved only on ARM/AArch64:
+[[ "$( uname -m )" =~ a(rm*|arch64) ]] && aexc="boot|"
+
+awk '/^\/dev\// {print $1}' /var/log/setup/tmp/SeTfdisk | while read device; do
+    # The wrapping of e2label is because whilst it handles other file system types,
+    # it includes verbosity about the filesystem type; where as for ext filesystems
+    # it outputs only the label.
+    { ( e2label ${device} 2>/dev/null | tail -n1 | rev \
+       | awk '{print $1}' | rev | tr -d "'" | \
+       grep -Eq "^SLK(${aexc}ins|ins_aio-pkgs|hwm_bw)$" ) && sed -i '\|^'"${device}\s"'|d' $TMP/SeTfdisk ;}
+done
+
+# Dump the discovered storage:
 cat $TMP/SeTfdisk

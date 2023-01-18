@@ -74,7 +74,6 @@ gzip ./source/d/binutils/patches/binutils-gold-warn-unsupported.patch
 gzip ./source/d/binutils/patches/binutils-readelf-other-sym-info.patch
 gzip ./source/d/binutils/patches/binutils-filename-in-error-messages.patch
 gzip ./source/d/binutils/patches/binutils-version.patch
-gzip ./source/d/binutils/patches/binutils-revert-PLT-elision.patch
 gzip ./source/d/binutils/patches/binutils-no-config-h-check.patch
 gzip ./source/d/binutils/patches/binutils-do-not-link-with-static-libstdc++.patch
 gzip ./source/d/binutils/patches/binutils-fix-testsuite-failures.patch
@@ -95,6 +94,7 @@ gzip ./source/d/python2/python.x86_64.diff
 gzip ./source/d/pkg-config/doinst.sh
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
+gzip ./source/d/gdb/1add37b567a7dee39d99f37b37802034c3fce9c4.patch
 gzip ./source/e/emacs/d48bb4874bc6cd3e69c7a15fc3c91cc141025c51.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
@@ -1150,7 +1150,6 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
-gzip ./source/x/x11/patch/igt-gpu-tools/963917a3565466832a3b2fc22e9285d34a0bf944.patch
 gzip ./source/x/fcitx5/doinst.sh
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt

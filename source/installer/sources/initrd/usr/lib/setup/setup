@@ -1,25 +1,25 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright 1993, 1994, 1999  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2001, 2003, 2004  Slackware Linux, Inc., Concord, CA
-# Copyright 2006, 2007, 2018, 2021, 2022 Patrick Volkerding, Sebeka, Minnesota USA
+# Copyright 2006, 2007, 2018, 2021, 2022, 2023  Patrick Volkerding, Sebeka, Minnesota USA
 # All rights reserved.
 #
-# Redistribution and use of this script, with or without modification, is 
+# Redistribution and use of this script, with or without modification, is
 # permitted provided that the following conditions are met:
 #
 # 1. Redistributions of this script must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
 #
 #  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
-#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
-#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
 #  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
 #  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
-#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # As always, bug reports, suggestions, etc: volkerdi@slackware.com
@@ -100,7 +100,7 @@ mkdir /var/log/mount 2> /dev/null
 
 while [ 0 ]; do
 
- dialog --title "Slackware Linux Setup (version 15.0)" \
+ dialog --title "Slackware Linux Setup (version 15.1)" \
 --menu \
 "Welcome to Slackware Linux Setup.\n\
 Select an option below using the UP/DOWN keys and SPACE or ENTER.\n\
@@ -434,6 +434,24 @@ if [ -f ${T_PX}/etc/fstab ]; then
       --title "Unplug Slackware Installation Media USB Stick" \
       --msgbox \
         "\nYou may now physically unplug the Slackware Installation Media USB stick from the USB port.\n" 8 60
+  }
+
+  # Prompt the user to unplug the bootable USB stick containing
+  # A-i-O (All in One Offline) partition.
+  mountpoint -q /slack-all-in-one && {
+    # Try to umount the A-i-O partition, but ignore any errors (errors would typically be
+    # occur if the user has a shell open within the USB stick's mount point), since
+    # we'll be shutting down soon anyway.
+    sync
+    umount /slack-all-in-one > /dev/null 2>&1
+    # Don't suggest disconnection if it's on ARM, because the A-i-O partition
+    # is on the same SD card that is converted from being the Installer to the
+    # OS's /boot partition.
+    [[ ! "$( uname -m )" =~ a(rm*|arch64) ]] && {
+       dialog \
+          --title "Unplug Slackware Installation USB Stick" \
+          --msgbox \
+            "\nYou may now physically unplug the Slackware Installation USB stick from the USB port.\n" 8 60 ;}
   }
 
   # Offer to reboot or drop to shell or power off.

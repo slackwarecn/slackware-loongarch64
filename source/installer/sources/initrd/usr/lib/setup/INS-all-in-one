@@ -1,0 +1,199 @@
+#!/bin/bash
+####################################################################################
+# File.......: /usr/lib/setup/INS-all-in-one
+# Called from: Forked from /usr/lib/setup/SeTmedia
+# Purpose....: Detect a partition labeled 'SLKins_aio-pkgs' and configure the
+#              Installer to use it as the media source.
+# Version....: 1.00
+# Date.......: 22-Nov-2022
+# Author.....: Stuart Winter <mozes@slackware.com>
+###################################################################################
+# Change log
+# v1.00, 22-Nov-2022
+# * Initial version
+###################################################################################
+#
+# Copyright 2022  Stuart Winter, Earth, Milky Way, "".
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Exit codes
+# 0 = Success (Install media dialog screen can exit cleanly)
+# 1 = General failure. (Install media dialog needs to present the list of options)
+# 2 = No media label found on any removable block device.
+# 3 = Sanity checks failed.
+# 4 = User chose not to use the bundled media, although the media passed sanity check.
+# 10 = User configured not to use All-In-One feature.
+
+# Check if the user has bypassed the all-in-one Installer functionality.
+# This may be if they have the all-in-one Installer on the USB stick but want
+# to install from another medium, and don't fancy re-deploying the standard USB
+# Installer image to the USB stick.
+[ -f /.no-allinone ] && exit 10
+
+# Settings:
+SLKINSMNT=/slack-all-in-one
+TMP=/var/log/setup/tmp
+[ ! -d $TMP ] && mkdir -pm755 $TMP
+
+###################################################################################
+################### Functions #####################################################
+###################################################################################
+
+# This code was copied in part from usr/lib/setup/INSUSB:
+# Detect a device with a partition label 'SLKins_aio-pkgs'
+# The MMC block devices aren't identified as 'removeable' so we don't filter on
+# that attribute since this is the standard storage subsystem we use on ARM.
+#lsblk -o name,label -ripn | grep -E 'SLKins_aio-pkgs$'
+function media_scan(){
+   local rdevice founddev
+   for rdevice in $( ls --indicator-style none /sys/block | grep -Ev "loop|ram|^dm-|^sr|^md" ); do
+         # Is it labeled 'SLKins_aio-pkgs'? If so we'll take the first one we find:
+         founddev="$( lsblk -o name,label -ripn /dev/${rdevice} 2>/dev/null | grep -E 'SLKins_aio-pkgs$' | awk '{print $1}' )"
+         [ ! -z "${founddev}" ] && break
+   done
+   # Report back if we found one:
+   [ ! -z "${founddev}" ] && { echo "${founddev}" ; return 0 ;} || return 1
+}
+
+# Mount the specified block device under the known mount point:
+function media_mount() {
+   mount -o noatime -m "$1" $SLKINSMNT 2>/dev/null
+   return $? ;}
+
+# umount the media:
+function media_umount() {
+   umount $SLKINSMNT 2>/dev/null
+   return $? ;}
+
+# Check if the Slackware media partition is already mounted:
+function media_ismounted() {
+   findmnt -DRM ${SLKINSMNT} > /dev/null 2>&1
+   return $?
+}
+
+# Sanity check the media:
+# The directory layout is: '/slackware/<slackware-tree-name>'
+# This is to enable users to add non-Slackware related assets to the partition upon installation
+# of the OS, if they wish.
+function media_sanity_check() {
+   local slacktree=$( media_report_slacktree )
+   [ -z "$slacktree" ] && return 1
+   # Is the tree available? We'll check the 'A' series directory is present:
+   [ ! -d $SLKINSMNT/slackware/$slacktree/a ] && return 1
+   # Enough sanity checking, it's probably good!
+   return 0
+}
+
+# Report the path to the configured Slackware media:
+# Output is relative - e.g. doesn's include the mount point and parent 'slackware' directory.
+function media_report_slacktree() {
+   # The Slackware tree we're using is configured in this file.
+   # This is placed by the script that creates the All-in-One Installer image.
+   [ ! -f $SLKINSMNT/slackware/.slktree ] && return 1
+   # Output content of the file which is a relative path: e.g. "slackwareaarch64-current/slackware"
+   grep -Ev '^$' $SLKINSMNT/slackware/.slktree
+}
+
+# Inform the user that the All-in-One Installer is ready to go.
+function offer_msg_ready() {
+   local blockdev="$1" mntpnt="$2"
+#      --msgbox "\nThe Slackware package directory has been found on $blockdev and is mounted on $mntpnt ready for use.\n
+   dialog \
+      --backtitle "Slackware Installer" \
+      --title "INSTALLATION MEDIA SOURCE FOUND" --ok-button "OK" \
+      --msgbox "\nThis edition of the Slackware Installer has the installation media bundled, and is ready to use.\n
+      " 8 79
+   clear
+}
+
+# Inform the user that the All-in-One Installer was detected but failed sanity check.
+function offer_msg_failsanity() {
+   local blockdev="$1" mntpnt="$2"
+   dialog \
+      --backtitle "Slackware Installer" \
+      --title "INSTALLATION MEDIA SOURCE" --ok-button "OK" \
+      --msgbox "\nThis edition of the Slackware Installer contains the installation media.\n\n
+The media has been located on $blockdev but has failed the tests.\n\n
+You will now be presented with the option to choose a different installation media source.\n" 12 79
+   clear
+}
+
+# Offer the option to use the bundled media or pick the option manually:
+# Y=return 0, N=1
+function offer_chooseaio() {
+   dialog \
+      --backtitle "Slackware Installer" \
+      --title "INSTALLATION MEDIA SOURCE" --yesno \
+      "\nThis edition of the Slackware Installer contains the installation media.\n\n
+Would you like to use this as the media source?\n\n
+Answering 'No' provides a list of alternate installation media selection options.\n\n
+Recommendation: Yes" 15 77
+   return $?
+}
+
+# Configure the Slackware Installer to find the installation media on the All-in-One partition:
+function installer_configure() {
+   # An example of the entry in this file: /slack-all-in-one/slackware/slackwareaarch64-current/slackware
+   echo "$SLKINSMNT/slackware/$( media_report_slacktree )" > $TMP/SeTDS # is $SLKINSMNT/slackware/[contents of file '.slktree']
+   echo "-source_mounted" > $TMP/SeTmount
+   echo "/dev/null" > $TMP/SeTsource
+}
+
+###################################################################################
+
+# Try to locate the All-in-One Installer partition:
+mediablockdev=$( media_scan )
+
+# If we didn't find a block device with our label, bail out to enable the user to select
+# one from the list presented by /usr/lib/setup/SeTmedia:
+[ -z "${mediablockdev}" ] && exit 2
+
+# If the media is already mounted and the sanity check passes, inform the user.
+# This is to facilitate that the user may bounce through the main 'setup' menu and select
+# the installation media chooser (/usr/lib/setup/SeTmedia) more than once.
+# No, we're not going to offer them the option to pick a different installation source media:
+# it might break something.  They can reboot.
+if media_ismounted && media_sanity_check; then
+   offer_msg_ready $mediablockdev $SLKINSMNT
+   exit 0
+fi
+
+# It's not mounted, but we found a label on a removable block device.  Let's mount it,
+# configure the Installer to find the package source media, and inform the user that it's
+# ready to roll:
+if media_mount $mediablockdev && media_sanity_check; then
+   # Give the user the choice to use it.  At this point we know it's validated so is a viable option.
+   # If the user chooses 'no', we umount the media and are returned to the '/usr/lib/setup/SeTmedia'
+   # process to pick an option.
+   offer_chooseaio || { media_umount ; clear ; exit 4 ;}
+   installer_configure
+   #offer_msg_ready $mediablockdev $SLKINSMNT
+   exit 0
+ else
+   # umount the media. If it fails, no problem - we can ignore it. The Installer won't be configured
+   # to use it unless the sanity check passed, so anything mounted isn't used nor is in the way.
+   media_umount
+   # Inform the user that they get to pick from the list of source media installation options:
+   offer_msg_failsanity $mediablockdev
+   exit 3
+fi
+
+clear
+exit 0

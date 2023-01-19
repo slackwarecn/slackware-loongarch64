@@ -146,8 +146,6 @@ while [ 0 ]; do
   elif [ "$1" = "-threads" -o "$1" = "--threads" ]; then
     THREADS="$2"
     shift 2
-    # xz has memory issues with threads it seems, so we'll use two threads by
-    # default unless we see that something else was user-selected:
     XZ_THREADS_FORCED=yes
   elif [ "$1" = "-compress" -o "$1" = "--compress" ]; then
     COMPRESS_OPTION="$2"
@@ -253,10 +251,14 @@ elif [ ! "$(basename $PACKAGE_NAME .tar.lzma)" = "$PACKAGE_NAME" ]; then
 elif [ ! "$(basename $PACKAGE_NAME .txz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="txz"
   if [ ! "$XZ_THREADS_FORCED" = "yes" ]; then
-    # Two threads by default with xz due to memory failures on 32-bit. Not that
-    # it matters much... if upstream ever gets around to implementing multi-
-    # threaded decompression we'll revisit this default.  :-D
-    COMPRESSOR="xz ${COMPRESS_OPTION} --threads=2 -c"
+    # TODO: Add ARM 64-bit $ARCHes to this test:
+    if [ "$(uname -m)" = "x86_64" ]; then
+      # Allow xz to determine how many threads to use:
+      COMPRESSOR="xz ${COMPRESS_OPTION} --threads=0 -c"
+    else
+      # Default to 2 threads on 32-bit platforms:
+      COMPRESSOR="xz ${COMPRESS_OPTION} --threads=2 -c"
+    fi
   else
     COMPRESSOR="xz ${COMPRESS_OPTION} --threads=${THREADS} -c"
   fi
@@ -267,10 +269,14 @@ elif [ ! "$(basename $PACKAGE_NAME .txz)" = "$PACKAGE_NAME" ]; then
 elif [ ! "$(basename $PACKAGE_NAME .tar.xz)" = "$PACKAGE_NAME" ]; then
   EXTENSION="tar.xz"
   if [ ! "$XZ_THREADS_FORCED" = "yes" ]; then
-    # Two threads by default with xz due to memory failures on 32-bit. Not that
-    # it matters much... if upstream ever gets around to implementing multi-
-    # threaded decompression we'll revisit this default.  :-D
-    COMPRESSOR="xz ${COMPRESS_OPTION} --threads=2 -c"
+    # TODO: Add ARM 64-bit $ARCHes to this test:
+    if [ "$(uname -m)" = "x86_64" ]; then
+      # Allow xz to determine how many threads to use:
+      COMPRESSOR="xz ${COMPRESS_OPTION} --threads=0 -c"
+    else
+      # Default to 2 threads on 32-bit platforms:
+      COMPRESSOR="xz ${COMPRESS_OPTION} --threads=2 -c"
+    fi
   else
     COMPRESSOR="xz ${COMPRESS_OPTION} --threads=${THREADS} -c"
   fi

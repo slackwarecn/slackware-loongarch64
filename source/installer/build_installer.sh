@@ -108,6 +108,7 @@ case $ARCH in
                           # The firmware we include by default is only for x86, but
     ADD_NETFIRMWARE=1     # we'll probably want to include some at some stage. For now supply -nf to this script.
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
   x86_64)
     ADD_NETMODS=1
@@ -124,6 +125,7 @@ case $ARCH in
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
   i586)
     ADD_NETMODS=1
@@ -140,6 +142,7 @@ case $ARCH in
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
   *)
     ADD_NETMODS=1         # add network modules
@@ -155,6 +158,7 @@ case $ARCH in
     VERBOSE=1             # show a lot of additional output
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
 esac
 
@@ -233,6 +237,10 @@ while [ ! -z "$1" ]; do
       ;;
     -n|--netmods)
       ADD_NETMODS=1
+      shift
+      ;;
+    -nb|--no-bricktick)
+      ADD_BRICKTICK=0
       shift
       ;;
     -nc|--no-compressmods)
@@ -670,9 +678,9 @@ make $SILENTMAKE $NUMJOBS CFLAGS="$SLKCFLAGS" || exit 1
 make $SILENTMAKE $NUMJOBS install || exit 1
 cd _install
 
-# Since Slackware 's installer uses the 'date' from coreutils, and 'zcat'
-# script from gzip, we delete the busybox symlinks:
-rm -f${VERBOSE1} bin/date bin/zcat
+# Since Slackware's installer uses the 'date' and 'dd' from coreutils,
+# and the 'zcat' script from gzip, we delete the busybox symlinks:
+rm -f${VERBOSE1} bin/{date,dd,zcat}
 
 # Likewise, we will remove the 'fdisk' applet which overwrites our shell script:
 rm -f${VERBOSE1} sbin/fdisk
@@ -828,6 +836,43 @@ fi
 
 }
 
+
+############### Build bricktick ################################################
+
+build_bricktick()
+{
+echo "--- Building bricktick ncurses game ---"
+# Extract source:
+cd $TMP
+if [ -d $CWD/sources/bricktick ]; then
+  echo "--- Using _your_ bricktick sources (not those in the Slacktree) ---"
+  BRICKTICKPATH=$CWD/sources/bricktick
+elif [ -d $SRCDIR/sources/bricktick ]; then
+  echo "--- Using _your_ bricktick sources (not those in the Slacktree) ---"
+  BRICKTICKPATH=$SRCDIR/sources/bricktick
+else
+  # Use the bricktick sources from the Slackware tree.
+  BRICKTICKPATH=$SLACKROOT/source/installer/bricktick
+fi
+[ ! -d $BRICKTICKPATH ] && ( echo "No directory '$BRICKTICKPATH'" ; exit 1 )
+BRICKTICKPKG=$(ls -1 $BRICKTICKPATH/bricktick-*.tar.?z | head -1)
+BRICKTICKVER=$(echo $BRICKTICKPKG | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+tar x${VERBOSE2}f $BRICKTICKPKG
+
+echo "--- Compiling BRICKTICK version '$BRICKTICKVER' ---"
+cd bricktick* || exit 1
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+# Build:
+make $NUMJOBS || make || exit 1
+
+# Install into installer's filesystem:
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/bin
+cp -a bricktick $PKG/$ARCH-installer-filesystem/usr/bin/bricktick
+strip --strip-unneeded $PKG/$ARCH-installer-filesystem/usr/bin/bricktick
+
+}
 
 ############### Build dnsmasq ##################################################
 
@@ -1015,6 +1060,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_BIN} \
         cp \
         cut \
         date \
+        dd \
         dialog \
         dircolors \
         findmnt \
@@ -2378,6 +2424,11 @@ else
   # Are we adding the nano editor?
   if [ $ADD_NANO -eq 1 ]; then
     build_nano
+  fi
+
+  # Are we adding the bricktick game?
+  if [ $ADD_BRICKTICK -eq 1 ]; then
+    build_bricktick
   fi
 
   # Are we adding network modules?

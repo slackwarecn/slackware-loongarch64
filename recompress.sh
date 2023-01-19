@@ -228,6 +228,7 @@ gzip ./source/a/logrotate/logrotate.cron
 gzip ./source/a/logrotate/logrotate.slackware.diff
 gzip ./source/a/logrotate/logrotate.conf
 gzip ./source/a/logrotate/doinst.sh
+gzip ./source/a/xz/xz.default.verbosity.V_ERROR.diff
 gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff
 gzip ./source/a/libcgroup/libcgroup.loop.diff
@@ -1150,6 +1151,7 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
+gzip ./source/x/x11/patch/libX11/eb1c272ab5230d548077b9f59aca4b3457c3a8f8.patch
 gzip ./source/x/fcitx5/doinst.sh
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt

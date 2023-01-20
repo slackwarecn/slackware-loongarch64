@@ -910,10 +910,7 @@ gzip ./source/l/id3lib/patches/id3lib.manpages.patch
 gzip ./source/l/id3lib/patches/id3lib.nullpointer_check.patch
 gzip ./source/l/id3lib/patches/id3lib.utf8_writing.patch
 gzip ./source/l/id3lib/patches/id3lib.c_wrapper.patch
-gzip ./source/l/gtk+3/gtk.array-bounds.gcc11.diff
 gzip ./source/l/gtk+3/doinst.sh
-gzip ./source/l/gtk+3/gtk.fix.missing.version-check.py.diff
-gzip ./source/l/gtk+3/fix.missing.gdk.wayland.cursor.meson.build.diff
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff

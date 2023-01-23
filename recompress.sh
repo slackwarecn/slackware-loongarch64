@@ -496,7 +496,6 @@ gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/nmap/nmap-7.93.build.kludge.diff
 gzip ./source/n/postfix/postfix.script.starting.message.diff
-gzip ./source/n/postfix/linux-6.patch
 gzip ./source/n/postfix/postfix.only.warn.regular.files.diff
 gzip ./source/n/postfix/doinst.sh
 gzip ./source/n/ytalk/doinst.sh

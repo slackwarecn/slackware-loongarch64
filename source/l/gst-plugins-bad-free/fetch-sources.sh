@@ -26,7 +26,7 @@
 #
 # Example:  VERSION=1.18.5 ./fetch-sources.sh
 
-VERSION=${VERSION:-1.20.5}
+VERSION=${VERSION:-1.22.0}
 
 rm -rf rm -rf gst-plugins-bad-free-$VERSION gst-plugins-bad-$VERSION
 

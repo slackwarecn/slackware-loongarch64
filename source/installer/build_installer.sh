@@ -2075,7 +2075,7 @@ fi
 if [ $SPLIT_INITRD -eq 0 ]; then
   # Determine the size of the installer:
   echo "    Installer size (uncompressed): $( du -sh . )"
-  find . | cpio -o -H newc | xz -9fv -C crc32 > $CWD/initrd.img
+  find . | cpio -o -H newc | xz -9fvv -C crc32 > $CWD/initrd.img
   echo "    New installer image is ${CWD}/initrd.img"
   cp -a $SLACKROOT/isolinux/isolinux.cfg $CWD/
 fi

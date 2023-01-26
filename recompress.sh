@@ -983,7 +983,6 @@ gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
-gzip ./source/xap/xine-lib/020-xine-lib-ffmpeg-5.1-fix.patch
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
 gzip ./source/xap/windowmaker/wmaker.inst.diff

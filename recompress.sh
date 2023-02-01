@@ -822,7 +822,6 @@ gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
 gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/gegl/gegl.LibRaw-0.21.x.diff
-gzip ./source/l/apr-util/apr-util-mariadb-upstream.patch
 gzip ./source/l/gtk4/doinst.sh
 gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/gtkspell/gtkspell.enchant-2.diff

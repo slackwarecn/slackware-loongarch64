@@ -10,9 +10,7 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-if [ -r etc/pam.d/polkit-1.new ]; then
-  config etc/pam.d/polkit-1.new
-fi
+config etc/pam.d/polkit-1.new
 
 # Make sure the polkitd user and group exist:
 if ! grep -q "^polkitd:" etc/passwd ; then

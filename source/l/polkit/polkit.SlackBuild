@@ -2,7 +2,7 @@
 
 # Copyright 2009, 2011, 2015  Robby Workman, Northport, Alabama, USA
 # Copyright 2010  Eric Hameleers, Eindhoven, NL
-# Copyright 2009, 2010, 2011, 2012, 2013, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2018, 2020, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=polkit
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -81,11 +81,6 @@ find . \
  -exec chmod 644 {} \+
 
 zcat $CWD/dont-set-wheel-group-as-admin.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/CVE-2021-4115.patch.gz | patch -p1 --verbose || exit 1
-
-# https://gitlab.freedesktop.org/polkit/polkit/-/issues/29
-zcat $CWD/0001-configure-fix-elogind-support.patch.gz | patch -p1 || exit 1
 
 # If we get here and don't have a polkitd user/group, add one.
 # Otherwise a few directories in the package will have wrong permissions.
@@ -94,53 +89,36 @@ if ! grep -q "^polkitd:" /etc/passwd ; then
   useradd -c "PolicyKit daemon owner" -d /var/lib/polkit -u 87 -g polkitd -s /bin/false polkitd
 fi
 
-# Choose correct options depending on whether PAM is installed:
-if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
-  PAM_OPTIONS="--with-authfw=pam --with-pam-module-dir=/lib${LIBDIRSUFFIX}/security"
-  unset SHADOW_OPTIONS
-else
-  unset PAM_OPTIONS
-  SHADOW_OPTIONS="--with-authfw=shadow"
-fi
-
-if [ ! -r configure ]; then
-  if [ -x ./autogen.sh ]; then
-    NOCONFIGURE=1 ./autogen.sh
-  else
-    autoreconf -vif
-  fi
-fi
-
-LIBELOGIND_CFLAGS="$(pkg-config --cflags libelogind)" \
-LIBELOGIND_LIBS="$(pkg-config --libs libelogind)" \
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --enable-man-pages \
-  --enable-gtk-doc \
-  --mandir=/usr/man \
-  --disable-static \
-  --disable-examples \
-  --enable-introspection \
-  --enable-libsystemd-login=no \
-  --enable-libelogind=yes \
-  $PAM_OPTIONS \
-  $SHADOW_OPTIONS \
-  --enable-verbose-mode \
-  --with-os-type=Slackware \
-  --build=$ARCH-slackware-linux || exit 1
+  --buildtype=release \
+  -Dintrospection=true \
+  -Dsession_tracking=libelogind \
+  -Dsystemdsystemunitdir=/usr/lib/systemd/user \
+  -Dauthfw=pam \
+  -Dpam_module_dir=/lib${LIBDIRSUFFIX}/security \
+  -Dman=true \
+  -Djs_engine=mozjs \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-# Build and install:
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+  #-Dos_type=slackware \
 
 # Create homedir for polkit.  This is mentioned in /etc/passwd, but isn't
 # actually used for anything later.  Perms don't matter.
@@ -154,10 +132,8 @@ rmdir --parents $PKG/etc/dbus-1/system.d/
 # Leave the /etc/polkit-1/rules.d/ dir in place, but move the config(s)
 mv $PKG/etc/polkit-1/rules.d/* $PKG/usr/share/polkit-1/rules.d/
 
-if [ ! -z "$PAM_OPTIONS" ]; then
-  # Make the PAM file .new:
-  mv $PKG/etc/pam.d/polkit-1 $PKG/etc/pam.d/polkit-1.new
-fi
+# Make the PAM file .new:
+mv $PKG/etc/pam.d/polkit-1 $PKG/etc/pam.d/polkit-1.new
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
@@ -181,9 +157,8 @@ fi
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING HACKING INSTALL NEWS README \
+  AUTHORS* COPYING* HACKING* INSTALL* NEWS* README* \
   $PKG/usr/doc/$PKGNAM-$VERSION
-( cd $PKG/usr/doc/$PKGNAM-$VERSION; ln -s ../../share/gtk-doc/html/polkit-1 html )
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

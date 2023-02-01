@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=perl
 VERSION=5.36.0
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -68,7 +68,7 @@ GETTEXT=1.07
 # https://metacpan.org/release/TermReadKey
 TERMREADKEY=2.38
 # https://metacpan.org/release/URI
-URI=5.12
+URI=5.17
 # https://metacpan.org/release/XML-Parser
 XMLPARSER=2.46
 # https://metacpan.org/release/XML-Simple
@@ -78,7 +78,7 @@ AUTHENSASL=2.16
 # https://metacpan.org/release/MIME-Base64
 MIMEBASE64=3.16
 # https://metacpan.org/release/IO-Socket-SSL
-IOSOCKETSSL=2.074
+IOSOCKETSSL=2.081
 # https://metacpan.org/release/Net-SSLeay
 NETSSLEAY=1.92
 # https://metacpan.org/release/libnet
@@ -86,15 +86,17 @@ LIBNET=3.14
 # https://metacpan.org/release/Parse-Yapp
 PARSEYAPP=1.21
 # https://metacpan.org/release/Path-Tiny (freecell-solver)
-PATHTINY=0.122
+PATHTINY=0.144
 # https://metacpan.org/release/Template-Toolkit (freecell-solver)
-TEMPLATETOOLKIT=3.100
+TEMPLATETOOLKIT=3.101
 # https://metacpan.org/release/Moo (freecell-solver)
-MOO=2.005004
+MOO=2.005005
 # https://metacpan.org/pod/Module::Runtime (freecell-solver)
 MODULERUNTIME=0.016
 # https://metacpan.org/pod/Sub::Quote (freecell-solver)
-SUBQUOTE=2.006006
+SUBQUOTE=2.006008
+# https://metacpan.org/pod/JSON (samba with Heimdal)
+JSON=4.10
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mcpu=i686"
@@ -474,6 +476,20 @@ make install DESTDIR=$PKG || exit 1
     mkdir -p $PKG/usr/doc/perl-$VERSION/Sub-Quote-${SUBQUOTE}
     cp -a README* $PKG/usr/doc/perl-$VERSION/Sub-Quote-${SUBQUOTE}
     chmod 644 $PKG/usr/doc/perl-$VERSION/Sub-Quote-${SUBQUOTE}/*
+  ) || exit 1
+  ( tar xzvf $CWD/JSON-${JSON}.tar.gz
+    cd JSON-${JSON}
+    chown -R root:root .
+    echo y | perl Makefile.PL INSTALLDIRS=vendor
+    make || exit 1
+    if [ "$MAKETEST" = "yes" ]; then
+      make test || exit 1
+    fi
+    make install || exit 1
+    make install DESTDIR=$PKG || exit 1
+    mkdir -p $PKG/usr/doc/perl-$VERSION/JSON-${JSON}
+    cp -a README* $PKG/usr/doc/perl-$VERSION/JSON-${JSON}
+    chmod 644 $PKG/usr/doc/perl-$VERSION/JSON-${JSON}/*
   ) || exit 1
 ) || exit 1
 

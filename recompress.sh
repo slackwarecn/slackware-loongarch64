@@ -710,8 +710,6 @@ gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/patches/reenable_DT_HASH.patch
-gzip ./source/l/glibc/patches/glibc.20220831_b3736d1a3c.patch
-gzip ./source/l/glibc/glibc-2.35-make-4.4-MAKEFLAGS.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
 gzip ./source/l/fuse/doinst.sh

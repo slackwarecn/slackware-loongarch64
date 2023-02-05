@@ -830,6 +830,7 @@ gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/fuse3/rc.fuse3.no.source.lsb.init-functions.diff
 gzip ./source/l/gdk-pixbuf2/doinst.sh
 gzip ./source/l/qt5-webkit/qt5-webkit.bison27.patch
+gzip ./source/l/qt5-webkit/webkit-offlineasm-warnings-ruby27.patch
 gzip ./source/l/qt5-webkit/qt5-webkit.glib-2.68.0.diff
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
@@ -1143,7 +1144,6 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xf86-video-s3virge/xf86-video-s3virge.xorg-server-1.20.x.diff
 gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
-gzip ./source/x/x11/patch/libX11/eb1c272ab5230d548077b9f59aca4b3457c3a8f8.patch
 gzip ./source/x/fcitx5/doinst.sh
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt

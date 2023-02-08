@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -51,6 +52,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loongarch64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -78,6 +82,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+cp -rfa /usr/share/autoconf/build-aux/config.* .
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -97,13 +102,13 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
   cat $CWD/fontmap > fontmap
   rm *.afm *.t1
   # Link to system fonts:
-  for file in n019003l.afm n019003l.pfb n019004l.afm n019004l.pfb n019023l.afm n019023l.pfb n019024l.afm n019024l.pfb n021003l.afm n021003l.pfb n021004l.afm n021004l.pfb n021023l.afm n021023l.pfb n021024l.afm n021024l.pfb n022003l.afm n022003l.pfb n022004l.afm n022004l.pfb n022023l.afm n022023l.pfb n022024l.afm n022024l.pfb s050000l.afm s050000l.pfb ; do
-    if [ ! -r /usr/share/fonts/Type1/$file ]; then
-      echo "FONT $file NOT FOUND ON SYSTEM"
-      exit 1
-    fi
-    ln -sf ../../fonts/Type1/$file .
-  done || exit 1
+#  for file in n019003l.afm n019003l.pfb n019004l.afm n019004l.pfb n019023l.afm n019023l.pfb n019024l.afm n019024l.pfb n021003l.afm n021003l.pfb n021004l.afm n021004l.pfb n021023l.afm n021023l.pfb n021024l.afm n021024l.pfb n022003l.afm n022003l.pfb n022004l.afm n022004l.pfb n022023l.afm n022023l.pfb n022024l.afm n022024l.pfb s050000l.afm s050000l.pfb ; do
+#    if [ ! -r /usr/share/fonts/Type1/$file ]; then
+#      echo "FONT $file NOT FOUND ON SYSTEM"
+#      exit 1
+#    fi
+#    ln -sf ../../fonts/Type1/$file .
+#  done || exit 1
 ) || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

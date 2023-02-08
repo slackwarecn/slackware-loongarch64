@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -63,6 +64,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loongarch64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -96,6 +100,7 @@ sed -i src/login/org.freedesktop.login1.service.in \
 
 # Merge a pull request for an upstream fix:
 zcat $CWD/elogind-polkit.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/elogind-add-loongarch64-support.patch.gz | patch -p1 --verbose || exit 1
 
 # Thanks to Widya Walesa:
 # Slackware still using cgroup v1 or legacy mode. Check the outcome of:
@@ -117,7 +122,7 @@ meson \
   -Ddocdir="/usr/doc/$PKGNAM-$VERSION" \
   -Dhtmldir="/usr/doc/$PKGNAM-$VERSION/html" \
   -Dmandir="/usr/man" \
-  -Dman=true \
+  -Dman=false \
   -Dhtml=false \
   -Dbashcompletiondir="/usr/share/bash-completion/completions" \
   -Dnobody-group=nogroup \

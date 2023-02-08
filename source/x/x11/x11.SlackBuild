@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 # Copyright 2007-2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
@@ -73,6 +74,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -85,6 +87,8 @@ PKGARCH=$ARCH
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loongarch64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
@@ -230,10 +234,18 @@ no_usr_share_doc() {
 
         # ./configure, using custom configure script if needed:
         if [ -r $CWD/configure/${PKGNAME} ]; then
+	  autoreconf -fi
           . $CWD/configure/${PKGNAME}
+	  echo "===================================="
+	  echo "PKGNAME= $PKGNAME "
+	  echo "===================================="
         else
           # This is the default configure script:
+	  autoreconf -fi
           . $CWD/configure/configure
+	  echo "===================================="
+	  echo "PKGNAME= $PKGNAME "
+	  echo "===================================="
         fi
 
         # Run make, using custom make script if needed:

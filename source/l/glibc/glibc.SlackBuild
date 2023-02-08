@@ -36,6 +36,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -95,6 +96,10 @@ case $ARCH  in
     OPTIMIZ="-O3 -fPIC"
     LIBDIRSUFFIX="64"
     ;;
+  loongarch64)
+    OPTIMIZ="-O3 -fPIC"
+    LIBDIRSUFFIX="64"
+    ;;
   *)
     OPTIMIZ="-O3"
     LIBDIRSUFFIX=""
@@ -104,6 +109,9 @@ esac
 case $ARCH in
   x86_64)
     TARGET=${TARGET:-x86_64}
+    ;;
+  loongarch64)
+    TARGET=${TARGET:-loongarch64}
     ;;
   i586)
     # This should be i586 for all 32-bit x86 arch:
@@ -143,21 +151,21 @@ fix_doinst() {
   fi
 }
 
-# This is a patch function to put all glibc patches in the build script
-# up near the top.
-apply_patches() {
-  # Use old-style locale directories rather than a single (and strangely
-  # formatted) /usr/lib/locale/locale-archive file:
-  zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
-  # Support ru_RU.CP1251 locale:
-  zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
-  # Don't use AM/PM format for date(1). That's just plain crazy.
-  zcat $CWD/glibc-2.32.en_US.no.am.pm.date.format.diff.gz | patch -p1 --verbose || exit 1
-  # Other regression fixes from git:
-  for git_patch in $CWD/patches/*.patch.gz ; do
-    zcat $git_patch | patch -p1 --verbose || exit 1
-  done
-}
+## This is a patch function to put all glibc patches in the build script
+## up near the top.
+#apply_patches() {
+#  # Use old-style locale directories rather than a single (and strangely
+#  # formatted) /usr/lib/locale/locale-archive file:
+#  zcat $CWD/glibc.locale.no-archive.diff.gz | patch -p1 --verbose || exit 1
+#  # Support ru_RU.CP1251 locale:
+#  zcat $CWD/glibc.ru_RU.CP1251.diff.gz | patch -p1 --verbose || exit 1
+#  # Don't use AM/PM format for date(1). That's just plain crazy.
+#  zcat $CWD/glibc-2.32.en_US.no.am.pm.date.format.diff.gz | patch -p1 --verbose || exit 1
+#  # Other regression fixes from git:
+#  for git_patch in $CWD/patches/*.patch.gz ; do
+#    zcat $git_patch | patch -p1 --verbose || exit 1
+#  done
+#}
 
 # This is going to be the initial $DESTDIR:
 export PKG=$TMP/package-glibc-incoming-tree
@@ -200,11 +208,11 @@ tar xvf $CWD/glibc-$CVSVER.tar.xz \
   || tar xvf $CWD/glibc-$CVSVER.tar.gz
 cd glibc-$CVSVER
 
-# Apply patches; exit if any fail.
-apply_patches
-if [ ! $? = 0 ]; then
-  exit 1
-fi
+## Apply patches; exit if any fail.
+#apply_patches
+#if [ ! $? = 0 ]; then
+#  exit 1
+#fi
 
 # Clean up leftover CVS directories:
 find . -type d -name CVS -exec rm -r {} \+ 2> /dev/null
@@ -225,12 +233,13 @@ echo "BUILDING DAS NPTL GLIBC"
 # in shared libraries. Without this, glibc compiled with -march= may not
 # run on some CPUs that it should be able to support. Needed for glibc-2.33.
 # FIXME: revisit this with future glibc releases!
-libc_cv_include_x86_isa_level=no \
+#libc_cv_include_x86_isa_level=no \
 CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-kernel=2.6.32 \
+  --disable-multi-arch \
   --with-headers=/usr/include \
   --enable-add-ons \
   --enable-profile \
@@ -419,7 +428,8 @@ cp -a $PKG/lib${LIBDIRSUFFIX}/* lib${LIBDIRSUFFIX}
   # and does no good since we'll never have multiple $ARCH libraries
   # installed in the same directory anyway. So give it the previous name
   # format:
-  mv ld-linux*-${VERSION}.so ld-${VERSION}.so
+  #mv ld-linux*-${VERSION}.so ld-${VERSION}.so
+  cp -rfa ld-linux*-${VERSION}.so ld-${VERSION}.so
 )
 mkdir -p usr
 cp -a $PKG/usr/bin usr

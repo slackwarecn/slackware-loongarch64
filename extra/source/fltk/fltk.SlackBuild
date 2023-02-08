@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -69,6 +70,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loongarch64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -102,6 +106,8 @@ if [ ! -r configure ]; then
     autoreconf -vif
   fi
 fi
+cp -rfa /usr/share/autoconf/build-aux/config.* .
+cp -rfa /usr/share/autoconf/build-aux/config.* misc/
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -118,7 +124,7 @@ CFLAGS="$SLKCFLAGS" \
   --enable-xdbe \
   --enable-xinerama \
   --enable-xfixes \
-  --enable-xft \
+  --disable-xft \
   --with-x \
   --enable-shared \
   --build=$ARCH-slackware-linux || exit 1

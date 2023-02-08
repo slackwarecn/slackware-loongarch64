@@ -38,6 +38,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -68,6 +69,8 @@ elif [ "$ARCH" = "arm" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "armel" ]; then
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loongarch64" ]; then
+  LIBDIRSUFFIX="64"
 fi
 
 # Location for Python site-packages:
@@ -86,6 +89,11 @@ zcat $CWD/python3.readline.set_pre_input_hook.diff.gz | patch -p1 --verbose || e
 zcat $CWD/python3.no-static-library.diff.gz | patch -p1 --verbose || exit 1
 
 if [ "$ARCH" = "x86_64" ]; then
+  # Install to lib64 instead of lib.
+  zcat $CWD/python.sysconfig.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python3.distutils.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python3.setup.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
+elif [ "$ARCH" = "loongarch64" ]; then
   # Install to lib64 instead of lib.
   zcat $CWD/python.sysconfig.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
   zcat $CWD/python3.distutils.x86_64.diff.gz | patch -p1 --verbose || exit 1

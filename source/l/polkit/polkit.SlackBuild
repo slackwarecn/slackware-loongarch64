@@ -33,6 +33,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -60,6 +61,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loongarch64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -83,6 +87,7 @@ find . \
 zcat $CWD/dont-set-wheel-group-as-admin.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/a2bf5c9c83b6ae46cbd5c779d3055bff81ded683.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/CVE-2021-4115.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/polkit-0.120-duktape-support.patch.gz | patch -p1 --verbose || exit 1
 
 # https://gitlab.freedesktop.org/polkit/polkit/-/issues/29
 zcat $CWD/0001-configure-fix-elogind-support.patch.gz | patch -p1 || exit 1
@@ -132,12 +137,27 @@ CXXFLAGS="$SLKCFLAGS" \
   $PAM_OPTIONS \
   $SHADOW_OPTIONS \
   --enable-verbose-mode \
+  --with-duktape \
   --with-os-type=Slackware \
   --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+#  mkdir build
+#  meson . build \
+#    -D session_tracking=libsystemd-login \
+#    -D os_type=redhat \
+#    -D examples=true \
+#    -D tests=false \
+#    -D gtk_doc=true \
+#    -D man=true \
+#    -Djs_engine=duktape
+#  meson compile -C build
+#
+#  meson install -C build --destdir "$PKG"
+
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

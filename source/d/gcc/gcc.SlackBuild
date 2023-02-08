@@ -67,6 +67,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -115,6 +116,10 @@ elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
   LIB_ARCH=armv7hl
+elif [ "$ARCH" = "loongarch64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  LIB_ARCH=loongarch64
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -317,7 +322,7 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
   # Correct me if my take on this is wrong.
   #  --with-cpu=$ARCH 
  
-  if [ "$ARCH" != "x86_64" ]; then
+  if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "loongarch64" ]; then
     GCC_ARCHOPTS="--with-arch=$ARCH"
   else
     GCC_ARCHOPTS="--disable-multilib"
@@ -330,8 +335,8 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
      --mandir=/usr/man \
      --infodir=/usr/info \
      --enable-shared \
-     --enable-bootstrap \
-     --enable-languages=ada,c,c++,d,fortran,go,lto,objc,obj-c++ \
+     --disable-bootstrap \
+     --enable-languages=c,c++,fortran,lto \
      --enable-threads=posix \
      --enable-checking=release \
      --enable-objc-gc \
@@ -361,23 +366,24 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
   # Start the build:
 
   # Include all debugging info (for now):
-  make $NUMJOBS bootstrap || exit 1
+  #make $NUMJOBS bootstrap || exit 1
+  make $NUMJOBS || exit 1
 
-  ( cd gcc
-    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS" || exit 1
-    # This wants a shared -ladd2line?
-    #make gnatlib-shared || exit 1
-    
-    CFLAGS="$SLKCFLAGS" \
-    CXXFLAGS="$SLKCFLAGS" \
-    make $NUMJOBS gnattools || exit 1
-  ) || exit 1
-  make info || exit 1
-
-  # Set GCCCHECK=something to run the tests
-  if [ ! -z $GCCCHECK ]; then
-    make $NUMJOBS check || exit 1
-  fi
+#  ( cd gcc
+#    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS" || exit 1
+#    # This wants a shared -ladd2line?
+#    #make gnatlib-shared || exit 1
+#    
+#    CFLAGS="$SLKCFLAGS" \
+#    CXXFLAGS="$SLKCFLAGS" \
+#    make $NUMJOBS gnattools || exit 1
+#  ) || exit 1
+#  make info || exit 1
+#
+#  # Set GCCCHECK=something to run the tests
+#  if [ ! -z $GCCCHECK ]; then
+#    make $NUMJOBS check || exit 1
+#  fi
 
   make install DESTDIR=$PKG1 || exit 1
 
@@ -399,7 +405,7 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
 
   # make ada.install-common DESTDIR=$PKG1 || exit 1
   # make install-gnatlib DESTDIR=$PKG1 || exit 1
-  make -i install-info DESTDIR=$PKG1 || exit 1
+#  make -i install-info DESTDIR=$PKG1 || exit 1
 
   chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
 

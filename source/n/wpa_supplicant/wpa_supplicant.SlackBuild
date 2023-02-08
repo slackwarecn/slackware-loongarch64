@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loongarch64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -64,6 +65,9 @@ elif [ "$ARCH" = "arm" ]; then
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loongarch64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -96,6 +100,34 @@ cd wpa_supplicant
 # Create the configuration file for building wpa_supplicant:
 cat $CWD/config/dot.config > .config
 
+cat > .config << "EOF"
+    CONFIG_BACKEND=file
+    CONFIG_CTRL_IFACE=y
+    CONFIG_DEBUG_FILE=y
+#    CONFIG_DRIVER_NL80211=y
+    CONFIG_DRIVER_WEXT=y
+    CONFIG_DRIVER_WIRED=y
+    CONFIG_EAP_GTC=y
+    CONFIG_EAP_LEAP=y
+    CONFIG_EAP_MD5=y
+    CONFIG_EAP_MSCHAPV2=y
+    CONFIG_EAP_OTP=y
+    CONFIG_EAP_PEAP=y
+    CONFIG_EAP_TLS=y
+    CONFIG_EAP_TTLS=y
+    CONFIG_IEEE8021X_EAPOL=y
+    CONFIG_IPV6=y
+    CONFIG_LIBNL32=y
+    CONFIG_PEERKEY=y
+    CONFIG_PKCS12=y
+    CONFIG_READLINE=y
+    CONFIG_SMARTCARD=y
+    CONFIG_WPS=y
+    CONFIG_CTRL_IFACE_DBUS=y
+    CONFIG_CTRL_IFACE_DBUS_NEW=y
+    CONFIG_CTRL_IFACE_DBUS_INTRO=y
+EOF
+
 # Build the usual binaries
 CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS \
@@ -112,13 +144,13 @@ make $NUMJOBS \
 #make &&
 #popd
 
-pushd wpa_gui-qt4
-qmake-qt5 wpa_gui.pro
-CFLAGS="$SLKCFLAGS" \
-make $NUMJOBS \
-  BINDIR=/usr/sbin \
-  LIBDIR=/usr/lib${LIBDIRSUFFIX} || exit 1
-popd
+#pushd wpa_gui-qt4
+#qmake-qt5 wpa_gui.pro
+#CFLAGS="$SLKCFLAGS" \
+#make $NUMJOBS \
+#  BINDIR=/usr/sbin \
+#  LIBDIR=/usr/lib${LIBDIRSUFFIX} || exit 1
+#popd
 
 # Make sure man pages are built
 make -C doc/docbook man
@@ -129,7 +161,7 @@ mv wpa_supplicant.conf wpa_supplicant.conf.sample
 # Install binaries:
 mkdir -p $PKG/usr/sbin $PKG/usr/bin
 cp wpa_supplicant wpa_passphrase wpa_cli $PKG/usr/sbin/
-cp wpa_gui-qt4/wpa_gui $PKG/usr/bin/
+#cp wpa_gui-qt4/wpa_gui $PKG/usr/bin/
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

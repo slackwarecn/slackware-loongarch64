@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -110,6 +111,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 fi
 
 if [ -x /usr/bin/perl ]; then
@@ -155,6 +159,13 @@ if [ "$ARCH" = "x86_64" ]; then # adopted from "Cross Linux From Scratch"
   sed -i -e '/libc/s#/lib/#/lib64/#' hints/linux.sh
   # make perl use lib64:
   echo 'installstyle="lib64/perl5"' >>hints/linux.sh
+elif [ "$ARCH" = "loong64" ]; then # adopted from "Cross Linux From Scratch"
+  # Configure must be told to also use lib64:
+  zcat $CWD/perl.configure.multilib.patch.gz | patch -p1 --verbose || exit 1
+  # "perl -V" should report that libc is in /lib64
+  sed -i -e '/libc/s#/lib/#/lib64/#' hints/linux.sh
+  # make perl use lib64:
+  echo 'installstyle="lib64/perl5"' >>hints/linux.sh
 fi
 
 # We no longer include suidperl.  To quote the INSTALL file:
@@ -186,7 +197,7 @@ fi
   -Ubincompat5005 \
   -Uversiononly \
   -Dpager='/usr/bin/less -isr' \
-  -Darchname=$ARCH-linux || exit 1
+  -Darchname=loongarch64-linux || exit 1
 
 # -Duseshrplib creates libperl.so
 # -Ubincompat5005 helps create DSO -> libperl.so
@@ -236,20 +247,20 @@ make install DESTDIR=$PKG || exit 1
     cp -a README* $PKG/usr/doc/perl-$VERSION/DBI-${DBI}
     chmod 644 $PKG/usr/doc/perl-$VERSION/DBI-${DBI}/README*
   ) || exit 1
-  ( tar xzvf $CWD/DBD-mysql-${DBDMYSQL}.tar.gz
-    cd DBD-mysql-${DBDMYSQL}
-    chown -R root:root .
-    perl Makefile.PL INSTALLDIRS=vendor
-    make || exit 1
-    if [ "$MAKETEST" = "yes" ]; then
-      make test || exit 1
-    fi
-    make install || exit 1
-    make install DESTDIR=$PKG || exit 1
-    mkdir -p $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
-    cp -a INSTALL.html README* TODO $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
-    chmod 644 $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}/*
-  ) || exit 1
+#  ( tar xzvf $CWD/DBD-mysql-${DBDMYSQL}.tar.gz
+#    cd DBD-mysql-${DBDMYSQL}
+#    chown -R root:root .
+#    perl Makefile.PL INSTALLDIRS=vendor
+#    make || exit 1
+#    if [ "$MAKETEST" = "yes" ]; then
+#      make test || exit 1
+#    fi
+#    make install || exit 1
+#    make install DESTDIR=$PKG || exit 1
+#    mkdir -p $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
+#    cp -a INSTALL.html README* TODO $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}
+#    chmod 644 $PKG/usr/doc/perl-$VERSION/DBD-mysql-${DBDMYSQL}/*
+#  ) || exit 1
   ( tar xzvf $CWD/XML-Parser-${XMLPARSER}.tar.gz
     cd XML-Parser-${XMLPARSER}
     chown -R root:root .

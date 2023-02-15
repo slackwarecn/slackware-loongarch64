@@ -548,8 +548,11 @@ gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
+gzip ./source/n/php/CVE-2023-0662.patch
 gzip ./source/n/php/php.enchant-2.patch
 gzip ./source/n/php/CVE-2022-31631.patch
+gzip ./source/n/php/CVE-2023-0568.patch
+gzip ./source/n/php/CVE-2023-0567.patch
 gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
@@ -754,7 +757,6 @@ gzip ./source/l/mozjs102/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/l/mozjs102/patches/remove-sloppy-m4-detection-from-bundled-autoconf.patch
 gzip ./source/l/mozjs102/patches/fix-soname.patch
 gzip ./source/l/mozjs102/patches/tests-increase-timeout.patch
-gzip ./source/l/mozjs102/patches/0001-Python-Build-Use-r-instead-of-rU-file-read-modes.patch
 gzip ./source/l/mozjs102/patches/icu_sources_data.py-Decouple-from-Mozilla-build-system.patch
 gzip ./source/l/mozjs102/patches/emitter.patch
 gzip ./source/l/mozjs102/patches/copy-headers.patch
@@ -1095,6 +1097,7 @@ gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
+gzip ./source/x/vulkan-sdk/VulkanTools-sdk.gcc12.diff
 gzip ./source/x/mesa/doinst.sh
 gzip ./source/x/urw-core35-fonts-otf/doinst.sh
 gzip ./source/x/ibus-hangul/doinst.sh

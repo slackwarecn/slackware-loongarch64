@@ -649,6 +649,7 @@ gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/vim/ctags.use-conventional-unused-marker.patch
 gzip ./source/ap/vim/vim.vimrc.diff
+gzip ./source/ap/vim/vim-sh-syntax.patch
 gzip ./source/ap/vim/doinst.sh
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules
@@ -821,7 +822,6 @@ gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
 gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
-gzip ./source/l/gegl/gegl.LibRaw-0.21.x.diff
 gzip ./source/l/gtk4/doinst.sh
 gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/gtkspell/gtkspell.enchant-2.diff

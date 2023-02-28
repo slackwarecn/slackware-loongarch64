@@ -167,6 +167,7 @@ gzip ./source/a/mkinitrd/0005-support-modules-compressed-with-xz.patch
 gzip ./source/a/mkinitrd/mkinitrd.tempfile.to.mktemp.patch
 gzip ./source/a/mkinitrd/0006-coreutils-9.1-ensure-target-dir-exists.patch
 gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
+gzip ./source/a/mkinitrd/0008-fix-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
 gzip ./source/a/mkinitrd/0007-kmod30.patch
 gzip ./source/a/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
 gzip ./source/a/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
@@ -649,7 +650,6 @@ gzip ./source/ap/libx86/libx86-mmap-offset.patch
 gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/vim/ctags.use-conventional-unused-marker.patch
 gzip ./source/ap/vim/vim.vimrc.diff
-gzip ./source/ap/vim/vim-sh-syntax.patch
 gzip ./source/ap/vim/doinst.sh
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules

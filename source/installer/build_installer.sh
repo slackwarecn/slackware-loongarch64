@@ -1344,6 +1344,7 @@ cp  -fa${VERBOSE1} \
         libpam*.so* \
         libpcre2-8.so* \
         libpopt*.so* \
+        libreiserfscore.so* \
         libsmartcols.so* \
         libssl*so* \
         libtirpc*so* \

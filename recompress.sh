@@ -1042,6 +1042,7 @@ gzip ./source/xap/xscreensaver/setuid.c
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
 gzip ./source/xap/xscreensaver/doinst.sh
 gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
+gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/gnuchess/eboard.assert.diff
 gzip ./source/xap/gnuchess/eboard.png16.diff
 gzip ./source/xap/gnuchess/eboard.ldl.diff
@@ -1163,3 +1164,4 @@ gzip ./pasture/source/php/php.ini-development.diff
 bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt
+bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log

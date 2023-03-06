@@ -1164,4 +1164,3 @@ gzip ./pasture/source/php/php.ini-development.diff
 bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt
-bzip2 ./source/ap/linuxdoc-tools/build.x86_64.log

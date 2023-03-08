@@ -26,7 +26,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 TMP=${TMP:-/tmp}
 
-PKGNAM=openssl
+PKGNAM=openssl11
 VERSION=${VERSION:-$(echo openssl-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -40,10 +40,10 @@ if [ -z "$ARCH" ]; then
   esac
 fi
 
-PKG1=$TMP/package-openssl
-PKG2=$TMP/package-ossllibs
-NAME1=openssl-$VERSION-$ARCH-$BUILD
-NAME2=openssl-solibs-$VERSION-$ARCH-$BUILD
+PKG1=$TMP/package-openssl11
+PKG2=$TMP/package-ossllibs11
+NAME1=openssl11-$VERSION-$ARCH-$BUILD
+NAME2=openssl11-solibs-$VERSION-$ARCH-$BUILD
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -85,7 +85,6 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 fi
 
-# NOT USED for openssl3...
 # OpenSSL has a (nasty?) habit of bumping the internal version number with
 # every release.  This wouldn't be so bad, but some applications are so
 # paranoid that they won't run against a different OpenSSL version than
@@ -93,12 +92,12 @@ fi
 #
 # So, we will use the OPENSSL_VERSION_NUMBER from openssl-1.1.1 unless ABI
 # breakage forces it to change.  Yes, we're finally using this old trick.  :)
-#sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1010100fL (1.1.1) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1010100fL/g" include/openssl/opensslv.h || exit 1
+sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1010100fL (1.1.1) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1010100fL/g" include/openssl/opensslv.h || exit 1
 
 chown -R root:root .
 mkdir -p $PKG1/usr/doc/openssl-$VERSION
-cp -a ACKNOWLEDGEMENTS* AUTHORS* CHANGES* CONTRIBUTING* FAQ* INSTALL* \
-  LICENSE* NEWS* NOTES* README* doc \
+cp -a ACKNOWLEDGEMENTS AUTHORS CHANGES* CONTRIBUTING FAQ INSTALL* \
+  LICENSE* NEWS NOTES* README* doc \
   $PKG1/usr/doc/openssl-$VERSION
 find $PKG1/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \+
 find $PKG1/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \+
@@ -123,6 +122,7 @@ fi
 ./config \
  --prefix=/usr \
  --openssldir=/etc/ssl \
+ --libdir=lib${LIBDIRSUFFIX}/openssl-1.1 \
  zlib \
  enable-camellia \
  enable-seed \
@@ -145,99 +145,77 @@ make $NUMJOBS || make || exit 1
 
 make install DESTDIR=$PKG1 || exit 1
 
-# No thanks on the static libraries:
-rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/*.a
-
-# No thanks on manpages duplicated as html:
-rm -rf $PKG1/usr/share/doc
+# No thanks on static libraries:
+rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/openssl-1.1/*.a
 
 # Also no thanks on .pod versions of the already shipped manpages:
 rm -rf $PKG1/usr/doc/openssl-*/doc/man*
-rm -rf $PKG1/usr/doc/openssl-*/doc/internal
 
 # Move libraries, as they might be needed by programs that bring a network
 # mounted /usr online:
 
 mkdir $PKG1/lib${LIBDIRSUFFIX}
-( cd $PKG1/usr/lib${LIBDIRSUFFIX}
-  for file in lib*.so.? ; do
-    mv $file ../../lib${LIBDIRSUFFIX}
-    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
+( cd $PKG1/usr/lib${LIBDIRSUFFIX}/openssl-1.1
+  for file in lib*.so.?.* ; do
+    mv $file ../../../lib${LIBDIRSUFFIX}
+    ln -sf ../../../lib${LIBDIRSUFFIX}/$file .
   done 
 )
 
-# Add a cron script to warn root if a certificate is going to expire soon:
-mkdir -p $PKG1/etc/cron.daily
-zcat $CWD/certwatch.gz > $PKG1/etc/cron.daily/certwatch.new
-chmod 755 $PKG1/etc/cron.daily/certwatch.new
+# Move include files:
+mkdir -p $PKG1/usr/include/openssl-1.1
+mv $PKG1/usr/include/openssl $PKG1/usr/include/openssl-1.1/openssl
 
-# Make config file non-clobber:
-mv $PKG1/etc/ssl/openssl.cnf $PKG1/etc/ssl/openssl.cnf.new
+# Edit .pc files to correct the includedir:
+sed -e "s|/include$|/include/openssl-1.1|" -i $PKG1/usr/lib${LIBDIRSUFFIX}/openssl-1.1/pkgconfig/*.pc
 
-# Remove duplicate config file:
-rm -f $PKG1/etc/ssl/openssl.cnf.dist
+# Rename openssl binary:
+mv $PKG1/usr/bin/openssl $PKG1/usr/bin/openssl-1.1
+
+# Don't package these things:
+rm -rf $PKG1/etc $PKG1/usr/bin/c_rehash
+
+# Not needed in openssl11 compat package.
+#
+## Add a cron script to warn root if a certificate is going to expire soon:
+#mkdir -p $PKG1/etc/cron.daily
+#zcat $CWD/certwatch.gz > $PKG1/etc/cron.daily/certwatch.new
+#chmod 755 $PKG1/etc/cron.daily/certwatch.new
+
+#mv $PKG1/etc/ssl/openssl.cnf $PKG1/etc/ssl/openssl.cnf.new
 
 ( cd $PKG1
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-# Relocate the manpages:
-mv $PKG1/usr/share/man $PKG1/usr
+# Remove the man pages and installed docs:
+rm -r $PKG1/usr/share/{doc,man}
 rmdir $PKG1/usr/share
 
-# Fix manpage name collisions, and relink anything that linked to the old name:
-( cd $PKG1/usr/man/man1
-  mv passwd.1 ssl_passwd.1
-  for file in *.1 ; do
-    if [ -L $file ]; then
-      if [ "$(readlink $file)" = "passwd.1" ]; then
-        rm -f $file
-        ln -sf ssl_passwd.1 $file
-      fi
-    fi
-  done )
-
-# Compress and symlink the man pages:
-if [ -d $PKG1/usr/man ]; then
-  ( cd $PKG1/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.ossl?
-      )
-    done
-  )
-fi
-
 cd $PKG1
-chmod 755 usr/lib${LIBDIRSUFFIX}/pkgconfig
-sed -i -e "s#lib\$#lib${LIBDIRSUFFIX}#" usr/lib${LIBDIRSUFFIX}/pkgconfig/*.pc
+#chmod 755 usr/lib${LIBDIRSUFFIX}/pkgconfig
+#sed -i -e "s#lib\$#lib${LIBDIRSUFFIX}#" usr/lib${LIBDIRSUFFIX}/pkgconfig/*.pc
 mkdir -p install
-zcat $CWD/doinst.sh-openssl.gz > install/doinst.sh
-cat $CWD/slack-desc.openssl > install/slack-desc
+cat $CWD/slack-desc.openssl11 > install/slack-desc
 /sbin/makepkg -l y -c n $TMP/${NAME1}.txz
 
 # Make runtime package:
 mkdir -p $PKG2/lib${LIBDIRSUFFIX}
 ( cd lib${LIBDIRSUFFIX} ; cp -a lib*.so.* $PKG2/lib${LIBDIRSUFFIX} )
-mkdir -p $PKG2/usr/lib${LIBDIRSUFFIX}
-cp -a $PKG1//usr/lib${LIBDIRSUFFIX}/{engines-3,ossl-modules} $PKG2/usr/lib${LIBDIRSUFFIX}
+mkdir -p $PKG2/usr/lib${LIBDIRSUFFIX}/openssl-1.1
+cp -a $PKG1//usr/lib${LIBDIRSUFFIX}/openssl-1.1/engines-1.1 $PKG2/usr/lib${LIBDIRSUFFIX}/openssl-1.1
 ( cd $PKG2/lib${LIBDIRSUFFIX}
-  for file in lib*.so.? ; do
-    ( cd $PKG2/usr/lib${LIBDIRSUFFIX} ; ln -sf ../../lib${LIBDIRSUFFIX}/$file . )
+  for file in lib*.so.?.? ; do
+    ( cd $PKG2/usr/lib${LIBDIRSUFFIX}/openssl-1.1 ; ln -sf ../../../lib${LIBDIRSUFFIX}/$file . )
   done
 )
-mkdir -p $PKG2/etc
-( cd $PKG2/etc ; cp -a $PKG1/etc/ssl . )
+#mkdir -p $PKG2/etc
+#( cd $PKG2/etc ; cp -a $PKG1/etc/ssl . )
 mkdir -p $PKG2/usr/doc/openssl-$VERSION
 ( cd $TMP/openssl-$VERSION
-  cp -a ACKNOWLEDGEMENTS* AUTHORS* CHANGES* CONTRIBUTING* FAQ* INSTALL* \
-  LICENSE* NEWS* NOTES* README* \
-  $PKG2/usr/doc/openssl-$VERSION
+  cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
+  LICENSE NEWS README README.ENGINE $PKG2/usr/doc/openssl-$VERSION
   # If there's a CHANGES file, installing at least part of the recent history
   # is useful, but don't let it get totally out of control:
   if [ -r CHANGES ]; then
@@ -251,6 +229,5 @@ find $PKG2/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \+
 find $PKG2/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \+
 cd $PKG2
 mkdir -p install
-zcat $CWD/doinst.sh-openssl-solibs.gz > install/doinst.sh
-cat $CWD/slack-desc.openssl-solibs > install/slack-desc
+cat $CWD/slack-desc.openssl11-solibs > install/slack-desc
 /sbin/makepkg -l y -c n $TMP/${NAME2}.txz

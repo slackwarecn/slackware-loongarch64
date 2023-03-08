@@ -5,10 +5,6 @@
 #
 gzip ./extra/source/rust-for-mozilla/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
 gzip ./extra/source/rust-for-mozilla/link_libffi.diff
-gzip ./extra/source/php80/php-fpm.conf.diff
-gzip ./extra/source/php80/doinst.sh
-gzip ./extra/source/php80/php.imap.api.diff
-gzip ./extra/source/php80/php.ini-development.diff
 gzip ./extra/source/xv/xv.no.jasper.diff
 gzip ./extra/source/xv/xv-3.10a.patch
 gzip ./extra/source/xv/xv-libpng-1.5.patch
@@ -34,10 +30,6 @@ gzip ./extra/source/tigervnc/patches/xorg-server/0001-Always-install-vbe-and-int
 gzip ./extra/source/tigervnc/patches/vncserver.xinitrc.diff
 gzip ./extra/source/tigervnc/patches/xserver120.patch
 gzip ./extra/source/tigervnc/doinst.sh
-gzip ./extra/source/php81/php-fpm.conf.diff
-gzip ./extra/source/php81/doinst.sh
-gzip ./extra/source/php81/php.imap.api.diff
-gzip ./extra/source/php81/php.ini-development.diff
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
 gzip ./source/d/python-setuptools/setuptools.x86_64.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
@@ -548,11 +540,6 @@ gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
-gzip ./source/n/php/CVE-2023-0662.patch
-gzip ./source/n/php/php.enchant-2.patch
-gzip ./source/n/php/CVE-2022-31631.patch
-gzip ./source/n/php/CVE-2023-0568.patch
-gzip ./source/n/php/CVE-2023-0567.patch
 gzip ./source/n/php/doinst.sh
 gzip ./source/n/php/php.imap.api.diff
 gzip ./source/n/php/php.ini-development.diff
@@ -1154,13 +1141,6 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
-gzip ./testing/source/samba/smb.conf.diff
-gzip ./testing/source/samba/doinst.sh
-gzip ./testing/source/samba/samba.libsmbclient.h.ffmpeg.compat.diff
-gzip ./pasture/source/php/php-fpm.conf.diff
-gzip ./pasture/source/php/doinst.sh
-gzip ./pasture/source/php/PHP-5.6.31-OpenSSL-1.1.0-compatibility-20170801.patch
-gzip ./pasture/source/php/php.ini-development.diff
 bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
 bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt

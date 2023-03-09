@@ -460,6 +460,7 @@ gzip ./source/n/net-snmp/net-snmp-5.8-modern-rpm-api.patch
 gzip ./source/n/uucp/policy.h.diff
 gzip ./source/n/ulogd/doinst.sh
 gzip ./source/n/openssl/doinst.sh-openssl-solibs
+gzip ./source/n/openssl/0024-load-legacy-prov.patch
 gzip ./source/n/openssl/doinst.sh-openssl
 gzip ./source/n/openssl/certwatch
 gzip ./source/n/mutt/doinst.sh
@@ -663,7 +664,6 @@ gzip ./source/ap/terminus-font/terminus-font.Makefile.paths.diff
 gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
 gzip ./source/ap/ksh93/doinst.sh
-gzip ./source/ap/dc3dd/dc3dd.glibc228.diff
 gzip ./source/ap/sc/sc-7.16-3.diff
 gzip ./source/ap/sqlite/COPYRIGHT
 gzip ./source/ap/nano/doinst.sh
@@ -913,6 +913,9 @@ gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/at-spi2-atk/doinst.sh
+gzip ./source/l/libieee1284/libieee1284-fix-warnings.patch
+gzip ./source/l/libieee1284/libieee1284-add-more-python-bindings.patch
+gzip ./source/l/libieee1284/libieee1284-python3.patch
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh

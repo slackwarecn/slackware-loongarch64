@@ -28,7 +28,7 @@ TMP=${TMP:-/tmp}
 
 PKGNAM=openssl
 VERSION=${VERSION:-$(echo openssl-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -65,13 +65,7 @@ rm -rf $PKG1 $PKG2 openssl-$VERSION
 
 tar xvf $CWD/openssl-$VERSION.tar.gz || exit 1
 cd openssl-$VERSION
-
-# Fix pod syntax errors which are fatal wih a newer perl:
-find . -name "*.pod" -exec sed -i "s/^\=item \([0-9]\)\(\ \|$\)/\=item C<\1>/g" {} \;
-
-## For openssl-1.1.x, don't try to change the soname.
-## Use .so.1, not .so.1.0.0:
-#sed -i "s/soname=\$\$SHLIB\$\$SHLIB_SOVER\$\$SHLIB_SUFFIX/soname=\$\$SHLIB.1/g" Makefile.shared
+chown -R root:root .
 
 if [ "$ARCH" = "i586" ]; then
   # Build with -march=i586 -mtune=i686:
@@ -85,17 +79,11 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 fi
 
-# NOT USED for openssl3...
-# OpenSSL has a (nasty?) habit of bumping the internal version number with
-# every release.  This wouldn't be so bad, but some applications are so
-# paranoid that they won't run against a different OpenSSL version than
-# what they were compiled against, whether or not the ABI has changed.
-#
-# So, we will use the OPENSSL_VERSION_NUMBER from openssl-1.1.1 unless ABI
-# breakage forces it to change.  Yes, we're finally using this old trick.  :)
-#sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1010100fL (1.1.1) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1010100fL/g" include/openssl/opensslv.h || exit 1
+# Patch openssl.cnf to remove useless FIPS documentation, and to provide
+# examples for enabling legacy algorithms. These are considered weaker, but
+# some applications may still require them.
+zcat $CWD/0024-load-legacy-prov.patch.gz | patch -p1 --verbose || exit 1
 
-chown -R root:root .
 mkdir -p $PKG1/usr/doc/openssl-$VERSION
 cp -a ACKNOWLEDGEMENTS* AUTHORS* CHANGES* CONTRIBUTING* FAQ* INSTALL* \
   LICENSE* NEWS* NOTES* README* doc \
@@ -135,7 +123,8 @@ fi
  no-weak-ssl-ciphers \
  no-mdc2 \
  no-ec2m \
- no-idea \
+ no-sm2 \
+ no-sm4 \
  no-sse2 \
  shared
 
@@ -186,18 +175,6 @@ rm -f $PKG1/etc/ssl/openssl.cnf.dist
 mv $PKG1/usr/share/man $PKG1/usr
 rmdir $PKG1/usr/share
 
-# Fix manpage name collisions, and relink anything that linked to the old name:
-( cd $PKG1/usr/man/man1
-  mv passwd.1 ssl_passwd.1
-  for file in *.1 ; do
-    if [ -L $file ]; then
-      if [ "$(readlink $file)" = "passwd.1" ]; then
-        rm -f $file
-        ln -sf ssl_passwd.1 $file
-      fi
-    fi
-  done )
-
 # Compress and symlink the man pages:
 if [ -d $PKG1/usr/man ]; then
   ( cd $PKG1/usr/man
@@ -207,7 +184,7 @@ if [ -d $PKG1/usr/man ]; then
           ln -s $( readlink $eachpage ).gz $eachpage.gz
           rm $eachpage
         done
-        gzip -9 *.ossl?
+        gzip -9 *.?ossl
       )
     done
   )

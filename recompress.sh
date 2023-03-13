@@ -530,6 +530,7 @@ gzip ./source/n/netkit-timed/netkit-timed-0.17.diff
 gzip ./source/n/wget/doinst.sh
 gzip ./source/n/vsftpd/vsftpd.conf.diff
 gzip ./source/n/vsftpd/vsftpd.crypt.diff
+gzip ./source/n/vsftpd/vsftpd-3.0.5-replace-deprecated-openssl-functions.patch
 gzip ./source/n/vsftpd/doinst.sh
 gzip ./source/n/vsftpd/vsftpd.log
 gzip ./source/n/vsftpd/vsftpd.builddefs.diff

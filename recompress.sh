@@ -917,6 +917,7 @@ gzip ./source/l/libieee1284/libieee1284-fix-warnings.patch
 gzip ./source/l/libieee1284/libieee1284-add-more-python-bindings.patch
 gzip ./source/l/libieee1284/libieee1284-python3.patch
 gzip ./source/l/dconf-editor/doinst.sh
+gzip ./source/l/serf/serf-1.3.9-openssl3_fixes-1.patch
 gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5-webengine-ffmpeg5.patch

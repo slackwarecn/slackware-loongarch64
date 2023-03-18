@@ -1069,6 +1069,7 @@ gzip ./source/installer/sources/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/x/liberation-fonts-ttf/doinst.sh
 gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
+gzip ./source/x/fcitx5-kkc/0001-remove-std-c-11-from-gui-CMakeLists.txt.patch
 gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff

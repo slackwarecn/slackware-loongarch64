@@ -1626,7 +1626,7 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
            cp -a fs.orig/{udf*,isofs*,cifs*,ext*,fat*,fscache,jfs*,lockd,nfs,nfs_common,jbd*,nls,reiserfs,xfs,binfmt*,mbcache*,exportfs*} fs/
          ;;
          *86*)
-           cp -a fs.orig/{cifs*,exfat,fscache,lockd,nfs,nfs_common,ntfs3} fs/
+           cp -a fs.orig/{cifs*,efivarfs,exfat,fscache,lockd,nfs,nfs_common,ntfs3} fs/
          ;;
          *)
            cp -a fs.orig/cifs* fs/

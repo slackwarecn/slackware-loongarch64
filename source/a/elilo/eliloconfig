@@ -176,20 +176,10 @@ if [ "$REPLY" = "skip" ]; then
   exit
 fi
 
-# Make sure an interface to read/write EFI variables is present:
-if [ ! -d /sys/firmware/efi/efivars ]; then
-  modprobe efivarfs 1> /dev/null 2> /dev/null
-  sleep 1 # Probably not needed, but playing it safe
-  # Take another look:
-  if [ ! -d /sys/firmware/efi/efivars ]; then
-    # Maybe we have an old kernel, so try the previous /sys/firmware/efi/vars interface instead:
-    modprobe efivars 1> /dev/null 2> /dev/null
-    sleep 1 # Probably not needed, but playing it safe
-  fi
-fi
-# At this point, we fail silently if we don't have either of these directories:
-if [ ! -d /sys/firmware/efi/efivars -a ! -d /sys/firmware/efi/vars ]; then
-  exit
+# Make sure efivarfs is active since we'll need it to
+# change UEFI boot menu entries:
+if [ "$(/bin/ls /sys/firmware/efi/efivars 2> /dev/null | wc -l)" = "0" ]; then
+  mount -t efivarfs none /sys/firmware/efi/efivars
 fi
 
 efibootmgr -v | rev | cut -f 2- | rev | grep Boot0 | grep Slackware | while read line ; do

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=coreutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -101,6 +101,11 @@ zcat $CWD/no_ls_quoting.patch.gz | patch -p1 --verbose --backup --suffix=.orig |
 # too commonly used to disregard them.  Better to stick with the older more
 # widely accepted standards until things begin to demand the new way.
 
+# Don't use the openssl crypto library, otherwise /bin/sort ends up linked
+# against openssl's libcrypto which creates problems for upgradepkg.
+# It is also possible to use --with-linux-crypto to enable the Linux kernel
+# crypto routines, but we'll skip this for now.
+
 FORCE_UNSAFE_CONFIGURE=1 \
 CFLAGS="$SLKCFLAGS" \
 DEFAULT_POSIX2_VERSION=199209 \
@@ -112,6 +117,7 @@ DEFAULT_POSIX2_VERSION=199209 \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-install-program=arch \
+  --with-openssl=no \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1

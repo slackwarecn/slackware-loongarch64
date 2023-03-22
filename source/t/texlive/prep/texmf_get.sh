@@ -2,7 +2,7 @@
 
 # texmf_get.sh
 #
-# Copyright 2016 - 2022  Johannes Schoepfer, Germany, slackbuilds@schoepfer.info
+# Copyright 2016 - 2023  Johannes Schoepfer, Germany, slackbuilds@schoepfer.info
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,12 +22,12 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#  version 15.1.0
+#  version 15.1.1
 #
 #  Prepare xz-compressed tarballs of texlive-texmf-trees based on texlive.tlpdb
 #  This script takes care of dependencies(as far as these are present in texlive.tlpdb)
 #  of collections and packages, and that every texlive-package is included only once.
-#  The editions(base/extra/docs) should contain no binaries(exception biber)
+#  The editions(base/extra/docs) should contain no binaries
 # -base: the most usefull stuff, most binaries/scripts,
 #  manpages for binaries/scripts  65mb 2017-11-07
 # -docs: -base documentation only, no manpages/GNU infofiles
@@ -99,7 +99,7 @@ package_meta () {
   then
     # collection start linenumer
     start_n="$(grep -n ^"name ${1}"$ $db | cut -d':' -f1)"
-    [ -z "$start_n" ] && echo "$1 was not found in $db, bye." && exit 1
+    [ -z "$start_n" ] && echo "ERROR: \"$1\" is no package in $db, edit $CWD/packages.texmf !" && exit 1
     # find end of package/collection
     for emptyline in $emptylines
     do
@@ -223,26 +223,36 @@ untar () {
 	    rm $link
           done
            
-          # keep only binaries of special packages
+          # keep only precompiled binaries of special packages, see packages.texmf,
+	  # these should only be in -extra.
           # remove xindy.mem(gzip compresses data) to prevent overwriting
 	  # the one built from the source
           for bin in $(find $texmf/texmf-dist/bin/$arch -type f -exec file '{}' + | \
             grep -e "shared object" -e ELF -e "gzip compressed data" | cut -f 1 -d : ) 
           do
+            binfile="$(echo $bin | rev | cut -d'/' -f1 | rev)"
+            remove_binary=yes
+	    # for multiple binaries this extra loop is neccesary
             for binary in $keep_precompiled
             do
-              if [ "$(echo $bin | rev | cut -d'/' -f1 | rev)" != "$binary" ]
+              if [ "$(echo $bin | rev | cut -d'/' -f1 | rev)" = "$binary" ]
               then
-                #echo "Deleting binary $bin found in $texmf/texmf-dist/bin/$arch"
-                rm $bin
-                echo -n "$package:" >> $binary_removed.$edition
-                echo $bin | rev | cut -d'/' -f1 | rev >> $binary_removed.$edition
-              fi
+                remove_binary=no
+	      fi
             done
+	    if [ $remove_binary = yes ]
+	    then
+              # might be already removed by a previous run
+              if [ -s "$bin" ]
+              then
+                #echo "Deleting binary \"$arch/$binfile\""
+	        rm $bin && echo "$package: $binfile" >> $binary_removed.$edition
+              fi
+	    fi
           done
           # move scripts to linked-scripts
           for script in \
-	    $(find $texmf/texmf-dist/bin/$arch -type f -exec file '{}' + |\
+	    $(find $texmf/texmf-dist/bin/$arch -type f -exec file '{}' + | \
 	    grep -wv ELF | cut -f 1 -d : )
           do
             mv $script $texmf/texmf-dist/linked_scripts/
@@ -335,16 +345,17 @@ remove_cruft () {
 
   echo "Replace duplicate files by symlinks, this may take a while ..."
   
-  LASTSIZE=0
-  find $texmf/texmf-dist/ \
-    -type f -printf '%s %p\n' | sort -n |
-  while read SIZE FILE
+  LASTSIZE=x
+  find $texmf/texmf-dist/ -type f -printf '%s %p\n' | sort -n |
+  while read -r SIZE FILE
   do
-    if [ "$SIZE" -eq "$LASTSIZE" ]
+    # symlinks alse need some bytes, start linking above 10 bytes
+    if [ "$SIZE" -gt 10 -a "$SIZE" == "$LASTSIZE" ]
     then
-      if [ "$(md5sum $FILE | cut -d' ' -f1)" == "$(md5sum $LASTFILE | cut -d' ' -f1)" ]
+      if [ "$(sha512sum $FILE | cut -d' ' -f1)" \
+	== "$(sha512sum $LASTFILE | cut -d' ' -f1)" ]
       then
-        echo "$FILE $LASTFILE" >> $duplicatelog
+        echo "$FILE $LASTFILE $SIZE" >> $duplicatelog
         ln -srf $FILE $LASTFILE
       fi
     fi

@@ -121,6 +121,7 @@ gzip ./source/a/dialog/doinst.sh
 gzip ./source/a/dialog/dialog.no.aspect.ratio.autoajust.patch
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/grub/initrd_naming.patch
+gzip ./source/a/grub/7fd5feff97c4b1f446f8fcf6d37aca0c64e7c763.patch
 gzip ./source/a/grub/0001-skip-new-files-in-etc-grub.d.patch
 gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/doinst.sh

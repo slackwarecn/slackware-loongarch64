@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=spirv-llvm-translator
 VERSION=${VERSION:-$(echo SPIRV-LLVM-Translator-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -88,6 +88,9 @@ find . \
 # the -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR option below.
 tar xf $CWD/SPIRV-Headers.tar.lz
 
+# Fix -DBUILD_SHARED_LIBS=ON
+zcat $CWD/1889.patch.gz | patch -p1 --verbose || exit 1
+
 # Build and install:
 mkdir -p build
 cd build
@@ -100,9 +103,9 @@ cd build
     -DSYSCONF_INSTALL_DIR=/etc \
     -DINCLUDE_INSTALL_DIR=/usr/include \
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DBUILD_SHARED_LIBS=ON \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=$TMP/SPIRV-LLVM-Translator-$VERSION/SPIRV-Headers \
+    -DBUILD_SHARED_LIBS=ON \
     ..
    make $NUMJOBS || make || exit 1
    make $NUMJOBS llvm-spirv || make llvm-spirv || exit 1

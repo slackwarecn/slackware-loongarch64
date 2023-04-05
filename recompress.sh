@@ -559,6 +559,7 @@ gzip ./source/n/netkit-rsh/netkit-rsh.union_wait.diff
 gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/ntp.glibc-2.34.diff
 gzip ./source/n/ntp/doinst.sh
+gzip ./source/n/ntp/ntpdate.8
 gzip ./source/n/lynx/lynx-CVE-2008-4690.patch
 gzip ./source/n/lynx/doinst.sh
 gzip ./source/n/lynx/lynx.cfg.diff

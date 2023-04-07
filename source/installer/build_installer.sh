@@ -3,7 +3,7 @@ set +o posix
 
 # $Id: build_installer.sh,v 1.129 2011/04/13 23:03:07 eha Exp eha $
 #
-# Copyright 2005-2022  Stuart Winter, Surrey, England, UK
+# Copyright 2005-2023  Stuart Winter, Surrey, England, UK
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -1129,6 +1129,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         cgdisk \
         cryptsetup \
         debugfs \
+        depmod \
         dmsetup \
         dosfsck \
         dumpe2fs \
@@ -1152,7 +1153,6 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         logsave \
         ldconfig \
         lsmod \
-        lspci \
         lvm \
         lvmdump \
         mount.nfs \
@@ -1439,7 +1439,7 @@ for prunedir in $PKG/$ARCH-installer-filesystem/usr/bin $PKG/$ARCH-installer-fil
     rm -f $PKG/$ARCH-installer-filesystem/sbin/$(basename $removefile)
   done
 done
-if [ -r rm -f $PKG/$ARCH-installer-filesystem/sbin/lspci -a ! -L $PKG/$ARCH-installer-filesystem/sbin/lspci -a -L $PKG/$ARCH-installer-filesystem/bin/lspci ]; then
+if [ -r $PKG/$ARCH-installer-filesystem/sbin/lspci -a ! -L $PKG/$ARCH-installer-filesystem/sbin/lspci -a -L $PKG/$ARCH-installer-filesystem/bin/lspci ]; then
   rm -f $PKG/$ARCH-installer-filesystem/bin/lspci
 fi
 

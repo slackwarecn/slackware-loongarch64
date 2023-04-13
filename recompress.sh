@@ -321,8 +321,8 @@ gzip ./source/a/lilo/lilo.gcc10.diff
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff
+gzip ./source/a/upower/81a89385a45d3de1028bcd86b3688fb465b4035c.patch
 gzip ./source/a/upower/doinst.sh
-gzip ./source/a/f2fs-tools/f2fs.ftbfs.diff
 gzip ./source/a/jfsutils/jfsutils.glibc228.diff
 gzip ./source/a/jfsutils/jfsutils.inttypes.h.diff
 gzip ./source/a/elvis/elvis.ref.c.getline.diff

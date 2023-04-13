@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2022, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,16 +23,16 @@
 set -o errexit
 
 # Clear download area:
-rm -rf media-session media-session.tar media-session.tar.lz
+rm -rf wireplumber wireplumber.tar wireplumber.tar.lz
 
 # Clone repository:
-git clone https://gitlab.freedesktop.org/pipewire/media-session.git
+git clone https://gitlab.freedesktop.org/pipewire/wireplumber.git
 
 # Cleanup.  We're not packing up the whole git repo.
-rm -rf media-session/.git*
-tar cf media-session.tar media-session
-plzip -9 -n 6 -f media-session.tar
-rm -rf media-session
+rm -rf wireplumber/.git*
+tar cf wireplumber.tar wireplumber
+plzip -9 -n 6 -f wireplumber.tar
+rm -rf wireplumber
 echo
-echo "media-session source repo packaged"
+echo "wireplumber source repo packaged"
 echo

@@ -23,7 +23,7 @@
 # changing it back to pulseaudio.
 
 # Remove or rename the XDG autostart files:
-for file in /etc/xdg/autostart/pipewire-media-session.desktop /etc/xdg/autostart/pipewire-pulse.desktop /etc/xdg/autostart/pipewire.desktop ; do
+for file in /etc/xdg/autostart/wireplumber.desktop /etc/xdg/autostart/pipewire-pulse.desktop /etc/xdg/autostart/pipewire.desktop ; do
   if [ -r ${file}.sample ]; then
     rm -f $file
   elif [ -r $file ]; then
@@ -47,7 +47,7 @@ if ps ax | grep -q pipewire ; then
   echo "You may need to stop running daemon/pipewire processes."
   echo "The clean way is to run these commands as the user that owns the processes:"
   echo "/usr/bin/daemon --pidfiles=~/.run --name=pipewire --stop"
-  echo "/usr/bin/daemon --pidfiles=~/.run --name=pipewire-media-session --stop"
+  echo "/usr/bin/daemon --pidfiles=~/.run --name=wireplumber --stop"
   echo "/usr/bin/daemon --pidfiles=~/.run --name=pipewire-pulse --stop"
   echo
   echo "The quick and dirty way if nothing else on the machine is using the daemon"

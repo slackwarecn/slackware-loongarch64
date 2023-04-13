@@ -30,7 +30,7 @@ if [ -f /etc/pipewire/pipewire.conf ]; then
 fi
 
 # Rename the XDG autostart files:
-for file in /etc/xdg/autostart/pipewire-media-session.desktop.sample /etc/xdg/autostart/pipewire-pulse.desktop.sample /etc/xdg/autostart/pipewire.desktop.sample ; do
+for file in /etc/xdg/autostart/wireplumber.desktop.sample /etc/xdg/autostart/pipewire-pulse.desktop.sample /etc/xdg/autostart/pipewire.desktop.sample ; do
   if [ -r $file ]; then
     mv $file /etc/xdg/autostart/$(basename $file .sample)
   fi

@@ -35,23 +35,9 @@ rmdir $PKG/usr/lib$LIBDIRSUFFIX/qt5/plugins/plugins
 mkdir -p $PKG/etc
 mv $PKG/etc/kde/dbus-1 $PKG/etc/
 
-if [ "$SLACKPAM" == "no" ]; then
-  # For shadow, this file needs to be setuid root just like the KDE4 version:
-  if [ -f $PKG/usr/lib$LIBDIRSUFFIX/kcheckpass ]; then
-    chmod +s $PKG/usr/lib$LIBDIRSUFFIX/kcheckpass
-  fi
+# Install a PAM file for Plasma5 workspace:
+install -Dm644 $CWD/post-install/plasma-workspace/pam.d/kde $PKG/etc/pam.d/kde.new
 
-  # ck-launch-session is needed for a Wayland session, since we do not have PAM:
-  sed -e 's/^Exec=dbus-launch/Exec=ck-launch-session dbus-launch --sh-syntax/' \
-    -i $PKG/usr/share/wayland-sessions/plasmawayland.desktop
-else
-  # Install a PAM file for Plasma5 workspace:
-  install -Dm644 $CWD/post-install/plasma-workspace/pam.d/kde $PKG/etc/pam.d/kde.new
-fi
-
-if [ "$SLKELOGIND" == "yes" ]; then
-  # Since elogind does not set DBUS_SESSION_BUS_ADDRESS we need to start
-  # Plasma X11 session through dbus-run-session like Wayland is launched:
-  sed -i $PKG/usr/share/xsessions/plasma.desktop \
-      -e "s,^Exec=/,Exec=dbus-run-session /,"
-fi
+# Since elogind does not set DBUS_SESSION_BUS_ADDRESS we need to start
+# Plasma X11 session through dbus-run-session like Wayland is launched:
+sed -i $PKG/usr/share/xsessions/plasma.desktop -e "s,^Exec=/,Exec=dbus-run-session /,"

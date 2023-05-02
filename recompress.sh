@@ -926,6 +926,7 @@ gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5-webengine-ffmpeg5.patch
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch
 gzip ./source/l/qt5/patches/qt5-webengine-gcc12.patch
+gzip ./source/l/qt5/patches/0001-Fixes-for-building-with-GCC-13.patch
 gzip ./source/l/qt5/patches/qt5-qtwebsockets-gcc11.patch
 gzip ./source/l/qt5/patches/qt5.qtbase_cmake_isystem_includes.patch
 gzip ./source/l/qt5/patches/qt5.mysql.h.diff
@@ -936,6 +937,7 @@ gzip ./source/l/spirv-llvm-translator/1889.patch
 gzip ./source/l/gd/gd.f4bc1f5c26925548662946ed7cfa473c190a104a.patch
 gzip ./source/l/cryfs/27587ea1acec5f939a31217f1c43953378f18821.patch
 gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
+gzip ./source/l/cryfs/cryfs.gcc13.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch

@@ -823,6 +823,7 @@ gzip ./source/l/gdk-pixbuf2/doinst.sh
 gzip ./source/l/qt5-webkit/qt5-webkit.bison27.patch
 gzip ./source/l/qt5-webkit/webkit-offlineasm-warnings-ruby27.patch
 gzip ./source/l/qt5-webkit/qt5-webkit.glib-2.68.0.diff
+gzip ./source/l/qt5-webkit/qt5-webkit.gcc13.diff
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch

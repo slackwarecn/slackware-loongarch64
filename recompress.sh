@@ -885,6 +885,7 @@ gzip ./source/l/fluidsynth/doinst.sh
 gzip ./source/l/zstd/zstd.dont.link.pzstd.to.static.libzstd.a.diff
 gzip ./source/l/dconf/doinst.sh
 gzip ./source/l/ebook-tools/epub3_fixed_layout.patch
+gzip ./source/l/libdiscid/b89c145.patch
 gzip ./source/l/libwpd/libwpd.gcc11.diff
 gzip ./source/l/libtiff/patches/CVE-2022-2056_2057_2058.patch
 gzip ./source/l/libtiff/patches/CVE-2022-34526.patch

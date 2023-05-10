@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2017, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=a2ps
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-9}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -70,9 +70,6 @@ cd $PKGNAM-$VERSION || exit 1
 
 zcat $CWD/a2ps.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/a2ps.a2ps_cfg.in.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/a2ps-4.14-texinfo-nodes.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/a2ps-texi-comments.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/a2ps.texinfo-6.7.patch.gz | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -82,17 +79,14 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Configure needs lispdir in case emacs is not installed at this moment:
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
-lispdir="/usr/share/emacs/site-lisp" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --infodir=/usr/info \
   --mandir=/usr/man \
   --sysconfdir=/etc \
-  --with-medium=letter \
   --build=$ARCH-slackware-linux || exit 1
 
 # Build and install:
@@ -109,7 +103,7 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/a2ps-$VERSION
 cp -a \
-  ANNOUNCE AUTHORS COPYING* FAQ NEWS README* THANKS TODO \
+  ANNOUNCE* AUTHORS* COPYING* FAQ* NEWS* README* THANKS* TODO* \
   $PKG/usr/doc/a2ps-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

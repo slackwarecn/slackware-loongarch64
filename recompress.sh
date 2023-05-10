@@ -625,10 +625,7 @@ gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2
 gzip ./source/ap/lxc/doinst.sh
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh
 gzip ./source/ap/a2ps/a2ps.a2ps_cfg.in.diff
-gzip ./source/ap/a2ps/a2ps-4.14-texinfo-nodes.patch
 gzip ./source/ap/a2ps/a2ps.diff
-gzip ./source/ap/a2ps/a2ps-texi-comments.patch
-gzip ./source/ap/a2ps/a2ps.texinfo-6.7.patch
 gzip ./source/ap/sysstat/doinst.sh
 gzip ./source/ap/madplay/madplay-0.15.2b-fix-segfault.patch
 gzip ./source/ap/zsh/doinst.sh
@@ -1010,6 +1007,7 @@ gzip ./source/xap/fluxbox/xinitrc.fluxbox
 gzip ./source/xap/fluxbox/fluxbox.keys.diff
 gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/fluxbox/fluxbox.gcc11.patch
+gzip ./source/xap/network-manager-applet/01281fae6b601598cd2006bc8f2d5be98810228d.patch
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff

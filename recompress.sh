@@ -137,9 +137,10 @@ gzip ./source/a/acpid/default
 gzip ./source/a/unarj/Makefile
 gzip ./source/a/reiserfsprogs/reiserfsprogs.glibc228.diff
 gzip ./source/a/eudev/60-cdrom_id.rules.diff
-gzip ./source/a/eudev/eudev.no.renderD.no.kvm.diff
 gzip ./source/a/eudev/eudev.ignore_bind_unbind_events.diff
+gzip ./source/a/eudev/eudev.no.sgx.diff
 gzip ./source/a/eudev/doinst.sh
+gzip ./source/a/eudev/eudev.no.renderD.diff
 gzip ./source/a/aaa_libraries/doinst.sh
 gzip ./source/a/gpm/gpm-1.20.1-lib-silent.patch
 gzip ./source/a/gpm/setup.mouse

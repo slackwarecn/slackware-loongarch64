@@ -28,6 +28,7 @@ preserve_perms() {
 # Preserve permissions while moving into place:
 preserve_perms etc/rc.d/rc.elogind.new
 config etc/elogind/logind.conf.new
+config etc/elogind/sleep.conf.new
 
 if pgrep -f elogind-daemon | grep -q 'elogind-daemon'; then
   echo "Reloading elogind-daemon..."

@@ -651,6 +651,7 @@ gzip ./source/ap/texinfo/doinst.sh
 gzip ./source/ap/sudo/doinst.sh
 gzip ./source/ap/soma/doinst.sh
 gzip ./source/ap/cups-filters/doinst.sh
+gzip ./source/ap/cups-filters/CVE-2023-24805.patch
 gzip ./source/ap/bpe/bpe.port.to.strerror.diff
 gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/doinst.sh

@@ -691,6 +691,7 @@ gzip ./source/ap/rpm/rpm.install4j.compat.diff
 gzip ./source/ap/rpm/doinst.sh
 gzip ./source/ap/rpm/Packages
 gzip ./source/ap/man-db/doinst.sh
+gzip ./source/t/texlive/texlive-20230313-source-security_fix-1.patch
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff

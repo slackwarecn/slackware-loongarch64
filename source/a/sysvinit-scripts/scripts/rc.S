@@ -24,6 +24,31 @@ if [ ! -d /sys/kernel -a -z "$container" ]; then
   /sbin/mount -v sysfs /sys -n -t sysfs 2> /dev/null
 fi
 
+# The efivarfs filesystem is used for reading and writing EFI variables, such
+# as the boot menu entries. By default efivarfs will be mounted read-write on
+# the /sys/firmware/efi/efivars directory. To modify this behavior, edit the
+# file: /etc/default/efivarfs
+# Only try to mount if this directory exists (so the kernel supports efivarfs):
+if [ -d /sys/firmware/efi/efivars ]; then
+  # Only try to mount if efivarfs is not already mounted:
+  if ! mount | grep -wq efivarfs ; then
+    # Mount according to /etc/default/efivarfs:
+    if [ -r /etc/default/efivarfs ]; then
+      . /etc/default/efivarfs
+    else # default
+      EFIVARFS=rw
+    fi
+    case "$EFIVARFS" in
+      'rw')
+      mount -o rw -t efivarfs none /sys/firmware/efi/efivars
+      ;;
+      'ro')
+      mount -o ro -t efivarfs none /sys/firmware/efi/efivars
+      ;;
+    esac
+  fi
+fi
+
 # If /run exists, mount a tmpfs on it (unless the
 # initrd has already done so):
 if [ -d /run -a -z "$container" ]; then

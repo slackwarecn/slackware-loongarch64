@@ -974,8 +974,6 @@ gzip ./source/xap/xpdf/doinst.sh
 gzip ./source/xap/pavucontrol/doinst.sh
 gzip ./source/xap/seyon/seyon_2.20c-16.diff
 gzip ./source/xap/ddd/doinst.sh
-gzip ./source/xap/ddd/strclass.C.diff
-gzip ./source/xap/ddd/machine_code_window_fix.diff
 gzip ./source/xap/xgames/maze.diff
 gzip ./source/xap/xgames/xlander.fixes.diff
 gzip ./source/xap/xgames/xlander-2009-07-18.diff

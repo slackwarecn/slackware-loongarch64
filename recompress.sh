@@ -5,12 +5,6 @@
 #
 gzip ./extra/source/rust-for-mozilla/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
 gzip ./extra/source/rust-for-mozilla/link_libffi.diff
-gzip ./extra/source/xv/xv.no.jasper.diff
-gzip ./extra/source/xv/xv-3.10a.patch
-gzip ./extra/source/xv/xv-libpng-1.5.patch
-gzip ./extra/source/xv/xv.prefix_x86_64.diff
-gzip ./extra/source/xv/xv.jasper.diff
-gzip ./extra/source/xv/xv.prefix.diff
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
@@ -1161,6 +1155,3 @@ gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
 gzip ./testing/source/gcc/patches/gcc-no_fixincludes.diff
-bzip2 ./extra/source/xv/xv-3.10a-enhancements.20070520-20081216.diff
-bzip2 ./extra/source/xv/xv-3.10a-jumbo-additions.diff
-bzip2 ./extra/source/xv/xv-3.10a-jumbo-fix-enh-patch-20070520.txt

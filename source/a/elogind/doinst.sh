@@ -30,7 +30,7 @@ preserve_perms etc/rc.d/rc.elogind.new
 config etc/elogind/logind.conf.new
 config etc/elogind/sleep.conf.new
 
-if pgrep -f elogind-daemon | grep -q 'elogind-daemon'; then
+if pgrep -f elogind-daemon 1> /dev/null 2> /dev/null ; then
   echo "Reloading elogind-daemon..."
   pkill -HUP -f elogind-daemon
 fi

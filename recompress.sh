@@ -551,7 +551,6 @@ gzip ./source/n/netkit-rsh/netkit-rsh.arg_max.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.auth.c.stddef.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.union_wait.diff
 gzip ./source/n/ntp/ntp.nano.diff
-gzip ./source/n/ntp/ntp.glibc-2.34.diff
 gzip ./source/n/ntp/doinst.sh
 gzip ./source/n/ntp/ntpdate.8
 gzip ./source/n/lynx/lynx-CVE-2008-4690.patch
@@ -669,9 +668,7 @@ gzip ./source/ap/amp/amp-gcc34.diff
 gzip ./source/ap/jove/jove.glibc-2.30.diff
 gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
-gzip ./source/ap/cups/cd84d7fde692237af4996d4a0e985a3eb4a293f0.patch
 gzip ./source/ap/cups/doinst.sh
-gzip ./source/ap/cups/c0c403744b1bf4a9790a8fcaabcd60970cbefe06.patch
 gzip ./source/ap/at/doinst.sh
 gzip ./source/ap/ghostscript/cidfmap
 gzip ./source/ap/screen/52fix_screen_utf8_nfd.patch
@@ -920,8 +917,6 @@ gzip ./source/l/libieee1284/libieee1284-fix-warnings.patch
 gzip ./source/l/libieee1284/libieee1284-add-more-python-bindings.patch
 gzip ./source/l/libieee1284/libieee1284-python3.patch
 gzip ./source/l/dconf-editor/doinst.sh
-gzip ./source/l/serf/serf-1.3.9-openssl3_fixes-1.patch
-gzip ./source/l/serf/serf.SConstruct.python3.diff
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5-webengine-ffmpeg5.patch
 gzip ./source/l/qt5/patches/qt5-qtbase-gcc11.patch

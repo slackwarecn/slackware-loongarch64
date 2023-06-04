@@ -9,7 +9,6 @@ gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
 gzip ./extra/source/bittornado/doinst.sh
-gzip ./extra/source/sendmail/sendmail.sasl.auth.fix.patch
 gzip ./extra/source/sendmail/Build
 gzip ./extra/source/tigervnc/patches/tigervnc.pam.d.diff
 gzip ./extra/source/tigervnc/patches/force_protocol_3.3_for_UVNCSC.patch

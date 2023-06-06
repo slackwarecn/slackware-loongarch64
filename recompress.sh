@@ -1148,4 +1148,3 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
-gzip ./testing/source/gcc/patches/gcc-no_fixincludes.diff

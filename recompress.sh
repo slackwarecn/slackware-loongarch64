@@ -935,6 +935,7 @@ gzip ./source/l/cryfs/cryfs.gcc13.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/xap/mozilla-thunderbird/gcc13-fix.patch
 gzip ./source/xap/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/thunderbird-102.10.0-upstream_fixes-1.patch

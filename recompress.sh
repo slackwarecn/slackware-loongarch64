@@ -1049,7 +1049,6 @@ gzip ./source/xap/easytag/doinst.sh
 gzip ./source/xap/gkrellm/gkrellm.theme.defaults.diff
 gzip ./source/xap/ssr/0003-Fix-build-with-ffmpeg-5.0.patch
 gzip ./source/xap/ssr/doinst.sh
-gzip ./source/xap/pan/pan.enchant2.diff
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
 gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff

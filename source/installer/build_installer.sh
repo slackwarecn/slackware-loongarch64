@@ -998,6 +998,7 @@ a/util-linux \
 a/xfsprogs \
 a/xz \
 a/zerofree \
+a/userspace-rcu \
 ap/ddrescue \
 ap/dmidecode \
 ap/lsscsi \
@@ -1344,6 +1345,8 @@ cp  -fa${VERBOSE1} \
         libpam*.so* \
         libpcre2-8.so* \
         libpopt*.so* \
+        liburcu-common.so.* \
+        liburcu.so.* \
         libreiserfscore.so* \
         libsmartcols.so* \
         libssl*so* \

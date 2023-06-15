@@ -3,7 +3,7 @@
 # Slackware build script for a52dec
 #
 # Copyright 2007  Niklas "Nille" Åkerström
-# Copyright 2014, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2014, 2016, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2014  Heinz Wiesinger, Amsterdam, NL
 # All rights reserved.
 #
@@ -27,8 +27,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=a52dec
-VERSION=${VERSION:-$(echo a52dec*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d- | rev)}
-BUILD=${BUILD:-5}
+VERSION=${VERSION:-$(echo a52dec*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d- | rev | tr -d v)}
+BUILD=${BUILD:-1}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -69,8 +69,8 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
-cd $PKGNAM-$VERSION || exit 1
+tar xvf $CWD/$PKGNAM-v$VERSION.tar.?z* || exit 1
+cd $PKGNAM-v$VERSION || exit 1
 chown -R root:root .
 find -L . \
  \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -78,11 +78,22 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --mandir=/usr/man \
   --enable-shared \
   --disable-static \
   --build=$ARCH-slackware-linux || exit 1
@@ -116,7 +127,7 @@ fi
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING* ChangeLog HISTORY INSTALL NEWS README* TODO \
+  AUTHORS* COPYING* ChangeLog* HISTORY* INSTALL* NEWS* README* TODO* \
     $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/install

@@ -630,7 +630,6 @@ gzip ./source/ap/vim/doinst.sh
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules
 gzip ./source/ap/usbmuxd/doinst.sh
-gzip ./source/ap/mc/mc-3605-extfs.c-fix-buffer-overflow.patch
 gzip ./source/ap/tmux/doinst.sh
 gzip ./source/ap/tmux/tmux.conf
 gzip ./source/ap/dvd+rw-tools/dvd+rw-tools.limits.h.diff

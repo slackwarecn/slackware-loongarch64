@@ -837,7 +837,6 @@ gzip ./source/l/esound/esound-0.2.38-fix-open-macro.patch
 gzip ./source/l/esound/doinst.sh
 gzip ./source/l/esound/esound-nospawn.patch
 gzip ./source/l/freetype/freetype.sh
-gzip ./source/l/freetype/freetype.compile.both.subpixel.hinting.methods.diff
 gzip ./source/l/freetype/freetype.subpixel.rendering.diff
 gzip ./source/l/freetype/doinst.sh
 gzip ./source/l/freetype/freetype.csh

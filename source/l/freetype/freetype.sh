@@ -8,10 +8,6 @@
 # This is the classic hinting mode used in Freetype 2.6.x:
 #export FREETYPE_PROPERTIES="truetype:interpreter-version=35"
 
-# This is Infinality mode, which was never enabled by default. It is slower
-# than the new subpixel hinting mode, but said to be more accurate:
-#export FREETYPE_PROPERTIES="truetype:interpreter-version=38"
-
 # This is the new default subpixel hinting mode used in Freetype 2.7.x. It is
 # derived from the Infinality code base stripped to the bare minimum with all
 # configurability removed in the name of speed and simplicity:

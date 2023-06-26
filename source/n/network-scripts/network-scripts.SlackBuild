@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=network-scripts
 VERSION=${VERSION:-15.0}
 ARCH=noarch
-BUILD=${BUILD:-18}
+BUILD=${BUILD:-19}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -103,6 +103,32 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
   cat $CWD/0002-add-hostname-loopback-entries-in-etc-hosts-for-dhcp.patch | patch -p1 --verbose || exit 1
   rm -f sbin/netconfig.orig
 ) || exit 1
+
+# Temporarily rename these files so that we can patch them:
+mv $PKG/etc/rc.d/rc.inet1.new $PKG/etc/rc.d/rc.inet1
+mv $PKG/etc/rc.d/rc.inet1.conf.new $PKG/etc/rc.d/rc.inet1.conf
+
+# Re-add support for the DHCP_IPADDR parameter from rc.inet1.conf:
+( cd $PKG/etc/rc.d
+  cat $CWD/0003-76218fa6e7c097c875af2a29cc7670995bef2ae4.patch | patch -p1 --verbose || exit 1
+  rm -f etc/rc.d/rc.inet1.orig
+) || exit 1
+
+# Expand the help text for DHCP_IPADDR in rc.inet1.conf:
+( cd $PKG/etc/rc.d
+  cat $CWD/0004-8f43a741a36e59b8a9560ff2c4f3e5da2b8dd72b.patch | patch -p1 --verbose || exit 1
+  rm -f etc/rc.d/rc.inet1.conf.orig
+) || exit 1
+
+# Add support for a DHCP_OPTS parameter:
+( cd $PKG/etc/rc.d
+  cat $CWD/0005-5925f2bcc500f5198b5c00ab4e635a59bef7a413.patch | patch -p1 --verbose || exit 1
+  rm -f etc/rc.d/rc.inet1.orig
+) || exit 1
+
+# Rename the files back to .new:
+mv $PKG/etc/rc.d/rc.inet1 $PKG/etc/rc.d/rc.inet1.new
+mv $PKG/etc/rc.d/rc.inet1.conf $PKG/etc/rc.d/rc.inet1.conf.new
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD.txz

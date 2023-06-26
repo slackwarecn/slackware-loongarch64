@@ -3,7 +3,7 @@
 # for font hinting. Other controllable properties are listed in the section
 # 'Controlling FreeType Modules' in the reference's table of contents.
 #
-# Three hinting settings are available:
+# Two hinting settings are available:
 
 # This is the classic hinting mode used in Freetype 2.6.x:
 #export FREETYPE_PROPERTIES="truetype:interpreter-version=35"

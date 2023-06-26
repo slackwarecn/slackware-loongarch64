@@ -1,0 +1,48 @@
+From 5925f2bcc500f5198b5c00ab4e635a59bef7a413 Mon Sep 17 00:00:00 2001
+From: Darren 'Tadgy' Austin <darren@afterdark.org.uk>
+Date: Wed, 21 Jun 2023 14:55:41 +0100
+Subject: Add support for a DHCP_OPTS parameter.
+
+This commit allows an interface specific DHCP_OPTS parameter to set
+additional dhcpcd command line options where they may be required
+on a local network.  It is still recommended to use the supported
+DHCP_* options in preference to this option, but it is being added
+to aid customisations.
+
+Thanks to ljb643 on LQ for the bug report regarding DHCP_IPADDR
+and the suggestion of a DHCP_OPTS parameter.
+---
+ rc.inet1      | 1 +
+ rc.inet1.conf | 4 ++++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/rc.inet1 b/rc.inet1
+index f998a21..8b03fb7 100644
+--- a/rc.inet1
++++ b/rc.inet1
+@@ -400,6 +400,7 @@ if_up() {
+         [ "${DHCP_KEEPGW[$i]}" = "yes" ] && DHCP_OPTIONS+=("-G")
+         [ -n "${DHCP_IPADDR[$i]}" ] && DHCP_OPTIONS+=("-r" "${DHCP_IPADDR[$i]}")
+         [ "${DHCP_DEBUG[$i]}" = "yes" ] && DHCP_OPTIONS+=("-d")
++        [ -n "${DHCP_OPTS[$i]}" ] && DHCP_OPTIONS+=(${DHCP_OPTS[$i]})
+         # The -L option used to be hard coded into the dhcpcd command line in -current.  It was added to assist ARM users
+         # get networking up and running.  Previous versions of Slackware did not have -L hard coded - the code here keeps
+         # the 14.2 behaviour, but can be altered to make the use of -L default as in -current.  To change the behaviour,
+diff --git a/rc.inet1.conf b/rc.inet1.conf
+index 54d0d3e..b3f7cdd 100644
+--- a/rc.inet1.conf
++++ b/rc.inet1.conf
+@@ -196,6 +196,10 @@ GATEWAY6=""
+                                 # server is not found (ipv4ll link-local
+                                 # adresses in the IP range 169.254.0.0/16 are
+                                 # also known as "zeroconf" addresses)
++#DHCP_OPTS[4]=""                # Add these options to the dhcpcd command line.
++                                # Use this only if extra options are required
++                                # on your local network and there is a no more
++                                # specific DHCP_* option detailed above
+ #SLAAC_TIMEOUT[4]="15"          # The default timeout for auto configuration to
+                                 # wait for the interface to come up is 15 sec.
+                                 # Increase the timeout if required.
+-- 
+cgit v1.2.3
+

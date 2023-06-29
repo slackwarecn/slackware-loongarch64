@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2011, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2011, 2016, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,11 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=kernel-firmware
 ARCH=noarch
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
+# Compress the firmware blobs?
+# Default is "none" for no compression.
+# Other types known to be currently supported are "xz" and "zstd".
+COMPRESSION=${COMPRESSION:-none}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -56,13 +60,19 @@ DATE="$(lynx -dump -width=256 https://git.kernel.org/pub/scm/linux/kernel/git/fi
 HEADISAT="$(lynx -dump -width=256 https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/commit/?id=HEAD | grep "    commit   " | head -n 1 | cut -f 2 -d ] | cut -b 1-7)"
 find . -name ".git*" -exec rm -rf "{}" \+
 chown -R root:root .
-mkdir -p lib
-mv linux-firmware lib/firmware
-# Make sure that symlinks are created by running "make install":
-( cd lib/firmware
-  echo "Running make DESTDIR=$PKG install..."
-  make DESTDIR=$PKG install 2> /dev/null
+mkdir -p lib/firmware
+
+# Install the firmware from the download directory using "make $INSTALLTARGET":
+case $COMPRESSION in
+  xz) INSTALLTARGET="install-xz" ;;
+  zstd) INSTALLTARGET="install-zst" ;;
+  *) INSTALLTARGET="install" ;;
+esac
+( cd linux-firmware
+  echo "Running make DESTDIR=$PKG ${INSTALLTARGET}..."
+  make DESTDIR=$PKG $INSTALLTARGET 2> /dev/null
 )
+rm -rf linux-firmware
 
 # Remove sources for carl9170fw:
 ( cd $PKG/lib/firmware

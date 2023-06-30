@@ -1,12 +1,6 @@
 #!/bin/sh
 # rc.S: Basic system initialization.
 
-# Any /etc/mtab that exists here is old, so we start with a new one:
-/bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
-
-# Add (fake) entry for / to /etc/mtab:
-/sbin/mount -f -w /dev/initramfs / -t tmpfs 1> /dev/null
-
 # Mount /proc:
 /sbin/mount -v proc /proc -t proc 1> /dev/null
 

@@ -31,3 +31,11 @@ done
 if [ -r etc/default/su.new ]; then
   config etc/default/su.new
 fi
+
+# Since libmount has dropped all support for an /etc/mtab file, if we find that
+# we'll need to replace it with a symlink to /proc/mounts:
+if [ ! -L etc/mtab ]; then
+  rm -f etc/mtab
+  ( cd etc ; ln -sf /proc/mounts mtab )
+fi
+

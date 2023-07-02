@@ -449,6 +449,16 @@ sed -i -e "s,EFI (FAT-12/16/32),EFI System Partition,g" $TMP/SeTfdisk
 #          The label of the partition on the All-In-One Installer that contains the
 #          Slackware packages.
 # SLKhwm_bw = Hardware Model Bootware - native Bootware for the RPi
+# SLKefi = FAT32 file system, /boot/efi mountpoint within the OS for Hardware Models
+#          that use UEFI firmware.
+# SLKefi_fw =
+#          ext4 file system within the Installer image containing UEFI
+#          firmware.  The firmware can be offered up for flashing to SPI from
+#          within the post installation scripts.
+#          This file system is present only within the Installer images (not the OS)
+#          for Hardware Models with UEFI firmware (i.e. not RK3399).
+#          This is because the Slackware Installer SD card image is not converted
+#          into the OS's /boot partition on HWM's that use UEFI.
 #
 # 'SLKroot' is used to identify the OS root file system on ARM, but we don't
 # filter it out because it's *supposed* to appear as a candidate within the
@@ -464,7 +474,7 @@ awk '/^\/dev\// {print $1}' /var/log/setup/tmp/SeTfdisk | while read device; do
     # it outputs only the label.
     { ( e2label ${device} 2>/dev/null | tail -n1 | rev \
        | awk '{print $1}' | rev | tr -d "'" | \
-       grep -Eq "^SLK(${aexc}ins|ins_aio-pkgs|hwm_bw)$" ) && sed -i '\|^'"${device}\s"'|d' $TMP/SeTfdisk ;}
+       grep -Eq "^SLK(${aexc}ins|ins_aio-pkgs|efi|efi_fw|hwm_bw)$" ) && sed -i '\|^'"${device}\s"'|d' $TMP/SeTfdisk ;}
 done
 
 # Dump the discovered storage:

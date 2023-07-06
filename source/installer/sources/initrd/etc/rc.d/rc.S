@@ -1,17 +1,18 @@
 #!/bin/sh
 # rc.S: Basic system initialization.
 
-# Any /etc/mtab that exists here is old, so we start with a new one:
-/bin/rm -f /etc/mtab{,~,.tmp} && /bin/touch /etc/mtab
-
-# Add (fake) entry for / to /etc/mtab:
-/sbin/mount -f -w /dev/initramfs / -t tmpfs 1> /dev/null
-
 # Mount /proc:
 /sbin/mount -v proc /proc -t proc 1> /dev/null
 
 # Mount sysfs next:
 /sbin/mount -v sysfs /sys -t sysfs 1> /dev/null
+
+# The efivarfs filesystem is used for reading and writing EFI variables, such
+# as the boot menu entries. By default efivarfs will be mounted read-write on
+# the /sys/firmware/efi/efivars directory.
+if [ -d /sys/firmware/efi/efivars ]; then
+  mount -o rw -t efivarfs none /sys/firmware/efi/efivars
+fi
 
 # Set a root password for the Slackware Installer if set as a Kernel cmdline:
 # This is intended for network installations where otherwise the root password

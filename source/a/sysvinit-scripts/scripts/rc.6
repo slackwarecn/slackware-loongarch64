@@ -179,6 +179,21 @@ if /bin/ls /etc/dhcpc/*.pid 1> /dev/null 2> /dev/null ; then
   sleep 2
 fi
 
+# If there is a firewall_shutdown script, run it. Most firewall setups
+# will not need to be formally shut down, but in case yours needs that
+# (perhaps to do some shutdown-time cleanup or to save the state), then
+# create an /etc/rc.d/rc.firewall_shutdown script to do these things.
+# If your rc.firewall script supports a "stop" parameter, you might only
+# need this in your rc.firewall_shutdown script:
+#
+#   /etc/rc.d/rc.firewall stop
+#
+# Or in that case you could also just make rc.firewall_shutdown a symlink
+# to the rc.firewall script, since we also provide the stop parameter here.
+if [ -x /etc/rc.d/rc.firewall_shutdown ]; then
+  /etc/rc.d/rc.firewall_shutdown stop
+fi
+
 # Shut down PCMCIA devices:
 if [ -x /etc/rc.d/rc.pcmcia -a -z "$container" ]; then
   /etc/rc.d/rc.pcmcia stop

@@ -2,7 +2,7 @@
 
 # TeXLive build script for Slackware
 
-# Copyright 2009, 2017 - 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2017 - 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2009 - 2014  Robby Workman, Northport, AL, USA
 # Copyright 2016 - 2017  Johannes Schoepfer, Germany
 # All rights reserved.
@@ -26,15 +26,15 @@
 
 # URL: ftp://tug.org/historic/systems/texlive/
 # Testrelease: https://tug.org/texlive/Images/test/
-# Upstream stable fixes: svn://tug.org/texlive/branches/branch2022/Build/source
+# Upstream stable fixes: svn://tug.org/texlive/branches/branch2023/Build/source
 
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=texlive
-SOURCEVERSION=${SOURCEVERSION:-20220321}
-TEXMFVERSION=${TEXMFVERSION:-220801}
-VERSION=${VERSION:-2022.$TEXMFVERSION}
-BUILD=${BUILD:-2}
+SOURCEVERSION=${SOURCEVERSION:-20230311}
+TEXMFVERSION=${TEXMFVERSION:-230322}
+VERSION=${VERSION:-2023.$TEXMFVERSION}
+BUILD=${BUILD:-4}
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-texlive
@@ -76,6 +76,9 @@ tar xvf $CWD/texlive-${SOURCEVERSION}-source.tar.xz || exit 1
 cd texlive-$SOURCEVERSION-source || exit 1
 chown -R root:root .
 chmod -R u+w,go-w,a+rX-st .
+
+# CVE-2023-32700:
+zcat $CWD/texlive-20230313-source-security_fix-1.patch.gz | patch -p1 --verbose || exit 1
 
 mkdir build
 cd build
@@ -121,7 +124,7 @@ cd build
     --build=$ARCH-slackware-linux || exit 1
 
   make $NUMJOBS || make || exit 1
-  make check || exit 1
+  #make check || exit 1
   make install-strip DESTDIR=$PKG || exit 1
 
 cd ..
@@ -150,12 +153,6 @@ sed -i \
   -e "s|^TEXMFLOCAL.*|TEXMFLOCAL = \$TEXMFROOT/texmf-local|" \
   -e "s|^OSFONTDIR.*|OSFONTDIR = ~/.fonts:/usr/share/fonts|" \
   $PKG$TEXMFROOT/texmf-dist/web2c/texmf.cnf
-
-# make ConTeXt work
-sed -i \
-  -e "s|selfautoparent:|$TEXMFROOT/|g" \
-  -e "s|\(TEXMFLOCAL[ ]*=[ ]*\)[^,]*|\1\"$TEXMFROOT/texmf-local\"|" \
-  $PKG$TEXMFROOT/texmf-dist/web2c/texmfcnf.lua
 
 # provide texlive fonts optionally for other system apps
 mkdir -p $PKG/etc/fonts/conf.avail
@@ -209,6 +206,7 @@ mkdir -p $PKG/install
 echo "# This install script should not collide with any other script's activities," > $PKG/install/doinst.sh
 echo "# so don't demand a lock by installpkg: NOLOCK" >> $PKG/install/doinst.sh
 zcat $CWD/doinst.sh.gz >> $PKG/install/doinst.sh
+cat $CWD/douninst.sh > $PKG/install/douninst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

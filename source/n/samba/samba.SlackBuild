@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,6 +27,18 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=samba
 VERSION=${VERSION:-$(echo samba-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+
+# This option may be set to "heimdal" or "mit".
+# Upstream considers the use of MIT Kerberos for provisioning an AD DC
+# to be experimental (for now), and recommends using the bundled Heimdal.
+KERBEROS=${KERBEROS:-heimdal}
+
+if [ "$KERBEROS" = "mit" ]; then
+  KERB_OPTIONS="--with-system-mitkrb5 --with-experimental-mit-ad-dc"
+elif [ "$KERBEROS" = "heimdal" ]; then
+  # Please note that this perl module will be required: https://metacpan.org/pod/JSON
+  KERB_OPTIONS="--bundled-libraries=heimdal"
+fi
 
 if [ -e $CWD/machine.conf ]; then
   . $CWD/machine.conf ]
@@ -102,7 +114,7 @@ find . \
 
 # Choose correct options depending on whether PAM is installed:
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
-  PAM_OPTIONS="--with-pam --with-pammodulesdir=/lib${LIBDIRSUFFIX}/security --with-system-mitkrb5 --with-experimental-mit-ad-dc"
+  PAM_OPTIONS="--with-pam --with-pammodulesdir=/lib${LIBDIRSUFFIX}/security"
   unset SHADOW_OPTIONS
 else
   unset PAM_OPTIONS
@@ -143,12 +155,12 @@ CFLAGS="$SLKCFLAGS" \
   --with-ldap \
   --with-ads \
   --without-fam \
+  $KERB_OPTIONS \
   $PAM_OPTIONS \
   $SHADOW_OPTIONS \
   --build=$TARGET || exit 1
   # Gives errors:
   #--builtin-libraries=replace,ccan \
-  #--bundled-libraries=heimdal \
 
 # Build with waf directly so that multiple jobs work.
 # Script lifted from "./configure".

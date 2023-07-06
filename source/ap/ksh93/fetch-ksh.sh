@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -36,13 +36,17 @@ HEADISAT=$( cd ksh && git log -1 --format=%h )
 DATE="$( cd ksh && git log -1 --format=%cd --date=format:%Y%m%d )"
 LONGDATE="$( cd ksh && git log -1 --format=%cd --date=format:%c )"
 VERSION=$(sed -n '/^#define SH_RELEASE_SVER/ { s/.*"\(.*\)".*/\1/; s/-/_/g; p; }' ksh/src/cmd/ksh93/include/version.h)
+# Let's only include the numeric part of the version. Not trying to paper over
+# using an alpha/beta/etc, but it doesn't seem like important information when
+# the date and commit are listed in the tarball name anyway.
+#VERSION=$(sed -n '/^#define SH_RELEASE_SVER/ { s/.*"\(.*\)".*/\1/; s/-/_/g; p; }' ksh/src/cmd/ksh93/include/version.h | cut -f 1 -d _)
 # Cleanup.  We're not packing up the whole git repo.
 rm -rf ksh/.git*
-mv ksh "ksh-${BRANCH}_${DATE}_${HEADISAT}"
-tar cf "ksh-${BRANCH}_${DATE}_${HEADISAT}.tar" "ksh-${BRANCH}_${DATE}_${HEADISAT}"
-plzip -9 -n 6 -f "ksh-${BRANCH}_${DATE}_${HEADISAT}.tar"
-touch -d "$LONGDATE" ksh-${BRANCH}_${DATE}_${HEADISAT}.tar.lz
-rm -rf "ksh-${BRANCH}_${DATE}_${HEADISAT}"
+mv ksh "ksh-${VERSION}_${DATE}_${HEADISAT}"
+tar cf "ksh-${VERSION}_${DATE}_${HEADISAT}.tar" "ksh-${VERSION}_${DATE}_${HEADISAT}"
+plzip -9 -n 6 -f "ksh-${VERSION}_${DATE}_${HEADISAT}.tar"
+touch -d "$LONGDATE" ksh-${VERSION}_${DATE}_${HEADISAT}.tar.lz
+rm -rf "ksh-${VERSION}_${DATE}_${HEADISAT}"
 echo
-echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${BRANCH}_${DATE}_${HEADISAT}.tar.lz"
+echo "ksh branch $BRANCH with HEAD at $HEADISAT packaged as ksh-${VERSION}_${DATE}_${HEADISAT}.tar.lz"
 echo

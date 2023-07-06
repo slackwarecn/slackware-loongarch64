@@ -1,0 +1,56 @@
+From 01281fae6b601598cd2006bc8f2d5be98810228d Mon Sep 17 00:00:00 2001
+From: Thomas Haller <thaller@redhat.com>
+Date: Tue, 2 May 2023 10:39:29 +0200
+Subject: [PATCH] c-e: fix crash in import_vpn_from_file_cb() when importing
+ VPN profiles
+
+Import code can create incomplete profiles, that don't have
+"connection.type" set. Avoid the crash.
+
+  #0  __strcmp_evex () at ../sysdeps/x86_64/multiarch/strcmp-evex.S:314
+  #1  0x000000000043d177 in import_vpn_from_file_cb (dialog=0x7f4650, response=<optimized out>, user_data=0x7d66e0) at src/connection-editor/connection-helpers.c:275
+  #2  0x00007ffff6f564ea in g_closure_invoke (closure=0x8d5120, return_value=0x0, n_param_values=2, param_values=0x7fffffffd0f0, invocation_hint=0x7fffffffd070) at ../gobject/gclosure.c:832
+  #3  0x00007ffff6f84d36 in signal_emit_unlocked_R.isra.0
+      (node=node@entry=0x847c70, detail=detail@entry=0, instance=instance@entry=0x7f4650, emission_return=emission_return@entry=0x0, instance_and_params=instance_and_params@entry=0x7fffffffd0f0) at ../gobject/gsignal.c:3812
+  #4  0x00007ffff6f75bdd in g_signal_emit_valist (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>, var_args=var_args@entry=0x7fffffffd2b0) at ../gobject/gsignal.c:3565
+  #5  0x00007ffff6f75e53 in g_signal_emit (instance=<optimized out>, signal_id=<optimized out>, detail=<optimized out>) at ../gobject/gsignal.c:3622
+  #6  0x00007ffff6f75cda in _g_closure_invoke_va (param_types=0x0, n_params=<optimized out>, args=0x7fffffffd520, instance=0x8ee230, return_value=0x0, closure=0x8efbf0) at ../gobject/gclosure.c:895
+  #7  g_signal_emit_valist (instance=0x8ee230, signal_id=216, detail=0, var_args=var_args@entry=0x7fffffffd520) at ../gobject/gsignal.c:3472
+  #8  0x00007ffff6f75e53 in g_signal_emit (instance=instance@entry=0x8ee230, signal_id=<optimized out>, detail=detail@entry=0) at ../gobject/gsignal.c:3622
+  #9  0x00007ffff76dd7dd in gtk_button_clicked (button=button@entry=0x8ee230) at ../gtk/gtkbutton.c:1541
+  #10 0x00007ffff76dfad6 in gtk_button_finish_activate (do_it=1, button=0x8ee230) at ../gtk/gtkbutton.c:2042
+  #11 button_activate_timeout (data=0x8ee230) at ../gtk/gtkbutton.c:1984
+  #12 0x00007ffff7eddcad in gdk_threads_dispatch (data=data@entry=0xa5f470) at ../gdk/gdk.c:769
+  #13 0x00007ffff6e55c69 in g_timeout_dispatch (source=0x711550, callback=0x7ffff7eddc80 <gdk_threads_dispatch>, user_data=0xa5f470) at ../glib/gmain.c:5054
+  #14 0x00007ffff6e5539c in g_main_dispatch (context=0x4e7c70) at ../glib/gmain.c:3460
+  #15 g_main_context_dispatch (context=0x4e7c70) at ../glib/gmain.c:4200
+  #16 0x00007ffff6eb3438 in g_main_context_iterate.isra.0 (context=0x4e7c70, block=1, dispatch=1, self=<optimized out>) at ../glib/gmain.c:4276
+  #17 0x00007ffff6e52a23 in g_main_context_iteration (context=context@entry=0x4e7c70, may_block=may_block@entry=1) at ../glib/gmain.c:4343
+  #18 0x00007ffff708a01d in g_application_run (application=application@entry=0x4e5010, argc=<optimized out>, argv=0x7fffffffd9e8) at ../gio/gapplication.c:2573
+  #19 0x00000000004133ad in main (argc=<optimized out>, argv=<optimized out>) at src/connection-editor/main.c:259
+
+https://gitlab.gnome.org/GNOME/network-manager-applet/-/issues/178
+
+Fixes: 3ff5b6cc9841 ('c-e: support importing WireGuard profiles from wg-quick files')
+---
+ src/connection-editor/connection-helpers.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/connection-editor/connection-helpers.c b/src/connection-editor/connection-helpers.c
+index a58a2fbb..43ff2838 100644
+--- a/src/connection-editor/connection-helpers.c
++++ b/src/connection-editor/connection-helpers.c
+@@ -272,8 +272,8 @@ import_vpn_from_file_cb (GtkWidget *dialog, gint response, gpointer user_data)
+ 	connection = connection_import_from_file (filename, G_TYPE_INVALID, NULL, &error);
+ 	if (!connection) {
+ 		/* pass */
+-	} else if (nm_streq (nm_connection_get_connection_type (connection),
+-	                     NM_SETTING_WIREGUARD_SETTING_NAME)) {
++	} else if (nm_streq0 (nm_connection_get_connection_type (connection),
++	                      NM_SETTING_WIREGUARD_SETTING_NAME)) {
+ 		info->result_func (FUNC_TAG_PAGE_NEW_CONNECTION_RESULT_CALL, connection, FALSE, NULL,
+ 		                   info->user_data);
+ 	} else {
+-- 
+GitLab
+

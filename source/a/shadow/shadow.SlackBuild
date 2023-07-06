@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=shadow
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-12}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -118,6 +118,7 @@ fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sbindir=/usr/sbin \
   --bindir=/usr/bin \
   --sysconfdir=/etc \
@@ -136,7 +137,11 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
 # Fix user group = 100:
+mkdir -p $PKG/etc/default
 zcat $CWD/useradd.gz > $PKG/etc/default/useradd
 mv $PKG/etc/default/useradd $PKG/etc/default/useradd.new
 

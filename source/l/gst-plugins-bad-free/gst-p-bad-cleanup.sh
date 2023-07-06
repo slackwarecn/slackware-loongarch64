@@ -33,6 +33,7 @@ camerabin
 camerabin2
 cdxaparse
 codecalpha
+codectimestamper
 coloreffects
 colorspace
 compositor

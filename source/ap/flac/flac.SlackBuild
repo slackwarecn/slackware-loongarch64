@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2018, 2019, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -70,7 +70,6 @@ cd $TMP
 rm -rf flac-$VERSION
 tar xvf $CWD/flac-$VERSION.tar.?z* || exit 1
 cd flac-$VERSION
-zcat $CWD/flac.man.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 chown -R root:root .
 find . \
@@ -119,18 +118,22 @@ to size.
 EOF
 # Add a few more docs:
 cp -a \
-  AUTHORS COPYING* README \
+  AUTHORS* CHANGELOG* COPYING* README* \
   $PKG/usr/doc/flac-$VERSION
 
 # Strip files
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-gzip -9 $PKG/usr/man/man?/*.?
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 mkdir $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/flac-$VERSION-$ARCH-$BUILD.txz
-

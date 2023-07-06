@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2016, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2016, 2018, 2019, 2022  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=xorg-server-xwayland
 SRCNAM=xwayland
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Default font paths to be used by the X server:
 DEF_FONTPATH="/usr/share/fonts/misc,/usr/share/fonts/local,/usr/share/fonts/TTF,/usr/share/fonts/OTF,/usr/share/fonts/Type1,/usr/share/fonts/CID,/usr/share/fonts/75dpi/:unscaled,/usr/share/fonts/100dpi/:unscaled,/usr/share/fonts/75dpi,/usr/share/fonts/100dpi,/usr/share/fonts/cyrillic"
@@ -79,10 +79,6 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
-
-# Patch more security issues:
-zcat $CWD/CVE-2022-3550.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/CVE-2022-3551.patch.gz | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
@@ -154,6 +150,12 @@ if [ -r ChangeLog ]; then
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
+
+# Relocate some docs:
+mv $PKG/usr/share/doc/xorg-server/* $PKG/usr/doc/$PKGNAM-$VERSION
+rmdir $PKG/usr/share/doc/xorg-server
+rmdir $PKG/usr/share/doc
+rmdir $PKG/usr/share
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

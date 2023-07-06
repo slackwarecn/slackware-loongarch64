@@ -10,9 +10,13 @@ mv ghostscript-${VERSION}.tar.xz ghostscript-${VERSION}.tar.xz.orig
 ( cd ghostscript-${VERSION} && rm -rf freetype jpeg lcms2 lcms2art/doc/* libpng libtiff png tiff zlib )
 # Dump huge PDFs:
 ( cd ghostscript-${VERSION}
+  find . -name Ghostscript.pdf -exec rm {} \;
   find . -name GS9_Color_Management.pdf -exec rm {} \;
   rm -f doc/colormanage/figures/*.pdf
   rm -f lcms2mt/doc/*
+  rm -f extract/test/*.pdf
+  rm -f toolbin/color/icc_creator/example/duotone.pdf toolbin/color/icc_creator/example/tritone.pdf toolbin/halftone/ETS/ei03.pdf
+  rm -f doc/pclxps/ghostpdl.pdf
 )
 tar cf ghostscript-${VERSION}.tar ghostscript-${VERSION}
 rm -r ghostscript-${VERSION}

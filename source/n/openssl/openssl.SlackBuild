@@ -2,7 +2,7 @@
 
 # Copyright 2000 BSDi, Inc. Concord, CA, USA
 # Copyright 2001, 2002 Slackware Linux, Inc.  Concord, CA, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -65,13 +65,7 @@ rm -rf $PKG1 $PKG2 openssl-$VERSION
 
 tar xvf $CWD/openssl-$VERSION.tar.gz || exit 1
 cd openssl-$VERSION
-
-# Fix pod syntax errors which are fatal wih a newer perl:
-find . -name "*.pod" -exec sed -i "s/^\=item \([0-9]\)\(\ \|$\)/\=item C<\1>/g" {} \;
-
-## For openssl-1.1.x, don't try to change the soname.
-## Use .so.1, not .so.1.0.0:
-#sed -i "s/soname=\$\$SHLIB\$\$SHLIB_SOVER\$\$SHLIB_SUFFIX/soname=\$\$SHLIB.1/g" Makefile.shared
+chown -R root:root .
 
 if [ "$ARCH" = "i586" ]; then
   # Build with -march=i586 -mtune=i686:
@@ -85,19 +79,14 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 fi
 
-# OpenSSL has a (nasty?) habit of bumping the internal version number with
-# every release.  This wouldn't be so bad, but some applications are so
-# paranoid that they won't run against a different OpenSSL version than
-# what they were compiled against, whether or not the ABI has changed.
-#
-# So, we will use the OPENSSL_VERSION_NUMBER from openssl-1.1.1 unless ABI
-# breakage forces it to change.  Yes, we're finally using this old trick.  :)
-sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1010100fL (1.1.1) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1010100fL/g" include/openssl/opensslv.h || exit 1
+# Patch openssl.cnf to remove useless FIPS documentation, and to provide
+# examples for enabling legacy algorithms. These are considered weaker, but
+# some applications may still require them.
+zcat $CWD/0024-load-legacy-prov.patch.gz | patch -p1 --verbose || exit 1
 
-chown -R root:root .
 mkdir -p $PKG1/usr/doc/openssl-$VERSION
-cp -a ACKNOWLEDGEMENTS AUTHORS CHANGES* CONTRIBUTING FAQ INSTALL* \
-  LICENSE* NEWS NOTES* README* doc \
+cp -a ACKNOWLEDGEMENTS* AUTHORS* CHANGES* CONTRIBUTING* FAQ* INSTALL* \
+  LICENSE* NEWS* NOTES* README* doc \
   $PKG1/usr/doc/openssl-$VERSION
 find $PKG1/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \+
 find $PKG1/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \+
@@ -134,7 +123,8 @@ fi
  no-weak-ssl-ciphers \
  no-mdc2 \
  no-ec2m \
- no-idea \
+ no-sm2 \
+ no-sm4 \
  no-sse2 \
  shared
 
@@ -152,20 +142,17 @@ rm -rf $PKG1/usr/share/doc
 
 # Also no thanks on .pod versions of the already shipped manpages:
 rm -rf $PKG1/usr/doc/openssl-*/doc/man*
-
-# Make the .so.? library symlinks:
-( cd $PKG1/usr/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.* )
+rm -rf $PKG1/usr/doc/openssl-*/doc/internal
 
 # Move libraries, as they might be needed by programs that bring a network
 # mounted /usr online:
 
 mkdir $PKG1/lib${LIBDIRSUFFIX}
 ( cd $PKG1/usr/lib${LIBDIRSUFFIX}
-  for file in lib*.so.?.* ; do
+  for file in lib*.so.? ; do
     mv $file ../../lib${LIBDIRSUFFIX}
     ln -sf ../../lib${LIBDIRSUFFIX}/$file .
   done 
-  cp -a lib*.so.? ../../lib${LIBDIRSUFFIX}
 )
 
 # Add a cron script to warn root if a certificate is going to expire soon:
@@ -188,18 +175,6 @@ rm -f $PKG1/etc/ssl/openssl.cnf.dist
 mv $PKG1/usr/share/man $PKG1/usr
 rmdir $PKG1/usr/share
 
-# Fix manpage name collisions, and relink anything that linked to the old name:
-( cd $PKG1/usr/man/man1
-  mv passwd.1 ssl_passwd.1
-  for file in *.1 ; do
-    if [ -L $file ]; then
-      if [ "$(readlink $file)" = "passwd.1" ]; then
-        rm -f $file
-        ln -sf ssl_passwd.1 $file
-      fi
-    fi
-  done )
-
 # Compress and symlink the man pages:
 if [ -d $PKG1/usr/man ]; then
   ( cd $PKG1/usr/man
@@ -209,25 +184,10 @@ if [ -d $PKG1/usr/man ]; then
           ln -s $( readlink $eachpage ).gz $eachpage.gz
           rm $eachpage
         done
-        gzip -9 *.?
+        gzip -9 *.?ossl
       )
     done
   )
-fi
-
-# If there's an openssl1 directory, then build openssl-1.0 shared libraries for
-# compatibility with programs linked to those:
-if [ -d $CWD/openssl1 ]; then
-  ( cd $CWD/openssl1
-    ./openssl1.build || exit 1
-  ) || exit 1
-  # Don't put these in the openssl package...  openssl-solibs is enough.
-  #mkdir -p $PKG1/lib${LIBDIRSUFFIX}
-  #cp -a $TMP/package-openssl1/usr/lib/lib*.so.?.?.? $PKG1/lib${LIBDIRSUFFIX}
-  #( cd $PKG1/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.?.?.? )
-  mkdir -p $PKG2/lib${LIBDIRSUFFIX}
-  cp -a $TMP/package-openssl1/usr/lib${LIBDIRSUFFIX}/lib*.so.?.?.? $PKG2/lib${LIBDIRSUFFIX}
-  ( cd $PKG2/lib${LIBDIRSUFFIX} ; ldconfig -l lib*.so.?.?.? )
 fi
 
 cd $PKG1
@@ -241,13 +201,20 @@ cat $CWD/slack-desc.openssl > install/slack-desc
 # Make runtime package:
 mkdir -p $PKG2/lib${LIBDIRSUFFIX}
 ( cd lib${LIBDIRSUFFIX} ; cp -a lib*.so.* $PKG2/lib${LIBDIRSUFFIX} )
-( cd $PKG2/lib${LIBDIRSUFFIX} ; ldconfig -l * )
+mkdir -p $PKG2/usr/lib${LIBDIRSUFFIX}
+cp -a $PKG1//usr/lib${LIBDIRSUFFIX}/{engines-3,ossl-modules} $PKG2/usr/lib${LIBDIRSUFFIX}
+( cd $PKG2/lib${LIBDIRSUFFIX}
+  for file in lib*.so.? ; do
+    ( cd $PKG2/usr/lib${LIBDIRSUFFIX} ; ln -sf ../../lib${LIBDIRSUFFIX}/$file . )
+  done
+)
 mkdir -p $PKG2/etc
 ( cd $PKG2/etc ; cp -a $PKG1/etc/ssl . )
 mkdir -p $PKG2/usr/doc/openssl-$VERSION
 ( cd $TMP/openssl-$VERSION
-  cp -a ACKNOWLEDGEMENTS AUTHORS CHANGES* CONTRIBUTING FAQ INSTALL* \
-  LICENSE* NEWS NOTES* README* $PKG2/usr/doc/openssl-$VERSION
+  cp -a ACKNOWLEDGEMENTS* AUTHORS* CHANGES* CONTRIBUTING* FAQ* INSTALL* \
+  LICENSE* NEWS* NOTES* README* \
+  $PKG2/usr/doc/openssl-$VERSION
   # If there's a CHANGES file, installing at least part of the recent history
   # is useful, but don't let it get totally out of control:
   if [ -r CHANGES ]; then

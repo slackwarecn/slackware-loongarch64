@@ -26,16 +26,10 @@ mkdir -p $TMP/mozilla-thunderbird-build-deps
 # This will be at the beginning of the $PATH, so protect against nonsense
 # happening in /tmp:
 chmod 700 $TMP/mozilla-thunderbird-build-deps
-PATH=$TMP/mozilla-thunderbird-build-deps/usr/bin:$HOME/.cargo/bin:$PATH
 
-# cbindgen is a build-time dependency:
-( cd $CWD/build-deps/cbindgen ; ./cbindgen.build ) || exit 1
-
-if /bin/ls build-deps*.txz 1> /dev/null 2> /dev/null ; then # use prebuilt autoconf/nodejs
+if /bin/ls build-deps*.txz 1> /dev/null 2> /dev/null ; then # use prebuilt
   ( cd $TMP/mozilla-thunderbird-build-deps ; tar xf $CWD/build-deps*.txz )
 else
   # We need to use the incredibly ancient autoconf-2.13 for this  :/
   ( cd $CWD/build-deps/autoconf ; ./autoconf.build ) || exit 1
-  ## And node.js... WHY
-  #( cd $CWD/build-deps/nodejs ; ./nodejs.build ) || exit 1
 fi

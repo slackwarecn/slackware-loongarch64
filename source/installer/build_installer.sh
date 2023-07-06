@@ -3,7 +3,7 @@ set +o posix
 
 # $Id: build_installer.sh,v 1.129 2011/04/13 23:03:07 eha Exp eha $
 #
-# Copyright 2005-2022  Stuart Winter, Surrey, England, UK
+# Copyright 2005-2023  Stuart Winter, Surrey, England, UK
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -108,6 +108,7 @@ case $ARCH in
                           # The firmware we include by default is only for x86, but
     ADD_NETFIRMWARE=1     # we'll probably want to include some at some stage. For now supply -nf to this script.
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
   x86_64)
     ADD_NETMODS=1
@@ -124,6 +125,7 @@ case $ARCH in
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
   i586)
     ADD_NETMODS=1
@@ -140,6 +142,7 @@ case $ARCH in
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
   *)
     ADD_NETMODS=1         # add network modules
@@ -155,6 +158,7 @@ case $ARCH in
     VERBOSE=1             # show a lot of additional output
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1
+    ADD_BRICKTICK=1
     ;;
 esac
 
@@ -233,6 +237,10 @@ while [ ! -z "$1" ]; do
       ;;
     -n|--netmods)
       ADD_NETMODS=1
+      shift
+      ;;
+    -nb|--no-bricktick)
+      ADD_BRICKTICK=0
       shift
       ;;
     -nc|--no-compressmods)
@@ -670,9 +678,9 @@ make $SILENTMAKE $NUMJOBS CFLAGS="$SLKCFLAGS" || exit 1
 make $SILENTMAKE $NUMJOBS install || exit 1
 cd _install
 
-# Since Slackware 's installer uses the 'date' from coreutils, and 'zcat'
-# script from gzip, we delete the busybox symlinks:
-rm -f${VERBOSE1} bin/date bin/zcat
+# Since Slackware's installer uses the 'date' and 'dd' from coreutils,
+# and the 'zcat' script from gzip, we delete the busybox symlinks:
+rm -f${VERBOSE1} bin/{date,dd,zcat}
 
 # Likewise, we will remove the 'fdisk' applet which overwrites our shell script:
 rm -f${VERBOSE1} sbin/fdisk
@@ -829,6 +837,43 @@ fi
 }
 
 
+############### Build bricktick ################################################
+
+build_bricktick()
+{
+echo "--- Building bricktick ncurses game ---"
+# Extract source:
+cd $TMP
+if [ -d $CWD/sources/bricktick ]; then
+  echo "--- Using _your_ bricktick sources (not those in the Slacktree) ---"
+  BRICKTICKPATH=$CWD/sources/bricktick
+elif [ -d $SRCDIR/sources/bricktick ]; then
+  echo "--- Using _your_ bricktick sources (not those in the Slacktree) ---"
+  BRICKTICKPATH=$SRCDIR/sources/bricktick
+else
+  # Use the bricktick sources from the Slackware tree.
+  BRICKTICKPATH=$SLACKROOT/source/installer/bricktick
+fi
+[ ! -d $BRICKTICKPATH ] && ( echo "No directory '$BRICKTICKPATH'" ; exit 1 )
+BRICKTICKPKG=$(ls -1 $BRICKTICKPATH/bricktick-*.tar.?z | head -1)
+BRICKTICKVER=$(echo $BRICKTICKPKG | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+tar x${VERBOSE2}f $BRICKTICKPKG
+
+echo "--- Compiling BRICKTICK version '$BRICKTICKVER' ---"
+cd bricktick* || exit 1
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+# Build:
+make $NUMJOBS || make || exit 1
+
+# Install into installer's filesystem:
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/bin
+cp -a bricktick $PKG/$ARCH-installer-filesystem/usr/bin/bricktick
+strip --strip-unneeded $PKG/$ARCH-installer-filesystem/usr/bin/bricktick
+
+}
+
 ############### Build dnsmasq ##################################################
 
 build_dnsmasq()
@@ -953,6 +998,7 @@ a/util-linux \
 a/xfsprogs \
 a/xz \
 a/zerofree \
+a/userspace-rcu \
 ap/ddrescue \
 ap/dmidecode \
 ap/lsscsi \
@@ -1015,6 +1061,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_BIN} \
         cp \
         cut \
         date \
+        dd \
         dialog \
         dircolors \
         findmnt \
@@ -1083,6 +1130,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         cgdisk \
         cryptsetup \
         debugfs \
+        depmod \
         dmsetup \
         dosfsck \
         dumpe2fs \
@@ -1106,7 +1154,6 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         logsave \
         ldconfig \
         lsmod \
-        lspci \
         lvm \
         lvmdump \
         mount.nfs \
@@ -1298,6 +1345,9 @@ cp  -fa${VERBOSE1} \
         libpam*.so* \
         libpcre2-8.so* \
         libpopt*.so* \
+        liburcu-common.so.* \
+        liburcu.so.* \
+        libreiserfscore.so* \
         libsmartcols.so* \
         libssl*so* \
         libtirpc*so* \
@@ -1392,7 +1442,7 @@ for prunedir in $PKG/$ARCH-installer-filesystem/usr/bin $PKG/$ARCH-installer-fil
     rm -f $PKG/$ARCH-installer-filesystem/sbin/$(basename $removefile)
   done
 done
-if [ -r rm -f $PKG/$ARCH-installer-filesystem/sbin/lspci -a ! -L $PKG/$ARCH-installer-filesystem/sbin/lspci -a -L $PKG/$ARCH-installer-filesystem/bin/lspci ]; then
+if [ -r $PKG/$ARCH-installer-filesystem/sbin/lspci -a ! -L $PKG/$ARCH-installer-filesystem/sbin/lspci -a -L $PKG/$ARCH-installer-filesystem/bin/lspci ]; then
   rm -f $PKG/$ARCH-installer-filesystem/bin/lspci
 fi
 
@@ -1579,7 +1629,7 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
            cp -a fs.orig/{udf*,isofs*,cifs*,ext*,fat*,fscache,jfs*,lockd,nfs,nfs_common,jbd*,nls,reiserfs,xfs,binfmt*,mbcache*,exportfs*} fs/
          ;;
          *86*)
-           cp -a fs.orig/{cifs*,exfat,fscache,lockd,nfs,nfs_common,ntfs3} fs/
+           cp -a fs.orig/{cifs*,efivarfs,exfat,fscache,lockd,nfs,nfs_common,ntfs3} fs/
          ;;
          *)
            cp -a fs.orig/cifs* fs/
@@ -2029,7 +2079,7 @@ fi
 if [ $SPLIT_INITRD -eq 0 ]; then
   # Determine the size of the installer:
   echo "    Installer size (uncompressed): $( du -sh . )"
-  find . | cpio -o -H newc | xz -9fv -C crc32 > $CWD/initrd.img
+  find . | cpio -o -H newc | xz -9fvv -C crc32 > $CWD/initrd.img
   echo "    New installer image is ${CWD}/initrd.img"
   cp -a $SLACKROOT/isolinux/isolinux.cfg $CWD/
 fi
@@ -2378,6 +2428,11 @@ else
   # Are we adding the nano editor?
   if [ $ADD_NANO -eq 1 ]; then
     build_nano
+  fi
+
+  # Are we adding the bricktick game?
+  if [ $ADD_BRICKTICK -eq 1 ]; then
+    build_bricktick
   fi
 
   # Are we adding network modules?

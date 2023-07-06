@@ -1,0 +1,87 @@
+--- ./configure.ac.orig	2023-02-06 19:16:51.000000000 -0600
++++ ./configure.ac	2023-03-21 14:37:59.920154015 -0500
+@@ -72,6 +72,7 @@
+ AC_CONFIG_HEADERS(include/version-config.h)
+ 
+ AM_PROG_AS
++AC_PROG_CXX
+ AC_PROG_LN_S
+ LT_PREREQ([2.2])
+ LT_INIT([disable-static win32-dll])
+@@ -1712,6 +1713,10 @@
+ 	AC_SUBST([XVFB_SYS_LIBS])
+ fi
+ 
++dnl Xvnc DDX
++AC_SUBST([XVNC_CPPFLAGS], ["-DHAVE_DIX_CONFIG_H $XSERVER_CFLAGS"])
++AC_SUBST([XVNC_LIBS], ["$FB_LIB $FIXES_LIB $XEXT_LIB $CONFIG_LIB $DBE_LIB $RECORD_LIB $GLX_LIBS $RANDR_LIB $RENDER_LIB $DAMAGE_LIB $DRI3_LIB $PRESENT_LIB $MIEXT_SYNC_LIB $MIEXT_DAMAGE_LIB $MIEXT_SHADOW_LIB $XI_LIB $XKB_LIB $XKB_STUB_LIB $COMPOSITE_LIB $MAIN_LIB"])
++AC_SUBST([XVNC_SYS_LIBS], ["$GLX_SYS_LIBS"])
+ 
+ dnl Xnest DDX
+ 
+@@ -1747,6 +1752,8 @@
+ fi
+ AC_MSG_RESULT([$XORG])
+ 
++AC_DEFINE_UNQUOTED(XORG_VERSION_CURRENT, [$VENDOR_RELEASE], [Current Xorg version])
++
+ if test "x$XORG" = xyes; then
+ 	PKG_CHECK_MODULES([LIBXCVT], $LIBXCVT)
+ 
+@@ -1955,7 +1962,6 @@
+ 	AC_DEFINE(XORG_SERVER, 1, [Building Xorg server])
+ 	AC_DEFINE(XORGSERVER, 1, [Building Xorg server])
+ 	AC_DEFINE(XFree86Server, 1, [Building XFree86 server])
+-	AC_DEFINE_UNQUOTED(XORG_VERSION_CURRENT, [$VENDOR_RELEASE], [Current Xorg version])
+ 	AC_DEFINE(NEED_XF86_TYPES, 1, [Need XFree86 typedefs])
+ 	AC_DEFINE(NEED_XF86_PROTOTYPES, 1, [Need XFree86 helper functions])
+ 	AC_DEFINE(__XSERVERNAME__, "Xorg", [Name of X server])
+@@ -2338,6 +2344,7 @@
+ hw/xfree86/utils/gtf/Makefile
+ hw/vfb/Makefile
+ hw/vfb/man/Makefile
++hw/vnc/Makefile
+ hw/xnest/Makefile
+ hw/xnest/man/Makefile
+ hw/xwin/Makefile
+--- ./hw/Makefile.am.orig	2023-03-21 14:37:59.920154015 -0500
++++ ./hw/Makefile.am	2023-03-21 14:42:59.489160716 -0500
+@@ -28,7 +28,8 @@
+ 	$(XVFB_SUBDIRS)		\
+ 	$(XNEST_SUBDIRS)	\
+ 	$(KDRIVE_SUBDIRS)	\
+-	$(XQUARTZ_SUBDIRS)
++	$(XQUARTZ_SUBDIRS)	\
++	vnc
+ 
+ DIST_SUBDIRS = xfree86 vfb xnest xwin xquartz kdrive
+ 
+--- ./mi/miinitext.c.orig	2023-02-06 19:16:51.000000000 -0600
++++ ./mi/miinitext.c	2023-03-21 14:37:59.920154015 -0500
+@@ -106,8 +106,15 @@
+ 
+ #include "miinitext.h"
+ 
++#ifdef TIGERVNC
++extern void vncExtensionInit(INITARGS);
++#endif
++
+ /* List of built-in (statically linked) extensions */
+ static const ExtensionModule staticExtensions[] = {
++#ifdef TIGERVNC
++    {vncExtensionInit, "VNC-EXTENSION", NULL},
++#endif
+     {GEExtensionInit, "Generic Event Extension", &noGEExtension},
+     {ShapeExtensionInit, "SHAPE", NULL},
+ #ifdef MITSHM
+--- ./include/os.h.orig	2023-02-06 19:16:51.000000000 -0600
++++ ./include/os.h	2023-03-21 14:37:59.920154015 -0500
+@@ -638,7 +638,7 @@
+ extern _X_EXPORT void
+ LogClose(enum ExitCode error);
+ extern _X_EXPORT Bool
+-LogSetParameter(LogParameter param, int value);
++LogSetParameter(enum _LogParameter param, int value);
+ extern _X_EXPORT void
+ LogVWrite(int verb, const char *f, va_list args)
+ _X_ATTRIBUTE_PRINTF(2, 0);

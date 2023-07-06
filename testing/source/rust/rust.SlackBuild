@@ -26,17 +26,17 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
-VERSION=${VERSION:-1.64.0}
+VERSION=${VERSION:-1.70.0}
 BUILD=${BUILD:-1}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 # YES is probably better (when it works...)
-SYSTEM_LLVM=${SYSTEM_LLVM:-YES}
+SYSTEM_LLVM=${SYSTEM_LLVM:-NO}
 
 # Bootstrap variables (might not be kept updated for latest Rust):
-RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.63.0}
-RSTAGE0_DIR=${RSTAGE0_DIR:-2022-08-11}
-CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.63.0}
+RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.69.0}
+RSTAGE0_DIR=${RSTAGE0_DIR:-2023-04-20}
+CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.69.0}
 CSTAGE0_DIR=${CSTAGE0_DIR:-$RSTAGE0_DIR}
 
 # Automatically determine the architecture we're building on:
@@ -111,7 +111,7 @@ else
 fi
 
 TMP=${TMP:-/tmp}
-OUTPUT=${OUTPUT:-/tmp}
+OUTPUT=${OUTPUT:-$TMP}
 PKG=$TMP/package-$PKGNAM
 
 # Not needed, as the build will automatically use as many jobs as there are
@@ -141,9 +141,6 @@ cd $SRCNAM-$VERSION-src || exit 1
 if [ "${SYSTEM_LLVM}" = "YES" ]; then
   zcat $CWD/link_libffi.diff.gz | patch -p1 --verbose || exit 1
 fi
-
-# Fix build with glibc-2.36:
-zcat $CWD/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff.gz | patch -p1 --verbose || exit 1
 
 if [ "$LOCAL_BOOTSTRAP" != "yes" ] ; then
   # rust requires bootstrapping with the previous rust version.
@@ -182,7 +179,6 @@ codegen-units = 0
 channel = "stable"
 rpath = false
 codegen-tests = false
-ignore-git = true
 
 EOF
 

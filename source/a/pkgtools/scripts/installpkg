@@ -167,6 +167,7 @@ Installpkg is used to install a .t{gz,bz,lz,xz} package like this:
    installpkg slackware-package-1.0.0-i486-1.tgz (or .tbz, .tlz, .txz)
 
 options:      --warn (warn if files will be overwritten, but do not install)
+              --dry-run (same as --warn)
               --root /mnt (install someplace else, like /mnt)
               --infobox (use dialog to draw an info box)
               --terse (display a one-line short description for install)
@@ -231,7 +232,7 @@ fi
 
 # Parse options:
 while [ 0 ]; do
-  if [ "$1" = "-warn" -o "$1" = "--warn" ]; then
+  if [ "$1" = "-warn" -o "$1" = "--warn" -o "$1" = "-dry-run" -o "$1" = "--dry-run" ]; then
     MODE=warn
     shift 1
   elif [ "$1" = "-md5sum" -o "$1" = "--md5sum" ]; then
@@ -268,8 +269,6 @@ while [ 0 ]; do
   elif [ "$1" = "-threads" -o "$1" = "--threads" ]; then
     THREADS="$2"
     shift 2
-    # xz has not yet implemented multi-threaded decompression.
-    # Who knows if or how well it will work...
     XZ_THREADS_FORCED=yes
   elif [ "$1" = "-priority" -o "$1" = "--priority" ]; then
     if [ "$2" = "" ]; then
@@ -362,10 +361,11 @@ if [ "$MODE" = "warn" ]; then
       fi
       ;;
     'txz' )
-      if [ ! "$XZ_THREADS_FORCED" = "yes" ]; then
+      if [ "$XZ_THREADS_FORCED" = "yes" ]; then
         packagecompression="xz --threads=${THREADS}"
       else
-        packagecompression="xz --threads=2"
+        # Let xz determine how many threads to use:
+        packagecompression="xz --threads=0"
       fi
       ;;
     esac
@@ -450,10 +450,11 @@ for package in $* ; do
     fi
     ;;
   'txz' )
-    if [ ! "$XZ_THREADS_FORCED" = "yes" ]; then
+    if [ "$XZ_THREADS_FORCED" = "yes" ]; then
       packagecompression="xz --threads=${THREADS}"
     else
-      packagecompression="xz --threads=2"
+      # Let xz determine how many threads to use:
+      packagecompression="xz --threads=0"
     fi
     ;;
   esac

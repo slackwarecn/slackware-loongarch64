@@ -17,7 +17,11 @@ config() {
 # /usr/local/share/ca-certificates directory.
 #config etc/ca-certificates.conf.new
 
-if [ -x /usr/sbin/update-ca-certificates ]; then
-  /usr/sbin/update-ca-certificates --fresh 1> /dev/null 2> /dev/null
+# We don't want to run this from the installer because we've got a script
+# that runs it after all the packages are installed. But if we do run it,
+# we should chroot into the target partition to make sure the updates are
+# done in the correct location (and not on the calling partition):
+if [ ! -r /usr/lib/setup/setup ]; then
+  chroot . /usr/sbin/update-ca-certificates --fresh 1> /dev/null 2> /dev/null
 fi
 

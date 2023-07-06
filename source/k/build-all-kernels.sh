@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2021, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -66,7 +66,7 @@ for recipe in $RECIPES ; do
   # files and package naming scheme, and define the output location.
   if [ "$recipe" = "x86_64" ]; then
     # Recipe for x86_64:
-    CONFIG_SUFFIX=".x64"
+    export CONFIG_SUFFIX=".x64"
     unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-x86_64-${VERSION}}
   elif [ "$recipe" = "IA32_SMP" ]; then

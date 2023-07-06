@@ -3,7 +3,7 @@
 # Slackware build script for llvm
 
 # Copyright 2008-2016 Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,23 +27,19 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=llvm
 VERSION=${VERSION:-$(echo llvm-*.tar.xz | rev | cut -f 4- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # For the two options below, either set both to OFF or *only one* to ON:
 
-# Build using -DBUILD_SHARED_LIBS=ON.
-# While this is not the officially recommended way to build LLVM, it produces
-# a smaller package and the compiler seems to be reliable when built this way.
-BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS:=ON}
-
 # Build using -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DCLANG_LINK_CLANG_DYLIB=ON:
-# This is the recommended way to built LLVM with shared libraries, however
-# the resulting package is twice as large and also wasn't able to build
-# Firefox or Thunderbird here. If you rebuild LLVM with this option, you'll
-# also need to recompile spirv-llvm-translator, mesa, and possibly other
-# third party packages. The resulting compiler has not been reliable here.
-# I would not recommend using this option, but feel free to try it.
-LLVM_BUILD_LLVM_DYLIB=${LLVM_BUILD_LLVM_DYLIB:=OFF}
+# This is the upstream recommended way to build LLVM with shared libraries and
+# seems to be the way to go these days.
+LLVM_BUILD_LLVM_DYLIB=${LLVM_BUILD_LLVM_DYLIB:=ON}
+
+# Build using -DBUILD_SHARED_LIBS=ON.
+# We used this for years here to get a smaller LLVM package, but it no longer
+# works. Feel free to try it, but expect breakage.
+BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS:=OFF}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -53,19 +49,6 @@ if [ -z "$ARCH" ]; then
     arm*) ARCH=arm ;;
        *) ARCH=$( uname -m ) ;;
   esac
-fi
-
-# Building clangd will be determined automatically unless BUILD_CLANG is
-# preset to YES or NO:
-if [ -z $BUILD_CLANGD ]; then
-  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
-    BUILD_CLANGD=NO
-  else
-    BUILD_CLANGD=YES
-  fi
-fi
-if [ "$BUILD_CLANGD" = "NO" ]; then
-  CLANGD="-DCLANG_ENABLE_CLANGD=OFF"
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -80,18 +63,35 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 BUILDDIR=${TMP}/llvm-build-${VERSION}
 
+# Ignore that which should be ignored to avoid long build times and
+# massive warning spew:
+IGNORE_GNU_EXTENSIONS=${IGNORE_GNU_EXTENSIONS:--Wno-unknown-warning-option -Wno-gnu-line-marker -Wno-gnu-anonymous-struct}
+
 if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686 $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686 $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -fPIC $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX="64"
 else
-  SLKCFLAGS="-O2"
+  SLKCFLAGS="-O2 $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
+fi
+
+# Building clangd will be determined automatically unless BUILD_CLANG is
+# preset to YES or NO:
+if [ -z $BUILD_CLANGD ]; then
+  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+    BUILD_CLANGD=NO
+  else
+    BUILD_CLANGD=YES
+  fi
+fi
+if [ "$BUILD_CLANGD" = "NO" ]; then
+  CLANGD="-DCLANG_ENABLE_CLANGD=OFF"
 fi
 
 # Python2 short version:
@@ -116,6 +116,12 @@ cd $BUILDDIR
 touch configure
 chmod 755 configure
 
+# Extract and rename some support files:
+tar xvf $CWD/cmake-$VERSION.src.tar.xz || exit 1
+mv cmake-$VERSION.src cmake
+tar xvf $CWD/third-party-$VERSION.src.tar.xz || exit 1
+mv third-party-$VERSION.src third-party
+
 rm -rf $PKGNAM-${VERSION}.src $PKGNAM-${VERSION}
 tar xvf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
 
@@ -134,9 +140,9 @@ cd tools/clang/tools || exit 1
   tar xvf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
   mv clang-tools-extra-${VERSION} extra 2>/dev/null \
     || mv clang-tools-extra-${VERSION}.src extra || exit 1
-  # HACK # Otherwise the build fails because files aren't found.
-  rm -rf $TMP/clang-tools-extra
-  cp -a extra $TMP/clang-tools-extra
+  ## HACK # Otherwise the build fails because files aren't found.
+  #rm -rf $TMP/clang-tools-extra
+  #cp -a extra $TMP/clang-tools-extra
 cd ../../../
 
 cd projects || exit 1
@@ -158,26 +164,16 @@ cd ../
 # Support GCC built for i586-slackware-linux:
 zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
 
-# Hack to fix build with polly. Maybe we should just not use polly... ?
-zcat $CWD/llvm.polly.hack.diff.gz | patch -p1 --verbose || exit 1
-
 # We require libatomic on 32-bit platforms:
-if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
-  zcat $CWD/lldb.32-bit.link.libatomic.diff.gz | patch -p1 --verbose || exit 1
+if [ -f ./tools/lldb/source/Utility/CMakeLists.txt ]; then
+  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+    zcat $CWD/lldb.32-bit.link.libatomic.diff.gz | patch -p1 --verbose || exit 1
+  fi
 fi
 
-# Won't build without this. See https://github.com/llvm/llvm-project/issues/54941
-#zcat $CWD/llvm.bypass.broken.benchmarks.diff.gz | patch -p1 --verbose || exit 1
-
-# Patch to fix build with glibc-2.36:
-zcat $CWD/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff.gz | patch -p1 --verbose || exit 1
-
-# These hackish links seem to be required...
+# This hackish link seems to be required...
 cd ..
-ln -sf */utils/gn/secondary/third-party .
 ln -sf */runtimes .
-ln -sf */projects/libcxx .
-ln -sf */projects/libcxxabi .
 cd -
 
 chown -R root:root .
@@ -210,19 +206,25 @@ cd build
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DLLVM_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
+    -DLIBCXX_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
+    -DLIBCXXABI_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_BUILD_TYPE=Release \
     $SHARED_LIBRARY_OPTIONS \
-    -DLLVM_USE_LINKER=gold \
+    -DLLVM_USE_LINKER=lld \
     -DLLVM_ENABLE_RTTI=ON \
     -DLLVM_ENABLE_FFI=ON \
+    -DLLVM_ENABLE_ZLIB=ON \
     -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=NO \
     -DLLVM_INSTALL_UTILS=ON \
     -DLLVM_BINUTILS_INCDIR=/usr/include \
-    -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/${VERSION}" \
+    -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/$(echo $VERSION | cut -f 1 -d .)" \
     -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF" \
-    -DLLDB_USE_SYSTEM_SIX=1 \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
+    -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+    -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
+    -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=ON \
     $CLANGD \
     ..  || exit 1
 
@@ -248,6 +250,7 @@ if [ ! -r $PKG/usr/bin/lit-cpuid ]; then
   chown root:root $PKG/usr/bin/lit-cpuid
   chmod 755 $PKG/usr/bin/lit-cpuid
 fi
+
 # Remove symlink to libgomp, which is already provided by gcc:
 rm -f $PKG/usr/lib$LIBDIRSUFFIX/libgomp.so
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libieee1284
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-6}
+BUILD=${BUILD:-7}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -78,8 +78,20 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Upstream commits around better python bindings support
+zcat $CWD/libieee1284-fix-warnings.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/libieee1284-add-more-python-bindings.patch.gz | patch -p1 --verbose || exit 1
+
+# Arch patch to update python bindings to python3
+zcat $CWD/libieee1284-python3.patch.gz | patch -p1 --verbose || exit 1
+
+sed -i "s|print sys.version\[:3\]|print(sys.version\[:3\])|" ./configure
+sed -i "s|print sys.platform|print(sys.platform)|" ./configure
+sed -i "s|lib/python|lib$LIBDIRSUFFIX/python|" ./configure
+
 # Configure:
 CFLAGS="$SLKCFLAGS" \
+PYTHON="/usr/bin/python3" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \

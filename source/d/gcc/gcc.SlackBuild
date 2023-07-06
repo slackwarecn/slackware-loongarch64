@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -57,7 +57,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=gcc
 SRCVER=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 VERSION=$(echo $SRCVER | cut -f 1 -d _)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # How many jobs to run in parallel:
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
@@ -84,6 +84,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "gcc-objc-$VERSION-$ARCH-$BUILD.txz"
   echo "gcc-go-$VERSION-$ARCH-$BUILD.txz"
   echo "gcc-gdc-$VERSION-$ARCH-$BUILD.txz"
+  echo "gcc-gm2-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
 
@@ -143,13 +144,14 @@ PKG4=$TMP/package-gcc-gnat
 PKG6=$TMP/package-gcc-objc
 PKG8=$TMP/package-gcc-go
 PKG10=$TMP/package-gcc-gdc
+PKG11=$TMP/package-gcc-gm2
 
 # Clear the build locations:
-rm -rf $PKG{1,2,3,4,6,8,10}
-mkdir -p $PKG{1,2,3,4,6,8,10}/usr/doc/gcc-$VERSION
+rm -rf $PKG{1,2,3,4,6,8,10,11}
+mkdir -p $PKG{1,2,3,4,6,8,10,11}/usr/doc/gcc-$VERSION
 
 # Insert package descriptions:
-mkdir -p $PKG{1,2,3,4,6,8,9,10}/install
+mkdir -p $PKG{1,2,3,4,6,8,9,10,11}/install
 cat $CWD/slack-desc.gcc > $PKG1/install/slack-desc
 cat $CWD/slack-desc.gcc-g++ > $PKG2/install/slack-desc
 cat $CWD/slack-desc.gcc-gfortran > $PKG3/install/slack-desc
@@ -157,6 +159,7 @@ cat $CWD/slack-desc.gcc-gnat > $PKG4/install/slack-desc
 cat $CWD/slack-desc.gcc-objc > $PKG6/install/slack-desc
 cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
 cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
+cat $CWD/slack-desc.gcc-gm2 > $PKG11/install/slack-desc
 
 cd gcc-$SRCVER || exit 1
 
@@ -259,6 +262,17 @@ mkdir -p $PKG10/usr/doc/gcc-${VERSION}/gcc/d
   fi
 )
 
+mkdir -p $PKG11/usr/doc/gcc-${VERSION}/gcc/m2
+( cd gcc/m2 || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG11/usr/doc/gcc-${VERSION}/gcc/m2/ChangeLog
+    touch -r ChangeLog $PKG11/usr/doc/gcc-${VERSION}/gcc/m2/ChangeLog
+  fi
+  cp -a \
+    COPYING* NEWS* README* \
+  $PKG11/usr/doc/gcc-${VERSION}/gcc/m2
+)
+
 mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
 ( cd libgfortran || exit 0
   if [ -r ChangeLog ]; then
@@ -331,7 +345,7 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
      --infodir=/usr/info \
      --enable-shared \
      --enable-bootstrap \
-     --enable-languages=ada,c,c++,d,fortran,go,lto,objc,obj-c++ \
+     --enable-languages=ada,c,c++,d,fortran,go,lto,m2,objc,obj-c++ \
      --enable-threads=posix \
      --enable-checking=release \
      --enable-objc-gc \
@@ -602,6 +616,26 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   mv $PKG1/usr/man/man1/gdc.1.gz usr/man/man1
 ) || exit 1
 
+# gcc-gm2:
+( cd $PKG11
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/gm2 $PKG1/usr/bin/*-gm2 usr/bin
+  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/plugin
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/m2 usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/plugin/m2* usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/plugin
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libm2* usr/lib${LIBDIRSUFFIX}
+  # As a rule, we don't package static libraries:
+  ( cd usr/lib${LIBDIRSUFFIX}
+    for library in libm2*.so ; do
+      rm -f $(basename $library .so).a
+    done
+  )
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cc1gm2 usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gm2.1.gz usr/man/man1
+) || exit 1
+
 # Generate packages:
 ( cd $PKG1
   makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz )
@@ -617,8 +651,9 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   makepkg -l y -c n $TMP/gcc-go-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG10
   makepkg -l y -c n $TMP/gcc-gdc-$VERSION-$ARCH-$BUILD.txz )
+( cd $PKG11
+  makepkg -l y -c n $TMP/gcc-gm2-$VERSION-$ARCH-$BUILD.txz )
 
 echo
 echo "Slackware GCC package build complete!"
 echo
-

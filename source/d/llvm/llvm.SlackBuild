@@ -47,6 +47,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) ARCH=i586 ;;
     arm*) ARCH=arm ;;
+    loongarch64) ARCH=loong64 ;;
        *) ARCH=$( uname -m ) ;;
   esac
 fi
@@ -76,6 +77,11 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC "
+  LIBDIRSUFFIX="64"
+#  LINKER="bfd"
+  CMAKE_EXTRA=" -DLLVM_HOST_TRIPLE=loongarch64-slackware-linux"
 else
   SLKCFLAGS="-O2 $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
@@ -130,32 +136,32 @@ cd $PKGNAM-${VERSION}.src/tools || cd $PKGNAM-${VERSION}/tools || exit 1
   mv clang-${VERSION} clang 2>/dev/null || mv clang-${VERSION}.src clang || exit 1
   #tar xvf $CWD/flang-$VERSION.src.tar.xz || exit 1
   #mv flang-${VERSION} flang 2>/dev/null || mv flang-${VERSION}.src flang || exit 1
-  tar xvf $CWD/lldb-$VERSION.src.tar.xz || exit 1
-  mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
-  tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
-  mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
+#  tar xvf $CWD/lldb-$VERSION.src.tar.xz || exit 1
+#  mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
+#  tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
+#  mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
 cd ../
 
 cd tools/clang/tools || exit 1
-  tar xvf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
-  mv clang-tools-extra-${VERSION} extra 2>/dev/null \
-    || mv clang-tools-extra-${VERSION}.src extra || exit 1
+#  tar xvf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
+#  mv clang-tools-extra-${VERSION} extra 2>/dev/null \
+#    || mv clang-tools-extra-${VERSION}.src extra || exit 1
   ## HACK # Otherwise the build fails because files aren't found.
   #rm -rf $TMP/clang-tools-extra
   #cp -a extra $TMP/clang-tools-extra
 cd ../../../
 
 cd projects || exit 1
-  tar xvf $CWD/compiler-rt-$VERSION.src.tar.xz || exit 1
-  mv compiler-rt-${VERSION} compiler-rt 2>/dev/null || mv compiler-rt-${VERSION}.src compiler-rt || exit 1
-  tar xvf $CWD/openmp-$VERSION.src.tar.xz || exit 1
-  mv openmp-${VERSION} openmp 2>/dev/null || mv openmp-${VERSION}.src openmp || exit 1
-  tar xvf $CWD/libcxx-${VERSION}.src.tar.xz || exit 1
-  mv libcxx-${VERSION} libcxx 2>/dev/null || mv libcxx-${VERSION}.src libcxx || exit 1
-  tar xvf $CWD/libcxxabi-${VERSION}.src.tar.xz || exit 1
-  mv libcxxabi-${VERSION} libcxxabi 2>/dev/null || mv libcxxabi-${VERSION}.src libcxxabi || exit 1
-  tar xvf $CWD/polly-$VERSION.src.tar.xz || exit 1
-  mv polly-${VERSION} polly 2>/dev/null || mv polly-${VERSION}.src polly || exit 1
+#  tar xvf $CWD/compiler-rt-$VERSION.src.tar.xz || exit 1
+#  mv compiler-rt-${VERSION} compiler-rt 2>/dev/null || mv compiler-rt-${VERSION}.src compiler-rt || exit 1
+#  tar xvf $CWD/openmp-$VERSION.src.tar.xz || exit 1
+#  mv openmp-${VERSION} openmp 2>/dev/null || mv openmp-${VERSION}.src openmp || exit 1
+#  tar xvf $CWD/libcxx-${VERSION}.src.tar.xz || exit 1
+#  mv libcxx-${VERSION} libcxx 2>/dev/null || mv libcxx-${VERSION}.src libcxx || exit 1
+#  tar xvf $CWD/libcxxabi-${VERSION}.src.tar.xz || exit 1
+#  mv libcxxabi-${VERSION} libcxxabi 2>/dev/null || mv libcxxabi-${VERSION}.src libcxxabi || exit 1
+#  tar xvf $CWD/polly-$VERSION.src.tar.xz || exit 1
+#  mv polly-${VERSION} polly 2>/dev/null || mv polly-${VERSION}.src polly || exit 1
   # We just need a header file from this...
   tar xvf $CWD/libunwind-${VERSION}.src.tar.xz || exit 1
   mv libunwind-${VERSION}.src libunwind || mv libunwind-${VERSION} libunwind || exit 1
@@ -163,6 +169,15 @@ cd ../
 
 # Support GCC built for i586-slackware-linux:
 zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
+
+# LoongArch
+#cat $CWD/lld-ELF-Support-LoongArch.patch | patch -p1 --verbose || exit 1
+cat $CWD/clang.toolchains.loongarch64.triple.diff | patch -p1 --verbose || exit 1
+
+## fix gcc13 build
+#pushd projects
+#  cat $CWD/libc-Use-__is_convertible-built-in-when-available.patch | patch -p1 --verbose || exit 1
+#popd
 
 # We require libatomic on 32-bit platforms:
 if [ -f ./tools/lldb/source/Utility/CMakeLists.txt ]; then
@@ -200,8 +215,8 @@ cd build
   # Nuke LLVM libunwind as it conflicts with the one already on the system:
   rm -r ../projects/libunwind
   cmake -GNinja \
-    -DCMAKE_C_COMPILER="clang" \
-    -DCMAKE_CXX_COMPILER="clang++" \
+    -DCMAKE_C_COMPILER="gcc" \
+    -DCMAKE_CXX_COMPILER="g++" \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
@@ -210,7 +225,6 @@ cd build
     -DLIBCXXABI_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_BUILD_TYPE=Release \
     $SHARED_LIBRARY_OPTIONS \
-    -DLLVM_USE_LINKER=lld \
     -DLLVM_ENABLE_RTTI=ON \
     -DLLVM_ENABLE_FFI=ON \
     -DLLVM_ENABLE_ZLIB=ON \
@@ -219,13 +233,14 @@ cd build
     -DLLVM_INSTALL_UTILS=ON \
     -DLLVM_BINUTILS_INCDIR=/usr/include \
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/$(echo $VERSION | cut -f 1 -d .)" \
-    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF" \
+    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU" \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
     -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=ON \
     $CLANGD \
+    $CMAKE_EXTRA \
     ..  || exit 1
 
   "${NINJA:=ninja}" $NUMJOBS || exit 1
@@ -234,8 +249,8 @@ cd ..
 
 # Add symlinks for $ARCH-slackware-linux-{clang,clang++}:
 ( cd $PKG/usr/bin
-  ln -sf clang $ARCH-slackware-linux-clang
-  ln -sf clang++ $ARCH-slackware-linux-clang++
+  ln -sf clang loongarch64-slackware-linux-clang
+  ln -sf clang++ loongarch64-slackware-linux-clang++
 )
 
 # Install clang-static-analyzer:

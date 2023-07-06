@@ -1,0 +1,56 @@
+From 6a1cf1bfedbcdb977d9ead3bf6a228360d78cc1b Mon Sep 17 00:00:00 2001
+From: mengqinggang <mengqinggang@loongson.cn>
+Date: Thu, 11 May 2023 18:03:54 +0800
+Subject: [PATCH] LoongArch: Fix PLT entry generate bug
+
+If a function symbol only get its address by la.global, without
+directly called by bl instruction, the PLT entry is not required.
+
+bfd/ChangeLog:
+
+	* elfnn-loongarch.c (loongarch_elf_adjust_dynamic_symbol): Fix PLT
+	entry generate bug.
+
+ld/ChangeLog:
+
+	* testsuite/ld-elf/shared.exp: Clear xfail for LoongArch.
+
+diff --git a/bfd/elfnn-loongarch.c b/bfd/elfnn-loongarch.c
+index b0f9b6ec69e..3fb74edb45c 100644
+--- a/bfd/elfnn-loongarch.c
++++ b/bfd/elfnn-loongarch.c
+@@ -980,7 +980,7 @@ loongarch_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
+      (although we could actually do it here).  */
+   if (h->type == STT_FUNC || h->type == STT_GNU_IFUNC || h->needs_plt)
+     {
+-      if (h->plt.refcount < 0
++      if (h->plt.refcount <= 0
+ 	  || (h->type != STT_GNU_IFUNC
+ 	      && (SYMBOL_REFERENCES_LOCAL (info, h)
+ 		  || (ELF_ST_VISIBILITY (h->other) != STV_DEFAULT
+@@ -993,8 +993,6 @@ loongarch_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
+ 	  h->plt.offset = MINUS_ONE;
+ 	  h->needs_plt = 0;
+ 	}
+-      else
+-	h->needs_plt = 1;
+ 
+       return true;
+     }
+diff --git a/ld/testsuite/ld-elf/shared.exp b/ld/testsuite/ld-elf/shared.exp
+index db9d71398de..1eef9f45667 100644
+--- a/ld/testsuite/ld-elf/shared.exp
++++ b/ld/testsuite/ld-elf/shared.exp
+@@ -504,7 +504,8 @@ run_ld_link_tests [list \
+ # but that is just an optimization so don't complain loudly.
+ setup_xfail *-*-*
+ clear_xfail alpha-*-* bfin-*-linux* csky-*-* frv-*-* hppa*-*-* i?86-*-*
+-clear_xfail ia64-*-* microblaze-*-* powerpc*-*-* x86_64-*-* xtensa-*-*
++clear_xfail ia64-*-* loongarch*-*-* microblaze-*-* powerpc*-*-* x86_64-*-*
++clear_xfail xtensa-*-*
+ run_ld_link_tests {
+     {"pr22374 function pointer initialization"
+ 	"" "tmpdir/pr22374.so" "" "pr22374a.s"
+-- 
+2.27.0
+

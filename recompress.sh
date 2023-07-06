@@ -673,7 +673,6 @@ gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch
 gzip ./source/ap/screen/45suppress_remap.patch
 gzip ./source/ap/screen/doinst.sh
-gzip ./source/ap/groff/groff.man.mdoc.local
 gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
 gzip ./source/ap/rpm/rpm.install4j.compat.diff
 gzip ./source/ap/rpm/doinst.sh

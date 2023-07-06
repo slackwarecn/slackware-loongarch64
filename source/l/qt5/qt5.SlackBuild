@@ -43,6 +43,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -81,6 +82,11 @@ elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16 -fno-strict-volatile-bitfields"
   SLKLDFLAGS=""
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  SLKLDFLAGS=""
+  SLKLDFLAGS="-L/usr/lib64"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   SLKLDFLAGS=""
@@ -89,6 +95,7 @@ fi
 
 case "$ARCH" in
     arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    loong64) TARGET=loongarch64-slackware-linux-gnu ;;
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
@@ -127,17 +134,36 @@ zcat $CWD/patches/qt5.mysql.h.diff.gz | patch -p1 --verbose || exit 1
 # Fix build with gcc11:
 cd qtbase
   zcat $CWD/patches/qt5-qtbase-gcc11.patch.gz | patch -p1 --verbose || exit 1
+  cat $CWD/patches/0001-forkfd-linux-add-support-for-LoongArch.patch | patch -p1 --verbose || exit 1
+  cat $CWD/patches/0002-Add-LoongArch-detection.patch | patch -p1 --verbose || exit 1
+  cat $CWD/patches/0003-add-loongarch-support.diff | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
+
 cd qtwebsockets
   zcat $CWD/patches/qt5-qtwebsockets-gcc11.patch.gz | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
 cd qtwebengine
   zcat $CWD/patches/qt5-qtwebengine-gcc11.patch.gz | patch -p1 --verbose || exit 1
+  cat $CWD/patches/qtwebengine-add-loongarch-support.diff | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
 
 # Fix build with gcc12:
 cd qtwebengine/src/3rdparty
   zcat $CWD/patches/qt5-webengine-gcc12.patch.gz | patch -p1 --verbose || exit 1
+cd - 1>/dev/null
+
+# Fix build with ffmpeg-5:
+cd qtwebengine/src/3rdparty
+  zcat $CWD/patches/qt5-webengine-ffmpeg5.patch.gz | patch -p1 --verbose || exit 1
+cd - 1>/dev/null
+
+# Fix build with gcc13:
+cd qtlocation/src/3rdparty/mapbox-gl-native
+  cat $CWD/patches/0001-fix-build-for-gcc13.diff | patch -p1 --verbose || exit 1
+cd - 1>/dev/null
+
+cd qtscript/
+  cat $CWD/patches/0002-fix-build-for-gcc13.diff | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
 
 # Fix build with ffmpeg-5:
@@ -224,10 +250,6 @@ export QT_PLUGIN_PATH="${QTDIR}/qtbase/plugins"
   -no-separate-debug-info \
   -no-strip \
   -no-use-gold-linker \
-  ${CODEC_OPTION} \
-  ${FFMPEG_OPTION} \
-  ${PULSEAUDIO_OPTION} \
-  ${RELOCATIONS} \
   -no-pch
   # No-precompiled-headers is ccache-friendly.
   

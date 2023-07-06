@@ -86,11 +86,6 @@ cd nss-$VERSION
 tar xvf $CWD/nspr-$NSPR.tar.?z || exit 1
 mv nspr*/nspr .
 
-cp -rfa /usr/share/autoconf/build-aux/config.* nspr/build/autoconf/
-pushd nspr
-zcat $CWD/Add-support-for-the-LoongArch-64-bit-architecture.diff.gz | patch -p1 --verbose || exit 1
-popd
-
 ## -Werror is problematic with gcc7:
 #sed -i "s|\ -Werror| |" nss/coreconf/Werror.mk || exit 1
 
@@ -102,6 +97,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+cp -rfa /usr/share/autoconf/build-aux/config.* nspr/build/autoconf/
+
 cd nss
 ./build.sh -v $NUMJOBS --opt --system-sqlite --enable-libpkix --disable-tests
   make BUILD_OPT=1                  \
@@ -112,13 +109,14 @@ cd nss
     $([ $(uname -m) = loongarch64 ] && echo USE_64=1) \
     $([ -f /usr/include/sqlite3.h ] && echo NSS_USE_SYSTEM_SQLITE=1)
 
+
 cd -
 
 # Install all the needed stuff to the package dir:
 mkdir -p $PKG/usr/{bin,lib${LIBDIRSUFFIX},include/{nss,nspr}}
-cd dist/Release
-#  cp -pL bin/{certutil,cmsutil,crlutil,modutil,pk12util,shlibsign,signtool,signver,ssltap} $PKG/usr/bin/
-  cp -rpL lib/* $PKG/usr/lib${LIBDIRSUFFIX}/
+cd dist/Linux6.3_loongarch64_cc_glibc_PTH_64_OPT.OBJ
+  cp -pL bin/{certutil,cmsutil,crlutil,modutil,pk12util,shlibsign,signtool,signver,ssltap} $PKG/usr/bin/
+  cp -pL lib/* $PKG/usr/lib${LIBDIRSUFFIX}/
   chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/*.so*
   cp -rL include/* $PKG/usr/include/
   cp -rpL ../public/nss/*.h $PKG/usr/include/nss/

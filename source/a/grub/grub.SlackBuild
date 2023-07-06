@@ -80,6 +80,8 @@ elif [ "$ARCH" = "armv7hl" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS=""
+  EFI32_FLAGS=" --with-platform=efi --target=loongarch64 --program-prefix= "
+  EFI_FLAGS=" --with-platform=efi --target=loongarch64 --program-prefix= "
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS=""
@@ -117,10 +119,15 @@ zcat $CWD/grub.dejavusansmono.gfxterm.font.diff.gz | patch -p1 --verbose || exit
 zcat $CWD/0198-align-struct-efi_variable-better.patch.gz | patch -p1 --verbose || exit 1
 
 # Fix unreadable XFS filesystem with v4 superblock:
-zcat $CWD/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch.gz | patch -p1 --verbose || exit 1
+#zcat $CWD/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch.gz | patch -p1 --verbose || exit 1
 
 # Skip processing any files in /etc/grub.d/ that end in .new:
 zcat $CWD/0001-skip-new-files-in-etc-grub.d.patch.gz | patch -p1 --verbose || exit 1
+
+# slackware: add LoongArch support
+cat $CWD/slackware-10_linux.in-add-loongarch64-sipport.diff | patch -p1 --verbose || exit 1
+cat $CWD/fix-00_header.diff | patch -p1 --verbose || exit 1
+
 
 # Regenerate build system to fix dependency on outdated automake:
 autoreconf -vif
@@ -229,6 +236,9 @@ if [ -r ChangeLog ]; then
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
+
+# create elf
+bash $CWD/create-efi
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh

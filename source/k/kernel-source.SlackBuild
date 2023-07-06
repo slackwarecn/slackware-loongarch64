@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020, 2021, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -41,58 +41,11 @@ fi
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
+    loongarch64) export ARCH=loongarch64 ;;
     # Use uname -m for all archs:
     *) ARCH=$(uname -m) ;;
   esac
 fi
-
-# This function will revert or apply patches that are present here.
-# Directories that are currently supported:
-# patches-revert-${VERSION} (revert patches from this directory if kernel version matches)
-# patches-revert-${ARCH} (revert patches from this directory if $ARCH matches)
-# patches-${VERSION} (apply patches from this directory if kernel version matches)
-# patches-${ARCH} (apply patches from this directory if $ARCH matches)
-# All the applied/reverted patches will be copied to the root of the kernel source tree.
-apply_patches() {
-  # First do patches-revert:
-  if [ -d $CWD/patches-revert-${VERSION} ]; then
-    if [ "$1" = "VERBOSE" ]; then
-      echo "Reverting kernel patches in $CWD/patches-revert-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
-      zcat $CWD/patches-revert-${VERSION}/*.gz | patch -p1 -R --backup --suffix=.orig || exit 1
-    else
-      zcat $CWD/patches-revert-${VERSION}/*.gz | patch -p1 -R --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
-    fi
-    cp -a $CWD/patches-revert-${VERSION}/*.gz .
-  fi
-  if [ -d $CWD/patches-revert-${ARCH} ]; then
-    if [ "$1" = "VERBOSE" ]; then
-      echo "Reverting kernel patches in $CWD/patches-revert-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
-      zcat $CWD/patches-revert-${ARCH}/*.gz | patch -p1 -R --backup --suffix=.orig || exit 1
-    else
-      zcat $CWD/patches-revert-${ARCH}/*.gz | patch -p1 -R --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
-    fi
-    cp -a $CWD/patches-revert-${ARCH}/*.gz .
-  fi
-  # Then apply patches:
-  if [ -d $CWD/patches-${VERSION} ]; then
-    if [ "$1" = "VERBOSE" ]; then
-      echo "Applying kernel patches in $CWD/patches-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
-      zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
-    else
-      zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
-    fi
-    cp -a $CWD/patches-${VERSION}/*.gz .
-  fi
-  if [ -d $CWD/patches-${ARCH} ]; then
-    if [ "$1" = "VERBOSE" ]; then
-      echo "Applying kernel patches in $CWD/patches-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
-      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
-    else
-      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
-    fi
-    cp -a $CWD/patches-${ARCH}/*.gz .
-  fi
-}
 
 # Kernel extraversion, such as "-smp" on 32-bit. There's usually no need to set
 # this unless you're using something unusual. We use it to find which .config
@@ -108,6 +61,9 @@ LOCALVERSION=${LOCALVERSION:-""}
 if [ -z "${KERNEL_CONFIG}" ]; then # figure out the best matching .config
   if [ "$ARCH" = "x86_64" ]; then
     CONFIG_SUFFIX=".x64"
+  fi
+  if [ "$ARCH" = "loongarch64" ]; then
+    CONFIG_SUFFIX=".loongarch64"
   fi
   if [ -z "${LOCALVERSION}" ]; then
     if echo $ARCH | grep -q -E "i?86$" ; then
@@ -147,7 +103,9 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   cd $TEMPDIR
   tar xf $CWD/linux-${VERSION}.tar.?z || exit 1
   cd linux*
-  apply_patches
+  if [ -d $CWD/patches-${VERSION} ]; then
+    zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+  fi
   PACKAGE_VERSION=$(grep "^VERSION = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^PATCHLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^SUBLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev)$(grep "^EXTRAVERSION = " Makefile | rev | cut -f 1 -d ' ' | rev)
   cd $CWD
   rm -rf $TEMPDIR
@@ -167,7 +125,11 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
   echo "Making /usr/src/linux symlink..." 
   ln -sf linux-* linux
   cd linux-*
-  apply_patches VERBOSE
+  if [ -d $CWD/patches-${VERSION} ]; then
+    echo "Applying kernel patches in $CWD/patches-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+    zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+    cp -a $CWD/patches-${VERSION}/*.gz .
+  fi
   echo "Copying $CWD/kernel-configs/${KERNEL_CONFIG} to .config..."
   cp -a $CWD/kernel-configs/${KERNEL_CONFIG} .config
   echo "Fixing permissions/ownership..."
@@ -185,7 +147,7 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
 # to build the kernel sources first.
 ( cd $PKG/usr/src/linux-${VERSION}
   echo "Making oldconfig..."
-  make oldconfig
+  #make oldconfig
   if [ ! -r $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} ]; then
     echo "Saving new .config as: $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
     cp -a .config $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}
@@ -201,23 +163,23 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
         exit 1
       fi
       echo "Setting default PREEMPT mode: $CONFIG_PREEMPT_DEFAULT_MODE"
-      sed -i "s/^int preempt_dynamic_mode = preempt_dynamic_.*;$/int preempt_dynamic_mode = preempt_dynamic_$CONFIG_PREEMPT_DEFAULT_MODE;/g" kernel/sched/core.c
+      sed -i "s/^int preempt_dynamic_mode = preempt_dynamic_full;$/int preempt_dynamic_mode = preempt_dynamic_$CONFIG_PREEMPT_DEFAULT_MODE;/g" kernel/sched/core.c
     fi
   fi
 
   echo "Building kernel and modules (needed before clean for building NVIDIA to work)..."
-  make ${NUMJOBS} || exit 1
-  make ${NUMJOBS} modules || exit 1
+  #make ${NUMJOBS} || exit 1
+  #make ${NUMJOBS} modules || exit 1
   echo "Cleaning up..."
-  make clean
+  #make clean
   # Make sure header files aren't missing...
-  make prepare
+  #make prepare
   # Don't package the kernel in the sources:
   find . -name "*Image" -exec rm "{}" \+
   # No need for these:
   rm -f .config.old .version
   find . -name "*.cmd" -exec rm -f "{}" \+ 
-  rm .*.d
+  #rm .*.d
   # Still some dotfiles laying around... probably fine though
 ) || exit 1
 

@@ -933,7 +933,6 @@ gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolid
 gzip ./source/xap/mozilla-thunderbird/gcc13-fix.patch
 gzip ./source/xap/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
-gzip ./source/xap/mozilla-thunderbird/thunderbird-102.10.0-upstream_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/double_t.x86.diff
 gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff

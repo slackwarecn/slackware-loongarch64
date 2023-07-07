@@ -92,26 +92,27 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# LoongArch
+#cat $CWD/0001-linux-raw-sys-add-loongarch64-support.patch |patch -p1 --verbose || exit 1
+#cat $CWD/fix-build-checksum.diff |patch -p1 --verbose || exit 1
+
 # Configure cargo for offline builds
 mkdir -p .cargo
 cat << EOF >> .cargo/config.toml
 [source.crates-io]
-replace-with = "vendored-sources"
-
-[source.vendored-sources]
-directory = "vendor"
+registry = "https://gitee.com/yetist/crates.io-index"
 EOF
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-RUSTONIG_DYNAMIC_LIBONIG=1 \
-cargo build \
-  --offline \
-  --release \
-  --target loongarch64-unknown-linux-gnu \
-  --verbose \
-  $NUMJOBS || exit 1
-#  --target $ARCH-unknown-linux-gnu \
+#CFLAGS="$SLKCFLAGS" \
+#CXXFLAGS="$SLKCFLAGS" \
+#RUSTONIG_DYNAMIC_LIBONIG=1 \
+#cargo build \
+#  --offline \
+#  --release \
+#  --target loongarch64-unknown-linux-gnu \
+#  --verbose \
+#  $NUMJOBS || exit 1
+cargo build --release #--frozen
 
 mkdir -p $PKG/usr/bin
 install -m 755 target/$ARCH-unknown-linux-gnu/release/bindgen \

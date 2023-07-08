@@ -34,57 +34,113 @@
 # ignore it.
 #
 
-if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
-  # First, check for device-mapper support.
-  if ! grep -wq device-mapper /proc/devices ; then
-    # If device-mapper exists as a module, try to load it.
-    # Try to load a device-mapper kernel module:
-    /sbin/modprobe -q dm-mod
-  fi
-  # NOTE: we only support LUKS formatted volumes (except for swap)!
-  # The input for this loop comes from after the "done" below, so that we can
-  # use fd3 and keep stdin functional for password entry or in case a keyscript
-  # requires it:
-  while read line <&3; do
-    eval LUKSARRAY=( $line )
-    LUKS="${LUKSARRAY[0]}"
-    DEV="${LUKSARRAY[1]}"
-    PASS="${LUKSARRAY[2]}"
-    OPTS="${LUKSARRAY[3]}"
-    KEYSCRIPT="$(echo $OPTS | sed -n 's/.*keyscript=\([^,]*\).*/\1/p')"
-    LUKSOPTS=""
-    if echo $OPTS | grep -wq ro ; then LUKSOPTS="${LUKSOPTS} --readonly" ; fi
-    if echo $OPTS | grep -wq discard ; then LUKSOPTS="${LUKSOPTS} --allow-discards" ; fi
-    # Skip LUKS volumes that were already unlocked (in the initrd):
-    /sbin/cryptsetup status $LUKS 2>/dev/null | head -n 1 | grep -q "is active" && continue
-    if /sbin/cryptsetup isLuks $DEV 2>/dev/null ; then
-      if [ -z "${LUKSOPTS}" ]; then
-        echo "Unlocking LUKS encrypted volume '${LUKS}' on device '$DEV':"
-      else
-        echo "Unlocking LUKS encrypted volume '${LUKS}' on device '$DEV' with options '${LUKSOPTS}':"
-      fi
-      if [ -x "${KEYSCRIPT}" ]; then
-	# A password was outputted by a script
-	${KEYSCRIPT} "${PASS}" | /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
-	echo
-      elif [ -n "${PASS}" -a "${PASS}" != "none" ]; then
-        if [ -f "${PASS}" ]; then
-          # A password was given a key-file filename
-          /sbin/cryptsetup ${LUKSOPTS} --key-file=${PASS} luksOpen $DEV $LUKS
-        else
-          # A password was provided in plain text
-          echo "${PASS}" | /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
-        fi
-      else
-        # No password was given, or a password of 'none' was given
-        /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
-      fi
-    elif echo $OPTS | grep -wq swap ; then
-      # If any of the volumes is to be used as encrypted swap,
-      # then encrypt it using a random key and run mkswap:
-      echo "Creating encrypted swap volume '${LUKS}' on device '$DEV':"
-      /sbin/cryptsetup --batch-mode --cipher=aes --key-file=/dev/urandom --key-size=256 create $LUKS $DEV
-      mkswap /dev/mapper/$LUKS
+luks_start() {
+  if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
+    # First, check for device-mapper support.
+    if ! grep -wq device-mapper /proc/devices ; then
+      # If device-mapper exists as a module, try to load it.
+      # Try to load a device-mapper kernel module:
+      /sbin/modprobe -q dm-mod
     fi
-  done 3< <(grep -vE '^(#|$)' /etc/crypttab)
-fi
+    # NOTE: we only support LUKS formatted volumes (except for swap)!
+    # The input for this loop comes from after the "done" below, so that we can
+    # use fd3 and keep stdin functional for password entry or in case a keyscript
+    # requires it:
+    while read line <&3; do
+      eval LUKSARRAY=( $line )
+      LUKS="${LUKSARRAY[0]}"
+      DEV="${LUKSARRAY[1]}"
+      PASS="${LUKSARRAY[2]}"
+      OPTS="${LUKSARRAY[3]}"
+      KEYSCRIPT="$(echo $OPTS | sed -n 's/.*keyscript=\([^,]*\).*/\1/p')"
+      LUKSOPTS=""
+      if echo $OPTS | grep -wq ro ; then LUKSOPTS="${LUKSOPTS} --readonly" ; fi
+      if echo $OPTS | grep -wq discard ; then LUKSOPTS="${LUKSOPTS} --allow-discards" ; fi
+      # Skip LUKS volumes that were already unlocked (in the initrd):
+      /sbin/cryptsetup status $LUKS 2>/dev/null | head -n 1 | grep -q "is active" && continue
+      if /sbin/cryptsetup isLuks $DEV 2>/dev/null ; then
+        if [ -z "${LUKSOPTS}" ]; then
+          echo "Unlocking LUKS encrypted volume '${LUKS}' on device '$DEV':"
+        else
+          echo "Unlocking LUKS encrypted volume '${LUKS}' on device '$DEV' with options '${LUKSOPTS}':"
+        fi
+        if [ -x "${KEYSCRIPT}" ]; then
+  	# A password was outputted by a script
+  	${KEYSCRIPT} "${PASS}" | /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
+  	echo
+        elif [ -n "${PASS}" -a "${PASS}" != "none" ]; then
+          if [ -f "${PASS}" ]; then
+            # A password was given a key-file filename
+            /sbin/cryptsetup ${LUKSOPTS} --key-file=${PASS} luksOpen $DEV $LUKS
+          else
+            # A password was provided in plain text
+            echo "${PASS}" | /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
+          fi
+        else
+          # No password was given, or a password of 'none' was given
+          /sbin/cryptsetup ${LUKSOPTS} luksOpen $DEV $LUKS
+        fi
+      elif echo $OPTS | grep -wq swap ; then
+        # If any of the volumes is to be used as encrypted swap,
+        # then encrypt it using a random key and run mkswap:
+        echo "Creating encrypted swap volume '${LUKS}' on device '$DEV':"
+        /sbin/cryptsetup --batch-mode --cipher=aes --key-file=/dev/urandom --key-size=256 create $LUKS $DEV
+        mkswap /dev/mapper/$LUKS
+      fi
+    done 3< <(grep -vE '^(#|$)' /etc/crypttab)
+  fi
+}
+
+luks_stop() {
+  # Close any volumes opened by cryptsetup:
+  if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
+    cat /etc/crypttab | grep -v "^#" | grep -v "^$" | while read line; do
+      # NOTE: we only support LUKS formatted volumes (except for swap)!
+      LUKS=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f1 -d' ')
+      DEV=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f2 -d' ')
+      OPTS=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f4 -d' ')
+      if /sbin/cryptsetup isLuks $DEV 2>/dev/null ; then
+        echo "Locking LUKS crypt volume '${LUKS}':"
+        /sbin/cryptsetup luksClose ${LUKS}
+      elif echo $OPTS | grep -wq swap ; then
+        # If any of the volumes was used as encrypted swap,
+        # then run mkswap on the underlying device -
+        # in case other Linux installations on this computer should use it:
+        echo "Erasing encrypted swap '${LUKS}' and restoring normal swap on ${DEV}:"
+        /sbin/cryptsetup remove ${LUKS}
+        mkswap $DEV
+      fi
+    done
+  fi
+}
+
+luks_status() {
+  if [ -f /etc/crypttab -a -x /sbin/cryptsetup ]; then
+    RET=0
+    while read line; do
+      # NOTE: we only support LUKS formatted volumes (except for swap)!
+      LUKS=$(echo $line | tr '\t' ' ' | tr -s ' ' | cut -f1 -d' ')
+      cryptsetup status $LUKS | grep 'active'
+      STATUS="${PIPESTATUS[0]}"
+      if [ "$STATUS" != "0" ]; then
+         RET=1
+      fi
+    done < <(grep -vE '^(#|$)' /etc/crypttab)
+    return $RET
+  fi
+}
+
+case $1 in
+  'start')
+    luks_start
+    ;;
+  'stop')
+    luks_stop
+    ;;
+  'status')
+    luks_status
+    ;;
+  *)
+    echo "Usage $0 start|stop|status"
+    ;;
+esac

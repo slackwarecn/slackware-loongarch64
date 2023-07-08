@@ -149,6 +149,11 @@ if [ -x /etc/rc.d/rc.inet2 ]; then
   /etc/rc.d/rc.inet2
 fi
 
+# Unlock any LUKS devices that still aren't unlocked:
+if [ -x /etc/rc.d/rc.luks ]; then
+  /etc/rc.d/rc.luks start
+fi
+
 # Mount any additional filesystem types that haven't already been mounted:
 mount -a -v 2> /dev/null | grep -v -e "already mounted" -e "ignored" | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep "${dev} " ; done
 

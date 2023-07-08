@@ -1,0 +1,83 @@
+.\" -*- nroff -*-
+.ds g \" empty
+.ds G \" empty
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH CRYPTTAB 5 "28 Jun 2023" "Slackware Version 15.1"
+.SH NAME
+crypttab \- static information about LUKS volumes
+.SH SYNOPSIS
+.B /etc/crypttab
+.SH DESCRIPTION
+The file
+.B crypttab
+contains the information needed to open any volumes created by cryptsetup.
+Although many distributions have a 
+.B crypttab 
+with similar syntax and options, the format described here is specific to 
+Slackware.
+
+Each volume to be opened is described on a separate line. Fields on each
+line are separated by tabs or spaces. Lines starting with '#' are comments.
+Blank lines are ignored.
+
+.B crypttab
+follows the following format:
+
+.in +4
+<luks_name> <device> <password> <options>
+.in
+.SS The first field (luks_name)
+This is the name of your LUKS volume.
+For example: crypt-home
+.SS The second field (device)
+This is the device containing your LUKS volume.
+For example: /dev/sda2
+.SS The third field (password)
+This is either the volume password in plain text, or the name of a key 
+file. Use
+.B none
+to interactively enter password on boot.
+.SS The fourth field (options)
+Comma-separated list of options. Note that there must be a password field
+for any options to be picked up (use a password of 
+.B none
+to get a password prompt at boot). The following options are supported:
+.sp
+.B discard
+.RS 4
+This will cause --allow-discards to be passed to cryptsetup program while
+opening the LUKS volume.
+.RE
+.sp
+.B ro
+.RS 4
+This will cause --readonly to be passed to the cryptsetup program while 
+opening the LUKS volume.
+.RE
+.sp
+.B swap
+.RS 4
+This option cannot be used with other options. The device given will be
+formatted as a new encrypted volume with a random key on boot, and used as
+swap.
+.RE
+.sp
+.B keyscript=<path/to/script>
+.RS 4
+Get the password from named script's stdout. The only parameter sent to script
+is the <password> field, but the script can ignore it.
+.SH FILES
+.sp
+\fI/etc/crypttab\fP
+.SH NOTES
+.sp
+Only LUKS formatted volumes are supported (except for swap).
+.SH AUTHOR
+Piter Punk <piterpunk@slackware.com>
+.SH "SEE ALSO"
+.BR cryptsetup(8)

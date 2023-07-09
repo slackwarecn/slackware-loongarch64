@@ -1201,9 +1201,9 @@ echo "Syncing filesystems."
 sync
 echo "Unmounting filesystems:"
 # Try to unmount these bind mounts first to prevent them from blocking unmount of the target /:
-umount /mnt/dev 2> /dev/null
-umount /mnt/proc 2> /dev/null
-umount /mnt/sys 2> /dev/null
+umount -R /mnt/dev 2> /dev/null
+umount -R /mnt/proc 2> /dev/null
+umount -R /mnt/sys 2> /dev/null
 /bin/umount -v -a -t no,proc,sysfs,devtmpfs,fuse.gvfsd-fuse,tmpfs
 sync
 echo "Rebooting."

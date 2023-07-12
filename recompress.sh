@@ -3,8 +3,6 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
-gzip ./extra/source/rust-for-mozilla/llvm.sanitizer_platform_limits_posix.cpp.glibc-2.36.diff
-gzip ./extra/source/rust-for-mozilla/link_libffi.diff
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
@@ -1142,4 +1140,10 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
-gzip ./testing/source/rust/link_libffi.diff
+gzip ./testing/source/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./testing/source/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./testing/source/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
+gzip ./testing/source/mozilla-thunderbird/tb.ui.scrollToClick.diff
+gzip ./testing/source/mozilla-thunderbird/double_t.x86.diff
+gzip ./testing/source/mozilla-thunderbird/gcc-13.patch
+gzip ./testing/source/mozilla-thunderbird/gkrust.a.no.networking.check.diff

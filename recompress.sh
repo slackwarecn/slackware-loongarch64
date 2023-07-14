@@ -1147,3 +1147,4 @@ gzip ./testing/source/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./testing/source/mozilla-thunderbird/double_t.x86.diff
 gzip ./testing/source/mozilla-thunderbird/gcc-13.patch
 gzip ./testing/source/mozilla-thunderbird/gkrust.a.no.networking.check.diff
+gzip ./testing/source/rust/link_libffi.diff

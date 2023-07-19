@@ -743,12 +743,15 @@ gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/mpfr/patches/patch03
 gzip ./source/l/mpfr/patches/patch08
 gzip ./source/l/mpfr/patches/patch07
+gzip ./source/l/mpfr/patches/patch12
 gzip ./source/l/mpfr/patches/patch05
+gzip ./source/l/mpfr/patches/patch10
 gzip ./source/l/mpfr/patches/patch04
 gzip ./source/l/mpfr/patches/patch09
 gzip ./source/l/mpfr/patches/patch06
 gzip ./source/l/mpfr/patches/patch01
 gzip ./source/l/mpfr/patches/patch02
+gzip ./source/l/mpfr/patches/patch11
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh

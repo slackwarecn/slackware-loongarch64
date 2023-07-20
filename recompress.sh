@@ -981,8 +981,6 @@ gzip ./source/xap/gv/gv-bug1071238.patch
 gzip ./source/xap/libnma/doinst.sh
 gzip ./source/xap/x3270/doinst.sh
 gzip ./source/xap/xaos/xaos.6
-gzip ./source/xap/rxvt-unicode/rxvt-unicode.utempter.diff
-gzip ./source/xap/rxvt-unicode/CVE-2022-4170.diff
 gzip ./source/xap/rxvt-unicode/rxvt-unicode.perl5.38.0.diff
 gzip ./source/xap/gparted/doinst.sh
 gzip ./source/xap/fvwm/startfvwm2

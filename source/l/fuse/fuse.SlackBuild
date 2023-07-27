@@ -36,6 +36,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -61,6 +62,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -82,6 +86,9 @@ find . \
 # patch to build with glibc-2.34 from https://src.fedoraproject.org/rpms/fuse/raw/rawhide/f/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
 zcat $CWD/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch.gz | patch -Esp1 --verbose || exit 1
 
+# fix build 
+cat $CWD/fix-build-conflicting-types-for-int64_t.diff | patch -Esp1 --verbose || exit 1
+
 autoreconf -vif
 
 CFLAGS="$SLKCFLAGS" \
@@ -99,7 +106,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-lib \
   --enable-util \
   --disable-static \
-  --build=${ARCH}-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

@@ -1,0 +1,2800 @@
+diff --git a/Makefile.am b/Makefile.am
+index 9bb2413d..718e8dad 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -47,6 +47,9 @@ endif
+ if ARCH_RISCV
+ include_HEADERS += include/libunwind-riscv.h
+ endif
++if ARCH_LOONGARCH64
++include_HEADERS += include/libunwind-loongarch64.h
++endif
+ 
+ if !REMOTE_ONLY
+ include_HEADERS += include/libunwind.h
+@@ -97,6 +100,9 @@ noinst_HEADERS = include/dwarf.h include/dwarf_i.h include/dwarf-eh.h	\
+ 	include/tdep-s390x/jmpbuf.h include/tdep-s390x/libunwind_i.h	\
+ 	include/tdep-riscv/dwarf-config.h				\
+ 	include/tdep-riscv/jmpbuf.h include/tdep-riscv/libunwind_i.h	\
++	include/tdep-loongarch64/dwarf-config.h				\
++	include/tdep-loongarch64/jmpbuf.h				\
++	include/tdep-loongarch64/libunwind_i.h				\
+ 	include/tdep/libunwind_i.h					\
+ 	include/tdep/jmpbuf.h include/tdep/dwarf-config.h
+ 
+diff --git a/README b/README
+index 9427144c..10734ef4 100644
+--- a/README
++++ b/README
+@@ -18,6 +18,7 @@ This library supports several architecture/operating-system combinations:
+ | Linux   | Tilegx       | 64-bit mode only |
+ | Linux   | MIPS         | Newly added |
+ | Linux   | RISC-V       | 64-bit only |
++| Linux   | LoongArch    | 64-bit only |
+ | HP-UX   | IA-64        | Mostly works, but known to have serious limitations |
+ | FreeBSD | x86-64       | ✓      |
+ | FreeBSD | x86          | ✓      |
+@@ -41,6 +42,7 @@ such dependencies
+ |    arm       |     p      |            |
+ |    hppa      |     p      |      p     |
+ |    ia64      |     p      |      r     |
++|    loongarch |     p      |            |
+ |    mips      |     p      |            |
+ |    ppc32     |     r      |            |
+ |    ppc64     |     r      |      r     |
+diff --git a/configure.ac b/configure.ac
+index 2893f0cf..8f7cfda0 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -98,6 +98,7 @@ AC_DEFUN([SET_ARCH],[
+         [amd64],[$2=x86_64],
+         [tile*],[$2=tilegx],
+         [riscv*],[$2=riscv],
++        [loongarch64*],[$2=loongarch64],
+         [$2=$1])
+ ]) dnl SET_ARCH
+ 
+@@ -120,7 +121,7 @@ esac
+ 
+ AC_ARG_ENABLE(coredump,
+ 	AS_HELP_STRING([--enable-coredump],[building libunwind-coredump library]),,
+-        [AS_CASE([$host_arch], [aarch64*|arm*|mips*|sh*|x86*|tile*|riscv*], [enable_coredump=yes], [enable_coredump=no])]
++        [AS_CASE([$host_arch], [aarch64*|arm*|mips*|sh*|x86*|tile*|riscv*|loongarch64], [enable_coredump=yes], [enable_coredump=no])]
+ )
+ 
+ AC_MSG_CHECKING([if we should build libunwind-coredump])
+@@ -189,6 +190,7 @@ AM_CONDITIONAL(ARCH_SH, test x$target_arch = xsh)
+ AM_CONDITIONAL(ARCH_TILEGX, test x$target_arch = xtilegx)
+ AM_CONDITIONAL(ARCH_S390X, test x$target_arch = xs390x)
+ AM_CONDITIONAL(ARCH_RISCV, test x$target_arch = xriscv)
++AM_CONDITIONAL(ARCH_LOONGARCH64, test x$target_arch = xloongarch64)
+ AM_CONDITIONAL(OS_LINUX, expr x$target_os : xlinux >/dev/null)
+ AM_CONDITIONAL(OS_HPUX, expr x$target_os : xhpux >/dev/null)
+ AM_CONDITIONAL(OS_FREEBSD, expr x$target_os : xfreebsd >/dev/null)
+@@ -199,7 +201,7 @@ AC_MSG_CHECKING([for ELF helper width])
+ case "${target_arch}" in
+ (arm|hppa|ppc32|x86|sh) use_elf32=yes; AC_MSG_RESULT([32]);;
+ (aarch64|ia64|ppc64|x86_64|s390x|tilegx)  use_elf64=yes; AC_MSG_RESULT([64]);;
+-(mips|riscv)                 use_elfxx=yes; AC_MSG_RESULT([xx]);;
++(mips|riscv|loongarch64)                  use_elfxx=yes; AC_MSG_RESULT([xx]);;
+ *)                     AC_MSG_ERROR([Unknown ELF target: ${target_arch}])
+ esac
+ AM_CONDITIONAL(USE_ELF32, [test x$use_elf32 = xyes])
+@@ -246,6 +248,7 @@ case $target_arch in
+   mips*) enable_cxx_exceptions=no;;
+   tile*) enable_cxx_exceptions=no;;
+   s390x*) enable_cxx_exceptions=no;;
++  loongarch*) enable_cxx_exceptions=no;;
+   *) enable_cxx_exceptions=yes;;
+ esac
+ ])
+diff --git a/include/libunwind-loongarch64.h b/include/libunwind-loongarch64.h
+new file mode 100644
+index 00000000..1e9366ed
+--- /dev/null
++++ b/include/libunwind-loongarch64.h
+@@ -0,0 +1,139 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2001-2004 Hewlett-Packard Co
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef LIBUNWIND_H
++#define LIBUNWIND_H
++
++#if defined(__cplusplus) || defined(c_plusplus)
++extern "C" {
++#endif
++
++#include <inttypes.h>
++#include <ucontext.h>
++
++#define UNW_TARGET      loongarch64
++#define UNW_TARGET_LOONGARCH64 1
++
++#define _U_TDEP_QP_TRUE 0       /* see libunwind-dynamic.h  */
++
++/* This needs to be big enough to accommodate "struct cursor", while
++   leaving some slack for future expansion.  Changing this value will
++   require recompiling all users of this library.  Stack allocation is
++   relatively cheap and unwind-state copying is relatively rare, so we
++   want to err on making it rather too big than too small.  */
++
++/* FIXME for LoongArch64. Too big?  What do other things use for similar tasks?  */
++#define UNW_TDEP_CURSOR_LEN     4096
++
++typedef uint64_t unw_word_t;
++typedef int64_t unw_sword_t;
++
++typedef long double unw_tdep_fpreg_t;
++
++typedef enum
++  {
++    UNW_LOONGARCH64_R0,
++    UNW_LOONGARCH64_R1,
++    UNW_LOONGARCH64_R2,
++    UNW_LOONGARCH64_R3,
++    UNW_LOONGARCH64_R4,
++    UNW_LOONGARCH64_R5,
++    UNW_LOONGARCH64_R6,
++    UNW_LOONGARCH64_R7,
++    UNW_LOONGARCH64_R8,
++    UNW_LOONGARCH64_R9,
++    UNW_LOONGARCH64_R10,
++    UNW_LOONGARCH64_R11,
++    UNW_LOONGARCH64_R12,
++    UNW_LOONGARCH64_R13,
++    UNW_LOONGARCH64_R14,
++    UNW_LOONGARCH64_R15,
++    UNW_LOONGARCH64_R16,
++    UNW_LOONGARCH64_R17,
++    UNW_LOONGARCH64_R18,
++    UNW_LOONGARCH64_R19,
++    UNW_LOONGARCH64_R20,
++    UNW_LOONGARCH64_R21,
++    UNW_LOONGARCH64_R22,
++    UNW_LOONGARCH64_R23,
++    UNW_LOONGARCH64_R24,
++    UNW_LOONGARCH64_R25,
++    UNW_LOONGARCH64_R26,
++    UNW_LOONGARCH64_R27,
++    UNW_LOONGARCH64_R28,
++    UNW_LOONGARCH64_R29,
++    UNW_LOONGARCH64_R30,
++    UNW_LOONGARCH64_R31,
++
++    UNW_LOONGARCH64_PC = 33,
++
++    /* FIXME: Other registers!  */
++
++    /* For LoongArch64, the CFA is the value of SP (r3) at the call site in the
++       previous frame.  */
++    UNW_LOONGARCH64_CFA,
++
++    UNW_TDEP_LAST_REG = UNW_LOONGARCH64_PC,
++
++    UNW_TDEP_IP = UNW_LOONGARCH64_R1,
++    UNW_TDEP_SP = UNW_LOONGARCH64_R3,
++    UNW_TDEP_EH = UNW_LOONGARCH64_R0   /* FIXME.  */
++  }
++loongarch64_regnum_t;
++
++#define UNW_TDEP_NUM_EH_REGS	4
++
++typedef struct unw_tdep_save_loc
++  {
++    /* Additional target-dependent info on a save location.  */
++    char unused;
++  }
++unw_tdep_save_loc_t;
++
++/* On LoongArch64, we can directly use ucontext_t as the unwind context. */
++typedef ucontext_t unw_tdep_context_t;
++
++typedef struct
++  {
++    /* no loongarch64-specific auxiliary proc-info */
++    char unused;
++  }
++unw_tdep_proc_info_t;
++
++#include "libunwind-dynamic.h"
++#include "libunwind-common.h"
++
++#define unw_tdep_getcontext		UNW_ARCH_OBJ(getcontext)
++extern int unw_tdep_getcontext (ucontext_t *uc);
++
++#define unw_tdep_is_fpreg		UNW_ARCH_OBJ(is_fpreg)
++extern int unw_tdep_is_fpreg (int);
++
++#if defined(__cplusplus) || defined(c_plusplus)
++}
++#endif
++
++#endif /* LIBUNWIND_H */
+diff --git a/include/libunwind.h.in b/include/libunwind.h.in
+index dfea7662..0ac692b7 100644
+--- a/include/libunwind.h.in
++++ b/include/libunwind.h.in
+@@ -29,6 +29,8 @@
+ # include "libunwind-s390x.h"
+ #elif defined __riscv || defined __riscv__
+ # include "libunwind-riscv.h"
++#elif defined __loongarch64
++# include "libunwind-loongarch64.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/include/tdep-loongarch64/dwarf-config.h b/include/tdep-loongarch64/dwarf-config.h
+new file mode 100644
+index 00000000..9c49b0f3
+--- /dev/null
++++ b/include/tdep-loongarch64/dwarf-config.h
+@@ -0,0 +1,59 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2012 Tommi Rantala <tt.rantala@gmail.com>
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef dwarf_config_h
++#define dwarf_config_h
++
++/* This is FIRST_PSEUDO_REGISTER in GCC, since DWARF_FRAME_REGISTERS is not
++   explicitly defined.
++   Number of hardware registers.  We have:
++     - 32 integer registers
++     - 32 floating point registers
++     - 8 condition code registers
++     - 2 fake registers:
++        - ARG_POINTER_REGNUM
++        - FRAME_POINTER_REGNUM  */
++#define DWARF_NUM_PRESERVED_REGS	74
++
++#define dwarf_to_unw_regnum(reg) (((reg) < 32) ? (reg) : 0)
++
++/* Not big-endian.  */
++#define dwarf_is_big_endian(addr_space)	0
++
++/* Convert a pointer to a dwarf_cursor structure to a pointer to
++   unw_cursor_t.  */
++#define dwarf_to_cursor(c)      ((unw_cursor_t *) (c))
++
++typedef struct dwarf_loc
++  {
++    unw_word_t val;
++#ifndef UNW_LOCAL_ONLY
++    unw_word_t type;            /* see DWARF_LOC_TYPE_* macros.  */
++#endif
++  }
++dwarf_loc_t;
++
++#endif /* dwarf_config_h */
+diff --git a/include/tdep-loongarch64/jmpbuf.h b/include/tdep-loongarch64/jmpbuf.h
+new file mode 100644
+index 00000000..e36b40a3
+--- /dev/null
++++ b/include/tdep-loongarch64/jmpbuf.h
+@@ -0,0 +1,34 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++/* Use glibc's jump-buffer indices; NPTL peeks at SP: */
++
++/* https://github.com/loongson/glibc/blob/loongarch_2_33/sysdeps/loongarch/setjmp.S
++   https://github.com/loongson/glibc/blob/loongarch_2_33/sysdeps/unix/sysv/linux/loongarch/lp64/jmp_buf-macros.h  */
++
++#define JB_SP           1
++#define JB_RP           0
++#define JB_MASK_SAVED   (168>>3)
++#define JB_MASK         (176>>3)
+diff --git a/include/tdep-loongarch64/libunwind_i.h b/include/tdep-loongarch64/libunwind_i.h
+new file mode 100644
+index 00000000..a16870f4
+--- /dev/null
++++ b/include/tdep-loongarch64/libunwind_i.h
+@@ -0,0 +1,250 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef LOONGARCH64_LIBUNWIND_I_H
++#define LOONGARCH64_LIBUNWIND_I_H
++
++/* Target-dependent definitions that are internal to libunwind but need
++   to be shared with target-independent code.  */
++
++#include <stdlib.h>
++#include <libunwind.h>
++#include "elf64.h"
++#include "mempool.h"
++#include "dwarf.h"
++
++typedef struct
++  {
++    /* no loongarch64-specific fast trace */
++  }
++unw_tdep_frame_t;
++
++struct unw_addr_space
++  {
++    struct unw_accessors acc;
++
++    unw_caching_policy_t caching_policy;
++    _Atomic uint32_t cache_generation;
++    unw_word_t dyn_generation;          /* see dyn-common.h */
++    unw_word_t dyn_info_list_addr;      /* (cached) dyn_info_list_addr */
++    struct dwarf_rs_cache global_cache;
++    struct unw_debug_frame_list *debug_frames;
++};
++
++/* LoongArch64 supports only little-endian. */
++#define tdep_big_endian(as)             0
++
++struct cursor
++  {
++    struct dwarf_cursor dwarf;          /* must be first */
++
++    enum
++      {
++        LOONGARCH64_SCF_NONE,
++        LOONGARCH64_SCF_LINUX_RT_SIGFRAME,
++      }
++    sigcontext_format;
++    unw_word_t sigcontext_addr;
++    unw_word_t sigcontext_sp;
++    unw_word_t sigcontext_pc;
++    int validate;
++    ucontext_t *uc;
++  };
++
++static inline ucontext_t *
++dwarf_get_uc(const struct dwarf_cursor *cursor)
++{
++  const struct cursor *c = (struct cursor *) cursor->as_arg;
++  return c->uc;
++}
++
++#define DWARF_GET_LOC(l)        ((l).val)
++
++#ifdef UNW_LOCAL_ONLY
++# define DWARF_NULL_LOC         DWARF_LOC (0, 0)
++# define DWARF_IS_NULL_LOC(l)   (DWARF_GET_LOC (l) == 0)
++# define DWARF_LOC(r, t)        ((dwarf_loc_t) { .val = (r) })
++# define DWARF_IS_REG_LOC(l)    0
++# define DWARF_REG_LOC(c,r)     (DWARF_LOC((unw_word_t) (intptr_t)           \
++                                 tdep_uc_addr(dwarf_get_uc(c), (r)), 0))
++# define DWARF_MEM_LOC(c,m)     DWARF_LOC ((m), 0)
++# define DWARF_FPREG_LOC(c,r)   (DWARF_LOC((unw_word_t) (intptr_t)           \
++                                 tdep_uc_addr(dwarf_get_uc(c), (r)), 0))
++
++/* FIXME: Implement these for the LoongArch64 FPU.  */
++static inline int
++dwarf_getfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t *val)
++{
++  return 0;
++}
++
++static inline int
++dwarf_putfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t val)
++{
++  return 0;
++}
++
++static inline int
++dwarf_get (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t *val)
++{
++  if (!DWARF_GET_LOC (loc))
++   return -1;
++  *val = *(unw_word_t *) (intptr_t) DWARF_GET_LOC (loc);
++  return 0;
++}
++
++static inline int
++dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
++{
++  if (!DWARF_GET_LOC (loc))
++   return -1;
++  *(unw_word_t *) (intptr_t) DWARF_GET_LOC (loc) = val;
++  return 0;
++}
++
++#else /* !UNW_LOCAL_ONLY */
++# define DWARF_LOC_TYPE_FP      (1 << 0)
++# define DWARF_LOC_TYPE_REG     (1 << 1)
++# define DWARF_NULL_LOC         DWARF_LOC (0, 0)
++# define DWARF_IS_NULL_LOC(l)                                           \
++                ({ dwarf_loc_t _l = (l); _l.val == 0 && _l.type == 0; })
++# define DWARF_LOC(r, t)        ((dwarf_loc_t) { .val = (r), .type = (t) })
++# define DWARF_IS_REG_LOC(l)    (((l).type & DWARF_LOC_TYPE_REG) != 0)
++# define DWARF_IS_FP_LOC(l)     (((l).type & DWARF_LOC_TYPE_FP) != 0)
++# define DWARF_REG_LOC(c,r)     DWARF_LOC((r), DWARF_LOC_TYPE_REG)
++# define DWARF_MEM_LOC(c,m)     DWARF_LOC ((m), 0)
++# define DWARF_FPREG_LOC(c,r)   DWARF_LOC((r), (DWARF_LOC_TYPE_REG      \
++                                                | DWARF_LOC_TYPE_FP))
++
++/* FIXME: Implement these for the LoongArch64 FPU.  */
++static inline int
++dwarf_getfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t *val)
++{
++  return 0;
++}
++
++static inline int
++dwarf_putfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t val)
++{
++  return 0;
++}
++
++static inline int
++dwarf_get (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t *val)
++{
++  if (DWARF_IS_NULL_LOC (loc))
++    return -UNW_EBADREG;
++
++  /* If a code-generator were to save a value of type unw_word_t in a
++   * floating-point register, we would have to support this case.  I
++   * suppose it could happen with MMX registers, but does it really
++   * happen?  */
++  assert (!DWARF_IS_FP_LOC (loc));
++
++  if (DWARF_IS_REG_LOC (loc))
++    return (*c->as->acc.access_reg) (c->as, DWARF_GET_LOC (loc), val,
++                                     0, c->as_arg);
++  else
++    return (*c->as->acc.access_mem) (c->as, DWARF_GET_LOC (loc), val,
++                                     0, c->as_arg);
++}
++
++static inline int
++dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
++{
++  if (DWARF_IS_NULL_LOC (loc))
++    return -UNW_EBADREG;
++
++  /* If a code-generator were to save a value of type unw_word_t in a
++   * floating-point register, we would have to support this case.  I
++   * suppose it could happen with MMX registers, but does it really
++   * happen?  */
++  assert (!DWARF_IS_FP_LOC (loc));
++
++  if (DWARF_IS_REG_LOC (loc))
++    return (*c->as->acc.access_reg) (c->as, DWARF_GET_LOC (loc), &val,
++                                     1, c->as_arg);
++  else
++    return (*c->as->acc.access_mem) (c->as, DWARF_GET_LOC (loc), &val,
++                                     1, c->as_arg);
++}
++
++#endif /* !UNW_LOCAL_ONLY */
++
++#define tdep_getcontext_trace           unw_getcontext
++#define tdep_init_done                  UNW_OBJ(init_done)
++#define tdep_init                       UNW_OBJ(init)
++/* Platforms that support UNW_INFO_FORMAT_TABLE need to define
++   tdep_search_unwind_table.  */
++#define tdep_search_unwind_table        dwarf_search_unwind_table
++#define tdep_find_unwind_table          dwarf_find_unwind_table
++#define tdep_uc_addr                    UNW_ARCH_OBJ(uc_addr)
++#define tdep_get_elf_image              UNW_ARCH_OBJ(get_elf_image)
++#define tdep_get_exe_image_path         UNW_ARCH_OBJ(get_exe_image_path)
++#define tdep_access_reg                 UNW_OBJ(access_reg)
++#define tdep_access_fpreg               UNW_OBJ(access_fpreg)
++#define tdep_fetch_frame(c,ip,n)        do {} while(0)
++#define tdep_cache_frame(c)             0
++#define tdep_reuse_frame(c,rs)          do {} while(0)
++#define tdep_stash_frame(c,rs)          do {} while(0)
++#define tdep_trace(cur,addr,n)          (-UNW_ENOINFO)
++
++#ifdef UNW_LOCAL_ONLY
++# define tdep_find_proc_info(c,ip,n)                            \
++        dwarf_find_proc_info((c)->as, (ip), &(c)->pi, (n),      \
++                                       (c)->as_arg)
++# define tdep_put_unwind_info(as,pi,arg)                \
++        dwarf_put_unwind_info((as), (pi), (arg))
++#else
++# define tdep_find_proc_info(c,ip,n)                                    \
++        (*(c)->as->acc.find_proc_info)((c)->as, (ip), &(c)->pi, (n),    \
++                                       (c)->as_arg)
++# define tdep_put_unwind_info(as,pi,arg)                \
++        (*(as)->acc.put_unwind_info)((as), (pi), (arg))
++#endif
++
++#define tdep_get_as(c)                  ((c)->dwarf.as)
++#define tdep_get_as_arg(c)              ((c)->dwarf.as_arg)
++#define tdep_get_ip(c)                  ((c)->dwarf.ip)
++
++extern atomic_bool tdep_init_done;
++#define tdep_init_mem_validate          UNW_OBJ(init_mem_validate)
++
++extern void tdep_init (void);
++extern void tdep_init_mem_validate (void);
++extern int tdep_search_unwind_table (unw_addr_space_t as, unw_word_t ip,
++                                     unw_dyn_info_t *di, unw_proc_info_t *pi,
++                                     int need_unwind_info, void *arg);
++extern void *tdep_uc_addr (ucontext_t *uc, int reg);
++extern int tdep_get_elf_image (struct elf_image *ei, pid_t pid, unw_word_t ip,
++                               unsigned long *segbase, unsigned long *mapoff,
++                               char *path, size_t pathlen);
++extern void tdep_get_exe_image_path (char *path);
++extern int tdep_access_reg (struct cursor *c, unw_regnum_t reg,
++                            unw_word_t *valp, int write);
++extern int tdep_access_fpreg (struct cursor *c, unw_regnum_t reg,
++                              unw_fpreg_t *valp, int write);
++
++#endif /* LOONGARCH64_LIBUNWIND_I_H */
+diff --git a/include/tdep/dwarf-config.h b/include/tdep/dwarf-config.h
+index 0cfd079e..a37f4220 100644
+--- a/include/tdep/dwarf-config.h
++++ b/include/tdep/dwarf-config.h
+@@ -27,6 +27,8 @@
+ # include "tdep-tilegx/dwarf-config.h"
+ #elif defined __riscv || defined __riscv__
+ # include "tdep-riscv/dwarf-config.h"
++#elif defined __loongarch64
++# include "tdep-loongarch64/dwarf-config.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/include/tdep/jmpbuf.h b/include/tdep/jmpbuf.h
+index 77d35c3d..01b9ee02 100644
+--- a/include/tdep/jmpbuf.h
++++ b/include/tdep/jmpbuf.h
+@@ -25,6 +25,8 @@
+ # include "tdep-tilegx/jmpbuf.h"
+ #elif defined __riscv || defined __riscv__
+ # include "tdep-riscv/jmpbuf.h"
++#elif defined __loongarch64
++# include "tdep-loongarch64/jmpbuf.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/include/tdep/libunwind_i.h.in b/include/tdep/libunwind_i.h.in
+index a40f7cf6..1bacc3a8 100644
+--- a/include/tdep/libunwind_i.h.in
++++ b/include/tdep/libunwind_i.h.in
+@@ -29,6 +29,8 @@
+ # include "tdep-s390x/libunwind_i.h"
+ #elif defined __riscv || defined __riscv__
+ # include "tdep-riscv/libunwind_i.h"
++#elif defined __loongarch64
++# include "tdep-loongarch64/libunwind_i.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 2b5b0295..a730fb39 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -360,6 +360,31 @@ libunwind_riscv_la_SOURCES_riscv = $(libunwind_la_SOURCES_riscv_common)	    \
+ 	riscv/Gglobal.c riscv/Ginit.c riscv/Ginit_local.c riscv/Ginit_remote.c	    \
+ 	riscv/Gis_signal_frame.c riscv/Gregs.c riscv/Gresume.c riscv/Gstep.c
+ 
++# The list of files that go info libunwind and libunwind-loongarch64:
++noinst_HEADERS += loongarch64/init.h loongarch64/offsets.h loongarch64/unwind_i.h
++libunwind_la_SOURCES_loongarch64_common = $(libunwind_la_SOURCES_common)       \
++	loongarch64/is_fpreg.c loongarch64/regname.c
++
++# The list of files that go into libunwind:
++libunwind_la_SOURCES_loongarch64 = $(libunwind_la_SOURCES_loongarch64_common)  \
++	$(libunwind_la_SOURCES_local)                                           \
++	loongarch64/getcontext.S                                                \
++	loongarch64/Lapply_reg_state.c loongarch64/Lreg_states_iterate.c	\
++	loongarch64/Lcreate_addr_space.c loongarch64/Lget_proc_info.c           \
++	loongarch64/Lget_save_loc.c loongarch64/Lglobal.c loongarch64/Linit.c   \
++	loongarch64/Linit_local.c loongarch64/Linit_remote.c                    \
++	loongarch64/Lis_signal_frame.c loongarch64/Lregs.c                      \
++	loongarch64/Lresume.c loongarch64/Lstep.c
++
++libunwind_loongarch64_la_SOURCES_loongarch64 = $(libunwind_la_SOURCES_loongarch64_common) \
++	$(libunwind_la_SOURCES_generic)                                         \
++	loongarch64/Gapply_reg_state.c loongarch64/Greg_states_iterate.c	\
++	loongarch64/Gcreate_addr_space.c loongarch64/Gget_proc_info.c           \
++	loongarch64/Gget_save_loc.c loongarch64/Gglobal.c loongarch64/Ginit.c   \
++	loongarch64/Ginit_local.c loongarch64/Ginit_remote.c                    \
++	loongarch64/Gis_signal_frame.c loongarch64/Gregs.c                      \
++	loongarch64/Gresume.c loongarch64/Gstep.c
++
+ # The list of files that go both into libunwind and libunwind-x86:
+ noinst_HEADERS += x86/init.h x86/offsets.h x86/unwind_i.h
+ libunwind_la_SOURCES_x86_common = $(libunwind_la_SOURCES_common)	\
+@@ -674,6 +699,18 @@ if !REMOTE_ONLY
+ endif
+  libunwind_setjmp_la_SOURCES += riscv/siglongjmp.S
+ else
++if ARCH_LOONGARCH64
++ lib_LTLIBRARIES += libunwind-loongarch64.la
++ libunwind_la_SOURCES = $(libunwind_la_SOURCES_loongarch64)
++ libunwind_loongarch64_la_SOURCES = $(libunwind_loongarch64_la_SOURCES_loongarch64)
++ libunwind_loongarch64_la_LDFLAGS = $(COMMON_SO_LDFLAGS) -version-info $(SOVERSION)
++ libunwind_loongarch64_la_LIBADD = libunwind-dwarf-generic.la
++ libunwind_loongarch64_la_LIBADD += libunwind-elf64.la
++if !REMOTE_ONLY
++ libunwind_loongarch64_la_LIBADD += libunwind.la -lc
++endif
++ libunwind_setjmp_la_SOURCES += loongarch64/siglongjmp.S
++else
+ if ARCH_X86
+  lib_LTLIBRARIES += libunwind-x86.la
+  libunwind_la_SOURCES = $(libunwind_la_SOURCES_x86) $(libunwind_x86_la_SOURCES_os)
+@@ -751,6 +788,7 @@ endif # ARCH_PPC64
+ endif # ARCH_PPC32
+ endif # ARCH_X86_64
+ endif # ARCH_X86
++endif # ARCH_LOONGARCH64
+ endif # ARCH_RISCV
+ endif # ARCH_TILEGX
+ endif # ARCH_MIPS
+diff --git a/src/coredump/_UCD_access_reg_linux.c b/src/coredump/_UCD_access_reg_linux.c
+index 27eef123..b7706bbf 100644
+--- a/src/coredump/_UCD_access_reg_linux.c
++++ b/src/coredump/_UCD_access_reg_linux.c
+@@ -65,6 +65,11 @@ _UCD_access_reg (unw_addr_space_t as,
+     regnum = 0;
+   else if (regnum > UNW_RISCV_X31)
+     goto badreg;
++#elif defined(UNW_TARGET_LOONGARCH64)
++  if (regnum == UNW_LOONGARCH64_PC)
++    regnum = 0;
++  else if (regnum > UNW_LOONGARCH64_R31)
++    goto badreg;
+ #else
+ #if defined(UNW_TARGET_MIPS)
+   static const uint8_t remap_regs[] =
+diff --git a/src/loongarch64/Gapply_reg_state.c b/src/loongarch64/Gapply_reg_state.c
+new file mode 100644
+index 00000000..82f056da
+--- /dev/null
++++ b/src/loongarch64/Gapply_reg_state.c
+@@ -0,0 +1,37 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (c) 2002-2003 Hewlett-Packard Development Company, L.P.
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++
++   Modified for x86_64 by Max Asbock <masbock@us.ibm.com>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_apply_reg_state (unw_cursor_t *cursor,
++		     void *reg_states_data)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  return dwarf_apply_reg_state (&c->dwarf, (dwarf_reg_state_t *)reg_states_data);
++}
+diff --git a/src/loongarch64/Gcreate_addr_space.c b/src/loongarch64/Gcreate_addr_space.c
+new file mode 100644
+index 00000000..f441e0ac
+--- /dev/null
++++ b/src/loongarch64/Gcreate_addr_space.c
+@@ -0,0 +1,52 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include <stdlib.h>
++
++#include "unwind_i.h"
++
++unw_addr_space_t
++unw_create_addr_space (unw_accessors_t *a, int byte_order)
++{
++#ifdef UNW_LOCAL_ONLY
++  return NULL;
++#else
++  unw_addr_space_t as;
++
++  /* LoongArch64 supports only little-endian. */
++  if (byte_order != 0 && byte_order != __LITTLE_ENDIAN)
++    return NULL;
++
++  as = malloc (sizeof (*as));
++  if (!as)
++    return NULL;
++
++  memset (as, 0, sizeof (*as));
++
++  as->acc = *a;
++
++  return as;
++#endif
++}
+diff --git a/src/loongarch64/Gget_proc_info.c b/src/loongarch64/Gget_proc_info.c
+new file mode 100644
+index 00000000..04c4326d
+--- /dev/null
++++ b/src/loongarch64/Gget_proc_info.c
+@@ -0,0 +1,44 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_get_proc_info (unw_cursor_t *cursor, unw_proc_info_t *pi)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  int ret;
++
++  ret = dwarf_make_proc_info (&c->dwarf);
++  if (ret < 0) {
++    /* Construct a dummy proc info if Dwarf failed */
++    memset (pi, 0, sizeof (*pi));
++    pi->start_ip = c->dwarf.ip;
++    pi->end_ip = c->dwarf.ip + 4;
++    return 0;
++  }
++
++  *pi = c->dwarf.pi;
++  return 0;
++}
+diff --git a/src/loongarch64/Gget_save_loc.c b/src/loongarch64/Gget_save_loc.c
+new file mode 100644
+index 00000000..edc76574
+--- /dev/null
++++ b/src/loongarch64/Gget_save_loc.c
+@@ -0,0 +1,101 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++/* FIXME for LoongArch64.  */
++
++int
++unw_get_save_loc (unw_cursor_t *cursor, int reg, unw_save_loc_t *sloc)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  dwarf_loc_t loc;
++
++  loc = DWARF_NULL_LOC;         /* default to "not saved" */
++
++  switch (reg)
++    {
++    case UNW_LOONGARCH64_R0:
++    case UNW_LOONGARCH64_R1:
++    case UNW_LOONGARCH64_R2:
++    case UNW_LOONGARCH64_R3:
++    case UNW_LOONGARCH64_R4:
++    case UNW_LOONGARCH64_R5:
++    case UNW_LOONGARCH64_R6:
++    case UNW_LOONGARCH64_R7:
++    case UNW_LOONGARCH64_R8:
++    case UNW_LOONGARCH64_R9:
++    case UNW_LOONGARCH64_R10:
++    case UNW_LOONGARCH64_R11:
++    case UNW_LOONGARCH64_R12:
++    case UNW_LOONGARCH64_R13:
++    case UNW_LOONGARCH64_R14:
++    case UNW_LOONGARCH64_R15:
++    case UNW_LOONGARCH64_R16:
++    case UNW_LOONGARCH64_R17:
++    case UNW_LOONGARCH64_R18:
++    case UNW_LOONGARCH64_R19:
++    case UNW_LOONGARCH64_R20:
++    case UNW_LOONGARCH64_R21:
++    case UNW_LOONGARCH64_R22:
++    case UNW_LOONGARCH64_R23:
++    case UNW_LOONGARCH64_R24:
++    case UNW_LOONGARCH64_R25:
++    case UNW_LOONGARCH64_R26:
++    case UNW_LOONGARCH64_R27:
++    case UNW_LOONGARCH64_R28:
++    case UNW_LOONGARCH64_R29:
++    case UNW_LOONGARCH64_R30:
++    case UNW_LOONGARCH64_R31:
++    case UNW_LOONGARCH64_PC:
++      loc = c->dwarf.loc[reg - UNW_LOONGARCH64_R0];
++      break;
++
++    default:
++      break;
++    }
++
++  memset (sloc, 0, sizeof (*sloc));
++
++  if (DWARF_IS_NULL_LOC (loc))
++    {
++      sloc->type = UNW_SLT_NONE;
++      return 0;
++    }
++
++#if !defined(UNW_LOCAL_ONLY)
++  if (DWARF_IS_REG_LOC (loc))
++    {
++      sloc->type = UNW_SLT_REG;
++      sloc->u.regnum = DWARF_GET_LOC (loc);
++    }
++  else
++#endif
++    {
++      sloc->type = UNW_SLT_MEMORY;
++      sloc->u.addr = DWARF_GET_LOC (loc);
++    }
++  return 0;
++}
+diff --git a/src/loongarch64/Gglobal.c b/src/loongarch64/Gglobal.c
+new file mode 100644
+index 00000000..70a3eada
+--- /dev/null
++++ b/src/loongarch64/Gglobal.c
+@@ -0,0 +1,58 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include "dwarf_i.h"
++
++HIDDEN define_lock (loongarch64_lock);
++HIDDEN atomic_bool tdep_init_done;
++
++HIDDEN void
++tdep_init (void)
++{
++  intrmask_t saved_mask;
++
++  sigfillset (&unwi_full_mask);
++
++  lock_acquire (&loongarch64_lock, saved_mask);
++  {
++    if (tdep_init_done)
++      /* another thread else beat us to it... */
++      goto out;
++
++    mi_init ();
++
++    dwarf_init ();
++
++    tdep_init_mem_validate ();
++
++#ifndef UNW_REMOTE_ONLY
++    loongarch64_local_addr_space_init ();
++#endif
++    tdep_init_done = 1; /* signal that we're initialized... */
++  }
++ out:
++  lock_release (&loongarch64_lock, saved_mask);
++}
+diff --git a/src/loongarch64/Ginit.c b/src/loongarch64/Ginit.c
+new file mode 100644
+index 00000000..555e8d80
+--- /dev/null
++++ b/src/loongarch64/Ginit.c
+@@ -0,0 +1,405 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/mman.h>
++#include <stdatomic.h>
++
++#include "unwind_i.h"
++
++#ifdef UNW_REMOTE_ONLY
++
++/* unw_local_addr_space is a NULL pointer in this case.  */
++unw_addr_space_t unw_local_addr_space;
++
++#else /* !UNW_REMOTE_ONLY */
++
++static struct unw_addr_space local_addr_space;
++
++unw_addr_space_t unw_local_addr_space = &local_addr_space;
++
++static inline void *
++uc_addr (ucontext_t *uc, int reg)
++{
++  if (reg >= UNW_LOONGARCH64_R0 && reg <= UNW_LOONGARCH64_R31)
++    return &uc->uc_mcontext.__gregs[reg - UNW_LOONGARCH64_R0];
++  else if (reg == UNW_LOONGARCH64_PC)
++    return &uc->uc_mcontext.__pc;
++  else
++    return NULL;
++}
++
++# ifdef UNW_LOCAL_ONLY
++
++HIDDEN void *
++tdep_uc_addr (ucontext_t *uc, int reg)
++{
++  return uc_addr (uc, reg);
++}
++
++# endif /* UNW_LOCAL_ONLY */
++
++static void
++put_unwind_info (unw_addr_space_t as, unw_proc_info_t *proc_info, void *arg)
++{
++  /* it's a no-op */
++}
++
++static int
++get_dyn_info_list_addr (unw_addr_space_t as, unw_word_t *dyn_info_list_addr,
++                        void *arg)
++{
++#ifndef UNW_LOCAL_ONLY
++# pragma weak _U_dyn_info_list_addr
++  if (!_U_dyn_info_list_addr)
++    return -UNW_ENOINFO;
++#endif
++  // Access the `_U_dyn_info_list` from `LOCAL_ONLY` library, i.e. libunwind.so.
++  *dyn_info_list_addr = _U_dyn_info_list_addr ();
++  return 0;
++}
++
++#define PAGE_SIZE 4096
++#define PAGE_START(a)   ((a) & ~(PAGE_SIZE-1))
++
++static int mem_validate_pipe[2] = {-1, -1};
++
++#ifdef HAVE_PIPE2
++static inline void
++do_pipe2 (int pipefd[2])
++{
++  pipe2 (pipefd, O_CLOEXEC | O_NONBLOCK);
++}
++#else
++static inline void
++set_pipe_flags (int fd)
++{
++  int fd_flags = fcntl (fd, F_GETFD, 0);
++  int status_flags = fcntl (fd, F_GETFL, 0);
++
++  fd_flags |= FD_CLOEXEC;
++  fcntl (fd, F_SETFD, fd_flags);
++
++  status_flags |= O_NONBLOCK;
++  fcntl (fd, F_SETFL, status_flags);
++}
++
++static inline void
++do_pipe2 (int pipefd[2])
++{
++  pipe (pipefd);
++  set_pipe_flags(pipefd[0]);
++  set_pipe_flags(pipefd[1]);
++}
++#endif
++
++static inline void
++open_pipe (void)
++{
++  if (mem_validate_pipe[0] != -1)
++    close (mem_validate_pipe[0]);
++  if (mem_validate_pipe[1] != -1)
++    close (mem_validate_pipe[1]);
++
++  do_pipe2 (mem_validate_pipe);
++}
++
++ALWAYS_INLINE
++static int
++write_validate (void *addr)
++{
++  int ret = -1;
++  ssize_t bytes = 0;
++
++  do
++    {
++      char buf;
++      bytes = read (mem_validate_pipe[0], &buf, 1);
++    }
++  while ( errno == EINTR );
++
++  int valid_read = (bytes > 0 || errno == EAGAIN || errno == EWOULDBLOCK);
++  if (!valid_read)
++    {
++      // re-open closed pipe
++      open_pipe ();
++    }
++
++  do
++    {
++       ret = write (mem_validate_pipe[1], addr, 1);
++    }
++  while ( errno == EINTR );
++
++  return ret;
++}
++
++static int (*mem_validate_func) (void *addr, size_t len);
++static int msync_validate (void *addr, size_t len)
++{
++  if (msync (addr, len, MS_ASYNC) != 0)
++    {
++      return -1;
++    }
++
++  return write_validate (addr);
++}
++
++#ifdef HAVE_MINCORE
++static int mincore_validate (void *addr, size_t len)
++{
++  unsigned char mvec[2]; /* Unaligned access may cross page boundary */
++
++  /* mincore could fail with EAGAIN but we conservatively return -1
++     instead of looping. */
++  if (mincore (addr, len, (unsigned char *)mvec) != 0)
++    {
++      return -1;
++    }
++
++  return write_validate (addr);
++}
++#endif
++
++/* Initialise memory validation method. On linux kernels <2.6.21,
++   mincore() returns incorrect value for MAP_PRIVATE mappings,
++   such as stacks. If mincore() was available at compile time,
++   check if we can actually use it. If not, use msync() instead. */
++HIDDEN void
++tdep_init_mem_validate (void)
++{
++  open_pipe ();
++
++#ifdef HAVE_MINCORE
++  unsigned char present = 1;
++  unw_word_t addr = PAGE_START((unw_word_t)&present);
++  unsigned char mvec[1];
++  int ret;
++  while ((ret = mincore ((void*)addr, PAGE_SIZE, (unsigned char *)mvec)) == -1 &&
++         errno == EAGAIN) {}
++  if (ret == 0)
++    {
++      Debug(1, "using mincore to validate memory\n");
++      mem_validate_func = mincore_validate;
++    }
++  else
++#endif
++    {
++      Debug(1, "using msync to validate memory\n");
++      mem_validate_func = msync_validate;
++    }
++}
++
++/* Cache of already validated addresses */
++#define NLGA 4
++#if defined(HAVE___CACHE_PER_THREAD) && HAVE___CACHE_PER_THREAD
++// thread-local variant
++static _Thread_local unw_word_t last_good_addr[NLGA];
++static _Thread_local int lga_victim;
++
++static int
++is_cached_valid_mem(unw_word_t addr)
++{
++  int i;
++  for (i = 0; i < NLGA; i++)
++    {
++      if (addr == last_good_addr[i])
++        return 1;
++    }
++  return 0;
++}
++
++static void
++cache_valid_mem(unw_word_t addr)
++{
++  int i, victim;
++  victim = lga_victim;
++  for (i = 0; i < NLGA; i++) {
++    if (last_good_addr[victim] == 0) {
++      last_good_addr[victim] = addr;
++      return;
++    }
++    victim = (victim + 1) % NLGA;
++  }
++
++  /* All slots full. Evict the victim. */
++  last_good_addr[victim] = addr;
++  victim = (victim + 1) % NLGA;
++  lga_victim = victim;
++}
++
++#else
++// global, thread safe variant
++static _Atomic unw_word_t last_good_addr[NLGA];
++static _Atomic int lga_victim;
++
++static int
++is_cached_valid_mem(unw_word_t addr)
++{
++  int i;
++  for (i = 0; i < NLGA; i++)
++    {
++      if (addr == atomic_load(&last_good_addr[i]))
++        return 1;
++    }
++  return 0;
++}
++
++static void
++cache_valid_mem(unw_word_t addr)
++{
++  int i, victim;
++  victim = atomic_load(&lga_victim);
++  unw_word_t zero = 0;
++  for (i = 0; i < NLGA; i++) {
++    if (atomic_compare_exchange_strong(&last_good_addr[victim], &zero, addr)) {
++      return;
++    }
++    victim = (victim + 1) % NLGA;
++  }
++
++  /* All slots full. Evict the victim. */
++  atomic_store(&last_good_addr[victim], addr);
++  victim = (victim + 1) % NLGA;
++  atomic_store(&lga_victim, victim);
++}
++#endif
++
++static int
++validate_mem (unw_word_t addr)
++{
++  size_t len;
++
++  if (PAGE_START(addr + sizeof (unw_word_t) - 1) == PAGE_START(addr))
++    len = PAGE_SIZE;
++  else
++    len = PAGE_SIZE * 2;
++
++  addr = PAGE_START(addr);
++
++  if (addr == 0)
++    return -1;
++
++  if (is_cached_valid_mem(addr))
++    return 0;
++
++  if (mem_validate_func ((void *) addr, len) == -1)
++    return -1;
++
++  cache_valid_mem(addr);
++
++  return 0;
++}
++
++static int
++access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
++            void *arg)
++{
++  if (unlikely (write))
++    {
++      Debug (16, "mem[%llx] <- %llx\n", (long long) addr, (long long) *val);
++      *(unw_word_t *) (intptr_t) addr = *val;
++    }
++  else
++    {
++      /* validate address */
++      const struct cursor *c = (const struct cursor *)arg;
++      if (likely (c != NULL) && unlikely (c->validate)
++          && unlikely (validate_mem (addr))) {
++        Debug (16, "mem[%016lx] -> invalid\n", addr);
++        return -1;
++      }
++      *val = *(unw_word_t *) (intptr_t) addr;
++      Debug (16, "mem[%llx] -> %llx\n", (long long) addr, (long long) *val);
++    }
++  return 0;
++}
++
++static int
++access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val, int write,
++            void *arg)
++{
++  unw_word_t *addr;
++  ucontext_t *uc = ((struct cursor *)arg)->uc;
++
++  if (unw_is_fpreg (reg))
++    goto badreg;
++
++  Debug (16, "reg = %s\n", unw_regname (reg));
++  if (!(addr = uc_addr (uc, reg)))
++    goto badreg;
++
++  if (write)
++    {
++      *(unw_word_t *) (intptr_t) addr = (unw_word_t) *val;
++      Debug (12, "%s <- %llx\n", unw_regname (reg), (long long) *val);
++    }
++  else
++    {
++      *val = (unw_word_t) *(unw_word_t *) (intptr_t) addr;
++      Debug (12, "%s -> %llx\n", unw_regname (reg), (long long) *val);
++    }
++  return 0;
++
++ badreg:
++  Debug (1, "bad register number %u\n", reg);
++  return -UNW_EBADREG;
++}
++
++static int
++access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
++              int write, void *arg)
++{
++  return 0;
++}
++
++static int
++get_static_proc_name (unw_addr_space_t as, unw_word_t ip,
++                      char *buf, size_t buf_len, unw_word_t *offp,
++                      void *arg)
++{
++  return elf_w (get_proc_name) (as, getpid (), ip, buf, buf_len, offp);
++}
++
++HIDDEN void
++loongarch64_local_addr_space_init (void)
++{
++  memset (&local_addr_space, 0, sizeof (local_addr_space));
++
++  local_addr_space.caching_policy = UNW_CACHE_GLOBAL;
++  local_addr_space.acc.find_proc_info = dwarf_find_proc_info;
++  local_addr_space.acc.put_unwind_info = put_unwind_info;
++  local_addr_space.acc.get_dyn_info_list_addr = get_dyn_info_list_addr;
++  local_addr_space.acc.access_mem = access_mem;
++  local_addr_space.acc.access_reg = access_reg;
++  local_addr_space.acc.access_fpreg = access_fpreg;
++  local_addr_space.acc.resume = loongarch64_local_resume;
++  local_addr_space.acc.get_proc_name = get_static_proc_name;
++  unw_flush_cache (&local_addr_space, 0, 0);
++}
++
++#endif /* !UNW_REMOTE_ONLY */
+diff --git a/src/loongarch64/Ginit_local.c b/src/loongarch64/Ginit_local.c
+new file mode 100644
+index 00000000..977789da
+--- /dev/null
++++ b/src/loongarch64/Ginit_local.c
+@@ -0,0 +1,80 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include "init.h"
++
++#ifdef UNW_REMOTE_ONLY
++
++int
++unw_init_local (unw_cursor_t *cursor, ucontext_t *uc)
++{
++  return -UNW_EINVAL;
++}
++
++#else /* !UNW_REMOTE_ONLY */
++
++static int
++unw_init_local_common(unw_cursor_t *cursor, ucontext_t *uc, unsigned use_prev_instr)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  if (!atomic_load(&tdep_init_done))
++    tdep_init ();
++
++  Debug (1, "(cursor=%p)\n", c);
++
++  c->dwarf.as = unw_local_addr_space;
++  c->dwarf.as_arg = c;
++  c->uc = uc;
++  c->validate = 0;
++
++  return common_init (c, use_prev_instr);
++}
++
++int
++unw_init_local(unw_cursor_t *cursor, ucontext_t *uc)
++{
++  return unw_init_local_common(cursor, uc, 1);
++}
++
++int
++unw_init_local2 (unw_cursor_t *cursor, ucontext_t *uc, int flag)
++{
++  if (!flag)
++    {
++      return unw_init_local_common(cursor, uc, 1);
++    }
++  else if (flag == UNW_INIT_SIGNAL_FRAME)
++    {
++      return unw_init_local_common(cursor, uc, 0);
++    }
++  else
++    {
++      return -UNW_EINVAL;
++    }
++}
++
++#endif /* !UNW_REMOTE_ONLY */
+diff --git a/src/loongarch64/Ginit_remote.c b/src/loongarch64/Ginit_remote.c
+new file mode 100644
+index 00000000..4a17a8a3
+--- /dev/null
++++ b/src/loongarch64/Ginit_remote.c
+@@ -0,0 +1,56 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "init.h"
++#include "unwind_i.h"
++
++int
++unw_init_remote (unw_cursor_t *cursor, unw_addr_space_t as, void *as_arg)
++{
++#ifdef UNW_LOCAL_ONLY
++  return -UNW_EINVAL;
++#else /* !UNW_LOCAL_ONLY */
++  struct cursor *c = (struct cursor *) cursor;
++
++  if (!tdep_init_done)
++    tdep_init ();
++
++  Debug (1, "(cursor=%p)\n", c);
++
++  c->dwarf.as = as;
++  if (as == unw_local_addr_space)
++    {
++      c->dwarf.as_arg = c;
++      c->uc = as_arg;
++    }
++  else
++    {
++      c->dwarf.as_arg = as_arg;
++      c->uc = 0;
++    }
++
++  return common_init (c, 0);
++#endif /* !UNW_LOCAL_ONLY */
++}
+diff --git a/src/loongarch64/Gis_signal_frame.c b/src/loongarch64/Gis_signal_frame.c
+new file mode 100644
+index 00000000..bf7677d5
+--- /dev/null
++++ b/src/loongarch64/Gis_signal_frame.c
+@@ -0,0 +1,71 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include <stdio.h>
++
++/*
++  arch/loongarch/vdso/sigreturn.S:
++
++  0000000000000000 <__vdso_rt_sigreturn>:
++     0:	03822c0b 	ori	$r11,$r0,0x8b
++     4:	002b0000 	syscall	0x0
++*/
++
++#define SIGRETURN_W0    0x03822c0b
++#define SIGRETURN_W1    0x002b0000
++
++int
++unw_is_signal_frame (unw_cursor_t *cursor)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  unw_word_t w0, w1, ip;
++  unw_addr_space_t as;
++  unw_accessors_t *a;
++  void *arg;
++  int ret;
++
++  as = c->dwarf.as;
++  a = unw_get_accessors (as);
++  arg = c->dwarf.as_arg;
++
++  ip = c->dwarf.ip;
++
++  /* syscall 0x0 */
++  if ((ret = (*a->access_mem) (as, ip + 4, &w1, 0, arg)) < 0)
++    return ret;
++
++  /* ori a7,zero,0x8b */
++  if ((ret = (*a->access_mem) (as, ip, &w0, 0, arg)) < 0)
++    return ret;
++
++  if ((w1 & 0xffffffff) == SIGRETURN_W1 && (w0 & 0xffffffff) == SIGRETURN_W0)
++    {
++      Debug (8, "cursor at signal frame\n");
++      return 1;
++    }
++
++    return 0;
++}
+diff --git a/src/loongarch64/Greg_states_iterate.c b/src/loongarch64/Greg_states_iterate.c
+new file mode 100644
+index 00000000..a17dc1b5
+--- /dev/null
++++ b/src/loongarch64/Greg_states_iterate.c
+@@ -0,0 +1,37 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (c) 2002-2003 Hewlett-Packard Development Company, L.P.
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++
++   Modified for x86_64 by Max Asbock <masbock@us.ibm.com>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_reg_states_iterate (unw_cursor_t *cursor,
++			unw_reg_states_callback cb, void *token)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  return dwarf_reg_states_iterate (&c->dwarf, cb, token);
++}
+diff --git a/src/loongarch64/Gregs.c b/src/loongarch64/Gregs.c
+new file mode 100644
+index 00000000..7c27f0de
+--- /dev/null
++++ b/src/loongarch64/Gregs.c
+@@ -0,0 +1,109 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++/* FIXME: The following is probably unfinished and/or at least partly bogus.  */
++
++HIDDEN int
++tdep_access_reg (struct cursor *c, unw_regnum_t reg, unw_word_t *valp,
++                 int write)
++{
++  dwarf_loc_t loc = DWARF_NULL_LOC;
++
++  switch (reg)
++    {
++    case UNW_LOONGARCH64_R0:
++    case UNW_LOONGARCH64_R1:
++    case UNW_LOONGARCH64_R2:
++
++    case UNW_LOONGARCH64_R4:
++    case UNW_LOONGARCH64_R5:
++    case UNW_LOONGARCH64_R6:
++    case UNW_LOONGARCH64_R7:
++    case UNW_LOONGARCH64_R8:
++    case UNW_LOONGARCH64_R9:
++    case UNW_LOONGARCH64_R10:
++    case UNW_LOONGARCH64_R11:
++    case UNW_LOONGARCH64_R12:
++    case UNW_LOONGARCH64_R13:
++    case UNW_LOONGARCH64_R14:
++    case UNW_LOONGARCH64_R15:
++    case UNW_LOONGARCH64_R16:
++    case UNW_LOONGARCH64_R17:
++    case UNW_LOONGARCH64_R18:
++    case UNW_LOONGARCH64_R19:
++    case UNW_LOONGARCH64_R20:
++    case UNW_LOONGARCH64_R21:
++    case UNW_LOONGARCH64_R22:
++    case UNW_LOONGARCH64_R23:
++    case UNW_LOONGARCH64_R24:
++    case UNW_LOONGARCH64_R25:
++    case UNW_LOONGARCH64_R26:
++    case UNW_LOONGARCH64_R27:
++    case UNW_LOONGARCH64_R28:
++    case UNW_LOONGARCH64_R29:
++    case UNW_LOONGARCH64_R30:
++    case UNW_LOONGARCH64_R31:
++      loc = c->dwarf.loc[reg - UNW_LOONGARCH64_R0];
++      break;
++
++    case UNW_LOONGARCH64_PC:
++      if (write)
++        {
++          Debug (16, "pc is now 0x%lx\n", *valp);
++          c->dwarf.ip = *valp;
++        }
++      loc = c->dwarf.loc[reg];
++      break;
++    case UNW_TDEP_SP: /* UNW_LOONGARCH64_R3 */
++    case UNW_LOONGARCH64_CFA:
++      if (write)
++        return -UNW_EREADONLYREG;
++      *valp = c->dwarf.cfa;
++      return 0;
++
++    /* FIXME: IP?  Copro & shadow registers?  */
++
++    default:
++      Debug (1, "bad register number %u\n", reg);
++      return -UNW_EBADREG;
++    }
++
++  if (write)
++    return dwarf_put (&c->dwarf, loc, *valp);
++  else
++    return dwarf_get (&c->dwarf, loc, valp);
++
++}
++
++/* FIXME for LoongArch64.  */
++
++HIDDEN int
++tdep_access_fpreg (struct cursor *c, unw_regnum_t reg, unw_fpreg_t *valp,
++                   int write)
++{
++  return -UNW_EBADREG;
++}
+diff --git a/src/loongarch64/Gresume.c b/src/loongarch64/Gresume.c
+new file mode 100644
+index 00000000..66ce277c
+--- /dev/null
++++ b/src/loongarch64/Gresume.c
+@@ -0,0 +1,133 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++/* FIXME for LoongArch64.  */
++
++#include <stdlib.h>
++
++#include "unwind_i.h"
++
++#ifndef UNW_REMOTE_ONLY
++
++HIDDEN inline int
++loongarch64_local_resume (unw_addr_space_t as, unw_cursor_t *cursor, void *arg)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  unw_tdep_context_t *uc = c->uc;
++
++  if (c->sigcontext_format == LOONGARCH64_SCF_NONE)
++    {
++      /* Since there are no signals involved here we restore EH and non scratch
++         registers only.  */
++      unsigned long sp = uc->uc_mcontext.__gregs[3];
++      unsigned long ra = uc->uc_mcontext.__gregs[1];
++
++      asm volatile (
++        "move $t0, %0\n"
++        "move $t1, %1\n"
++        "move $t2, %2\n"
++        "ld.d $fp, $t0, 22*8\n"
++        "ld.d $s0, $t0, 23*8\n"
++        "ld.d $s1, $t0, 24*8\n"
++        "ld.d $s2, $t0, 25*8\n"
++        "ld.d $s3, $t0, 26*8\n"
++        "ld.d $s4, $t0, 27*8\n"
++        "ld.d $s5, $t0, 28*8\n"
++        "ld.d $s6, $t0, 29*8\n"
++        "ld.d $s7, $t0, 30*8\n"
++        "ld.d $s8, $t0, 31*8\n"
++        "move $ra, $t2\n"
++        "move $sp, $t1\n"
++        "jirl $r0, $ra, 0\n"
++        :
++        : "r" (uc->uc_mcontext.__gregs),
++          "r" (sp),
++          "r" (ra)
++        : "$t0", "$t1", "$t2", "memory"
++      );
++    }
++  else /* c->sigcontext_format == LOONGARCH64_SCF_LINUX_RT_SIGFRAME */
++    {
++      int i;
++      struct sigcontext *sc = (struct sigcontext *) c->sigcontext_addr;
++
++      sc->sc_pc = c->dwarf.ip;
++      for (i = UNW_LOONGARCH64_R0; i <= UNW_LOONGARCH64_R31; i++)
++            sc->sc_regs[i] = uc->uc_mcontext.__gregs[i];
++
++      Debug (8, "resuming at ip=0x%lx via sigreturn() (trampoline @ 0x%lx, sp @ 0x%lx)\n",
++        c->dwarf.ip, c->sigcontext_pc, c->sigcontext_sp);
++
++      asm volatile (
++        "move $sp, %0\n"
++        "jirl $r0, %1, 0\n"
++        : : "r" (c->sigcontext_sp), "r" (c->sigcontext_pc)
++      );
++   }
++  unreachable();
++
++  return -UNW_EINVAL;
++}
++
++#endif /* !UNW_REMOTE_ONLY */
++
++static inline void
++establish_machine_state (struct cursor *c)
++{
++  unw_addr_space_t as = c->dwarf.as;
++  void *arg = c->dwarf.as_arg;
++  unw_word_t val;
++  int reg;
++
++  Debug (8, "copying out cursor state\n");
++
++  for (reg = UNW_LOONGARCH64_R0; reg <= UNW_LOONGARCH64_R31; reg++)
++    {
++      Debug (16, "copying %s %d\n", unw_regname (reg), reg);
++      if (tdep_access_reg (c, reg, &val, 0) >= 0)
++        as->acc.access_reg (as, reg, &val, 1, arg);
++    }
++}
++
++int
++unw_resume (unw_cursor_t *cursor)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  Debug (1, "(cursor=%p)\n", c);
++
++  if (!c->dwarf.ip)
++    {
++      /* This can happen easily when the frame-chain gets truncated
++         due to bad or missing unwind-info.  */
++      Debug (1, "refusing to resume execution at address 0\n");
++      return -UNW_EINVAL;
++    }
++
++  establish_machine_state (c);
++
++  return (*c->dwarf.as->acc.resume) (c->dwarf.as, (unw_cursor_t *) c,
++                                     c->dwarf.as_arg);
++}
+diff --git a/src/loongarch64/Gstep.c b/src/loongarch64/Gstep.c
+new file mode 100644
+index 00000000..be03849d
+--- /dev/null
++++ b/src/loongarch64/Gstep.c
+@@ -0,0 +1,144 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2015 Imagination Technologies Limited
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include "offsets.h"
++
++static int
++loongarch64_handle_signal_frame (unw_cursor_t *cursor)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  unw_word_t sc_addr, sp_addr = c->dwarf.cfa;
++  unw_word_t ra, fp;
++  int ret;
++
++  if (unw_is_signal_frame (cursor)) {
++    sc_addr = sp_addr + sizeof (siginfo_t) + LINUX_UC_MCONTEXT_OFF;
++  } else {
++    c->sigcontext_format = LOONGARCH64_SCF_NONE;
++    return -UNW_EUNSPEC;
++  }
++
++  c->sigcontext_addr = sc_addr;
++
++  /* Save the SP and PC to be able to return execution at this point
++    later in time (unw_resume).  */
++  c->sigcontext_sp = c->dwarf.cfa;
++  c->sigcontext_pc = c->dwarf.ip;
++  c->sigcontext_format = LOONGARCH64_SCF_LINUX_RT_SIGFRAME;
++
++    /* Update the dwarf cursor.
++     Set the location of the registers to the corresponding addresses of the
++     uc_mcontext / sigcontext structure contents.  */
++
++  c->dwarf.loc[UNW_LOONGARCH64_R0]  = DWARF_LOC (sc_addr + LINUX_SC_R0_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R1]  = DWARF_LOC (sc_addr + LINUX_SC_R1_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R2]  = DWARF_LOC (sc_addr + LINUX_SC_R2_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R3]  = DWARF_LOC (sc_addr + LINUX_SC_R3_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R4]  = DWARF_LOC (sc_addr + LINUX_SC_R4_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R5]  = DWARF_LOC (sc_addr + LINUX_SC_R5_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R6]  = DWARF_LOC (sc_addr + LINUX_SC_R6_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R7]  = DWARF_LOC (sc_addr + LINUX_SC_R7_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R8]  = DWARF_LOC (sc_addr + LINUX_SC_R8_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R9]  = DWARF_LOC (sc_addr + LINUX_SC_R9_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R10] = DWARF_LOC (sc_addr + LINUX_SC_R10_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R11] = DWARF_LOC (sc_addr + LINUX_SC_R11_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R12] = DWARF_LOC (sc_addr + LINUX_SC_R12_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R13] = DWARF_LOC (sc_addr + LINUX_SC_R13_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R14] = DWARF_LOC (sc_addr + LINUX_SC_R14_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R15] = DWARF_LOC (sc_addr + LINUX_SC_R15_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R16] = DWARF_LOC (sc_addr + LINUX_SC_R16_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R17] = DWARF_LOC (sc_addr + LINUX_SC_R17_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R18] = DWARF_LOC (sc_addr + LINUX_SC_R18_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R19] = DWARF_LOC (sc_addr + LINUX_SC_R19_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R20] = DWARF_LOC (sc_addr + LINUX_SC_R20_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R21] = DWARF_LOC (sc_addr + LINUX_SC_R21_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R22] = DWARF_LOC (sc_addr + LINUX_SC_R22_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R23] = DWARF_LOC (sc_addr + LINUX_SC_R23_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R24] = DWARF_LOC (sc_addr + LINUX_SC_R24_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R25] = DWARF_LOC (sc_addr + LINUX_SC_R25_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R26] = DWARF_LOC (sc_addr + LINUX_SC_R26_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R27] = DWARF_LOC (sc_addr + LINUX_SC_R27_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R28] = DWARF_LOC (sc_addr + LINUX_SC_R28_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R29] = DWARF_LOC (sc_addr + LINUX_SC_R29_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R30] = DWARF_LOC (sc_addr + LINUX_SC_R30_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_R31] = DWARF_LOC (sc_addr + LINUX_SC_R31_OFF, 0);
++  c->dwarf.loc[UNW_LOONGARCH64_PC] = DWARF_LOC (sc_addr + LINUX_SC_PC_OFF, 0);
++
++  /* Set SP/CFA and PC/IP. */
++  dwarf_get (&c->dwarf, c->dwarf.loc[UNW_LOONGARCH64_R3], &c->dwarf.cfa);
++
++  if ((ret = dwarf_get(&c->dwarf, DWARF_LOC(sc_addr + LINUX_SC_PC_OFF, 0),
++                       &c->dwarf.ip)) < 0)
++    return ret;
++
++  if ((ret = dwarf_get(&c->dwarf, DWARF_LOC(sc_addr + LINUX_SC_R1_OFF, 0),
++                       &ra)) < 0)
++    return ret;
++  if ((ret = dwarf_get(&c->dwarf, DWARF_LOC(sc_addr + LINUX_SC_R22_OFF, 0),
++                       &fp)) < 0)
++    return ret;
++
++  Debug (2, "SH (ip=0x%016llx, ra=0x%016llx, sp=0x%016llx, fp=0x%016llx)\n",
++         (unsigned long long)c->dwarf.ip, (unsigned long long)ra,
++         (unsigned long long)c->dwarf.cfa, (unsigned long long)fp);
++
++  c->dwarf.pi_valid = 0;
++  c->dwarf.use_prev_instr = 0;
++
++  return 1;
++
++}
++
++int
++unw_step (unw_cursor_t *cursor)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  int validate = c->validate;
++  int ret;
++
++  Debug (1, "(cursor=%p, ip=0x%016lx, sp=0x%016lx)\n",
++         c, c->dwarf.ip, c->dwarf.cfa);
++
++  ret = unw_is_signal_frame (cursor);
++  if (ret > 0)
++    return loongarch64_handle_signal_frame (cursor);
++
++  /* Not a signal frame, try DWARF-based unwinding. */
++  ret = dwarf_step (&c->dwarf);
++
++  /* Restore default memory validation state */
++  c->validate = validate;
++
++  if (unlikely (ret == -UNW_ESTOPUNWIND))
++    return ret;
++
++  /* Dwarf unwinding didn't work, stop.  */
++  if (unlikely (ret < 0))
++    return 0;
++
++  return (c->dwarf.ip == 0) ? 0 : 1;
++}
+diff --git a/src/loongarch64/Lapply_reg_state.c b/src/loongarch64/Lapply_reg_state.c
+new file mode 100644
+index 00000000..7ebada48
+--- /dev/null
++++ b/src/loongarch64/Lapply_reg_state.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gapply_reg_state.c"
++#endif
+diff --git a/src/loongarch64/Lcreate_addr_space.c b/src/loongarch64/Lcreate_addr_space.c
+new file mode 100644
+index 00000000..0f2dc6be
+--- /dev/null
++++ b/src/loongarch64/Lcreate_addr_space.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gcreate_addr_space.c"
++#endif
+diff --git a/src/loongarch64/Lget_proc_info.c b/src/loongarch64/Lget_proc_info.c
+new file mode 100644
+index 00000000..69028b01
+--- /dev/null
++++ b/src/loongarch64/Lget_proc_info.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gget_proc_info.c"
++#endif
+diff --git a/src/loongarch64/Lget_save_loc.c b/src/loongarch64/Lget_save_loc.c
+new file mode 100644
+index 00000000..9ea048a9
+--- /dev/null
++++ b/src/loongarch64/Lget_save_loc.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gget_save_loc.c"
++#endif
+diff --git a/src/loongarch64/Lglobal.c b/src/loongarch64/Lglobal.c
+new file mode 100644
+index 00000000..6d7b489e
+--- /dev/null
++++ b/src/loongarch64/Lglobal.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gglobal.c"
++#endif
+diff --git a/src/loongarch64/Linit.c b/src/loongarch64/Linit.c
+new file mode 100644
+index 00000000..e9abfdd4
+--- /dev/null
++++ b/src/loongarch64/Linit.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Ginit.c"
++#endif
+diff --git a/src/loongarch64/Linit_local.c b/src/loongarch64/Linit_local.c
+new file mode 100644
+index 00000000..68a1687e
+--- /dev/null
++++ b/src/loongarch64/Linit_local.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Ginit_local.c"
++#endif
+diff --git a/src/loongarch64/Linit_remote.c b/src/loongarch64/Linit_remote.c
+new file mode 100644
+index 00000000..58cb04ab
+--- /dev/null
++++ b/src/loongarch64/Linit_remote.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Ginit_remote.c"
++#endif
+diff --git a/src/loongarch64/Lis_signal_frame.c b/src/loongarch64/Lis_signal_frame.c
+new file mode 100644
+index 00000000..b9a7c4f5
+--- /dev/null
++++ b/src/loongarch64/Lis_signal_frame.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gis_signal_frame.c"
++#endif
+diff --git a/src/loongarch64/Lreg_states_iterate.c b/src/loongarch64/Lreg_states_iterate.c
+new file mode 100644
+index 00000000..f1eb1e79
+--- /dev/null
++++ b/src/loongarch64/Lreg_states_iterate.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Greg_states_iterate.c"
++#endif
+diff --git a/src/loongarch64/Lregs.c b/src/loongarch64/Lregs.c
+new file mode 100644
+index 00000000..2c9c75cd
+--- /dev/null
++++ b/src/loongarch64/Lregs.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gregs.c"
++#endif
+diff --git a/src/loongarch64/Lresume.c b/src/loongarch64/Lresume.c
+new file mode 100644
+index 00000000..41a8cf00
+--- /dev/null
++++ b/src/loongarch64/Lresume.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gresume.c"
++#endif
+diff --git a/src/loongarch64/Lstep.c b/src/loongarch64/Lstep.c
+new file mode 100644
+index 00000000..c1ac3c75
+--- /dev/null
++++ b/src/loongarch64/Lstep.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gstep.c"
++#endif
+diff --git a/src/loongarch64/getcontext.S b/src/loongarch64/getcontext.S
+new file mode 100644
+index 00000000..3344fc2e
+--- /dev/null
++++ b/src/loongarch64/getcontext.S
+@@ -0,0 +1,61 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2012 Tommi Rantala <tt.rantala@gmail.com>
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "offsets.h"
++#include <endian.h>
++	.text
++
++#define SREG(X) st.d $r##X, $r4, (LINUX_UC_MCONTEXT_GREGS + 8 * X)
++#define SPC st.d $r1, $r4, (LINUX_UC_MCONTEXT_PC)
++
++	.global _Uloongarch64_getcontext
++	.type   _Uloongarch64_getcontext, %function
++
++_Uloongarch64_getcontext:
++        .cfi_startproc
++        SREG(0)
++        SREG(1)
++        SREG(3)
++        SREG(21)
++        SREG(22)
++        SREG(23)
++        SREG(24)
++        SREG(25)
++        SREG(26)
++        SREG(27)
++        SREG(28)
++        SREG(29)
++        SREG(30)
++        SREG(31)
++
++        SPC
++
++        ori $r4, $r0, 0
++        jirl $r0, $r1, 0
++
++        .cfi_endproc
++
++	.size   _Uloongarch64_getcontext, .-_Uloongarch64_getcontext
+diff --git a/src/loongarch64/init.h b/src/loongarch64/init.h
+new file mode 100644
+index 00000000..2d8bca01
+--- /dev/null
++++ b/src/loongarch64/init.h
+@@ -0,0 +1,64 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++static inline int
++common_init (struct cursor *c, unsigned use_prev_instr)
++{
++  int ret, i;
++
++  for (i = UNW_LOONGARCH64_R0; i <= UNW_LOONGARCH64_R31; i++)
++    c->dwarf.loc[i] = DWARF_REG_LOC (&c->dwarf, i);
++
++  for (i = UNW_LOONGARCH64_R31 + 1; i < DWARF_NUM_PRESERVED_REGS; i++)
++    c->dwarf.loc[i] = DWARF_NULL_LOC;
++
++  c->dwarf.loc[UNW_LOONGARCH64_PC] = DWARF_REG_LOC (&c->dwarf, UNW_LOONGARCH64_PC);
++
++  ret = dwarf_get (&c->dwarf, c->dwarf.loc[UNW_LOONGARCH64_PC], &c->dwarf.ip);
++  if (ret < 0)
++    return ret;
++
++  ret = dwarf_get (&c->dwarf, DWARF_REG_LOC (&c->dwarf, UNW_LOONGARCH64_R3),
++                   &c->dwarf.cfa);
++  if (ret < 0)
++    return ret;
++
++  c->sigcontext_format = LOONGARCH64_SCF_NONE;
++  c->sigcontext_addr = 0;
++  c->sigcontext_sp = 0;
++  c->sigcontext_pc = 0;
++
++  c->dwarf.args_size = 0;
++  c->dwarf.stash_frames = 0;
++  c->dwarf.use_prev_instr = use_prev_instr;
++  c->dwarf.pi_valid = 0;
++  c->dwarf.pi_is_dynamic = 0;
++  c->dwarf.hint = 0;
++  c->dwarf.prev_rs = 0;
++
++  return 0;
++}
+diff --git a/src/loongarch64/is_fpreg.c b/src/loongarch64/is_fpreg.c
+new file mode 100644
+index 00000000..3aa27195
+--- /dev/null
++++ b/src/loongarch64/is_fpreg.c
+@@ -0,0 +1,35 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "libunwind_i.h"
++
++/* FIXME: I'm not sure if libunwind's FP register distinction is very useful
++   on LoongArch64.  */
++
++int
++unw_is_fpreg (int regnum)
++{
++  /* FIXME: Support FP.  */
++  return 0;
++}
+diff --git a/src/loongarch64/offsets.h b/src/loongarch64/offsets.h
+new file mode 100644
+index 00000000..8657a119
+--- /dev/null
++++ b/src/loongarch64/offsets.h
+@@ -0,0 +1,50 @@
++/* Linux-specific definitions: */
++
++/* Define various structure offsets to simplify cross-compilation.  */
++
++/* Offsets for LoongArch64 Linux "ucontext_t":  */
++
++# define LINUX_UC_FLAGS_OFF		0x0	/* offsetof(struct ucontext_t, __uc_flags) */
++# define LINUX_UC_LINK_OFF		0x8	/* offsetof(struct ucontext_t, uc_link) */
++# define LINUX_UC_STACK_OFF		0x10	/* offsetof(struct ucontext_t, uc_stack) */
++# define LINUX_UC_SIGMASK_OFF		0x28	/* offsetof(struct ucontext_t, uc_sigmask) */
++# define LINUX_UC_MCONTEXT_OFF		0xb0	/* offsetof(struct ucontext_t, uc_mcontext) */
++
++# define LINUX_UC_MCONTEXT_PC		0xb0	/* offsetof(struct ucontext_t, uc_mcontext.__pc) */
++# define LINUX_UC_MCONTEXT_GREGS	0xb8	/* offsetof(struct ucontext_t, uc_mcontext.__gregs) */
++/* Offsets for LoongArch64 Linux "struct sigcontext": */
++#define LINUX_SC_R0_OFF   (LINUX_UC_MCONTEXT_GREGS - LINUX_UC_MCONTEXT_OFF)
++#define LINUX_SC_R1_OFF   (LINUX_SC_R0_OFF + 1*8)
++#define LINUX_SC_R2_OFF   (LINUX_SC_R0_OFF + 2*8)
++#define LINUX_SC_R3_OFF   (LINUX_SC_R0_OFF + 3*8)
++#define LINUX_SC_R4_OFF   (LINUX_SC_R0_OFF + 4*8)
++#define LINUX_SC_R5_OFF   (LINUX_SC_R0_OFF + 5*8)
++#define LINUX_SC_R6_OFF   (LINUX_SC_R0_OFF + 6*8)
++#define LINUX_SC_R7_OFF   (LINUX_SC_R0_OFF + 7*8)
++#define LINUX_SC_R8_OFF   (LINUX_SC_R0_OFF + 8*8)
++#define LINUX_SC_R9_OFF   (LINUX_SC_R0_OFF + 9*8)
++#define LINUX_SC_R10_OFF  (LINUX_SC_R0_OFF + 10*8)
++#define LINUX_SC_R11_OFF  (LINUX_SC_R0_OFF + 11*8)
++#define LINUX_SC_R12_OFF  (LINUX_SC_R0_OFF + 12*8)
++#define LINUX_SC_R13_OFF  (LINUX_SC_R0_OFF + 13*8)
++#define LINUX_SC_R14_OFF  (LINUX_SC_R0_OFF + 14*8)
++#define LINUX_SC_R15_OFF  (LINUX_SC_R0_OFF + 15*8)
++#define LINUX_SC_R16_OFF  (LINUX_SC_R0_OFF + 16*8)
++#define LINUX_SC_R17_OFF  (LINUX_SC_R0_OFF + 17*8)
++#define LINUX_SC_R18_OFF  (LINUX_SC_R0_OFF + 18*8)
++#define LINUX_SC_R19_OFF  (LINUX_SC_R0_OFF + 19*8)
++#define LINUX_SC_R20_OFF  (LINUX_SC_R0_OFF + 20*8)
++#define LINUX_SC_R21_OFF  (LINUX_SC_R0_OFF + 21*8)
++#define LINUX_SC_R22_OFF  (LINUX_SC_R0_OFF + 22*8)
++#define LINUX_SC_R23_OFF  (LINUX_SC_R0_OFF + 23*8)
++#define LINUX_SC_R24_OFF  (LINUX_SC_R0_OFF + 24*8)
++#define LINUX_SC_R25_OFF  (LINUX_SC_R0_OFF + 25*8)
++#define LINUX_SC_R26_OFF  (LINUX_SC_R0_OFF + 26*8)
++#define LINUX_SC_R27_OFF  (LINUX_SC_R0_OFF + 27*8)
++#define LINUX_SC_R28_OFF  (LINUX_SC_R0_OFF + 28*8)
++#define LINUX_SC_R29_OFF  (LINUX_SC_R0_OFF + 29*8)
++#define LINUX_SC_R30_OFF  (LINUX_SC_R0_OFF + 30*8)
++#define LINUX_SC_R31_OFF  (LINUX_SC_R0_OFF + 31*8)
++
++#define LINUX_SC_SP_OFF   LINUX_SC_R3_OFF
++#define LINUX_SC_PC_OFF   (LINUX_UC_MCONTEXT_PC - LINUX_UC_MCONTEXT_OFF)
+diff --git a/src/loongarch64/regname.c b/src/loongarch64/regname.c
+new file mode 100644
+index 00000000..ef95044e
+--- /dev/null
++++ b/src/loongarch64/regname.c
+@@ -0,0 +1,50 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Loongson Technology Corporation Limited
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++static const char *regname[] =
++  {
++    /* 0.  */
++    "zero",  "ra",  "tp",  "sp",  "a0(v0)",  "a1(v1)",  "a2",  "a3",
++    /* 8.  */
++    "a4",  "a5",  "a6", "a7",  "t0",  "t1",  "t2",  "t3",
++    /* 16.  */
++    "t4",  "t5",  "t6", "t7",  "t8",  "reserve",  "fp",  "s0",
++    /* 24.  */
++    "s1",  "s2",  "s3", "s4",  "s5",  "s6",  "s7",  "s8",
++
++    /*  pc */
++    "pc"
++  };
++
++const char *
++unw_regname (unw_regnum_t reg)
++{
++  if (reg < (unw_regnum_t) ARRAY_SIZE (regname))
++    return regname[reg];
++  else
++    return "???";
++}
+diff --git a/src/loongarch64/siglongjmp.S b/src/loongarch64/siglongjmp.S
+new file mode 100644
+index 00000000..ef793432
+--- /dev/null
++++ b/src/loongarch64/siglongjmp.S
+@@ -0,0 +1,8 @@
++	/* Dummy implementation for now.  */
++
++	.globl _UI_siglongjmp_cont
++	.globl _UI_longjmp_cont
++
++_UI_siglongjmp_cont:
++_UI_longjmp_cont:
++	jirl $r0, $r1, 0
+diff --git a/src/loongarch64/unwind_i.h b/src/loongarch64/unwind_i.h
+new file mode 100644
+index 00000000..86bf4aca
+--- /dev/null
++++ b/src/loongarch64/unwind_i.h
+@@ -0,0 +1,43 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef unwind_i_h
++#define unwind_i_h
++
++#include <stdint.h>
++
++#include <libunwind-loongarch64.h>
++
++#include "libunwind_i.h"
++
++#define loongarch64_lock                       UNW_OBJ(lock)
++#define loongarch64_local_resume               UNW_OBJ(local_resume)
++#define loongarch64_local_addr_space_init      UNW_OBJ(local_addr_space_init)
++
++extern int loongarch64_local_resume (unw_addr_space_t as, unw_cursor_t *cursor,
++                             void *arg);
++
++extern void loongarch64_local_addr_space_init (void);
++
++#endif /* unwind_i_h */
+diff --git a/src/ptrace/_UPT_access_reg.c b/src/ptrace/_UPT_access_reg.c
+index 0e247053..27bf9809 100644
+--- a/src/ptrace/_UPT_access_reg.c
++++ b/src/ptrace/_UPT_access_reg.c
+@@ -36,6 +36,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+ 
+ #if HAVE_DECL_PTRACE_SETREGSET
+ #include <sys/uio.h>
++typedef unsigned long int __loongarch_mc_gp_state[32];
++typedef __loongarch_mc_gp_state gregset_t;
+ int
+ _UPT_access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val,
+                  int write, void *arg)
+diff --git a/src/ptrace/_UPT_reg_offset.c b/src/ptrace/_UPT_reg_offset.c
+index b7dd3b79..9e30bc41 100644
+--- a/src/ptrace/_UPT_reg_offset.c
++++ b/src/ptrace/_UPT_reg_offset.c
+@@ -754,6 +754,80 @@ const int _UPT_reg_offset[UNW_REG_LAST + 1] =
+     [UNW_RISCV_X29] = RISCV_REG_OFFSET(29),
+     [UNW_RISCV_X30] = RISCV_REG_OFFSET(30),
+     [UNW_RISCV_X31] = RISCV_REG_OFFSET(31),
++#elif defined(UNW_TARGET_LOONGARCH64)
++# include <asm/reg.h>
++
++#define LOONGARCH64_EF_R0		0
++#define LOONGARCH64_EF_R1		1
++#define LOONGARCH64_EF_R2		2
++#define LOONGARCH64_EF_R3		3
++#define LOONGARCH64_EF_R4		4
++#define LOONGARCH64_EF_R5		5
++#define LOONGARCH64_EF_R6		6
++#define LOONGARCH64_EF_R7		7
++#define LOONGARCH64_EF_R8		8
++#define LOONGARCH64_EF_R9		9
++#define LOONGARCH64_EF_R10		10
++#define LOONGARCH64_EF_R11		11
++#define LOONGARCH64_EF_R12		12
++#define LOONGARCH64_EF_R13		13
++#define LOONGARCH64_EF_R14		14
++#define LOONGARCH64_EF_R15		15
++#define LOONGARCH64_EF_R16		16
++#define LOONGARCH64_EF_R17		17
++#define LOONGARCH64_EF_R18		18
++#define LOONGARCH64_EF_R19		19
++#define LOONGARCH64_EF_R20		20
++#define LOONGARCH64_EF_R21		21
++#define LOONGARCH64_EF_R22		22
++#define LOONGARCH64_EF_R23		23
++#define LOONGARCH64_EF_R24		24
++#define LOONGARCH64_EF_R25		25
++#define LOONGARCH64_EF_R26		26
++#define LOONGARCH64_EF_R27		27
++#define LOONGARCH64_EF_R28		28
++#define LOONGARCH64_EF_R29		29
++#define LOONGARCH64_EF_R30		30
++#define LOONGARCH64_EF_R31		31
++
++/*
++ * Saved special registers
++ */
++#define LOONGARCH64_EF_CSR_EPC		32
++
++    [UNW_LOONGARCH64_R0]  = LOONGARCH64_EF_R0,
++    [UNW_LOONGARCH64_R1]  = LOONGARCH64_EF_R1,
++    [UNW_LOONGARCH64_R2]  = LOONGARCH64_EF_R2,
++    [UNW_LOONGARCH64_R3]  = LOONGARCH64_EF_R3,
++    [UNW_LOONGARCH64_R4]  = LOONGARCH64_EF_R4,
++    [UNW_LOONGARCH64_R5]  = LOONGARCH64_EF_R5,
++    [UNW_LOONGARCH64_R6]  = LOONGARCH64_EF_R6,
++    [UNW_LOONGARCH64_R7]  = LOONGARCH64_EF_R7,
++    [UNW_LOONGARCH64_R8]  = LOONGARCH64_EF_R8,
++    [UNW_LOONGARCH64_R9]  = LOONGARCH64_EF_R9,
++    [UNW_LOONGARCH64_R10] = LOONGARCH64_EF_R10,
++    [UNW_LOONGARCH64_R11] = LOONGARCH64_EF_R11,
++    [UNW_LOONGARCH64_R12] = LOONGARCH64_EF_R12,
++    [UNW_LOONGARCH64_R13] = LOONGARCH64_EF_R13,
++    [UNW_LOONGARCH64_R14] = LOONGARCH64_EF_R14,
++    [UNW_LOONGARCH64_R15] = LOONGARCH64_EF_R15,
++    [UNW_LOONGARCH64_R16] = LOONGARCH64_EF_R16,
++    [UNW_LOONGARCH64_R17] = LOONGARCH64_EF_R17,
++    [UNW_LOONGARCH64_R18] = LOONGARCH64_EF_R18,
++    [UNW_LOONGARCH64_R19] = LOONGARCH64_EF_R19,
++    [UNW_LOONGARCH64_R20] = LOONGARCH64_EF_R20,
++    [UNW_LOONGARCH64_R21] = LOONGARCH64_EF_R21,
++    [UNW_LOONGARCH64_R22] = LOONGARCH64_EF_R22,
++    [UNW_LOONGARCH64_R23] = LOONGARCH64_EF_R23,
++    [UNW_LOONGARCH64_R24] = LOONGARCH64_EF_R24,
++    [UNW_LOONGARCH64_R25] = LOONGARCH64_EF_R25,
++    [UNW_LOONGARCH64_R26] = LOONGARCH64_EF_R26,
++    [UNW_LOONGARCH64_R27] = LOONGARCH64_EF_R27,
++    [UNW_LOONGARCH64_R28] = LOONGARCH64_EF_R28,
++    [UNW_LOONGARCH64_R29] = LOONGARCH64_EF_R29,
++    [UNW_LOONGARCH64_R30] = LOONGARCH64_EF_R30,
++    [UNW_LOONGARCH64_R31] = LOONGARCH64_EF_R31,
++    [UNW_LOONGARCH64_PC]  = LOONGARCH64_EF_CSR_EPC
+ #else
+ # error Fix me.
+ #endif
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index c783fc31..f816436a 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -125,6 +125,10 @@ if ARCH_ARM
+ XFAIL_TESTS += $(XFAIL_TESTS_PTRACE_SINGLESTEP)
+ endif
+ 
++if ARCH_LOONGARCH64
++XFAIL_TESTS += $(XFAIL_TESTS_PTRACE_SINGLESTEP)
++endif
++
+ # This is meant for multilib binaries, -m32.
+ # ptrace gives EBADREG when testing,
+ # but generally everything else works.
+diff --git a/tests/check-namespace.sh.in b/tests/check-namespace.sh.in
+index f99fb59f..5cbffc13 100644
+--- a/tests/check-namespace.sh.in
++++ b/tests/check-namespace.sh.in
+@@ -86,6 +86,13 @@ filter_misc () {
+ 	ignore _gp
+     fi
+ 
++    if [ ${plat} = "loongarch64" ]; then
++	ignore _fbss
++	ignore _fdata
++	ignore _ftext
++	ignore _gp
++    fi
++
+     if [ ${os} == "solaris2.11" ]; then
+         ignore _PROCEDURE_LINKAGE_TABLE_
+         ignore _etext
+@@ -197,7 +204,13 @@ check_local_unw_abi () {
+ 	    match _UL${plat}_dwarf_find_unwind_table
+ 	    match _U${plat}_setcontext
+ 	    ;;
+-
++	loongarch64)
++	    match _U${plat}_get_elf_image
++	    match _U${plat}_get_exe_image_path
++	    match _U${plat}_is_fpreg
++	    match _UL${plat}_dwarf_search_unwind_table
++	    match _UL${plat}_dwarf_find_unwind_table
++	    ;;
+ 	*)
+ 	    match _U${plat}_is_fpreg
+ 	    match _UL${plat}_dwarf_search_unwind_table
+@@ -311,6 +324,13 @@ check_generic_unw_abi () {
+ 	    match _U${plat}_dwarf_search_unwind_table
+ 	    match _U${plat}_dwarf_find_unwind_table
+ 	    ;;
++	loongarch64)
++	    match _U${plat}_get_elf_image
++	    match _U${plat}_get_exe_image_path
++	    match _U${plat}_is_fpreg
++	    match _U${plat}_dwarf_search_unwind_table
++	    match _U${plat}_dwarf_find_unwind_table
++	    ;;
+ 	*)
+ 	    match _U${plat}_is_fpreg
+ 	    match _U${plat}_dwarf_search_unwind_table
+diff --git a/tests/run-coredump-unwind b/tests/run-coredump-unwind
+index 8d077425..ddaac6a4 100755
+--- a/tests/run-coredump-unwind
++++ b/tests/run-coredump-unwind
+@@ -22,6 +22,7 @@ add_minidebug()
+   comm -13 "$dynsyms" "$funcsyms" > "$keep_symbols"
+   # Copy the full debuginfo, keeping only a minumal set of symbols and removing some unnecessary sections
+   objcopy -S --remove-section .gdb_index --remove-section .comment --keep-symbols="$keep_symbols" "$debuginfo" "$mini_debuginfo" &> /dev/null
++  wait
+   #Inject the compressed data into the .gnu_debugdata section of the original binary
+   xz "$mini_debuginfo"
+   mini_debuginfo="${mini_debuginfo}.xz"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2008, 2009, 2010, 2011, 2016, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2008, 2009, 2010, 2011, 2016, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,13 +24,14 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=groff
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -58,6 +59,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -80,6 +84,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -88,7 +93,9 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-appresdir=/etc/X11/app-defaults \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --build=$ARCH-slackware-linux || exit 1
+  --with-x \
+  --with-appdefdir=/etc/X11/app-defaults \
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -116,7 +123,9 @@ fi
 rm -rf $PKG/usr/doc/groff-$VERSION/*.ps \
   $PKG/usr/doc/groff-$VERSION/examples \
   $PKG/usr/doc/groff-$VERSION/html \
-  $PKG/usr/doc/groff-$VERSION/pdf
+  $PKG/usr/doc/groff-$VERSION/pdf \
+  $PKG/usr/doc/groff-$VERSION/groff-man-pages* \
+  $PKG/usr/doc/groff-$VERSION/groff.txt
 
 ( cd $PKG/usr/man
   find . -type f -exec gzip -9 {} \+
@@ -125,12 +134,6 @@ rm -rf $PKG/usr/doc/groff-$VERSION/*.ps \
 
 rm -f $PKG/usr/info/dir
 gzip -9 $PKG/usr/info/*
-
-# Do not use color ANSI output by default for man pages.
-# A silly "innovation" if ever there was one, sure to break
-# a ton of existing scripts otherwise...
-zcat $CWD/groff.man.mdoc.local.gz >> $PKG/usr/share/groff/site-tmac/man.local
-zcat $CWD/groff.man.mdoc.local.gz >> $PKG/usr/share/groff/site-tmac/mdoc.local
 
 ( cd $PKG/usr/bin
   rm -rf geqn ; ln -sf eqn geqn
@@ -151,4 +154,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/groff-$VERSION-$ARCH-$BUILD.txz
-

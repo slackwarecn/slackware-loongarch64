@@ -3,6 +3,31 @@
 > BBS: https://bbs.loongarch.org/d/95-loongarch-slackware-current-bootstrap
 
 
+#### tag:0.5 slackware-current-bootstrap-2023.07.06-loong64
+
+| package | branch | commit hash | url |
+| ---- | ---- | ---- | ---- |
+| binutils | 2.40 | release | https://sourceware.org/git/binutils-gdb.git |
+| gcc | 13.1.0 | release | git://gcc.gnu.org/git/gcc.git |
+| glibc | 2.37 | release | https://sourceware.org/git/glibc.git |
+| linux | 6.4.0 | release | https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.4.0.tar.gz |
+
+##### Update notes:
+
+* Upgrade 20230706 
+* Add KDE desktop support:
+
+`machine has an independent graphics card, KDE is recommended, otherwise XFCE is recommended.`
+
+* Slackwareloong mirrors:
+```
+https://mirrors.wsyu.edu.cn/slackwareloong/
+https://mirrors.nju.edu.cn/slackwareloong/
+```
+
+* Supports `3A5000`/`3A5000+7A1000`/`3A5000+7A2000` machines(iso version >= 20230626)
+
+
 #### tag:0.4 slackware-current-bootstrap-2023.07.01-loong64
 
 | package | branch | commit hash | url |

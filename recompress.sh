@@ -72,7 +72,6 @@ gzip ./source/d/python2/python.x86_64.diff
 gzip ./source/d/pkg-config/doinst.sh
 gzip ./source/d/perl/perl.configure.multilib.patch
 gzip ./source/d/perl/libnet-3.08-Do-not-create-Net-libnet.cfg.patch
-gzip ./source/e/emacs/d48bb4874bc6cd3e69c7a15fc3c91cc141025c51.patch
 gzip ./source/e/emacs/doinst.sh
 gzip ./source/tcl/tix/configure.private.diff
 gzip ./source/tcl/tix/tix.tcl8.5.patch

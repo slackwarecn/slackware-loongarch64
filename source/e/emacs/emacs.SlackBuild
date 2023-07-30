@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015, 2017, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015, 2017, 2018, 2019, 2020, 2021, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -27,7 +27,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=emacs
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 # Determine version number the tarball is labeled with:
 TARBALLVER=${TARBALLVER:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # OK, now what's being used as the source directory version number...  account
@@ -87,8 +87,6 @@ cd $TMP
 rm -rf $PKGNAM-$TARBALLVER
 tar xvf $CWD/$PKGNAM-$TARBALLVER.tar.xz || exit 1
 cd $PKGNAM-$SRCDIRVER || exit 1
-
-zcat $CWD/d48bb4874bc6cd3e69c7a15fc3c91cc141025c51.patch.gz | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -211,8 +209,15 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" \
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$TARBALLVER
 cp -a \
-  AUTHORS COPYING* INSTALL README* \
+  AUTHORS* COPYING* INSTALL* README* \
   $PKG/usr/doc/$PKGNAM-$TARBALLVER
+
+# Link the latest NEWS file:
+( cd $PKG/usr/doc/$PKGNAM-$TARBALLVER
+  if [ -r $PKG/usr/share/emacs/$SRCDIRVER/etc/NEWS ]; then 
+    ln -sf /usr/share/emacs/$SRCDIRVER/etc/NEWS .
+  fi
+)
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

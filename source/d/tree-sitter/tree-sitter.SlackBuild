@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,24 +20,21 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Modified 2011 by Eric Hameleers <alien at slackware.com> for ARM port.
-
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=gmp
-VERSION=${VERSION:-$(echo gmp-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=tree-sitter
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
-MARCH=$( uname -m )
 if [ -z "$ARCH" ]; then
-  case "$MARCH" in
-    i?86)    export ARCH=i586 ;;
-    armv7hl) export ARCH=$MARCH ;;
-    arm*)    export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-    *)       export ARCH=$MARCH ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -48,15 +45,13 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-
-TMP=${TMP:-/tmp}
-PKG=/$TMP/package-gmp
-rm -rf $PKG
-mkdir -p $TMP $PKG/usr
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -65,22 +60,23 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
-case "$ARCH" in
-    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
-    *)    TARGET=$ARCH-slackware-linux ;;
-esac
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf gmp-$VERSION
-tar xvf $CWD/gmp-$VERSION.tar.?z || exit 1
-cd gmp-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -89,49 +85,47 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# End of preparations
-if echo "$*" | grep -qw -- --prep ; then
-  exit 0
-fi
+# prepare Rust bindings:
+( cd lib
+  cargo fetch --locked --target "$ARCH-unknown-linux-gnu"
+)
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --infodir=/usr/info \
-  --with-gnu-ld \
-  --enable-cxx \
-  --disable-static \
-  --build=$TARGET || exit 1
+# Build and install library:
+make $NUMJOBS PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX}
+make DESTDIR=$PKG PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} install
 
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Build and install cli:
+( cd cli
+  cargo fetch --locked --target "$ARCH-unknown-linux-gnu"
+  cargo build --release --locked --offline --all-features
+)
+mkdir -p $PKG/usr/bin
+cp -a target/release/tree-sitter $PKG/usr/bin
 
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+# No static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libtree-sitter.a
 
-rm $PKG/usr/info/dir
-gzip -9 $PKG/usr/info/*
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
-mkdir -p $PKG/usr/doc/gmp-$VERSION
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING* NEWS README* \
-  $PKG/usr/doc/gmp-$VERSION
-
-# If there's a ChangeLog, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
-fi
+  LICENSE* README* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a cli/README.md $PKG/usr/doc/${PKGNAM}-$VERSION/README-cli.md
+cp -a lib/README.md $PKG/usr/doc/${PKGNAM}-$VERSION/README-lib.md
+cp -a docs/section-6-contributing.md $PKG/usr/doc/${PKGNAM}-$VERSION/CONTRIBUTING.md
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-cd /$TMP/package-gmp
-/sbin/makepkg -l y -c n $TMP/gmp-$VERSION-$ARCH-$BUILD.txz
-
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

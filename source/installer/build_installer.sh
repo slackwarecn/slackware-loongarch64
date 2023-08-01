@@ -1361,6 +1361,7 @@ cp  -fa${VERBOSE1} \
 cd $TMP/extract-packages/usr/lib${LIBDIRSUFFIX}
 cp  -fa${VERBOSE1} \
         libargon2.so* \
+        libatomic.so* \
         libcryptsetup*.so* \
         libefiboot.so* \
         libefivar.so* \

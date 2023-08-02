@@ -1,0 +1,40 @@
+From e38292fb892814ac59a893ceed45a44c24f65d62 Mon Sep 17 00:00:00 2001
+From: Xiaotian Wu <wuxiaotian@loongson.cn>
+Date: Thu, 18 May 2023 20:05:31 +0800
+Subject: [PATCH] elf_loongarch64_efi.lds: Merge all rela sections into one
+
+- Merge ctors/dtors rela sections
+- Ensure objcopy sections are aligned
+---
+ gnuefi/elf_loongarch64_efi.lds | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/gnuefi/elf_loongarch64_efi.lds b/gnuefi/elf_loongarch64_efi.lds
+index 4bc0b0a..7a212cd 100644
+--- a/gnuefi/elf_loongarch64_efi.lds
++++ b/gnuefi/elf_loongarch64_efi.lds
+@@ -40,10 +40,21 @@ SECTIONS
+    _bss_end = .;
+   }
+ 
+-  .rela.dyn : { *(.rela.dyn) }
++  . = ALIGN(4096);
++  .rela :
++  {
++    *(.rela.text*)
++      *(.rela.data*)
++      *(.rela.got)
++      *(.rela.dyn)
++      *(.rela.stab)
++      *(.rela.init_array)
++      *(.rela.fini_array)
++      *(.rela.ctors)
++      *(.rela.dtors)
++  }
++  . = ALIGN(4096);
+   .rela.plt : { *(.rela.plt) }
+-  .rela.got : { *(.rela.got) }
+-  .rela.data : { *(.rela.data) *(.rela.data*) }
+   . = ALIGN(512);
+   _edata = .;
+   _data_size = . - _data;

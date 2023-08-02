@@ -57,6 +57,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -88,20 +89,20 @@ fi
 export CC=${CC:-clang}
 export CXX=${CXX:-clang++}
 
-# Set linker to use:
-if [ "$CC" = "clang" -a "$(which lld 2> /dev/null)" = "/usr/bin/lld" ]; then
-  # Upstream default:
-  LINKER=lld
-else
-  LINKER=bfd
-fi
-
-# Keep memory usage as low as possible when linking:
-if [ ! "$LINKER" = "lld" ]; then
-  SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
-  export LDFLAGS="$SLKLDFLAGS"
-  export MOZ_LINK_FLAGS="$SLKLDFLAGS"
-fi
+## Set linker to use:
+#if [ "$CC" = "clang" -a "$(which lld 2> /dev/null)" = "/usr/bin/lld" ]; then
+#  # Upstream default:
+#  LINKER=lld
+#else
+#  LINKER=bfd
+#fi
+#
+## Keep memory usage as low as possible when linking:
+#if [ ! "$LINKER" = "lld" ]; then
+#  SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
+#  export LDFLAGS="$SLKLDFLAGS"
+#  export MOZ_LINK_FLAGS="$SLKLDFLAGS"
+#fi
 
 # Put Rust objects on a diet to keep the linker from running into memory
 # issues (especially on 32-bit):
@@ -152,6 +153,9 @@ elif [ "$ARCH" = "arm" ]; then
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-g0 -march=armv4t"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-g0 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-g0"
   LIBDIRSUFFIX=""
@@ -212,6 +216,13 @@ zcat $CWD/0027-LTO-Only-enable-LTO-for-Rust-when-complete-build-use.patch.gz | p
 # Don't define a function that's included starting in glibc-2.36:
 zcat $CWD/arc4random_buf.glibc-2.36.diff.gz | patch -p1 --verbose || exit 1
 
+# add LoongArch support
+cat $CWD/0001-add-loongarch64-support.patch | patch -p1 --verbose || exit 1
+#cat $CWD/0002-fix-for-gcc13.patch | patch -p1 --verbose || exit 1
+cat $CWD/0003-fix-rust-build.patch | patch -p1 --verbose || exit 1
+cat $CWD/0004-fix-build-.caro-checksum.patch | patch -p1 --verbose || exit 1
+cat $CWD/0005-xpcom-add-loongarch64-support.patch | patch -p1 --verbose || exit 1
+
 # Fetch localization, if requested
 # https://bugzilla.mozilla.org/show_bug.cgi?id=1256955
 if [ ! -z $MOZLOCALIZE ]; then
@@ -246,7 +257,6 @@ OPTIONS="\
   --enable-alsa \
   --enable-application=browser \
   --enable-default-toolkit=cairo-gtk3-wayland \
-  --enable-linker=$LINKER \
   --enable-optimize \
   $GOOGLE_API_KEY \
   --disable-strip \
@@ -257,7 +267,7 @@ OPTIONS="\
   --disable-crashreporter \
   --disable-debug-symbols \
   --disable-debug \
-  --disable-elf-hack \
+  --disable-jit \
   --disable-updater"
 # Complains about missing APNG support in Slackware's libpng:
 # --with-system-png \

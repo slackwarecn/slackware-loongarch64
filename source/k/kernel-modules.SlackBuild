@@ -72,7 +72,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   cd ${KERNEL_SOURCE}
   make oldconfig 1> /dev/null 2> /dev/null
   make prepare 1> /dev/null 2> /dev/null
-  PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
+  #PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
+  PACKAGE_ARCH=loong64
   echo "kernel${KERNEL_NAME}-modules${LOCALVERSION}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz"
   exit 0
 fi
@@ -120,13 +121,13 @@ fi
     echo "Stripping debug info from kernel modules..."
     find $PKG -name "*.ko" -exec strip --strip-debug "{}" \;
   fi
-  # Fix build and source symlinks if they are pointing into $TMP:
+  # Fix build and source symlinks if they are pointing into /tmp:
   ( cd $PKG/lib/modules/${VERSION}${LOCALVERSION}
     for symlink in build source ; do
       target=$(readlink $symlink)
-      if echo $target | grep -q "^$TMP/package-kernel-source/" ; then
+      if echo $target | grep -q "^/tmp/package-kernel-source/" ; then
         rm -f $symlink
-        ln -sf $(echo $target | sed "s|$TMP/package-kernel-source/|/|g") $symlink
+        ln -sf $(echo $target | sed "s|/tmp/package-kernel-source/|/|g") $symlink
       fi
     done
   )

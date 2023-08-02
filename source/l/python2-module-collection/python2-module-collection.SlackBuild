@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -62,6 +63,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -151,13 +155,14 @@ find $PKG/usr/doc/$PKGNAM-$VERSION/pip-20.0.2 -type f -exec chmod 0644 {} \+
 cd $TMP/$PKGNAM-$VERSION || exit 1
 tar xf $CWD/modules/M2Crypto-0.35.2.tar.xz || exit 1
 cd M2Crypto-0.35.2
+cat $CWD/M2Crypto-fix-build-remove-RSA_PKCS1_OAEP_PADDING.diff | patch -p1 --verbose --backup --suffix=.orig || exit 1
 fix_perms
 python2 setup.py install --root=$PKG || exit 1
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/M2Crypto-0.35.2
 cp -a \
   CHANGES INSTALL* LICENCE* PKG-INFO README* \
   $PKG/usr/doc/$PKGNAM-$VERSION/M2Crypto-0.35.2
-# Embed required dep typing module:
+ Embed required dep typing module:
 cd ..
 rm -rf typing-3.7.4.1
 tar xf $CWD/modules/typing-3.7.4.1.tar.xz || exit 1
@@ -462,6 +467,7 @@ cd $TMP/$PKGNAM-$VERSION || exit 1
 tar xf $CWD/modules/dbus-python-1.2.16.tar.lz
 cd dbus-python-1.2.16
 fix_perms
+autoreconf -fi
 PYTHON_VERSION=2 \
 ./configure \
   --prefix=/usr \
@@ -472,8 +478,8 @@ PYTHON_VERSION=2 \
   --disable-html-docs \
   --enable-shared=yes \
   --enable-static=no \
-  --build=$ARCH-slackware-linux \
-  --host=$ARCH-slackware-linux \
+  --build=loongarch64-slackware-linux \
+  --host=loongarch64-slackware-linux \
   || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

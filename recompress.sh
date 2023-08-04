@@ -929,7 +929,6 @@ gzip ./source/l/cryfs/cryfs.gcc13.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./source/xap/mozilla-thunderbird/gcc13-fix.patch
 gzip ./source/xap/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/double_t.x86.diff
@@ -1139,11 +1138,4 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
-gzip ./testing/source/mozilla-thunderbird/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./testing/source/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch
-gzip ./testing/source/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
-gzip ./testing/source/mozilla-thunderbird/tb.ui.scrollToClick.diff
-gzip ./testing/source/mozilla-thunderbird/double_t.x86.diff
-gzip ./testing/source/mozilla-thunderbird/gcc-13.patch
-gzip ./testing/source/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./testing/source/rust/link_libffi.diff

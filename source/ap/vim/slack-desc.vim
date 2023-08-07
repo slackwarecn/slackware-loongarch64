@@ -12,7 +12,7 @@ vim: Vim is an almost compatible version of the UNIX editor vi. Many new
 vim: features have been added: multi level undo, command line history, 
 vim: filename completion, block operations, and more.
 vim:
-vim: Vim's development is led by Bram Moolenaar.
+vim: Bram Moolenaar began working on Vim for the Amiga computer in 1988.
 vim:
 vim: This package also contains the Exuberant Ctags program
 vim: written by Darren Hiebert.

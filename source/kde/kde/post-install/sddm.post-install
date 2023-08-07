@@ -46,7 +46,17 @@ cat <<"EOT" > $PKG/usr/bin/sddm
 if [ -f /etc/default/sddm ]; then
   . /etc/default/sddm
 fi
-exec /usr/bin/sddm.bin "$@"
+
+# Ensure non-world readable permissions on /var/log/sddm.log:
+touch /var/log/sddm.log
+chmod 640 /var/log/sddm.log
+
+# Add a timestamp:
+date >> /var/log/sddm.log
+
+# Redirect stdout/stderr to /dev/null to avoid polluting a virtual
+# console with duplicate log messages:
+exec /usr/bin/sddm.bin "$@" 1> /dev/null 2> /dev/null
 EOT
 chmod 0755 $PKG/usr/bin/sddm
 

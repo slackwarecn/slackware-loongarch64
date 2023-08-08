@@ -968,7 +968,6 @@ gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff
-gzip ./source/xap/windowmaker/wmaker.inst.diff
 gzip ./source/xap/windowmaker/xinitrc.wmaker
 gzip ./source/xap/gv/gv-bz1536211.patch
 gzip ./source/xap/gv/gv-bounding-box.patch

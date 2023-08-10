@@ -149,6 +149,7 @@ gzip ./source/a/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
 gzip ./source/a/mkinitrd/0008-fix-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
 gzip ./source/a/mkinitrd/0007-kmod30.patch
 gzip ./source/a/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
+gzip ./source/a/mkinitrd/0009-exclude-99-nfs.rules.patch
 gzip ./source/a/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
 gzip ./source/a/mkinitrd/0003-blacklist.40-usb_modeswitch.rules.patch
 gzip ./source/a/mlocate/doinst.sh

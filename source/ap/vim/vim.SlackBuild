@@ -33,7 +33,9 @@ PERLINTERP=${PERLINTERP:-dynamic}
 if [ -r vim-${VIMBRANCH}*.tar.?z ]; then # if there's a source archive already, use the version number from it:
   VERSION=$(echo vim-${VIMBRANCH}*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 else # need to fetch the latest source archive for this branch:
-  VERSION="$(wget -q -O - https://www.vim.org | grep "^${VIMBRANCH}" | head -n 1)"
+  #VERSION="$(wget -q -O - https://www.vim.org | grep "^${VIMBRANCH}" | head -n 1)"
+  # Let's take the version from github instead:
+  VERSION="$(wget -q -O - https://github.com/vim/vim/tags | grep v${VIMBRANCH} | head -n 1 | sed "s/^.*v${VIMBRANCH}/v${VIMBRANCH}/" | cut -f 1 -d '<' | tr -d v)"
   ( lftpget https://github.com/vim/vim/archive/v${VERSION}.tar.gz
     gzip -d v${VERSION}.tar.gz
     mv v${VERSION}.tar vim-${VERSION}.tar
@@ -151,9 +153,6 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
-
-# Patch for perl-5.38.0:
-cat $CWD/12575.patch | patch -p1 --verbose || exit 1
 
 config_vim --without-x --disable-gui || exit 1
 make $NUMJOBS || make || exit 1

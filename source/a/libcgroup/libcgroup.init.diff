@@ -1,5 +1,82 @@
+--- ./scripts/init.d/cgconfig.in.orig	2014-01-13 08:05:56.000000000 -0600
++++ ./scripts/init.d/cgconfig.in	2023-08-12 12:55:10.109117713 -0500
+@@ -33,14 +33,10 @@
+ prefix=@prefix@;exec_prefix=@exec_prefix@;sbindir=@sbindir@
+ CGCONFIGPARSER_BIN=$sbindir/cgconfigparser
+ CONFIG_FILE=/etc/cgconfig.conf
++CONFIG_DIR=/etc/cgconfig.d
+ servicename=cgconfig
+ lockfile=/var/lock/subsys/$servicename
+ 
+-#
+-# Source LSB routines
+-#
+-. /lib/lsb/init-functions
+-
+ # read the config
+ CREATE_DEFAULT=yes
+ if [ -e /etc/sysconfig/cgconfig ]; then
+@@ -54,8 +50,8 @@
+ 	    read user ctrl defaultcgroup <<< \
+ 		    $(grep -m1 '^\*[[:space:]]\+' /etc/cgrules.conf)
+             if [ -n "$defaultcgroup" -a "$defaultcgroup" = "*" ]; then
+-                log_warning_msg "/etc/cgrules.conf incorrect"
+-                log_warning_msg "Overriding it"
++                echo "/etc/cgrules.conf incorrect"
++                echo "Overriding it"
+                 defaultcgroup=
+             fi
+         fi
+@@ -98,20 +94,20 @@
+ start() {
+         echo -n "Starting cgconfig service: "
+ 	if [ -f "$lockfile" ]; then
+-            log_warning_msg "lock file already exists"
++            echo "lock file already exists"
+             return 0
+         fi
+ 
+         if [ $? -eq 0 ]; then
+                 if [ ! -s $CONFIG_FILE ]; then
+-                    log_failure_msg $CONFIG_FILE "is not configured"
++                    echo $CONFIG_FILE "is not configured"
+                     return 6
+                 fi
+ 
+-                $CGCONFIGPARSER_BIN -l $CONFIG_FILE
++                $CGCONFIGPARSER_BIN -l $CONFIG_FILE -L $CONFIG_DIR
+                 retval=$?
+                 if [ $retval -ne 0 ]; then
+-                    log_failure_msg "Failed to parse " $CONFIG_FILE
++                    echo "Failed to parse " $CONFIG_FILE
+                     return 1
+                 fi
+         fi
+@@ -123,18 +119,18 @@
+         touch "$lockfile"
+         retval=$?
+         if [ $retval -ne 0 ]; then
+-            log_failure_msg "Failed to touch $lockfile"
++            echo "Failed to touch $lockfile"
+             return 1
+         fi
+-        log_success_msg
++        #log_success_msg
+         return 0
+ }
+ 
+ stop() {
+     echo -n "Stopping cgconfig service: "
+-    cgclear
++    /usr/sbin/cgclear -l $CONFIG_FILE -L $CONFIG_DIR
+     rm -f "$lockfile"
+-    log_success_msg
++    #log_success_msg
+     return 0
+ }
+ 
 --- ./scripts/init.d/cgred.in.orig	2014-01-13 08:05:56.000000000 -0600
-+++ ./scripts/init.d/cgred.in	2017-02-28 12:41:11.307424565 -0600
++++ ./scripts/init.d/cgred.in	2023-08-12 12:53:58.042116101 -0500
 @@ -39,13 +39,12 @@
  # Sanity checks
  [ -x $CGRED_BIN ] || exit 1
@@ -62,75 +139,3 @@
  		fi
  		;;
  	*)
---- ./scripts/init.d/cgconfig.in.orig	2014-01-13 08:05:56.000000000 -0600
-+++ ./scripts/init.d/cgconfig.in	2017-02-28 12:42:13.278423245 -0600
-@@ -36,11 +36,6 @@
- servicename=cgconfig
- lockfile=/var/lock/subsys/$servicename
- 
--#
--# Source LSB routines
--#
--. /lib/lsb/init-functions
--
- # read the config
- CREATE_DEFAULT=yes
- if [ -e /etc/sysconfig/cgconfig ]; then
-@@ -54,8 +49,8 @@
- 	    read user ctrl defaultcgroup <<< \
- 		    $(grep -m1 '^\*[[:space:]]\+' /etc/cgrules.conf)
-             if [ -n "$defaultcgroup" -a "$defaultcgroup" = "*" ]; then
--                log_warning_msg "/etc/cgrules.conf incorrect"
--                log_warning_msg "Overriding it"
-+                echo "/etc/cgrules.conf incorrect"
-+                echo "Overriding it"
-                 defaultcgroup=
-             fi
-         fi
-@@ -98,20 +93,20 @@
- start() {
-         echo -n "Starting cgconfig service: "
- 	if [ -f "$lockfile" ]; then
--            log_warning_msg "lock file already exists"
-+            echo "lock file already exists"
-             return 0
-         fi
- 
-         if [ $? -eq 0 ]; then
-                 if [ ! -s $CONFIG_FILE ]; then
--                    log_failure_msg $CONFIG_FILE "is not configured"
-+                    echo $CONFIG_FILE "is not configured"
-                     return 6
-                 fi
- 
-                 $CGCONFIGPARSER_BIN -l $CONFIG_FILE
-                 retval=$?
-                 if [ $retval -ne 0 ]; then
--                    log_failure_msg "Failed to parse " $CONFIG_FILE
-+                    echo "Failed to parse " $CONFIG_FILE
-                     return 1
-                 fi
-         fi
-@@ -123,18 +118,18 @@
-         touch "$lockfile"
-         retval=$?
-         if [ $retval -ne 0 ]; then
--            log_failure_msg "Failed to touch $lockfile"
-+            echo "Failed to touch $lockfile"
-             return 1
-         fi
--        log_success_msg
-+        #log_success_msg
-         return 0
- }
- 
- stop() {
-     echo -n "Stopping cgconfig service: "
--    cgclear
-+    /usr/sbin/cgclear -l /etc/cgconfig.conf
-     rm -f "$lockfile"
--    log_success_msg
-+    #log_success_msg
-     return 0
- }
- 

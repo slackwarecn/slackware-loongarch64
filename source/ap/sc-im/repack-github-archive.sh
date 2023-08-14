@@ -48,6 +48,11 @@ EXTRACT_DIR=$(mktemp -d)
     OUTPUT_NAME="$(echo $OUTPUT_NAME | cut -f 2- -d -)"
     echo $OUTPUT_NAME
     mv * $OUTPUT_NAME
+  elif [ "$(echo $OUTPUT_NAME | cut -f 1-2 -d -)" = "$(echo $OUTPUT_NAME | cut -f 3-4 -d -)" ]; then
+    echo -n "Fixing internal archive name $OUTPUT_NAME -> "
+    OUTPUT_NAME="$(echo $OUTPUT_NAME | cut -f 3- -d -)"
+    echo $OUTPUT_NAME
+    mv * $OUTPUT_NAME
   fi
   tar cf $OUTPUT_NAME.tar $OUTPUT_NAME
   plzip -9 $OUTPUT_NAME.tar

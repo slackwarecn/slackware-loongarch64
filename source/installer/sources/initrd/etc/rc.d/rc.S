@@ -182,8 +182,14 @@ rm -f /tmp/foo
 echo "Activating LVM volumes:"
 vgchange -ay
 
-if [ -x /etc/rc.d/rc.font ]; then
-  /bin/sh /etc/rc.d/rc.font
+# In testing here the results of running rc.font with HiDPI screens has been
+# rather unpredicable, sometimes resulting in an unreadably small font rather
+# than increasing the size. Let's skip it unless RCFONT is passed as a kernel
+# command-line flag:
+if cat /proc/cmdline | grep -wq RCFONT ; then
+  if [ -x /etc/rc.d/rc.font ]; then
+    /bin/sh /etc/rc.d/rc.font
+  fi
 fi
 
 # Don't automatically blank the screen, or it will go black during the install

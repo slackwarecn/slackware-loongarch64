@@ -67,6 +67,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -116,6 +117,10 @@ elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
   LIB_ARCH=armv7hl
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  LIB_ARCH=loongarch64
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -124,6 +129,7 @@ fi
 
 case "$ARCH" in
     arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    loong64)    TARGET=loongarch64-slackware-linux ;;
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
@@ -164,7 +170,8 @@ cat $CWD/slack-desc.gcc-gm2 > $PKG11/install/slack-desc
 cd gcc-$SRCVER || exit 1
 
 # Smite the fixincludes:
-zcat $CWD/patches/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+#zcat $CWD/patches/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+cat $CWD/patches/0001-c-wrong-std-is_convertible-with-cv-qual-fn-PR109680.patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
 # Fix perms/owners:
 chown -R root:root .
@@ -273,6 +280,7 @@ mkdir -p $PKG11/usr/doc/gcc-${VERSION}/gcc/m2
   $PKG11/usr/doc/gcc-${VERSION}/gcc/m2
 )
 
+
 mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
 ( cd libgfortran || exit 0
   if [ -r ChangeLog ]; then
@@ -345,10 +353,9 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
      --infodir=/usr/info \
      --enable-shared \
      --enable-bootstrap \
-     --enable-languages=ada,c,c++,d,fortran,go,lto,m2,objc,obj-c++ \
+     --enable-languages=c,c++,fortran,lto,m2,objc,obj-c++ \
      --enable-threads=posix \
      --enable-checking=release \
-     --enable-objc-gc \
      --with-system-zlib \
      --enable-libstdcxx-dual-abi \
      --with-default-libstdcxx-abi=new \
@@ -367,7 +374,7 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
      --with-arch-directory=$LIB_ARCH \
      --disable-gtktest \
      --enable-clocale=gnu \
-     $GCC_ARCHOPTS \
+      \
      --target=${TARGET} \
      --build=${TARGET} \
      --host=${TARGET} || exit 1
@@ -375,18 +382,19 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
   # Start the build:
 
   # Include all debugging info (for now):
-  make $NUMJOBS bootstrap || exit 1
+  #make $NUMJOBS bootstrap || exit 1
+  make $NUMJOBS || exit 1
 
-  ( cd gcc
-    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS" || exit 1
-    # This wants a shared -ladd2line?
-    #make gnatlib-shared || exit 1
-    
-    CFLAGS="$SLKCFLAGS" \
-    CXXFLAGS="$SLKCFLAGS" \
-    make $NUMJOBS gnattools || exit 1
-  ) || exit 1
-  make info || exit 1
+#  ( cd gcc
+#    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS" || exit 1
+#    # This wants a shared -ladd2line?
+#    #make gnatlib-shared || exit 1
+#    
+#    CFLAGS="$SLKCFLAGS" \
+#    CXXFLAGS="$SLKCFLAGS" \
+#    make $NUMJOBS gnattools || exit 1
+#  ) || exit 1
+#  make info || exit 1
 
   # Set GCCCHECK=something to run the tests
   if [ ! -z $GCCCHECK ]; then
@@ -401,7 +409,9 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
     $PKG1/usr/share/gdb/auto-load/usr/lib$LIBDIRSUFFIX/
 
   # Be sure the "specs" file is installed.
-  if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
+  #if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
+  if [  -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
+    cat gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
     cat stage1-gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
   fi
 
@@ -536,20 +546,6 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   mv $PKG1/usr/man/man1/gfortran* usr/man/man1
 )
 
-# gcc-gnat:
-( cd $PKG4
-  mkdir -p usr/bin
-  mv $PKG1/usr/bin/gnat* usr/bin
-  mv $PKG1/usr/bin/gpr* usr/bin
-  mkdir -p usr/info
-  mv $PKG1/usr/info/gnat* usr/info
-  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/gnat1 usr/libexec/gcc/$TARGET/$VERSION
-  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/adainclude usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/adalib usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
-)
-
 # gcc-objc:
 ( cd $PKG6
   mkdir -p usr/lib${LIBDIRSUFFIX}
@@ -561,60 +557,6 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/objc usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
   mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/cc1objplus usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
 )
-
-## NOTE: Thought about this, because the precompiled headers are so large.
-## Probably easier to keep everything together, though.
-## gcc-g++-gch (precompiled c++ headers)
-#( cd $PKG7
-#  mkdir -p usr/include/c++/$VERSION/$TARGET/bits
-#  mv $PKG2/usr/include/c++/$VERSION/$TARGET/bits/stdc++.h.gch usr/include/c++/$VERSION/$TARGET/bits
-#)
-
-# gcc-go:
-( cd $PKG8
-  mkdir -p usr/bin
-  mv $PKG1/usr/bin/*gccgo* usr/bin
-  mv $PKG1/usr/bin/go{,fmt} usr/bin
-  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/{cgo,go1} usr/libexec/gcc/$TARGET/$VERSION
-  mkdir -p usr/info
-  mv $PKG1/usr/info/gccgo.info.gz usr/info
-  mkdir -p usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
-  if [ -r $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.la ]; then
-    mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.la usr/lib${LIBDIRSUFFIX}
-  fi
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.so*,libgobegin.a,libgolibbegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
-  # Don't package the (bloated) libgo.a. As a rule, we don't package static libraries.
-  rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a
-  mkdir -p usr/man/man1
-  mv $PKG1/usr/man/man1/gccgo.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/go.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gofmt.1.gz usr/man/man1
-) || exit 1
-
-# gcc-gdc:
-( cd $PKG10
-  mkdir -p usr/bin
-  mv $PKG1/usr/bin/gdc $PKG1/usr/bin/*-gdc usr/bin
-  mkdir -p usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgdruntime* usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgphobos* usr/lib${LIBDIRSUFFIX}
-  ## COMMENTED OUT: defaults to static linking and that default does not
-  ## seem to be easlity changed...
-  ## Don't package the (bloated) libgphobos.a or libgdruntime.a.
-  ## As a rule, we don't package static libraries.
-  #rm -f usr/lib${LIBDIRSUFFIX}/libgphobos.a
-  #rm -f usr/lib${LIBDIRSUFFIX}/libgdruntime.a
-  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/d21 usr/libexec/gcc/$TARGET/$VERSION
-  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/d usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
-  mkdir -p usr/info
-  mv $PKG1/usr/info/gdc.info.gz usr/info
-  mkdir -p usr/man/man1
-  mv $PKG1/usr/man/man1/gdc.1.gz usr/man/man1
-) || exit 1
 
 # gcc-gm2:
 ( cd $PKG11
@@ -636,6 +578,7 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   mv $PKG1/usr/man/man1/gm2.1.gz usr/man/man1
 ) || exit 1
 
+
 # Generate packages:
 ( cd $PKG1
   makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz )
@@ -643,17 +586,12 @@ rm -f $PKG1/{,usr/}lib${LIBDIRSUFFIX}/*.la
   makepkg -l y -c n $TMP/gcc-g++-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG3
   makepkg -l y -c n $TMP/gcc-gfortran-$VERSION-$ARCH-$BUILD.txz )
-( cd $PKG4
-  makepkg -l y -c n $TMP/gcc-gnat-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG6
   makepkg -l y -c n $TMP/gcc-objc-$VERSION-$ARCH-$BUILD.txz )
-( cd $PKG8
-  makepkg -l y -c n $TMP/gcc-go-$VERSION-$ARCH-$BUILD.txz )
-( cd $PKG10
-  makepkg -l y -c n $TMP/gcc-gdc-$VERSION-$ARCH-$BUILD.txz )
 ( cd $PKG11
   makepkg -l y -c n $TMP/gcc-gm2-$VERSION-$ARCH-$BUILD.txz )
 
 echo
 echo "Slackware GCC package build complete!"
 echo
+

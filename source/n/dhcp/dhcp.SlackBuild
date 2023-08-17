@@ -37,6 +37,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -60,6 +61,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2 -fcommon"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC -fcommon"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC -fcommon"
   LIBDIRSUFFIX="64"
 else
@@ -94,6 +98,8 @@ sed -i \
     server/*.{5,8} \
     doc/*/*.{5,8}
 
+cp -rf /usr/share/autoconf/build-aux/config.* .
+#autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -103,15 +109,20 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --docdir=/usr/doc/dhcp-$VERSION \
-  --build=$ARCH-slackware-linux \
+  --build=loongarch64-slackware-linux \
   --with-srv-lease-file=/var/state/dhcp/dhcpd.leases \
   --with-srv6-lease-file=/var/state/dhcp/dhcpd6.leases \
   --with-cli-lease-file=/var/state/dhcp/dhclient.leases \
   --with-cli6-lease-file=/var/state/dhcp/dhclient6.leases || exit 1
 
-# Default pid dir is still /var/run, so no need to declare it
+pushd bind
+tar -xf bind.tar.gz
+cp -rfa /usr/share/autoconf/build-aux/config.* bind-*/contrib/idn/idnkit-*/
+cp -rfa /usr/share/autoconf/build-aux/config.* bind-*/contrib/dnsperf-*/
+cp -rfa /usr/share/autoconf/build-aux/config.* bind-*/
+popd
 
-make $NUMJOBS || make || exit 1
+make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # DHCP libraries need not be included, yet.

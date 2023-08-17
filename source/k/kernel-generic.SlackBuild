@@ -42,7 +42,7 @@ BUILD=${BUILD:-1}
 if [ ! -r "${KERNEL_CONFIG}" ]; then
   echo "Error: the KERNEL_CONFIG environment variable needs to be set to the"
   echo ".config file to be used to build this kernel. Example:"
-  echo "KERNEL_NAME=generic KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic-4.14.23 ./kernel-generic.SlackBuild"
+  echo "KERNEL_NAME=generic KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic-6.3.0 ./kernel-generic.SlackBuild"
   exit 1
 fi
 if [ ! -d "${KERNEL_SOURCE}" ]; then
@@ -58,6 +58,7 @@ if [ -z "${KERNEL_ARCH}" ]; then
     case "$(uname -m)" in
     i?86) KERNEL_ARCH=x86 ;;
     x86_64) KERNEL_ARCH=x86 ;;
+    loongarch64) KERNEL_ARCH=loongarch ;;
     # Use uname -m for all other archs:
     *) KERNEL_ARCH=$(uname -m) ;;
   esac
@@ -77,8 +78,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
     cp -a ${KERNEL_CONFIG} ${KERNEL_SOURCE}/.config
   fi
   cd ${KERNEL_SOURCE}
-  make oldconfig 1> /dev/null 2> /dev/null
-  make prepare 1> /dev/null 2> /dev/null
+  #make oldconfig 1> /dev/null 2> /dev/null
+  #make prepare 1> /dev/null 2> /dev/null
   PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
   echo "kernel-${KERNEL_NAME}${LOCALVERSION}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz"
   exit 0
@@ -118,7 +119,8 @@ fi
   echo "Running make oldconfig..."
   make oldconfig
   echo "Building kernel..."
-  make $NUMJOBS bzImage || make bzImage || exit 1
+  #make $NUMJOBS bzImage || make bzImage || exit 1
+  make $NUMJOBS || exit 1
   # Output files to a directory, if requested:
   if [ ! -z "${KERNEL_OUTPUT_DIRECTORY}" ]; then
     echo "Copying files to ${KERNEL_OUTPUT_DIRECTORY}..."
@@ -126,14 +128,14 @@ fi
     rm -f ${KERNEL_OUTPUT_DIRECTORY}/*
     cp -a --verbose System.map ${KERNEL_OUTPUT_DIRECTORY}
     cp -a --verbose .config ${KERNEL_OUTPUT_DIRECTORY}/config
-    cp -a --verbose arch/${KERNEL_ARCH}/boot/bzImage ${KERNEL_OUTPUT_DIRECTORY}
+    cp -a --verbose arch/${KERNEL_ARCH}/boot/vmlinux.efi ${KERNEL_OUTPUT_DIRECTORY}
     gzip -9 ${KERNEL_OUTPUT_DIRECTORY}/System.map
   fi
   echo "Preparing the package in $PKG..."
   mkdir -p $PKG/boot
   cp -a --verbose System.map $PKG/boot/System.map-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}
   cp -a --verbose .config $PKG/boot/config-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}
-  cp -a --verbose arch/${KERNEL_ARCH}/boot/bzImage $PKG/boot/vmlinuz-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}
+  cp -a --verbose arch/${KERNEL_ARCH}/boot/vmlinuz.efi $PKG/boot/vmlinuz-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}
   # Make symlinks:
   ln -sf System.map-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION} $PKG/boot/System.map
   ln -sf config-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} $PKG/boot/config
@@ -143,7 +145,8 @@ fi
 
 # Fetch the kernel architecture from the source tree:
 cd ${KERNEL_SOURCE}
-PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
+#PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
+PACKAGE_ARCH=loong64
 
 mkdir $PKG/install
 if [ -r $CWD/slack-desc/slack-desc.kernel-${KERNEL_NAME}${LOCALVERSION}.${PACKAGE_ARCH} ]; then

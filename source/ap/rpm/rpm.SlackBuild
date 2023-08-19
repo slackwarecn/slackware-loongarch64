@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2018, 2019, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rpm
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -95,12 +95,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Fix for non-compliant RPMs created by install4j:
-zcat $CWD/rpm.install4j.compat.diff.gz | patch -p1 --verbose || exit 1
-
-# We need to do this since there's a bugfix for python3.10 detection in
-# the latest automake:
-autoreconf -vif
+## We need to do this since there's a bugfix for python3.10 detection in
+## the latest automake:
+#autoreconf -vif
 
 # We have to tell it where to find NSS and NSPR
 # Also, --enable-sqlite3 needs "-ldl" in LDFLAGS
@@ -118,7 +115,6 @@ LDFLAGS="-ldl" \
   --enable-broken-chown \
   --without-hackingdocs \
   --without-selinux \
-  --without-lua \
   --without-dmalloc \
   --enable-sqlite3 \
   --build=$ARCH-slackware-linux || exit 1
@@ -126,11 +122,28 @@ LDFLAGS="-ldl" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-cd python
-  # python2 dropped dropped as obsolete.
-  #python setup.py install --root=$PKG || exit 1
-  python3 setup.py install --root=$PKG || exit 1
-cd -
+# Put this in the system directory:
+mkdir $PKG/usr/share
+mv $PKG/etc/dbus-1 $PKG/usr/share
+rmdir $PKG/etc
+
+# It seems this doesn't work...
+#make install-man DESTDIR=$PKG || exit 1
+for dir in . fr ja ko pl ru sk ; do
+  if /bin/ls docs/man/$dir/*.1 1> /dev/null 2> /dev/null ; then
+    mkdir -p $PKG/usr/man/$dir/man1
+    cp -a docs/man/$dir/*.1 $PKG/usr/man/$dir/man1
+  fi
+  if /bin/ls docs/man/$dir/*.8 1> /dev/null 2> /dev/null ; then
+    mkdir -p $PKG/usr/man/$dir/man8
+    cp -a docs/man/$dir/*.8 $PKG/usr/man/$dir/man8
+  fi
+done
+
+# Fails, looks like it did this already
+#cd python
+#  python3 setup.py install --root=$PKG || exit 1
+#cd -
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
@@ -146,11 +159,12 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 # Here's a bug - /var/tmp should NOT have mode 0755
 rmdir $PKG/var/tmp || exit 1
 
-# Compress man pages
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \+
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Initialize a dummy package database
 mkdir -p $PKG/var/lib/rpm/tmp
@@ -159,15 +173,15 @@ zcat $CWD/Packages.gz > $PKG/var/lib/rpm/tmp/Packages
 # Install docs
 mkdir -p $PKG/usr/doc/rpm-$VERSION
 cp -a \
-  COPYING* CREDITS GROUPS INSTALL README* TODO doc/manual \
+  COPYING* CREDITS* GROUPS* INSTALL* README* TODO* doc/manual \
     $PKG/usr/doc/rpm-$VERSION
 
-# If there's a CHANGES file, installing at least part of the recent history
+# If there's a ChangeLog file, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r CHANGES ]; then
+if [ -r ChangeLog ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat CHANGES | head -n 1000 > $DOCSDIR/CHANGES
-  touch -r CHANGES $DOCSDIR/CHANGES
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
 mkdir -p $PKG/install

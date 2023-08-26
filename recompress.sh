@@ -85,6 +85,7 @@ gzip ./source/a/sysvinit/sysvinit.always.define.version.diff
 gzip ./source/a/sysvinit/doinst.sh
 gzip ./source/a/sysvinit/sysvinit.paths.diff
 gzip ./source/a/coreutils/coreutils-dircolors.csh
+gzip ./source/a/coreutils/coreutils.wc.noavx2.diff
 gzip ./source/a/coreutils/no_ls_quoting.patch
 gzip ./source/a/coreutils/doinst.sh
 gzip ./source/a/coreutils/coreutils.uname.diff

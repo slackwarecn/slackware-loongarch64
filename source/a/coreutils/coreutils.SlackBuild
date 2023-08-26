@@ -24,9 +24,16 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=coreutils
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+
+# "wc" seems to be the only thing used by pkgtools that can make use of AVX2,
+# and since the kernel has added a mitigation that makes AVX2 seem to be
+# available when it really isn't, it is not reliable. Even the author of this
+# wc optimization questioned how useful it really was... and for us, it isn't
+# worth it to have by default. But feel free to enable/recompile if you like.
+DISABLE_USE_AVX2_WC_LINECOUNT=${DISABLE_USE_AVX2_WC_LINECOUNT:-true}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -92,6 +99,10 @@ zcat $CWD/$PKGNAM.uname.diff.gz | patch -p1 --verbose --backup --suffix=.orig ||
 
 # Revert change to ls quoting style introduced in coreutils-8.25:
 zcat $CWD/no_ls_quoting.patch.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+
+if [ "$DISABLE_USE_AVX2_WC_LINECOUNT" = "true" ]; then
+  zcat $CWD/coreutils.wc.noavx2.diff.gz | patch -p1 --verbose || exit 1
+fi
 
 # Compilation with glibc version later than 2.3.2 needs the environment
 # variable DEFAULT_POSIX2_VERSION set to 199209.

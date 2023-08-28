@@ -744,6 +744,7 @@ gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
+gzip ./source/l/libedit/libedit.gcc13.diff
 gzip ./source/l/brotli/brotli.no.unrecognized.R.diff
 gzip ./source/l/libvisual-plugins/60_no-const-vispluginfo-in-nastyfft.patch
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff

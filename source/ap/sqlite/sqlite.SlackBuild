@@ -3,7 +3,7 @@
 # Slackware build script for sqlite
 
 # Copyright 2006  Martin Lefebvre <dadexter@gmail.com>
-# Copyright 2008, 2009, 2010, 2012, 2015, 2018, 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sqlite
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # First, convert the .zip file if needed:
 if ls *.zip 1> /dev/null 2> /dev/null ; then
@@ -153,14 +153,21 @@ LDFLAGS="$(icu-config --ldflags)" \
   --enable-fts3 \
   --enable-fts4 \
   --enable-fts5 \
-  --enable-json \
   --enable-rtree \
   --enable-session \
   --enable-static=no \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
+
+make \
+  sqldiff \
+  sqlite3_analyzer || exit 1
+
 make install DESTDIR=$PKG || exit 1
+
+install -m755 sqldiff sqlite3_analyzer \
+  $PKG/usr/bin/
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

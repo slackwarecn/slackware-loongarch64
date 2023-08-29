@@ -48,7 +48,7 @@ EOF
 echo $DEP_COMMIT
 }
 
-rm -f *.tar.lz
+rm -f *.tar.lz *.fetched release_notes.html
 
 wget https://vulkan.lunarg.com/doc/view/$VERSION/linux/release_notes.html
 
@@ -101,6 +101,36 @@ for i in $(grep "Repo:" release_notes.html | cut -d "\"" -f 2); do
       plzip -9 robin-hood-hashing-$ROBIN_HOOD_COMMIT.tar
       rm -rf robin-hood-hashing-$ROBIN_HOOD_COMMIT
       touch robin-hood-hashing.fetched
+    elif [ "$NAME" = "Vulkan-Profiles" ]; then
+      if [ ! -e jsoncpp.fetched ]; then
+        JSONCPP_COMMIT=$(get_known_good Vulkan-Profiles-$COMMIT/scripts/known_good.json jsoncpp repos)
+
+        git clone https://github.com/open-source-parsers/jsoncpp.git jsoncpp-$JSONCPP_COMMIT
+        cd jsoncpp-$JSONCPP_COMMIT
+          git reset --hard $JSONCPP_COMMIT || git reset --hard origin/$JSONCPP_COMMIT
+          git submodule update --init --recursive
+          git describe --tags > .git-version
+        cd ..
+        tar --exclude-vcs -cf jsoncpp-$JSONCPP_COMMIT.tar jsoncpp-$JSONCPP_COMMIT
+        plzip -9 jsoncpp-$JSONCPP_COMMIT.tar
+        rm -rf jsoncpp-$JSONCPP_COMMIT
+        touch jsoncpp.fetched
+      fi
+      if [ ! -e valijson.fetched ]; then
+        VALIJSON_COMMIT=$(get_known_good Vulkan-Profiles-$COMMIT/scripts/known_good.json valijson repos)
+
+        git clone https://github.com/tristanpenman/valijson.git valijson-$VALIJSON_COMMIT
+        cd valijson-$VALIJSON_COMMIT
+          git reset --hard $VALIJSON_COMMIT || git reset --hard origin/$VALIJSON_COMMIT
+          # Intentionally skipping the submodules, as those result in a huge source tarball
+          #git submodule update --init --recursive
+          git describe --tags > .git-version
+        cd ..
+        tar --exclude-vcs -cf valijson-$VALIJSON_COMMIT.tar valijson-$VALIJSON_COMMIT
+        plzip -9 valijson-$VALIJSON_COMMIT.tar
+        rm -rf valijson-$VALIJSON_COMMIT
+        touch valijson.fetched
+      fi
     fi
 
     rm -rf $NAME-$COMMIT

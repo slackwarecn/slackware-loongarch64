@@ -87,6 +87,12 @@ GFXRECONSTRUCT_VERSION=$(echo gfxreconstruct-sdk-*.tar.?z | rev | cut -f 3- -d .
 DXC_VERSION=$(echo DirectXShaderCompiler-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 SPIRV_REFLECT_VERSION=$(echo SPIRV-Reflect-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 VULKAN_PROFILES_VERSION=$(echo Vulkan-Profiles-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+VOLK_VERSION=$(echo volk-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+VULKAN_UTILITY_LIBRARIES_VERSION=$(echo Vulkan-Utility-Libraries-sdk-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+VULKAN_CAPS_VIEWER_VERSION=$(echo VulkanCapsViewer-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+VULKAN_MEMORY_ALLOCATOR_VERSION=$(echo VulkanMemoryAllocator-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+VALIJSON_VERSION=$(echo valijson-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+JSONCPP_VERSION=$(echo jsoncpp-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 
 # upstream builder order:
 # - SPIRV-Headers
@@ -122,7 +128,13 @@ rm -rf SPIRV-Headers-$SPIRV_HEADERS_VERSION \
   gfxreconstruct-sdk-$GFXRECONSTRUCT_VERSION \
   DirectXShaderCompiler-$DXC_VERSION \
   SPIRV-Reflect-sdk-$SPIRV_REFLECT_VERSION \
-  Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION
+  Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION \
+  volk-sdk-$VOLK_VERSION \
+  Vulkan-Utility-Libraries-$VULKAN_UTILITY_LIBRARIES_VERSION \
+  VulkanCapsViewer-$VULKAN_CAPS_VIEWER_VERSION \
+  VulkanMemoryAllocator-$VULKAN_MEMORY_ALLOCATOR_VERSION \
+  valijson-$VALIJSON_VERSION \
+  jsoncpp-$JSONCPP_VERSION
 
 tar xvf $CWD/SPIRV-Headers-$SPIRV_HEADERS_VERSION.tar.?z || exit 1
 cd SPIRV-Headers-$SPIRV_HEADERS_VERSION
@@ -163,11 +175,6 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
-
-# Fix LIBDIRSUFFIX
-# for i in $(find . -name CMakeLists.txt); do
-#   sed -i "s|DESTINATION lib|DESTINATION \${CMAKE_INSTALL_LIBDIR}|" "$i"
-# done
 
 mkdir -p build
 cd build
@@ -355,9 +362,6 @@ cd $TMP
 tar xvf $CWD/VulkanTools-sdk-$VULKANTOOLS_VERSION.tar.?z || exit 1
 cd $TMP/VulkanTools-sdk-$VULKANTOOLS_VERSION
 
-# Fix warning/error on gcc12 about uninitialized variables:
-zcat $CWD/VulkanTools-sdk.gcc12.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -389,10 +393,6 @@ cd build
 
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
-
-  mkdir -p $PKG/usr/share/vulkan/config/VK_LAYER_LUNARG_device_simulation
-  install -m 644 ../layersvt/device_simulation_examples/sdk_sample_configs/*.json \
-    $PKG/usr/share/vulkan/config/VK_LAYER_LUNARG_device_simulation/
 
 cd $TMP
 tar xvf $CWD/shaderc-$SHADERC_VERSION.tar.?z || exit 1
@@ -498,6 +498,14 @@ cd $TMP
 tar xvf $CWD/DirectXShaderCompiler-$DXC_VERSION.tar.?z || exit 1
 cd $TMP/DirectXShaderCompiler-$DXC_VERSION
 
+# Fix warning/error on gcc13 about changed meaning
+# Thanks to gentoo: https://bugs.gentoo.org/905173
+zcat $CWD/DirectXShaderCompiler-gcc13.patch.gz | patch -p1 --verbose || exit 1
+
+# Don't link unit test library in dxa.
+# Upstream commit daf1386161cd6912fbd358f13d74e81466edab8b
+zcat $CWD/DirectXShaderCompiler-dump-reflection.patch.gz | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -564,8 +572,8 @@ cd build
     $PKG/usr/include/SPIRV-Reflect/include/spirv/unified1/
 
 cd $TMP
-tar xvf $CWD/Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION.tar.?z || exit 1
-cd $TMP/Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION
+tar xvf $CWD/Vulkan-Utility-Libraries-sdk-$VULKAN_UTILITY_LIBRARIES_VERSION.tar.?z || exit 1
+cd $TMP/Vulkan-Utility-Libraries-sdk-$VULKAN_UTILITY_LIBRARIES_VERSION
 
 chown -R root:root .
 find . \
@@ -574,15 +582,88 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Fix finding vulkan-loader on Slackware64
-sed -i "s|PATH_SUFFIXES lib|PATH_SUFFIXES lib$LIBDIRSUFFIX|" \
-  CMakeLists.txt
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
+    -DVulkanHeaders_DIR=$PKG/usr/share/cmake/VulkanHeaders/ \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+
+cd $TMP
+tar xvf $CWD/valijson-$VALIJSON_VERSION.tar.?z || exit 1
+cd valijson-$VALIJSON_VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
 
 mkdir -p build
 cd build
   cmake \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS -Wno-error=deprecated-declarations" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS -Wno-error=deprecated-declarations" \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$TMP/valijson-$VALIJSON_VERSION/build/install || exit 1
+
+cd $TMP
+tar xvf $CWD/jsoncpp-$JSONCPP_VERSION.tar.?z || exit 1
+cd jsoncpp-$JSONCPP_VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_OBJECT_LIBS=OFF \
+    -DBUILD_STATIC_LIBS=ON \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DJSONCPP_WITH_TESTS=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$TMP/jsoncpp-$JSONCPP_VERSION/build/install || exit 1
+
+cd $TMP
+tar xvf $CWD/Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION.tar.?z || exit 1
+cd $TMP/Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION
+
+# do not depend on python-jsonschema
+sed -i "/jsonschema/d" scripts/gen_profiles_solution.py
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS -Wno-error=deprecated-declarations -I$PKG/usr/include/vulkan" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS -Wno-error=deprecated-declarations -I$PKG/usr/include/vulkan" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
@@ -590,10 +671,99 @@ cd build
     -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
     -DVULKAN_HEADERS_SOURCE_DIR="$TMP/Vulkan-Headers-sdk-$VULKAN_HEADERS_VERSION" \
     -DVULKAN_VALIDATIONLAYERS_SOURCE_DIR="$TMP/Vulkan-ValidationLayers-sdk-$VULKAN_VALIDATIONLAYERS_VERSION" \
-    -DPROFILES_BUILD_TESTS="OFF" \
-    -DREGENERATE_JSONCPP="OFF" \
-    -DREGENERATE_PROFILES="OFF" \
+    -DVVL_INCLUDE_DIR="$PKG/usr/include/vulkan" \
+    -Dvalijson_DIR="$TMP/valijson-$VALIJSON_VERSION/build/install/usr/lib$LIBDIRSUFFIX/cmake/valijson" \
+    -Djsoncpp_DIR="$TMP/jsoncpp-$JSONCPP_VERSION/build/install/usr/lib$LIBDIRSUFFIX/cmake/jsoncpp" \
+    -DVulkan_INCLUDE_DIR="$PKG/usr/include/vulkan" \
+    -DPROFILES_BUILD_TESTS=OFF \
     ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+
+cd $TMP
+tar xvf $CWD/volk-sdk-$VOLK_VERSION.tar.?z || exit 1
+cd $TMP/volk-sdk-$VOLK_VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
+    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
+    -DVOLK_INSTALL=ON \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+
+cd $TMP
+tar xvf $CWD/VulkanCapsViewer-$VULKAN_CAPS_VIEWER_VERSION.tar.?z || exit 1
+cd $TMP/VulkanCapsViewer-$VULKAN_CAPS_VIEWER_VERSION
+
+# Fix finding Vulkan-Loader
+sed -i "s|/lib/|/lib$LIBDIRSUFFIX/|g" CMakeLists.txt
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
+    -DVULKAN_LOADER_INSTALL_DIR=$PKG/usr \
+    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+
+cd $TMP
+tar xvf $CWD/VulkanMemoryAllocator-$VULKAN_MEMORY_ALLOCATOR_VERSION.tar.?z || exit 1
+cd $TMP/VulkanMemoryAllocator-$VULKAN_MEMORY_ALLOCATOR_VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
+    -DVulkan_GLSLANG_VALIDATOR_EXECUTABLE=$PKG/usr/bin/glslangValidator \
+    -DVulkan_GLSLC_EXECUTABLE=$PKG/usr/bin/glslc \
+    -DVulkan_INCLUDE_DIR=$PKG/usr/include \
+    -DVulkan_LIBRARY=$PKG/usr/lib$LIBDIRSUFFIX/libvulkan.so.$VULKAN_LOADER_VERSION \
+    ..
+
+  # make uses glslangValidator/glslc, which is built against a shared
+  # libglslang that isn't installed yet
+  export LD_LIBRARY_PATH=$PKG/usr/lib$LIBDIRSUFFIX
 
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
@@ -619,6 +789,10 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/gfxreconstruct
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/DirectXShaderCompiler
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/SPIRV-Reflect
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/Vulkan-Profiles
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/volk
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/Vulkan-Utility-Libraries
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/VulkanCapsViewer
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/VulkanMemoryAllocator
 cp -a \
   SPIRV-Headers-$SPIRV_HEADERS_VERSION/LICENSE* \
   SPIRV-Headers-$SPIRV_HEADERS_VERSION/README* \
@@ -696,6 +870,26 @@ cp -a \
   Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION/README* \
   Vulkan-Profiles-sdk-$VULKAN_PROFILES_VERSION/*.md \
   $PKG/usr/doc/$PKGNAM-$VERSION/Vulkan-Profiles
+cp -a \
+  volk-sdk-$VOLK_VERSION/LICENSE* \
+  volk-sdk-$VOLK_VERSION/README* \
+  volk-sdk-$VOLK_VERSION/*.md \
+  $PKG/usr/doc/$PKGNAM-$VERSION/volk
+cp -a \
+  Vulkan-Utility-Libraries-sdk-$VULKAN_UTILITY_LIBRARIES_VERSION/LICENSE* \
+  Vulkan-Utility-Libraries-sdk-$VULKAN_UTILITY_LIBRARIES_VERSION/README* \
+  Vulkan-Utility-Libraries-sdk-$VULKAN_UTILITY_LIBRARIES_VERSION/*.md \
+  $PKG/usr/doc/$PKGNAM-$VERSION/Vulkan-Utility-Libraries
+cp -a \
+  VulkanCapsViewer-$VULKAN_CAPS_VIEWER_VERSION/LICENSE* \
+  VulkanCapsViewer-$VULKAN_CAPS_VIEWER_VERSION/README* \
+  VulkanCapsViewer-$VULKAN_CAPS_VIEWER_VERSION/docs/*.md \
+  $PKG/usr/doc/$PKGNAM-$VERSION/VulkanCapsViewer
+cp -a \
+  VulkanMemoryAllocator-$VULKAN_MEMORY_ALLOCATOR_VERSION/LICENSE* \
+  VulkanMemoryAllocator-$VULKAN_MEMORY_ALLOCATOR_VERSION/README* \
+  VulkanMemoryAllocator-$VULKAN_MEMORY_ALLOCATOR_VERSION/docs/*.md \
+  $PKG/usr/doc/$PKGNAM-$VERSION/VulkanMemoryAllocator
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

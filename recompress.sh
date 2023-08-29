@@ -744,7 +744,6 @@ gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
-gzip ./source/l/libedit/libedit.gcc13.diff
 gzip ./source/l/brotli/brotli.no.unrecognized.R.diff
 gzip ./source/l/libvisual-plugins/60_no-const-vispluginfo-in-nastyfft.patch
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
@@ -1070,7 +1069,8 @@ gzip ./source/x/motif/motif-2.3.4-no_demos.patch
 gzip ./source/x/motif/motif.rgbtxt.patch
 gzip ./source/x/motif/motif-2.3.4-bindings.patch
 gzip ./source/x/motif/motif-2.3.4-mwmrc_dir.patch
-gzip ./source/x/vulkan-sdk/VulkanTools-sdk.gcc12.diff
+gzip ./source/x/vulkan-sdk/DirectXShaderCompiler-dump-reflection.patch
+gzip ./source/x/vulkan-sdk/DirectXShaderCompiler-gcc13.patch
 gzip ./source/x/mesa/doinst.sh
 gzip ./source/x/urw-core35-fonts-otf/doinst.sh
 gzip ./source/x/ibus-hangul/doinst.sh

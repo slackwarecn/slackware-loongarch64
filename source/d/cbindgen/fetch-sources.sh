@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-0.24.6}
+VERSION=${VERSION:-0.25.0}
 
 rm -rf cbindgen-*.tar.?z cargo-cbindgen*
 

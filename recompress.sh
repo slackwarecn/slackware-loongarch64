@@ -835,6 +835,7 @@ gzip ./source/l/sdl/SDL_ttf.shaded.text.diff
 gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
+gzip ./source/l/ffmpeg/ffmpeg.vulkan.diff
 gzip ./source/l/ffmpeg/add-av_stream_get_first_dts-for-chromium.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-round_gtf_gtfcalc_c.patch

@@ -82,7 +82,7 @@ fi
 if [ -z "$container" ]; then
   if grep -wq cgroup /proc/filesystems ; then
     if [ -d /sys/fs/cgroup ]; then
-      # See linux-*/Documentation/cgroups/cgroups.txt (section 1.6)
+      # See linux-*/Documentation/admin-guide/cgroup-v1/cgroups.rst (section 1.6)
       # Check if we have some tools to autodetect the available cgroup controllers
       if [ -x /bin/cut -a -x /bin/tail ]; then
         # Mount a tmpfs as the cgroup filesystem root

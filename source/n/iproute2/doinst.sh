@@ -9,6 +9,6 @@ config() {
   fi
   # Otherwise, we leave the .new copy for the admin to consider...
 }
-for file in etc/iproute2/*.new ; do
+for file in usr/lib/iproute2/*.new ; do
   config $file
 done

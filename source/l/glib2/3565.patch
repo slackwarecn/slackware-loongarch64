@@ -1,0 +1,75 @@
+From 4a9672764214d5fab569b774fe761ae7d2ec11d9 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <philip@tecnocode.co.uk>
+Date: Wed, 6 Sep 2023 12:08:56 +0100
+Subject: [PATCH] gkeyfile: Temporarily re-allow invalid escapes when parsing
+ strings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Before commit 71b7efd08a1feadc8ddca31e164034b1f5a6bd74, `GKeyFile`
+incorrectly allowed invalid escape sequences: it would treat the
+sequence as a literal, set a `GError`, but not return failure from the
+function. So if a caller was explicitly checking for returned `GError`s,
+they could detect the invalid escape; but if they were just checking the
+functionâ€™s return value, theyâ€™d miss it.
+
+This is not correct use of `GError`, and the [Desktop Entry
+Spec](https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s04.html)
+doesnâ€™t allow for invalid escape sequences to be accepted. So itâ€™s wrong
+in both ways.
+
+However, the commit above changed this behaviour without realising it,
+quite close to the 2.78 stable release deadline. There are numerous key
+files in the wild which use invalid escape sequences, and itâ€™s too late
+in the cycle to â€˜breakâ€™ parsing of all of them.
+
+So, for now, revert to the old behaviour for invalid escape sequences,
+and give people another cycle to adapt to the changes. This will likely
+mean they end up calling `g_key_file_get_value()` rather than
+`g_key_file_get_string()`. See
+https://gitlab.gnome.org/GNOME/glib/-/issues/3098 for tracking
+re-enabling the error handling for invalid escape sequences.
+
+Signed-off-by: Philip Withnall <philip@tecnocode.co.uk>
+
+Fixes: #3095
+See: #3098
+
+--- ./glib/gkeyfile.c.orig	2023-08-31 06:08:59.000000000 -0500
++++ ./glib/gkeyfile.c	2023-09-07 14:28:02.317026537 -0500
+@@ -4325,6 +4325,7 @@
+               break;
+ 
+ 	    case '\0':
++	      g_clear_error (error);
+ 	      g_set_error_literal (error, G_KEY_FILE_ERROR,
+                                    G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    _("Key file contains escape character "
+@@ -4347,11 +4348,25 @@
+ 		      sequence[1] = *p;
+ 		      sequence[2] = '\0';
+ 		      
++                      /* FIXME: This should be a fatal error, but there was a
++                       * bug which prevented that being reported for a long
++                       * time, so a lot of applications and in-the-field key
++                       * files use invalid escape sequences without anticipating
++                       * problems. For now (GLib 2.78), message about it; in
++                       * future, the behaviour may become fatal again.
++                       *
++                       * The previous behaviour was to set the #GError but not
++                       * return failure from the function, so the caller could
++                       * explicitly check for invalid escapes, but also ignore
++                       * the error if they want. This is not how #GError is
++                       * meant to be used, but the #GKeyFile code is very old.
++                       *
++                       * See https://gitlab.gnome.org/GNOME/glib/-/issues/3098 */
++                      g_clear_error (error);
+ 		      g_set_error (error, G_KEY_FILE_ERROR,
+ 				   G_KEY_FILE_ERROR_INVALID_VALUE,
+ 				   _("Key file contains invalid escape "
+ 				     "sequence “%s”"), sequence);
+-                      goto error;
+                     }
+                 }
+               break;

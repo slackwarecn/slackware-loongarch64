@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=zstd
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -104,6 +104,11 @@ cmake \
     -DLIB_SUFFIX="$LIBDIRSUFFIX" \
     -DDOC_INSTALL_DIR="doc" \
     -DMAN_INSTALL_DIR=/usr/man/man1 \
+    -DZSTD_BUILD_STATIC=OFF \
+    -DZSTD_PROGRAMS_LINK_SHARED=ON \
+    -DZSTD_LZ4_SUPPORT=ON \
+    -DZSTD_LZMA_SUPPORT=ON \
+    -DZSTD_ZLIB_SUPPORT=ON \
     .. || exit 1
 make $NUMJOBS CFLAGS="$SLKCFLAGS" || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -114,8 +119,8 @@ zcat $CWD/zstd.dont.link.pzstd.to.static.libzstd.a.diff.gz | patch -p1 --verbose
 make $NUMJOBS CFLAGS="$SLKCFLAGS" -C contrib/pzstd || exit 1
 install -Dm755 contrib/pzstd/pzstd $PKG/usr/bin/pzstd || exit 1
 
-# Don't ship static library:
-rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
+## Don't ship static library:
+#rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
 # It might be advisable to have the libraries in /lib${LIBDIRSUFFIX}:
 mkdir -p $PKG/lib${LIBDIRSUFFIX}
@@ -124,6 +129,9 @@ mv $PKG/usr/lib${LIBDIRSUFFIX}/libzstd.so.* $PKG/lib${LIBDIRSUFFIX}
   rm -f libzstd.so
   ln -sf ../../lib${LIBDIRSUFFIX}/libzstd.so.? libzstd.so
 )
+
+# Set the path of libzstd in cmake Targets (given by Steven Voges in SBo)
+sed -i 's|${_IMPORT_PREFIX}||g' $PKG/usr/lib${LIBDIRSUFFIX}/cmake/zstd/zstdTargets-release.cmake
 
 # zstdmt as the same as zstd, so just make a symlink:
 ( cd $PKG/usr/bin

@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
 VERSION=${VERSION:-1.72.0}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 # YES is probably better (when it works...)
@@ -233,6 +233,13 @@ fi
 # Build and install:
 python3 ./x.py build || exit 1
 DESTDIR=$PKG python3 x.py install || exit 1
+
+# Fix path to lldb_commands:
+if [ -x $PKG/usr/bin/rust-lldb ]; then
+  if [ ! "$LIBDIRSUFFIX" = "" ]; then
+    sed -i "s,/lib/rustlib/,/lib$LIBDIRSUFFIX/rustlib/,g" $PKG/usr/bin/rust-lldb
+  fi
+fi
 
 # Eh, none of this is all that big. Might as well leave it around as a
 # reference.

@@ -546,7 +546,6 @@ gzip ./source/n/yptools/rc.yp
 gzip ./source/n/netkit-rsh/netkit-rsh.arg_max.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.auth.c.stddef.diff
 gzip ./source/n/netkit-rsh/netkit-rsh.union_wait.diff
-gzip ./source/n/ntp/ntp.nano.diff
 gzip ./source/n/ntp/doinst.sh
 gzip ./source/n/ntp/ntpdate.8
 gzip ./source/n/lynx/lynx-CVE-2008-4690.patch

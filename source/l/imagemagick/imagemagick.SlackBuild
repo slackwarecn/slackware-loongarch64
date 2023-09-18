@@ -23,7 +23,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=imagemagick
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # NOTE:  This is to cope with ImageMagick version numbers such as 5.4.7-4,
 # which occur fairly often (but not always).  If these numbers are all the same,
@@ -41,6 +41,9 @@ BASEVER=$FILEVER
 # This is the version number used in the package, where a version number cannot
 # contain a '-'.  We'll try to autogenerate this one.
 PKGVER=$(echo $FILEVER | tr - _)
+
+# Default security policy to install as policy.xml:
+POLICY=${POLICY:-limited}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -93,9 +96,6 @@ rm -rf ImageMagick-$BASEVER
 tar xvf $CWD/ImageMagick-$FILEVER.tar.?z || exit 1
 cd ImageMagick-$BASEVER || exit 1
 
-# Harden the default settings in policy.xml to prevent security issues:
-zcat $CWD/policy.xml.diff.gz | patch -p1 --verbose || exit 1
-
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -123,6 +123,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-perl \
   --with-perl-options="INSTALLDIRS=vendor" \
   --with-rsvg \
+  --with-security-policy=$POLICY \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
@@ -146,6 +147,14 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libltdl.*
 # Other .la files should be left alone, as ImageMagick uses them internally
 # to locate modules.
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
+
+# Make sure the proper security policy.xml is installed:
+cp -a config/policy-${POLICY}.xml $PKG/etc/ImageMagick-7/policy.xml
+
+# Provide all the security policy XML files as examples:
+for file in config/policy*xml ; do
+  cp -a $file $PKG/etc/ImageMagick-7/$(basename ${file}).example
+done
 
 ( cd $PKG
   # Nothing but a perl upgrade should replace this (and maybe not even that)
@@ -190,7 +199,7 @@ fi
 
 # Move config files to .new:
 ( cd $PKG/etc/ImageMagick*
-  for file in * ; do
+  for file in *.xml ; do
     mv ${file} ${file}.new
   done
 )
@@ -215,4 +224,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/imagemagick-$PKGVER-$ARCH-$BUILD.txz
-

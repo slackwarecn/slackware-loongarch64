@@ -746,7 +746,6 @@ gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
 gzip ./source/l/libvisual-plugins/60_no-const-vispluginfo-in-nastyfft.patch
 gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
 gzip ./source/l/libcap/libcap.pkgconfig.path.diff
-gzip ./source/l/imagemagick/policy.xml.diff
 gzip ./source/l/imagemagick/doinst.sh
 gzip ./source/l/GConf/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch
 gzip ./source/l/GConf/patches/0001-mconvert-enable-recursive-scheme-lookup-and-fix-a-cr.patch

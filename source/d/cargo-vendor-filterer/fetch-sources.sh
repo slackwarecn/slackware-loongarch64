@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-0.5.9}
+VERSION=${VERSION:-0.5.11}
 
 rm -rf cargo-vendor-filterer-*.tar.?z cargo-cargo-vendor-filterer*
 

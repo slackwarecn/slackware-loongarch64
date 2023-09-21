@@ -145,7 +145,7 @@ list_mmc() {
   # Filter out any partitions on the block device, as we'll use
   # fdisk to capture those:
   grep -qE 'mmcblk[0-9]' /proc/partitions && {
-    lsblk -o name,type -ripnd /dev/mmcblk* | grep -E 'disk$' | awk '{print $1}' | while read device ; do
+    lsblk -o name,type -Mripnd /dev/mmcblk* | grep -E 'disk$' | awk '{print $1}' | while read device ; do
       fdisk -l $device >> $TMP/SeTfdisk
     done ;}
 }
@@ -440,25 +440,31 @@ sed -i -e "s,EFI (FAT-12/16/32),EFI System Partition,g" $TMP/SeTfdisk
 # during the installation.
 #
 # Labels:
+#
+# Used within the OS:
+# -------------------
+# SLKhwm_bw = Hardware Model Bootware - native Bootware for the RPi
+# SLKefi = FAT32 file system, /boot/efi mountpoint within the OS for Hardware Models
+#          that use UEFI firmware.
+#
 # SLKins = Media (usually a USB stick) containing the Slackware install media
 #          This FS label isn't required to locate the media, but it's helpful
 #          as a way to exclude the media from the list of candidates.
 #          This label is included within the Installation Guide for the USB
 #          media installation option.
+#
+# Used only within the Slackware Installer environment
+# ----------------------------------------------------
 # SLKins_aio-pkgs =
 #          The label of the partition on the All-In-One Installer that contains the
 #          Slackware packages.
-# SLKhwm_bw = Hardware Model Bootware - native Bootware for the RPi
-# SLKefi = FAT32 file system, /boot/efi mountpoint within the OS for Hardware Models
+# SLKins_efi = FAT32 file system for the Installer EFI partition, for Hardware Models
 #          that use UEFI firmware.
-# SLKefi_fw =
-#          ext4 file system within the Installer image containing UEFI
-#          firmware.  The firmware can be offered up for flashing to SPI from
-#          within the post installation scripts.
-#          This file system is present only within the Installer images (not the OS)
-#          for Hardware Models with UEFI firmware (i.e. not RK3399).
-#          This is because the Slackware Installer SD card image is not converted
-#          into the OS's /boot partition on HWM's that use UEFI.
+#          The contents of this are deployed by 'grub-install', which is called from
+#          the Hardware Model's 'sdcards.build' plugin.
+#          This is not used within the installed OS.
+# SLKins_boot = ext4 file system containing the GRUB configuration to boot the
+#          Slackware Installer, for Hardware Models using UEFI firmware.
 #
 # 'SLKroot' is used to identify the OS root file system on ARM, but we don't
 # filter it out because it's *supposed* to appear as a candidate within the
@@ -474,7 +480,7 @@ awk '/^\/dev\// {print $1}' /var/log/setup/tmp/SeTfdisk | while read device; do
     # it outputs only the label.
     { ( e2label ${device} 2>/dev/null | tail -n1 | rev \
        | awk '{print $1}' | rev | tr -d "'" | \
-       grep -Eq "^SLK(${aexc}ins|ins_aio-pkgs|efi|efi_fw|hwm_bw)$" ) && sed -i '\|^'"${device}\s"'|d' $TMP/SeTfdisk ;}
+       grep -Eq "^SLK(${aexc}ins|ins_aio-pkgs|ins_efi|ins_boot|efi|hwm_bw)$" ) && sed -i '\|^'"${device}\s"'|d' $TMP/SeTfdisk ;}
 done
 
 # Dump the discovered storage:

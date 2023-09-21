@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# Script: /usr/lib/setup/SeTEFI
+# Called from: /usr/lib/setup/setup
+
 TMP=/var/log/setup/tmp
 T_PX="`cat $TMP/SeTT_PX`"
 if [ ! -d $TMP ]; then
@@ -16,14 +20,21 @@ rm -f $TMP/SeTefipartitions
 touch $TMP/SeTefipartitions
 
 # Scan for EFI partitions:
-# The UEFI specification states that an EFI System partition should have 
+# The UEFI specification states that an EFI System partition should have
 # a GUID of C12A7328-F81F-11D2-BA4B-00A0C93EC93B for a GPT disk layout.
 # In case of a MBR disk layout instead, an ESP should have an OS type of
 # 0xEF. lsblk writes these values in the same field: PARTTYPE.
+#
+# AArch64 note: Any file systems labeled 'SLKins_efi' are filtered out
+# because on the AArch64 platform, the Slackware Installer image has its
+# own EFI boot partition to support Hardware Models using UEFI firmware.
+# This partition must be filtered out here to avoid it being incorrectly
+# selected as the OS's EFI partition.
 ESPGUID=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 OSTYPE=0xEF
-lsblk -l -o parttype,name | \
-grep -i -F -e "$ESPGUID" -e "$OSTYPE" | \
+lsblk -Ml -o parttype,name,label | \
+grep -v 'SLKins_efi$' | \
+grep -iFe "$ESPGUID" -e "$OSTYPE" | \
 sed "s,[^ ]*[ ]*,/dev/," > $TMP/SeTefipartitions
 
 if [ ! -s $TMP/SeTefipartitions ]; then # No EFI partitions

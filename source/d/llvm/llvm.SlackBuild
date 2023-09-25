@@ -65,7 +65,7 @@ BUILDDIR=${TMP}/llvm-build-${VERSION}
 
 # Ignore that which should be ignored to avoid long build times and
 # massive warning spew:
-IGNORE_GNU_EXTENSIONS=${IGNORE_GNU_EXTENSIONS:--Wno-unknown-warning-option -Wno-gnu-line-marker -Wno-gnu-anonymous-struct}
+IGNORE_GNU_EXTENSIONS=${IGNORE_GNU_EXTENSIONS:--Wno-unknown-warning-option -Wno-gnu-line-marker -Wno-gnu-anonymous-struct -Wno-gnu-include-next}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686 $IGNORE_GNU_EXTENSIONS"
@@ -117,47 +117,58 @@ touch configure
 chmod 755 configure
 
 # Extract and rename some support files:
-tar xvf $CWD/cmake-$VERSION.src.tar.xz || exit 1
+echo "Extracting $CWD/cmake-$VERSION.src.tar.xz..."
+tar xf $CWD/cmake-$VERSION.src.tar.xz || exit 1
 mv cmake-$VERSION.src cmake
-tar xvf $CWD/third-party-$VERSION.src.tar.xz || exit 1
+echo "Extracting $CWD/third-party-$VERSION.src.tar.xz..."
+tar xf $CWD/third-party-$VERSION.src.tar.xz || exit 1
 mv third-party-$VERSION.src third-party
 
 rm -rf $PKGNAM-${VERSION}.src $PKGNAM-${VERSION}
-tar xvf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
+echo "Extracting $CWD/$PKGNAM-$VERSION.src.tar.xz..."
+tar xf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
 
 cd $PKGNAM-${VERSION}.src/tools || cd $PKGNAM-${VERSION}/tools || exit 1
-  tar xvf $CWD/clang-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/clang-$VERSION.src.tar.xz..."
+  tar xf $CWD/clang-$VERSION.src.tar.xz || exit 1
   mv clang-${VERSION} clang 2>/dev/null || mv clang-${VERSION}.src clang || exit 1
-  #tar xvf $CWD/flang-$VERSION.src.tar.xz || exit 1
+  #echo "Extracting $CWD/flang-$VERSION.src.tar.xz..."
+  #tar xf $CWD/flang-$VERSION.src.tar.xz || exit 1
   #mv flang-${VERSION} flang 2>/dev/null || mv flang-${VERSION}.src flang || exit 1
-  tar xvf $CWD/lldb-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/lldb-$VERSION.src.tar.xz..."
+  tar xf $CWD/lldb-$VERSION.src.tar.xz || exit 1
   mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
-  tar xvf $CWD/lld-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/lld-$VERSION.src.tar.xz..."
+  tar xf $CWD/lld-$VERSION.src.tar.xz || exit 1
   mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
 cd ../
 
 cd tools/clang/tools || exit 1
-  tar xvf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/clang-tools-extra-$VERSION.src.tar.xz..."
+  tar xf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
   mv clang-tools-extra-${VERSION} extra 2>/dev/null \
     || mv clang-tools-extra-${VERSION}.src extra || exit 1
-  ## HACK # Otherwise the build fails because files aren't found.
-  #rm -rf $TMP/clang-tools-extra
-  #cp -a extra $TMP/clang-tools-extra
 cd ../../../
 
 cd projects || exit 1
-  tar xvf $CWD/compiler-rt-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/compiler-rt-$VERSION.src.tar.xz..."
+  tar xf $CWD/compiler-rt-$VERSION.src.tar.xz || exit 1
   mv compiler-rt-${VERSION} compiler-rt 2>/dev/null || mv compiler-rt-${VERSION}.src compiler-rt || exit 1
-  tar xvf $CWD/openmp-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/openmp-$VERSION.src.tar.xz..."
+  tar xf $CWD/openmp-$VERSION.src.tar.xz || exit 1
   mv openmp-${VERSION} openmp 2>/dev/null || mv openmp-${VERSION}.src openmp || exit 1
-  tar xvf $CWD/libcxx-${VERSION}.src.tar.xz || exit 1
+  echo "Extracting $CWD/libcxx-${VERSION}.src.tar.xz..."
+  tar xf $CWD/libcxx-${VERSION}.src.tar.xz || exit 1
   mv libcxx-${VERSION} libcxx 2>/dev/null || mv libcxx-${VERSION}.src libcxx || exit 1
-  tar xvf $CWD/libcxxabi-${VERSION}.src.tar.xz || exit 1
+  echo "Extracting $CWD/libcxxabi-${VERSION}.src.tar.xz..."
+  tar xf $CWD/libcxxabi-${VERSION}.src.tar.xz || exit 1
   mv libcxxabi-${VERSION} libcxxabi 2>/dev/null || mv libcxxabi-${VERSION}.src libcxxabi || exit 1
-  tar xvf $CWD/polly-$VERSION.src.tar.xz || exit 1
+  echo "Extracting $CWD/polly-$VERSION.src.tar.xz..."
+  tar xf $CWD/polly-$VERSION.src.tar.xz || exit 1
   mv polly-${VERSION} polly 2>/dev/null || mv polly-${VERSION}.src polly || exit 1
   # We just need a header file from this...
-  tar xvf $CWD/libunwind-${VERSION}.src.tar.xz || exit 1
+  echo "Extracting $CWD/libunwind-${VERSION}.src.tar.xz..."
+  tar xf $CWD/libunwind-${VERSION}.src.tar.xz || exit 1
   mv libunwind-${VERSION}.src libunwind || mv libunwind-${VERSION} libunwind || exit 1
 cd ../
 
@@ -171,9 +182,16 @@ if [ -f ./tools/lldb/source/Utility/CMakeLists.txt ]; then
   fi
 fi
 
-# This hackish link seems to be required...
+# These files are not present for some reason, but they were found in a git
+# pull of the entire project:
+cp -a $CWD/missing-runtime-modules/*.cmake ../cmake/Modules/
+
+# These hackish links seem to be required...
 cd ..
 ln -sf */runtimes .
+cd -
+cd projects
+ln -sf ../../cmake .
 cd -
 
 chown -R root:root .

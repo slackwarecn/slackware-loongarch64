@@ -76,54 +76,29 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Recommended by BLFS for cairo-1.17.6 to "prevent errors later":
-if ! grep -q exec_prefix util/cairo-script/cairo-script-interpreter.pc.in ; then
-  sed -e "/@prefix@/a exec_prefix=@exec_prefix@" \
-      -i util/cairo-script/cairo-script-interpreter.pc.in
-fi
-
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
   --mandir=/usr/man \
   --sysconfdir=/etc \
-  --disable-gtk-doc \
-  --disable-quartz \
-  --disable-static \
-  --disable-win32 \
-  --disable-trace \
-  --enable-xlib \
-  --enable-xcb \
-  --enable-ps \
-  --enable-pdf \
-  --enable-svg \
-  --enable-tee \
-  --enable-ft \
-  --enable-gl \
-  --enable-gobject \
-  --enable-xml \
-  --build=$ARCH-slackware-linux || exit 1
-
-# None of these are 'stable' yet...
-#  --enable-qt \
-#  --enable-drm \
-
-# Not sure if these two are needed / useful yet; --enable-xcb is now default
-#  --enable-xcb-shm \
-#  ^^ may cause GTK+3 instability
-#  --enable-xlib-xcb \
-#  ^^  this one caused a GIMP slowdown
-
-# Skipping this, because it causes a dependency on the specific
-# version of binutils installed at compile time:
-#  --enable-trace
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+  --localstatedir=/var \
+  --buildtype=release \
+  -Dgtk_doc=false \
+  -Dtests=disabled \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -132,7 +107,6 @@ mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   AUTHORS* BIBLIOGRAPHY* BUGS* ChangeLog CODING_STYLE* COPYING* HACKING* NEWS* PORTING_GUIDE* README* RELEASING* \
   $PKG/usr/doc/$PKGNAM-$VERSION
-( cd $PKG/usr/doc/$PKGNAM-$VERSION ; ln -sf /usr/share/gtk-doc/html/cairo html )
 
 # We do not need the entire NEWS file.
 if [ -r NEWS ]; then

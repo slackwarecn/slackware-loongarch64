@@ -342,9 +342,20 @@ fi
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip -g 2> /dev/null
 )
 
-# Fix info dir:
-rm $PKG/usr/info/dir
-gzip -9 $PKG/usr/info/*
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
 
 # This is junk
 rm $PKG/etc/ld.so.cache

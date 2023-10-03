@@ -682,6 +682,7 @@ gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/patches/reenable_DT_HASH.patch
+gzip ./source/l/glibc/patches/glibc-2.37.CVE-2023-4911.patch
 gzip ./source/l/glibc/patches/CVE-2023-25139.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
@@ -1044,7 +1045,6 @@ gzip ./source/installer/sources/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/x/liberation-fonts-ttf/doinst.sh
 gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
-gzip ./source/x/fcitx5-kkc/0001-remove-std-c-11-from-gui-CMakeLists.txt.patch
 gzip ./source/x/ttf-indic-fonts/doinst.sh
 gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff
@@ -1116,7 +1116,6 @@ gzip ./source/x/x11/patch/xinit/xinit.remove.systemd.kludge.diff
 gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-physical-size-with-xf86O.patch
 gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
 gzip ./source/x/fcitx5/doinst.sh
-gzip ./source/x/fcitx5/7fb3a5500270877d93b61b11b2a17b9b8f6a506b.patch
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt
 gzip ./source/x/ibus/doinst.sh
@@ -1127,5 +1126,6 @@ gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
 gzip ./testing/source/glibc/glibc.locale.no-archive.diff
 gzip ./testing/source/glibc/patches/glibc-2.38-upstream_fixes-1.patch
 gzip ./testing/source/glibc/patches/reenable_DT_HASH.patch
+gzip ./testing/source/glibc/patches/glibc.CVE-2023-4911.patch
 gzip ./testing/source/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./testing/source/rust/link_libffi.diff

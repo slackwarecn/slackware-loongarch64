@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2017, 2018, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=fftw
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -f 2- -d - | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Automatically determine the architecture we're building on:
@@ -163,6 +163,34 @@ make install-strip DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Generate the cmake files and install any that are missing:
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DENABLE_OPENMP=ON \
+    -DENABLE_THREADS=ON \
+    -DENABLE_FLOAT=ON \
+    -DENABLE_LONG_DOUBLE=ON \
+    -DENABLE_QUAD_PRECISION=ON \
+    -DENABLE_SSE=ON \
+    -DENABLE_SSE2=ON \
+    -DENABLE_AVX=ON \
+    -DENABLE_AVX2=ON \
+    . || exit 1
+if [ ! -d $PKG/usr/lib${LIBDIRSUFFIX}/cmake/fftw3 ]; then
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/cmake/fftw3
+fi
+for file in FFTW3*cmake ; do
+  if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/cmake/fftw3/$file ]; then
+    echo "Copying cmake file $file:"
+    cp -a --verbose $file $PKG/usr/lib${LIBDIRSUFFIX}/cmake/fftw3
+  fi
+done
 
 ( cd $PKG/usr/man
     find . -type f -exec gzip -9 {} \+

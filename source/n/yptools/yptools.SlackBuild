@@ -37,6 +37,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -57,6 +58,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -86,18 +90,20 @@ if [ ! -r configure ]; then
     autoreconf -vif
   fi
 fi
+cp -rfa  /usr/share/autoconf/build-aux/config.* .
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --disable-domainname \
-  $ARCH-slackware-linux
+  loongarch64-slackware-linux-gnu
 # Don't ask
 make clean
+cp -rfa  /usr/share/autoconf/build-aux/config.* .
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --disable-domainname \
-  $ARCH-slackware-linux
+  loongarch64-slackware-linux-gnu
 make CFLAGS="$SLKCFLAGS" || exit 1
 
 mkdir -p $PKG/etc/default
@@ -149,17 +155,19 @@ cd $TMP
 rm -rf ypbind-mt-$YPBINDMT
 tar xvf $CWD/ypbind-mt-$YPBINDMT.tar.?z || exit 1
 cd ypbind-mt-$YPBINDMT || exit 1
+cp -rfa  /usr/share/autoconf/build-aux/config.* .
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  $ARCH-slackware-linux
+  loongarch64-slackware-linux-gnu
 # Hard to believe how sloppy these tarballs are.  This is why I got complaints
 # that YP didn't work but it was "fixed with a simple recompile."
 make clean
+cp -rfa  /usr/share/autoconf/build-aux/config.* .
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  $ARCH-slackware-linux
+  loongarch64-slackware-linux-gnu
 make CFLAGS="$SLKCFLAGS" || exit 1
 mkdir -p $PKG/etc
 cat etc/yp.conf > $PKG/etc/yp.conf.new
@@ -214,19 +222,21 @@ cd ypserv-$YPSERV || exit 1
 # --with-ndbm=yes 
 # Support for this was discontinued upstream
 # --enable-tcp-wrapper
+cp -rfa  /usr/share/autoconf/build-aux/config.* .
 ./configure \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --libexecdir=/usr/lib${LIBDIRSUFFIX}/yp \
   --enable-fqdn \
   --enable-yppasswd \
-  $ARCH-slackware-linux
+  loongarch64-slackware-linux-gnu
 make clean
+cp -rfa  /usr/share/autoconf/build-aux/config.* .
 ./configure \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --libexecdir=/usr/lib${LIBDIRSUFFIX}/yp \
   --enable-fqdn \
   --enable-yppasswd \
-  $ARCH-slackware-linux
+  loongarch64-slackware-linux-gnu
 make CFLAGS="$SLKCFLAGS" || exit 1
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/yp
 ( cd scripts

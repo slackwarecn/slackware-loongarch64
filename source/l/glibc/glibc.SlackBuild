@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=glibc
 VERSION=${VERSION:-$(echo glibc-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 CHECKOUT=${CHECKOUT:-""}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-2}
 
 # I was considering disabling NSCD, but MoZes talked me out of it.  :)
 #DISABLE_NSCD=" --disable-nscd "
@@ -230,7 +230,7 @@ CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --enable-kernel=2.6.32 \
+  --enable-kernel=4.4 \
   --with-headers=/usr/include \
   --enable-add-ons \
   --enable-profile \
@@ -250,6 +250,11 @@ make $NUMJOBS install install_root=$PKG || exit 1
 # This is ugly run in parallel, and seems to hang at the end. But it actually
 # completes much faster. :)
 make $NUMJOBS localedata/install-locales install_root=$PKG DESTDIR=$PKG || exit 1
+
+# Build and install libxcrypt:
+pushd $CWD
+ARCH=$SLACKWARE_ARCH LIBDIRSUFFIX=$LIBDIRSUFFIX SLKCFLAGS=$OPTIMIZ ./libxcrypt.build
+popd
 
 # We've always had an sln symlink in /bin, so let's make sure it
 # remains there so as not to break any scripts that might need it:
@@ -306,8 +311,7 @@ cat nscd/nscd.conf > $PKG/etc/nscd.conf.new
 # Install docs:
 ( mkdir -p $PKG/usr/doc/glibc-$VERSION
   cp -a \
-    BUGS CONFORMANCE COPYING* FAQ INSTALL LICENSES NAMESPACE \
-    NEWS NOTES PROJECTS README* \
+    CONTRIBUTED-BY* COPYING* INSTALL* LICENSES* MAINTAINERS* NEWS* README* SECURITY* SHARED-FILES* \
     $PKG/usr/doc/glibc-$VERSION
 )
 
@@ -338,9 +342,20 @@ fi
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip -g 2> /dev/null
 )
 
-# Fix info dir:
-rm $PKG/usr/info/dir
-gzip -9 $PKG/usr/info/*
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
 
 # This is junk
 rm $PKG/etc/ld.so.cache
@@ -411,6 +426,11 @@ cp -a $PKG/lib${LIBDIRSUFFIX}/* lib${LIBDIRSUFFIX}
   # have to handle these files differently and so that it's easy to see what
   # version of glibc is in use at a glance.
   cd incoming
+  # First do the new libxcrypt links (a little bit differently):
+  for cryptlib in libcrypt.so.* ; do
+    CRYPTSO=$(echo $cryptlib | cut -f 3 -d .)
+    mv $cryptlib libcrypt${CRYPTSO}-${VERSION}.so
+  done
   for library in *.so.* ; do
     mv $library $(echo $library | cut -f 1 -d .)-${VERSION}.so
   done
@@ -465,17 +485,13 @@ find lib${LIBDIRSUFFIX} -type l -exec rm {} \+
 mkdir install
 cp -a $CWD/slack-desc.glibc install/slack-desc
 cp -a $CWD/doinst.sh-glibc install/doinst.sh
-# Fix specific versioning for the symlink creation script. This part of the
-# script would only be used in the case where there is no ldconfig on the
-# running system that's used to install the package. That should never be the
-# case, but we'll leave the code in place anyway just in case.
-sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
 # Call the function to fix doinst.sh where $LIBDIRSUFFIX is needed:
 fix_doinst
 ( cd lib${LIBDIRSUFFIX}
   mkdir incoming
   mv *so* incoming
   mv incoming/libmemusage.so .
+  #mv incoming/libcrypt* .
   # Beginning with glibc-2.34, shared objects are using their ABI sonames
   # directly, which is frankly, a terrible idea. It might help other package
   # managers, but doesn't do us any favors where we already had a system for
@@ -484,6 +500,11 @@ fix_doinst
   # have to handle these files differently and so that it's easy to see what
   # version of glibc is in use at a glance.
   cd incoming
+  # First do the new libxcrypt links (a little bit differently):
+  for cryptlib in libcrypt.so.* ; do
+    CRYPTSO=$(echo $cryptlib | cut -f 3 -d .)
+    mv $cryptlib libcrypt${CRYPTSO}-${VERSION}.so
+  done
   for library in *.so.* ; do
     mv $library $(echo $library | cut -f 1 -d .)-${VERSION}.so
   done

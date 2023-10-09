@@ -681,9 +681,9 @@ gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
+gzip ./source/l/glibc/patches/glibc-2.38-upstream_fixes-1.patch
 gzip ./source/l/glibc/patches/reenable_DT_HASH.patch
-gzip ./source/l/glibc/patches/glibc-2.37.CVE-2023-4911.patch
-gzip ./source/l/glibc/patches/CVE-2023-25139.patch
+gzip ./source/l/glibc/patches/glibc.CVE-2023-4911.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
 gzip ./source/l/fuse/doinst.sh
@@ -848,7 +848,6 @@ gzip ./source/l/libexif/libexif.pc.diff
 gzip ./source/l/farstream/farstream-0.2.9-build-Adapt-to-backwards-incompatible-change-in-GNU-.patch
 gzip ./source/l/farstream/farstream-0.2.8-configure-add-check-for-glib-mkenums.patch
 gzip ./source/l/shared-mime-info/doinst.sh
-gzip ./source/l/shared-mime-info/shared-mime-info.skip_tests.diff
 gzip ./source/l/glib/glib-1.2.10-gcc5.patch
 gzip ./source/l/glib/glib-1.2.10-multilib.patch
 gzip ./source/l/glib/glib-1.2.10-autotools.patch
@@ -1121,10 +1120,4 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
-gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
-gzip ./testing/source/glibc/glibc.locale.no-archive.diff
-gzip ./testing/source/glibc/patches/glibc-2.38-upstream_fixes-1.patch
-gzip ./testing/source/glibc/patches/reenable_DT_HASH.patch
-gzip ./testing/source/glibc/patches/glibc.CVE-2023-4911.patch
-gzip ./testing/source/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./testing/source/rust/link_libffi.diff

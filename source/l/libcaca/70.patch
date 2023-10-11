@@ -1,0 +1,84 @@
+From afacac2cf7dfad8015c059a96046d9c2fa34632f Mon Sep 17 00:00:00 2001
+From: Johannes Kauffmann <johanneskauffmann@hotmail.com>
+Date: Sun, 18 Sep 2022 17:31:19 +0200
+Subject: [PATCH 1/3] common-image: avoid implicit function declaration
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+common-image.c: In function ‘load_image’:
+common-image.c:164:18: warning: implicit declaration of function ‘_caca_alloc2d’ [-Wimplicit-function-declaration]
+  164 |     im->pixels = _caca_alloc2d(im->w, im->h, depth);
+      |                  ^~~~~~~~~~~~~
+---
+ src/common-image.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/common-image.c b/src/common-image.c
+index 7059bf40..d40eba12 100644
+--- a/src/common-image.c
++++ b/src/common-image.c
+@@ -22,6 +22,7 @@
+ #endif
+ 
+ #include "caca.h"
++#include "caca_internals.h"
+ 
+ #include "common-image.h"
+ 
+
+From f57b0d65cfaac5f1fbdc75458170e102f57a8dfa Mon Sep 17 00:00:00 2001
+From: Johannes Kauffmann <johanneskauffmann@hotmail.com>
+Date: Sun, 18 Sep 2022 17:52:40 +0200
+Subject: [PATCH 2/3] caca: avoid nested externs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+common-image.c:164:18: warning: nested extern declaration of ‘_caca_alloc2d’ [-Wnested-externs]
+---
+ caca/caca.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/caca/caca.c b/caca/caca.c
+index 327a8f9f..a9f461d8 100644
+--- a/caca/caca.c
++++ b/caca/caca.c
+@@ -284,7 +284,7 @@ char const * caca_get_version(void)
+  * XXX: The following functions are private.
+  */
+ 
+-extern void *_caca_alloc2d(size_t width, size_t height, size_t elem_size)
++void *_caca_alloc2d(size_t width, size_t height, size_t elem_size)
+ {
+     if (width == 0 || height == 0 || elem_size == 0 || SIZE_MAX / width / height < elem_size)
+         return NULL;
+
+From 9683d1f7efe316b1e6113b65c6fff40671d35632 Mon Sep 17 00:00:00 2001
+From: Johannes Kauffmann <johanneskauffmann@hotmail.com>
+Date: Sun, 18 Sep 2022 18:01:31 +0200
+Subject: [PATCH 3/3] caca_internals: export _caca_alloc2d
+
+It is used by the image viewer:
+
+/usr/bin/ld: img2txt-common-image.o: in function `load_image':
+../../src/common-image.c:164: undefined reference to `_caca_alloc2d'
+
+Fixes #59.
+---
+ caca/caca_internals.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/caca/caca_internals.h b/caca/caca_internals.h
+index 7b74b9e9..0bd7f6c8 100644
+--- a/caca/caca_internals.h
++++ b/caca/caca_internals.h
+@@ -268,7 +268,7 @@ extern int _caca_pop_event(caca_display_t *, caca_privevent_t *);
+ extern void _caca_set_term_title(char const *);
+ 
+ /* Internal memory function */
+-extern void *_caca_alloc2d(size_t width, size_t height, size_t elem_size);
++__extern void *_caca_alloc2d(size_t width, size_t height, size_t elem_size);
+ 
+ /* Profiling functions */
+ #if defined PROF

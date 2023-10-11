@@ -1,0 +1,188 @@
+diff -u -r --new-file libcaca-0.99.beta20.orig/caca/caca_internals.h libcaca-0.99.beta20/caca/caca_internals.h
+--- libcaca-0.99.beta20.orig/caca/caca_internals.h	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/caca/caca_internals.h	2021-12-07 03:03:53.000000000 -0600
+@@ -26,6 +26,13 @@
+ #   define MAX_DIRTY_COUNT 8
+ #endif
+ 
++#undef __extern
++#if defined CACA_ENABLE_VISIBILITY
++#   define __extern extern __attribute__((visibility("default")))
++#else
++#   define __extern extern
++#endif
++
+ struct caca_frame
+ {
+     /* Frame size */
+@@ -116,7 +123,7 @@
+ int conio_install(caca_display_t *);
+ #endif
+ #if defined(USE_GL)
+-int gl_install(caca_display_t *);
++__extern int gl_install(caca_display_t *);
+ #endif
+ #if defined(USE_NCURSES)
+ int ncurses_install(caca_display_t *);
+@@ -133,7 +140,7 @@
+ int win32_install(caca_display_t *);
+ #endif
+ #if defined(USE_X11)
+-int x11_install(caca_display_t *);
++__extern int x11_install(caca_display_t *);
+ #endif
+ 
+ /* Timer structure */
+@@ -252,8 +259,9 @@
+ /* Internal event functions */
+ extern void _caca_handle_resize(caca_display_t *);
+ #if defined(USE_SLANG) || defined(USE_NCURSES) || defined(USE_CONIO) || defined(USE_GL)
+-extern void _push_event(caca_display_t *, caca_privevent_t *);
+-extern int _pop_event(caca_display_t *, caca_privevent_t *);
++/* Expose this with ‘__extern’ because the GL driver uses it */
++__extern void _caca_push_event(caca_display_t *, caca_privevent_t *);
++extern int _caca_pop_event(caca_display_t *, caca_privevent_t *);
+ #endif
+ 
+ /* Internal window functions */
+@@ -269,4 +277,6 @@
+ extern void _caca_fini_stat(struct caca_stat *);
+ #endif
+ 
++#undef __extern
++
+ #endif /* __CACA_INTERNALS_H__ */
+diff -u -r --new-file libcaca-0.99.beta20.orig/caca/driver/conio.c libcaca-0.99.beta20/caca/driver/conio.c
+--- libcaca-0.99.beta20.orig/caca/driver/conio.c	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/caca/driver/conio.c	2021-12-07 03:03:53.000000000 -0600
+@@ -151,7 +151,7 @@
+ 
+     release = *ev;
+     release.type = CACA_EVENT_KEY_RELEASE;
+-    _push_event(dp, &release);
++    _caca_push_event(dp, &release);
+ 
+     return 1;
+ }
+diff -u -r --new-file libcaca-0.99.beta20.orig/caca/driver/gl.c libcaca-0.99.beta20/caca/driver/gl.c
+--- libcaca-0.99.beta20.orig/caca/driver/gl.c	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/caca/driver/gl.c	2021-12-07 03:03:53.000000000 -0600
+@@ -374,7 +374,7 @@
+ 
+         if(dp->drv.p->mouse_clicked)
+         {
+-            _push_event(dp, ev);
++            _caca_push_event(dp, ev);
+             ev->type = CACA_EVENT_MOUSE_PRESS;
+             ev->data.mouse.button = dp->drv.p->mouse_button;
+             dp->drv.p->mouse_clicked = 0;
+diff -u -r --new-file libcaca-0.99.beta20.orig/caca/driver/ncurses.c libcaca-0.99.beta20/caca/driver/ncurses.c
+--- libcaca-0.99.beta20.orig/caca/driver/ncurses.c	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/caca/driver/ncurses.c	2021-12-07 03:03:53.000000000 -0600
+@@ -482,9 +482,9 @@
+         switch(mevent.bstate)
+         {
+ #define PRESS(x) ev->data.mouse.button = x; \
+-                 ev->type = CACA_EVENT_MOUSE_PRESS; _push_event(dp, ev)
++                 ev->type = CACA_EVENT_MOUSE_PRESS; _caca_push_event(dp, ev)
+ #define RELEASE(x) ev->data.mouse.button = x; \
+-                   ev->type = CACA_EVENT_MOUSE_RELEASE; _push_event(dp, ev)
++                   ev->type = CACA_EVENT_MOUSE_RELEASE; _caca_push_event(dp, ev)
+ #define CLICK(x) PRESS(x); RELEASE(x)
+             case BUTTON1_PRESSED: PRESS(1); break;
+             case BUTTON1_RELEASED: RELEASE(1); break;
+@@ -530,7 +530,7 @@
+         }
+ 
+         if(dp->mouse.x == mevent.x && dp->mouse.y == mevent.y)
+-            return _pop_event(dp, ev);
++            return _caca_pop_event(dp, ev);
+ 
+         dp->mouse.x = mevent.x;
+         dp->mouse.y = mevent.y;
+diff -u -r --new-file libcaca-0.99.beta20.orig/caca/driver/slang.c libcaca-0.99.beta20/caca/driver/slang.c
+--- libcaca-0.99.beta20.orig/caca/driver/slang.c	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/caca/driver/slang.c	2021-12-07 03:03:53.000000000 -0600
+@@ -403,12 +403,12 @@
+ 
+         ev->data.mouse.button = button;
+         ev->type = CACA_EVENT_MOUSE_PRESS;
+-        _push_event(dp, ev);
++        _caca_push_event(dp, ev);
+         ev->type = CACA_EVENT_MOUSE_RELEASE;
+-        _push_event(dp, ev);
++        _caca_push_event(dp, ev);
+ 
+         if(dp->mouse.x == x && dp->mouse.y == y)
+-            return _pop_event(dp, ev);
++            return _caca_pop_event(dp, ev);
+ 
+         dp->mouse.x = x;
+         dp->mouse.y = y;
+diff -u -r --new-file libcaca-0.99.beta20.orig/caca/event.c libcaca-0.99.beta20/caca/event.c
+--- libcaca-0.99.beta20.orig/caca/event.c	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/caca/event.c	2021-12-07 03:03:53.000000000 -0600
+@@ -380,7 +380,7 @@
+            && dp->events.autorepeat_ticks > AUTOREPEAT_THRESHOLD
+            && dp->events.autorepeat_ticks > AUTOREPEAT_RATE)
+     {
+-        _push_event(dp, ev);
++        _caca_push_event(dp, ev);
+         dp->events.autorepeat_ticks -= AUTOREPEAT_RATE;
+         *ev = dp->events.last_key_event;
+         return 1;
+@@ -403,7 +403,7 @@
+           && (dp->events.last_key_ticks > AUTOREPEAT_THRESHOLD
+                || (ev->type & CACA_EVENT_KEY_PRESS)))
+     {
+-        _push_event(dp, ev);
++        _caca_push_event(dp, ev);
+         *ev = dp->events.last_key_event;
+         ev->type = CACA_EVENT_KEY_RELEASE;
+         dp->events.last_key_event.type = CACA_EVENT_NONE;
+@@ -425,7 +425,7 @@
+ static int _lowlevel_event(caca_display_t *dp, caca_privevent_t *ev)
+ {
+ #if defined(USE_SLANG) || defined(USE_NCURSES) || defined(USE_CONIO)
+-    int ret = _pop_event(dp, ev);
++    int ret = _caca_pop_event(dp, ev);
+ 
+     if(ret)
+         return ret;
+@@ -435,7 +435,7 @@
+ }
+ 
+ #if defined(USE_SLANG) || defined(USE_NCURSES) || defined(USE_CONIO) || defined(USE_GL)
+-void _push_event(caca_display_t *dp, caca_privevent_t *ev)
++void _caca_push_event(caca_display_t *dp, caca_privevent_t *ev)
+ {
+     if(!ev->type || dp->events.queue == EVENTBUF_LEN)
+         return;
+@@ -443,7 +443,7 @@
+     dp->events.queue++;
+ }
+ 
+-int _pop_event(caca_display_t *dp, caca_privevent_t *ev)
++int _caca_pop_event(caca_display_t *dp, caca_privevent_t *ev)
+ {
+     int i;
+ 
+diff -u -r --new-file libcaca-0.99.beta20.orig/configure.ac libcaca-0.99.beta20/configure.ac
+--- libcaca-0.99.beta20.orig/configure.ac	2021-10-19 08:58:30.000000000 -0500
++++ libcaca-0.99.beta20/configure.ac	2021-12-07 03:03:53.000000000 -0600
+@@ -269,7 +269,6 @@
+    [ac_cv_my_have_cocoa="yes"])
+   CFLAGS="$save_CFLAGS"
+   if test "${ac_cv_my_have_cocoa}" = "yes"; then
+-    [[[ "$target_os" =~ [0-9]+ ]]] && darwin_ver="${BASH_REMATCH[[0]]}"
+     case x${target} in
+     xpowerpc*darwin*)
+       # 10.3 needed to link with X11
+@@ -297,6 +296,7 @@
+     esac
+     CC="${CC:-gcc-${GCC_VERSION}}"
+     CXX="${CXX:-g++-${GCC_VERSION}}"
++    darwin_ver="$(echo "${target_os}" | sed -ne 's/[^0-9]*\([0-9]\+\).*/\1/p')"
+     if [[ "$darwin_ver" -lt "13" ]]; then
+       MACOSX_SDK_FRAMEWORKS="${MACOSX_SDK_FRAMEWORKS:--F${MACOSX_SDK}/System/Library/Frameworks}"
+       CPPFLAGS="${CPPFLAGS} ${ARCH} ${MACOSX_SDK_FRAMEWORKS}"

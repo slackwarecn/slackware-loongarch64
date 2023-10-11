@@ -485,13 +485,17 @@ find lib${LIBDIRSUFFIX} -type l -exec rm {} \+
 mkdir install
 cp -a $CWD/slack-desc.glibc install/slack-desc
 cp -a $CWD/doinst.sh-glibc install/doinst.sh
+# Fix specific versioning for the symlink creation script. This part of the
+# script would only be used in the case where there is no ldconfig on the
+# running system that's used to install the package. That should never be the
+# case, but we'll leave the code in place anyway just in case.
+sed -i "s/@@VERSION@@/$VERSION/g" install/doinst.sh
 # Call the function to fix doinst.sh where $LIBDIRSUFFIX is needed:
 fix_doinst
 ( cd lib${LIBDIRSUFFIX}
   mkdir incoming
   mv *so* incoming
   mv incoming/libmemusage.so .
-  #mv incoming/libcrypt* .
   # Beginning with glibc-2.34, shared objects are using their ABI sonames
   # directly, which is frankly, a terrible idea. It might help other package
   # managers, but doesn't do us any favors where we already had a system for

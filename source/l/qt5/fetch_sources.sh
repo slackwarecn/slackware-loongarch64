@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Copyright 2021  Heinz Wiesinger, Amsterdam, The Netherlands
+# Copyright 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +21,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-BRANCH="5.15.10"
+BRANCH="5.15.11"
 
 rm -f qt-everywhere-src-*.tar*
 
@@ -32,6 +33,9 @@ cd qt5
 
   # Sync qtwebengine version with the rest of qt5
   sed -i -E "s/5.15.(.*)/$BRANCH/" qtwebengine/.qmake.conf
+
+  # This might also need to be synced with the $BRANCH version number:
+  sed -i -E "s/5.15.(.*)/$BRANCH/" qtscript/.qmake.conf
 
   for i in $(find . -type d -name "qt*" -maxdepth 1); do
     cd $i

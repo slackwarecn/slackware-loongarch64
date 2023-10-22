@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2018, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013 Chris Abela
+# Copyright 2014 Ryan P.C. McQuen <ryanpcmcquen at member dot fsf dot org>
+# Copyright 2017 Philip Lacroix <slackph at posteo dot de>
+# Copyright 2023 Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,20 +25,19 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=lvm2
-VERSION=$(echo LVM2.*.tar.?z | cut -f 2- -d . | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+PKGNAM=libnova
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
-
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -46,11 +48,13 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-lvm2
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -58,17 +62,24 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
-mkdir -p $PKG
+mkdir -p $TMP $PKG
+
 cd $TMP
-rm -rf LVM2.$VERSION
-tar xvf $CWD/LVM2.$VERSION.tar.?z || exit 1
-cd LVM2.$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -77,89 +88,59 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-zcat $CWD/create-dm-run-dir.diff.gz | patch -p1 --verbose || exit 1
-zcat $CWD/lvm2-2.03.20-dm_lvm_rules_no_systemd.patch | patch -p1 --verbose || exit 1
-
-# uid 0 = root
-# gid 6 = disk
+# Configure, build, and install:
+autoreconf -vif
 CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
-  --disable-readline \
-  --disable-systemd-journal \
-  --enable-cmdlib \
-  --enable-dmeventd \
+  --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --with-usrlibdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
   --mandir=/usr/man \
-  --enable-realtime \
-  --enable-pkgconfig \
-  --enable-udev_sync \
-  --enable-udev_rules \
-  --with-udev-prefix="" \
-  --with-device-uid=0 \
-  --with-device-gid=6 \
-  --with-device-mode=0660 \
-  --with-default-locking-dir=/run/lock/lvm \
-  --with-default-run-dir=/run/lvm \
-  --with-default-dm-run-dir=/run/lvm \
-  --with-cmirrord-pidfile=/run/lvm/cmirrord.pid \
-  --with-dmeventd-pidfile=/run/lvm/dmeventd.pid \
+  --disable-static \
   --build=$ARCH-slackware-linux || exit 1
-
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-mv $PKG/etc/lvm/lvm.conf $PKG/etc/lvm/lvm.conf.new
+# Build docs:
+make -C doc doc
 
-if [ -d $PKG/usr/share/man ]; then # --mandir was ignored
-  mv $PKG/usr/share/man $PKG/usr
-  rmdir $PKG/usr/share
-fi
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-# Move the binary and shared library to /sbin and /lib{,64}:
-mkdir -p $PKG/lib${LIBDIRSUFFIX}
-( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  for file in lib*.so.?.* ; do
-    mv $file ../../lib${LIBDIRSUFFIX}
-    ln -sf ../../lib${LIBDIRSUFFIX}/$file .
-  done
-)
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Install man pages:
+mkdir -p $PKG/usr/man/man3
+cp -a doc/man/man3/*.3 $PKG/usr/man/man3
+rm -f $PKG/usr/man/man3/version.3  # This conflicts with the Slackware perl package
 
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
-mkdir -p $PKG/usr/doc/LVM2.$VERSION
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  COPYING* INSTALL README* VERSION WHATS_NEW \
-  $PKG/usr/doc/LVM2.$VERSION
+  AUTHORS* ChangeLog COPYING* NEWS* README* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
 if [ -r ChangeLog ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/lvm2-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

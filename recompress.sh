@@ -306,6 +306,7 @@ gzip ./source/a/nvi/patches/nvi-26-trailing_tab_segv.patch
 gzip ./source/a/nvi/patches/nvi-27-support_C_locale.patch
 gzip ./source/a/nvi/doinst.sh
 gzip ./source/a/lvm2/create-dm-run-dir.diff
+gzip ./source/a/lvm2/lvm2-2.03.20-dm_lvm_rules_no_systemd.patch
 gzip ./source/a/lvm2/doinst.sh
 gzip ./source/a/bin/scripts/xx
 gzip ./source/a/bin/scripts/diskcopy

@@ -1,26 +1,6 @@
-diff -u -r --new-file shadow-4.8.1.orig/libmisc/loginprompt.c shadow-4.8.1/libmisc/loginprompt.c
---- shadow-4.8.1.orig/libmisc/loginprompt.c	2019-07-23 10:26:08.000000000 -0500
-+++ shadow-4.8.1/libmisc/loginprompt.c	2020-02-06 17:29:43.386954096 -0600
-@@ -99,6 +99,15 @@
- 			}
- 		}
- 		(void) gethostname (buf, sizeof buf);
-+		/* Trim away everything after the first '.': */
-+		i = 0;
-+		while (buf[i] != '\0' && i < sizeof(buf) - 1) {
-+			if (buf[i] == '.') {
-+				buf[i] = '\0';
-+				break;
-+			}
-+			i++;
-+		}
- 		printf (prompt, buf);
- 		(void) fflush (stdout);
- 	}
-diff -u -r --new-file shadow-4.8.1.orig/src/login.c shadow-4.8.1/src/login.c
---- shadow-4.8.1.orig/src/login.c	2020-01-12 07:58:49.000000000 -0600
-+++ shadow-4.8.1/src/login.c	2020-02-06 17:29:33.191954722 -0600
-@@ -761,6 +761,15 @@
+--- ./src/login.c.orig	2023-09-25 10:52:15.000000000 -0500
++++ ./src/login.c	2023-10-24 20:24:47.101964317 -0500
+@@ -705,6 +705,15 @@
  
  		/* Make the login prompt look like we want it */
  		if (gethostname (hostn, sizeof (hostn)) == 0) {
@@ -36,3 +16,21 @@ diff -u -r --new-file shadow-4.8.1.orig/src/login.c shadow-4.8.1/src/login.c
  			snprintf (loginprompt,
  			          sizeof (loginprompt),
  			          _("%s login: "), hostn);
+--- ./lib/loginprompt.c.orig	2023-09-25 10:52:15.000000000 -0500
++++ ./lib/loginprompt.c	2023-10-24 20:24:47.101964317 -0500
+@@ -71,6 +71,15 @@
+ 		}
+ 	}
+ 	(void) gethostname (buf, sizeof buf);
++        /* Trim away everything after the first '.': */
++        i = 0;
++        while (buf[i] != '\0' && i < sizeof(buf) - 1) {
++                if (buf[i] == '.') {
++                        buf[i] = '\0';
++                        break;
++                }
++                i++;
++        }
+ 	printf (_("\n%s login: "), buf);
+ 	(void) fflush (stdout);
+ 

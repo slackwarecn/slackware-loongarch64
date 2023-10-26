@@ -1,0 +1,52 @@
+From a6f6da96f4898a34e5ed1475053075172f9915b2 Mon Sep 17 00:00:00 2001
+From: Iker Pedrosa <ipedrosa@redhat.com>
+Date: Tue, 8 Aug 2023 16:04:38 +0200
+Subject: [PATCH] Revert "Use freezero(3) where suitable"
+
+This reverts commit 1482224c546cabc3a08ec069c775b116171f182a.
+---
+ libmisc/agetpass.c | 8 ++++++--
+ libmisc/obscure.c  | 6 ++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/libmisc/agetpass.c b/libmisc/agetpass.c
+index 1ff9d63b3..fe030076d 100644
+--- a/libmisc/agetpass.c
++++ b/libmisc/agetpass.c
+@@ -118,7 +118,8 @@ agetpass(const char *prompt)
+ 	return pass;
+ 
+ fail:
+-	freezero(pass, PASS_MAX + 2);
++	memzero(pass, PASS_MAX);
++	free(pass);
+ 	return NULL;
+ }
+ 
+@@ -126,5 +127,8 @@ agetpass(const char *prompt)
+ void
+ erase_pass(char *pass)
+ {
+-	freezero(pass, PASS_MAX + 2);
++	if (pass == NULL)
++		return;
++	memzero(pass, PASS_MAX);
++	free(pass);
+ }
+diff --git a/libmisc/obscure.c b/libmisc/obscure.c
+index 40aa8efc6..deae4954f 100644
+--- a/libmisc/obscure.c
++++ b/libmisc/obscure.c
+@@ -221,8 +221,10 @@ static /*@observer@*//*@null@*/const char *obscure_msg (
+ 
+ 	msg = password_check (old1, new1, pwdp);
+ 
+-	freezero (new1, newlen);
+-	freezero (old1, oldlen);
++	memzero (new1, newlen);
++	memzero (old1, oldlen);
++	free (new1);
++	free (old1);
+ 
+ 	return msg;
+ }

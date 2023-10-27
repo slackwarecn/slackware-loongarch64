@@ -835,6 +835,8 @@ gzip ./source/l/sdl/SDL_ttf.shaded.text.diff
 gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
+gzip ./source/l/ffmpeg/texinfo.patch
+gzip ./source/l/ffmpeg/effadce6c756247ea8bae32dc13bb3e6f464f0eb.patch
 gzip ./source/l/ffmpeg/ffmpeg.vulkan.diff
 gzip ./source/l/ffmpeg/add-av_stream_get_first_dts-for-chromium.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
@@ -875,8 +877,6 @@ gzip ./source/l/openal-soft/doinst.sh
 gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
-gzip ./source/l/QtAV/ffmpeg5.patch
-gzip ./source/l/QtAV/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff

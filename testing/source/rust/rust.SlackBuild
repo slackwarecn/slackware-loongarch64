@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
 VERSION=${VERSION:-1.73.0}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 # YES is probably better (when it works...)
@@ -164,7 +164,7 @@ link-shared = true
 build = "$BARCH-unknown-linux-$BABI"
 host = ["$TARCH-unknown-linux-$BABI"]
 target = ["$TARCH-unknown-linux-$BABI"]
-tools = ["analysis", "cargo", "clippy", "rls", "rustfmt", "src"]
+tools = ["analysis", "cargo", "clippy", "rls", "rustfmt", "src", "rust-analyzer", "rust-demangler"]
 submodules = false
 vendor = true
 extended = true
@@ -233,6 +233,11 @@ fi
 # Build and install:
 python3 ./x.py build || exit 1
 DESTDIR=$PKG python3 x.py install || exit 1
+
+# In case the rls stub doesn't get installed by the 'install' target:
+if [ ! -x $PKG/usr/bin/rls ]; then
+  install -m755 build/*-linux-gnu/stage1-tools-bin/rls $PKG/usr/bin/rls
+fi
 
 # Fix path to lldb_commands:
 if [ -x $PKG/usr/bin/rust-lldb ]; then

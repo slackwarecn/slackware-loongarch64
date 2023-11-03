@@ -391,6 +391,8 @@ if [ ! -e /tmp/.X11-unix ]; then
   mkdir -p /tmp/.X11-unix
   chmod 1777 /tmp/.X11-unix
 fi
+# Clear /tmp/{.ICE-unix,.X11-unix}:
+rm -f /tmp/.ICE-unix/* /tmp/.X11-unix/*
 
 # Create a fresh utmp file:
 touch /var/run/utmp

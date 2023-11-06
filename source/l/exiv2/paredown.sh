@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2013, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2019, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,24 +21,24 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PKGNAM=exiv2
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.gz | rev | cut -f 3- -d . | cut -f 2 -d - | rev)}
+VERSION=${VERSION:-$(echo v*.tar.gz | cut -f 2- -d v | rev | cut -f 3- -d . | rev)}
 
-if [ ! -r $PKGNAM-${VERSION}-Source.tar.gz ]; then
-  echo "$PKGNAM-${VERSION}-Source.tar.gz does not exist. Exiting."
+if [ ! -r v${VERSION}.tar.gz ]; then
+  echo "v${VERSION}.tar.gz does not exist. Exiting."
   exit 1
 fi
 
-touch -r $PKGNAM-${VERSION}-Source.tar.gz tmp-timestamp || exit 1
+OUTPUT_TIMESTAMP=$(tar tvvf v${VERSION}.tar.gz | head -n 1 | tr -d / | rev | cut -f 2,3 -d ' ' | rev)
 
-rm -rf $PKGNAM-${VERSION}-Source
-tar xf $PKGNAM-${VERSION}-Source.tar.gz || exit 1
-rm -rf $PKGNAM-${VERSION}-Source/test/data/*
-rm -rf $PKGNAM-${VERSION}-Source/tests/bugfixes/*
-rm -f $PKGNAM-${VERSION}-Source.tar.lz
-tar cf $PKGNAM-${VERSION}-Source.tar $PKGNAM-${VERSION}-Source
-touch -r tmp-timestamp $PKGNAM-${VERSION}-Source.tar
-plzip -9 -v $PKGNAM-${VERSION}-Source.tar
-rm -rf $PKGNAM-${VERSION}-Source tmp-timestamp
+rm -rf $PKGNAM-${VERSION}
+tar xf v${VERSION}.tar.gz || exit 1
+rm -rf $PKGNAM-${VERSION}/test/data/*
+rm -rf $PKGNAM-${VERSION}/tests/bugfixes/*
+rm -f $PKGNAM-${VERSION}.tar.lz
+tar cf $PKGNAM-${VERSION}.tar $PKGNAM-${VERSION}
+touch -d "$OUTPUT_TIMESTAMP" $PKGNAM-${VERSION}.tar
+plzip -9 -v $PKGNAM-${VERSION}.tar
+rm -rf $PKGNAM-${VERSION} v${VERSION}.tar.gz
 
-echo "Repacking of $PKGNAM-${VERSION}-Source.tar.lz complete."
+echo "Repacking of v${VERSION}.tar.gz complete."
 

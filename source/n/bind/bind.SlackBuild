@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=bind
 VERSION=${VERSION:-$(echo ${PKGNAM}-[0-9]*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -163,13 +163,18 @@ fi
 
 # Add sample config files for a simple caching nameserver:
 mkdir -p $PKG/var/named/caching-example
-cat $CWD/caching-example/named.conf > $PKG/etc/named.conf.new
-cat $CWD/caching-example/localhost.zone > $PKG/var/named/caching-example/localhost.zone
-cat $CWD/caching-example/named.local > $PKG/var/named/caching-example/named.local
-cat $CWD/caching-example/named.root > $PKG/var/named/caching-example/named.root
+cp -a $CWD/caching-example/named.conf $PKG/etc/named.conf.new
+cp -a $CWD/caching-example/localhost.zone $PKG/var/named/caching-example/localhost.zone
+cp -a $CWD/caching-example/named.local $PKG/var/named/caching-example/named.local
+cp -a $CWD/caching-example/named.root $PKG/var/named/caching-example/named.root
 # This name is deprecated, but having it here doesn't hurt in case
 # an old configuration file wants it:
-cat $CWD/caching-example/named.root > $PKG/var/named/caching-example/named.ca
+cp -a $CWD/caching-example/named.root $PKG/var/named/caching-example/named.ca
+chown root:root $PKG/etc/named.conf.new
+chmod 644 $PKG/var/named/caching-example/*
+
+# Make sure that everything in /var/named is owned by named:named:
+chown -R named:named $PKG/var/named
 
 mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
@@ -177,4 +182,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
-

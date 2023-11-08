@@ -250,11 +250,23 @@ if ! cat /proc/cmdline | grep -q 'kbd=' 2> /dev/null ; then
 else
   for ARG in `cat /proc/cmdline` ; do
     if [ "`echo $ARG | cut -f1 -d=`" = "kbd" ]; then
-      BMAP="`echo $ARG | cut -f2 -d=`.bmap"
+      # A keymap was specified on the kernel command line such as: kbd=azerty
+      MAPSELECT="$(echo $ARG | cut -f2 -d=)"
+      # If it ends in .gz, strip that off:
+      if [ "$(echo $MAPSELECT | rev | cut -f 1 -d . | rev)" = "gz" ]; then
+        MAPSELECT=$(basename $MAPSELECT .gz)
+      fi
+      # If it doesn't end in .map, add that:
+      if [ ! "$(echo $MAPSELECT | rev | cut -f 1 -d . | rev)" = "map" ]; then
+        MAPSELECT=${MAPSELECT}.map
+      fi
+      # Load the keymap:
+      loadkeys -q $MAPSELECT
+      # Let the setup script know about this:
+      echo $MAPSELECT > /tmp/Pkeymap
+      unset MAPSELECT
     fi 
   done
-  tar xzOf /etc/keymaps.tar.gz $BMAP | loadkmap
-  unset BMAP
 fi
 clear
 

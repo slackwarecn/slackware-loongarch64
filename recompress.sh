@@ -339,13 +339,9 @@ gzip ./source/a/patch/0001-Refuse-to-apply-ed-scripts-by-default.patch
 gzip ./source/a/cryptsetup/doinst.sh
 gzip ./source/a/pcmciautils/doinst.sh
 gzip ./source/a/findutils/findutils.no.default.options.warnings.diff
-gzip ./source/a/kbd/sources/kbd-1.15-unicode_start.patch
-gzip ./source/a/kbd/sources/kbd-1.15.2-po.patch
-gzip ./source/a/kbd/sources/kbd-1.15-resizecon-x86_64.patch
-gzip ./source/a/kbd/sources/speakupmap.map
-gzip ./source/a/kbd/sources/nl.euro.diff
-gzip ./source/a/kbd/sources/kbd-1.15.3-fix-es-translation.patch
-gzip ./source/a/kbd/sources/kbd-1.15-keycodes-man.patch
+gzip ./source/a/kbd/doinst.sh
+gzip ./source/a/kbd/fix-euro2.patch
+gzip ./source/a/kbd/kbd-2.6.3-backspace-1.patch
 gzip ./source/a/less/lesspipe.sh
 gzip ./source/a/usb_modeswitch/device_reference.txt
 gzip ./source/a/usb_modeswitch/doinst.sh
@@ -1037,7 +1033,6 @@ gzip ./source/xap/mozilla-firefox/0027-LTO-Only-enable-LTO-for-Rust-when-complet
 gzip ./source/xap/mozilla-firefox/gkrust.a.no.networking.check.diff
 gzip ./source/xap/electricsheep/electricsheep.mplayer.diff
 gzip ./source/installer/sources/dropbear/doinst.sh
-gzip ./source/installer/sources/initrd/etc/keymaps.tar
 gzip ./source/installer/sources/dnsmasq/dnsmasq.leasedir.diff
 gzip ./source/installer/sources/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch
 gzip ./source/installer/sources/dnsmasq/dnsmasq.libidn2.diff

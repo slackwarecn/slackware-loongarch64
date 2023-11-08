@@ -970,6 +970,7 @@ a/hdparm \
 a/hwdata \
 a/inih \
 a/jfsutils \
+a/kbd \
 a/kmod \
 a/lvm2 \
 a/lzip \
@@ -1093,6 +1094,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \
         bash \
         ddrescue \
         ldd \
+        loadkeys \
         lzip \
         neofetch \
         plzip \
@@ -1247,6 +1249,14 @@ cp --remove-destination -fa${VERBOSE1} \
   ter-732b.psf.gz \
   $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 
+# Get the standard set of keymaps:
+cd $TMP/extract-packages/usr/share/kbd/keymaps
+mkdir -p $PKG/$ARCH-installer-filesystem/usr/share/kbd/keymaps
+cp --remove-destination -fa${VERBOSE1} \
+  i386 \
+  include \
+  $PKG/$ARCH-installer-filesystem/usr/share/kbd/keymaps
+
 # Copy binaries from /usr/sbin into the installer's /usr/sbin/
 cd $TMP/extract-packages/usr/sbin
 cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRSBIN} \
@@ -1369,6 +1379,8 @@ cp  -fa${VERBOSE1} \
         libhistory*.so* \
         libidn2*.so* \
         libjson-c.so* \
+        libkbdfile.so* \
+        libkeymap.so* \
         liblz.so* \
         liblz4.so* \
         liblzo*.so* \

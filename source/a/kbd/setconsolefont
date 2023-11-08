@@ -6,10 +6,14 @@
 # correctly in the installer.
 # 2010-04-28, add LatKaCyrHeb-14.psfu.gz <volkerdi>
 # 25-Mar-2018, generate font list on the fly <David Woodfall>
+# 02-Oct-2023, don't run setfont if no font was previously loaded <volkerdi>
 
 if [ "$TMP" = "" ]; then
   TMP=/var/log/setup/tmp
 fi
+
+# Has this script loaded a font?
+FONT_LOADED=false
 
 get_font_list() {
   LS_FONTS=$(/bin/ls $T_PX/usr/share/kbd/consolefonts/*.gz \
@@ -29,12 +33,16 @@ load_font() {
   if [ ! $? = 0 ]; then
     if [ -r $T_PX/usr/share/kbd/consolefonts/$1 ]; then
       $CHROOT setfont $T_PX/usr/share/kbd/consolefonts/$* 1> /dev/null 2> /dev/null
+      FONT_LOADED=true
     elif [ -r $T_PX/usr/lib/kbd/consolefonts/$1 ]; then
       $CHROOT setfont $T_PX/usr/lib/kbd/consolefonts/$* 1> /dev/null 2> /dev/null
+      FONT_LOADED=true
     elif [ -r /var/adm/mount/live/usr/lib/kbd/consolefonts/$1 ]; then
       $CHROOT setfont /var/adm/mount/live/usr/lib/kbd/consolefonts/$* 1> /dev/null 2> /dev/null
+      FONT_LOADED=true
     else # load default font
       $CHROOT setfont
+      FONT_LOADED=true
     fi
   fi
 }
@@ -67,7 +75,9 @@ out some custom screen fonts?" 5 60
 like it, you can make it your new default screen font. You'll be able \
 to try as many of these as you like.\" 21 65 12 -- $ALL_FONTS 2> $REPLY"
     if [ ! $? = 0 ]; then
-      load_font
+      if [ "$FONT_LOADED" = "true" ]; then
+        load_font
+      fi
       exit
     fi
     FONT=`cat $REPLY`

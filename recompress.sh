@@ -154,6 +154,7 @@ gzip ./source/a/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.p
 gzip ./source/a/mkinitrd/0009-exclude-99-nfs.rules.patch
 gzip ./source/a/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
 gzip ./source/a/mkinitrd/0003-blacklist.40-usb_modeswitch.rules.patch
+gzip ./source/a/mkinitrd/0010-fix-test-for-jfs-xfs-repair-tools.patch
 gzip ./source/a/mlocate/doinst.sh
 gzip ./source/a/file/file.xz.magic
 gzip ./source/a/file/file.zisofs.magic
@@ -1115,3 +1116,4 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
+gzip ./testing/source/linux-6.6.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch

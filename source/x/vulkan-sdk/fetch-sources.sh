@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2017, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2017, 2018, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # Copyright 2021  Heinz Wiesinger, Amsterdam, The Netherlands
 # All rights reserved.
 #
@@ -157,3 +157,15 @@ echo $VERSION > VERSION
 
 rm -f release_notes.html
 rm -f *.fetched
+
+# Adding this kludge since 1.3.268 is somehow pulling a bad shaderc (the
+# commit referenced can't be found in the repo, and a mostly empty archive
+# is produced.) So, if we find an unreasonably small shaderc, just pull a
+# recent one.
+if [ "$(tar tf shaderc-*.tar.lz | wc -l)" -lt "7" ]; then
+  rm shaderc-*.tar.lz
+  lftpget https://github.com/google/shaderc/archive/refs/tags/v2023.7.tar.gz  
+  mv v2023.7.tar.gz shaderc-2023.7.tar.gz
+  gzip -d shaderc-2023.7.tar.gz
+  plzip -9 shaderc-2023.7.tar
+fi

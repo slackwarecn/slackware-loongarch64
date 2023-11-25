@@ -714,6 +714,7 @@ gzip ./source/l/gtk+/gtk+-1.2.10-clistfocusrow.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-troughpaint.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-ukfont.patch
 gzip ./source/l/gtk+/gtk+-1.2.10-fontwarning.patch
+gzip ./source/l/python-typogrify/jinja-3.1.patch
 gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
@@ -1115,3 +1116,7 @@ gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
 gzip ./testing/source/linux-6.6.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
+gzip ./testing/source/php/php-fpm.conf.diff
+gzip ./testing/source/php/doinst.sh
+gzip ./testing/source/php/php.imap.api.diff
+gzip ./testing/source/php/php.ini-development.diff

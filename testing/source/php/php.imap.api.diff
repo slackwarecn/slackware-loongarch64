@@ -1,0 +1,62 @@
+--- ./configure.orig	2023-04-11 11:16:23.000000000 -0500
++++ ./configure	2023-04-13 12:54:14.715770023 -0500
+@@ -43985,6 +43985,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+@@ -44164,6 +44165,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+--- ./ext/imap/config.m4.orig	2023-04-11 11:16:23.000000000 -0500
++++ ./ext/imap/config.m4	2023-04-13 12:51:51.222777960 -0500
+@@ -46,6 +46,7 @@
+     PHP_IMAP_EXPORT void mm_nocritical(void){}
+     PHP_IMAP_EXPORT void mm_notify(void){}
+     PHP_IMAP_EXPORT void mm_login(void){}
++    PHP_IMAP_EXPORT void mm_login_method(void){}
+     PHP_IMAP_EXPORT void mm_diskerror(void){}
+     PHP_IMAP_EXPORT void mm_status(void){}
+     PHP_IMAP_EXPORT void mm_lsub(void){}
+@@ -282,6 +283,7 @@
+       PHP_IMAP_EXPORT void mm_nocritical(void){}
+       PHP_IMAP_EXPORT void mm_notify(void){}
+       PHP_IMAP_EXPORT void mm_login(void){}
++      PHP_IMAP_EXPORT void mm_login_method(void){}
+       PHP_IMAP_EXPORT void mm_diskerror(void){}
+       PHP_IMAP_EXPORT void mm_status(void){}
+       PHP_IMAP_EXPORT void mm_lsub(void){}
+--- ./ext/imap/php_imap.c.orig	2023-04-11 11:16:23.000000000 -0500
++++ ./ext/imap/php_imap.c	2023-04-13 12:51:51.222777960 -0500
+@@ -4502,7 +4502,7 @@
+ 	   php debugger? */
+ }
+ 
+-PHP_IMAP_EXPORT void mm_login(NETMBX *mb, char *user, char *pwd, long trial)
++PHP_IMAP_EXPORT void mm_login(NETMBX *mb, char *user, char **pwd, long trial)
+ {
+ 
+ 	if (*mb->user) {
+@@ -4510,7 +4510,13 @@
+ 	} else {
+ 		strlcpy (user, IMAPG(imap_user), MAILTMPLEN);
+ 	}
+-	strlcpy (pwd, IMAPG(imap_password), MAILTMPLEN);
++	*pwd = cpystr(IMAPG(imap_password));	/* alpine-2.22 c-client.a */
++}
++
++/* alpine-2.22 c-client.a workaround */
++PHP_IMAP_EXPORT void mm_login_method(NETMBX *mb, char *user, void *pwd, long trial, char *method)
++{
++   pwd = NULL;
+ }
+ 
+ PHP_IMAP_EXPORT void mm_critical(MAILSTREAM *stream)

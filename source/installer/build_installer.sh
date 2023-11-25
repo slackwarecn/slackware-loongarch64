@@ -1441,11 +1441,15 @@ cp -fa${VERBOSE1} \
 chmod 755 $PKG/$ARCH-installer-filesystem/etc/rc.d/rc.rpc
 mkdir -p $PKG/$ARCH-installer-filesystem/var/state/rpcbind
 
-# Copy /etc/default/{nfs,rpc}:
+# NFS & RPC components:
 cd $TMP/extract-packages/etc/default
 cp -fa${VERBOSE1} \
        nfs rpc \
        $PKG/$ARCH-installer-filesystem/etc/default
+cd $TMP/extract-packages/usr/libexec
+cp -fa${VERBOSE1} \
+   nfsrahead \
+   $PKG/$ARCH-installer-filesystem/usr/libexec
 
 # Remove busybox symlinks for things that we have a real version of:
 for prunedir in $PKG/$ARCH-installer-filesystem/usr/bin $PKG/$ARCH-installer-filesystem/usr/sbin ; do

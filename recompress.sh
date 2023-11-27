@@ -1116,7 +1116,3 @@ gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff
 gzip ./testing/source/linux-6.6.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
-gzip ./testing/source/php/php-fpm.conf.diff
-gzip ./testing/source/php/doinst.sh
-gzip ./testing/source/php/php.imap.api.diff
-gzip ./testing/source/php/php.ini-development.diff

@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gdbm
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -86,6 +86,7 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --mandir=/usr/man \
   --disable-static \
+  --enable-libgdbm-compat \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
@@ -94,13 +95,6 @@ make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# I'm not sure what out there would need the "libgdbm_compat" library,
-# but it causes versions of ndbm.h and dbm.h to be installed that break
-# compiling nearly everything with any dbm support (like python's dbm.so,
-# and mod_ssl).  Putting 'em in /usr/include/gdbm/ doesn't isolate them
-# enough, either.  File this one under "not worth it".
-#make install-compat INSTALL_ROOT=$PKG
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

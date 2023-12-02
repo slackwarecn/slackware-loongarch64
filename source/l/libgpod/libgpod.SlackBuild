@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libgpod
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-12}
+BUILD=${BUILD:-13}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -77,6 +77,13 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
+
+sed -e 's|libplist >= 1.0|libplist-2.0 >= 2.2|' -i configure.ac # support libplist 2.2
+sed -e 's|plist_dict_insert_item|plist_dict_set_item|' -i tools/ipod-lockdown.c # support libplist 2.3
+cat $CWD/libgpod-udev.patch | patch -p1 --verbose || exit 1
+cat $CWD/0001-323-Segmentation-fault-when-opening-ipod.patch | patch -p1 --verbose || exit 1
+cat $CWD/libgpod-0.8.2-pkgconfig_overlinking.patch | patch -p1 --verbose || exit 1
+cat $CWD/libgpod-0.8.3-pkgconfig_sharp.patch | patch -p1 --verbose || exit 1
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \

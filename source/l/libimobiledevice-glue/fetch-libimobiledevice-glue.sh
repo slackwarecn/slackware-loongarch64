@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2019, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -37,8 +37,9 @@ git clone https://github.com/libimobiledevice/libimobiledevice-glue
 HEADISAT="$( cd libimobiledevice-glue && git log -1 --format=%h )"
 DATE="$( cd libimobiledevice-glue && git log -1 --format=%cd --date=format:%Y%m%d )"
 LONGDATE="$( cd libimobiledevice-glue && git log -1 --format=%cd --date=format:%c )"
+# COMMENTED OUT: otherwise build fails due to not finding version / latest commit
 # Cleanup.  We're not packing up the whole git repo.
-( cd libimobiledevice-glue && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+#( cd libimobiledevice-glue && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv libimobiledevice-glue libimobiledevice-glue-${DATE}_${HEADISAT}
 tar cf libimobiledevice-glue-${DATE}_${HEADISAT}.tar libimobiledevice-glue-${DATE}_${HEADISAT}
 xz -9 -f libimobiledevice-glue-${DATE}_${HEADISAT}.tar

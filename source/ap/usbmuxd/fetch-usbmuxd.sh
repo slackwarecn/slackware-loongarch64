@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2019  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2019, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -37,8 +37,9 @@ git clone https://github.com/libimobiledevice/usbmuxd
 HEADISAT="$( cd usbmuxd && git log -1 --format=%h )"
 DATE="$( cd usbmuxd && git log -1 --format=%cd --date=format:%Y%m%d )"
 LONGDATE="$( cd usbmuxd && git log -1 --format=%cd --date=format:%c )"
+# COMMENTED OUT: otherwise build fails due to not finding version / latest commit
 # Cleanup.  We're not packing up the whole git repo.
-( cd usbmuxd && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
+#( cd usbmuxd && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
 mv usbmuxd usbmuxd-${DATE}_${HEADISAT}
 tar cf usbmuxd-${DATE}_${HEADISAT}.tar usbmuxd-${DATE}_${HEADISAT}
 xz -9 -f usbmuxd-${DATE}_${HEADISAT}.tar

@@ -1462,6 +1462,10 @@ done
 if [ -r $PKG/$ARCH-installer-filesystem/sbin/lspci -a ! -L $PKG/$ARCH-installer-filesystem/sbin/lspci -a -L $PKG/$ARCH-installer-filesystem/bin/lspci ]; then
   rm -f $PKG/$ARCH-installer-filesystem/bin/lspci
 fi
+# busybox's implementation of 'xzcat' provides different output when piped into 'dd'.
+# Symlink 'xzcat' to the real 'xz' as we do within the OS:
+cd $PKG/$ARCH-installer-filesystem/bin
+ln -fs xz xzcat
 
 # Update to latest versions of files within /etc/
 # /etc/ file         Package    Reason

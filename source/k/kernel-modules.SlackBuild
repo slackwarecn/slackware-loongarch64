@@ -41,8 +41,12 @@ BUILD=${BUILD:-1}
 # The CONFIG_DEBUG_INFO_BTF_MODULES option adds a huge amount of debugging
 # data to the modules which we don't actually need. We'll strip debugging
 # information from kernel modules by default. If you are building a debug
-# kernel and wish to retain this data, export the variable below set to "NO".
-STRIP_DEBUG=${STRIP_DEBUG:-YES}
+# kernel and wish to retain this data, export the variable below set to "0".
+STRIP_DEBUG=${STRIP_DEBUG:-1}
+
+# Let's export the variable with the name needed by the kernel's Makefiles,
+# just for good measure.
+export INSTALL_MOD_STRIP=$STRIP_DEBUG
 
 if [ ! -r "${KERNEL_CONFIG}" ]; then
   echo "Error: the KERNEL_CONFIG environment variable needs to be set to the"
@@ -115,11 +119,7 @@ fi
   echo "Building kernel modules..."
   make $NUMJOBS modules || exit 1
   echo "Installing kernel modules to $PKG..."
-  make INSTALL_MOD_PATH=$PKG modules_install || exit 1
-  if [ "$STRIP_DEBUG" = "YES" ]; then
-    echo "Stripping debug info from kernel modules..."
-    find $PKG -name "*.ko" -exec strip --strip-debug "{}" \;
-  fi
+  make INSTALL_MOD_PATH=$PKG INSTALL_MOD_STRIP=$STRIP_DEBUG modules_install || exit 1
   # Fix build and source symlinks if they are pointing into $TMP:
   ( cd $PKG/lib/modules/${VERSION}${LOCALVERSION}
     for symlink in build source ; do

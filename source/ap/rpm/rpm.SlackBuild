@@ -95,58 +95,42 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-## We need to do this since there's a bugfix for python3.10 detection in
-## the latest automake:
-#autoreconf -vif
-
-# We have to tell it where to find NSS and NSPR
-# Also, --enable-sqlite3 needs "-ldl" in LDFLAGS
-# And --enable-broken-chown fits, as ours follows symlinks.
-CFLAGS="$SLKCFLAGS -I${DB_INC} $(pkg-config --cflags nspr nss)" \
-LDFLAGS="-ldl" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --localstatedir=/var \
-  --sysconfdir=/etc \
-  --mandir=/usr/man \
-  --enable-python \
-  --with-external-db \
-  --enable-broken-chown \
-  --without-hackingdocs \
-  --without-selinux \
-  --without-dmalloc \
-  --enable-sqlite3 \
-  --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Configure, build, and install:
+mkdir cmake-build
+cd cmake-build
+  CFLAGS="$SLKCFLAGS -I${DB_INC} $(pkg-config --cflags nspr nss)" \
+  LDFLAGS="-ldl" \
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_MANDIR=man \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DWITH_AUDIT=OFF \
+    -DWITH_SELINUX=OFF \
+    -DWITH_INTERNAL_OPENPGP=ON \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 # Put this in the system directory:
-mkdir $PKG/usr/share
+mkdir -p $PKG/usr/share
 mv $PKG/etc/dbus-1 $PKG/usr/share
 rmdir $PKG/etc
 
 # It seems this doesn't work...
 #make install-man DESTDIR=$PKG || exit 1
-for dir in . fr ja ko pl ru sk ; do
-  if /bin/ls docs/man/$dir/*.1 1> /dev/null 2> /dev/null ; then
-    mkdir -p $PKG/usr/man/$dir/man1
-    cp -a docs/man/$dir/*.1 $PKG/usr/man/$dir/man1
-  fi
-  if /bin/ls docs/man/$dir/*.8 1> /dev/null 2> /dev/null ; then
-    mkdir -p $PKG/usr/man/$dir/man8
-    cp -a docs/man/$dir/*.8 $PKG/usr/man/$dir/man8
-  fi
-done
-
-# Fails, looks like it did this already
-#cd python
-#  python3 setup.py install --root=$PKG || exit 1
-#cd -
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+#for dir in . fr ja ko pl ru sk ; do
+#  if /bin/ls docs/man/$dir/*.1 1> /dev/null 2> /dev/null ; then
+#    mkdir -p $PKG/usr/man/$dir/man1
+#    cp -a docs/man/$dir/*.1 $PKG/usr/man/$dir/man1
+#  fi
+#  if /bin/ls docs/man/$dir/*.8 1> /dev/null 2> /dev/null ; then
+#    mkdir -p $PKG/usr/man/$dir/man8
+#    cp -a docs/man/$dir/*.8 $PKG/usr/man/$dir/man8
+#  fi
+#done
 
 # This used to be at /bin/rpm, so make a symlink from there to the new
 # location:
@@ -157,7 +141,9 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 # Here's a bug - /var/tmp should NOT have mode 0755
-rmdir $PKG/var/tmp || exit 1
+if [ -d $PKG/var/tmp ]; then
+  rmdir $PKG/var/tmp || exit 1
+fi
 
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+
@@ -172,6 +158,10 @@ zcat $CWD/Packages.gz > $PKG/var/lib/rpm/tmp/Packages
 
 # Install docs
 mkdir -p $PKG/usr/doc/rpm-$VERSION
+mv $PKG/usr/share/doc/rpm/* $PKG/usr/doc/rpm-$VERSION
+rmdir $PKG/usr/share/doc/rpm
+mrdir $PKG/usr/share/doc
+rm -rf $PKG/usr/doc/rpm-$VERSION/API
 cp -a \
   COPYING* CREDITS* GROUPS* INSTALL* README* TODO* doc/manual \
     $PKG/usr/doc/rpm-$VERSION

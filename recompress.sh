@@ -738,8 +738,6 @@ gzip ./source/l/mozjs102/double_t.x86.diff
 gzip ./source/l/clucene/clucene.ctime.diff
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
-gzip ./source/l/libxml2/libxml2.python3-unicode-errors.patch
-gzip ./source/l/libxml2/libxml2.do-not-check-crc.diff
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh

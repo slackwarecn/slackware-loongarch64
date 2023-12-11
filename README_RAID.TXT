@@ -383,9 +383,9 @@ Typically, a user switches to a generic kernel by booting the system, and
 afterwards running the following:
  - cd /boot
  - rm vmlinuz System.map config
- - ln -s vmlinuz-generic-smp-*     vmlinuz
- - ln -s System.map-generic-smp-*  System.map
- - ln -s config-generic-smp-*      config
+ - ln -s vmlinuz-generic-*     vmlinuz
+ - ln -s System.map-generic-*  System.map
+ - ln -s config-generic-*      config
 
 Don't run lilo yet, we'll do that soon.
 

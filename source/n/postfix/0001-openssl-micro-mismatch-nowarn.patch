@@ -1,0 +1,30 @@
+From e3e682bd4f0b374ea850c3a3eeb9243308f99ff5 Mon Sep 17 00:00:00 2001
+From: "Patrick J. Volkerding" <volkerdi@slackware.com>
+Date: Mon, 11 Dec 2023 13:47:45 -0600
+Subject: [PATCH] tls_misc.c: Don't warn if run-time library is different from compile-time library
+
+According to the OpenSSL migration guide:
+
+"OpenSSL versions with the same major number are API and ABI compatible.
+If the major number changes then API and ABI compatibility is not guaranteed."
+
+So, stop filling the logs with this when upstream says it's fine.
+
+--- ./src/tls/tls_misc.c.orig	2023-06-04 16:02:41.000000000 -0500
++++ ./src/tls/tls_misc.c	2023-12-11 13:44:32.234027721 -0600
+@@ -1396,6 +1396,7 @@
+      * Warn if run-time library is different from compile-time library,
+      * allowing later run-time "micro" versions starting with 1.1.0.
+      */
++#ifdef OPENSSL_MICRO_MISMATCH_WARN
+     if (lib_info.major != hdr_info.major
+ 	|| lib_info.minor != hdr_info.minor
+ 	|| (lib_info.micro != hdr_info.micro
+@@ -1406,6 +1407,7 @@
+ 	     "OpenSSL %d.%d.%d may not be compatible with OpenSSL %d.%d.%d",
+ 		 lib_info.major, lib_info.minor, lib_info.micro,
+ 		 hdr_info.major, hdr_info.minor, hdr_info.micro);
++#endif
+ }
+ 
+ /* tls_compile_version - compile-time OpenSSL version */

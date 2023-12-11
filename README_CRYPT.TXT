@@ -309,10 +309,10 @@ needed to unlock the root filesystem, so that the kernel can start the init
 program.  In the example command line below which creates the 'initrd.gz'
 image I assume that the root filesystem is 'ext4', we used the mapped device
 'cryptroot' for the root filesystem on the real partition '/dev/sdx1',
-and are running the Slackware 14.2 default SMP kernel '4.4.14-smp'
+and are running the Slackware 14.2 default kernel '4.4.14'
 and we did not use Logical Volumes (more about that in the next section):
 
-  # mkinitrd -c -k 4.4.14-smp -m ext4 -f ext4 -r lukssdx2 -C /dev/sdx2
+  # mkinitrd -c -k 4.4.14 -m ext4 -f ext4 -r lukssdx2 -C /dev/sdx2
 
 * The resulting initrd image will be written to the file '/boot/initrd.gz'
 by default.  We still need to tell lilo about this initrd. Open the
@@ -328,7 +328,7 @@ for day-to-day use anyway.  They are meant to install Slackware on a wide
 range of computers and that is why they are 'huge'.  The linux part of
 '/etc/lilo.conf' should end up looking somewhat like this:
 
-image = /boot/vmlinuz-generic-smp-4.4.14-smp
+image = /boot/vmlinuz-generic-4.4.14
   initrd = /boot/initrd.gz
   root = /dev/mapper/lukssdx2
   label = linux
@@ -483,10 +483,10 @@ stage of booting the kernel.  The initial ramdisk (initrd) contains a small
 filesystem with the tools needed to unlock the root filesystem, so that
 the kernel can start the init program.  In the example command line below
 which creates the 'initrd.gz' image I assume that you formatted the root
-filesystem as 'ext4', and will be running the Slackware 14.2 default SMP
-kernel '4.4.14-smp' :
+filesystem as 'ext4', and will be running the Slackware 14.2 default
+kernel '4.4.14' :
 
-  # mkinitrd -c -k 4.4.14-smp -m ext4 -f ext4 -r /dev/cryptvg/root -C /dev/sdx2 -L
+  # mkinitrd -c -k 4.4.14 -m ext4 -f ext4 -r /dev/cryptvg/root -C /dev/sdx2 -L
 
 NOTE: if you use a non-US keyboard and need to enter a passphrase during boot,
       this may be problematic if the keyboard mapping is US while Slackware
@@ -510,7 +510,7 @@ for day-to-day use anyway.  They are meant to install Slackware on a wide
 range of computers and that is why they are 'huge'.  The linux part of
 '/etc/lilo.conf' should end up looking somewhat like this:
 
-image = /boot/vmlinuz-generic-smp-4.4.14-smp
+image = /boot/vmlinuz-generic-4.4.14
   initrd = /boot/initrd.gz
   root = /dev/cryptvg/root
   label = linux
@@ -555,7 +555,7 @@ system, it will be used and you won't have to type a passphrase.
 requires you to use the "-K" parameter to mkinitrd to specify the USB stick's
 FAT-label or UUID, as well as the full path to the keyfile.  An example:
 
-  # mkinitrd -c -k 4.4.14-smp -m ext4 -f ext4 -r /dev/cryptvg/root -C /dev/sdx2 -L -K LABEL=TRAVELSTICK:/keys/alien.luks
+  # mkinitrd -c -k 4.4.14 -m ext4 -f ext4 -r /dev/cryptvg/root -C /dev/sdx2 -L -K LABEL=TRAVELSTICK:/keys/alien.luks
 
     The mkinitrd of Slackware 13.1 introduced this support for USB sticks as
 unlocking mechanism.  Alternatively, after the root filesystem is unlocked
@@ -629,7 +629,7 @@ by yourself:
 It should emit a string like this (your system will probably give different
 parameter values):
 
-mkinitrd -c -k 4.4.14-smp -m ext4 -f ext4 -r /dev/cryptvg/root -C /dev/sdx2 -L
+mkinitrd -c -k 4.4.14 -m ext4 -f ext4 -r /dev/cryptvg/root -C /dev/sdx2 -L
 
 You can copy and paste this output to your command prompt, and add any other
 parameters you need such as "-h" to indicate a hibernation partition or

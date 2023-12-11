@@ -54,7 +54,7 @@ shopt -s extglob
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -127,7 +127,7 @@ case $ARCH in
     ADD_NANO=1
     ADD_BRICKTICK=1
     ;;
-  i586)
+  i686)
     ADD_NETMODS=1
     ADD_PCMCIAMODS=1
     ADD_MANPAGES=1
@@ -168,7 +168,7 @@ case $ARCH in
            ARCHQUADLET="-gnueabihf" ;;
   aarch64) SLKCFLAGS="-O2"
            ARCHQUADLET="" ;;
-  i?86)    SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  i?86)    SLKCFLAGS="-O2 -march=i686 -mtune=i686"
            ARCHQUADLET="" ;;
   s390*)   SLKCFLAGS="-O2"
            ARCHQUADLET="" ;;
@@ -198,10 +198,8 @@ case $ARCH in
   i?86)
     # What kernel directories are in this installer?
     KERNELS[0]=huge.s
-    KERNELS[1]=hugesmp.s
     # The -extraversion (appended to the $KVER) for the KERNELS[*]:
     KEXTRAV[0]=""
-    KEXTRAV[1]="-smp"
     ;;
   x86_64)
     # What kernel directories are in this installer?
@@ -551,7 +549,7 @@ rm -rf $TMP/extract-packages
 mkdir -p -m755 $TMP/extract-packages
 cd $TMP/extract-packages
 
-# Unpack the real i586/current Slackware initrd.img (or a custom one specified
+# Unpack the real i686/current Slackware initrd.img (or a custom one specified
 # with the '-I' parameter):
 xzcat -f${VERBOSE1} $INITRDIMG | cpio -di${VERBOSE1}
 

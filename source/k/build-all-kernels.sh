@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2021, 2022  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -52,7 +52,7 @@ if [ -z "$RECIPES" ]; then
   if uname -m | grep -wq x86_64 ; then
     RECIPES="x86_64"
   elif uname -m | grep -wq i.86 ; then
-    RECIPES="IA32_NO_SMP IA32_SMP"
+    RECIPES="IA32"
   else
     echo "Error: no build recipes available for $(uname -m)"
     exit 1
@@ -69,13 +69,8 @@ for recipe in $RECIPES ; do
     export CONFIG_SUFFIX=".x64"
     unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-x86_64-${VERSION}}
-  elif [ "$recipe" = "IA32_SMP" ]; then
-    # Recipe for IA32_SMP:
-    unset CONFIG_SUFFIX
-    LOCALVERSION="-smp"
-    OUTPUT=${OUTPUT:-${TMP}/output-ia32-${VERSION}}
-  elif [ "$recipe" = "IA32_NO_SMP" ]; then
-    # Recipe for IA32_NO_SMP:
+  elif [ "$recipe" = "IA32" ]; then
+    # Recipe for IA32:
     unset CONFIG_SUFFIX
     unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-ia32-${VERSION}}

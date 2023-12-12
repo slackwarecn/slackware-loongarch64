@@ -109,28 +109,18 @@ cd cmake-build
     -DWITH_AUDIT=OFF \
     -DWITH_SELINUX=OFF \
     -DWITH_INTERNAL_OPENPGP=ON \
+    -DENABLE_TESTSUITE=OFF \
     .. || exit 1
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..
 
-# Put this in the system directory:
-mkdir -p $PKG/usr/share
-mv $PKG/etc/dbus-1 $PKG/usr/share
-rmdir $PKG/etc
-
-# It seems this doesn't work...
-#make install-man DESTDIR=$PKG || exit 1
-#for dir in . fr ja ko pl ru sk ; do
-#  if /bin/ls docs/man/$dir/*.1 1> /dev/null 2> /dev/null ; then
-#    mkdir -p $PKG/usr/man/$dir/man1
-#    cp -a docs/man/$dir/*.1 $PKG/usr/man/$dir/man1
-#  fi
-#  if /bin/ls docs/man/$dir/*.8 1> /dev/null 2> /dev/null ; then
-#    mkdir -p $PKG/usr/man/$dir/man8
-#    cp -a docs/man/$dir/*.8 $PKG/usr/man/$dir/man8
-#  fi
-#done
+if [ -d $PKG/etc/dbus-1 ]; then
+  # Put this in the system directory:
+  mkdir -p $PKG/usr/share
+  mv $PKG/etc/dbus-1 $PKG/usr/share
+  rmdir $PKG/etc
+fi
 
 # This used to be at /bin/rpm, so make a symlink from there to the new
 # location:
@@ -163,7 +153,7 @@ rmdir $PKG/usr/share/doc/rpm
 mrdir $PKG/usr/share/doc
 rm -rf $PKG/usr/doc/rpm-$VERSION/API
 cp -a \
-  COPYING* CREDITS* GROUPS* INSTALL* README* TODO* doc/manual \
+  CONTRIBUTING* COPYING* CREDITS* INSTALL* README* docs/manual \
     $PKG/usr/doc/rpm-$VERSION
 
 # If there's a ChangeLog file, installing at least part of the recent history
@@ -180,4 +170,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/rpm-$VERSION-$ARCH-$BUILD.txz
-

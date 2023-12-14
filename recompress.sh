@@ -753,7 +753,6 @@ gzip ./source/l/GConf/patches/0003-gsettings-data-convert-Warn-and-fix-invalid-s
 gzip ./source/l/GConf/doinst.sh
 gzip ./source/l/libiodbc/libiodbc.disable.rpath.diff
 gzip ./source/l/libdbusmenu/libdbusmenu_configure_valgrind.patch
-gzip ./source/l/QScintilla/QScintilla_qsciscintillabase_qurl.diff
 gzip ./source/l/gvfs/doinst.sh
 gzip ./source/l/openjpeg/openjpeg2_remove-thirdparty.patch
 gzip ./source/l/libxslt/libxslt.xsltMaxDepth.diff
@@ -809,7 +808,6 @@ gzip ./source/l/pulseaudio/doinst.sh
 gzip ./source/l/pulseaudio/pulseaudio-autostart-meson.build.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
-gzip ./source/l/PyQt5/patches/pyqt5-python2-crash.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-taglib_ver.patch
 gzip ./source/l/taglib-extras/taglib-extras-0.1-multilib-1.patch

@@ -27,7 +27,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 if [ -z "$VERSION" ]; then
   # Get the filename of the newest kernel tarball:
   KERNEL_SOURCE_FILE="$(/bin/ls -t linux-*.tar.?z | head -n 1 )"
@@ -53,6 +53,8 @@ if [ -z "$RECIPES" ]; then
     RECIPES="x86_64"
   elif uname -m | grep -wq i.86 ; then
     RECIPES="IA32"
+  elif uname -m | grep -wq loongarch64 ; then
+    RECIPES="loongarch64"
   else
     echo "Error: no build recipes available for $(uname -m)"
     exit 1
@@ -66,7 +68,7 @@ for recipe in $RECIPES ; do
   # files and package naming scheme, and define the output location.
   if [ "$recipe" = "x86_64" ]; then
     # Recipe for x86_64:
-    export CONFIG_SUFFIX=".x64"
+    CONFIG_SUFFIX=".x64"
     unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-x86_64-${VERSION}}
   elif [ "$recipe" = "IA32" ]; then
@@ -74,6 +76,10 @@ for recipe in $RECIPES ; do
     unset CONFIG_SUFFIX
     unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-ia32-${VERSION}}
+  elif [ "$recipe" = "loongarch64" ]; then
+    CONFIG_SUFFIX=".loongarch64"
+    unset LOCALVERSION
+    OUTPUT=${OUTPUT:-${TMP}/output-loongarch64-${VERSION}}
   else
     echo "Error: recipe ${recipe} not implemented"
     exit 1
@@ -85,7 +91,7 @@ for recipe in $RECIPES ; do
   echo "*************************************************"
   echo
 
-  # Build kernel-source package:
+#  # Build kernel-source package:
   KERNEL_SOURCE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_CONFIG="config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild)
   KERNEL_CONFIG="config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild
   mkdir -p $OUTPUT
@@ -95,38 +101,39 @@ for recipe in $RECIPES ; do
   fi
 
   # Build kernel-huge package:
-  # We will build in the just-built kernel tree. First, let's put back the
+#  # We will build in the just-built kernel tree. First, let's put back the
   # symlinks:
-  ( cd $TMP/package-kernel-source
-    sh install/doinst.sh
-  )
-  KERNEL_HUGE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild)
-  KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild
-  if [ -r ${TMP}/${KERNEL_HUGE_PACKAGE_NAME} ]; then
-    mv ${TMP}/${KERNEL_HUGE_PACKAGE_NAME} $OUTPUT
-  else
-    echo "kernel-source build failed."
-    exit 1
-  fi
-  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
-    installpkg ${OUTPUT}/${KERNEL_HUGE_PACKAGE_NAME} || exit 1
-  fi
+#  ( cd $TMP/package-kernel-source
+#    sh install/doinst.sh
+#  )
+#  KERNEL_HUGE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild)
+#  KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild
+#  if [ -r ${TMP}/${KERNEL_HUGE_PACKAGE_NAME} ]; then
+#    mv ${TMP}/${KERNEL_HUGE_PACKAGE_NAME} $OUTPUT
+#  else
+#    echo "kernel-source build failed."
+#    exit 1
+#  fi
+#  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
+#    installpkg ${OUTPUT}/${KERNEL_HUGE_PACKAGE_NAME} || exit 1
+#  fi
 
-  # Build kernel-generic package:
+#  # Build kernel-generic package:
   KERNEL_GENERIC_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=generic KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/generic$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild)
   KERNEL_NAME=generic KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/generic$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild
+  echo KERNEL_GENERIC_PACKAGE_NAME= $KERNEL_GENERIC_PACKAGE_NAME
   if [ -r ${TMP}/${KERNEL_GENERIC_PACKAGE_NAME} ]; then
     mv ${TMP}/${KERNEL_GENERIC_PACKAGE_NAME} $OUTPUT
   else
     echo "kernel-generic build failed."
     exit 1
   fi
-  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
-    installpkg ${OUTPUT}/${KERNEL_GENERIC_PACKAGE_NAME} || exit 1
-  fi
+#  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
+#    installpkg ${OUTPUT}/${KERNEL_GENERIC_PACKAGE_NAME} || exit 1
+#  fi
 
-  # Build kernel-modules (for the just built generic kernel, but most of them
-  # will also work with the huge kernel):
+#  # Build kernel-modules (for the just built generic kernel, but most of them
+#  # will also work with the huge kernel):
   KERNEL_MODULES_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=$TMP/package-kernel-source/usr/src/linux/.config BUILD=$BUILD ./kernel-modules.SlackBuild)
   KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=$TMP/package-kernel-source/usr/src/linux/.config BUILD=$BUILD ./kernel-modules.SlackBuild
   if [ -r ${TMP}/${KERNEL_MODULES_PACKAGE_NAME} ]; then
@@ -135,10 +142,10 @@ for recipe in $RECIPES ; do
     echo "kernel-modules build failed."
     exit 1
   fi
-  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
-    installpkg ${OUTPUT}/${KERNEL_MODULES_PACKAGE_NAME} || exit 1
-  fi
-
+#  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
+#    installpkg ${OUTPUT}/${KERNEL_MODULES_PACKAGE_NAME} || exit 1
+#  fi
+#
   # Build kernel-headers:
   KERNEL_HEADERS_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux BUILD=$BUILD ./kernel-headers.SlackBuild)
   KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux BUILD=$BUILD ./kernel-headers.SlackBuild
@@ -148,20 +155,20 @@ for recipe in $RECIPES ; do
     echo "kernel-headers build failed."
     exit 1
   fi
-  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
-    upgradepkg --reinstall --install-new ${OUTPUT}/${KERNEL_HEADERS_PACKAGE_NAME} || exit 1
-  fi
-
-  # Update initrd:
-  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
-    INITRD_VERSION="$(grep "Kernel Configuration" $TMP/package-kernel-source/usr/src/linux/.config | cut -f 3 -d ' ')"
-    INITRD_LOCALVERSION="$(cat $TMP/package-kernel-source/usr/src/linux/.config 2> /dev/null | grep CONFIG_LOCALVERSION= | cut -f 2 -d = | tr -d \")"
-    if [ -r /etc/mkinitrd.conf ]; then
-      mkinitrd -F /etc/mkinitrd.conf -k ${INITRD_VERSION}${INITRD_LOCALVERSION}
-    else # try this?
-      sh /usr/share/mkinitrd/mkinitrd_command_generator.sh -k ${INITRD_VERSION}${INITRD_LOCALVERSION} | sed "s/-c -k/-k/g" | bash
-    fi
-  fi
+#  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
+#    upgradepkg --reinstall --install-new ${OUTPUT}/${KERNEL_HEADERS_PACKAGE_NAME} || exit 1
+#  fi
+#
+#  # Update initrd:
+#  if [ "${INSTALL_PACKAGES}" = "YES" ]; then
+#    INITRD_VERSION="$(grep "Kernel Configuration" $TMP/package-kernel-source/usr/src/linux/.config | cut -f 3 -d ' ')"
+#    INITRD_LOCALVERSION="$(cat $TMP/package-kernel-source/usr/src/linux/.config 2> /dev/null | grep CONFIG_LOCALVERSION= | cut -f 2 -d = | tr -d \")"
+#    if [ -r /etc/mkinitrd.conf ]; then
+#      mkinitrd -F /etc/mkinitrd.conf -k ${INITRD_VERSION}${INITRD_LOCALVERSION}
+#    else # try this?
+#      sh /usr/share/mkinitrd/mkinitrd_command_generator.sh -k ${INITRD_VERSION}${INITRD_LOCALVERSION} | sed "s/-c -k/-k/g" | bash
+#    fi
+#  fi
 
   echo
   echo "${recipe} kernel packages done!"

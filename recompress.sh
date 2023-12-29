@@ -743,8 +743,6 @@ gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
-gzip ./source/l/libvisual-plugins/60_no-const-vispluginfo-in-nastyfft.patch
-gzip ./source/l/libvisual-plugins/libvisual-plugins.gstreamer.diff
 gzip ./source/l/libcap/libcap.pkgconfig.path.diff
 gzip ./source/l/imagemagick/doinst.sh
 gzip ./source/l/GConf/patches/0002-dbus-Don-t-spew-to-console-when-unable-to-connect-to.patch
@@ -785,7 +783,6 @@ gzip ./source/l/gtk+2/gtk.gtk-tut.diff
 gzip ./source/l/gtk+2/doinst.sh
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
-gzip ./source/l/libvisual/libvisual.glib.h.diff
 gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/gtk4/doinst.sh
 gzip ./source/l/gnome-themes-extra/doinst.sh
@@ -1109,4 +1106,5 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
+gzip ./testing/source/grub/doinst.sh
 gzip ./testing/source/rust/link_libffi.diff

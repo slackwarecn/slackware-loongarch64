@@ -1,9 +1,7 @@
 #!/bin/bash
 set +o posix
 
-# $Id: build_installer.sh,v 1.129 2011/04/13 23:03:07 eha Exp eha $
-#
-# Copyright 2005-2023  Stuart Winter, Surrey, England, UK
+# Copyright 2005-2024  Stuart Winter, Surrey, England, UK
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -587,9 +585,6 @@ rm -rf $TMP/extract-packages
 
 # Re-create essential symlinks
 ln -sf sbin/init init
-( cd bin; ln -sf grep.bin grep )
-( cd bin; ln -sf grep.bin egrep )
-( cd bin; ln -sf grep.bin fgrep )
 ( cd bin; ln -sf gzip zcat )
 ( cd bin; ln -sf /usr/bin/compress compress )
 ( cd usr/bin; ln -sf ../../bin/gzip zcat )
@@ -1065,6 +1060,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_BIN} \
         dircolors \
         findmnt \
         gzip \
+        grep egrep fgrep pgrep \
         ipmask \
         ls \
         lsblk \
@@ -1086,7 +1082,6 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_BIN} \
 $(readlink -s setterm 1>/dev/null) || \
   cp --remove-destination -fa${VERBOSE1} setterm \
   $PKG/$ARCH-installer-filesystem/bin/
-cp --remove-destination -fa${VERBOSE1} grep $PKG/$ARCH-installer-filesystem/bin/grep.bin
 cd $TMP/extract-packages/usr/bin
 cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \
         bash \
@@ -1163,6 +1158,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         mkfs.* \
         mklost+found \
         mkswap \
+        modinfo \
         modprobe \
         mount \
         mdadm \

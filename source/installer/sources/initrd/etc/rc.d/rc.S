@@ -20,8 +20,8 @@ fi
 # Note: this does not configure the OS root password.
 # Passwords should be set as follows within the Kernel cmdline:
 #   instrootpw=yourpassword
-if grep.bin -qoP 'instrootpw=\K\S+' /proc/cmdline ; then
-  /bin/echo "root:$( grep.bin -oP 'instrootpw=\K\S+' /proc/cmdline )" | /bin/busybox chpasswd
+if grep -qoP 'instrootpw=\K\S+' /proc/cmdline ; then
+  /bin/echo "root:$( grep -oP 'instrootpw=\K\S+' /proc/cmdline )" | /bin/busybox chpasswd
 fi
 
 # Activate swap:

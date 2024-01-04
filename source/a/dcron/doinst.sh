@@ -26,5 +26,6 @@ preserve_perms() {
 
 preserve_perms etc/rc.d/rc.crond.new
 config etc/default/crond.new
+config etc/default/run-parts.new
 config var/spool/cron/crontabs/root.new
 rm -f var/spool/cron/crontabs/root.new

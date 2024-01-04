@@ -1089,7 +1089,6 @@ gzip ./source/x/x11/patch/xf86-video-xgixp/0005-Update-for-new-damage-API.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0003-shadow-shadowInit-shadowAdd-Remove.patch
 gzip ./source/x/x11/patch/xf86-video-xgixp/0004-Stop-using-deprecated-xf86PciInfo.h.patch
 gzip ./source/x/x11/patch/luit/luit_use_system_extensions.diff
-gzip ./source/x/x11/patch/pixman/pixman.remove.tests.that.fail.to.compile.diff
 gzip ./source/x/x11/patch/xorg-server/xorg-server.combo.mouse.keyboard.layout.patch
 gzip ./source/x/x11/patch/xorg-server/0001-xfree86-use-modesetting-driver-by-default-on-GeForce.patch
 gzip ./source/x/x11/patch/xorg-server/fix-nouveau-segfault.diff

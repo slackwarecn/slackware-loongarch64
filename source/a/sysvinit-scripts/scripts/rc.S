@@ -405,8 +405,17 @@ mkdir -p /var/run/faillock
 # Update the current kernel level in the /etc/motd (Message Of The Day) file,
 # if the first line of that file begins with the word 'Linux'.
 # You are free to modify the rest of the file as you see fit.
-if [ -x /bin/sed ]; then
-  /bin/sed -i "{1s/^Linux.*/$(/bin/uname -sr)\./}" /etc/motd
+# We'll only do this if /etc/motd already exists, is writable, and the first
+# line starts with "Linux" followed by a version number that needs to be
+# updated.
+# 
+if [ -w /etc/motd ]; then
+  if head -n 1 /etc/motd | grep -q "^Linux " ; then
+    # Replace the kernel version if it is not correct:
+    if [ ! "$(/bin/uname -r)." = "$(head -n 1 /etc/motd | cut -f 2 -d ' ')" ]; then
+      sed -i "{1s/^Linux.*/$(/bin/uname -sr)\./}" /etc/motd
+    fi
+  fi
 fi
 
 # If there are SystemV init scripts for this runlevel, run them.

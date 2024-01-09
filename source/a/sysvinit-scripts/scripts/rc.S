@@ -301,14 +301,21 @@ if [ -x /etc/rc.d/rc.modules -a -z "$container" ]; then
 fi
 
 # Configure kernel parameters:
-if [ -x /sbin/sysctl -a -r /etc/sysctl.conf -a -z "$container" ]; then
-  echo "Configuring kernel parameters:  /sbin/sysctl -e --system"
-  /sbin/sysctl -e --system
-elif [ -x /sbin/sysctl -a -z "$container" ]; then
-  echo "Configuring kernel parameters:  /sbin/sysctl -e --system"
-  # Don't say "Applying /etc/sysctl.conf" or complain if the file doesn't exist
-  /sbin/sysctl -e --system 2> /dev/null | grep -v "Applying /etc/sysctl.conf"
+if [ -r /etc/default/sysctl ]; then
+  # Source user defined options:
+  . /etc/default/sysctl
+else
+  SYSCTL_OPTIONS="-e --system"
 fi
+if [ -x /sbin/sysctl -a -r /etc/sysctl.conf -a -z "$container" ]; then
+  echo "Configuring kernel parameters:  /sbin/sysctl $SYSCTL_OPTIONS"
+  /sbin/sysctl $SYSCTL_OPTIONS
+elif [ -x /sbin/sysctl -a -z "$container" ]; then
+  echo "Configuring kernel parameters:  /sbin/sysctl $SYSCTL_OPTIONS"
+  # Don't say "Applying /etc/sysctl.conf" or complain if the file doesn't exist
+  /sbin/sysctl $SYSCTL_OPTIONS 2> /dev/null | grep -v "Applying /etc/sysctl.conf"
+fi
+unset SYSCTL_OPTIONS
 
 # Check all the non-root filesystems:
 if [ ! -r /etc/fastboot -a -z "$container" ]; then

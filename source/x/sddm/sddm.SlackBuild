@@ -1,0 +1,216 @@
+#!/bin/bash
+
+# Copyright 2015, 2016, 2017, 2018, 2019, 2020  Eric Hameleers, Eindhoven, NL
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=sddm
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-4}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
+
+if [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+# Don't source $HOME/.xession in SDDM's Xsession script. It may cause the
+# wrong session type to launch, or run a second copy of dbus-run-session which
+# will break logout:
+cat $CWD/sddm.do.not.source.HOME.xsession.diff | patch -p1 --verbose || exit 1
+
+# List Wayland sessions after X11 sessions since Wayland is more experimental:
+cat $CWD/sddm.list.X11.sessions.before.Wayland.Sessions.diff | patch -p1 --verbose || exit 1
+
+# Configure, build, and install:
+mkdir -p cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_MANDIR=/usr/man \
+    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
+    -DBUILD_MAN_PAGES:BOOL=TRUE \
+    -DDBUS_CONFIG_FILENAME="org.freedesktop.sddm.conf" \
+    -DUSE_QT5:BOOL=TRUE \
+    -DENABLE_JOURNALD:BOOL=FALSE \
+    -DENABLE_PAM:BOOL=ON \
+    -DNO_SYSTEMD:BOOL=TRUE \
+    -DUSE_ELOGIND:BOOL=TRUE \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
+
+# Replace systemd-centric files with ours:
+rm -f $PKG/etc/pam.d/sddm*
+for FILE in sddm sddm-autologin sddm-greeter ; do
+  install -Dm644 $CWD/pam.d/$FILE $PKG/etc/pam.d/${FILE}.new
+done
+
+# Create the SDDM home directory:
+mkdir -p $PKG/var/lib/sddm
+chmod 755 $PKG/var/lib/sddm
+chown sddm:sddm $PKG/var/lib/sddm
+
+# D-Bus configs should be under /usr, not /etc:
+mkdir -p $PKG/usr/share/dbus-1/system.d
+mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d
+rmdir --parents $PKG/etc/dbus-1/system.d
+
+# Remove the sddm.conf file because we will generate our own in doinst.sh:
+rm -f $PKG/etc/sddm.conf
+
+# Generate the default sddm.conf:
+$PKG/usr/bin/sddm --example-config > $PKG/etc/sddm.conf
+
+# Set the KDE5 theme 'breeze' as default (integrates better with Plasma 5):
+sed -i -e "/\[Theme\]/,/^\[/s/^Current.*/Current=breeze/" $PKG/etc/sddm.conf
+
+# Move the default config file to .new:
+mv $PKG/etc/sddm.conf $PKG/etc/sddm.conf.new
+
+# Make sure that Plasma and SDDM work on older GPUs,
+# by forcing Qt5 to use software GL rendering:
+cat << "EOF" >> $PKG/usr/share/sddm/scripts/Xsetup
+# Make sure that Plasma and SDDM work on older GPUs by forcing Qt5 to use
+# software GL rendering if the OpenGL version is not new enough:
+OPENGL_VERSION=$(LANG=C glxinfo |grep '^OpenGL version string: ' |head -n 1 |sed -e 's/^OpenGL version string: \([0-9]\).*$/\1/g')
+if [ "$OPENGL_VERSION" -lt 2 ]; then
+  QT_XCB_FORCE_SOFTWARE_OPENGL=1
+  export QT_XCB_FORCE_SOFTWARE_OPENGL
+fi
+EOF
+
+# Add a wrapper for the sddm binary, to enable a custom environment:
+mv $PKG/usr/bin/sddm $PKG/usr/bin/sddm.bin
+cat <<"EOT" > $PKG/usr/bin/sddm
+#!/bin/sh
+# Customized environment (LANG definition):
+if [ -f /etc/default/sddm ]; then
+  . /etc/default/sddm
+fi
+
+# Ensure non-world readable permissions on /var/log/sddm.log:
+touch /var/log/sddm.log
+chmod 640 /var/log/sddm.log
+
+# Add a timestamp:
+date >> /var/log/sddm.log
+
+# Redirect stdout/stderr to /dev/null to avoid polluting a virtual
+# console with duplicate log messages:
+exec /usr/bin/sddm.bin "$@" 1> /dev/null 2> /dev/null
+EOT
+chmod 0755 $PKG/usr/bin/sddm
+
+# Let's also add an example customization (localization of the UI):
+mkdir -p  $PKG/etc/default
+echo ". /etc/profile.d/lang.sh" >  $PKG/etc/default/sddm.new
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  CONTRIBUTORS* ChangeLog* INSTALL* LICENSE* README* docs/* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
+mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

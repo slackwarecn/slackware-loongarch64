@@ -800,10 +800,12 @@ gzip ./source/l/qt5-webkit/qt5-webkit.gcc13.diff
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff
 gzip ./source/l/pulseaudio/0001-client-conf-Add-allow-autospawn-for-root.patch
+gzip ./source/l/pulseaudio/f5cacd94abcc47003bd88ad7ca1450de649ffb15.patch
 gzip ./source/l/pulseaudio/0003-no-root-warn.diff
 gzip ./source/l/pulseaudio/pulseaudio-autostart.patch
 gzip ./source/l/pulseaudio/doinst.sh
 gzip ./source/l/pulseaudio/pulseaudio-autostart-meson.build.patch
+gzip ./source/l/pulseaudio/ed3d4f0837f670e5e5afb1afa5bcfc8ff05d3407.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
 gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch

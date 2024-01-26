@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2017, 2020, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2017, 2018  Heinz Wiesinger, Amsterdam, NL
 # All rights reserved.
 #
@@ -24,10 +24,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=python-pygments
-VERSION=${VERSION:-$(echo Pygments-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
-
-SRCNAM=Pygments
+SRCNAM=pygments
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -61,7 +60,9 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
   -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
 
-python3 setup.py install --root=$PKG || exit 1
+unshare -n python3 -m build --wheel --no-isolation || exit 1
+
+python3 -m installer --destdir "$PKG" dist/*.whl || exit 1
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a *.rst LICENSE PKG-INFO \

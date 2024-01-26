@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Copyright 2017, 2018, 2019, 2020  Patrick J. Volkerding, Sebeka, MN, USA
-# Copyright 2017  Heinz Wiesinger, Amsterdam, NL
+# Copyright 2021-2022  Heinz Wiesinger, Amsterdam, The Netherlands
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -10,7 +9,7 @@
 # 1. Redistributions of this script must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
 #
-#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
 #  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
 #  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -23,17 +22,17 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=python-docutils
-VERSION=${VERSION:-$(echo docutils-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=python-pluggy
+VERSION=${VERSION:-$(echo pluggy-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
-SRCNAM=docutils
-
+# Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) ARCH=i586 ;;
-    arm*) ARCH=arm ;;
-       *) ARCH=$( uname -m ) ;;
+    i?86) export ARCH=i586 ;;
+    arm*) export ARCH=arm ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+       *) export ARCH=$( uname -m ) ;;
   esac
 fi
 
@@ -45,45 +44,50 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+if [ "${ARCH}" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
+
 cd $TMP
-rm -rf $SRCNAM-$VERSION
-tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
-cd $SRCNAM-$VERSION || exit 1
+rm -rf pluggy-$VERSION
+tar xvf $CWD/pluggy-$VERSION.tar.?z || exit 1
+cd pluggy-$VERSION
 chown -R root:root .
-find -L . \
- \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
-  -o -perm 511 \) -exec chmod 755 {} \+ -o \
- \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
-  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
 
-python3 setup.py build --build-lib=build/python3 install --root=$PKG || exit 1
+python3 setup.py install --root=$PKG || exit 1
 
-cd $PKG/usr/bin
-  for i in *.py; do
-    ln -s "$i" "$PKG/usr/bin/$(basename $i .py)"
-  done
-cd -
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a *.txt PKG-INFO \
+cp -a \
+  *.md *.rst LICENSE PKG-INFO \
   $PKG/usr/doc/$PKGNAM-$VERSION
-find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 0644 {} \+
-
-# If there's a HISTORY.txt, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r HISTORY.txt ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat HISTORY.txt | head -n 1000 > $DOCSDIR/HISTORY.txt
-  touch -r HISTORY.txt $DOCSDIR/HISTORY.txt
-fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+

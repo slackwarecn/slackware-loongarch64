@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2022, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=python-sphinx
-SRCNAM=Sphinx
+SRCNAM=sphinx
 VERSION=${VERSION:-$(echo ${SRCNAM}-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -60,7 +60,9 @@ find -L . \
  \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
   -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
 
-python3 setup.py install --root=$PKG || exit 1
+unshare -n python3 -m build --wheel --no-isolation || exit 1
+
+python3 -m installer --destdir "$PKG" dist/*.whl || exit 1
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a *.rst LICENSE* NOTICE PKG-INFO \
@@ -92,7 +94,10 @@ for extension in $CWD/extensions/*.tar.?z ; do
    \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
     -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
 
-  python3 setup.py install --root=$PKG || exit 1
+  unshare -n python3 -m build --wheel --no-isolation || exit 1
+
+  python3 -m installer --destdir "$PKG" dist/*.whl || exit 1
+
 
   mkdir -p $PKG/usr/doc/$EXTNAM-$EXTVER
   cp -a *.rst LICENSE* NOTICE PKG-INFO \

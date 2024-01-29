@@ -625,9 +625,6 @@ gzip ./source/ap/cups-filters/CVE-2023-24805.patch
 gzip ./source/ap/bpe/bpe.port.to.strerror.diff
 gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/doinst.sh
-gzip ./source/ap/moc/0007-cur-dts.patch
-gzip ./source/ap/moc/0005-avcodec-include.patch
-gzip ./source/ap/moc/0006-uncast-warnings.patch
 gzip ./source/ap/terminus-font/terminus-font.Makefile.paths.diff
 gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
@@ -815,6 +812,7 @@ gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
 gzip ./source/l/ffmpeg/ffmpeg.vulkan.diff
 gzip ./source/l/ffmpeg/add-av_stream_get_first_dts-for-chromium.patch
+gzip ./source/l/ffmpeg/250471ea1745fc703eb346a2a662304536a311b1.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-round_gtf_gtfcalc_c.patch
 gzip ./source/l/svgalib/svgalib.nohelper.diff

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Copyright 2015, 2017, 2019  Eric Hameleers, Eindhoven, NL
-# Copyright 2020, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2024  Heinz Wiesinger, Amsterdam, The Netherlands
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,15 +23,15 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=opencv
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+PKGNAM=nv-codec-headers
+VERSION=${VERSION:-$(echo nv-codec-headers-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
-    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -46,7 +46,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -75,11 +75,9 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
-cd $PKGNAM-$VERSION || exit 1
-
-tar xvf $CWD/${PKGNAM}_contrib-${VERSION}.tar.?z || exit 1
+rm -rf nv-codec-headers-$VERSION
+tar xvf $CWD/nv-codec-headers-$VERSION.tar.?z || exit 1
+cd nv-codec-headers-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -88,58 +86,16 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Configure, build, and install:
-mkdir cmake-build
-cd cmake-build
-  cmake \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DINSTALL_MAN_DIR=man \
-    -DINSTALL_DOC_DIR=doc/$PKGNAM-$VERSION \
-    -DSYSCONF_INSTALL_DIR=/etc \
-    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DLIB_INSTALL_DIR=/usr/lib${LIBDIRSUFFIX} \
-    -DBUILD_CUDA_STUBS=OFF \
-    -DBUILD_PACKAGE=OFF \
-    -DBUILD_PERF_TESTS=OFF \
-    -DBUILD_SHARED_LIBS=ON \
-    -DBUILD_TESTS=OFF \
-    -DBUILD_WITH_DEBUG_INFO=OFF \
-    -DENABLE_PRECOMPILED_HEADERS=OFF \
-    -DWITH_CUDA=OFF \
-    -DWITH_FFMPEG=ON \
-    -DWITH_GDAL=OFF \
-    -DWITH_IPP=OFF \
-    -DWITH_OPENGL=ON \
-    -DWITH_OPENMP=ON \
-    -DWITH_QT=ON \
-    -DWITH_XINE=ON \
-    -DOPENCV_ENABLE_NONFREE=ON \
-    -DOPENCV_EXTRA_MODULES_PATH=../${PKGNAM}_contrib-$VERSION/modules \
-    -DOPENCV_GENERATE_PKGCONFIG=ON \
-    -DOPENCV_JNI_INSTALL_PATH=lib${LIBDIRSUFFIX} \
-    .. || exit 1
-  make $NUMJOBS || make || exit 1
-  make install DESTDIR=$PKG || exit 1
-cd ..
+make \
+  $NUMJOBS \
+  PREFIX=/usr \
+  LIBDIR=/lib$LIBDIRSUFFIX \
+  DESTDIR=$PKG \
+  install || exit 1
 
-# COMMENTED OUT as mlt finds opencv4.pc just fine.
-# Add a symlink to opencv.pc to make eg. mlt find it:
-#( cd $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig ; ln -sf opencv4.pc opencv.pc )
-
-# Strip binaries:
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-# Add a documentation directory:
-mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
-cp -a \
-  COPYING* README* \
-  $PKG/usr/doc/${PKGNAM}-$VERSION
-mv $PKG/usr/share/licenses $PKG/usr/doc/${PKGNAM}-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a README \
+  $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

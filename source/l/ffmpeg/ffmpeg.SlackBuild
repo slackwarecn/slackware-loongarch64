@@ -2,8 +2,8 @@
 
 # Slackware build script for ffmpeg
 
-# Copyright 2010-2017  Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2017, 2018, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2010-2024  Heinz Wiesinger, Amsterdam, The Netherlands
+# Copyright 2017, 2018, 2022, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -30,7 +30,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ffmpeg
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -89,13 +89,25 @@ fi
 # - xz
 # - zlib
 
+# Select one of these for HTTPS support
+ssl=""          ; [ "${OPENSSL:-no}" != "no" ]  && \
+  { ssl="--enable-openssl" ; non_free="--enable-nonfree" ; }
+gnutls=""     ; [ "${GNUTLS:-yes}" != "no" ]      && gnutls="--enable-gnutls"
+
+# Select one of these for RTMP[E] support
+librtmp=""    ; [ "${RTMP:-no}" != "no" ]         && librtmp="--enable-librtmp"
+gmp=""        ; [ "${GMP:-no}" != "no" ]          && gmp="--enable-gmp"
+libgcrypt=""  ; [ "${GCRYPT:-yes}" != "no" ]      && libgcrypt="--enable-gcrypt"
+
+# Select one of these for GLSL->SPIRV compilation (Required for Vulkan support)
+libglslang="" ; [ "${GLSLANG:-no}" != "no" ]      && libglslang="--enable-libglslang"
+shaderc=""    ; [ "${SHADERC:-yes}" != "no" ]     && libshaderc="--enable-libshaderc"
+
 libx264=""    ; [ "${X264:-no}" != "no" ]         && libx264="--enable-libx264"
 libcelt=""    ; [ "${CELT:-no}" != "no" ]         && libcelt="--enable-libcelt"
 libdc1394=""  ; [ "${DC1394:-no}" != "no" ]       && libdc1394="--enable-libdc1394"
 libgsm=""     ; [ "${GSM:-no}" != "no" ]          && libgsm="--enable-libgsm"
-librtmp=""    ; [ "${RTMP:-no}" != "no" ]         && librtmp="--enable-librtmp"
 libxvid=""    ; [ "${XVID:-no}" != "no" ]         && libxvid="--enable-libxvid"
-libass=""     ; [ "${ASS:-no}" != "no" ]          && libass="--enable-libass"
 libiec61883=""; [ "${IEC61883:-no}" != "no" ]     && libiec61883="--enable-libiec61883"
 libilbc=""    ; [ "${ILBC:-no}" != "no" ]         && libilbc="--enable-libilbc"
 libmodplug="" ; [ "${MODPLUG:-no}" != "no" ]      && libmodplug="--enable-libmodplug"
@@ -104,7 +116,6 @@ ladspa=""     ; [ "${LADSPA:-no}" != "no" ]       && ladspa="--enable-ladspa"
 libflite=""   ; [ "${FLITE:-no}" != "no" ]        && libflite="--enable-libflite"
 libx265=""    ; [ "${X265:-no}" != "no" ]         && libx265="--enable-libx265"
 libzvbi=""    ; [ "${ZVBI:-no}" != "no" ]         && libzvbi="--enable-libzvbi"
-libopencv=""  ; [ "${OPENCV:-no}" != "no" ]       && libopencv="--enable-libopencv"
 libgme=""     ; [ "${GME:-no}" != "no" ]          && libgme="--enable-libgme"
 libsnappy=""  ; [ "${SNAPPY:-no}" != "no" ]       && libsnappy="--enable-libsnappy"
 libzmq=""     ; [ "${ZMQ:-no}" != "no" ]          && libzmq="--enable-libzmq"
@@ -126,19 +137,28 @@ opencore_amr="" ; [ "${OPENCORE:-no}" != "no" ] && \
   opencore_amr="--enable-libopencore-amrnb --enable-libopencore-amrwb"
 fdk=""          ; [ "${FDK_AAC:-no}" != "no" ]  && \
   { fdk="--enable-libfdk-aac"; non_free="--enable-nonfree" ; }
-ssl=""          ; [ "${OPENSSL:-no}" != "no" ]  && \
-  { ssl="--enable-openssl" ; non_free="--enable-nonfree" ; }
 decklink=""   ; [ "${DECKLINK:-no}" != "no" ]   && \
   { decklink="--enable-decklink" ; \
     SLKCFLAGS="$SLKCFLAGS -I/usr/include/decklink" ; }
-liblensfun="" ; [ "${LENSFUN:-no}" != "no" ]     && liblensfun="--enable-liblensfun"
+libaribb24="" ; [ "${ARIBB24:-no}" != "no" ]     && libaribb24="--enable-libaribb24"
+libjxl=""     ; [ "${JXL:-no}" != "no" ]         && libjxl="--enable-libjxl"
+librist=""    ; [ "${RIST:-no}" != "no" ]        && librist="--enable-librist"
+libshine=""   ; [ "${SHINE:-no}" != "no" ]       && libshine="--enable-libshine"
+svtav1=""     ; [ "${SVTAV1:-no}" != "no" ]      && svtav1="--enable-libsvtav1"
+libmysofa=""  ; [ "${MYSOFA:-no}" != "no" ]      && libmysofa="--enable-libmysofa"
+libxavs2=""   ; [ "${XAVS2:-no}" != "no" ]       && libxavs2="--enable-libxavs2"
 libvmaf=""    ; [ "${VMAF:-no}" != "no" ]         && libvmaf="--enable-libvmaf"
+
+# Needs older opencv than we ship. See https://trac.ffmpeg.org/ticket/7059
+libopencv=""  ; [ "${OPENCV:-no}" != "no" ]       && libopencv="--enable-libopencv"
+
+# Needs newer lensfun than we ship. See https://trac.ffmpeg.org/ticket/9112
+liblensfun="" ; [ "${LENSFUN:-no}" != "no" ]     && liblensfun="--enable-liblensfun"
 
 # Default enabled features:
 fontconfig="" ; [ "${FONTCONFIG:-yes}" != "no" ]  && fontconfig="--enable-libfontconfig"
 freetype=""   ; [ "${FREETYPE:-yes}" != "no" ]    && freetype="--enable-libfreetype"
 fribidi=""    ; [ "${FRIBIDI:-yes}" != "no" ]     && fribidi="--enable-libfribidi"
-gnutls=""     ; [ "${GNUTLS:-yes}" != "no" ]      && gnutls="--enable-gnutls"
 libbluray=""  ; [ "${BLURAY:-yes}" != "no" ]      && libbluray="--enable-libbluray"
 libcaca=""    ; [ "${CACA:-yes}" != "no" ]        && libcaca="--enable-libcaca"
 libcdio=""    ; [ "${LIBCDIO:-yes}" != "no" ]     && libcdio="--enable-libcdio"
@@ -162,8 +182,10 @@ libvidstab="" ; [ "${VIDSTAB:-yes}" != "no" ]     && libvidstab="--enable-libvid
 libxml2=""    ; [ "${LIBXML2:-yes}" != "no" ]     && libxml2="--enable-libxml2"
 librsvg=""    ; [ "${LIBRSVG:-yes}" != "no" ]     && librsvg="--enable-librsvg"
 libdrm=""     ; [ "${LIBDRM:-yes}" != "no" ]      && libdrm="--enable-libdrm"
-libglslang="" ; [ "${GLSLANG:-yes}" != "no" ]     && libglslang="--enable-libglslang"
 vulkan=""     ; [ "${VULKAN:-yes}" != "no" ]      && vulkan="--enable-vulkan"
+libass=""     ; [ "${ASS:-yes}" != "no" ]         && libass="--enable-libass"
+libplacebo="" ; [ "${PLACEBO:-yes}" != "no" ]     && libplacebo="--enable-libplacebo"
+lcms2=""      ; [ "${LCMS2:-yes}" != "no" ]       && lcms2="--enable-lcms2"
 
 # No default patent encumbered features:
 aac=""        ; [ "${AAC:-no}" = "no" ]           && aac="--disable-encoder=aac"
@@ -172,7 +194,7 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
+tar xf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
@@ -187,6 +209,9 @@ zcat $CWD/add-av_stream_get_first_dts-for-chromium.patch.gz | patch -p1 --verbos
 
 # Build against recent Vulkan:
 zcat $CWD/ffmpeg.vulkan.diff.gz | patch -p1 --verbose || exit 1
+
+# Fix ctx memory leak:
+zcat $CWD/250471ea1745fc703eb346a2a662304536a311b1.patch | patch -p1 --verbose || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -256,7 +281,6 @@ CXXFLAGS="$SLKCFLAGS" \
   $ssl \
   $tesseract \
   $liblensfun \
-  $libvmaf \
   $libxml2 \
   $librsvg \
   $vulkan \
@@ -271,7 +295,20 @@ CXXFLAGS="$SLKCFLAGS" \
   $libsoxr \
   $libsrt \
   $libzimg \
-  $vapoursynth || exit 1
+  $vapoursynth \
+  $libshaderc \
+  $libgcrypt \
+  $libplacebo \
+  $lcms2 \
+  $gmp \
+  $libaribb24 \
+  $libjxl \
+  $librist \
+  $libshine \
+  $svtav1 \
+  $libmysofa \
+  $libxavs2 \
+  $libvmaf || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

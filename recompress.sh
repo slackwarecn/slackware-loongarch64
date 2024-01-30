@@ -950,6 +950,7 @@ gzip ./source/xap/fluxbox/fluxbox.startfluxbox.dbus.diff
 gzip ./source/xap/fluxbox/fluxbox.gcc11.patch
 gzip ./source/xap/network-manager-applet/doinst.sh
 gzip ./source/xap/MPlayer/include-samba-4.0.patch
+gzip ./source/xap/MPlayer/po_charset.patch
 gzip ./source/xap/xlockmore/xlockmore.bitmap.diff
 gzip ./source/xap/xlockmore/doinst.sh
 gzip ./source/xap/xsane/xsane-0.999-7-autoconf.patch

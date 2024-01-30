@@ -1,7 +1,7 @@
 #!/bin/bash
 # $Id: MPlayer.SlackBuild,v 1.27 2012/07/01 13:07:08 root Exp root $
 # Copyright 2006, 2007, 2008, 2010, 2011, 2012  Eric Hameleers, Eindhoven, NL
-# Copyright 2013, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2013, 2018, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 #   Permission to use, copy, modify, and distribute this software for
@@ -25,7 +25,7 @@
 # Set initial variables:
 
 PKGNAM=MPlayer
-VERSION=${VERSION:-20240127}
+VERSION=${VERSION:-20240130}
 # Need to build trunk until there's a stable branch compatible with the
 # latest ffmpeg stable release:
 #BRANCH=${BRANCH:-1.3}        # leave empty if you want to build MPlayer trunk
@@ -179,9 +179,6 @@ OUTPUT=${OUTPUT:-$TMP}
 ## --- with a little luck, you won't have to edit below this point --- ##
 ##
 
-# Exit the script on errors:
-set -e
-trap 'echo "$0 FAILED at line $LINENO!" | tee $OUTPUT/error-${PKGNAM}.log' ERR
 # Catch unitialized variables:
 set -u
 P1=${1:-1}
@@ -210,7 +207,7 @@ for (( i = 0; i < ${#SOURCE[*]}; i++ )) ; do
     else
       # Try if we have a SVN/CVS download routine for ${SOURCE[$i]}
       echo "Will checkout sources to $(dirname $SOURCE[$i])"
-      src_checkout $i "${SOURCE[$i]}" 2>&1 > $OUTPUT/checkout-$(basename ${SOURCE[$i]}).log
+      src_checkout $i "${SOURCE[$i]}" || exit 1
     fi
     if [ ! -f "${SOURCE[$i]}" -o ! -s "${SOURCE[$i]}" ]; then
       echo "File '$(basename ${SOURCE[$i]})' not available.. aborting the build."
@@ -232,11 +229,11 @@ echo "++"
 
 cd $TMP/tmp-$PKGNAM
 echo "Extracting the source archive(s) for $PKGNAM..."
-tar -xvf ${SOURCE[0]}
+tar -xvf ${SOURCE[0]} || exit 1
 
 chown -R root:root *
 chmod -R u+w,go+r-w,a+X-s *
-cd ${PKGNAM}-${VERSION}
+cd ${PKGNAM}-${VERSION} || exit 1
 
 # Determine what X we're running (the modular X returns the prefix
 # in the next command, while older versions stay silent):
@@ -251,8 +248,11 @@ else
   DO_PATENTED=""
 fi
 
-# fix building against samba 4
+# fix building against samba 4:
 zcat $SRCDIR/include-samba-4.0.patch.gz | patch -p1 --verbose || exit 1
+
+# fix building against gettext-0.22.4:
+zcat $SRCDIR/po_charset.patch.gz | patch -p1 --verbose || exit 1
 
 echo Building ...
 # MPlayer wants to automatically determine compiler flags,
@@ -271,8 +271,7 @@ echo Building ...
   --codecsdir=${CODECSDIR} \
   --language="${LANGUAGES}" \
   ${EXTRACONFIGUREOPTIONS} \
-  ${DO_PATENTED} \
-  2>&1 | tee $OUTPUT/configure-${PKGNAM}.log
+  ${DO_PATENTED} || exit 1
 
 # So that MPlayer does not report "UNKNOWN" as it's version:
 if [ ! -f VERSION ]; then
@@ -286,17 +285,17 @@ if [ "$ARCH" = "i586" ]; then
   sed -i "s/mtune=native/mtune=generic/g" config.mak
 fi
 
-make $NUMJOBS 2>&1 | tee $OUTPUT/make-${PKGNAM}.log
-make DESTDIR=$PKG install 2>&1 |tee $OUTPUT/install-${PKGNAM}.log
+make $NUMJOBS || exit 1
+make DESTDIR=$PKG install || exit 1
 
 # Build the html documentation (not all languages are available):
 if [ "$LANGUAGES" = "all" ]; then
   # make html-chunked
-  make html-single
+  make html-single || exit 1
 else
   for i in $(echo $LANGUAGES | tr , ' ') ; do
     # make html-chunked-$i ;
-    make html-single-$i ;
+    make html-single-$i || exit 1
   done
 fi
 
@@ -377,12 +376,6 @@ mv $PKG/usr/doc/$PKGNAM-$PKGVERSION/HTML $PKG/usr/doc/$PKGNAM-$PKGVERSION/html
 for i in etc/*.conf ; do
   cp $i $PKG/usr/doc/$PKGNAM-$PKGVERSION/$(basename $i)-sample
 done
-# Save a transcript of all configured options for this specific build:
-if [ -n $OUTPUT/configure-${PKGNAM}.log ]; then
-  cat $OUTPUT/configure-${PKGNAM}.log \
-    | sed -n "/^Config files successfully generated/,/^'config.h' and 'config.mak' contain your configuration options./p" \
-    > $PKG/usr/doc/$PKGNAM-$PKGVERSION/${PKGNAM}.configuration
-fi
 find $PKG/usr/doc -type f -exec chmod 644 {} \+
 
 # Compress the man page(s):
@@ -404,9 +397,5 @@ fi
 
 # Build the package:
 cd $PKG
-makepkg --linkadd y --chown n $OUTPUT/${PKGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz 2>&1 | tee $OUTPUT/makepkg-${PKGNAM}.log
-cd $OUTPUT
-md5sum ${PKGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz > ${PKGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz.md5
-cd -
-cat $PKG/install/slack-desc | grep "^${PKGNAM}" > $OUTPUT/${PKGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txt
+makepkg --linkadd y --chown n $OUTPUT/${PKGNAM}-${PKGVERSION}-${ARCH}-${BUILD}${TAG}.txz
 

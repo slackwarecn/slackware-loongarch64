@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=nvme-cli
+PKGNAM=libnvme
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -102,40 +102,21 @@ meson setup \
   --sysconfdir=/etc \
   --localstatedir=/var \
   --buildtype=release \
-  -Ddocs=man \
   .. || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
 
-# Make discovery.conf file .new:
-mv $PKG/etc/nvme/discovery.conf $PKG/etc/nvme/discovery.conf.new
-
-# Remove dracut and systemd libdir files:
-rm -r $PKG/usr/lib/{dracut,systemd,udev}
-rmdir $PKG/usr/lib 2> /dev/null
-
-# Move man pages:
-mv $PKG/usr/share/man $PKG/usr/man
-
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-# Compress manual pages:
-find $PKG/usr/man -type f -exec gzip -9 {} \+
-for i in $( find $PKG/usr/man -type l ) ; do
-  ln -s $( readlink $i ).gz $i.gz
-  rm $i
-done
 
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  CONTRIBUTING* LICENSE* README* \
+  COPYING* README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

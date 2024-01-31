@@ -1009,6 +1009,7 @@ l/libaio \
 l/libcap \
 l/libidn2 \
 l/libnsl \
+l/libnvme \
 l/libunistring \
 l/libusb \
 l/lz4 \
@@ -1378,6 +1379,7 @@ cp  -fa${VERBOSE1} \
         liblz.so* \
         liblz4.so* \
         liblzo*.so* \
+        libnvme*.so* \
         libparted*so* \
         libreadline*.so* \
         libstdc++*.so* \

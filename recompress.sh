@@ -607,6 +607,7 @@ gzip ./source/ap/libx86/libx86-add-pkgconfig.patch
 gzip ./source/ap/vim/ctags.use-conventional-unused-marker.patch
 gzip ./source/ap/vim/vim.vimrc.diff
 gzip ./source/ap/vim/doinst.sh
+gzip ./source/ap/nvme-cli/doinst.sh
 gzip ./source/ap/acct/acct.logdir.fhs.diff
 gzip ./source/ap/usbmuxd/39-usbmuxd.rules
 gzip ./source/ap/usbmuxd/doinst.sh

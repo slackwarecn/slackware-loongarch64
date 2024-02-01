@@ -136,7 +136,7 @@ case $ARCH in
     RECOMPILE=1
     SPLIT_INITRD=0
     USBBOOT=1
-    EFIBOOT=1
+    EFIBOOT=0
     VERBOSE=1
     ADD_NETFIRMWARE=1     # Include the network card firmware
     ADD_NANO=1

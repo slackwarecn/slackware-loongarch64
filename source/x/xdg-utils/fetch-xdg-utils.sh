@@ -24,7 +24,7 @@
 PKGNAM=xdg-utils
 
 # Pull a stable branch + patches
-BRANCH=${1:-v1.2.0}
+BRANCH=${1:-v1.2.1}
 
 # Clear download area:
 rm -rf ${PKGNAM}

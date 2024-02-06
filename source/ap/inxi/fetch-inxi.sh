@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2019, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2019, 2020, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,13 +24,13 @@
 PKGNAM=inxi
 
 # Pull a stable branch + patches
-BRANCH=${1:-master}
+BRANCH=${1:-3.3.32-1}
 
 # Clear download area:
 rm -rf ${PKGNAM}
 
 # Clone repository:
-git clone https://github.com/smxi/${PKGNAM}
+git clone https://codeberg.org/smxi/${PKGNAM}
 
 # checkout $BRANCH:
 ( cd ${PKGNAM} 
@@ -42,11 +42,11 @@ DATE="$( cd ${PKGNAM} && git log -1 --format=%cd --date=format:%Y%m%d )"
 LONGDATE="$( cd ${PKGNAM} && git log -1 --format=%cd --date=format:%c )"
 # Cleanup.  We're not packing up the whole git repo.
 ( cd ${PKGNAM} && find . -type d -name ".git*" -exec rm -rf {} \; 2> /dev/null )
-mv ${PKGNAM} ${PKGNAM}-${DATE}_${HEADISAT}
-tar cf ${PKGNAM}-${DATE}_${HEADISAT}.tar ${PKGNAM}-${DATE}_${HEADISAT}
-plzip -9 -f ${PKGNAM}-${DATE}_${HEADISAT}.tar
-rm -rf ${PKGNAM}-${DATE}_${HEADISAT}
-touch -d "$LONGDATE" ${PKGNAM}-${DATE}_${HEADISAT}.tar.lz
+mv ${PKGNAM} ${PKGNAM}-${BRANCH}
+tar cf ${PKGNAM}-${BRANCH}.tar ${PKGNAM}-${BRANCH}
+plzip -9 -f ${PKGNAM}-${BRANCH}.tar
+rm -rf ${PKGNAM}-${BRANCH}
+touch -d "$LONGDATE" ${PKGNAM}-${BRANCH}.tar.lz
 echo
-echo "${PKGNAM} branch $BRANCH with HEAD at $HEADISAT packaged as ${PKGNAM}-${DATE}_${HEADISAT}.tar.lz"
+echo "${PKGNAM} branch $BRANCH with HEAD at $HEADISAT packaged as ${PKGNAM}-${BRANCH}.tar.lz"
 echo

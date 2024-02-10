@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright 2020  Eric Hameleers, Eindhoven, NL
-# Copyright 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=pipewire
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -86,12 +86,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Add wireplumber:
-( cd subprojects ; tar xf $CWD/wireplumber.tar.lz )
-
-# Add lua (with pipewire patches):
-( cd subprojects ; tar xf $CWD/lua-5.4.4.tar.lz )
-
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
@@ -114,7 +108,7 @@ cd meson-build
   -Dvulkan=enabled \
   -Djack=disabled \
   -Dpipewire-jack=disabled \
-  -Dsession-managers=wireplumber \
+  -Dsession-managers=[] \
   .. || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
@@ -126,7 +120,6 @@ mkdir -p $PKG/etc/pipewire
 # Add sample configuation files:
 mkdir -p $PKG/etc/xdg/autostart
 cp -a $CWD/pipewire.desktop.sample $PKG/etc/xdg/autostart
-cp -a $CWD/wireplumber.desktop.sample $PKG/etc/xdg/autostart
 cp -a $CWD/pipewire-pulse.desktop.sample $PKG/etc/xdg/autostart
 chown root:root $PKG/etc/xdg/autostart/*
 chmod 644 $PKG/etc/xdg/autostart/*

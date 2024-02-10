@@ -865,6 +865,7 @@ gzip ./source/l/id3lib/patches/id3lib.c_wrapper.patch
 gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
+gzip ./source/l/wireplumber/doinst.sh
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
 gzip ./source/l/libieee1284/libieee1284-fix-warnings.patch
 gzip ./source/l/libieee1284/libieee1284-add-more-python-bindings.patch

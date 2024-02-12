@@ -23,11 +23,11 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=procps-ng
-VERSION=${VERSION:-3.3.17}
-PSMISCVER=${PSMISCVER:-23.3}
+VERSION=${VERSION:-4.0.4}
+PSMISCVER=${PSMISCVER:-v23.5}
 PROCINFONGVER=${PROCINFONGVER:-2.0.304}
 PROCINFOVER=${PROCINFOVER:-18}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -68,11 +68,11 @@ rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION procps-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.xz || exit 1
-cd procps-$VERSION || cd $PKGNAM-$VERSION || exit 1
-tar xvf $CWD/psmisc-$PSMISCVER.tar.xz || exit 1
-tar xvf $CWD/procinfo-ng-$PROCINFONGVER.tar.xz || exit 1
-tar xvf $CWD/procinfo-$PROCINFOVER.tar.xz || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+tar xvf $CWD/psmisc-$PSMISCVER.tar.?z || exit 1
+tar xvf $CWD/procinfo-ng-$PROCINFONGVER.tar.?z || exit 1
+tar xvf $CWD/procinfo-$PROCINFOVER.tar.?z || exit 1
 chown -R root:root .
 
 find -L . \
@@ -151,12 +151,22 @@ rm -f $PKG/usr/bin/free $PKG/usr/bin/pidof $PKG/usr/bin/ps
 ln -sf /bin/free $PKG/usr/bin/free
 ln -sf /sbin/pidof $PKG/usr/bin/pidof
 ln -sf /bin/ps $PKG/usr/bin/ps
+# WTF changing the name of this
+( cd $PKG/bin ; ln -sf pidwait pwait )
+( cd $PKG/usr/man/man1 ; ln -sf pidwait.1 pwait.1 )
 
 # Create /etc/sysctl.d:
 mkdir -p $PKG/etc/sysctl.d
 
 cd psmisc-$PSMISCVER || exit 1
 
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -205,7 +215,7 @@ make $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/procinfo-ng-$PROCINFONGVER
-cp -a GPL-2.txt LGPL-2.1.txt LICENSE.txt COPYING* README* $PKG/usr/doc/procinfo-ng-$PROCINFONGVER
+cp -a GPL* LGPL* LICENSE* $PKG/usr/doc/procinfo-ng-$PROCINFONGVER
 
 # Now install a couple of scripts from the original procinfo package.
 cd ../procinfo-$PROCINFOVER || exit 1
@@ -223,27 +233,19 @@ cat $CWD/sysctl.default > $PKG/etc/default/sysctl.new
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-# Compress and link manpages, if any:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1 | grep -v '\.gz$') ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Back to the procps-ng main source directory...
 cd ..
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS ChangeLog COPYING* NEWS README* \
+  AUTHORS* ChangeLog* COPYING* NEWS* README* \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

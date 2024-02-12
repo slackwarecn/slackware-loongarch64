@@ -2,7 +2,7 @@
 # GCC package build script (written by volkerdi@slackware.com)
 #
 # Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -133,7 +133,8 @@ TMP=${TMP:-/tmp}
 # Extract the source code:
 cd $TMP
 rm -rf gcc-$SRCVER
-tar xvf $CWD/gcc-$SRCVER.tar.?z || exit 1
+echo "Extracting $CWD/gcc-$SRCVER.tar.?z..."
+tar xf $CWD/gcc-$SRCVER.tar.?z || exit 1
 
 # This is the main DESTDIR target:
 PKG1=$TMP/package-gcc
@@ -163,8 +164,17 @@ cat $CWD/slack-desc.gcc-gm2 > $PKG11/install/slack-desc
 
 cd gcc-$SRCVER || exit 1
 
-# Smite the fixincludes:
-zcat $CWD/patches/gcc-no_fixincludes.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+# Apply any required patches:
+for patch in $CWD/patches/*.patch $CWD/patches/*.diff ; do
+  if [ -r "$patch" ]; then
+    cat $patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  fi
+done
+for patch in $CWD/patches/*.patch.gz $CWD/patches/*.diff.gz ; do
+  if [ -r "$patch" ]; then
+    zcat $patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  fi
+done
 
 # Fix perms/owners:
 chown -R root:root .

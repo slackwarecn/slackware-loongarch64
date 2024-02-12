@@ -3,6 +3,7 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
+gzip ./extra/source/rust-for-mozilla/link_libffi.diff
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
@@ -1093,4 +1094,3 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/grub/doinst.sh
-gzip ./testing/source/rust/link_libffi.diff

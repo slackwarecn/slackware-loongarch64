@@ -1,0 +1,222 @@
+#!/bin/bash
+# Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+# Modified 2011 by Eric Hameleers <alien at slackware.com> for OpenJDK.
+
+# Modified to build libgccjit based on ideas from Didier Spaier's SlackBuild.
+
+# We REQUIRE_GLOBAL_LOCK on this package to avoid colliding with a gcc build
+# if make_world.sh is running in parallel.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=libgccjit
+SRCNAM=gcc
+SRCVER=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=$(echo $SRCVER | cut -f 1 -d _)
+BUILD=${BUILD:-1}
+
+# How many jobs to run in parallel:
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i386" ]; then
+  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=i386
+elif [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=i386
+elif [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=i386
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=i386
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=s390
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  LIB_ARCH=amd64
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=armv7hl
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=$ARCH
+fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
+
+# Temporary build location:
+TMP=${TMP:-/tmp}
+
+# Extract the source code:
+cd $TMP
+rm -rf $SRCNAM-$SRCVER
+echo "Extracting $CWD/$SRCNAM-$SRCVER.tar.?z..."
+tar xf $CWD/$SRCNAM-$SRCVER.tar.?z || exit 1
+
+# This is the DESTDIR target:
+PKG=$TMP/package-$PKGNAM
+
+# Clear the build locations:
+rm -rf $PKG
+mkdir -p $PKG
+
+cd gcc-$SRCVER || exit 1
+
+# Apply any required patches:
+for patch in $CWD/patches/*.patch $CWD/patches/*.diff ; do
+  if [ -r "$patch" ]; then
+    cat $patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  fi
+done
+for patch in $CWD/patches/*.patch.gz $CWD/patches/*.diff.gz ; do
+  if [ -r "$patch" ]; then
+    zcat $patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  fi
+done
+
+# Fix perms/owners:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 754 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 664 \) \
+  -exec chmod 644 {} \+
+
+# Install docs:
+DOCSDIR=$PKG/usr/doc/$PKGNAM-$VERSION
+mkdir -p $DOCSDIR
+cp -a \
+  COPYING.RUNTIME gcc/jit/TODO* gcc/jit/notes* \
+$DOCSDIR
+if [ -r gcc/jit/ChangeLog ]; then
+  cat gcc/jit/ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r gcc/jit/ChangeLog $DOCSDIR/ChangeLog
+fi
+
+# build gcc
+( mkdir gcc.build.lnx
+  cd gcc.build.lnx
+
+  if [ "$ARCH" != "x86_64" ]; then
+    GCC_ARCHOPTS="--with-arch=$ARCH"
+  else
+    GCC_ARCHOPTS="--disable-multilib"
+  fi
+
+  CFLAGS="$SLKCFLAGS" \
+  CXXFLAGS="$SLKCFLAGS" \
+  ../configure --prefix=/usr \
+     --libdir=/usr/lib$LIBDIRSUFFIX \
+     --mandir=/usr/man \
+     --infodir=/usr/info \
+     --enable-shared \
+     --enable-host-shared \
+     --enable-bootstrap \
+     --enable-languages=jit \
+     --enable-threads=posix \
+     --enable-checking=release \
+     --enable-objc-gc \
+     --with-system-zlib \
+     --enable-libstdcxx-dual-abi \
+     --with-default-libstdcxx-abi=new \
+     --disable-libstdcxx-pch \
+     --disable-libunwind-exceptions \
+     --enable-__cxa_atexit \
+     --disable-libssp \
+     --enable-gnu-unique-object \
+     --enable-plugin \
+     --enable-lto \
+     --disable-install-libiberty \
+     --disable-werror \
+     --with-gnu-ld \
+     --with-isl \
+     --verbose \
+     --with-arch-directory=$LIB_ARCH \
+     --disable-gtktest \
+     --enable-clocale=gnu \
+     $GCC_ARCHOPTS \
+     --target=${TARGET} \
+     --build=${TARGET} \
+     --host=${TARGET} || exit 1
+
+  make $NUMJOBS bootstrap || exit 1
+  make -C gcc DESTDIR=$PKG jit.install-common jit.install-info || exit 1
+) || exit 1
+
+# Don't ship .la files in /{,usr/}lib${LIBDIRSUFFIX}:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Get rid of empty directories (harmless, but might as well clean up):
+( cd $PKG/usr
+  rmdir -p bin lib*/gcc/*/* man/man*
+)
+
+# Compress info files, if any:
+if [ -d $PKG/usr/info ]; then
+  ( cd $PKG/usr/info
+    rm -f dir
+    gzip -9 *
+  )
+fi
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc.libgccjit > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

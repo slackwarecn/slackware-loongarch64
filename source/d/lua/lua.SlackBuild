@@ -16,7 +16,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=lua
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -69,8 +69,10 @@ tar xvf $CWD/$PKGNAM-${VERSION}.tar.?z || exit 1
 cd $PKGNAM-$VERSION
 chown -R root:root .
 
-# Fix up a to-be-installed header:
-sed -i "s|/usr/local|/usr|" src/luaconf.h
+# Also search paths under /usr/local:
+cat $CWD/lua.usr.local.patch | patch -p1 --verbose || exit 1
+
+# Fix luaconf.h header to use lib$LIBDIRSUFFIX:
 sed -i "s|lib/lua|lib$LIBDIRSUFFIX/lua|" src/luaconf.h
 
 make linux \

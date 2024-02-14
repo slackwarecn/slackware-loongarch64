@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -67,6 +67,18 @@ else
   LIBDIRSUFFIX=""
 fi
 
+if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+  cat << EOF
+***************************************************************************
+* Due to the wasmtime crate no longer supporting 32-bit x86, this package *
+* cannot be built. We'll wait 30 seconds for this blurb to be noticed,    *
+* and then we'll go ahead and try to build it anyway on the off chance    *
+* that upstream has fixed the situation. But I doubt that will happen.    *
+***************************************************************************
+EOF
+  sleep 30
+fi
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -96,9 +108,9 @@ make DESTDIR=$PKG PREFIX=/usr LIBDIR=/usr/lib${LIBDIRSUFFIX} install || exit 1
 
 # Build and install cli:
 ( cd cli
-  cargo fetch --locked --target "$ARCH-unknown-linux-gnu"
-  cargo build --release --locked --offline --all-features
-)
+  cargo fetch --locked --target "$ARCH-unknown-linux-gnu" || exit 1
+  cargo build --release --locked --offline --all-features || exit 1
+) || exit 1
 mkdir -p $PKG/usr/bin
 cp -a target/release/tree-sitter $PKG/usr/bin
 

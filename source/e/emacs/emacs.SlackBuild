@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015, 2017, 2018, 2019, 2020, 2021, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2014, 2015, 2017, 2018, 2019, 2020, 2021, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,16 +26,48 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=emacs
-BUILD=${BUILD:-1}
+PKGNAM=${PKGNAM:-emacs}
+SRCNAM=emacs
+BUILD=${BUILD:-2}
 # Determine version number the tarball is labeled with:
-TARBALLVER=${TARBALLVER:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+TARBALLVER=${TARBALLVER:-$(echo $SRCNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # OK, now what's being used as the source directory version number...  account
 # for subversions a, b, c, and d in the $TARBALLVER:
 SRCDIRVER=$(echo $TARBALLVER | tr -d a | tr -d b | tr -d c | tr -d d)
 # I guess this is the main "version"...  we don't use this variable anywhere below, but
 # defining it is traditional:
 VERSION=$SRCDIRVER
+
+# Build Emacs with native compilation. This has better performance, but the
+# installed package is larger. Pass NATIVECOMP=NO to do a normal build.
+NATIVECOMP=${NATIVECOMP:-YES}
+
+# When building with native compilation, link to the X11 libraries. This option
+# is only for native compilation builds -- regular builds will include both
+# an X11 and non-X11 version of Emacs.
+WITHX=${WITHX:-YES}
+
+# Pass this variable set to "--with-pgtk" to use GTK+3 without linking to X11
+# libraries. This might be suitable if you're going to run under Wayland.
+PGTK_OPTION=${PGTK_OPTION:-}
+
+# Set the X related options. The default X_TOOLKIT will be GTK+3, but you may
+# set the X_TOOLKIT variable to any of these: gtk, gtk2, gtk3, lucid, athena, motif.
+if [ "$WITHX" = "YES" ]; then
+  if [ "$PGTK_OPTION" = "--with-pgtk" ]; then
+    X_TOOLKIT=gtk3
+  fi
+  X_OPTIONS="--with-x --with-x-toolkit=${X_TOOLKIT:-gtk3}"
+else
+  X_OPTIONS="--with-x=no"
+fi
+
+# Set the proper options for native compilation or not:
+if [ "$NATIVECOMP" = "YES" ]; then
+  PDUMPER=${PDUMPER:-"--with-dumping=pdumper --with-native-compilation"}
+else
+  PDUMPER=${PDUMPER:-"--with-pdumper=no --with-dumping=unexec --without-native-compilation"}
+fi
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -70,9 +102,6 @@ else
   SLKCFLAGS="-O2"
 fi
 
-# Without this, the emacs-no-x11 binary won't work with the installed files:
-PDUMPER=${PDUMPER:-"--with-pdumper=no --with-dumping=unexec"}
-
 # Don't use icecream:
 PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
 
@@ -84,9 +113,9 @@ PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $PKGNAM-$TARBALLVER
-tar xvf $CWD/$PKGNAM-$TARBALLVER.tar.xz || exit 1
-cd $PKGNAM-$SRCDIRVER || exit 1
+rm -rf $SRCNAM-$TARBALLVER
+tar xvf $CWD/$SRCNAM-$TARBALLVER.tar.xz || exit 1
+cd $SRCNAM-$SRCDIRVER || exit 1
 
 chown -R root:root .
 find . \
@@ -112,67 +141,83 @@ CXXFLAGS="$SLKCFLAGS" \
   --without-gconf \
   --without-gsettings \
   --with-modules \
-  --with-x \
-  --with-x-toolkit=${X_TOOLKIT:-gtk3} \
+  $X_OPTIONS \
+  $PGTK_OPTION \
   $PDUMPER \
   --build=${ARCH}-slackware-linux || exit 1
 
-make $NUMJOBS || make || exit 1
+if [ "$NATIVECOMP" = "YES" ]; then
+  make NATIVE_FULL_AOT=1 bootstrap $NUMJOBS || make NATIVE_FULL_AOT=1 || exit 1
+else
+  make $NUMJOBS || make || exit 1
+fi
 make install DESTDIR=$PKG || exit 1
 
-( cd $PKG/usr/bin
-  rm emacs
-  mv emacs-${SRCDIRVER} emacs-${TARBALLVER}-with-x11
-)
+# When using native compilation, pdumper is required. And, with pdumper it is
+# not possible to share Emacs' support files between two Emacs binaries.
+# Slackware has traditionally installed a version of Emacs that supports X11
+# and a graphical toolkit, and another one that is not linked to X for console
+# use. So, if we are building Emacs with native compilation, we should not
+# build an additional non-X binary. Also, if the previously built Emacs didn't
+# support X, then there's no need to build another one like that.
+if [ ! "$NATIVECOMP" = "YES" -a ! "$WITHX" = "NO" ]; then
 
-# Also add a version of the binary that is not linked to X11:
-cd $TMP
-rm -rf $PKGNAM-$TARBALLVER
-tar xvf $CWD/$PKGNAM-$TARBALLVER.tar.xz || exit 1
-cd $PKGNAM-$SRCDIRVER || exit 1
+  # We're going to build an extra non-X Emacs, so rename the previously built one:
+  ( cd $PKG/usr/bin
+    rm emacs
+    mv emacs-${SRCDIRVER} emacs-${TARBALLVER}-with-x11
+  )
 
-chown -R root:root .
-find . \
-  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \+ -o \
-  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-  -exec chmod 644 {} \+
+  # Build a version of the Emacs binary that is not linked to X11:
+  cd $TMP
+  rm -rf $SRCNAM-$TARBALLVER
+  tar xvf $CWD/$SRCNAM-$TARBALLVER.tar.xz || exit 1
+  cd $SRCNAM-$SRCDIRVER || exit 1
 
-# The defaults are a little too worried about adding a few more K of pure
-# memory given the amount available on modern systems:
-sed -i "s/#define SYSTEM_PURESIZE_EXTRA 0/#define SYSTEM_PURESIZE_EXTRA 100000/g" src/puresize.h
+  chown -R root:root .
+  find . \
+    \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+    -exec chmod 755 {} \+ -o \
+    \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+    -exec chmod 644 {} \+
 
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --program-prefix="" \
-  --program-suffix="" \
-  --mandir=/usr/man \
-  --infodir=/usr/info \
-  --without-gconf \
-  --without-gsettings \
-  --with-modules \
-  --with-x=no \
-  $PDUMPER \
-  --build=${ARCH}-slackware-linux || exit 1
+  # The defaults are a little too worried about adding a few more K of pure
+  # memory given the amount available on modern systems:
+  sed -i "s/#define SYSTEM_PURESIZE_EXTRA 0/#define SYSTEM_PURESIZE_EXTRA 100000/g" src/puresize.h
 
-make $NUMJOBS || make || exit 1
+  CFLAGS="$SLKCFLAGS" \
+  CXXFLAGS="$SLKCFLAGS" \
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --program-prefix="" \
+    --program-suffix="" \
+    --mandir=/usr/man \
+    --infodir=/usr/info \
+    --without-gconf \
+    --without-gsettings \
+    --with-modules \
+    --with-x=no \
+    $PDUMPER \
+    --build=${ARCH}-slackware-linux || exit 1
 
-# Install the non-x version:
-cat src/emacs > $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
-chown root:root $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
-chmod 1755 $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
+  make $NUMJOBS || make || exit 1
 
-# Create unversioned symlinks for both versions of emacs:
-( cd $PKG/usr/bin
-  ln -sf emacs-${TARBALLVER}-with-x11 emacs-with-x11
-  ln -sf emacs-${TARBALLVER}-no-x11 emacs-no-x11
-  # Create a plain "emacs" symlink pointing to emacs-with-x11:
-  ln -sf emacs-with-x11 emacs
-)
+  # Install the non-X version:
+  cat src/emacs > $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
+  chown root:root $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
+  chmod 1755 $PKG/usr/bin/emacs-${TARBALLVER}-no-x11
+
+  # Create unversioned symlinks for both versions of emacs:
+  ( cd $PKG/usr/bin
+    ln -sf emacs-${TARBALLVER}-with-x11 emacs-with-x11
+    ln -sf emacs-${TARBALLVER}-no-x11 emacs-no-x11
+    # Create a plain "emacs" symlink pointing to emacs-with-x11:
+    ln -sf emacs-with-x11 emacs
+  )
+
+fi # build/install non-X emacs
 
 # Seems like this nonsense is finally obsolete:
 if [ -d $PKG/var/games/emacs ]; then
@@ -229,7 +274,11 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 # Tag packages that use a toolkit other than default (currently gtk3):
 if [ -z "$TAG" ] && [ ! -z "$X_TOOLKIT" ]; then
-  TAG="_$X_TOOLKIT"
+  if [ "$PGTK_OPTION" = "--with-pgtk" ]; then
+    TAG="_pgtk"
+  else
+    TAG="_$X_TOOLKIT"
+  fi
 fi
 
 cd $PKG

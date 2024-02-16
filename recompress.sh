@@ -363,7 +363,6 @@ gzip ./source/y/bsd-games/patches/0011-Fix-format-security-compiling-errors.patc
 gzip ./source/y/bsd-games/patches/0012-Fix-include-stdio.h-C-incompatibility.patch
 gzip ./source/y/bsd-games/patches/bsd-games.pom.diff
 gzip ./source/k/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
-gzip ./source/k/patches-i686/31e97d7c9ae3de072d7b424b2cf706a03ec10720.patch
 gzip ./source/n/rdist/rdist-6.1.5-14.fix-msgsndnotify-loop.diff
 gzip ./source/n/rdist/rdist-6.1.5-11.mkstemp.diff
 gzip ./source/n/rdist/rdist-6.1.5-01.links.diff

@@ -789,9 +789,6 @@ gzip ./source/l/pulseaudio/pulseaudio-autostart-meson.build.patch
 gzip ./source/l/pulseaudio/ed3d4f0837f670e5e5afb1afa5bcfc8ff05d3407.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
-gzip ./source/l/taglib-extras/taglib-extras-1.0.1-version.patch
-gzip ./source/l/taglib-extras/taglib-extras-1.0.1-taglib_ver.patch
-gzip ./source/l/taglib-extras/taglib-extras-0.1-multilib-1.patch
 gzip ./source/l/esound/esound-0.2.38-drain.patch
 gzip ./source/l/esound/esound-0.2.41-libm.patch
 gzip ./source/l/esound/remove-confusing-spew.patch
@@ -854,6 +851,7 @@ gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
 gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/libcanberra/libcanberra-0.30-wayland-1.patch
+gzip ./source/l/colord/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch

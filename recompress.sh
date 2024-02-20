@@ -200,9 +200,6 @@ gzip ./source/a/libcgroup/libcgroup.conf.diff
 gzip ./source/a/libcgroup/libcgroup.init.diff
 gzip ./source/a/libcgroup/libcgroup.loop.diff
 gzip ./source/a/libcgroup/doinst.sh
-gzip ./source/a/gptfdisk/popt-1.19-follow-up.patch
-gzip ./source/a/gptfdisk/util-linux-2.38.patch
-gzip ./source/a/gptfdisk/popt-1.19.patch
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/elilo/elilo.zeroes.cc_blob_address.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh

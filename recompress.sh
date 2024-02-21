@@ -317,7 +317,6 @@ gzip ./source/a/dcron/patches/0003-CHANGELOG-tweak.patch
 gzip ./source/a/dcron/run-parts.8
 gzip ./source/a/dcron/crontab.root
 gzip ./source/a/dcron/doinst.sh
-gzip ./source/a/dcron/run-parts
 gzip ./source/a/patch/0001-Refuse-to-apply-ed-scripts-by-default.patch
 gzip ./source/a/cryptsetup/doinst.sh
 gzip ./source/a/pcmciautils/doinst.sh

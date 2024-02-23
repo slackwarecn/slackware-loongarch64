@@ -144,6 +144,16 @@ elif [ -x /etc/rc.d/rc.networkmanager ]; then
   /etc/rc.d/rc.networkmanager start
 fi
 
+# Start Avahi mDNS/DNS-SD daemon:
+if [ -x /etc/rc.d/rc.avahidaemon ]; then
+  /etc/rc.d/rc.avahidaemon start
+fi
+
+# Start Avahi mDNS/DNS-SD DNS server configuration daemon:
+if [ -x /etc/rc.d/rc.avahidnsconfd ]; then
+  /etc/rc.d/rc.avahidnsconfd start
+fi
+
 # Start networking daemons:
 if [ -x /etc/rc.d/rc.inet2 ]; then
   /etc/rc.d/rc.inet2

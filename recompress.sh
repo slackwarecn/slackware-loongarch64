@@ -475,7 +475,7 @@ gzip ./source/n/nn/nn_6.7.3-10.diff
 gzip ./source/n/nn/nn.badnntphost.diff
 gzip ./source/n/nn/m-x86_64.h
 gzip ./source/n/nn/NNTP
-gzip ./source/n/NetworkManager/patches/9cc2591fe871b29ce9a743dfb2cd189cb1580bde.dhcpcd.graceful.exit.patch
+gzip ./source/n/NetworkManager/patches/dhcpcd.graceful.exit.patch
 gzip ./source/n/NetworkManager/doinst.sh
 gzip ./source/n/netwatch/netwatch.phonemyself.diff
 gzip ./source/n/netwatch/netwatch.makefile.diff
@@ -583,12 +583,9 @@ gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
-gzip ./source/ap/hplip/hplip.is_alive.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
-gzip ./source/ap/hplip/hplip.python3.10.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
-gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/fix-desktop-file.patch
 gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
 gzip ./source/ap/lxc/doinst.sh
@@ -845,6 +842,7 @@ gzip ./source/l/libindicator/libindicator.LIBM.diff
 gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
 gzip ./source/l/pilot-link/pilot-link.png14.diff
 gzip ./source/l/pipewire/doinst.sh
+gzip ./source/l/avahi/doinst.sh
 gzip ./source/l/libcanberra/libcanberra-0.30-wayland-1.patch
 gzip ./source/l/colord/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff

@@ -1,6 +1,6 @@
---- ./src/core/dhcp/nm-dhcp-client.h.orig	2022-03-06 07:02:58.000000000 -0600
-+++ ./src/core/dhcp/nm-dhcp-client.h	2022-03-09 15:07:05.974017045 -0600
-@@ -260,7 +260,7 @@
+--- ./src/core/dhcp/nm-dhcp-client.h.orig	2024-02-22 00:44:13.335158315 -0600
++++ ./src/core/dhcp/nm-dhcp-client.h	2024-02-22 19:41:56.134066083 -0600
+@@ -249,7 +249,7 @@
  /* Backend helpers for subclasses */
  void nm_dhcp_client_stop_existing(const char *pid_file, const char *binary_name);
  
@@ -9,8 +9,8 @@
  
  void nm_dhcp_client_start_timeout(NMDhcpClient *self);
  
---- ./src/core/dhcp/nm-dhcp-dhcpcd.c.orig	2022-02-23 09:40:42.000000000 -0600
-+++ ./src/core/dhcp/nm-dhcp-dhcpcd.c	2022-03-09 15:07:05.974017045 -0600
+--- ./src/core/dhcp/nm-dhcp-dhcpcd.c.orig	2024-02-22 19:41:56.134066083 -0600
++++ ./src/core/dhcp/nm-dhcp-dhcpcd.c	2024-02-22 19:47:18.556073296 -0600
 @@ -158,31 +158,17 @@
  {
      NMDhcpDhcpcd *self = NM_DHCP_DHCPCD(client);
@@ -32,7 +32,7 @@
 -         */
 -        if (kill(pid, sig) == -1) {
 -            errsv = errno;
--            _LOGE("failed to kill dhcpcd %d:%s", errsv, strerror(errsv));
+-            _LOGE("failed to kill dhcpcd %d:%s", errsv, nm_strerror_native(errsv));
 -        }
 -
 -        /* When this function exits NM expects the PID to be -1.
@@ -47,20 +47,20 @@
      }
  }
  
---- ./src/core/dhcp/nm-dhcp-dhclient.c.orig	2022-02-23 09:40:42.000000000 -0600
-+++ ./src/core/dhcp/nm-dhcp-dhclient.c	2022-03-09 15:07:05.974017045 -0600
-@@ -617,7 +617,7 @@
+--- ./src/core/dhcp/nm-dhcp-dhclient.c.orig	2024-02-22 00:44:13.335158315 -0600
++++ ./src/core/dhcp/nm-dhcp-dhclient.c	2024-02-22 19:41:56.134066083 -0600
+@@ -622,7 +622,7 @@
  
-         if (dhclient_start(client, NULL, TRUE, &rpid, NULL)) {
+         if (dhclient_start(client, FALSE, TRUE, FALSE, &rpid, NULL)) {
              /* Wait a few seconds for the release to happen */
 -            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client));
 +            nm_dhcp_client_stop_pid(rpid, nm_dhcp_client_get_iface(client), SIGTERM);
          }
      }
  }
---- ./src/core/dhcp/nm-dhcp-client.c.orig	2022-03-06 07:02:58.000000000 -0600
-+++ ./src/core/dhcp/nm-dhcp-client.c	2022-03-09 15:08:51.964019416 -0600
-@@ -204,14 +204,14 @@
+--- ./src/core/dhcp/nm-dhcp-client.c.orig	2024-02-22 00:44:13.334158313 -0600
++++ ./src/core/dhcp/nm-dhcp-client.c	2024-02-22 19:41:56.134066083 -0600
+@@ -367,14 +367,14 @@
  }
  
  void
@@ -77,7 +77,7 @@
                               LOGD_DHCP,
                               name ?: "dhcp-client",
                               NULL,
-@@ -232,7 +232,7 @@
+@@ -395,7 +395,7 @@
      if (priv->pid > 0) {
          /* Clean up the watch handler since we're explicitly killing the daemon */
          watch_cleanup(self);

@@ -79,7 +79,6 @@ gzip ./source/tcl/tix/tix.tcl8.5.patch
 gzip ./source/tcl/tix/tix.soname.patch
 gzip ./source/tcl/hfsutils/hfsutils.errno.diff
 gzip ./source/a/attr/doinst.sh
-gzip ./source/a/etc/nsswitch.conf
 gzip ./source/a/etc/doinst.sh
 gzip ./source/a/syslinux/syslinux.glibc228.diff
 gzip ./source/a/sysvinit/sysvinit.always.define.version.diff
@@ -586,6 +585,7 @@ gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
+gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/fix-desktop-file.patch
 gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
 gzip ./source/ap/lxc/doinst.sh

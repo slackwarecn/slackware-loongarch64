@@ -80,10 +80,8 @@ rm -f etc/mtab.new
 rm -f etc/motd.new
 rm -f etc/ld.so.conf.new
 rm -f etc/hosts.new
-#rm -f etc/shadow.new
 rm -f etc/networks.new
 rm -f etc/HOSTNAME.new
-#rm -f etc/gshadow.new
 rm -f etc/shells.new
 rm -f etc/printcap.new
 #rm -f etc/issue.new
@@ -93,6 +91,14 @@ rm -f etc/issue.net.new
 rm -f var/run/utmp.new
 rm -f var/log/lastlog.new
 rm -f var/log/wtmp.new
+
+# These are just a hazard to keep around, honestly.
+# There's no unique information in them anyway, as any new entries are merged
+# into the existing files automatically.
+rm -f etc/group.new
+rm -f etc/gshadow.new
+rm -f etc/passwd.new
+rm -f etc/shadow.new
 
 # Make sure $HOME is correct for user sddm:
 chroot . /usr/sbin/usermod -d /var/lib/sddm sddm > /dev/null 2> /dev/null

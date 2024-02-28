@@ -1,0 +1,326 @@
+#!/bin/sh
+
+# Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Merged some ideas from Alex Sarmardzic's script for qt4 at SlackBuilds.org
+# ^^ Modified by Robby Workman <rworkman@slackware.com> for QT4 & KDE4
+#
+# Modifications 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2023  Eric Hameleers, Eindhoven, NL
+# Modifications for qt 5.2.0 2013 by Michael James, AU
+# Modifications for qt 5.x by Eric Hameleers, Eindhoven, NL
+# Modifications for qt 6.x 2023, 2024 by Eric Hameleers, Eindhoven, NL
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=qt6
+VERSION=$(ls qt-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
+BUILD=${BUILD:-1}
+PKGSRC=$(echo $VERSION | cut -d - -f 1)
+PKGVER=$(echo $VERSION | tr - _)
+
+USE_CODECS=${USE_CODECS:-YES}
+SYSTEM_FFMPEG=${SYSTEM_FFMPEG:-YES}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-${PKGVER}-${ARCH}-${BUILD}${TAG}.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+  SLKLDFLAGS=""
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i586" ]; then
+  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  SLKLDFLAGS=""
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "s390" ]; then
+  SLKCFLAGS="-O2"
+  SLKLDFLAGS=""
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  SLKLDFLAGS="-L/usr/lib64"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  # To prevent "qatomic_armv6.h error: output number 2 not directly addressable"
+  # More permanent solution is to patch gcc:
+  # http://bazaar.launchpad.net/~linaro-toolchain-dev/gcc-linaro/4.6/revision/106731
+  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16 -fno-strict-volatile-bitfields"
+  SLKLDFLAGS=""
+  LIBDIRSUFFIX=""
+else
+  SLKCFLAGS="-O2"
+  SLKLDFLAGS=""
+  LIBDIRSUFFIX=""
+fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
+
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
+NINJAJOBS=${NINJAJOBS:-"$(echo $NUMJOBS | cut -f 2 -d j | tr -d ' ')"}
+export NINJAJOBS
+
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-${PKGNAM}
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+cd $TMP
+rm -rf qt-everywhere-src-$VERSION
+echo "Extracting qt-everywhere-src-$VERSION"
+tar xf $CWD/qt-everywhere-src-$VERSION.tar.?z* || exit 1
+cd qt-everywhere-src-$PKGSRC || exit 1
+
+chown -R root:root .
+find . \
+ \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+ -exec chmod 755 {} \+ -o \
+ \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+ -exec chmod 644 {} \+
+
+# If we build our own Qt, unset the QT-related environment variables,
+# so that a pre-existing Qt will not be picked up and create errors later:
+unset QTDIR
+unset QT6DIR
+NEWPATH="/usr/lib${LIBDIRSUFFIX}/${PKGNAM}/bin"
+for elem in $(echo $PATH | cut -d: --output-delimiter=' ' -f1-) ; do
+  if ! $(echo "$elem"| grep -q /qt) ; then
+    NEWPATH="$NEWPATH:$elem"
+  fi
+done
+export PATH="$NEWPATH"
+
+# Fix path to mysql header:
+cat $CWD/patches/qt5.mysql.h.diff | patch -p1 --verbose || exit 1
+
+# If PulseAudio is not found, use the _alsa $TAG and disable it in the build:
+if ! pkg-config --exists libpulse 2>/dev/null ; then
+  USE_PULSEAUDIO=${USE_PULSEAUDIO:-"OFF"}
+  TAG="${TAG}_alsa"
+else
+  USE_PULSEAUDIO=${USE_PULSEAUDIO:-"ON"}
+  TAG=${TAG:-""}
+fi
+
+# Re-add support for 32bit architectures - Google no longer supports it:
+sed -i qtwebengine/src/3rdparty/chromium/BUILD.gn \
+  -e 's/target_os != "linux" || /target_os == "linux" || /'
+pushd qtwebengine
+  # Thanks Debian! See https://salsa.debian.org/qt-kde-team/qt6/qt6-webengine/-/tree/master/debian/patches
+  cat $CWD/patches/qt6-webengine_32bit_compressing_files.patch | patch -p1 --verbose || exit 1
+popd
+cat $CWD/patches/nodejs-allow-32bit.patch | patch -p1 --verbose || exit 1
+
+# GCC13 requires this include:
+cat $CWD/patches/qt6-3d_gcc13.patch | patch -p0 --verbose || exit 1
+
+# The qtquick3dphysics only compiles on a limited set of architectures:
+case "${ARCH}" in
+  i?86 | arm | s390) DO_PHYSX3D="OFF" ;;
+  *)                 DO_PHYSX3D="ON" ;;
+esac
+
+# Use our custom compiler and linker flags:
+sed -e "s|^\(QMAKE_CFLAGS_RELEASE.*\)|\1 ${SLKCFLAGS}|" \
+  -i qtbase/mkspecs/common/gcc-base.conf || exit 1
+sed -e "s|^\(QMAKE_LFLAGS_RELEASE.*\)|\1 ${SLKLDFLAGS}|" \
+  -i qtbase/mkspecs/common/g++-unix.conf || exit 1
+
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+export OPENSOURCE_CXXFLAGS="$SLKCFLAGS"
+export QTDIR="${TMP}/qt-everywhere-src-${PKGSRC}"
+export LD_LIBRARY_PATH="${QTDIR}/qtbase/lib:${QTDIR}/qttools/lib:${LD_LIBRARY_PATH}"
+export QT_PLUGIN_PATH="${QTDIR}/qtbase/plugins"
+cmake -S $(pwd) -B build-${PKGNAM} \
+  -G Ninja \
+  -Wno-dev \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+  -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+  -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DBUILD_qtquick3dphysics:BOOL=${DO_PHYSX3D} \
+  -DINSTALL_BINDIR=/usr/lib${LIBDIRSUFFIX}/qt6/bin \
+  -DINSTALL_PUBLICBINDIR=usr/bin \
+  -DINSTALL_LIBDIR=/usr/lib${LIBDIRSUFFIX} \
+  -DINSTALL_LIBEXECDIR=/usr/lib${LIBDIRSUFFIX}/qt6/libexec \
+  -DINSTALL_ARCHDATADIR=/usr/lib${LIBDIRSUFFIX}/qt6 \
+  -DINSTALL_DATADIR=/usr/share/qt6 \
+  -DINSTALL_INCLUDEDIR=/usr/include/qt6 \
+  -DINSTALL_MKSPECSDIR=lib/qt6/mkspecs \
+  -DINSTALL_DOCDIR=/usr/doc/qt6-${PKGVER} \
+  -DINSTALL_EXAMPLESDIR=/usr/doc/qt6-${PKGVER}/examples \
+  -DFEATURE_libproxy=ON \
+  -DFEATURE_no_direct_extern_access=ON \
+  -DFEATURE_openssl_linked=ON \
+  -DFEATURE_pulseaudio="${USE_PULSEAUDIO}" \
+  -DFEATURE_system_sqlite=ON \
+  -DFEATURE_system_xcb_xinput=ON \
+  -DFEATURE_use_gold_linker=ON \
+  -DFEATURE_webengine_proprietary_codecs="${USE_CODECS}" \
+  -DFEATURE_webengine_system_ffmpeg="${SYSTEM_FFMPEG}" \
+  -DFEATURE_webengine_system_pulseaudio="${USE_PULSEAUDIO}" \
+  -DFEATURE_webengine_webrtc_pipewire=ON \
+  -DQT_BUILD_EXAMPLES=OFF || exit 1
+cmake --build build-${PKGNAM} --parallel $NINJAJOBS || cmake --build build-${PKGNAM} || exit 1
+DESTDIR=$PKG cmake --install build-${PKGNAM} || exit 1
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Remove rpaths:
+for file in $(find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : 2> /dev/null) ; do
+  if [ ! "$(patchelf --print-rpath $file 2> /dev/null)" = "" ]; then
+    patchelf --remove-rpath $file
+  fi
+done
+
+# Fix the path in prl files:
+find "$PKG/usr/lib${LIBDIRSUFFIX}" -type f -name '*.prl' \
+  -exec sed -i -e '/^QMAKE_PRL_BUILD_DIR/d;s/\(QMAKE_PRL_LIBS =\).*/\1/' {} \;
+
+# Install symlinks to the Qt6 binaries in the $PATH:
+mkdir -p $PKG/usr/bin
+pushd $PKG
+# Setting INSTALL_PUBLICBINDIR creates user_facing_tool_links.txt files:
+find $TMP/qt-everywhere-src-$PKGSRC/build-${PKGNAM} \
+  -mindepth 1 -maxdepth 2 -name user_facing_tool_links.txt \
+  | xargs cat | sort | uniq \
+  | while read MYINP ; do ln -s $MYINP ; done
+popd
+
+# Set the QT6DIR variable in the environment:
+mkdir -p $PKG/etc/profile.d
+sed -e "s,@LIBDIRSUFFIX@,${LIBDIRSUFFIX},g" $CWD/profile.d/$PKGNAM.sh \
+  > $PKG/etc/profile.d/$PKGNAM.sh
+sed -e "s,@LIBDIRSUFFIX@,${LIBDIRSUFFIX},g" $CWD/profile.d/$PKGNAM.csh \
+  > $PKG/etc/profile.d/$PKGNAM.csh
+chmod 0755 $PKG/etc/profile.d/*
+
+# Add menu entries for all those hidden but great Qt applications:
+# Qt6 logo:
+mkdir -p $PKG/usr/share/icons/hicolor/{48x48,128x128}/apps
+convert qtdoc/doc/src/images/qt-logo.png  -resize 48x48 $PKG/usr/share/icons/hicolor/48x48/apps/qt6-logo.png
+convert qtdoc/doc/src/images/qt-logo.png  -resize 128x128 $PKG/usr/share/icons/hicolor/128x128/apps/qt6-logo.png
+# Assistant icons
+install -p -m644 -D qttools/src/assistant/assistant/images/assistant.png $PKG/usr/share/icons/hicolor/32x32/apps/qt6-assistant.png
+install -p -m644 -D qttools/src/assistant/assistant/images/assistant-128.png $PKG/usr/share/icons/hicolor/128x128/apps/qt6-assistant.png
+# Designer icon
+install -p -m644 -D qttools/src/designer/src/designer/images/designer.png $PKG/usr/share/icons/hicolor/128x128/apps/qt6-designer.png
+# QDbusViewer icons
+install -p -m644 qttools/src/qdbus/qdbusviewer/images/qdbusviewer.png $PKG/usr/share/icons/hicolor/32x32/apps/qt6-qdbusviewer.png
+install -p -m644 qttools/src/qdbus/qdbusviewer/images/qdbusviewer-128.png $PKG/usr/share/icons/hicolor/128x128/apps/qt6-qdbusviewer.png
+# Linguist icons
+for icon in qttools/src/linguist/linguist/images/icons/linguist-*-32.png ; do
+  size=$(echo $(basename ${icon}) | cut -d- -f2)
+  install -p -m644 -D ${icon} $PKG/usr/share/icons/hicolor/${size}x${size}/apps/qt6-linguist.png
+done
+
+# And the .desktop files too:
+mkdir -p $PKG/usr/share/applications
+cat <<EOF > $PKG/usr/share/applications/qt6-designer.desktop
+[Desktop Entry]
+Name=Qt6 Designer
+GenericName=Interface Designer
+Comment=Design GUIs for Qt6 applications
+Exec=designer6
+Icon=qt6-designer
+MimeType=application/x-designer;
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Development;
+EOF
+cat <<EOF > $PKG/usr/share/applications/qt6-assistant.desktop
+[Desktop Entry]
+Name=Qt6 Assistant 
+Comment=Shows Qt6 documentation and examples
+Exec=assistant6
+Icon=qt6-assistant
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Development;Documentation;
+EOF
+cat <<EOF > $PKG/usr/share/applications/qt6-linguist.desktop
+[Desktop Entry]
+Name=Qt6 Linguist 
+Comment=Add translations to Qt6 applications
+Exec=linguist6
+Icon=qt6-linguist
+MimeType=text/vnd.trolltech.linguist;application/x-linguist;
+Terminal=false
+Encoding=UTF-8
+Type=Application
+Categories=Qt;Development;
+EOF
+cat <<EOF > $PKG/usr/share/applications/qt6-qdbusviewer.desktop
+[Desktop Entry]
+Name=Qt6 QDbusViewer 
+GenericName=Qt6 D-Bus Debugger
+Comment=Debug D-Bus applications
+Exec=qdbusviewer6
+Icon=qt6-qdbusviewer
+Terminal=false
+Type=Application
+Categories=Qt;Development;Debugger;
+EOF
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/$PKGNAM-$PKGVER
+cp -a \
+  README* LICENSE.* \
+  qtwebengine/{CHROMIUM_VERSION,LICENSE.Chromium} \
+  $PKG/usr/doc/$PKGNAM-$PKGVER
+find -maxdepth 2 -name LICENSES \
+  | xargs -I{} cp -ia --parents {} $PKG/usr/doc/$PKGNAM-$PKGVER/
+if [ -d $PKG/usr/lib${LIBDIRSUFFIX}/qt6/doc/html ]; then
+  ( cd $PKG/usr/doc/$PKGNAM-$PKGVER
+    ln -sf /usr/lib${LIBDIRSUFFIX}/qt6/doc/html .
+  )
+fi
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$PKGVER-$ARCH-${BUILD}${TAG}.txz

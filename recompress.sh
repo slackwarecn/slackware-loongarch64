@@ -507,6 +507,7 @@ gzip ./source/n/nc/nc.diff
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-message.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
+gzip ./source/n/wpa_supplicant/patches/8e6485a1bcb0baffdea9e55255a81270b768439c.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh

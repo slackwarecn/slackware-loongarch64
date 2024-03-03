@@ -88,15 +88,18 @@ find -L . \
 
 rm -f setuptools/*.exe
 
-# Recent Python versions support both a libdir (for pure Python modules) and a
-# platlib (for $ARCH specific modules). We've always patched Python to use
-# the platform directory (such as /usr/lib64/python3.9/site-packages on x86_64)
-# for all modules. Perhaps we will rethink this, but since an installed
-# setuptools now takes priority for reporting the libdir (and this no longer
-# matches the platlib on architectures such as x86_64), let's patch setuptools
-# to agree with Python:
-if [ "$LIBDIRSUFFIX" = "64" ]; then
-  zcat $CWD/setuptools.x86_64.diff.gz | patch -p1 --verbose || exit 1
+# After Python 3.9, we will not mess with the upstream module layout again.
+if python3 --version | grep -q "Python 3.9." ; then
+  # Recent Python versions support both a libdir (for pure Python modules) and a
+  # platlib (for $ARCH specific modules). We've always patched Python to use
+  # the platform directory (such as /usr/lib64/python3.9/site-packages on x86_64)
+  # for all modules. Perhaps we will rethink this, but since an installed
+  # setuptools now takes priority for reporting the libdir (and this no longer
+  # matches the platlib on architectures such as x86_64), let's patch setuptools
+  # to agree with Python:
+  if [ "$LIBDIRSUFFIX" = "64" ]; then
+    zcat $CWD/setuptools.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  fi
 fi
 
 unshare -n python3 -m build --wheel --no-isolation || exit 1

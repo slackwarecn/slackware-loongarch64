@@ -76,12 +76,13 @@ find . \
   -exec chmod 644 {} \+
 
 # directory for python packages
-PYTHONDIR=$(python3 -c "import sys, os; print(os.path.join('/usr/lib${LIBDIRSUFFIX}', 'python%s' % sys.version[:3], 'site-packages'))")
+PYTHONDIR=$(python3 -c "import sys, os; print(os.path.join('/usr/lib${LIBDIRSUFFIX}', 'python%s' % sys.version[:4], 'site-packages'))")
 
 mkdir -p ${PKG}${PYTHONDIR}
 
+# This is a bootstrap package for building via wheels.
+# Stick with this build method.
 unshare -n python3 -m flit_core.wheel || exit 1
-
 python3 bootstrap_install.py --installdir ${PKG}${PYTHONDIR} dist/flit_core-*.whl
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

@@ -55,6 +55,7 @@ h264parse
 hdvparse
 hls
 id3tag
+insertbin
 inter
 interlace
 invtelecine
@@ -73,6 +74,7 @@ mpegpsmux
 mpegtsdemux
 mpegtsmux
 mpegvideoparse
+mse
 mxf
 netsim
 nsf
@@ -103,6 +105,7 @@ switchbin
 timecode
 transcode
 tta
+unixfd
 valve
 videofilters
 videoframe_audiolevel

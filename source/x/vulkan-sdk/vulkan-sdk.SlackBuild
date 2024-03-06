@@ -2,7 +2,7 @@
 
 # Slackware build script for vulkan-sdk
 
-# Copyright 2016, 2017, 2018, 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2016, 2017, 2018, 2020, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,6 +28,10 @@ PKGNAM=vulkan-sdk
 # The ./VERSION file is created by ./fetch-sources.sh:
 VERSION=${VERSION:-$(cat VERSION)}
 BUILD=${BUILD:-1}
+
+# Choose a compiler (gcc/g++ or clang/clang++ if you'd like to debug that ;-)
+export CC=${CC:-gcc}
+export CXX=${CXX:-g++}
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -356,6 +360,32 @@ cd build
   make install DESTDIR=$PKG || exit 1
 
 cd $TMP
+tar xvf $CWD/volk-vulkan-sdk-$VOLK_VERSION.tar.?z || exit 1
+cd $TMP/volk-vulkan-sdk-$VOLK_VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+mkdir -p build
+cd build
+  cmake \
+    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
+    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
+    -DVOLK_INSTALL=ON \
+    ..
+
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+
+cd $TMP
 tar xvf $CWD/Vulkan-Tools-vulkan-sdk-$VULKAN_TOOLS_VERSION.tar.?z || exit 1
 cd $TMP/Vulkan-Tools-vulkan-sdk-$VULKAN_TOOLS_VERSION
 
@@ -479,6 +509,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Use python3:
+cat $CWD/shaderc-2023.8.python3.patch | patch -p1 --verbose || exit 1
+
 # Report correct versions in `glslc --version`
 # git describe output collected in fetch-sources.sh
 sed -i "s|\['git', 'describe'\]|\['cat', '.git-version'\]|" \
@@ -571,13 +604,8 @@ cd $TMP
 tar xvf $CWD/DirectXShaderCompiler-$DXC_VERSION.tar.?z || exit 1
 cd $TMP/DirectXShaderCompiler-$DXC_VERSION
 
-# Fix warning/error on gcc13 about changed meaning
-# Thanks to gentoo: https://bugs.gentoo.org/905173
-zcat $CWD/DirectXShaderCompiler-gcc13.patch.gz | patch -p1 --verbose || exit 1
-
-# Don't link unit test library in dxa.
-# Upstream commit daf1386161cd6912fbd358f13d74e81466edab8b
-zcat $CWD/DirectXShaderCompiler-dump-reflection.patch.gz | patch -p1 --verbose || exit 1
+# This breaks the build, so skip it:
+cat $CWD/DirectXShaderCompiler.noverify.patch | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -600,7 +628,7 @@ cd build
     -DHLSL_INCLUDE_TESTS="OFF" \
     ..
 
-  make $NUMJOBS || make || exit 1
+  make $NUMJOBS VERBOSE=1 || make VERBOSE=1 || exit 1
 
   # "make install" is essentially useless at this point
   # It installs a bunch of unnecessary llvm files
@@ -649,7 +677,10 @@ tar xvf $CWD/Vulkan-Profiles-vulkan-sdk-$VULKAN_PROFILES_VERSION.tar.?z || exit 
 cd $TMP/Vulkan-Profiles-vulkan-sdk-$VULKAN_PROFILES_VERSION
 
 # do not depend on python-jsonschema
-sed -i "/jsonschema/d" scripts/gen_profiles_solution.py
+#sed -i "/jsonschema/d" scripts/gen_profiles_solution.py
+
+# Fix indentation error:
+#cat $CWD/Vulkan-Profiles-vulkan-sdk.indent.patch | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -675,32 +706,6 @@ cd build
     -Djsoncpp_DIR="$TMP/jsoncpp-$JSONCPP_VERSION/build/install/usr/lib$LIBDIRSUFFIX/cmake/jsoncpp" \
     -DVulkan_INCLUDE_DIR="$PKG/usr/include/vulkan" \
     -DPROFILES_BUILD_TESTS=OFF \
-    ..
-
-  make $NUMJOBS || make || exit 1
-  make install DESTDIR=$PKG || exit 1
-
-cd $TMP
-tar xvf $CWD/volk-vulkan-sdk-$VOLK_VERSION.tar.?z || exit 1
-cd $TMP/volk-vulkan-sdk-$VOLK_VERSION
-
-chown -R root:root .
-find . \
-  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \+ -o \
-  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-  -exec chmod 644 {} \+
-
-mkdir -p build
-cd build
-  cmake \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DCMAKE_INSTALL_SYSCONFDIR=/usr/share \
-    -DVULKAN_HEADERS_INSTALL_DIR=$PKG/usr \
-    -DVOLK_INSTALL=ON \
     ..
 
   make $NUMJOBS || make || exit 1

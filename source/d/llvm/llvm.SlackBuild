@@ -3,7 +3,7 @@
 # Slackware build script for llvm
 
 # Copyright 2008-2016 Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2012, 2013, 2014, 2015, 2016, 2018, 2019, 2020, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -99,13 +99,6 @@ PY2=$(python -c 'from distutils.sysconfig import get_python_lib; print(get_pytho
 # Python3 short version:
 PY3=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' | cut -f 2 -d n | cut -f 1 -d /)
 
-# Sadly, glibc-2.30 exposed some sort of problem with clang and icecream.
-# The symptom is a compile failure that says none of the types in
-# <linux/types.h> are defined, even though they are. gcc/g++ seem unaffected.
-# For now, not much choice other than to disable this.
-# Don't use icecream:
-#PATH=$(echo $PATH | sed "s|/usr/libexec/icecc/bin||g" | tr -s : | sed "s/^://g" | sed "s/:$//g")
-
 rm -rf $PKG $BUILDDIR
 mkdir -p $TMP $PKG $BUILDDIR
 cd $BUILDDIR
@@ -123,6 +116,10 @@ mv cmake-$VERSION.src cmake
 echo "Extracting $CWD/third-party-$VERSION.src.tar.xz..."
 tar xf $CWD/third-party-$VERSION.src.tar.xz || exit 1
 mv third-party-$VERSION.src third-party
+echo "Extracting $CWD/runtimes-$VERSION.src.tar.xz..."
+tar xf $CWD/runtimes-$VERSION.src.tar.xz || exit 1
+mv runtimes-${VERSION}.src/cmake/Modules/* cmake/Modules || exit 1
+rm -r runtimes-${VERSION}.src
 
 rm -rf $PKGNAM-${VERSION}.src $PKGNAM-${VERSION}
 echo "Extracting $CWD/$PKGNAM-$VERSION.src.tar.xz..."
@@ -182,9 +179,8 @@ if [ -f ./tools/lldb/source/Utility/CMakeLists.txt ]; then
   fi
 fi
 
-# These files are not present for some reason, but they were found in a git
-# pull of the entire project:
-cp -a $CWD/missing-runtime-modules/*.cmake ../cmake/Modules/
+# Oops, the rc tag was left in with the 18.1.0 release:
+zcat $CWD/llvm.wrong.LLVM_LIBDIR_SUFFIX.patch.gz | patch -p1 --verbose || exit 1
 
 # These hackish links seem to be required...
 cd ..
@@ -243,6 +239,7 @@ cd build
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
     -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=ON \
+    -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
     $CLANGD \
     ..  || exit 1
 
@@ -288,12 +285,15 @@ python3 -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY3}/site-packages/clan
 python3 -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY3}/site-packages/clang"
 python -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/lldb"
 python -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/lldb"
-python -m compileall "$PKG/usr/share/scan-view"
-python -O -m compileall "$PKG/usr/share/scan-view"
-python -m compileall "$PKG/usr/share/clang"
-python -O -m compileall "$PKG/usr/share/clang"
-python -m compileall "$PKG/usr/share/opt-viewer"
-python -O -m compileall "$PKG/usr/share/opt-viewer"
+python3 -m compileall "$PKG/usr/share/scan-view"
+python3 -O -m compileall "$PKG/usr/share/scan-view"
+python3 -m compileall "$PKG/usr/share/clang"
+python3 -O -m compileall "$PKG/usr/share/clang"
+python3 -m compileall "$PKG/usr/share/opt-viewer"
+python3 -O -m compileall "$PKG/usr/share/opt-viewer"
+
+# Nevermind, we're not shipping this python2 crap:
+rm -rf $PKG/usr/lib$LIBDIRSUFFIX/python${PY2}
 
 # Move man page directory:
 mv $PKG/usr/share/man $PKG/usr/

@@ -372,7 +372,6 @@ gzip ./source/n/rdist/rdist-6.1.5-10.ssh.diff
 gzip ./source/n/rdist/rdist-6.1.5-04.bison.diff
 gzip ./source/n/rdist/rdist-6.1.5-03.hardlink.diff
 gzip ./source/n/rdist/rdist-6.1.5-12.stat64.diff
-gzip ./source/n/bluez/bluez-5.51-obexd_without_systemd-1.patch
 gzip ./source/n/bluez/doinst.sh
 gzip ./source/n/iproute2/doinst.sh
 gzip ./source/n/tftp-hpa/tftp-hpa.fcommon.diff

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2009, 2010, 2011, 2012, 2013, 2016, 2018  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -76,8 +76,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-zcat $CWD/bluez-5.51-obexd_without_systemd-1.patch.gz | patch -p1 --verbose || exit 1
-
 sed -i -e 's|-lreadline|\0 -lncursesw|g' Makefile.{in,tools}
 
 autoreconf -vif
@@ -126,15 +124,19 @@ chmod 644 $PKG/lib/modprobe.d/btusb.conf
 mkdir -p $PKG/usr/sbin
 ln -s ../libexec/bluetooth/bluetoothd $PKG/usr/sbin
 
-# Move the dbus config file to the system directory
+# Move the dbus config file to the system directory (we're replacing it anyway, so this is just in case)
 mkdir -p $PKG/usr/share/dbus-1/system.d/
 mv $PKG/etc/dbus-1/system.d/* $PKG/usr/share/dbus-1/system.d/
 rmdir --parents $PKG/etc/dbus-1/system.d/
 
-# Fix substitution in /usr/share/dbus-1/services/org.bluez.obex.service:
-if [ -x $PKG/usr/libexec/bluetooth/obexd ]; then
-  sed -i "s|@libexecdir@|/usr/libexec|g" $PKG/usr/share/dbus-1/services/org.bluez.obex.service
-fi
+# Install the non-systemd service file. Not all sessions run systemd --user
+# (actually, the majority don't even on machines using that thing), so the dbus
+# daemon must be able to spawn obexd directly, and to do so it needs the full
+# path of the daemon.
+mkdir -p $PKG/usr/share/dbus-1/services
+cp -a $CWD/config/org.bluez.obex.service $PKG/usr/share/dbus-1/services
+chown root:root $PKG/usr/share/dbus-1/services/org.bluez.obex.service
+chmod 644 $PKG/usr/share/dbus-1/services/org.bluez.obex.service
 
 # Install the configuration files
 mkdir -p $PKG/etc/bluetooth $PKG/etc/default

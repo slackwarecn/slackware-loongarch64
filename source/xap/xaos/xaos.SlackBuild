@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright 2010 B. Watson (yalhcru@gmail.com)
-# Copyright 2010, 2015, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2010, 2015, 2018, 2020, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,9 +24,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xaos
-SRCNAM=XaoS-release
-VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+SRCNAM=XaoS
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | cut -f 2 -d -)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -51,37 +51,48 @@ NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
-OUTPUT=${OUTPUT:-$TMP}
 
 rm -rf $PKG
-mkdir -p $TMP $PKG $OUTPUT
+mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $SRCNAM-$VERSION
-tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
-cd $SRCNAM-$VERSION || exit 1
+rm -rf $SRCNAM-$VERSION*
+tar xvf $CWD/$SRCNAM-$VERSION*.tar.?z || exit 1
+cd $SRCNAM-$VERSION* || exit 1
 
 chown -R root:root .
 chmod -R a-s,u+w,go+r-w .
 
-qmake-qt5
-make $NUMJOBS || exit 1
+# Configure, build, and install:
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
-mkdir -p $PKG/usr/bin
-cp -a bin/xaos $PKG/usr/bin/xaos
-chown root:root $PKG/usr/bin/xaos
-chmod 755 $PKG/usr/bin/xaos
-
+# Stuff gets installed in the wrong place (and isn't currently configurable)
+# but the binary knows where it's supposed to be so we'll just move it:
 mkdir -p $PKG/usr/share/XaoS
-cp -a catalogs tutorial $PKG/usr/share/XaoS
+mv $PKG/usr/{catalogs,examples,tutorial} $PKG/usr/share/XaoS
+if [ ! -r $PKG/usr/share/XaoS/examples/README ]; then
+  cp -a examples/README $PKG/usr/share/XaoS/examples
+fi
 
-mkdir -p $PKG/usr/share/XaoS/examples
-cp -a examples/README $(find examples -name "*.xpf") $(find examples -name "*.xaf") $PKG/usr/share/XaoS/examples
+# Let's link to the old name too:
+ln -sf XaoS $PKG/usr/bin/xaos
 
 mkdir -p $PKG/usr/share/pixmaps
 cp -a xdg/xaos.png $PKG/usr/share/pixmaps
 
 mkdir -p $PKG/usr/share/applications
-cp -a xdg/xaos.desktop $PKG/usr/share/applications
+cp -a xdg/io.github.xaos_project.XaoS.desktop $PKG/usr/share/applications/xaos.desktop
 
 # Replace bogus manpage:
 mkdir -p $PKG/usr/man/man6
@@ -99,4 +110,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $OUTPUT/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

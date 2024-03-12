@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright 2016, 2017, 2020  Eric Hameleers, Eindhoven, NL
-# Copyright 2020, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=elogind
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -86,8 +86,17 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Our nobody user has UIDNumber 99, not 65534:
-sed -e "s/65534/99/g" -i $(grep -lr 65534 .)
+# Once upon a time we were encouraged to go against long-standing UNIX
+# traditions and use 99:99 for nobody:nogroup.
+# This may have been a bad idea.
+# But since to change this we'll have to dig through the system and make
+# sure that nothing hardcodes 99:99, we'll leave it as-is for now.
+# It's more than likely on the TODO list to change these back to
+# 65534:65534, however.
+# Meanwhile we'll at least change this from a sed to a patch.
+# Always hated sed in these situations because the underlying code can change
+# but sed will still happily scribble all over everything.
+cat $CWD/elogind.nobody.nogroup.99.99.diff | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
@@ -107,6 +116,7 @@ meson \
   -Dman=true \
   -Dhtml=false \
   -Dbashcompletiondir="/usr/share/bash-completion/completions" \
+  -Dnobody-user=nobody \
   -Dnobody-group=nogroup \
   -Dpam=true \
   -Dpamlibdir="/lib${LIBDIRSUFFIX}/security" \
@@ -157,8 +167,7 @@ mkdir -p $PKG/etc/elogind/logind.conf.d/ $PKG/etc/elogind/sleep.conf.d/
 # Add login1 policy file that allows users in the 'power' group
 # to shutdown/reboot the computer:
 mkdir -p $PKG/usr/share/polkit-1/rules.d
-zcat $CWD/10-enable-elogind-power.rules.gz > \
-  $PKG/usr/share/polkit-1/rules.d/10-enable-session-power.rules
+zcat $CWD/10-enable-elogind-power.rules.gz > $PKG/usr/share/polkit-1/rules.d/10-enable-session-power.rules
 
 # We don't need the hidden files to make inferior package managers keep dirs:
 find $PKG -type f -name ".keep_dir" -exec rm -f {} \;

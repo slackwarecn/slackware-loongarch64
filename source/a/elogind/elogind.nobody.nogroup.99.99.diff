@@ -1,0 +1,174 @@
+diff -u -r --new-file elogind-252.23.orig/meson.build elogind-252.23/meson.build
+--- elogind-252.23.orig/meson.build	2024-03-10 03:24:27.000000000 -0500
++++ elogind-252.23/meson.build	2024-03-12 13:22:28.571004872 -0500
+@@ -1031,40 +1031,40 @@
+ nobody_group = get_option('nobody-group')
+ 
+ if not meson.is_cross_build()
+-        getent_result = run_command('getent', 'passwd', '65534', check : false)
++        getent_result = run_command('getent', 'passwd', '99', check : false)
+         if getent_result.returncode() == 0
+                 name = getent_result.stdout().split(':')[0]
+                 if name != nobody_user
+                         warning('\n' +
+-                                'The local user with the UID 65534 does not match the configured user name "@0@" of the nobody user (its name is @1@).\n'.format(nobody_user, name) +
++                                'The local user with the UID 99 does not match the configured user name "@0@" of the nobody user (its name is @1@).\n'.format(nobody_user, name) +
+                                 'Your build will result in an user table setup that is incompatible with the local system.')
+                 endif
+         endif
+         id_result = run_command('id', '-u', nobody_user, check : false)
+         if id_result.returncode() == 0
+                 id = id_result.stdout().strip().to_int()
+-                if id != 65534
++                if id != 99
+                         warning('\n' +
+-                                'The local user with the configured user name "@0@" of the nobody user does not have UID 65534 (it has @1@).\n'.format(nobody_user, id) +
++                                'The local user with the configured user name "@0@" of the nobody user does not have UID 99 (it has @1@).\n'.format(nobody_user, id) +
+                                 'Your build will result in an user table setup that is incompatible with the local system.')
+                 endif
+         endif
+ 
+-        getent_result = run_command('getent', 'group', '65534', check : false)
++        getent_result = run_command('getent', 'group', '99', check : false)
+         if getent_result.returncode() == 0
+                 name = getent_result.stdout().split(':')[0]
+                 if name != nobody_group
+                         warning('\n' +
+-                                'The local group with the GID 65534 does not match the configured group name "@0@" of the nobody group (its name is @1@).\n'.format(nobody_group, name) +
++                                'The local group with the GID 99 does not match the configured group name "@0@" of the nobody group (its name is @1@).\n'.format(nobody_group, name) +
+                                 'Your build will result in an group table setup that is incompatible with the local system.')
+                 endif
+         endif
+         id_result = run_command('id', '-g', nobody_group, check : false)
+         if id_result.returncode() == 0
+                 id = id_result.stdout().strip().to_int()
+-                if id != 65534
++                if id != 99
+                         warning('\n' +
+-                                'The local group with the configured group name "@0@" of the nobody group does not have GID 65534 (it has @1@).\n'.format(nobody_group, id) +
++                                'The local group with the configured group name "@0@" of the nobody group does not have GID 99 (it has @1@).\n'.format(nobody_group, id) +
+                                 'Your build will result in an group table setup that is incompatible with the local system.')
+                 endif
+         endif
+diff -u -r --new-file elogind-252.23.orig/meson_options.txt elogind-252.23/meson_options.txt
+--- elogind-252.23.orig/meson_options.txt	2024-03-10 03:24:27.000000000 -0500
++++ elogind-252.23/meson_options.txt	2024-03-12 13:22:28.571004872 -0500
+@@ -308,10 +308,10 @@
+ option('wheel-group', type : 'boolean',
+        description : 'the ACL for wheel group should be added')
+ option('nobody-user', type : 'string',
+-       description : 'The name of the nobody user (the one with UID 65534)',
++       description : 'The name of the nobody user (the one with UID 99)',
+        value : 'nobody')
+ option('nobody-group', type : 'string',
+-       description : 'The name of the nobody group (the one with GID 65534)',
++       description : 'The name of the nobody group (the one with GID 99)',
+        value : 'nobody')
+ #if 0 /// UNNEEDED by elogind
+ # option('adm-gid', type : 'integer', value : 0,
+diff -u -r --new-file elogind-252.23.orig/src/basic/user-util.c elogind-252.23/src/basic/user-util.c
+--- elogind-252.23.orig/src/basic/user-util.c	2024-03-10 03:24:27.000000000 -0500
++++ elogind-252.23/src/basic/user-util.c	2024-03-12 13:22:28.571004872 -0500
+@@ -178,7 +178,7 @@
+                 const char **shell,
+                 UserCredsFlags flags) {
+ 
+-        /* We enforce some special rules for uid=0 and uid=65534: in order to avoid NSS lookups for root we hardcode
++        /* We enforce some special rules for uid=0 and uid=99: in order to avoid NSS lookups for root we hardcode
+          * their user record data. */
+ 
+         if (STR_IN_SET(*username, "root", "0")) {
+@@ -198,7 +198,7 @@
+                 return 0;
+         }
+ 
+-        if (STR_IN_SET(*username, NOBODY_USER_NAME, "65534") &&
++        if (STR_IN_SET(*username, NOBODY_USER_NAME, "99") &&
+             synthesize_nobody()) {
+                 *username = NOBODY_USER_NAME;
+ 
+@@ -344,7 +344,7 @@
+                 return 0;
+         }
+ 
+-        if (STR_IN_SET(*groupname, NOBODY_GROUP_NAME, "65534") &&
++        if (STR_IN_SET(*groupname, NOBODY_GROUP_NAME, "99") &&
+             synthesize_nobody()) {
+                 *groupname = NOBODY_GROUP_NAME;
+ 
+@@ -940,7 +940,7 @@
+ bool synthesize_nobody(void) {
+         /* Returns true when we shall synthesize the "nobody" user (which we do by default). This can be turned off by
+          * touching /etc/systemd/dont-synthesize-nobody in order to provide upgrade compatibility with legacy systems
+-         * that used the "nobody" user name and group name for other UIDs/GIDs than 65534.
++         * that used the "nobody" user name and group name for other UIDs/GIDs than 99.
+          *
+          * Note that we do not employ any kind of synchronization on the following caching variable. If the variable is
+          * accessed in multi-threaded programs in the worst case it might happen that we initialize twice, but that
+diff -u -r --new-file elogind-252.23.orig/src/basic/user-util.h elogind-252.23/src/basic/user-util.h
+--- elogind-252.23.orig/src/basic/user-util.h	2024-03-10 03:24:27.000000000 -0500
++++ elogind-252.23/src/basic/user-util.h	2024-03-12 13:22:28.571004872 -0500
+@@ -78,8 +78,8 @@
+ #define UID_INVALID ((uid_t) -1)
+ #define GID_INVALID ((gid_t) -1)
+ 
+-#define UID_NOBODY ((uid_t) 65534U)
+-#define GID_NOBODY ((gid_t) 65534U)
++#define UID_NOBODY ((uid_t) 99U)
++#define GID_NOBODY ((gid_t) 99U)
+ 
+ /* If REMOUNT_IDMAPPING_HOST_ROOT is set for remount_idmap() we'll include a mapping here that maps the host
+  * root user accessing the idmapped mount to the this user ID on the backing fs. This is the last valid UID in
+diff -u -r --new-file elogind-252.23.orig/src/test/test-fs-util.c elogind-252.23/src/test/test-fs-util.c
+--- elogind-252.23.orig/src/test/test-fs-util.c	2024-03-10 03:24:27.000000000 -0500
++++ elogind-252.23/src/test/test-fs-util.c	2024-03-12 13:22:28.571004872 -0500
+@@ -591,8 +591,8 @@
+         usec_t test_mtime;
+         int r;
+ 
+-        test_uid = geteuid() == 0 ? 65534 : getuid();
+-        test_gid = geteuid() == 0 ? 65534 : getgid();
++        test_uid = geteuid() == 0 ? 99 : getuid();
++        test_gid = geteuid() == 0 ? 99 : getgid();
+ 
+         test_mtime = usec_sub_unsigned(now(CLOCK_REALTIME), USEC_PER_WEEK);
+ 
+diff -u -r --new-file elogind-252.23.orig/src/test/test-user-util.c elogind-252.23/src/test/test-user-util.c
+--- elogind-252.23.orig/src/test/test-user-util.c	2024-03-10 03:24:27.000000000 -0500
++++ elogind-252.23/src/test/test-user-util.c	2024-03-12 13:22:28.571004872 -0500
+@@ -230,7 +230,7 @@
+         assert_se(!valid_user_group_name("", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+         assert_se(valid_user_group_name("0", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+         assert_se(valid_user_group_name("1", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+-        assert_se(valid_user_group_name("65534", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
++        assert_se(valid_user_group_name("99", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+         assert_se(!valid_user_group_name("65535", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+         assert_se(valid_user_group_name("65536", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+         assert_se(!valid_user_group_name("-1", VALID_USER_ALLOW_NUMERIC|VALID_USER_RELAX));
+@@ -266,7 +266,7 @@
+         assert_se(!valid_user_group_name("", VALID_USER_ALLOW_NUMERIC));
+         assert_se(valid_user_group_name("0", VALID_USER_ALLOW_NUMERIC));
+         assert_se(valid_user_group_name("1", VALID_USER_ALLOW_NUMERIC));
+-        assert_se(valid_user_group_name("65534", VALID_USER_ALLOW_NUMERIC));
++        assert_se(valid_user_group_name("99", VALID_USER_ALLOW_NUMERIC));
+         assert_se(!valid_user_group_name("65535", VALID_USER_ALLOW_NUMERIC));
+         assert_se(valid_user_group_name("65536", VALID_USER_ALLOW_NUMERIC));
+         assert_se(!valid_user_group_name("-1", VALID_USER_ALLOW_NUMERIC));
+@@ -350,7 +350,7 @@
+         test_get_user_creds_one("root", "root", 0, 0, "/root", DEFAULT_USER_SHELL);
+         test_get_user_creds_one("0", "root", 0, 0, "/root", DEFAULT_USER_SHELL);
+         test_get_user_creds_one(NOBODY_USER_NAME, NOBODY_USER_NAME, UID_NOBODY, GID_NOBODY, "/", NOLOGIN);
+-        test_get_user_creds_one("65534", NOBODY_USER_NAME, UID_NOBODY, GID_NOBODY, "/", NOLOGIN);
++        test_get_user_creds_one("99", NOBODY_USER_NAME, UID_NOBODY, GID_NOBODY, "/", NOLOGIN);
+ }
+ 
+ #if 0 /// UNNEEDED by elogind
+@@ -375,7 +375,7 @@
+         test_get_group_creds_one("root", "root", 0);
+         test_get_group_creds_one("0", "root", 0);
+         test_get_group_creds_one(NOBODY_GROUP_NAME, NOBODY_GROUP_NAME, GID_NOBODY);
+-        test_get_group_creds_one("65534", NOBODY_GROUP_NAME, GID_NOBODY);
++        test_get_group_creds_one("99", NOBODY_GROUP_NAME, GID_NOBODY);
+ }
+ 
+ TEST(make_salt) {

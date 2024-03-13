@@ -990,7 +990,6 @@ gzip ./source/xap/ssr/0003-Fix-build-with-ffmpeg-5.0.patch
 gzip ./source/xap/ssr/doinst.sh
 gzip ./source/xap/pidgin/fix-gmain_h-compile-error.diff
 gzip ./source/xap/pidgin/doinst.sh
-gzip ./source/xap/NetworkManager-openvpn/openvpn.nobody.nogroup.diff
 gzip ./source/xap/mozilla-firefox/firefox.moz_plugin_path.diff
 gzip ./source/xap/mozilla-firefox/ff.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-firefox/build-deps/autoconf/autoconf-2.13-consolidated_fixes-1.patch

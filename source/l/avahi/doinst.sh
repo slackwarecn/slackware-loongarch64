@@ -31,7 +31,7 @@ if [ -x /usr/bin/update-desktop-database ]; then
 fi
 
 # Reload messagebus service:
-if [ -x etc/rc.d/rc.messagebus ]; then
-  chroot . /etc/rc.d/rc.messagebus reload
+if [ -x /etc/rc.d/rc.messagebus ]; then
+  sh /etc/rc.d/rc.messagebus reload 1> /dev/null 2> /dev/null
 fi
 

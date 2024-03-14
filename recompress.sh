@@ -567,6 +567,7 @@ gzip ./source/xfce/xfce4-power-manager/doinst.sh
 gzip ./source/xfce/xfce4-taskmanager/doinst.sh
 gzip ./source/xfce/mousepad/doinst.sh
 gzip ./source/xfce/xfce4-screensaver/clarify-desc-in-xfce-settings.patch
+gzip ./source/xfce/xfce4-screensaver/doinst.sh
 gzip ./source/xfce/xfce4-session/use-xfss-by-default-in-xfce.patch
 gzip ./source/xfce/elementary-xfce/doinst.sh
 gzip ./source/xfce/xfce4-panel-profiles/doinst.sh
@@ -858,9 +859,6 @@ gzip ./source/l/system-config-printer/doinst.sh
 gzip ./source/l/aalib/aalib-aclocal.patch
 gzip ./source/l/wireplumber/doinst.sh
 gzip ./source/l/giflib/giflib.GifQuantizeBuffer.diff
-gzip ./source/l/libieee1284/libieee1284-fix-warnings.patch
-gzip ./source/l/libieee1284/libieee1284-add-more-python-bindings.patch
-gzip ./source/l/libieee1284/libieee1284-python3.patch
 gzip ./source/l/dconf-editor/doinst.sh
 gzip ./source/l/glib-networking/doinst.sh
 gzip ./source/l/qt5/patches/qt5-webengine-ffmpeg5.patch

@@ -29,9 +29,10 @@ preserve_perms() {
 preserve_perms etc/rc.d/rc.elogind.new
 config etc/elogind/logind.conf.new
 config etc/elogind/sleep.conf.new
+config etc/pam.d/elogind-user.new
 
+# Reload elogind-daemon:
 if pgrep -f elogind-daemon 1> /dev/null 2> /dev/null ; then
-  echo "Reloading elogind-daemon..."
   pkill -HUP -f elogind-daemon
 fi
 

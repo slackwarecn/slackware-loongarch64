@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
-# Copyright 2020  Eric Hameleers, Eindhoven, NL
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,15 +22,15 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=libqalculate
+PKGNAM=abseil-cpp
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
-    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -87,56 +86,30 @@ find . \
   -exec chmod 644 {} \+
 
 # Configure, build, and install:
-if [ ! -r configure ]; then
-  if [ -x ./autogen.sh ]; then
-    NOCONFIGURE=1 ./autogen.sh
-  else
-    autoreconf -vif
-  fi
-fi
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --mandir=/usr/man \
-  --infodir=/usr/info \
-  --disable-static \
-  --with-libcurl \
-  --with-icu \
-  --build=$ARCH-slackware-linux || exit 1
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS -DNDEBUG" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DBUILD_SHARED_LIBS=ON \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Compress manual pages:
-find $PKG/usr/man -type f -exec gzip -9 {} \+
-for i in $( find $PKG/usr/man -type l ) ; do
-  ln -s $( readlink $i ).gz $i.gz
-  rm $i
-done
-
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS* ChangeLog CHANGES COPYING* LICENSE* NEWS* README* THANKS* TODO* \
+  ABSEIL_ISSUE_TEMPLATE* AUTHORS* CONTRIBUTING* FAQ* LICENSE* README* UPGRADES* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
-
-# If there's a ChangeLog, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
-fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

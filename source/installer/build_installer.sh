@@ -1,7 +1,7 @@
 #!/bin/bash
 set +o posix
 
-# Copyright 2005-2024  Stuart Winter, Surrey, England, UK
+# Copyright 2005-2024  Stuart Winter, Earth, Milky Way, ""
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -1240,6 +1240,7 @@ cp -a pam.d $PKG/$ARCH-installer-filesystem/etc
 cd $TMP/extract-packages/usr/share/kbd/consolefonts
 mkdir -p $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 cp --remove-destination -fa${VERBOSE1} \
+  ter-v18n.psf.gz \
   ter-114v.psf.gz \
   ter-732b.psf.gz \
   $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts

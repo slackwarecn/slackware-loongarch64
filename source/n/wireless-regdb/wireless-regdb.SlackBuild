@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright 2009  Robby Workman, Northport, AL, USA
-# Copyright 2009, 2010, 2016, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2010, 2016, 2018, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,8 +23,8 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=crda
-VERSION=${VERSION:-4.15}
+PKGNAM=wireless-regdb
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -45,10 +45,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-REGDBVERS=2023.05.03
-
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-crda
+PKG=$TMP/package-wireless-regdb
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -70,8 +68,8 @@ mkdir -p $TMP $PKG
 
 # First, we need to install the wireless regulatory bin
 cd $TMP
-tar xvf $CWD/wireless-regdb-$REGDBVERS.tar.xz || exit 1
-cd wireless-regdb-$REGDBVERS || exit 1
+tar xvf $CWD/wireless-regdb-$VERSION.tar.xz || exit 1
+cd wireless-regdb-$VERSION || exit 1
 chown -R root:root .
 find . \
  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -79,56 +77,15 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-# If this isn't installed on the system, crda will not build:
-make install MANDIR=/usr/man || exit 1
+make install DESTDIR=$PKG MANDIR=/usr/man FIRMWARE_PATH=/lib/firmware || exit 1
 
-# Install to the package directory:
-make install DESTDIR=$PKG MANDIR=/usr/man || exit 1
-
-mkdir -p $PKG/usr/doc/crda-$VERSION/regdb
-cp -a LICENSE README db.txt $PKG/usr/doc/crda-$VERSION/regdb
-
-# Now we'll do crda itself
-cd $TMP
-rm -rf crda-$VERSION
-tar xvf $CWD/crda-$VERSION.tar.?z* || exit 1
-cd crda-$VERSION || exit 1
-chown -R root:root .
-find . \
- \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
- -exec chmod 755 {} \+ -o \
- \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
- -exec chmod 644 {} \+
-
-# This thing uses our CFLAGS on its own, but if we specify them,
-# it fails to build. The build failure is wacky, as if it's not
-# linking libnl into crda.o -- the detection for libnl is broken,
-# but even if it's fixed, the errors still occur. This works, so...
-sed -i -e "s,-Werror ,,g" -e "s,fpic,fPIC,g" Makefile
-
-make \
-  MANDIR=/usr/man \
-  LIBDIR=/usr/lib${LIBDIRSUFFIX} \
-  || exit 1
-make install \
-  MANDIR=/usr/man \
-  LIBDIR=/usr/lib${LIBDIRSUFFIX} \
-  DESTDIR=$PKG \
-  || exit 1
-
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+mkdir -p $PKG/usr/doc/wireless-regdb-$VERSION/regdb
+cp -a LICENSE README db.txt $PKG/usr/doc/wireless-regdb-$VERSION/regdb
 
 # Manpages are already compressed
-
-mkdir -p $PKG/usr/doc/crda-$VERSION
-cp -a \
-  LICENSE README \
-  $PKG/usr/doc/crda-$VERSION
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/crda-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/wireless-regdb-$VERSION-$ARCH-$BUILD.txz

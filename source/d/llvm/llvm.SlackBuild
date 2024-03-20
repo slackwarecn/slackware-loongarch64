@@ -94,8 +94,6 @@ if [ "$BUILD_CLANGD" = "NO" ]; then
   CLANGD="-DCLANG_ENABLE_CLANGD=OFF"
 fi
 
-# Python2 short version:
-PY2=$(python -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' | cut -f 2 -d n | cut -f 1 -d /)
 # Python3 short version:
 PY3=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' | cut -f 2 -d n | cut -f 1 -d /)
 
@@ -267,21 +265,17 @@ fi
 rm -f $PKG/usr/lib$LIBDIRSUFFIX/libgomp.so
 
 # Install Python bindings:
-for pyver in ${PY2} ${PY3}; do
+for pyver in ${PY3}; do
   mkdir -p "$PKG/usr/lib$LIBDIRSUFFIX/python$pyver/site-packages"
   cp -a tools/clang/bindings/python/clang "$PKG/usr/lib$LIBDIRSUFFIX/python$pyver/site-packages/"
 done
 
 # Remove bundled python-six:
-rm -f "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/six.py"
+rm -f "$PKG/usr/lib$LIBDIRSUFFIX/python2*/site-packages/six.py"
 
 # Compile Python scripts:
-python -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/clang"
-python -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/clang"
 python3 -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY3}/site-packages/clang"
 python3 -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY3}/site-packages/clang"
-python -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/lldb"
-python -O -m compileall "$PKG/usr/lib$LIBDIRSUFFIX/python${PY2}/site-packages/lldb"
 python3 -m compileall "$PKG/usr/share/scan-view"
 python3 -O -m compileall "$PKG/usr/share/scan-view"
 python3 -m compileall "$PKG/usr/share/clang"
@@ -290,7 +284,7 @@ python3 -m compileall "$PKG/usr/share/opt-viewer"
 python3 -O -m compileall "$PKG/usr/share/opt-viewer"
 
 # Nevermind, we're not shipping this python2 crap:
-rm -rf $PKG/usr/lib$LIBDIRSUFFIX/python${PY2}
+rm -rf $PKG/usr/lib$LIBDIRSUFFIX/python2*
 
 # Move man page directory:
 mv $PKG/usr/share/man $PKG/usr/

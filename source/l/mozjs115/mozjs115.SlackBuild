@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mozjs115
 SRCNAME=firefox
 VERSION=$(basename $(ls $SRCNAME-*.tar.?z | cut -d - -f 2 | rev | cut -f 3- -d . | rev) .source)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -146,10 +146,15 @@ rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libjs_static.*
 rm -f $PKG/usr/bin/js*-config
 
 # Rename shared library to have a proper soname:
-mv $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-102.so $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-102.so.0.0.0
+SHORTVER=$(echo $PKGNAM | cut -b 6-)
+if [ ! -r $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-${SHORTVER}.so ]; then
+  echo "FATAL: trying to rename library but $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-${SHORTVER}.so is not found."
+  exit 1
+fi
+mv $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-${SHORTVER}.so $PKG/usr/lib${LIBDIRSUFFIX}/libmozjs-${SHORTVER}.so.0.0.0
 ( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  ln -sf libmozjs-102.so.0.0.0 libmozjs-102.so.0
-  ln -sf libmozjs-102.so.0 libmozjs-102.so
+  ln -sf libmozjs-${SHORTVER}.so.0.0.0 libmozjs-${SHORTVER}.so.0
+  ln -sf libmozjs-${SHORTVER}.so.0 libmozjs-${SHORTVER}.so
 )
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION

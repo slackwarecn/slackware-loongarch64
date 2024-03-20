@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2018, 2020, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013, 2015, 2017, 2018, 2020, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=util-linux
 VERSION=${VERSION:-$(echo util-linux*.tar.xz | cut -d - -f 3  | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 ADJTIMEXVERS=1.29
 SETSERIALVERS=2.17
@@ -129,15 +129,7 @@ zcat $CWD/util-linux.fdisk-no-solaris.diff.gz | patch -p1 --verbose || exit 1
 # /dev/ram* devices in 'fdisk -l' output:
 zcat $CWD/util-linux.do.not.list.ram.devices.diff.gz | patch -p1 --verbose || exit 1
 
-# This just call the configure script with $1 either being 2 for python2
-# or 3 for python3.
-#
-# The releasenotes say to use --runstatedir, but it doesn't work and the
-# configure script fails. So we'll leave things using localstatedir, but
-# check again later:
-#
-#   --runstatedir=/run
-configure_with_python(){
+CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -167,12 +159,8 @@ configure_with_python(){
   --disable-libmount-mountfd-support \
   --enable-libuuid \
   --disable-uuidd \
-  --with-python=$1 \
-  --build=$ARCH-slackware-linux
-}
-
-CFLAGS="$SLKCFLAGS" \
-  configure_with_python 2 || exit 1
+  --with-python=3 \
+  --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install $NUMJOBS DESTDIR=$PKG || exit 1
@@ -184,15 +172,6 @@ fi
 if [ -r $PKG/usr/bin/chsh ]; then
   chmod 4711 $PKG/usr/bin/chsh
 fi
-
-# Build python3 bindings for libmount:
-make clean
-CFLAGS="$SLKCFLAGS" \
-  configure_with_python 3 || exit 1
-make $NUMJOBS \
-  install-pylibmountexecLTLIBRARIES \
-  install-pylibmountexecPYTHON \
-  DESTDIR=$PKG || exit 1
 
 # Remove all overlap with the shadow package, since --disable-login doesn't quite do that:
 rm $PKG/sbin/nologin $PKG/usr/man/man8/nologin.8 $PKG/sbin/sulogin $PKG/usr/man/man8/sulogin.8

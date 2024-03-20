@@ -417,7 +417,7 @@ mkdir -p /var/run/faillock
 # updated.
 # 
 if [ -w /etc/motd ]; then
-  if head -n 1 /etc/motd | grep -q "^Linux " ; then
+  if head -n 1 /etc/motd | grep -q "^Linux" ; then
     # Replace the kernel version if it is not correct:
     if [ ! "$(/bin/uname -r)." = "$(head -n 1 /etc/motd | cut -f 2 -d ' ')" ]; then
       sed -i "{1s/^Linux.*/$(/bin/uname -sr)\./}" /etc/motd

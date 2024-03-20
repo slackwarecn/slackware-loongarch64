@@ -715,6 +715,18 @@ gzip ./source/l/clucene/clucene.install_contribs_lib.diff
 gzip ./source/l/clucene/clucene.pkgconfig.diff
 gzip ./source/l/libgpod/doinst.sh
 gzip ./source/l/alsa-lib/doinst.sh
+gzip ./source/l/mozjs115/autoconf/autoconf-2.13-consolidated_fixes-1.patch
+gzip ./source/l/mozjs115/patches/remove-sloppy-m4-detection-from-bundled-autoconf.patch
+gzip ./source/l/mozjs115/patches/fix-soname.patch
+gzip ./source/l/mozjs115/patches/tests-increase-timeout.patch
+gzip ./source/l/mozjs115/patches/icu_sources_data.py-Decouple-from-Mozilla-build-system.patch
+gzip ./source/l/mozjs115/patches/emitter.patch
+gzip ./source/l/mozjs115/patches/copy-headers.patch
+gzip ./source/l/mozjs115/patches/0001-Skip-failing-tests-on-ppc64-and-s390x.patch
+gzip ./source/l/mozjs115/patches/icu_sources_data-Write-command-output-to-our-stderr.patch
+gzip ./source/l/mozjs115/patches/init_patch.patch
+gzip ./source/l/mozjs115/patches/spidermonkey_checks_disable.patch
+gzip ./source/l/mozjs115/double_t.x86.diff
 gzip ./source/l/djvulibre/doinst.sh
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
 gzip ./source/l/libcap/libcap.pkgconfig.path.diff
@@ -781,6 +793,7 @@ gzip ./source/l/pulseaudio/pulseaudio-autostart-meson.build.patch
 gzip ./source/l/pulseaudio/ed3d4f0837f670e5e5afb1afa5bcfc8ff05d3407.patch
 gzip ./source/l/lmdb/lmdb-s390-check.patch
 gzip ./source/l/lmdb/lmdb-make.patch
+gzip ./source/l/gcr4/doinst.sh
 gzip ./source/l/esound/esound-0.2.38-drain.patch
 gzip ./source/l/esound/esound-0.2.41-libm.patch
 gzip ./source/l/esound/remove-confusing-spew.patch

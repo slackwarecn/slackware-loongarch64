@@ -76,8 +76,12 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Hate to do this, but I'll let this thing download since it has to.
+# Direct any complaints upstream please :-)
+#UNSHARE="unshare -n"
+
 CFLAGS="$SLKCFLAGS" \
-unshare -n ./configure \
+$UNSHARE ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
@@ -88,7 +92,7 @@ unshare -n ./configure \
   --enable-static=no \
   --build=$ARCH-slackware-linux || exit 1
 
-unshare -n make $NUMJOBS || make || exit 1
+$UNSHARE make $NUMJOBS || $UNSHARE make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:

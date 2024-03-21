@@ -97,6 +97,17 @@ find . \
 # Enable built-in SQLite module to load extensions
 sed -i "/SQLITE_OMIT_LOAD_EXTENSION/d" setup.py
 
+# If there's no pip2 on the system, assume python2 is not installed and
+# bootstrap from scratch:
+if [ ! -x /usr/bin/pip2 ]; then
+  # If system we're building on already has Python2 with pip in site-packages,
+  # ignore it and install pip anyway.
+  sed -i 's|\("install",\)|\1 "--ignore-installed",|' Lib/ensurepip/__init__.py
+  ENSUREPIP="--with-ensurepip"
+else
+  ENSUREPIP="--without-ensurepip"
+fi
+
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -108,7 +119,7 @@ sed -i "/SQLITE_OMIT_LOAD_EXTENSION/d" setup.py
   --enable-unicode=ucs4 \
   --with-system-expat \
   --with-system-ffi \
-  --without-ensurepip \
+  $ENSUREPIP \
   --build=$ARCH-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
@@ -121,6 +132,62 @@ rm -f $PKG/usr/bin/2to3
 # We don't want these now:
 rm -f $PKG/usr/bin/python
 rm -f $PKG/usr/bin/python-config
+
+# Don't package this. We want /usr/bin/pip in the main python-pip package to be
+# the python3 version:
+rm -f $PKG/usr/bin/pip
+
+# It's tempting to get rid of this entirely, but we'll leave the -2.7 versioned
+# binary:
+rm -f $PKG/usr/bin/easy_install
+
+# Install some python-demo files:
+mkdir -p $PKG/usr/doc/python2-$VERSION
+cp -a Demo $PKG/usr/doc/python2-$VERSION
+
+# We'll install the python-tools under site-packages:
+mkdir -p $SITEPK
+cp -a Tools/* $SITEPK
+
+mkdir -p $PKG/usr/doc/python2-$VERSION
+mv $SITEPK/README $PKG/usr/doc/python2-$VERSION/README.python-tools
+( cd $PKG/usr/doc/python2-$VERSION
+  ln -sf $TOOLSDIR Tools
+)
+
+# Install docs:
+mkdir -p $PKG/usr/doc/python2-$VERSION/Documentation
+cp -a README LICENSE $PKG/usr/doc/python2-$VERSION
+cp -a Misc $PKG/usr/doc/python2-$VERSION
+tar xf $CWD/python-$VERSION-docs-text.tar.?z*
+mv python-${VERSION}-docs-text/* $PKG/usr/doc/python2-$VERSION/Documentation
+chown -R root:root $PKG/usr/doc/python2-$VERSION
+
+# Fix possible incorrect permissions:
+( cd $PKG
+  find . -type d -exec chmod 755 "{}" \+
+  find . -perm 640 -exec chmod 644 "{}" \+
+  find . -perm 750 -exec chmod 755 "{}" \+
+)
+
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \+
+  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
+
+( cd $PKG/usr/man
+  if [ -r python${BRANCH_VERSION}.1.gz ] ; then
+	  ln -sf python${BRANCH_VERSION}.1.gz python.1.gz
+  fi
+)
+
+# If python2 isn't already installed, we need to bootstrap it to the system now:
+if [ ! -x /usr/bin/pip2 ]; then
+  ( cd $PKG
+    echo "Bootstrapping..."
+    tar cf - . | ( cd / ; tar xf - )
+  )
+fi
 
 # Bundle the very last pip for python2:
 tar xf $CWD/pip-20.3.tar.lz || exit 1
@@ -161,35 +228,6 @@ if [ -r CHANGES.rst ]; then
 fi
 cd ..
 
-# Install some python-demo files:
-mkdir -p $PKG/usr/doc/python2-$VERSION
-cp -a Demo $PKG/usr/doc/python2-$VERSION
-
-# We'll install the python-tools under site-packages:
-mkdir -p $SITEPK
-cp -a Tools/* $SITEPK
-
-mkdir -p $PKG/usr/doc/python2-$VERSION
-mv $SITEPK/README $PKG/usr/doc/python2-$VERSION/README.python-tools
-( cd $PKG/usr/doc/python2-$VERSION
-  ln -sf $TOOLSDIR Tools
-)
-
-# Install docs:
-mkdir -p $PKG/usr/doc/python2-$VERSION/Documentation
-cp -a README LICENSE $PKG/usr/doc/python2-$VERSION
-cp -a Misc $PKG/usr/doc/python2-$VERSION
-tar xf $CWD/python-$VERSION-docs-text.tar.?z*
-mv python-${VERSION}-docs-text/* $PKG/usr/doc/python2-$VERSION/Documentation
-chown -R root:root $PKG/usr/doc/python2-$VERSION
-
-# Fix possible incorrect permissions:
-( cd $PKG
-  find . -type d -exec chmod 755 "{}" \+
-  find . -perm 640 -exec chmod 644 "{}" \+
-  find . -perm 750 -exec chmod 755 "{}" \+
-)
-
 ( cd $PKG
   find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | \
     xargs strip --strip-unneeded 2> /dev/null
@@ -197,20 +235,8 @@ chown -R root:root $PKG/usr/doc/python2-$VERSION
     xargs strip --strip-unneeded 2> /dev/null
 )
 
-( cd $PKG/usr/man
-  find . -type f -exec gzip -9 {} \+
-  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
-)
-
-( cd $PKG/usr/man
-  if [ -r python${BRANCH_VERSION}.1.gz ] ; then
-	  ln -sf python${BRANCH_VERSION}.1.gz python.1.gz
-  fi
-)
-
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/python2-$VERSION-$ARCH-$BUILD.txz
-

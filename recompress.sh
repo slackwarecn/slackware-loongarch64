@@ -692,6 +692,7 @@ gzip ./source/l/gtk+/gtk+-1.2.10-fontwarning.patch
 gzip ./source/l/python-typogrify/jinja-3.1.patch
 gzip ./source/l/db48/db.rename.atomic_compare_exchange.diff
 gzip ./source/l/db48/db48.no.broken.doc.install.diff
+gzip ./source/l/boost/boost.bootstrap.python3.diff
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff
@@ -778,9 +779,11 @@ gzip ./source/l/desktop-file-utils/desktop-file-utils.quiet.warnings.diff
 gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/fuse3/rc.fuse3.no.source.lsb.init-functions.diff
 gzip ./source/l/gdk-pixbuf2/doinst.sh
-gzip ./source/l/qt5-webkit/qt5-webkit.bison27.patch
 gzip ./source/l/qt5-webkit/webkit-offlineasm-warnings-ruby27.patch
 gzip ./source/l/qt5-webkit/qt5-webkit.glib-2.68.0.diff
+gzip ./source/l/qt5-webkit/icu68.patch
+gzip ./source/l/qt5-webkit/qt5-webkit-bison-3.7.patch
+gzip ./source/l/qt5-webkit/qt5-webkit-python-3.9.patch
 gzip ./source/l/qt5-webkit/qt5-webkit.gcc13.diff
 gzip ./source/l/pulseaudio/0002-allow-autospawn-for-root-default.diff
 gzip ./source/l/pulseaudio/030_posix-completion.diff

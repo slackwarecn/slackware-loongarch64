@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=unicode-ucd
+VERSION=${VERSION:-$(echo UCD-*.zip | rev | cut -f 2- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+ARCH=noarch
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+mkdir -p $PKG/usr/share/unicode
+( cd $PKG/usr/share/unicode
+  # Unfortunately we have to keep these large zip files in here because at
+  # least gucharmap can't handle the extracted files.
+  cp -a $CWD/UCD-${VERSION}.zip . || exit 1
+  cp -a $CWD/Unihan-${VERSION}.zip . || exit 1
+  mv UCD-${VERSION}.zip UCD.zip || exit 1
+  mv Unihan-${VERSION}.zip Unihan.zip || exit 1
+  unzip UCD.zip || exit 1
+  unzip Unihan.zip || exit 1
+) || exit 1
+
+# Compatibility symlinks that allow most things to find this:
+ln -sf . $PKG/usr/share/unicode/ucd
+ln -sf unicode $PKG/usr/share/unicode-character-database
+ln -sf unicode $PKG/usr/share/unicode-data
+ln -sf unicode $PKG/usr/share/unidata
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a license.txt $PKG/usr/doc/${PKGNAM}-$VERSION
+
+chown -R root:root $PKG
+find $PKG -type d -exec chmod 755 "{}" \;
+find $PKG -type f -exec chmod 644 "{}" \;
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

@@ -32,7 +32,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=qt6
 VERSION=$(ls qt-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 PKGSRC=$(echo $VERSION | cut -d - -f 1)
 PKGVER=$(echo $VERSION | tr - _)
 
@@ -150,6 +150,12 @@ cat $CWD/patches/nodejs-allow-32bit.patch | patch -p1 --verbose || exit 1
 # GCC13 requires this include:
 cat $CWD/patches/qt6-3d_gcc13.patch | patch -p0 --verbose || exit 1
 
+# Previously we didn't have a protobuf package in Slackware.
+# Now that we do, it's apparently too new to use with Qt6, so let's just
+# disable it to get the same features that we previously did.
+# Patches would be accepted here. :-)
+PROTOBUF="-DQT_FEATURE_qtprotobufgen=OFF"
+
 # The qtquick3dphysics only compiles on a limited set of architectures:
 case "${ARCH}" in
   i?86 | arm | s390) DO_PHYSX3D="OFF" ;;
@@ -199,8 +205,12 @@ cmake -S $(pwd) -B build-${PKGNAM} \
   -DFEATURE_webengine_system_ffmpeg="${SYSTEM_FFMPEG}" \
   -DFEATURE_webengine_system_pulseaudio="${USE_PULSEAUDIO}" \
   -DFEATURE_webengine_webrtc_pipewire=ON \
+  $PROTOBUF \
   -DQT_BUILD_EXAMPLES=OFF || exit 1
-cmake --build build-${PKGNAM} --parallel $NINJAJOBS || cmake --build build-${PKGNAM} || exit 1
+#cmake --build build-${PKGNAM} --parallel $NINJAJOBS || cmake --build build-${PKGNAM} || exit 1
+# Don't try again non-parallel... it just makes you wait a long time to see
+# what the error was.
+cmake --build build-${PKGNAM} --parallel $NINJAJOBS || exit 1
 DESTDIR=$PKG cmake --install build-${PKGNAM} || exit 1
 
 # Strip binaries:

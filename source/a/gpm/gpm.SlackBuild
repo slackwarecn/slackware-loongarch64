@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gpm
 VERSION=1.20.7
-BUILD=${BUILD:-9}
+BUILD=${BUILD:-10}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -80,36 +80,20 @@ zcat $CWD/gpm-1.20.5-close-fds.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/gpm-1.20.1-select-1.patch.gz | patch -p1 --verbose || exit 1
 zcat $CWD/gpm.types.diff.gz | patch -p1 --verbose || exit 1
 zcat $CWD/gpm.gcc7.diff.gz | patch -p1 --verbose || exit 1
-
-sh autogen.sh
-
-# This is *supposed* to prevent linking libgpm.so with -lncurses,
-# but for some reason it doesn't have the desired effect here.
-# Any ideas?  The patch is supposed to resolve a circular dependency
-# between libgpm.so and libncurses.so.  I don't notice any ill effects
-# here, but perhaps the problem would occur if prelinking was used.
-# Also, ncurses has not shown an ldd link to libgpm for several releases,
-# so perhaps any problem that existed was fixed on their end.
-# NOTE:  Since this isn't preventing gpm from linking to ncurses, I'm
-# commenting this patch out until we understand better if it's even
-# useful for anything.  Half a patch seems worse than no patch.
-#zcat $CWD/gpm-1.20.1-weak-wgetch.patch.gz | patch -p1 --verbose || exit 1
-
-# Since we aren't installing any Emacs Lisp files anyway, just brutally
-# hack around this failing part of ./configure. This may be a brittle
-# solution, so if it doesn't apply just go ahead and try without this
-# patch and see if it's working or not.
 zcat $CWD/gpm.configure.diff.gz | patch -p1 --verbose || exit 1
 
-# Since we just patched configure.ac, run this again to carry the change
-# into configure:
-autoconf
+# This patch is supposed to resolve a circular dependency between libgpm.so
+# and libncurses.so:
+zcat $CWD/gpm-1.20.1-weak-wgetch.patch.gz | patch -p1 --verbose || exit 1
+
+sh autogen.sh
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --without-curses \
   --build=$ARCH-slackware-linux || exit 1
 
 make || exit 1

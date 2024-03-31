@@ -576,12 +576,15 @@ gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
 gzip ./source/ap/mariadb/rc.mysqld
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/dash/doinst.sh
+gzip ./source/ap/hplip/0023-Fix-handling-of-unicode-filenames-in-sixext.py.patch
+gzip ./source/ap/hplip/0018-Allow-non-JPEG-scanning-on-the-HP-DeskJet-3520-All-i.patch
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
 gzip ./source/ap/hplip/0025-Remove-all-ImageProcessor-functionality-which-is-clo.patch
 gzip ./source/ap/hplip/fix-desktop-file.patch
+gzip ./source/ap/hplip/0003-models.dat-Re-add-drivers-missing-from-3.19.1.patch
 gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
 gzip ./source/ap/lxc/doinst.sh
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh

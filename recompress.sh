@@ -801,6 +801,7 @@ gzip ./source/l/sdl/SDL_ttf.shaded.text.diff
 gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
+gzip ./source/l/ffmpeg/0004-support-nv-codec-headers-12.2.patch
 gzip ./source/l/ffmpeg/ffmpeg.vulkan.diff
 gzip ./source/l/ffmpeg/add-av_stream_get_first_dts-for-chromium.patch
 gzip ./source/l/ffmpeg/250471ea1745fc703eb346a2a662304536a311b1.patch

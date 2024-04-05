@@ -323,25 +323,31 @@ fi
 # This is to ensure all processes have completed on SMP machines:
 wait
 
-if [ -x /sbin/genpowerd -a -z "$container" ]; then
-  # See if this is a powerfail situation:
-  if grep -E -q "FAIL|SCRAM" /etc/upsstatus 2> /dev/null ; then
-    # Signal UPS to shut off the inverter:
-    /sbin/genpowerd -k
-    if [ ! $? = 0 ]; then
-      echo
-      echo "There was an error signaling the UPS."
-      echo "Perhaps you need to edit /etc/genpowerd.conf to configure"
-      echo "the serial line and UPS type."
-      # Wasting 15 seconds of precious power:
-      /bin/sleep 15
-    fi
-  fi
-fi
-
 if [ "$container" = "lxc" ]; then
   # Confirm successful shutdown of the container:
   echo "LXC container stopped."
+fi
+
+# NUT UPS inverter shutdown support:
+# If we see a file /etc/killpower, that means we want to shut off the UPS
+# inverter on the way down. This will save as much battery power as possible
+# and avoid unnecessary full-drain/full-recharge cycles.
+if [ -e /etc/killpower -a -z "$container" ]; then
+  # First we need to restart udev or we won't be able to contact the UPS:
+  echo "Restarting udev to be able to shut the UPS inverter off..."
+  /etc/rc.d/rc.udev start
+  # Wasting precious battery power:
+  sleep 10
+  echo "Shutting down UPS inverter..."
+  upsdrvctl shutdown
+  # The power should shut off during the following sleep, but we'll give a
+  # bit of notice otherwise. Also, be sure to set your machine to start when 
+  # the power resumes in the BIOS settings so that it doesn't stay off.
+  sleep 45
+  echo "The UPS power should have stopped by now, but has not."
+  echo "It's possible that the power came back during the shutdown process."
+  echo "Otherwise, check communication with the UPS."
+  sleep 15
 fi
 
 # Now halt (poweroff with APM or ACPI enabled kernels) or reboot.

@@ -298,17 +298,27 @@ if [ -x /etc/rc.d/rc.smartd -a -z "$container" ]; then
   /etc/rc.d/rc.smartd start
 fi
 
-# Monitor the UPS with genpowerd.
-# To use this, uncomment this section and edit your settings in
-# /etc/genpowerd.conf (serial device, UPS type, etc).  For more information,
-# see "man genpowerd" or the extensive documentation in the
-# /usr/doc/genpower-*/ directory.
-# You'll also need to configure a similar block in /etc/rc.d/rc.6 if you want
-# support for stopping the UPS's inverter after the machine halts.
-#if [ -x /sbin/genpowerd -a -z "$container" ]; then
-#  echo "Starting genpowerd daemon..."
-#  /sbin/genpowerd
-#fi
+# Load model-specific drivers for NUT (Network Uninterruptible power supply
+# Tools). This should be started on the machine that controls the UPS. See
+# the /etc/nut/ directory for configuration files.
+# If you manage your UPS using a serial port, you'll need to add the nut user
+# to the "dialout" group.
+if [ -x /etc/rc.d/rc.nut-drvctl -a -z "$container" ]; then
+  /etc/rc.d/rc.nut-drvctl start
+fi
+
+# Start the NUT UPS information server. This should be started on the machine
+# that controls the UPS. See the /etc/nut/ directory for configuration files.
+if [ -x /etc/rc.d/rc.nut-upsd -a -z "$container" ]; then
+  /etc/rc.d/rc.nut-upsd start
+fi
+
+# Start the NUT UPS monitor and shutdown controller. This should be run on any
+# machine that is powered by the UPS to monitor the power supply and initiate
+# shutdown if necessary. See the /etc/nut/ directory for configuration files.
+if [ -x /etc/rc.d/rc.nut-upsmon -a -z "$container" ]; then
+  /etc/rc.d/rc.nut-upsmon start
+fi
 
 # Turn on process accounting.  To enable process accounting, make sure the
 # option for BSD process accounting is enabled in your kernel, and then

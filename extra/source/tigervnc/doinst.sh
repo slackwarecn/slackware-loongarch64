@@ -11,6 +11,9 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 config etc/X11/xorg.conf.d/10-libvnc.conf.new
+config etc/tigervnc/vncserver-config-defaults.new
+config etc/tigervnc/vncserver-config-mandatory.new
+config etc/tigervnc/vncserver.users.new
 
 # Update the desktop database:
 if [ -x usr/bin/update-desktop-database ]; then

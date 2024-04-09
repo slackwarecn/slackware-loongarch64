@@ -1,0 +1,105 @@
+--- texlive-20240311-source/texk/web2c/ChangeLog	2024-03-10 22:37:05.000000000 +0100
++++ texlive2024branch/texk/web2c/ChangeLog	2024-03-24 23:30:33.808928698 +0100
+@@ -1,3 +1,10 @@
++2024-03-24  Karl Berry  <karl@freefriends.org>
++
++	* unbalanced-braces.ch: fix from DRF in order to make
++	\aftergroup work again with the output routine. Report
++	from David Carlisle and Frank Mittelbach, thread starts at:
++	https://tug.org/pipermail/tex-live/2024-March/050290.html
++
+ 2024-03-10  Karl Berry  <karl@tug.org>
+ 
+ 	* TL'24 release.
+--- texlive-20240311-source/texk/web2c/eptexdir/unbalanced-braces-eptex.ch	2024-02-28 05:19:31.000000000 +0100
++++ texlive2024branch/texk/web2c/eptexdir/unbalanced-braces-eptex.ch	2024-03-25 04:14:33.400447000 +0100
+@@ -47,7 +47,7 @@
+         begin decr(param_ptr);
+         flush_list(param_stack[param_ptr]);
+         end
+-    else if (token_type=output_text)and(output_active) then
++    else if (token_type=output_text)and(not output_can_end) then
+       fatal_error("Unbalanced output routine");
+ @.Unbalanced output routine@>
+ @z
+@@ -103,6 +103,19 @@
+ % that we were just finished with it, so it's where the brace
+ % came from.
+ 
++@x [45.989] l.19364 p.B417
++@!output_active:boolean; {are we in the midst of an output routine?}
++@y
++@!output_active:boolean; {are we in the midst of an output routine?}
++@!output_can_end:boolean; {is this an auspicious time for it to end?}
++@z
++
++@x [45.989] l.19367 p.B417
++output_active:=false; insert_penalties:=0;
++@y
++output_active:=false; output_can_end:=false; insert_penalties:=0;
++@z
++
+ % In <Resume the page builder after an output routine has come to an end>:
+ @x [45.1026] l.19938 p.B432
+ begin if (loc<>null) or
+@@ -121,8 +134,10 @@
+ end_token_list; {conserve stack space in case more outputs are triggered}
+ end_graf; unsave; output_active:=false; insert_penalties:=0;@/
+ @y
+-end_graf; unsave; output_active:=false; insert_penalties:=0;@/
++output_can_end:=true;
+ end_token_list; {conserve stack space in case more outputs are triggered}
++output_can_end:=false;
++end_graf; unsave; output_active:=false; insert_penalties:=0;@/
+ @z
+ 
+ % <Expand macros in the token list and...> had set mode:=0 while
+--- texlive-20240311-source/texk/web2c/unbalanced-braces.ch	2024-02-26 16:53:56.000000000 +0100
++++ texlive2024branch/texk/web2c/unbalanced-braces.ch	2024-03-24 23:32:27.599525156 +0100
+@@ -1,4 +1,4 @@
+-% $Id: unbalanced-braces.ch 70173 2024-02-26 15:53:56Z karl $
++% $Id: unbalanced-braces.ch 70751 2024-03-24 22:32:26Z karl $
+ % Fix overrun/underrun of \write and \output. David Fuchs, 2024.
+ % Public domain.
+ %
+@@ -47,7 +47,7 @@
+         begin decr(param_ptr);
+         flush_list(param_stack[param_ptr]);
+         end
+-    else if (token_type=output_text)and(output_active) then
++    else if (token_type=output_text)and(not output_can_end) then
+       fatal_error("Unbalanced output routine");
+ @.Unbalanced output routine@>
+ @z
+@@ -103,6 +103,19 @@
+ % that we were just finished with it, so it's where the brace
+ % came from.
+ 
++@x [45.989] l.19364 p.B417
++@!output_active:boolean; {are we in the midst of an output routine?}
++@y
++@!output_active:boolean; {are we in the midst of an output routine?}
++@!output_can_end:boolean; {is this an auspicious time for it to end?}
++@z
++
++@x [45.989] l.19367 p.B417
++output_active:=false; insert_penalties:=0;
++@y
++output_active:=false; output_can_end:=false; insert_penalties:=0;
++@z
++
+ % In <Resume the page builder after an output routine has come to an end>:
+ @x [45.1026] l.19938 p.B432
+ begin if (loc<>null) or
+@@ -121,8 +134,10 @@
+ end_token_list; {conserve stack space in case more outputs are triggered}
+ end_graf; unsave; output_active:=false; insert_penalties:=0;@/
+ @y
+-end_graf; unsave; output_active:=false; insert_penalties:=0;@/
++output_can_end:=true;
+ end_token_list; {conserve stack space in case more outputs are triggered}
++output_can_end:=false;
++end_graf; unsave; output_active:=false; insert_penalties:=0;@/
+ @z
+ 
+ % <Expand macros in the token list and...> had set mode:=0 while

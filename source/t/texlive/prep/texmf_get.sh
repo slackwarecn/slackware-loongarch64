@@ -2,7 +2,7 @@
 
 # texmf_get.sh
 #
-# Copyright 2016 - 2023  Johannes Schoepfer, Germany, slackbuilds@schoepfer.info
+# Copyright 2016-2024  Johannes Schoepfer, Germany, slackbuilds@schoepfer.info
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#  version 15.1.1
+#  version 15.1.2
 #
 #  Prepare xz-compressed tarballs of texlive-texmf-trees based on texlive.tlpdb
 #  This script takes care of dependencies(as far as these are present in texlive.tlpdb)
@@ -200,7 +200,7 @@ untar () {
         fi
       fi
 
-      # Delete binaries, these are provided by the buildscript
+      # Delete binaries, these are build by texlive.Slackbuild
       # Keep symlinks and scripts
       
       for arch in $platforms
@@ -231,24 +231,12 @@ untar () {
             grep -e "shared object" -e ELF -e "gzip compressed data" | cut -f 1 -d : ) 
           do
             binfile="$(echo $bin | rev | cut -d'/' -f1 | rev)"
-            remove_binary=yes
-	    # for multiple binaries this extra loop is neccesary
-            for binary in $keep_precompiled
-            do
-              if [ "$(echo $bin | rev | cut -d'/' -f1 | rev)" = "$binary" ]
-              then
-                remove_binary=no
-	      fi
-            done
-	    if [ $remove_binary = yes ]
-	    then
-              # might be already removed by a previous run
-              if [ -s "$bin" ]
-              then
-                #echo "Deleting binary \"$arch/$binfile\""
-	        rm $bin && echo "$package: $binfile" >> $binary_removed.$edition
-              fi
-	    fi
+            # might be already removed by a previous run
+            if [ -s "$bin" ]
+            then
+              #echo "Deleting binary \"$arch/$binfile\""
+	      rm $bin && echo "$package: $binfile" >> $binary_removed.$edition
+            fi
           done
           # move scripts to linked-scripts
           for script in \
@@ -344,18 +332,18 @@ remove_cruft () {
   find $texmf/texmf-dist/ -type d -empty -delete
 
   echo "Replace duplicate files by symlinks, this may take a while ..."
-  
   LASTSIZE=x
   find $texmf/texmf-dist/ -type f -printf '%s %p\n' | sort -n |
   while read -r SIZE FILE
   do
-    # symlinks alse need some bytes, start linking above 10 bytes
-    if [ "$SIZE" -gt 10 -a "$SIZE" == "$LASTSIZE" ]
+    # symlinks also need some bytes, start linking above the typical
+    # symlink-size(depends on the filesystem though)
+    if [ "$SIZE" -gt 128 -a "$SIZE" == "$LASTSIZE" ]
     then
       if [ "$(sha512sum $FILE | cut -d' ' -f1)" \
-	== "$(sha512sum $LASTFILE | cut -d' ' -f1)" ]
+        == "$(sha512sum $LASTFILE | cut -d' ' -f1)" ]
       then
-        echo "$FILE $LASTFILE $SIZE" >> $duplicatelog
+        echo "$FILE $LASTFILE $SIZE" >> $TMP/duplicates.$edition
         ln -srf $FILE $LASTFILE
       fi
     fi
@@ -441,8 +429,8 @@ texmfget () {
     
     if [ -s "$dependencies" ]
     then
-      # check for .ARCH packages which may be binaries, scripts or links
-      # Binaries should all come from the sourcebuild(exception $keep_precompiled)
+      # check for .ARCH packages which may be binaries, scripts or links.
+      # Binaries are provided by texlive.SlackBuild
       for dependency in $(cat $dependencies)
       do
         echo $dependency | grep '\.ARCH'$ &>/dev/null
@@ -592,7 +580,6 @@ LANG=C
 output=$TMP/packages
 output_doc=$TMP/packages.doc.tmp
 errorlog=$TMP/error.log
-duplicatelog=$TMP/duplicate.log
 texmf=$TMP/texmf
 db=$TMP/texlive.tlpdb
 tmpfile=$TMP/tmpfile
@@ -679,7 +666,6 @@ logfile=$TMP/$VERSION.log
 >$logfile
 >$tarball
 >$collections_done
->$duplicatelog
 >$files_split
 >$manpages
 >$packages_manpages
@@ -688,6 +674,7 @@ logfile=$TMP/$VERSION.log
 >$packages_extra
 >$packages_base.doc
 >$packages_extra.doc
+>$TMP/duplicates.$edition
 >$TMP/packages.$edition.meta
 >$TMP/packages.$edition.meta.uncompressed
 >$TMP/provides.run.$edition
@@ -852,7 +839,7 @@ sed -i \
   
 case $edition in
   base) 
-  # Content info
+  # Provide index of Tex packages
   cat << EOF | gzip -9 >> $texmf/texmf-dist/packages.$edition.gz
 Content of -$edition:
 $(sed "/-linux$/d" $packages_base | sort)

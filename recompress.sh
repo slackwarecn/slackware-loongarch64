@@ -647,7 +647,6 @@ gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
 gzip ./source/ap/rpm/doinst.sh
 gzip ./source/ap/rpm/Packages
 gzip ./source/ap/man-db/doinst.sh
-gzip ./source/t/texlive/texlive-20230313-source-security_fix-1.patch
 gzip ./source/t/texlive/doinst.sh
 gzip ./source/t/xfig/xfig.no.pdf.ref.diff
 gzip ./source/t/xfig/xfig.fig.ad.diff

@@ -2,9 +2,9 @@
 
 # TeXLive build script for Slackware
 
-# Copyright 2009, 2017 - 2023  Patrick J. Volkerding, Sebeka, MN, USA
-# Copyright 2009 - 2014  Robby Workman, Northport, AL, USA
-# Copyright 2016 - 2017  Johannes Schoepfer, Germany
+# Copyright 2009, 2017-2024  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009-2014  Robby Workman, Northport, AL, USA
+# Copyright 2016-2017  Johannes Schoepfer, Germany
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,17 +24,17 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# URL: ftp://tug.org/historic/systems/texlive/
+# URL: https://www.tug.org/historic/
 # Testrelease: https://tug.org/texlive/Images/test/
-# Upstream stable fixes: svn://tug.org/texlive/branches/branch2023/Build/source
+# Upstream stable fixes: svn://tug.org/texlive/branches/branch2024/Build/source
 
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=texlive
-SOURCEVERSION=${SOURCEVERSION:-20230311}
-TEXMFVERSION=${TEXMFVERSION:-230322}
-VERSION=${VERSION:-2023.$TEXMFVERSION}
-BUILD=${BUILD:-7}
+SOURCEVERSION=${SOURCEVERSION:-20240312}
+TEXMFVERSION=${TEXMFVERSION:-240409}
+VERSION=${VERSION:-2024.$TEXMFVERSION}
+BUILD=${BUILD:-1}
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-texlive
@@ -77,14 +77,17 @@ cd texlive-$SOURCEVERSION-source || exit 1
 chown -R root:root .
 chmod -R u+w,go-w,a+rX-st .
 
-# CVE-2023-32700:
-zcat $CWD/texlive-20230313-source-security_fix-1.patch.gz | patch -p1 --verbose || exit 1
+# Make aftergroup work again with the output routine
+cat $CWD/patches/aftergroup.patch | patch -p1 --verbose || exit 1
+
+# Don't break texdoc et al every time zlib is upgraded:
+cat $CWD/patches/quit-breaking-on-minor-zlib-bump.patch | patch -p1 --verbose || exit 1
 
 mkdir build
 cd build
   CFLAGS="$SLKCFLAGS" \
   CXXFLAGS="$SLKCFLAGS" \
-  ../configure \
+  ../configure -C \
     --prefix=/usr \
     --libdir=/usr/lib${LIBDIRSUFFIX} \
     --mandir=/usr/man \
@@ -104,6 +107,7 @@ cd build
     --enable-xindy \
     --disable-xindy-docs \
     --disable-xindy-rules \
+    --disable-linked-scripts \
     --with-clisp-runtime=system \
     --enable-gc=system \
     --with-system-libpng \
@@ -119,7 +123,8 @@ cd build
     --with-system-fontconfig \
     --with-system-ncurses \
     --with-system-harfbuzz \
-    --disable-linked-scripts \
+    --with-system-graphite2 \
+    --with-system-libpaper \
     --build=$ARCH-slackware-linux || exit 1
 
   make $NUMJOBS || make || exit 1

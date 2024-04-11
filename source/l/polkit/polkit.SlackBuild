@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=polkit
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -82,12 +82,8 @@ find . \
 
 zcat $CWD/dont-set-wheel-group-as-admin.diff.gz | patch -p1 --verbose || exit 1
 
-# If we get here and don't have a polkitd user/group, add one.
-# Otherwise a few directories in the package will have wrong permissions.
-if ! grep -q "^polkitd:" /etc/passwd ; then
-  groupadd -fg 87 polkitd
-  useradd -c "PolicyKit daemon owner" -d /var/lib/polkit -u 87 -g polkitd -s /bin/false polkitd
-fi
+cat $CWD/polkit-124-systemd.patch | patch -p1 --verbose || exit 1
+cat $CWD/polkit-124-systemd-fixup.patch | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
@@ -111,6 +107,7 @@ meson setup \
   -Dsystemdsystemunitdir=/usr/lib/systemd/user \
   -Dauthfw=pam \
   -Dpam_module_dir=/lib${LIBDIRSUFFIX}/security \
+  -Dpam_prefix=/etc/pam.d \
   -Dman=true \
   -Djs_engine=duktape \
   .. || exit 1

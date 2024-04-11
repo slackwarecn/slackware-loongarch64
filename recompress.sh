@@ -97,8 +97,6 @@ gzip ./source/a/rpm2tgz/patches/0004-produce-more-compliant-slack-desc.patch
 gzip ./source/a/rpm2tgz/patches/0001-fix-d-handling.patch
 gzip ./source/a/rpm2tgz/patches/0009-Add-c-option-just-as-makepkg-c-y.patch
 gzip ./source/a/rpm2tgz/patches/0010-no-absolute-filenames-extracting-cpio.patch
-gzip ./source/a/udisks/udisks.no.pci-db.diff
-gzip ./source/a/udisks/udisks.glibc228.diff
 gzip ./source/a/dialog/dialog.all.use_height.diff
 gzip ./source/a/dialog/dialog.smaller.min.height.diff
 gzip ./source/a/dialog/doinst.sh

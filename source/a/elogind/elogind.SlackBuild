@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=elogind
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -106,22 +106,23 @@ cd meson-build
 meson \
   --buildtype release \
   --prefix /usr \
-  --libdir /usr/lib${LIBDIRSUFFIX} \
-  -Drootlibdir="/lib${LIBDIRSUFFIX}" \
-  -Drootlibexecdir="/lib${LIBDIRSUFFIX}/elogind" \
+  --libdir /lib${LIBDIRSUFFIX} \
+  --libexecdir /lib${LIBDIRSUFFIX}/elogind \
+  -Dpkgconfiglibdir=/usr/lib${LIBDIRSUFFIX}/pkgconfig \
+  -Dpamlibdir=/lib${LIBDIRSUFFIX}/security \
   -Dudevrulesdir="/lib/udev/rules.d" \
   -Ddocdir="/usr/doc/$PKGNAM-$VERSION" \
   -Dhtmldir="/usr/doc/$PKGNAM-$VERSION/html" \
   -Dmandir="/usr/man" \
-  -Dman=true \
-  -Dhtml=false \
+  -Dman=enabled \
+  -Dhtml=disabled \
   -Dbashcompletiondir="/usr/share/bash-completion/completions" \
   -Dnobody-user=nobody \
   -Dnobody-group=nogroup \
-  -Dpam=true \
+  -Dpam=enabled \
   -Dpamlibdir="/lib${LIBDIRSUFFIX}/security" \
   -Dpamconfdir="/etc/pam.d" \
-  -Dacl=true \
+  -Dacl=enabled \
   -Dsmack=false \
   -Dutmp=true \
   -Ddefault-hierarchy=legacy \
@@ -135,10 +136,10 @@ meson \
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
 
-# Create symlinks for elogind binaries to /usr/bin/:
-mkdir -p $PKG/usr/bin
-ln -sf /bin/elogind-inhibit $PKG/usr/bin/elogind-inhibit
-ln -sf /bin/loginctl $PKG/usr/bin/loginctl
+# Create symlinks for elogind binaries to /bin/:
+mkdir -p $PKG/bin
+ln -sf /usr/bin/elogind-inhibit $PKG/bin/elogind-inhibit
+ln -sf /usr/bin/loginctl $PKG/bin/loginctl
 
 # Make sure we do not overwrite the user's customizations:
 mv -i $PKG/etc/elogind/logind.conf{,.new}

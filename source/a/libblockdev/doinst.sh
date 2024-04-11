@@ -11,5 +11,5 @@ config() {
   # Otherwise, we leave the .new copy for the admin to consider...
 }
 
-config etc/libblockdev/conf.d/00-default.cfg.new
-config etc/libblockdev/conf.d/10-lvm-dbus.cfg.new
+config etc/libblockdev/3/conf.d/00-default.cfg.new
+config etc/libblockdev/3/conf.d/10-lvm-dbus.cfg.new

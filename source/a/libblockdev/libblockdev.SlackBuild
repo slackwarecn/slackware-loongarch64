@@ -24,8 +24,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libblockdev
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -42,7 +42,7 @@ fi
 # the name of the created package would be, and then exit. This information
 # could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
-  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  echo "$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz"
   exit 0
 fi
 
@@ -116,10 +116,10 @@ make install DESTDIR=$PKG || exit 1
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-mv $PKG/etc/libblockdev/conf.d/00-default.cfg \
-   $PKG/etc/libblockdev/conf.d/00-default.cfg.new
-mv $PKG/etc/libblockdev/conf.d/10-lvm-dbus.cfg \
-   $PKG/etc/libblockdev/conf.d/10-lvm-dbus.cfg.new
+mv $PKG/etc/libblockdev/3/conf.d/00-default.cfg \
+   $PKG/etc/libblockdev/3/conf.d/00-default.cfg.new
+mv $PKG/etc/libblockdev/3/conf.d/10-lvm-dbus.cfg \
+   $PKG/etc/libblockdev/3/conf.d/10-lvm-dbus.cfg.new
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -150,4 +150,4 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz

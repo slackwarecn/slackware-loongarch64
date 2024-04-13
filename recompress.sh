@@ -20,7 +20,6 @@ gzip ./extra/source/tigervnc/patches/xserver211.patch
 gzip ./extra/source/tigervnc/patches/vncserver.xinitrc.diff
 gzip ./extra/source/tigervnc/doinst.sh
 gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
-gzip ./source/d/python-setuptools/setuptools.x86_64.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/autoconf/doinst.sh

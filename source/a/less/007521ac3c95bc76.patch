@@ -1,0 +1,73 @@
+From 007521ac3c95bc76e3d59c6dbfe75d06c8075c33 Mon Sep 17 00:00:00 2001
+From: Mark Nudelman <markn@greenwoodsoftware.com>
+Date: Thu, 11 Apr 2024 17:49:48 -0700
+Subject: [PATCH] Fix bug when viewing a file whose name contains a newline.
+
+---
+ filename.c | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/filename.c b/filename.c
+index f90e0e82..a52c6354 100644
+--- a/filename.c
++++ b/filename.c
+@@ -127,11 +127,20 @@ static constant char * metachars(void)
+ /*
+  * Is this a shell metacharacter?
+  */
+-static int metachar(char c)
++static lbool metachar(char c)
+ {
+ 	return (strchr(metachars(), c) != NULL);
+ }
+ 
++/*
++ * Must use quotes rather than escape char for this metachar?
++ */
++static lbool must_quote(char c)
++{
++	/* {{ Maybe the set of must_quote chars should be configurable? }} */
++	return (c == '\n'); 
++}
++
+ /*
+  * Insert a backslash before each metacharacter in a string.
+  */
+@@ -164,6 +173,9 @@ public char * shell_quoten(constant char *s, size_t slen)
+ 				 * doesn't support escape chars.  Use quotes.
+ 				 */
+ 				use_quotes = TRUE;
++			} else if (must_quote(*p))
++			{
++				len += 3; /* open quote + char + close quote */
+ 			} else
+ 			{
+ 				/*
+@@ -194,15 +206,22 @@ public char * shell_quoten(constant char *s, size_t slen)
+ 		constant char *es = s + slen;
+ 		while (s < es)
+ 		{
+-			if (metachar(*s))
++			if (!metachar(*s))
+ 			{
+-				/*
+-				 * Add the escape char.
+-				 */
++				*np++ = *s++;
++			} else if (must_quote(*s))
++			{
++				/* Surround the char with quotes. */
++				*np++ = openquote;
++				*np++ = *s++;
++				*np++ = closequote;
++			} else
++			{
++				/* Insert an escape char before the char. */
+ 				strcpy(np, esc);
+ 				np += esclen;
++				*np++ = *s++;
+ 			}
+-			*np++ = *s++;
+ 		}
+ 		*np = '\0';
+ 	}

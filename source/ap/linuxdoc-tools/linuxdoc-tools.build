@@ -4,7 +4,7 @@
 # Script:  linuxdoc-tools.build
 # Purpose: Build & install all components that form the linuxdoc-tools
 #          Slackware Package.
-# Credit:  written by Stuart Winter <mozes@slackware.com>
+# Author:  Stuart Winter <mozes@slackware.com>, 2005-2024
 #          with the docbook build code by Jerome Pinot <ngc891@gmail.com>
 #          and some script code taken from Debian, Red Hat/Fedora &
 #          Linux From Scratch documentation
@@ -23,7 +23,7 @@
 LINUXDOCTOOLSVER=$PKGVERSION
 
 # Bundled package versions:
-ASCIIDOCVER=9.1.0
+ASCIIDOCVER=10.2.0
 DSSSLSTYLESHEETSVER=1.79 # docbook-dsssl-*.tar.xz (plus -doc- source archive), not SRPM.
 XSLSTYLESHEETSVER=1.79.2 # docbook-style-xsl-*src.rpm ("DocBook XSL Stylesheets" in our ChangeLog.txt)
 DOCBOOKUTILSVER=0.6.14
@@ -31,7 +31,7 @@ SGMLDTD3VER=3.1
 SGMLDTD4VER=4.5
 XMLDTDVER=4.5
 GNOMEDOCUTILSVER=0.20.10
-GTKDOCVER=1.33.2
+GTKDOCVER=1.34.0
 SGMLSPLVER=1.03ii
 OPENJADEVER=1.3.2
 OPENSPVER=1.5.2
@@ -53,7 +53,7 @@ case $ARCH in
            export LIBDIRSUFFIX="64"
            export HOSTTARGET=""
            ;;
-  riscv)   export SLKCFLAGS="-O2"
+  riscv64) export SLKCFLAGS="-O2"
            export LIBDIRSUFFIX="64"
            export HOSTTARGET=""
            ;;
@@ -78,7 +78,7 @@ function build_asciidoc() {
 # Extract source:
 cd $TMP
 rm -rf asciidoc
-mkdir asciidoc && cd asciidoc
+mkdir -p asciidoc{,-collect} && cd asciidoc
 rpm2cpio $CWD/sources/asciidoc-${ASCIIDOCVER}*.src.rpm | cpio -div || exit 1
 tar xvf asciidoc-py-*.tar.*z
 cd asciidoc-py-*/ || exit 1
@@ -92,11 +92,12 @@ find . \
 # Apply patches:
 # Assemble patch list from spec file:
 # grep -E '^Patch[0-9].*: ' *.spec | awk -F: '{print $2" \\"}'
-#for i in \
-# \
-#  \
-#  ; do patch -p1 --verbose < ../${i} || exit 1
-#done || exit 1
+for i in \
+ \
+ asciidoc-table-separator.patch \
+  \
+  ; do patch -p1 --verbose < ../${i} || exit 1
+done || exit 1
 
 # Configure:
 autoreconf -v
@@ -116,20 +117,34 @@ if [ "$1" = "nodocs" ]; then
    echo "*** Built asciidoc without documentation - expect errors above ***"
    echo "******************************************************************"
  else
-   make install docs || exit 1
+   # It's the full build and installation:
+   # Install the documentation into a temporary location so that we can
+   # filter it manually, as it does not respect --mandir and there's a good
+   # amount of superfluous stuff that we don't want to package:
+   make install docs DESTDIR=$TMP/asciidoc-collect || exit 1
+   # "make install" target doesn't include the docs, so we can install
+   # everything else for collection by slacktrack directly:
+   make install || exit 1
+   [ ! -x /usr/bin/asciidoc ] && { echo "*** Error: asciidoc wasn't installed! ***" ; exit 1;}
+
+   # Copy docs:
+   mkdir -vpm755 /usr/doc/asciidoc-$ASCIIDOCVER
+   cp -fav \
+      BUGS.adoc CHANGELOG.adoc COPYRIGHT LICENSE README.md \
+      /usr/doc/asciidoc-$ASCIIDOCVER/
+
+   # Collect what we want and place it into the file system for collection
+   # by slacktrack:
+   pushd $TMP/asciidoc-collect/usr/doc/asciidoc-*/
+   # Man pages:
+   mv -fv doc/{asciidoc.1,a2x.1} /usr/man/man1/
+   rm -fv doc/*.1.txt # wipe the sources
+   # Other stuff:
+   # We're omitting these dirs: dblatex/ docbook-xsl/
+   mv -fv doc images /usr/doc/asciidoc-$ASCIIDOCVER/
+   popd
 fi
 
-find /etc/asciidoc -type f -print0 | xargs -0 chmod 644
-
-# After the build completes, we'll rename the asciidoc config files to '.new'
-# (see 'postbuildfixes.sh'), but for now we need them in place so that the
-# application works, since asciidoc is used to build some of this monolithic package.
-
-# Copy docs:
-mkdir -vpm755 /usr/doc/asciidoc-$ASCIIDOCVER
-cp -fav \
-  BUGS.txt CHANGELOG.txt COPY* README.asciidoc \
-  /usr/doc/asciidoc-$ASCIIDOCVER/
 }
 
 # Build asciidoc without any documentation (man pages).  We'll have
@@ -329,9 +344,8 @@ patch --verbose -p1 < ../opensp-nodeids.patch || exit 1
 find . -name config.guess -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.guess '{}'
 find . -name config.sub -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.sub '{}'
 
-# Configure without optimisation.  OpenSP & OpenJade
-# are sensitive to optimisations, resulting in segfaults,
-# particularly on the ARM platform.  Apparently -O1 will work but
+# Configure without optimisation.  OpenSP & OpenJade are sensitive to optimisations,
+# resulting in segfaults, particularly on the ARM platform.  Apparently -O1 will work but
 # let's just leave it as is.
 #
 # This is configured not to build the documentation.  If anybody really needs
@@ -395,7 +409,7 @@ mv -fv /usr/doc/OpenSP /usr/doc/OpenSP-$OPENSPVER
 
 ####################### Build OpenJade ############################
 # Reference:
-#  http://cblfs.cross-lfs.org/index.php/OpenJade
+# https://www.linuxfromscratch.org/blfs/view/stable/pst/openjade.html
 
 # Extract source:
 cd $TMP
@@ -776,6 +790,7 @@ find . \
 # Apply patches:
 # Note: 'docbook-style-xsl-non-recursive-string-subst.patch' is applied separately
 # as it needs a different patch level.
+# We don't apply 'docbook-style-xsl-1.79.2-fix-gtk-doc-multilib.patch'
 for i in \
  \
  docbook-xsl-pagesetup.patch \
@@ -787,7 +802,7 @@ for i in \
  \
  ; do patch --verbose -p1 < ../../$i
 done || exit 1
-patch -p2 < ../../docbook-style-xsl-non-recursive-string-subst.patch || exit 1
+patch --verbose -p2 < ../../docbook-style-xsl-non-recursive-string-subst.patch || exit 1
 
 cp -fav ../../docbook-style-xsl.Makefile Makefile
 # Switch to UTF-8 files:
@@ -952,8 +967,8 @@ cd $TMP
 mkdir linuxdoc-tools && cd linuxdoc-tools
 #rpm2cpio $CWD/sources/linuxdoc-tools-${LINUXDOCTOOLSVER}*.src.rpm | cpio -div || exit 1
 #tar xvf linuxdoc-tools_$LINUXDOCTOOLSVER.tar.gz
-tar xvf $CWD/sources/linuxdoc-tools_$LINUXDOCTOOLSVER.tar.?z
-cd linuxdoc-tools-$LINUXDOCTOOLSVER || exit 1
+tar xvf $CWD/sources/linuxdoc-tools-$LINUXDOCTOOLSVER.tar.?z
+cd linuxdoc-tools*/ || exit 1
 
 chown -R root:root .
 find . \
@@ -974,8 +989,8 @@ export PATH=$( echo $PATH | sed -e 's?:/usr/share/texmf/bin??g' -e 's?/usr/share
 # latest linuxdoc-tools source.  It simply changed the default page size to 'Letter'.
 # Probably not too much to worry about there.
 for i in \
-  linuxdoc-tools-0.9.20-lib64.patch.xz ; do
-    xzcat $CWD/sources/$i | patch -p1 || exit 1
+  linuxdoc-tools-0002-downstream-Added-fix-to-have-lib64-in-perl-path-on-6.patch.xz ; do
+    xzcat $CWD/sources/$i | patch --verbose -p1 || exit 1
 done || exit 1
 
 # Find out what our Vendor perl directory is:
@@ -1055,6 +1070,7 @@ find . \
 for i in \
  \
   gnome-doc-utils-0.20.10-python3.patch \
+  gnome-doc-utils-0.20.10-configure-py312.patch \
   \
   ; do patch --verbose -p1 < ../$i
 done || exit 1
@@ -1113,7 +1129,7 @@ find . \
 # and we've never included it.
 for i in \
  \
- 0001-Partially-revert-a-gtk-doc-1.31-change-that-broke-e-.patch \
+ 74.patch \
   \
   ; do patch --verbose -p1 < ../$i
 done || exit 1
@@ -1255,4 +1271,4 @@ build_asciidoc
 rm -rf /install
 mkdir -vpm755 /install
 install -vpm644 $CWD/slack-desc /install
-zcat $CWD/doinst.sh.gz > /install/doinst.sh
+#zcat $CWD/doinst.sh.gz > /install/doinst.sh

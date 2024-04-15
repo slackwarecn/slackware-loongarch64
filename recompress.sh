@@ -620,7 +620,6 @@ gzip ./source/ap/ksh93/doinst.sh
 gzip ./source/ap/sc/sc-7.16-3.diff
 gzip ./source/ap/sqlite/COPYRIGHT
 gzip ./source/ap/nano/doinst.sh
-gzip ./source/ap/linuxdoc-tools/doinst.sh
 gzip ./source/ap/gutenprint/doinst.sh
 gzip ./source/ap/alsa-utils/alsa-utils.alsaconf.diff
 gzip ./source/ap/alsa-utils/rc.alsa

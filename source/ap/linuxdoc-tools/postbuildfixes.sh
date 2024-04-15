@@ -40,6 +40,11 @@ chmod -R a-s .
 # Remove dangling symlinks from /usr/doc.  asciidoc-8.6.7 was a culprit.
 find usr/doc -xtype l -print0 | xargs -0 rm -fv
 
+# Delete any empty directories left over by the removal of the orphaned Python cache
+# files.  e.g.
+# usr/lib/python3.11/site-packages/mesonbuild/__pycache__/
+find usr/lib*/python* -type d -empty -delete
+
 # Ensure some permissions.
 # I don't know why but these dirs are installed chmod 1755:
 #drwxr-xr-t root/root         0 2006-05-27 15:42:44 var/lib/texmf/
@@ -75,20 +80,21 @@ find . -name "*.txt" | while read docfile ; do
 done
 popd
 
+# Gone in asciidoc-10, but retaining for future reference:
 # Allow preservation of conf files for ascii-doc.  Some of the other bundled
 # packages may benefit from this treatment, but nobody's asked for anything
 # other than asciidoc in over 10 years!
-echo "Renaming configuration files to '.conf.new'.."
-find etc/asciidoc -type f -name '*.conf' -print0 | xargs -0i mv -fv '{}' '{}.new'
-# Search for any dangling symlinks created by renaming the files:
-if [ ! -z "$( find -L etc/asciidoc -type l -print )" ]; then
-   echo "WARNING: Dangling symlinks in etc/asciidoc -- you need to fix them!"
-   find -L etc/asciidoc -type l -print
-fi
-# Populate the doinst.sh script
-find etc/asciidoc -type f -name '*.conf.new' | while read cfile ; do
-  echo "config $cfile" >> install/doinst.sh
-done
+#echo "Renaming configuration files to '.conf.new'.."
+##find etc/asciidoc -type f -name '*.conf' -print0 | xargs -0i mv -fv '{}' '{}.new'
+## Search for any dangling symlinks created by renaming the files:
+#if [ ! -z "$( find -L etc/asciidoc -type l -print )" ]; then
+#   echo "WARNING: Dangling symlinks in etc/asciidoc -- you need to fix them!"
+#   find -L etc/asciidoc -type l -print
+#fi
+## Populate the doinst.sh script
+#find etc/asciidoc -type f -name '*.conf.new' | while read cfile ; do
+#  echo "config $cfile" >> install/doinst.sh
+#done
 
 # Now you should manually extract the .t?z
 # - check through the install/doinst.sh script;

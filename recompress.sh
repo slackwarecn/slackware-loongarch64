@@ -638,6 +638,7 @@ gzip ./source/ap/screen/60-revert-screenrc-change.diff
 gzip ./source/ap/screen/26source_encoding.patch
 gzip ./source/ap/screen/45suppress_remap.patch
 gzip ./source/ap/screen/doinst.sh
+gzip ./source/ap/groff/0006-Revert-upstream-change-of-mapping-special-characters.patch
 gzip ./source/ap/cdparanoia/cdparanoia-III-10.2_cdda_private.patch
 gzip ./source/ap/rpm/doinst.sh
 gzip ./source/ap/rpm/Packages

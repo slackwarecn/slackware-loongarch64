@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=bluez
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -138,12 +138,8 @@ cp -a $CWD/config/org.bluez.obex.service $PKG/usr/share/dbus-1/services
 chown root:root $PKG/usr/share/dbus-1/services/org.bluez.obex.service
 chmod 644 $PKG/usr/share/dbus-1/services/org.bluez.obex.service
 
-# Install the configuration files
-mkdir -p $PKG/etc/bluetooth $PKG/etc/default
-cat src/main.conf > $PKG/etc/bluetooth/main.conf.new
-cat profiles/input/input.conf > $PKG/etc/bluetooth/input.conf.new
-cat profiles/network/network.conf > $PKG/etc/bluetooth/network.conf.new
-cat $CWD/config/uart.conf > $PKG/etc/bluetooth/uart.conf.new
+# Install default options config file:
+mkdir -p $PKG/etc/default
 cat $CWD/config/defaultconfig > $PKG/etc/default/bluetooth.new
 
 # Add an init script
@@ -153,6 +149,11 @@ cat $CWD/config/rc.bluetooth > $PKG/etc/rc.d/rc.bluetooth.new
 # Let's go ahead and let that start by default, unless an existing init
 # script is not executable:
 chmod 755 $PKG/etc/rc.d/rc.bluetooth.new
+
+# Make the other config files .new:
+for config in input.conf main.conf network.conf ; do
+  mv $PKG/etc/bluetooth/${config} $PKG/etc/bluetooth/${config}.new
+done
 
 # If the deprecated utility gatttool was built, go ahead and install it:
 if [ -x attrib/gatttool ]; then

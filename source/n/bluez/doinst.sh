@@ -21,6 +21,5 @@ config etc/rc.d/rc.bluetooth.new
 config etc/bluetooth/input.conf.new
 config etc/bluetooth/main.conf.new
 config etc/bluetooth/network.conf.new
-config etc/bluetooth/uart.conf.new
 config etc/default/bluetooth.new
 

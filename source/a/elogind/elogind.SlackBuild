@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=elogind
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -98,33 +98,30 @@ find . \
 # but sed will still happily scribble all over everything.
 cat $CWD/elogind.nobody.nogroup.99.99.diff | patch -p1 --verbose || exit 1
 
-# Don't prefer s2idle, as it doesn't seem to work:
-cat $CWD/11-prefer-deep-suspend.patch | patch -p1 --verbose || exit 1
-
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
 mkdir meson-build
 cd meson-build
-meson \
-  --buildtype=release \
-  --prefix=/usr \
-  --libdir=/lib${LIBDIRSUFFIX} \
-  --libexecdir=/lib${LIBDIRSUFFIX}/elogind \
-  -Dpkgconfiglibdir=/usr/lib${LIBDIRSUFFIX}/pkgconfig \
-  -Dpamlibdir=/lib${LIBDIRSUFFIX}/security \
+meson setup \
+  --buildtype release \
+  --prefix /usr \
+  --libdir /usr/lib${LIBDIRSUFFIX} \
+  -Drootlibdir="/lib${LIBDIRSUFFIX}" \
+  -Drootlibexecdir="/lib${LIBDIRSUFFIX}/elogind" \
   -Dudevrulesdir="/lib/udev/rules.d" \
   -Ddocdir="/usr/doc/$PKGNAM-$VERSION" \
   -Dhtmldir="/usr/doc/$PKGNAM-$VERSION/html" \
   -Dmandir="/usr/man" \
-  -Dman=enabled \
-  -Dhtml=disabled \
+  -Dman=true \
+  -Dhtml=false \
   -Dbashcompletiondir="/usr/share/bash-completion/completions" \
   -Dnobody-user=nobody \
   -Dnobody-group=nogroup \
-  -Dpam=enabled \
+  -Dpam=true \
+  -Dpamlibdir="/lib${LIBDIRSUFFIX}/security" \
   -Dpamconfdir="/etc/pam.d" \
-  -Dacl=enabled \
+  -Dacl=true \
   -Dsmack=false \
   -Dutmp=true \
   -Ddefault-hierarchy=legacy \
@@ -139,15 +136,14 @@ meson \
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
 
-# Create symlinks for elogind binaries to /bin/:
-mkdir -p $PKG/bin
-ln -sf /usr/bin/elogind-inhibit $PKG/bin/elogind-inhibit
-ln -sf /usr/bin/loginctl $PKG/bin/loginctl
+# Create symlinks for elogind binaries to /usr/bin/:
+mkdir -p $PKG/usr/bin
+ln -sf /bin/elogind-inhibit $PKG/usr/bin/elogind-inhibit
+ln -sf /bin/loginctl $PKG/usr/bin/loginctl
 
 # Make sure we do not overwrite the user's customizations:
 mv -i $PKG/etc/elogind/logind.conf{,.new}
 mv -i $PKG/etc/elogind/sleep.conf{,.new}
-mv -i $PKG/etc/elogind/sleep.conf.d/10-elogind.conf{,.new}
 mv -i $PKG/etc/pam.d/elogind-user{,.new}
 
 # Strip binaries:

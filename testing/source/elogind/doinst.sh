@@ -29,6 +29,7 @@ preserve_perms() {
 preserve_perms etc/rc.d/rc.elogind.new
 config etc/elogind/logind.conf.new
 config etc/elogind/sleep.conf.new
+config etc/elogind/sleep.conf.d/10-elogind.conf.new
 config etc/pam.d/elogind-user.new
 
 # Reload elogind-daemon:

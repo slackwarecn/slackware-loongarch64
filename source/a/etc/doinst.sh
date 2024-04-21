@@ -100,6 +100,15 @@ rm -f etc/gshadow.new
 rm -f etc/passwd.new
 rm -f etc/shadow.new
 
+# We will add any missing entries to gshadow, but make no attempt to repair existing ones:
+cat etc/group | while read line ; do
+  GRP="$(echo $line | cut -f 1 -d :)"
+  GMEMBERS="$(echo $line | rev | cut -f 1 -d : | rev)"
+  if ! grep -q "^${GRP}:" etc/gshadow ; then
+    echo "${GRP}:x::${GMEMBERS}" >> etc/gshadow
+  fi
+done
+
 # Make sure $HOME is correct for user sddm:
 chroot . /usr/sbin/usermod -d /var/lib/sddm sddm > /dev/null 2> /dev/null
 # Make sure that sddm is a member of group video:

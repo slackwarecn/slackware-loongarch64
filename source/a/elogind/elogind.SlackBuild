@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=elogind
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -98,30 +98,55 @@ find . \
 # but sed will still happily scribble all over everything.
 cat $CWD/elogind.nobody.nogroup.99.99.diff | patch -p1 --verbose || exit 1
 
+# OK, here's the scoop on s2idle. After doing some digging, it looks like both
+# Intel and AMD have stopped officially supporting S3 sleep (aka "deep") with
+# the latest generation of CPUs (although it "might work"). I've also seen a
+# few people say that S3 is "not secure"... which if you're worried that a
+# three letter agency might grab your sleeping laptop and extract the contents
+# of the RAM while keeping it powered up, well, maybe in that sense it isn't.
+# As far as s2idle, I have heard that it has the potential to be as much of a
+# low power mode as deep, but that depends on how low the IRQ rate gets. In
+# practice I have heard of s2idle draining a battery in half a day.
+#
+# Anyway, I tried s2deep here again (with the below sleep patches) and it still
+# locks up my machine (a fairly recent Thinkpad X1).
+#
+# S3 works and has the best power savings of all the partially-on modes.
+# Feel free to edit /etc/elogind/sleep.conf.d/10-elogind.conf if s2deep works
+# for you, but we'll continue to default to deep for now.
+#
+# Don't prefer s2idle, as it doesn't seem to work:
+cat $CWD/11-prefer-deep-suspend.patch | patch -p1 --verbose || exit 1
+cat $CWD/12-default-deep-suspend.patch | patch -p1 --verbose || exit 1
+
+# Upstream sleep fixes:
+cat $CWD/ce3616c8864e56bf7efb233242f20197108a9dba.patch | patch -p1 --verbose || exit 1
+cat $CWD/5d16d94aa9a5e3afe5b51f591497149630763b24.patch | patch -p1 --verbose || exit 1
+
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
 mkdir meson-build
 cd meson-build
 meson setup \
-  --buildtype release \
-  --prefix /usr \
-  --libdir /usr/lib${LIBDIRSUFFIX} \
-  -Drootlibdir="/lib${LIBDIRSUFFIX}" \
-  -Drootlibexecdir="/lib${LIBDIRSUFFIX}/elogind" \
+  --buildtype=release \
+  --prefix=/usr \
+  --libdir=/lib${LIBDIRSUFFIX} \
+  --libexecdir=/lib${LIBDIRSUFFIX}/elogind \
+  -Dpkgconfiglibdir=/usr/lib${LIBDIRSUFFIX}/pkgconfig \
+  -Dpamlibdir=/lib${LIBDIRSUFFIX}/security \
   -Dudevrulesdir="/lib/udev/rules.d" \
   -Ddocdir="/usr/doc/$PKGNAM-$VERSION" \
   -Dhtmldir="/usr/doc/$PKGNAM-$VERSION/html" \
   -Dmandir="/usr/man" \
-  -Dman=true \
-  -Dhtml=false \
+  -Dman=enabled \
+  -Dhtml=disabled \
   -Dbashcompletiondir="/usr/share/bash-completion/completions" \
   -Dnobody-user=nobody \
   -Dnobody-group=nogroup \
-  -Dpam=true \
-  -Dpamlibdir="/lib${LIBDIRSUFFIX}/security" \
+  -Dpam=enabled \
   -Dpamconfdir="/etc/pam.d" \
-  -Dacl=true \
+  -Dacl=enabled \
   -Dsmack=false \
   -Dutmp=true \
   -Ddefault-hierarchy=legacy \
@@ -136,14 +161,15 @@ meson setup \
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
 
-# Create symlinks for elogind binaries to /usr/bin/:
-mkdir -p $PKG/usr/bin
-ln -sf /bin/elogind-inhibit $PKG/usr/bin/elogind-inhibit
-ln -sf /bin/loginctl $PKG/usr/bin/loginctl
+# Create symlinks for elogind binaries to /bin/:
+mkdir -p $PKG/bin
+ln -sf /usr/bin/elogind-inhibit $PKG/bin/elogind-inhibit
+ln -sf /usr/bin/loginctl $PKG/bin/loginctl
 
 # Make sure we do not overwrite the user's customizations:
 mv -i $PKG/etc/elogind/logind.conf{,.new}
 mv -i $PKG/etc/elogind/sleep.conf{,.new}
+mv -i $PKG/etc/elogind/sleep.conf.d/10-elogind.conf{,.new}
 mv -i $PKG/etc/pam.d/elogind-user{,.new}
 
 # Strip binaries:

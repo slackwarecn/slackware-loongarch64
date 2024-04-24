@@ -24,7 +24,7 @@
 PKGNAM=aom
 
 # Pull a stable branch + patches
-BRANCH=${1:-3.8.2}
+BRANCH=${1:-3.9.0}
 
 # Clear download area:
 rm -rf ${PKGNAM}

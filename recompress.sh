@@ -3,7 +3,6 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
-gzip ./extra/source/rust-for-mozilla/link_libffi.diff
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
 gzip ./extra/source/bittornado/btdownloadxterm.sh
@@ -583,6 +582,7 @@ gzip ./source/ap/hplip/0003-models.dat-Re-add-drivers-missing-from-3.19.1.patch
 gzip ./source/ap/hplip/0021-Add-include-cups-ppd.h-in-various-places-as-CUPS-2.2.patch
 gzip ./source/ap/lxc/doinst.sh
 gzip ./source/ap/ghostscript-fonts-std/doinst.sh
+gzip ./source/ap/cups-browsed/doinst.sh
 gzip ./source/ap/a2ps/a2ps.a2ps_cfg.in.diff
 gzip ./source/ap/a2ps/a2ps.diff
 gzip ./source/ap/sysstat/doinst.sh
@@ -608,8 +608,6 @@ gzip ./source/ap/texinfo/update-info-dir
 gzip ./source/ap/texinfo/doinst.sh
 gzip ./source/ap/sudo/doinst.sh
 gzip ./source/ap/soma/doinst.sh
-gzip ./source/ap/cups-filters/doinst.sh
-gzip ./source/ap/cups-filters/CVE-2023-24805.patch
 gzip ./source/ap/bpe/bpe.port.to.strerror.diff
 gzip ./source/ap/ispell/local.h.linux.diff
 gzip ./source/ap/diffutils/doinst.sh
@@ -876,7 +874,6 @@ gzip ./source/xap/mozilla-thunderbird/build-deps/autoconf/autoconf-2.13-consolid
 gzip ./source/xap/mozilla-thunderbird/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/mozilla-thunderbird/tb.ui.scrollToClick.diff
 gzip ./source/xap/mozilla-thunderbird/double_t.x86.diff
-gzip ./source/xap/mozilla-thunderbird/gkrust.a.no.networking.check.diff
 gzip ./source/xap/xmms/xmms.alsa.default.diff
 gzip ./source/xap/xmms/xmms.gtk.doublesize.diff
 gzip ./source/xap/xmms/xmms.wmxmms_vis_depth_workaround.diff

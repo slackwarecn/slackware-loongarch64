@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,17 +23,18 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=jove
-VERSION=4.16.0.74
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i586 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -44,10 +45,13 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -55,21 +59,33 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "armv7hl" ]; then
+  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
+  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
 TMP=${TMP:-/tmp}
-PKG=$TMP/package-jove
+PKG=$TMP/package-$PKGNAM
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf jove$VERSION
-tar xvf $CWD/jove$VERSION.tar.?z* || exit 1
-cd jove$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
+# Fix install prefix:
+sed -i "s|JOVEHOME = /usr/local|JOVEHOME = /usr|g" Makefile
+
+# Use lib64 if needed:
+if [ "$LIBDIRSUFFIX" = "64" ]; then
+  sed -i "s|JLIBDIR = \$(JOVEHOME)/lib/jove|JLIBDIR = \$(JOVEHOME)/lib64/jove|g" Makefile
+fi
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -77,49 +93,38 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-zcat $CWD/jove.makefile.diff.gz | patch -p1 --verbose --backup || exit 1
-
-# Patch due to removal of stropts.h:
-zcat $CWD/jove.glibc-2.30.diff.gz | patch -p1 --verbose --backup || exit 1
-
-# More patching needed now:
-sed -i -e "s#/lib/jove#/lib${LIBDIRSUFFIX}/jove#" \
-  -e "s#^OPTFLAGS = .*#OPTFLAGS = $SLKCFLAGS#" Makefile
-
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Create jove-recover symlink
-( cd $PKG/usr/bin
-  ln -s ../lib${LIBDIRSUFFIX}/jove/recover jove-recover
-)
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Install teach-jove file:
-cp -a --verbose doc/teach-jove $PKG/usr/lib${LIBDIRSUFFIX}/jove/teach-jove
-chown root:root $PKG/usr/lib${LIBDIRSUFFIX}/jove/teach-jove
-chmod 644 $PKG/usr/lib${LIBDIRSUFFIX}/jove/teach-jove
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" \
-  | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-# Compress man pages
-( cd $PKG/usr/man
-  rm man1/jovetool.1 man1/xjove.1
-  find . -type f -exec gzip -9 {} \+
-  for i in $( find . -type l ) ; do
-    ln -s $( readlink $i ).gz $i.gz ; rm $i
-  done
-)
-
-# Copy program documentation into the package
-mkdir -p $PKG/usr/doc/jove$VERSION
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  README* $PKG/usr/doc/jove$VERSION
+  ChangeLog LICENSE* README* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+mv $PKG/usr/share/doc/jove/example.rc $PKG/usr/doc/${PKGNAM}-$VERSION
+rm -r $PKG/usr/share/doc
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/jove-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

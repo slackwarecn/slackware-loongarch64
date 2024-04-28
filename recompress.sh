@@ -573,6 +573,7 @@ gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/0023-Fix-handling-of-unicode-filenames-in-sixext.py.patch
 gzip ./source/ap/hplip/0018-Allow-non-JPEG-scanning-on-the-HP-DeskJet-3520-All-i.patch
 gzip ./source/ap/hplip/hplip.no.upgrade.diff
+gzip ./source/ap/hplip/0026-remove-unicode-space-from-models.dat
 gzip ./source/ap/hplip/setup.py.lc_all.c.diff
 gzip ./source/ap/hplip/doinst.sh
 gzip ./source/ap/hplip/hplip.python3.shebang.diff
@@ -625,8 +626,6 @@ gzip ./source/ap/alsa-utils/doinst.sh
 gzip ./source/ap/alsa-utils/rc.alsa-oss
 gzip ./source/ap/amp/amp.do.not.overoptimize.diff
 gzip ./source/ap/amp/amp-gcc34.diff
-gzip ./source/ap/jove/jove.glibc-2.30.diff
-gzip ./source/ap/jove/jove.makefile.diff
 gzip ./source/ap/seejpeg/seejpeg-1.10.diff
 gzip ./source/ap/cups/doinst.sh
 gzip ./source/ap/at/doinst.sh

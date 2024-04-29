@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2000-2011, 2013, 2014, 2015, 2016, 2017, 2018, 2019  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2000-2011, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -64,36 +64,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-ncurses_configure() {
-CFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --enable-colorfgbg \
-  --enable-hard-tabs \
-  --enable-overwrite \
-  --enable-xmc-glitch \
-  --with-cxx-shared \
-  --with-ospeed=unsigned \
-  --with-termlib=tinfo \
-  --with-ticlib=tic \
-  --with-gpm \
-  --with-shared \
-  --without-debug \
-  --without-normal \
-  --without-profile \
-  --enable-symlinks \
-  --enable-pc-files \
-  --with-pkg-config-libdir=/usr/lib${LIBDIRSUFFIX}/pkgconfig \
-  --without-ada \
-  $X86_64OPTS \
-  --program-suffix="" \
-  --program-prefix="" \
-  $WIDEC \
-  --build=$ARCH-slackware-linux
-}
-
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
@@ -103,30 +73,34 @@ tar xvf $CWD/ncurses-$VERSION.tar.?z || exit 1
 cd ncurses-$VERSION || exit 1
 chown -R root:root .
 
-## NOTE: nevermind trying this... patches have multiple failures. Use the
-## dated archive from upstream instead.
-#
-### No rollup (*.patch.sh) patch available yet for ncurses-6.1, so we'll
-### comment this out for now.
-## Apply upstream patch collection:
-#xzcat $CWD/ncurses-6.0-20160910-patch.sh.xz > ncurses-6.0-20160910-patch.sh
-#sh ncurses-6.0-20160910-patch.sh
-## Apply weekly ncurses patch updates:
-#for file in $CWD/patches/*.patch.gz ; do
-#  zcat $file | patch -p1 --verbose || exit 1
-#done
+CFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --with-manpage-format=normal \
+  --enable-widec \
+  --enable-colorfgbg \
+  --enable-hard-tabs \
+  --enable-overwrite \
+  --enable-xmc-glitch \
+  --with-cxx-binding \
+  --with-cxx-shared \
+  --with-shared \
+  --with-versioned-syms \
+  --with-termlib=tinfo \
+  --with-ticlib=tic \
+  --without-debug \
+  --without-normal \
+  --without-profile \
+  --enable-symlinks \
+  --enable-pc-files \
+  --with-pkg-config-libdir=/usr/lib${LIBDIRSUFFIX}/pkgconfig \
+  --without-ada \
+  --program-suffix="" \
+  --program-prefix="" \
+  --build=$ARCH-slackware-linux || exit 1
 
-zcat $CWD/ncurses.mkhashsize.diff.gz | patch -p1 --verbose || exit 1
-
-# Configure/build/install to package the standard ncurses libraries:
-ncurses_configure || exit 1
-make $NUMJOBS || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Configure/build/install again with wide character support:
-make clean
-WIDEC=--enable-widec
-ncurses_configure || exit 1
 make $NUMJOBS || exit 1
 make install DESTDIR=$PKG || exit 1
 
@@ -152,32 +126,38 @@ cp -a misc/termcap $PKG/etc/termcap
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
-# Move the include files from /usr/include into /usr/include/ncurses,
-# then make symlinks back into /usr/include.
-( cd $PKG/usr/include
-  rm -rf ncurses
-  mkdir ncurses
-  mv *.h ncurses
-  for file in ncurses/* ; do
-    ln -sf $file .
+# Move the ncurses libraries into /lib (for no reason basically, because we DO
+# NOT officially support a separate /usr partition):
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  mv lib*.so.?.? lib*.so.? $PKG/lib${LIBDIRSUFFIX}
+  for file in *.so ; do
+    if [ -L $file ]; then
+      rm $file
+      ln -sf ../../lib${LIBDIRSUFFIX}/${file}.? $file
+    fi
   done
 )
 
-# Make an ncursesw symlink to /usr/include/ncurses:
-if [ ! -d $PKG/usr/include/ncursesw -a ! -L $PKG/usr/include/ncursesw ]; then
-  ( cd $PKG/usr/include ; ln -sf ncurses ncursesw )
-fi
+# Make sure anything requesting the non-wide libraries will be directed to
+# the wide ones:
+for library in form menu ncurses ncurses++ panel ; do
+  # Add a loader script:
+  echo "INPUT(-l${library}w)" > $PKG/usr/lib${LIBDIRSUFFIX}/lib${library}.so
+  # Make a pkg-config file symlink:
+  ln -sf ${library}w.pc $PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig/${library}.pc
+done
 
-# Move the ncurses libraries into /lib, since they're important:
-mkdir -p $PKG/lib${LIBDIRSUFFIX}
-( cd $PKG/usr/lib${LIBDIRSUFFIX}
-  chmod 755 *.so
-  chmod 644 *.a
-  mv libncurses.so.6* $PKG/lib${LIBDIRSUFFIX}
-  mv libncursesw.so.6* $PKG/lib${LIBDIRSUFFIX}
-  mv libtinfo.so.6* $PKG/lib${LIBDIRSUFFIX}
-  rm -f libtinfo.so.6
-  ln -sf ../../lib${LIBDIRSUFFIX}/libtinfo.so.6 .
+# Support the obsolete:
+echo "INPUT(-ltinfo)" > $PKG/usr/lib${LIBDIRSUFFIX}/libtermcap.so
+
+# In case anything is linked to the non-wide ncurses libraries, make some
+# compatibility symlinks:
+( cd $PKG/lib${LIBDIRSUFFIX}
+  SONAME=$(echo libncursesw.so.? | rev | cut -f 1 -d .)
+  for library in form menu ncurses ncurses++ panel ; do
+    ln -sf lib${library}w.so.$SONAME lib${library}.so.$SONAME
+  done
 )
 
 # Use linker loader scripts to make sure -tinfo dependency works:
@@ -190,6 +170,9 @@ mkdir -p $PKG/lib${LIBDIRSUFFIX}
   echo "INPUT(-ltinfo)" > libtermcap.so
 )
 
+# NOTE 2024-04-29: I'm not sure these changes are still needed.
+# Maybe GazL knows.
+#
 # Use various upstream/fixed/better terminfo files to update the terminfo
 # database. Only *.terminfo files in $CWD/terminfo will be used.
 export TERMINFO=$PKG/usr/share/terminfo
@@ -200,6 +183,13 @@ for tfile in $CWD/terminfo/*.terminfo ; do
 done
 unset TERMINFO
 
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
 # Add /usr/doc/ncurses-xxxxx with appropriate files:
 mkdir -p $PKG/usr/doc/ncurses-$VERSION
 cp -a \
@@ -209,6 +199,10 @@ mkdir -p $PKG/usr/doc/ncurses-$VERSION/c++
 cp -a \
   c++/NEWS c++/PROBLEMS c++/README-first \
   $PKG/usr/doc/ncurses-$VERSION/c++
+mkdir -p $PKG/usr/doc/ncurses-$VERSION/html
+cp -a \
+  doc/html/*.html \
+  $PKG/usr/doc/ncurses-$VERSION/html
 
 # We don't need the log of every change here, but we'll take some.
 # If you need the whole thing probably you already extracted the
@@ -230,4 +224,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/ncurses-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
-

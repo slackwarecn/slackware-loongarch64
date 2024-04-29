@@ -686,7 +686,6 @@ gzip ./source/l/boost/boost.bootstrap.python3.diff
 gzip ./source/l/t1lib/t1lib_5.1.2-3.5.diff
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.orig
 gzip ./source/l/ncurses/terminfo/xterm.terminfo.diff
-gzip ./source/l/ncurses/ncurses.mkhashsize.diff
 gzip ./source/l/ncurses/doinst.sh
 gzip ./source/l/clucene/clucene.ctime.diff
 gzip ./source/l/clucene/clucene.install_contribs_lib.diff

@@ -15,6 +15,7 @@ config() {
 if [ -e etc/rc.d/rc.mysqld ]; then
   cp -a etc/rc.d/rc.mysqld etc/rc.d/rc.mysqld.new.incoming
   cat etc/rc.d/rc.mysqld.new > etc/rc.d/rc.mysqld.new.incoming
+  touch -r etc/rc.d/rc.mysqld.new etc/rc.d/rc.mysqld.new.incoming
   mv etc/rc.d/rc.mysqld.new.incoming etc/rc.d/rc.mysqld.new
 fi
 

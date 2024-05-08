@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=adwaita-icon-theme
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -91,6 +91,34 @@ meson setup \
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
+
+# Add some extra icons that have gone missing since adwaita-icon-theme-41.0
+# to ensure complete coverage of the FDo icon theme specification.
+# Copy from the main tree and back to make sure that we
+# don't overwrite these if they eventally appear.
+( cd $PKG
+  mkdir tmpicons
+  cd tmpicons
+  tar xvf $CWD/41/adwaita-icon-theme-41.0.tar.xz || exit 1
+  cd adwaita-icon-theme-41.0
+  # Configure, build, and install:
+  export CFLAGS="$SLKCFLAGS"
+  export CXXFLAGS="$SLKCFLAGS"
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib${LIBDIRSUFFIX} \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --build=$ARCH-slackware-linux || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG/tmpicons || exit 1
+  rsync -lprvt --progress ../usr/ usr/
+  # Then sync back:
+  rsync -lprvt --progress usr/ ../usr/
+  # And remove the leftovers:
+  cd ..
+  rm -r tmpicons
+)
 
 # Add some extra icons that are missing for Xfce.
 # Copy from the main tree and back to make sure that we

@@ -1429,6 +1429,7 @@ cd $TMP/extract-packages/usr/share/hwdata
 mkdir -p -m755 $PKG/$ARCH-installer-filesystem/usr/share/hwdata
 cp -fa${VERBOSE1} pci.ids usb.ids \
         $PKG/$ARCH-installer-filesystem/usr/share/hwdata
+gzip -9${VERBOSE1} $PKG/$ARCH-installer-filesystem/usr/share/hwdata/*
 
 # Copy the rc script for rpcbind:
 cd $TMP/extract-packages/etc/rc.d
@@ -1456,13 +1457,18 @@ for prunedir in $PKG/$ARCH-installer-filesystem/usr/bin $PKG/$ARCH-installer-fil
     rm -f $PKG/$ARCH-installer-filesystem/sbin/$(basename $removefile)
   done
 done
-if [ -r $PKG/$ARCH-installer-filesystem/sbin/lspci -a ! -L $PKG/$ARCH-installer-filesystem/sbin/lspci -a -L $PKG/$ARCH-installer-filesystem/bin/lspci ]; then
-  rm -f $PKG/$ARCH-installer-filesystem/bin/lspci
-fi
+
 # busybox's implementation of 'xzcat' provides different output when piped into 'dd'.
 # Symlink 'xzcat' to the real 'xz' as we do within the OS:
 cd $PKG/$ARCH-installer-filesystem/bin
 ln -fs xz xzcat
+
+# Busybox's implementation of 'lspci' doesn't consult the hardware data within
+# /usr/share/hwdata.  Replace it with pciutils' version:
+cp --remove-destination \
+   -fa${VERBOSE1} \
+   $TMP/extract-packages/usr/bin/lspci \
+   $PKG/$ARCH-installer-filesystem/bin/
 
 # Update to latest versions of files within /etc/
 # /etc/ file         Package    Reason

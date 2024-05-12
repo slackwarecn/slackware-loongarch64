@@ -5,8 +5,6 @@
 #
 gzip ./extra/source/getty-ps/getty.bugfixes.diff
 gzip ./extra/source/fltk/fltk.fltk-config.in.diff
-gzip ./extra/source/bittornado/btdownloadxterm.sh
-gzip ./extra/source/bittornado/doinst.sh
 gzip ./extra/source/sendmail/Build
 gzip ./extra/source/tigervnc/patches/tigervnc.pam.d.diff
 gzip ./extra/source/tigervnc/patches/force_protocol_3.3_for_UVNCSC.patch
@@ -211,6 +209,7 @@ gzip ./source/a/util-linux/util-linux.fdisk-no-solaris.diff
 gzip ./source/a/util-linux/seedrng.8
 gzip ./source/a/util-linux/adjtimex_1.29-2.2.diff
 gzip ./source/a/util-linux/doinst.sh
+gzip ./source/a/util-linux/bsdstrings.gcc14.diff
 gzip ./source/a/util-linux/ziptool-fix_build.patch
 gzip ./source/a/sharutils/sharutils.glibc228.diff
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-manpage-fix.patch
@@ -229,6 +228,7 @@ gzip ./source/a/infozip/unzip-patches/unzip-6.0-exec-shield.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-cve-2014-8141.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-cve-2014-8140.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-overflow.patch
+gzip ./source/a/infozip/unzip-patches/unzip.gnu89.diff
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-configure.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-symlink.patch
 gzip ./source/a/infozip/unzip-patches/unzip-6.0-close.patch
@@ -244,6 +244,7 @@ gzip ./source/a/infozip/zip-patches/zip-3.0-currdir.patch
 gzip ./source/a/infozip/zip-patches/zip-3.0-time.patch
 gzip ./source/a/infozip/zip-patches/man.patch
 gzip ./source/a/infozip/zip-patches/zip-3.0-exec-shield.patch
+gzip ./source/a/infozip/zip-patches/zip.gnu89.diff
 gzip ./source/a/nvi/patches/nvi-06-default_value_escapetime.patch
 gzip ./source/a/nvi/patches/nvi-03-db4.patch
 gzip ./source/a/nvi/patches/nvi-25-manpage_note_dropped_F.patch
@@ -262,6 +263,7 @@ gzip ./source/a/nvi/patches/nvi-08-lfs.patch
 gzip ./source/a/nvi/patches/nvi-08-safe_printf.patch
 gzip ./source/a/nvi/patches/nvi-04-confdefs.patch
 gzip ./source/a/nvi/patches/nvi-11-backward_sentence_moving.patch
+gzip ./source/a/nvi/patches/0039-Add-function-prototypes-to-fix-implicit-function-dec.patch
 gzip ./source/a/nvi/patches/nvi-19-include_term_h.patch
 gzip ./source/a/nvi/patches/nvi-20-glibc_has_grantpt.patch
 gzip ./source/a/nvi/patches/nvi-01-additional_upstream_data.patch
@@ -284,6 +286,7 @@ gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff
 gzip ./source/a/upower/doinst.sh
+gzip ./source/a/zoo/zoo.gcc14.diff
 gzip ./source/a/jfsutils/jfsutils.glibc228.diff
 gzip ./source/a/jfsutils/jfsutils.inttypes.h.diff
 gzip ./source/a/elvis/elvis.ref.c.getline.diff
@@ -331,6 +334,7 @@ gzip ./source/y/bsd-games/patches/0013-Update-acronyms.patch
 gzip ./source/y/bsd-games/patches/bsd-games.fortunepath.diff
 gzip ./source/y/bsd-games/patches/0004-Define-__dead-for-GNU-GCC.patch
 gzip ./source/y/bsd-games/patches/0010-Fix-typos-spotted-by-Lintian.patch
+gzip ./source/y/bsd-games/patches/bsd-games.gcc14.diff
 gzip ./source/y/bsd-games/patches/0002-robots-Refresh-screen.patch
 gzip ./source/y/bsd-games/patches/0009-hangman-Error-out-on-1000-unsuitable-words.-Closes-6.patch
 gzip ./source/y/bsd-games/patches/0001-Replace-getline-with-get_line.patch
@@ -360,10 +364,13 @@ gzip ./source/n/rdist/rdist-6.1.5-03.hardlink.diff
 gzip ./source/n/rdist/rdist-6.1.5-12.stat64.diff
 gzip ./source/n/bluez/doinst.sh
 gzip ./source/n/iproute2/doinst.sh
+gzip ./source/n/tftp-hpa/tftp-hpa.gcc14.diff
 gzip ./source/n/tftp-hpa/tftp-hpa.fcommon.diff
 gzip ./source/n/netdate/netdate.diff2
 gzip ./source/n/netdate/netdate.diff
+gzip ./source/n/netdate/netdate.gcc14.diff
 gzip ./source/n/procmail/procmail.lfs.diff
+gzip ./source/n/procmail/procmail.gcc14.diff
 gzip ./source/n/nfs-utils/doinst.sh
 gzip ./source/n/nfs-utils/nfs-utils.lwrap.needs.lnsl.diff
 gzip ./source/n/metamail/metamail.uue.getline.diff
@@ -395,6 +402,7 @@ gzip ./source/n/ppp/options.new
 gzip ./source/n/ppp/pppsetup-1.98.backupfiles.diff
 gzip ./source/n/inetd/inetd-OpenBSD-1.79.diff
 gzip ./source/n/inetd/fix-x86_64-daytime-segfault.diff
+gzip ./source/n/inetd/inetd.gcc14.diff
 gzip ./source/n/inetd/inetd.libtirpc.diff
 gzip ./source/n/inetd/doinst.sh
 gzip ./source/n/inetd/inetd.loopingdos.diff
@@ -431,6 +439,7 @@ gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
 gzip ./source/n/popa3d/popa3d.shadow.diff
 gzip ./source/n/popa3d/popa3d.pam.diff
 gzip ./source/n/popa3d/doinst.sh
+gzip ./source/n/popa3d/popa3d.gcc14.diff
 gzip ./source/n/ca-certificates/fixup_update-ca-certificates.diff
 gzip ./source/n/ca-certificates/doinst.sh
 gzip ./source/n/ca-certificates/update-ca-certificates.c_rehash.diff
@@ -439,6 +448,7 @@ gzip ./source/n/iptraf-ng/iptraf-ng.paths.diff
 gzip ./source/n/nss-pam-ldapd/doinst.sh
 gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
+gzip ./source/n/lftp/lftp.c99.patch
 gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/postfix/postfix.script.starting.message.diff
 gzip ./source/n/postfix/0001-openssl-micro-mismatch-nowarn.patch
@@ -616,6 +626,7 @@ gzip ./source/ap/terminus-font/doinst.sh
 gzip ./source/ap/dmapi/bug799162.patch
 gzip ./source/ap/ksh93/doinst.sh
 gzip ./source/ap/sc/sc-7.16-3.diff
+gzip ./source/ap/sc/sc.gcc14.diff
 gzip ./source/ap/sqlite/COPYRIGHT
 gzip ./source/ap/nano/doinst.sh
 gzip ./source/ap/gutenprint/doinst.sh
@@ -831,8 +842,6 @@ gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
 gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/libnl3/doinst.sh
 gzip ./source/l/libindicator/libindicator.LIBM.diff
-gzip ./source/l/pilot-link/pilot-link-0.12.5-redefinePerlsymbols.patch
-gzip ./source/l/pilot-link/pilot-link.png14.diff
 gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/avahi/doinst.sh
 gzip ./source/l/libcanberra/libcanberra-0.30-wayland-1.patch

@@ -63,6 +63,9 @@ else
   LIBDIRSUFFIX=""
 fi
 
+# GCC 14 "fix":
+#SLKCFLAGS="$SLKCFLAGS -Wno-error=implicit-int -Wno-error=incompatible-pointer-types"
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -85,6 +88,16 @@ zcat $CWD/hplip.python3.shebang.diff.gz | patch -p1 --verbose || exit 1
 
 # Fix the desktop file to show correct icon and category
 zcat $CWD/fix-desktop-file.patch.gz | patch -p1 --verbose || exit 1
+
+# GCC 14 fixes:
+cat $CWD/hplip-pserror-c99.patch | patch -p1 --verbose || exit 1
+cat $CWD/hplip-hpaio-gcc14.patch | patch -p1 --verbose || exit 1
+cat $CWD/hplip-covscan.patch | patch -p1 --verbose || exit 1
+cat $CWD/hplip-scan-orblite-c99.patch | patch -p1 --verbose || exit 1
+cat $CWD/hplip-scan-hpaio-include.patch | patch -p1 --verbose || exit 1
+
+# This extension was never ported to python3:
+cat $CWD/hplip-pcardext-disable.patch | patch -p1 --verbose || exit 1
 
 # Choose correct options depending on whether PAM is installed:
 if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
@@ -203,4 +216,3 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

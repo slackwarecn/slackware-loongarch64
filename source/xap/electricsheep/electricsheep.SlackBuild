@@ -140,6 +140,9 @@ case "$ARCH" in
              ;;
 esac
 
+# GCC 14 "fix":
+SLKCFLAGS="$SLKCFLAGS -Wno-error=incompatible-pointer-types -Wno-error=implicit-function-declaration"
+
 # Create working directories:
 mkdir -p $OUTPUT          # place for the package to be saved
 mkdir -p $TMP/tmp-$PKGNAM # location to build the source
@@ -204,6 +207,9 @@ cd client
   chmod +x ffmpeg/doc/texi2pod.pl
   # We do not use gnome:
   cat $SRCDIR/electricsheep_gnome-open.patch | patch -p1 --verbose \
+    2>&1 | tee $OUTPUT/patch-$PKGNAM.log
+  # This optimization is broken, oh well
+  cat $SRCDIR/electricsheep.evil.gcc14.diff | patch -p2 --verbose \
     2>&1 | tee $OUTPUT/patch-$PKGNAM.log
   # Prevent install errors due to missing gnome
   sed -i -e "/^install-data-local:/,/^$/d" Makefile.in

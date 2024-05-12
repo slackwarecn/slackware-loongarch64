@@ -1,0 +1,140 @@
+Fix several C99 compatibility issues in the configure script.  Most
+of them are specific to the uucp package.
+
+Submitted upstream: <https://savannah.gnu.org/bugs/index.php?63647>
+
+diff --git a/configure b/configure
+index 4cced27226101612..77336b5f0a1ba20d 100755
+--- a/configure
++++ b/configure
+@@ -1280,7 +1280,7 @@ cat > conftest.$ac_ext << EOF
+ #line 1281 "configure"
+ #include "confdefs.h"
+ 
+-main(){return(0);}
++int main(){return(0);}
+ EOF
+ if { (eval echo configure:1286: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   ac_cv_prog_cc_works=yes
+@@ -3025,6 +3025,7 @@ else
+   cat > conftest.$ac_ext <<EOF
+ #line 3027 "configure"
+ #include "confdefs.h"
++extern void exit ();
+ 
+ int main() {
+ extern void foo (); (void) exit (0);
+@@ -3153,6 +3154,7 @@ else
+   cat > conftest.$ac_ext <<EOF
+ #line 3155 "configure"
+ #include "confdefs.h"
++#include <string.h>
+ 
+ int main() {
+  char *i; int j, k; memset(i, j, k); 
+@@ -3185,6 +3187,7 @@ else
+   cat > conftest.$ac_ext <<EOF
+ #line 3187 "configure"
+ #include "confdefs.h"
++#include <string.h>
+ 
+ int main() {
+  char *i, *j; int k; memcmp(i, j, k); 
+@@ -3217,6 +3220,7 @@ else
+   cat > conftest.$ac_ext <<EOF
+ #line 3219 "configure"
+ #include "confdefs.h"
++#include <string.h>
+ 
+ int main() {
+  char *i, *j; int k; memcpy(i, j, k); 
+@@ -3894,7 +3898,7 @@ else
+ 
+ #include <sys/types.h>
+ #include <sys/timeb.h>
+-main ()
++int main ()
+ {
+   struct timeb s, slast;
+   int c = 0;
+@@ -3904,13 +3908,13 @@ main ()
+       ftime (&s);
+       if (s.time < slast.time
+ 	  || (s.time == slast.time && s.millitm < slast.millitm))
+-	exit (1);
++	return 1;
+       if (s.time != slast.time)
+ 	++c;
+       slast.time = s.time;
+       slast.millitm = s.millitm;
+     }
+-  exit (0);
++  return 0;
+ }
+ 
+ EOF
+diff --git a/configure.in b/configure.in
+index 452cf793f9ecc575..a788d07d123c7744 100644
+--- a/configure.in
++++ b/configure.in
+@@ -278,7 +278,7 @@ fi
+ dnl
+ AC_MSG_CHECKING(for void)
+ AC_CACHE_VAL(uucp_cv_c_void,
+-[AC_TRY_COMPILE([], [extern void foo (); (void) exit (0);],
++[AC_TRY_COMPILE([extern void exit ();], [extern void foo (); (void) exit (0);],
+ uucp_cv_c_void=yes, uucp_cv_c_void=no)])
+ AC_MSG_RESULT($uucp_cv_c_void)
+ if test $uucp_cv_c_void = yes; then
+@@ -318,7 +318,7 @@ dnl On some systems, memset, memcmp, and memcpy must be called with
+ dnl the right number of arguments.
+ AC_MSG_CHECKING(for memset)
+ AC_CACHE_VAL(ac_cv_func_memset,
+-[AC_TRY_LINK([], [ char *i; int j, k; memset(i, j, k); ],
++[AC_TRY_LINK([#include <string.h>], [ char *i; int j, k; memset(i, j, k); ],
+ ac_cv_func_memset=yes, ac_cv_func_memset=no)])
+ AC_MSG_RESULT($ac_cv_func_memset)
+ if test $ac_cv_func_memset = yes; then
+@@ -327,7 +327,7 @@ fi
+ dnl
+ AC_MSG_CHECKING(for memcmp)
+ AC_CACHE_VAL(ac_cv_func_memcmp,
+-[AC_TRY_LINK([], [ char *i, *j; int k; memcmp(i, j, k); ],
++[AC_TRY_LINK([#include <string.h>], [ char *i, *j; int k; memcmp(i, j, k); ],
+ ac_cv_func_memcmp=yes, ac_cv_func_memcmp=no)])
+ AC_MSG_RESULT($ac_cv_func_memcmp)
+ if test $ac_cv_func_memcmp = yes; then
+@@ -336,7 +336,7 @@ fi
+ dnl
+ AC_MSG_CHECKING(for memcpy)
+ AC_CACHE_VAL(ac_cv_func_memcpy,
+-[AC_TRY_LINK([], [ char *i, *j; int k; memcpy(i, j, k); ],
++[AC_TRY_LINK([#include <string.h>], [ char *i, *j; int k; memcpy(i, j, k); ],
+ ac_cv_func_memcpy=yes, ac_cv_func_memcpy=no)])
+ AC_MSG_RESULT($ac_cv_func_memcpy)
+ if test $ac_cv_func_memcpy = yes; then
+@@ -373,7 +373,7 @@ AC_CACHE_VAL(uucp_cv_sys_ftime_ok,
+ [AC_TRY_RUN([
+ #include <sys/types.h>
+ #include <sys/timeb.h>
+-main ()
++int main ()
+ {
+   struct timeb s, slast;
+   int c = 0;
+@@ -383,13 +383,13 @@ main ()
+       ftime (&s);
+       if (s.time < slast.time
+ 	  || (s.time == slast.time && s.millitm < slast.millitm))
+-	exit (1);
++	return 1;
+       if (s.time != slast.time)
+ 	++c;
+       slast.time = s.time;
+       slast.millitm = s.millitm;
+     }
+-  exit (0);
++  return 0;
+ }
+ ],
+ uucp_cv_sys_ftime_ok=yes,

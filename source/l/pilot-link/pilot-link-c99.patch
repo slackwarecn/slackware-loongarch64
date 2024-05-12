@@ -1,0 +1,28 @@
+Fix return types for PDA::Pilot::getRecords in the Perl bindings.
+
+diff --git a/bindings/Perl/Pilot.xs b/bindings/Perl/Pilot.xs
+index ef6865b710557fe8..424a24e64df8d2ae 100644
+--- a/bindings/Perl/Pilot.xs
++++ b/bindings/Perl/Pilot.xs
+@@ -2542,16 +2542,18 @@ resetNext(self)
+ 	OUTPUT:
+ 	RETVAL
+ 
+-int
++SV *
+ getRecords(self)
+ 	PDA::Pilot::DLP::DB *self
+ 	CODE:
+ 	{
+-		int result = dlp_ReadOpenDBInfo(self->socket, self->handle, &RETVAL);
++		int retval;
++		int result = dlp_ReadOpenDBInfo(self->socket, self->handle, &retval);
+ 		if (result < 0) {
+ 			RETVAL = newSVsv(&PL_sv_undef);
+ 			self->errnop = result;
+-		}
++		} else
++			RETVAL = newSViv(retval);
+ 	}
+ 	OUTPUT:
+ 	RETVAL

@@ -4,7 +4,7 @@
 #
 
 CC = gcc
-CFLAGS = -O2 -DUNIX
+CFLAGS = -O2 -DUNIX -Wno-error=implicit-function-declaration
 INSTALLDIR=/usr/bin
 
 unarj: unarj.o decode.o environ.o

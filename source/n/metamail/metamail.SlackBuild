@@ -80,6 +80,7 @@ cd metamail-$VERSION || exit 1
 xz -dc $CWD/metamail_2.7-54.diff.xz | patch -p1 || exit 1
 xz -dc $CWD/metamail.automake.diff.xz | patch -p1 || exit 1
 zcat $CWD/metamail.uue.getline.diff.gz | patch -p1 || exit 1
+cat $CWD/metamail.gcc14.diff | patch -p1 || exit 1
 
 chmod 755 configure
 
@@ -93,7 +94,7 @@ find . \
 # Fix misnamed man page:
 mv man/mmencode.1 man/mimencode.1
 
-CFLAGS="$SLKCFLAGS" \
+CFLAGS="$SLKCFLAGS -Wno-error=implicit-int" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -113,7 +114,7 @@ CFLAGS="$SLKCFLAGS" \
   mv m.c mailto.c
 )
 
-make $NUMJOBS || make || exit 1
+CFLAGS="$SLKCFLAGS -Wno-error=implicit-int" make $NUMJOBS || make || exit 1
 
 ( cd bin
   cat mailto-hebrew | perl -pi -e 's|/usr/lib/X11/fonts/misc|/usr/share/metamail/fonts|' > mh

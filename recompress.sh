@@ -436,7 +436,6 @@ gzip ./source/n/obexftp/patches/obexftp-0.24-fix-absurd-install-path.patch
 gzip ./source/n/netkit-ntalk/ntalk-0.17-slackware-alt-talkd.patch
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.17.diff
 gzip ./source/n/netkit-ntalk/netkit-ntalk-0.11.diff
-gzip ./source/n/popa3d/popa3d.shadow.diff
 gzip ./source/n/popa3d/popa3d.pam.diff
 gzip ./source/n/popa3d/doinst.sh
 gzip ./source/n/popa3d/popa3d.gcc14.diff

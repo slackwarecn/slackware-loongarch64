@@ -946,6 +946,7 @@ case $ARCH in
 esac
 PKGLIST="${EXTRA_PKGS} \
 a/bash \
+a/bcachefs-tools \
 a/btrfs-progs \
 a/coreutils \
 a/cryptsetup \
@@ -1010,6 +1011,7 @@ l/libcap \
 l/libidn2 \
 l/libnsl \
 l/libnvme \
+l/libsodium \
 l/libunistring \
 l/libusb \
 l/lz4 \
@@ -1018,6 +1020,7 @@ l/parted \
 l/pcre2 \
 l/popt \
 l/readline \
+l/sg3_utils \
 l/zlib \
 l/zstd \
 n/dhcpcd \
@@ -1094,6 +1097,9 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRBIN} \
         plzip \
         rev \
         uuidgen \
+        rescan-scsi-bus.sh \
+        sg_inq \
+        sg_turs \
         syslinux-nomtools \
         strings \
         $PKG/$ARCH-installer-filesystem/usr/bin/
@@ -1121,6 +1127,7 @@ cp --remove-destination -fa${VERBOSE1} \
 cd $TMP/extract-packages/sbin
 cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         badblocks \
+        *bcachefs* \
         blkid \
         btrfs* \
         cgdisk \
@@ -1383,6 +1390,8 @@ cp  -fa${VERBOSE1} \
         libnvme*.so* \
         libparted*so* \
         libreadline*.so* \
+        libsgutils2*.so* \
+        libsodium.so* \
         libstdc++*.so* \
         libunistring*.so* \
         libusb-1.0*.so* \
@@ -1429,7 +1438,7 @@ cd $TMP/extract-packages/usr/share/hwdata
 mkdir -p -m755 $PKG/$ARCH-installer-filesystem/usr/share/hwdata
 cp -fa${VERBOSE1} pci.ids usb.ids \
         $PKG/$ARCH-installer-filesystem/usr/share/hwdata
-gzip -9${VERBOSE1} $PKG/$ARCH-installer-filesystem/usr/share/hwdata/*
+gzip -f9${VERBOSE1} $PKG/$ARCH-installer-filesystem/usr/share/hwdata/*
 
 # Copy the rc script for rpcbind:
 cd $TMP/extract-packages/etc/rc.d
@@ -2265,6 +2274,7 @@ if [ -d usr/man ]; then
     # man page format...  perhaps handy for future documentation, or
     # README_LVM, etc. ?
     for manpage in \
+      man8/bcachefs.8.bz2 \
       man8/cfdisk.8.bz2 \
       man8/fdisk.8.bz2 \
       man8/gdisk.8.bz2 \

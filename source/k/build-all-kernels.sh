@@ -27,7 +27,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 if [ -z "$VERSION" ]; then
   # Get the filename of the newest kernel tarball:
   KERNEL_SOURCE_FILE="$(/bin/ls -t linux-*.tar.?z | head -n 1 )"

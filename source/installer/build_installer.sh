@@ -1435,6 +1435,9 @@ cp -fa${VERBOSE1} \
 
 # Add pci.ids and usb.ids now that we have lspci and lsusb onboard:
 cd $TMP/extract-packages/usr/share/hwdata
+# Remove any previous data files that exist if you're working with
+# an existing initrd image:
+rm -rf $PKG/$ARCH-installer-filesystem/usr/share/hwdata
 mkdir -p -m755 $PKG/$ARCH-installer-filesystem/usr/share/hwdata
 cp -fa${VERBOSE1} pci.ids usb.ids \
         $PKG/$ARCH-installer-filesystem/usr/share/hwdata

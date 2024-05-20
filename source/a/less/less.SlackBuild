@@ -24,6 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=less
 VERSION=${VERSION:-$(echo less-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+LESSPIPEVER=$(echo lesspipe-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -109,8 +110,38 @@ CFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-zcat $CWD/lesspipe.sh.gz > $PKG/usr/bin/lesspipe.sh
-chmod 755 $PKG/usr/bin/lesspipe.sh
+mkdir -p $PKG/usr/man/man1
+for page in less.nro lesskey.nro ; do
+  cat $page > $PKG/usr/man/man1/`basename $page .nro`.1
+done
+
+mkdir -p $PKG/usr/doc/less-$VERSION
+cp -a \
+  COPYING* LICENSE README NEWS \
+  $PKG/usr/doc/less-$VERSION
+
+# Install lesspipe.sh etc:
+cd $TMP
+rm -r lesspipe-$LESSPIPEVER
+tar xf $CWD/lesspipe-${LESSPIPEVER}.tar.?z || exit 1
+cd lesspipe-${LESSPIPEVER}
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+./configure --prefix=/usr || exit 1
+make
+make install DESTDIR=$PKG
+mv $PKG/usr/share/man/man1/* $PKG/usr/man/man1
+rmdir $PKG/usr/share/man/man1 $PKG/usr/share/man
+# wrong directory:
+mkdir -p $PKG/usr/share/bash-completion/completions
+mv $PKG/usr/share/bash-completion/less_completion $PKG/usr/share/bash-completion/completions/less
+mkdir -p $PKG/usr/doc/lesspipe-${LESSPIPEVER}
+cp -a COPYING* ChangeLog* INSTALL* README* \
+  $PKG/usr/doc/lesspipe-${LESSPIPEVER}
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -132,20 +163,9 @@ fi
   find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 )
 
-mkdir -p $PKG/usr/doc/less-$VERSION
-cp -a \
-  COPYING* LICENSE README NEWS \
-  $PKG/usr/doc/less-$VERSION
-
-mkdir -p $PKG/usr/man/man1
-for page in less.nro lesskey.nro ; do
-  cat $page | gzip -9c > $PKG/usr/man/man1/`basename $page .nro`.1.gz
-done
-
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/less-$VERSION-$ARCH-$BUILD.txz
-

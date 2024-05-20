@@ -313,7 +313,6 @@ gzip ./source/a/findutils/findutils.no.default.options.warnings.diff
 gzip ./source/a/kbd/doinst.sh
 gzip ./source/a/kbd/fix-euro2.patch
 gzip ./source/a/kbd/kbd-2.6.3-backspace-1.patch
-gzip ./source/a/less/lesspipe.sh
 gzip ./source/a/usb_modeswitch/device_reference.txt
 gzip ./source/a/usb_modeswitch/doinst.sh
 gzip ./source/a/bash/bash_manpages.patch

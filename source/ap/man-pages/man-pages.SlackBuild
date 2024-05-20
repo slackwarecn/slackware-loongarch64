@@ -43,8 +43,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf man-pages-$VERSION
-tar xvf $CWD/man-pages-$VERSION.tar.?z
-tar xvf $CWD/man-pages-posix-*.tar.?z
+tar xvf $CWD/man-pages-$VERSION.tar.?z || exit 1
+tar xvf $CWD/man-pages-posix-*.tar.?z || exit 1
 echo "Fixing permissions..."
 chown -R root:root man-pages-$VERSION man-pages-posix-*
 chmod -R a-s,u+rw,go+r-w man-pages-$VERSION man-pages-posix-*
@@ -59,8 +59,20 @@ find man-pages-posix-* \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-mkdir -p $PKG/usr/man
-cp -a man-pages-$VERSION/man* $PKG/usr/man
+# Wow, this new build system is something else.
+# Let's not use it.
+# cd man-pages-$VERSION || exit 1
+#make || exit 1
+#make install prefix=/usr DESTDIR=$PKG || exit 1
+#mv $PKG/usr/share/man $PKG/usr
+#rmdir $PKG/usr/share
+
+# Add the release version, which is about the only useful thing "make" does:
+sed -i "s/(unreleased)/$VERSION/g" man-pages-${VERSION}/man/man*/*
+
+# Install the man pages:
+mkdir -p $PKG/usr
+cp -a man-pages-${VERSION}/man $PKG/usr
 
 # Are these other POSIX manpages of any real usefulness here?
 # Granted there may be some historical interest, and it's nice
@@ -100,7 +112,7 @@ rm -r $TEMPDIR
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  man-pages-$VERSION/{CONTRIBUTING,Changes,README,man-pages-${VERSION}.Announce,man-pages-${VERSION}.lsm} \
+  man-pages-$VERSION/{CONTRIBUTING*,Changes,INSTALL,LICENSES*,README*,RELEASE,lsm} \
   man-pages-posix-*/POSIX-COPYRIGHT \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 

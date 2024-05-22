@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2014, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2014, 2018, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,9 +23,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=hicolor-icon-theme
-VERSION=${VERSION:-0.17}
+VERSION=${VERSION:-0.18}
 ARCH=noarch
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -51,11 +51,17 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-./configure \
-  --prefix=/usr
-
-make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
+  --prefix=/usr \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
 mkdir -p $PKG/var/log/setup
 cat $CWD/setup.08.gtk-update-icon-cache > $PKG/var/log/setup/setup.08.gtk-update-icon-cache
@@ -63,7 +69,7 @@ chmod 0755 $PKG/var/log/setup/setup.08.gtk-update-icon-cache
 
 mkdir -p $PKG/usr/doc/hicolor-icon-theme-$VERSION
 cp -a \
-  COPYING NEWS README \
+  COPYING* NEWS* README* \
   $PKG/usr/doc/hicolor-icon-theme-$VERSION
 chmod 0644 $PKG/usr/doc/hicolor-icon-theme-$VERSION/*
 
@@ -73,4 +79,3 @@ zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/hicolor-icon-theme-$VERSION-$ARCH-$BUILD.txz
-

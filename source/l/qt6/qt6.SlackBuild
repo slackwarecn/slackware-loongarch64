@@ -42,7 +42,7 @@ SYSTEM_FFMPEG=${SYSTEM_FFMPEG:-YES}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -64,6 +64,11 @@ if [ "$ARCH" = "i486" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  SLKLDFLAGS=""
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  # Looks like this is baseline now... maybe time to bump everything to at least i686
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686 -mfpmath=sse -msse -msse2 -fcf-protection=none"
   SLKLDFLAGS=""
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
@@ -147,14 +152,16 @@ pushd qtwebengine
 popd
 cat $CWD/patches/nodejs-allow-32bit.patch | patch -p1 --verbose || exit 1
 
-# GCC13 requires this include:
-cat $CWD/patches/qt6-3d_gcc13.patch | patch -p0 --verbose || exit 1
+# Patch header issue that causes the compile to fail with "x11 not defined"
+pushd qtwebengine
+  cat $CWD/patches/qtwebengine-6.7.0-displaykey-header.patch | patch -p1 --verbose || exit 1
+popd
 
 # Previously we didn't have a protobuf package in Slackware.
 # Now that we do, it's apparently too new to use with Qt6, so let's just
 # disable it to get the same features that we previously did.
 # Patches would be accepted here. :-)
-PROTOBUF="-DQT_FEATURE_qtprotobufgen=OFF"
+#PROTOBUF="-DQT_FEATURE_qtprotobufgen=OFF"
 
 # The qtquick3dphysics only compiles on a limited set of architectures:
 case "${ARCH}" in

@@ -21,7 +21,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-BRANCH="6.6.3"
+BRANCH="6.7.1"
 
 rm -f qt-everywhere-src-*.tar*
 
@@ -34,11 +34,12 @@ cd qt5
   # Sync qtwebengine version with the rest of qt5
   sed -i -E "s/6.6.(.*)/$BRANCH\"\)/" qtwebengine/.cmake.conf
 
-  for i in $(find . -type d -name "qt*" -maxdepth 1); do
-    cd $i
-      ../qtbase/libexec/syncqt.pl -version $BRANCH
-    cd ..
-  done
+  ## Hmmm... syncqt.pl appears to be no more in 6.7.0:
+  #for i in $(find . -type d -name "qt*" -maxdepth 1); do
+  #  cd $i
+  #    ../qtbase/libexec/syncqt.pl -version $BRANCH
+  #  cd ..
+  #done
 
   # Not in the release tarball for 6.6.1:
   rm -rf README.git init-repository \

@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=less
 VERSION=${VERSION:-$(echo less-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 LESSPIPEVER=$(echo lesspipe-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -131,6 +131,8 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
+# Don't use special handling for .log files:
+cat $CWD/lesspipe.log.patch | patch -p1 --verbose || exit 1
 ./configure --prefix=/usr || exit 1
 make
 make install DESTDIR=$PKG
@@ -142,6 +144,13 @@ mv $PKG/usr/share/bash-completion/less_completion $PKG/usr/share/bash-completion
 mkdir -p $PKG/usr/doc/lesspipe-${LESSPIPEVER}
 cp -a COPYING* ChangeLog* INSTALL* README* \
   $PKG/usr/doc/lesspipe-${LESSPIPEVER}
+
+# Install profile scripts:
+mkdir -p $PKG/etc/profile.d
+cp -a $CWD/less.csh $PKG/etc/profile.d/less.csh.new
+cp -a $CWD/less.sh $PKG/etc/profile.d/less.sh.new
+chown root:root $PKG/etc/profile.d/*
+chmod 755 $PKG/etc/profile.d/*
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -164,6 +173,7 @@ fi
 )
 
 mkdir -p $PKG/install
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 # Build the package:

@@ -1716,12 +1716,13 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
          rm -rf${VERBOSE1} md.orig
        ;;
     esac
-    # Save loop.ko, nvme.ko, and virtio_blk.ko, but remove other block drivers:
+    # Save loop.ko, nvme.ko, virtio_blk.ko, and zram.ko, but remove other block drivers:
     mv block block.orig
     mkdir block
     mv block.orig/nvme.ko block
     mv block.orig/loop.ko block
     mv block.orig/virtio_blk.ko block
+    mv block.orig/zram block
     rm -rf${VERBOSE1} block.orig
     # Done with block directory
     # Grab a few modules from staging:

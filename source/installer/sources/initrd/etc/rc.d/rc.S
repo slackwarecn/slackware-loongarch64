@@ -139,6 +139,27 @@ else
 
 fi # End Run udev:
 
+# Set up some swap on a ZRAM device:
+ZRAMSIZE=$(echo $(cat /proc/meminfo | grep ^MemTotal:) | cut -f 2 -d ' ')
+ZRAMCOMPRESSION=zstd
+ZRAMPRIORITY=100
+if [ ! -d /sys/devices/virtual/block/zram0 ]; then
+  modprobe zram
+fi
+# In case of a 32-bit kernel, we are limited to 4G maximum ZRAM device size.
+# If the RAM size is greater than 4G, then use 4G for the ZRAMSIZE.
+if [ "$(uname -m)" = "i686" ]; then
+  if [ "$ZRAMSIZE" -gt "4194304" ]; then
+    ZRAMSIZE=4194304
+  fi
+fi
+ZRAM_DEVICE=$(/sbin/zramctl -f -a $ZRAMCOMPRESSION -s ${ZRAMSIZE}K)
+if [ ! -z $ZRAM_DEVICE ]; then
+  /sbin/mkswap $ZRAM_DEVICE
+  /sbin/swapon -p $ZRAMPRIORITY $ZRAM_DEVICE
+fi
+unset ZRAMCOMPRESSION ZRAM_DEVICE ZRAMPRIORITY ZRAMSIZE
+
 # Here's the situation. Because of the practice of keeping the local
 # time (rather than UTC) in the system's clock, at any given time half
 # of the people doing an install will be creating files that upon

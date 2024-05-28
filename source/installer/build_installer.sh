@@ -1184,6 +1184,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         udev* \
         umount \
         xfs_repair \
+        zramctl \
         $PKG/$ARCH-installer-filesystem/sbin/
         # This had dmsetup* above, which unnecessarily copies dmsetup.static
         # This had lvm* above, which unnecessarily copies lvm.static

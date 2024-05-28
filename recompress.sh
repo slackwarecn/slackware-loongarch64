@@ -801,8 +801,10 @@ gzip ./source/l/sdl/SDL_mixer.usrlocal.diff
 gzip ./source/l/sdl/libsdl-1.2.15-resizing.patch
 gzip ./source/l/adwaita-icon-theme/doinst.sh
 gzip ./source/l/ffmpeg/0004-support-nv-codec-headers-12.2.patch
+gzip ./source/l/ffmpeg/FFmpeg-devel-v2-2-2-lavc-vaapi_av1-Avoid-sending-the-same-slice-buffer-multiple-times.patch
 gzip ./source/l/ffmpeg/ffmpeg.vulkan.diff
 gzip ./source/l/ffmpeg/add-av_stream_get_first_dts-for-chromium.patch
+gzip ./source/l/ffmpeg/FFmpeg-devel-v2-1-2-lavc-vaapi_decode-Make-it-possible-to-send-multiple-slice-params-buffers.patch
 gzip ./source/l/ffmpeg/250471ea1745fc703eb346a2a662304536a311b1.patch
 gzip ./source/l/svgalib/svgalib-1.9.25-kernel-2.6.26.diff
 gzip ./source/l/svgalib/svgalib-1.9.25-round_gtf_gtfcalc_c.patch
@@ -844,6 +846,7 @@ gzip ./source/l/pipewire/doinst.sh
 gzip ./source/l/avahi/doinst.sh
 gzip ./source/l/libcanberra/libcanberra-0.30-wayland-1.patch
 gzip ./source/l/colord/doinst.sh
+gzip ./source/l/adwaita-icon-theme-legacy/doinst.sh
 gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch

@@ -16,12 +16,12 @@ fi
 
 # Mount /proc if it is not already mounted:
 if [ ! -d /proc/sys -a -z "$container" ]; then
-  /sbin/mount -v proc /proc -n -t proc 2> /dev/null
+  /sbin/mount -v proc /proc -t proc 2> /dev/null
 fi
 
 # Mount /sys if it is not already mounted:
 if [ ! -d /sys/kernel -a -z "$container" ]; then
-  /sbin/mount -v sysfs /sys -n -t sysfs 2> /dev/null
+  /sbin/mount -v sysfs /sys -t sysfs 2> /dev/null
 fi
 
 # The efivarfs filesystem is used for reading and writing EFI variables, such
@@ -53,7 +53,7 @@ fi
 # initrd has already done so):
 if [ -d /run -a -z "$container" ]; then
   if ! grep -wq "tmpfs /run tmpfs" /proc/mounts ; then
-    /sbin/mount -v -n -t tmpfs tmpfs /run -o mode=0755,size=32M,nodev,nosuid,noexec
+    /sbin/mount -v -t tmpfs tmpfs /run -o mode=0755,size=32M,nodev,nosuid,noexec
   fi
 fi
 
@@ -140,6 +140,24 @@ if [ -z "$container" ]; then
   /sbin/swapon -a 2> /dev/null
 fi
 
+# Enable swapping on a ZRAM device:
+if [ -z "$container" -a -r /etc/default/zram ]; then
+  . /etc/default/zram
+  if [ "$ZRAM_ENABLE" = "1" ]; then
+    if [ ! -d /sys/devices/virtual/block/zram0 ]; then
+      modprobe zram num_devices=$ZRAMNUMBER
+    fi
+    echo "Setting up /dev/zram0:  zramctl -f -a $ZRAMCOMPRESSION -s ${ZRAMSIZE}K"
+    ZRAM_DEVICE=$(zramctl -f -a $ZRAMCOMPRESSION -s ${ZRAMSIZE}K)
+    if [ ! -z $ZRAM_DEVICE ]; then
+      mkswap $ZRAM_DEVICE 1> /dev/null 2> /dev/null
+      echo "Activating ZRAM swap:  swapon --priority $ZRAMPRIORITY $ZRAM_DEVICE"
+      swapon --priority $ZRAMPRIORITY $ZRAM_DEVICE
+    fi
+  fi
+  unset MEMTOTAL ZRAMCOMPRESSION ZRAMNUMBER ZRAMSIZE ZRAM_DEVICE ZRAM_ENABLE
+fi
+
 # Set the tick and frequency for the system clock.
 # Default values are: TICK=10000 and FREQ=0
 if [ -z "$container" ]; then
@@ -203,7 +221,7 @@ if [ -z "$container" ]; then
   # allow checking a read-only filesystem:
   if grep -q ' / f2fs ' /proc/mounts ; then
     echo "Remounting root device with read-write enabled."
-    /sbin/mount -w -v -n -o remount /
+    /sbin/mount -w -v -o remount /
   elif [ ! $READWRITE = yes ]; then
     # Check the root filesystem:
     RETVAL=0
@@ -242,13 +260,13 @@ if [ -z "$container" ]; then
       fi
       echo "Unmounting file systems."
       /sbin/umount -a -r
-      /sbin/mount -n -o remount,ro /
+      /sbin/mount -o remount,ro /
       echo "Rebooting system."
       reboot -f
     fi
     # Remount the root filesystem in read-write mode
     echo "Remounting root device with read-write enabled."
-    /sbin/mount -w -v -n -o remount /
+    /sbin/mount -w -v -o remount /
     if [ $? -gt 0 ] ; then
       echo "FATAL:  Attempt to remount root device as read-write failed!  This is going to"
       echo "cause serious problems."

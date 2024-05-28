@@ -30,7 +30,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=ffmpeg
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -60,7 +60,7 @@ else
 fi
 
 # GCC 14 "fix":
-SLKCFLAGS="$SLKCFLAGS -Wno-error=int-conversion"
+SLKCFLAGS="$SLKCFLAGS -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
 
 # If PulseAudio is not found, use the _alsa $TAG and disable it in the build:
 if [ ! -r /usr/lib${LIBDIRSUFFIX}/pkgconfig/libpulse.pc ]; then
@@ -218,6 +218,10 @@ zcat $CWD/250471ea1745fc703eb346a2a662304536a311b1.patch | patch -p1 --verbose |
 
 # Patch for recent nv-codec-headers:
 zcat $CWD/0004-support-nv-codec-headers-12.2.patch.gz | patch -p1 --verbose || exit 1
+
+# Work with recent Mesa:
+zcat $CWD/FFmpeg-devel-v2-1-2-lavc-vaapi_decode-Make-it-possible-to-send-multiple-slice-params-buffers.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/FFmpeg-devel-v2-2-2-lavc-vaapi_av1-Avoid-sending-the-same-slice-buffer-multiple-times.patch.gz | patch -p1 --verbose || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \

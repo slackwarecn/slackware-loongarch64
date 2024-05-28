@@ -35,6 +35,50 @@ Filesystem type: f2fs " 0 0
    mkfs.f2fs -f $1 1> $REDIR 2> $REDIR
 }
 
+# make_bcachefs( dev ) - Create a new bcachefs filesystem on the named dev.
+# Parameters:  dev     Device node to format.
+make_bcachefs() {
+   dialog --title "BCACHEFS COMPRESSION" --default-item "none" --menu \
+   "Bcachefs supports on-the-fly compression/decompression to make the \
+    most of your storage. If you'd like to use filesystem compression, \
+    select one of the options below. Note that bcachefs has a lot of \
+    options for compression, such as different levels, or compressing \
+    in the background to eliminate write lag. These basic options will \
+    get you going, though. Bcachefs filesystem options can be changed \
+    later with \"bcachefs set-option\"." \
+   17 76 4 \
+   "none" "Do not use filesystem compression" \
+   "zstd" "Fast writes and very good compression ratio" \
+   "lz4" "Very fast writes and good compression ratio" \
+   "gzip" "Relatively useless, but be my guest" 2> $TMP/SeTcompress
+   if [ ! $? = 0 ]; then
+    rm -f $TMP/SeTcompress
+    exit
+   fi
+   if [ -r $TMP/SeTcompress ]; then
+     BCACHEFS_COMPRESSION="$(cat $TMP/SeTcompress)"
+   else
+     BCACHEFS_COMPRESSION=none
+   fi
+   # get the size of the named partition
+   SIZE=`get_part_size $1`
+   # output a nice status message
+   dialog --title "FORMATTING" \
+   --backtitle "Formatting $1 with filesystem bcachefs, compression type $BCACHEFS_COMPRESSION." \
+   --infobox "Formatting $1  \n\
+Size:  $SIZE \n\
+Compression:  $BCACHEFS_COMPRESSION \n\
+Filesystem type:  bcachefs " 0 0
+   # do the format
+   if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
+      umount $1 2> $NDIR
+   fi
+   mkfs.bcachefs -f --compression=$BCACHEFS_COMPRESSION $1 1> $REDIR 2> $REDIR
+   # mkfs.bcachefs is so ridiculously fast that we'd better pause for a moment
+   # or folks will wonder if the format failed
+   sleep 3
+}
+
 # make_btrfs( dev ) - Create a new btrfs filesystem on the named dev.
 # Parameters:  dev     Device node to format.
 make_btrfs() {
@@ -45,7 +89,7 @@ make_btrfs() {
    --backtitle "Formatting $1 with filesystem btrfs." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: btrfs " 0 0
+Filesystem type:  btrfs " 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -65,7 +109,7 @@ make_ext2() {
    --backtitle "Formatting $1 with filesystem ext2." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: ext2" 0 0
+Filesystem type:  ext2" 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -89,7 +133,7 @@ make_ext3() {
    --backtitle "Formatting $1 with filesystem ext3." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: ext3" 0 0
+Filesystem type:  ext3" 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -113,7 +157,7 @@ make_ext4() {
    --backtitle "Formatting $1 with filesystem ext4." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: ext4" 0 0
+Filesystem type:  ext4" 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -137,7 +181,7 @@ make_jfs() {
    --backtitle "Formatting $1 with filesystem jfs." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: jfs" 0 0
+Filesystem type:  jfs" 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -159,7 +203,7 @@ make_reiserfs() {
    --backtitle "Formatting $1 with filesystem reiserfs." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: reiserfs " 0 0
+Filesystem type:  reiserfs " 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -177,7 +221,7 @@ make_xfs() {
    --backtitle "Formatting $1 with filesystem xfs." \
    --infobox "Formatting $1  \n\
 Size:  $SIZE \n\
-Filesystem type: xfs " 0 0
+Filesystem type:  xfs " 0 0
    # do the format
    if mount | grep "$1 " 1> $NDIR 2> $NDIR ; then
       umount $1 2> $NDIR
@@ -238,7 +282,7 @@ to format this partition?" 12 70 3 \
 # ask_fs( dev ) - Asks the user the type of filesystem to use for the named
 #                 device.  Answer in $TMP/return
 ask_fs() {
-  unset BTRFS EXT2 EXT3 F2FS JFS REISERFS XFS
+  unset BCACHEFS BTRFS EXT2 EXT3 F2FS JFS REISERFS XFS
   if grep -wq ext2 /proc/filesystems 1> $NDIR 2> $NDIR ; then
     EXT2="Ext2 is the traditional Linux file system and is fast and stable. "
   fi
@@ -250,8 +294,12 @@ ask_fs() {
     EXT4="Ext4 is the successor to the ext3 filesystem. "
     DEFAULT=ext4
   fi
-  if grep -wq reiserfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
-    REISERFS="ReiserFS is a journaling filesystem that stores all files and filenames in a balanced tree structure. "
+  # This will be gone in Linux 6.10, so it's probably time to quit offering it.
+  #if grep -wq reiserfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+  #  REISERFS="ReiserFS is a journaling filesystem that stores all files and filenames in a balanced tree structure. "
+  #fi
+  if grep -wq bcachefs /proc/filesystems 1> $NDIR 2> $NDIR ; then
+    BCACHEFS="Bcachefs is a B-tree copy-on-write filesystem. "
   fi
   if grep -wq btrfs /proc/filesystems 1> $NDIR 2> $NDIR ; then
     BTRFS="Btrfs is a B-tree copy-on-write filesystem. "
@@ -272,7 +320,7 @@ dialog --title "SELECT FILESYSTEM FOR $1" \\
 --backtitle "Partition $1 will be formatted." \\
 --default-item $DEFAULT --menu \\
 "Please select the type of filesystem to use for the specified \\
-device. Here are descriptions of the available filesystems: $EXT2 $EXT3 $EXT4 $BTRFS $F2FS $JFS $REISERFS $XFS" \\
+device. Here are descriptions of the available filesystems: $EXT2 $EXT3 $EXT4 $BCACHEFS $BTRFS $F2FS $JFS $REISERFS $XFS" \\
 0 0 0 \\
 EOF
   if [ ! "$EXT2" = "" ]; then
@@ -289,6 +337,9 @@ EOF
   fi
   if [ ! "$REISERFS" = "" ]; then
     echo "\"reiserfs\" \"ReiserFS Journaling Filesystem\" \\" >> $TMP/tempscript
+  fi
+  if [ ! "$BCACHEFS" = "" ]; then
+    echo "\"bcachefs\" \"Bcachefs Copy-on-Write B-tree Filesystem\" \\" >> $TMP/tempscript
   fi
   if [ ! "$BTRFS" = "" ]; then
     echo "\"btrfs\" \"Btrfs Copy-on-Write B-tree Filesystem\" \\" >> $TMP/tempscript
@@ -374,6 +425,8 @@ if [ ! "$DOFORMAT" = "No" ]; then
     fi
   elif [ "$ROOT_SYS_TYPE" = "reiserfs" ]; then
     make_reiserfs $ROOT_DEVICE
+  elif [ "$ROOT_SYS_TYPE" = "bcachefs" ]; then
+    make_bcachefs $ROOT_DEVICE
   elif [ "$ROOT_SYS_TYPE" = "btrfs" ]; then
     make_btrfs $ROOT_DEVICE
   elif [ "$ROOT_SYS_TYPE" = "f2fs" ]; then
@@ -478,6 +531,8 @@ EOF
           fi
         elif [ "$NEXT_SYS_TYPE" = "reiserfs" ]; then
           make_reiserfs $NEXT_PARTITION
+        elif [ "$NEXT_SYS_TYPE" = "bcachefs" ]; then
+          make_bcachefs $NEXT_PARTITION
         elif [ "$NEXT_SYS_TYPE" = "btrfs" ]; then
           make_btrfs $NEXT_PARTITION
         elif [ "$NEXT_SYS_TYPE" = "f2fs" ]; then

@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015  John Vogel Corning, NY USA
-# Copyright 2017, 2018  (versions 0.25.0-0.29.1) Andreas Guldstrand
-# Copyright 2020-2023  Christoph Willing  Brisbane Australia
+# Copyright 2018  Erik Falor <ewfalor@gmail.com>, Logan, Utah, USA
 # Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
@@ -25,9 +23,9 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=mpv
+PKGNAM=luajit
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -88,58 +86,33 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-cat $CWD/dynamically_generate_desktop_file_protocols.patch | patch -p1 --verbose || exit 1
+# Enable Lua 5.2 features:
+sed -i -e '/-DLUAJIT_ENABLE_LUA52COMPAT/s/^#//' src/Makefile
 
-# Configure, build, and install:
-export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
-mkdir meson-build
-cd meson-build
-meson setup \
-  --prefix=/usr \
-  --libdir=lib${LIBDIRSUFFIX} \
-  --libexecdir=/usr/libexec \
-  --bindir=/usr/bin \
-  --sbindir=/usr/sbin \
-  --includedir=/usr/include \
-  --datadir=/usr/share \
-  --mandir=/usr/man \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --buildtype=release \
-  -Dmanpage-build=enabled \
-  -Dlibmpv=true \
-  -Dcdda=enabled \
-  -Ddvdnav=enabled \
-  -Ddvbin=enabled \
-  -Dcplugins=enabled \
-  -Diconv=enabled \
-  -Dlibarchive=enabled \
-  -Dlibbluray=enabled \
-  -Dsdl2=enabled \
-  -Dgl-x11=enabled \
-  -Dsdl2-gamepad=enabled \
-  -Dpulse=enabled \
-  -Dpipewire=enabled \
-  -Dsdl2-audio=enabled \
-  -Dopenal=enabled \
-  -Dlua=luajit \
-  .. || exit 1
-  "${NINJA:=ninja}" $NUMJOBS || exit 1
-  DESTDIR=$PKG $NINJA install || exit 1
-cd ..
+# preserve timestamps:
+sed -i -e '/install -m/s/-m/-p -m/' Makefile
 
-# This seems like a silly place to put the config files:
-rm -rf $PKG/usr/share/doc
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+make $NUMJOBS \
+  Q=  \
+  PREFIX=/usr \
+  MULTILIB=lib${LIBDIRSUFFIX} \
+  INSTALL_LIB=/usr/lib${LIBDIRSUFFIX} \
+  INSTALL_MAN=/usr/man/man1 || exit 1
 
-# Install all sample config files:
-cp -a etc/*.conf $PKG/etc/mpv
-chmod 644 $PKG/etc/mpv/*
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+make install \
+  Q=  \
+  DESTDIR=$PKG \
+  PREFIX=/usr \
+  MULTILIB=lib${LIBDIRSUFFIX} \
+  INSTALL_LIB=$PKG/usr/lib${LIBDIRSUFFIX} \
+  INSTALL_MAN=$PKG/usr/man/man1 || exit 1
 
-# Make config files .new:
-for config in $PKG/etc/mpv/* ; do
-  mv $config ${config}.new
-done
+# No static library:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/libluajit*.a
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -154,12 +127,10 @@ done
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  Copyright* LICENSE* README* RELEASE_NOTES* \
-  DOCS/*.{md,rst,txt} \
+  COPYRIGHT* README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install
-cat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

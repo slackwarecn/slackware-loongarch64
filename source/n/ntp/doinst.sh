@@ -20,6 +20,7 @@ preserve_perms() {
   config ${NEW}
 }
 
+config etc/default/ntp.new
 config etc/logrotate.d/ntp.new
 config etc/ntp.conf.new
 config etc/ntp.keys.new

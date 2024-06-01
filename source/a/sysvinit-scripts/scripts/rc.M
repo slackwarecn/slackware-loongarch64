@@ -184,6 +184,11 @@ if [ -x /etc/rc.d/rc.autofs ]; then
   /etc/rc.d/rc.autofs start
 fi
 
+# Start dnsmasq, a simple DHCP/DNS server:
+if [ -x /etc/rc.d/rc.dnsmasq ]; then
+  /etc/rc.d/rc.dnsmasq start
+fi
+
 # Start the Network Time Protocol daemon:
 if [ -x /etc/rc.d/rc.ntpd ]; then
   /etc/rc.d/rc.ntpd start
@@ -266,11 +271,6 @@ if [ -x /usr/bin/glib-compile-schemas ]; then
   echo "Compiling GSettings XML schema files:"
   echo "  /usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas &"
   /usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas >/dev/null 2>&1 &
-fi
-
-# Start dnsmasq, a simple DHCP/DNS server:
-if [ -x /etc/rc.d/rc.dnsmasq ]; then
-  /etc/rc.d/rc.dnsmasq start
 fi
 
 # Start snmpd:

@@ -178,7 +178,6 @@ gzip ./source/a/minicom/config.sub-x86_64.diff
 gzip ./source/a/minicom/doinst.sh
 gzip ./source/a/minicom/minicom.users
 gzip ./source/a/logrotate/logrotate.cron
-gzip ./source/a/logrotate/logrotate.slackware.diff
 gzip ./source/a/logrotate/logrotate.conf
 gzip ./source/a/logrotate/doinst.sh
 gzip ./source/a/xz/xz.default.verbosity.V_ERROR.diff

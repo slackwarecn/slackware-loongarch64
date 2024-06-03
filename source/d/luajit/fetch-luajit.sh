@@ -24,7 +24,7 @@
 PKGNAM=luajit
 
 # Pull a stable branch + patches
-BRANCH=${1:-master}
+BRANCH=${1:-v2.1}
 
 # Clear download area:
 rm -rf ${PKGNAM}

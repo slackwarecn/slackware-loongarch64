@@ -26,7 +26,7 @@ PKGNAM=mesa
 VERSION=${VERSION:-$(echo $PKGNAM-[0-9]*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
 AMBERVERS=${AMBERVERS:-21.3.9}
 DEMOVERS=${DEMOVERS:-8.5.0}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 BUILD_AMBER=${BUILD_AMBER:-YES}
 BUILD_DEMOS=${BUILD_DEMOS:-YES}
 CODECS=${CODECS:-h264dec,h264enc,h265dec,h265enc,vc1dec,av1dec,av1enc,vp9dec}
@@ -34,7 +34,7 @@ CODECS=${CODECS:-h264dec,h264enc,h265dec,h265enc,vc1dec,av1dec,av1enc,vp9dec}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Be sure this list is up-to-date:
-GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,iris,crocus,zink"
+GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,i915,iris,crocus,zink,d3d12"
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -52,15 +52,6 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-## COMMENTED OUT as swr seems to be broken with llvm13:
-## Build swr for the following architectures (not for i?x6, as this will cause
-## an Illegal Instruction startup failure on many otherwise supported CPUs):
-#for swr_arch in x86_64 ; do
-#  if [ "$ARCH" = "x86_64" ]; then
-#    GALLIUM_DRIVERS="$GALLIUM_DRIVERS,swr"
-#  fi
-#done
-
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-mesa
 
@@ -70,6 +61,8 @@ if [ "$ARCH" = "i586" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+  # Only supported on x86_64:
+  INTELRT="-Dintel-rt=enabled"  
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -132,10 +125,11 @@ meson setup \
   -Dgallium-opencl=icd \
   -Dgallium-nine=true \
   -Dgallium-rusticl=true \
+  -Dgallium-extra-hud=true \
   -Drust_std=2021 \
   -Dosmesa=true \
   -Dgallium-drivers=$GALLIUM_DRIVERS \
-  -Dvulkan-drivers=amd,intel,intel_hasvk,swrast \
+  -Dvulkan-drivers=amd,intel,intel_hasvk,swrast,virtio,nouveau \
   -Dvulkan-layers=device-select,intel-nullhw,overlay \
   -Dvideo-codecs="$CODECS" \
   -Dglvnd=enabled \
@@ -147,6 +141,11 @@ meson setup \
   -Dgles2=enabled \
   -Dopengl=true \
   -Dglx=dri \
+  -Dlibunwind=disabled \
+  -Dmicrosoft-clc=disabled \
+  -Dvalgrind=enabled \
+  -Dintel-clc=enabled \
+  $INTELRT \
   .. || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1

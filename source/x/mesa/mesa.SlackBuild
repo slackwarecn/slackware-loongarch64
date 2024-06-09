@@ -26,7 +26,7 @@ PKGNAM=mesa
 VERSION=${VERSION:-$(echo $PKGNAM-[0-9]*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
 AMBERVERS=${AMBERVERS:-21.3.9}
 DEMOVERS=${DEMOVERS:-8.5.0}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 BUILD_AMBER=${BUILD_AMBER:-YES}
 BUILD_DEMOS=${BUILD_DEMOS:-YES}
 CODECS=${CODECS:-h264dec,h264enc,h265dec,h265enc,vc1dec,av1dec,av1enc,vp9dec}
@@ -104,6 +104,11 @@ if /bin/ls $CWD/patches-revert/*.patch 1> /dev/null 2> /dev/null ; then
   done
 fi
 
+# "Download" subprojects:
+if [ -r $CWD/mesa-subprojects.tar.lz ]; then
+  tar xvf $CWD/mesa-subprojects.tar.lz || exit 1
+fi
+
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
@@ -147,6 +152,25 @@ meson setup \
   -Dintel-clc=enabled \
   $INTELRT \
   .. || exit 1
+
+  # If there's no mesa-subprojects.tar.lz in $CWD, let's try to make one:
+  if [ ! -r $CWD/mesa-subprojects.tar.lz ]; then
+    cd ..
+    mkdir -p tmp/subprojects
+    for file in subprojects/* ; do
+      if [ "$file" -nt "$PKG" ]; then
+        cp -a -v $file tmp/subprojects
+      fi
+    done
+    cd tmp
+    find . -name ".git*" -exec rm -r "{}" \; 2> /dev/null
+    tar cf $CWD/mesa-subprojects.tar subprojects
+    plzip -9 $CWD/mesa-subprojects.tar
+    cd ..
+    rm -r tmp
+    cd meson-build
+  fi
+
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..

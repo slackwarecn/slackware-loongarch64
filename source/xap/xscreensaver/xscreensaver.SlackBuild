@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=xscreensaver
 VERSION=${VERSION:-$(echo xscreensaver-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -71,20 +71,6 @@ rm -rf xscreensaver-$VERSION
 tar xvf $CWD/xscreensaver-$VERSION.tar.?z || exit 1
 cd xscreensaver-$VERSION
 
-if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
-  USE_PAM="--with-pam"
-  unset USE_SHADOW
-else
-  ## NOTE: The patch below (and support for setgid shadow) is broken and
-  ## unmaintained. But the broken bits will be left as hints for anyone
-  ## down the line who might care.
-  # Allow xscreensaver to work setgid shadow.  I'd rather avoid requiring
-  # setuid root on this if at all possible...
-  #zcat $CWD/xscreensaver.setuid.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-  unset USE_PAM
-  USE_SHADOW="--with-shadow"
-fi
-
 # Add support for the electricsheep distributed screensaver:
 zcat $CWD/xscreensaver.electricsheep.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 
@@ -110,8 +96,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --with-app-defaults=/etc/X11/app-defaults \
   --with-text-file=/usr/doc/netdate/COPYRIGHT \
-  $USE_SHADOW \
-  $USE_PAM \
+  --with-pam \
   --without-kerberos \
   --with-jpeg \
   --with-gl \
@@ -121,22 +106,10 @@ CXXFLAGS="$SLKCFLAGS" \
 make $NUMJOBS || make || exit 1
 make install_prefix=$PKG install-strip || exit 1
 
-if [ -z $USE_PAM ]; then
-  # Needed for password unlock:
-  chown root:shadow $PKG/usr/bin/xscreensaver
-  chmod 2751 $PKG/usr/bin/xscreensaver
-else
-  ## Commenting out the chmod below, since as of v6.00 this binary is no longer
-  ## made setuid at installation. But if that changes, we'll go along with it
-  ## since jwz says it may be required to prevent OOM killer abuse from
-  ## unlocking the screen.
-  # No special perms needed with PAM:
-  #chmod 755 $PKG/usr/bin/xscreensaver
-  mkdir -p $PKG/etc/pam.d
-  cat $CWD/xscreensaver.pam > $PKG/etc/pam.d/xscreensaver.new
-  mkdir -p $PKG/install
-  zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
-fi
+# No special perms needed with PAM:
+#chmod 755 $PKG/usr/bin/xscreensaver
+mkdir -p $PKG/etc/pam.d
+cat $CWD/xscreensaver.pam > $PKG/etc/pam.d/xscreensaver.new
 
 # This is needed for the menus:
 mkdir -p $PKG/usr/share/pixmaps
@@ -168,6 +141,7 @@ fi
 cat $CWD/xscreensaver-getimage-file-5.14 > $PKG/usr/bin/xscreensaver-getimage-file
 
 mkdir -p $PKG/install
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

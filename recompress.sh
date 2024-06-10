@@ -20,6 +20,7 @@ gzip ./extra/source/bash-completion/fixup-sh-script-completions.diff
 gzip ./source/d/clisp/clisp.link.libgnu.whole-archive.diff
 gzip ./source/d/clisp/clisp.c_data.compact_empty_buckets.diff
 gzip ./source/d/autoconf/doinst.sh
+gzip ./source/d/ccache/doctest.h
 gzip ./source/d/pmake/pmake_1.111-1.diff
 gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
@@ -971,7 +972,6 @@ gzip ./source/xap/audacious/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c
 gzip ./source/xap/xscreensaver/xscreensaver.electricsheep.diff
 gzip ./source/xap/xscreensaver/doinst.sh
-gzip ./source/xap/xscreensaver/xscreensaver.setuid.diff
 gzip ./source/xap/xscreensaver/xscreensaver.no.expiration.date.diff
 gzip ./source/xap/gnuchess/eboard.assert.diff
 gzip ./source/xap/gnuchess/eboard.png16.diff

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006-2021  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006-2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -31,7 +31,7 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -51,6 +51,11 @@ PKG=$TMP/package-${PKGNAM}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "i686" ]; then
+  # Looks like this is baseline now... maybe time to bump everything to at least i686
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686 -mfpmath=sse -msse -msse2"
+  SLKLDFLAGS=""
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
@@ -86,6 +91,7 @@ find . \
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \

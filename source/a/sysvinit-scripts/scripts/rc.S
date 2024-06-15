@@ -220,8 +220,13 @@ if [ -z "$container" ]; then
   # If we're using F2FS for the root filesystem, don't check it as it doesn't
   # allow checking a read-only filesystem:
   if grep -q ' / f2fs ' /proc/mounts ; then
-    echo "Remounting root device with read-write enabled."
+    echo "Remounting f2fs root device with read-write enabled."
     /sbin/mount -w -v -o remount /
+  # If we're using bcachefs for the root filesystem(s), remount read-write
+  # and let bcachefs do its own fsck:
+  elif grep -q ' / bcachefs ' /proc/mounts ; then
+    echo "Remounting bcachefs root device(s) with read-write enabled."
+    /sbin/mount -o remount,rw,fsck /
   elif [ ! $READWRITE = yes ]; then
     # Check the root filesystem:
     RETVAL=0

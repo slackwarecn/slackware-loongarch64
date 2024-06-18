@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=protobuf
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -105,13 +105,26 @@ cd cmake-build
   make install DESTDIR=$PKG || exit 1
 cd ..
 
-# Install the python bindings:
-cd python
-cp -a dist/setup.py .
+# Don't use the python bindings included in the main tarball, as they are
+# incomplete without further processing. Use the ones fetched from 
+# https://pypi.python.org/pypi/protobuf that are ready to go:
+PYBINDING=${PYBINDING:-$(echo $CWD/python-protobuf/protobuf-*.tar.?z | rev | cut -f 1 -d - | cut -f 3- -d . | rev)}
+tar xf $CWD/python-protobuf/protobuf-${PYBINDING}.tar.?z || exit 1
+cd protobuf-${PYBINDING}
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
 LDFLAGS+=" -L$TMP/$PKGNAM-$VERSION/build" \
 PROTOC="$TMP/$PKGNAM-$VERSION/build/protoc" \
 python3 -m build --wheel --no-isolation
 python3 -m installer --destdir "$PKG" dist/*.whl
+mkdir -p $PKG/usr/doc/python-protobuf-${PYBINDING}
+cp -a \
+  *.md *.rst *.txt LICENSE PKG-INFO \
+  $PKG/usr/doc/python-protobuf-${PYBINDING}
 cd ..
 
 # Strip binaries:

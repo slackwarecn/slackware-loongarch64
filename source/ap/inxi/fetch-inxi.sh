@@ -24,7 +24,7 @@
 PKGNAM=inxi
 
 # Pull a stable branch + patches
-BRANCH=${1:-3.3.34-1}
+BRANCH=${1:-3.3.35-1}
 
 # Clear download area:
 rm -rf ${PKGNAM}

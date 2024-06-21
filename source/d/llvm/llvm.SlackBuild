@@ -26,20 +26,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=llvm
-VERSION=${VERSION:-$(echo llvm-*.tar.xz | rev | cut -f 4- -d . | cut -f 1 -d - | rev)}
+VERSION=${VERSION:-$(echo llvmorg-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
-
-# For the two options below, either set both to OFF or *only one* to ON:
-
-# Build using -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DCLANG_LINK_CLANG_DYLIB=ON:
-# This is the upstream recommended way to build LLVM with shared libraries and
-# seems to be the way to go these days.
-LLVM_BUILD_LLVM_DYLIB=${LLVM_BUILD_LLVM_DYLIB:=ON}
-
-# Build using -DBUILD_SHARED_LIBS=ON.
-# We used this for years here to get a smaller LLVM package, but it no longer
-# works. Feel free to try it, but expect breakage.
-BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS:=OFF}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -50,6 +38,17 @@ if [ -z "$ARCH" ]; then
        *) ARCH=$( uname -m ) ;;
   esac
 fi
+
+# Select projects to build:
+if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
+  # bolt and flang are not available on 32-bit
+  LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"clang;clang-tools-extra;compiler-rt;lld;lldb;llvm;mlir;openmp;polly"}
+else
+  LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"bolt;clang;clang-tools-extra;compiler-rt;flang;lld;lldb;llvm;mlir;openmp;polly"}
+fi
+
+# Select runtimes to build:
+LLVM_ENABLE_RUNTIMES=${LLVM_ENABLE_RUNTIMES:-"libcxx;libcxxabi"}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -81,19 +80,6 @@ else
   LIBDIRSUFFIX=""
 fi
 
-# Building clangd will be determined automatically unless BUILD_CLANG is
-# preset to YES or NO:
-if [ -z $BUILD_CLANGD ]; then
-  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
-    BUILD_CLANGD=NO
-  else
-    BUILD_CLANGD=YES
-  fi
-fi
-if [ "$BUILD_CLANGD" = "NO" ]; then
-  CLANGD="-DCLANG_ENABLE_CLANGD=OFF"
-fi
-
 # Python3 short version:
 PY3=$(python3 -c 'from distutils.sysconfig import get_python_lib; print(get_python_lib())' | cut -f 2 -d n | cut -f 1 -d /)
 
@@ -107,83 +93,12 @@ cd $BUILDDIR
 touch configure
 chmod 755 configure
 
-# Extract and rename some support files:
-echo "Extracting $CWD/cmake-$VERSION.src.tar.xz..."
-tar xf $CWD/cmake-$VERSION.src.tar.xz || exit 1
-mv cmake-$VERSION.src cmake
-echo "Extracting $CWD/third-party-$VERSION.src.tar.xz..."
-tar xf $CWD/third-party-$VERSION.src.tar.xz || exit 1
-mv third-party-$VERSION.src third-party
-echo "Extracting $CWD/runtimes-$VERSION.src.tar.xz..."
-tar xf $CWD/runtimes-$VERSION.src.tar.xz || exit 1
-mv runtimes-${VERSION}.src/cmake/Modules/* cmake/Modules || exit 1
-rm -r runtimes-${VERSION}.src
-
-rm -rf $PKGNAM-${VERSION}.src $PKGNAM-${VERSION}
-echo "Extracting $CWD/$PKGNAM-$VERSION.src.tar.xz..."
-tar xf $CWD/$PKGNAM-$VERSION.src.tar.xz || exit 1
-
-cd $PKGNAM-${VERSION}.src/tools || cd $PKGNAM-${VERSION}/tools || exit 1
-  echo "Extracting $CWD/clang-$VERSION.src.tar.xz..."
-  tar xf $CWD/clang-$VERSION.src.tar.xz || exit 1
-  mv clang-${VERSION} clang 2>/dev/null || mv clang-${VERSION}.src clang || exit 1
-  #echo "Extracting $CWD/flang-$VERSION.src.tar.xz..."
-  #tar xf $CWD/flang-$VERSION.src.tar.xz || exit 1
-  #mv flang-${VERSION} flang 2>/dev/null || mv flang-${VERSION}.src flang || exit 1
-  echo "Extracting $CWD/lldb-$VERSION.src.tar.xz..."
-  tar xf $CWD/lldb-$VERSION.src.tar.xz || exit 1
-  mv lldb-${VERSION} lldb 2>/dev/null || mv lldb-${VERSION}.src lldb || exit 1
-  echo "Extracting $CWD/lld-$VERSION.src.tar.xz..."
-  tar xf $CWD/lld-$VERSION.src.tar.xz || exit 1
-  mv lld-${VERSION} lld 2>/dev/null || mv lld-${VERSION}.src lld || exit 1
-cd ../
-
-cd tools/clang/tools || exit 1
-  echo "Extracting $CWD/clang-tools-extra-$VERSION.src.tar.xz..."
-  tar xf $CWD/clang-tools-extra-$VERSION.src.tar.xz || exit 1
-  mv clang-tools-extra-${VERSION} extra 2>/dev/null \
-    || mv clang-tools-extra-${VERSION}.src extra || exit 1
-cd ../../../
-
-cd projects || exit 1
-  echo "Extracting $CWD/compiler-rt-$VERSION.src.tar.xz..."
-  tar xf $CWD/compiler-rt-$VERSION.src.tar.xz || exit 1
-  mv compiler-rt-${VERSION} compiler-rt 2>/dev/null || mv compiler-rt-${VERSION}.src compiler-rt || exit 1
-  echo "Extracting $CWD/openmp-$VERSION.src.tar.xz..."
-  tar xf $CWD/openmp-$VERSION.src.tar.xz || exit 1
-  mv openmp-${VERSION} openmp 2>/dev/null || mv openmp-${VERSION}.src openmp || exit 1
-  echo "Extracting $CWD/libcxx-${VERSION}.src.tar.xz..."
-  tar xf $CWD/libcxx-${VERSION}.src.tar.xz || exit 1
-  mv libcxx-${VERSION} libcxx 2>/dev/null || mv libcxx-${VERSION}.src libcxx || exit 1
-  echo "Extracting $CWD/libcxxabi-${VERSION}.src.tar.xz..."
-  tar xf $CWD/libcxxabi-${VERSION}.src.tar.xz || exit 1
-  mv libcxxabi-${VERSION} libcxxabi 2>/dev/null || mv libcxxabi-${VERSION}.src libcxxabi || exit 1
-  echo "Extracting $CWD/polly-$VERSION.src.tar.xz..."
-  tar xf $CWD/polly-$VERSION.src.tar.xz || exit 1
-  mv polly-${VERSION} polly 2>/dev/null || mv polly-${VERSION}.src polly || exit 1
-  # We just need a header file from this...
-  echo "Extracting $CWD/libunwind-${VERSION}.src.tar.xz..."
-  tar xf $CWD/libunwind-${VERSION}.src.tar.xz || exit 1
-  mv libunwind-${VERSION}.src libunwind || mv libunwind-${VERSION} libunwind || exit 1
-cd ../
+echo "Extracting $CWD/llvmorg-$VERSION.tar.?z..."
+tar xf $CWD/llvmorg-$VERSION.tar.?z || exit 1
+cd llvm-project-llvmorg-$VERSION || cd llvmorg-$VERSION || exit 1
 
 # Support GCC built for i586-slackware-linux:
-zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p1 --verbose || exit 1
-
-# We require libatomic on 32-bit platforms:
-if [ -f ./tools/lldb/source/Utility/CMakeLists.txt ]; then
-  if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
-    zcat $CWD/lldb.32-bit.link.libatomic.diff.gz | patch -p1 --verbose || exit 1
-  fi
-fi
-
-# These hackish links seem to be required...
-cd ..
-ln -sf */runtimes .
-cd -
-cd projects
-ln -sf ../../cmake .
-cd -
+zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p2 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -192,22 +107,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Collect shared library options. If both of the configurable options are set
-# to ON, the last one we check will be the one we use.
-if [ "$BUILD_SHARED_LIBS" = "ON" ]; then
-  SHARED_LIBRARY_OPTIONS="-DBUILD_SHARED_LIBS=ON"
-fi
-if [ "$LLVM_BUILD_LLVM_DYLIB" = "ON" ]; then
-  SHARED_LIBRARY_OPTIONS="-DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DCLANG_LINK_CLANG_DYLIB=ON"
-fi
-
 mkdir build
 cd build
-  mkdir include
-  # Copy this LLVM libunwind header or it won't be found:
-  cp -a ../projects/libunwind/include/mach-o include
-  # Nuke LLVM libunwind as it conflicts with the one already on the system:
-  rm -r ../projects/libunwind
   cmake -GNinja \
     -DCMAKE_C_COMPILER="clang" \
     -DCMAKE_CXX_COMPILER="clang++" \
@@ -215,11 +116,13 @@ cd build
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DLLVM_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
-    -DLIBCXX_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
-    -DLIBCXXABI_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_BUILD_TYPE=Release \
-    $SHARED_LIBRARY_OPTIONS \
+    -DLLVM_BUILD_LLVM_DYLIB=ON \
+    -DLLVM_LINK_LLVM_DYLIB=ON \
+    -DCLANG_LINK_CLANG_DYLIB=ON \
     -DLLVM_USE_LINKER=lld \
+    -DLLVM_ENABLE_PROJECTS="$LLVM_ENABLE_PROJECTS" \
+    -DLLVM_ENABLE_RUNTIMES="$LLVM_ENABLE_RUNTIMES" \
     -DLLVM_ENABLE_RTTI=ON \
     -DLLVM_ENABLE_FFI=ON \
     -DLLVM_ENABLE_ZLIB=ON \
@@ -230,14 +133,14 @@ cd build
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/$(echo $VERSION | cut -f 1 -d .)" \
     -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF" \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
-    -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
+    -DLIBCXX_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
+    -DLIBCXXABI_LIBDIR_SUFFIX=${LIBDIRSUFFIX} \
+    -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
     -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=ON \
     -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
-    $CLANGD \
-    ..  || exit 1
-
+    ../llvm  || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG "$NINJA" install || exit 1
 cd ..
@@ -267,7 +170,7 @@ rm -f $PKG/usr/lib$LIBDIRSUFFIX/libgomp.so
 # Install Python bindings:
 for pyver in ${PY3}; do
   mkdir -p "$PKG/usr/lib$LIBDIRSUFFIX/python$pyver/site-packages"
-  cp -a tools/clang/bindings/python/clang "$PKG/usr/lib$LIBDIRSUFFIX/python$pyver/site-packages/"
+  cp -a clang/bindings/python/clang "$PKG/usr/lib$LIBDIRSUFFIX/python$pyver/site-packages/"
 done
 
 # Remove bundled python-six:
@@ -302,22 +205,14 @@ for i in $( find $PKG/usr/man -type l ) ; do
   rm $i
 done
 
-mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION/{clang,lldb,clang-tools-extra,compiler-rt,openmp,polly}
-cp -a CREDITS* LICENSE* README* $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a tools/clang/{INSTALL,LICENSE,NOTES,README}* \
-  $PKG/usr/doc/$PKGNAM-$VERSION/clang
-cp -a tools/lldb/{CODE_OWNERS,INSTALL,LICENSE}* \
-  $PKG/usr/doc/$PKGNAM-$VERSION/lldb
-cp -a tools/clang/tools/extra/{CODE_OWNERS,LICENSE,README}* \
-  $PKG/usr/doc/$PKGNAM-$VERSION/clang-tools-extra
-cp -a projects/compiler-rt/{CODE_OWNERS,CREDITS,LICENSE,README}* \
-  $PKG/usr/doc/$PKGNAM-$VERSION/compiler-rt
-cp -a projects/openmp/{CREDITS,LICENSE}* \
-  $PKG/usr/doc/$PKGNAM-$VERSION/openmp
-cp -a projects/polly/{CREDITS,LICENSE,README}* \
-  $PKG/usr/doc/$PKGNAM-$VERSION/polly
-mv $PKG/usr/docs/llvm/* $PKG/usr/doc/$PKGNAM-$VERSION
-rm -rf $PKG/usr/docs
+# Just copy anything top or next level that looks like it might be docs.
+# Maybe we'll include it someday. ;-)
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a *.{txt,md,TXT,rst} $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a --parents */*.{txt,md,TXT,rst} $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a --parents */README* $PKG/usr/doc/$PKGNAM-$VERSION
+find $PKG/usr/doc/$PKGNAM-$VERSION -name CMakeLists.txt -exec rm -f "{}" \;
+rmdir $PKG/usr/doc/$PKGNAM-$VERSION/* 2> /dev/null
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

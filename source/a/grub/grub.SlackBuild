@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013, 2016, 2017, 2018, 2019, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2013, 2016, 2017, 2018, 2019, 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,7 +28,10 @@ PKGNAM=grub
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # Better to use _ than ~ in the package filenames version:
 PKGVER=$(echo $VERSION | tr '~' '_')
-BUILD=${BUILD:-5}
+BUILD=${BUILD:-3}
+
+# If you use stack-protector, then grub will not work with legacy BIOS:
+STACKPROTECT=${STACKPROTECT:---enable-stack-protector=no}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -104,23 +107,28 @@ find . \
   -exec chmod 644 {} \+
 
 # Use /boot/initrd.gz as a valid initrd name:
-zcat $CWD/initrd_naming.patch | patch -p1 --verbose || exit 1
+cat $CWD/initrd_naming.patch | patch -p1 --verbose || exit 1
 
 # Support DejaVuSansMono font (dejavusansmono.pf2) by default:
-zcat $CWD/grub.dejavusansmono.gfxterm.font.diff.gz | patch -p1 --verbose || exit 1
+cat $CWD/grub.dejavusansmono.gfxterm.font.diff | patch -p1 --verbose || exit 1
 
 # Fix alignment error with gcc8:
-zcat $CWD/0198-align-struct-efi_variable-better.patch.gz | patch -p1 --verbose || exit 1
+cat $CWD/0198-align-struct-efi_variable-better.patch | patch -p1 --verbose || exit 1
 
-# Fix unreadable XFS filesystem with v4 superblock:
-zcat $CWD/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch.gz | patch -p1 --verbose || exit 1
+# Skip processing any files in /etc/grub.d/ that end in .new or .orig:
+cat $CWD/0001-skip-new-and-orig-files-in-etc-grub.d.patch | patch -p1 --verbose || exit 1
 
-# Skip processing any files in /etc/grub.d/ that end in .new:
-zcat $CWD/0001-skip-new-files-in-etc-grub.d.patch.gz | patch -p1 --verbose || exit 1
+# From Arch, add a couple more GRUB_COLOR options:
+cat $CWD/0001-00_header-add-GRUB_COLOR_-variables.patch | patch -p1 --verbose || exit 1
 
-# Since upstream apparently can't be bothered, let's fix using ext* filesystems
-# created with what are now the default options:
-zcat $CWD/7fd5feff97c4b1f446f8fcf6d37aca0c64e7c763.patch.gz | patch -p1 --verbose || exit 1
+# Also from Arch, support drop-in config bits in /etc/default/grub.d/:
+cat $CWD/0003-support-dropins-for-default-configuration.patch | patch -p1 --verbose || exit 1
+
+# Fix 2.12 release with upstream commit (won't compile otherwise):
+cat $CWD/b835601c7639ed1890f2d3db91900a8506011a8e.patch | patch -p1 --verbose || exit 1
+
+# Still won't compile. Someday they'll remember how to cut a new release.
+touch grub-core/extra_deps.lst
 
 # Regenerate build system to fix dependency on outdated automake:
 autoreconf -vif
@@ -137,6 +145,7 @@ build_grub() {
     --infodir=/usr/info \
     --mandir=/usr/man \
     --disable-werror \
+    $STACKPROTECT \
     $EFI_DO || exit 1
 
   # Build and install:
@@ -158,6 +167,12 @@ fi
 # Always end with regular build:
 build_grub || exit 1
 
+# Add custom 09_slackware_linux config. Thanks to Richard Cranium for the
+# initial version, and Daedra for making it POSIX compliant:
+cp -a $CWD/09_slackware_linux $PKG/etc/grub.d/09_slackware_linux
+chown root:root $PKG/etc/grub.d/09_slackware_linux
+chmod 755 $PKG/etc/grub.d/09_slackware_linux
+
 # Preserve files in /etc/grub.d/:
 for file in $PKG/etc/grub.d/*_* ; do
   mv ${file} ${file}.new
@@ -176,8 +191,10 @@ mv $PKG/etc/bash_completion.d/grub \
 rmdir --parents $PKG/etc/bash_completion.d 2>/dev/null
 
 # Install default options file:
-mkdir -p $PKG/etc/default
+mkdir -p $PKG/etc/default/grub.d
 cat $CWD/etc.default.grub > $PKG/etc/default/grub.new
+# Add a hint:
+echo "Files in this directory must end in .cfg to be processed." > $PKG/etc/default/grub.d/README
 
 # Create a directory for grub.cfg:
 mkdir -p $PKG/boot/grub

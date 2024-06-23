@@ -98,13 +98,7 @@ gzip ./source/a/dialog/dialog.smaller.min.height.diff
 gzip ./source/a/dialog/doinst.sh
 gzip ./source/a/dialog/dialog.no.aspect.ratio.autoajust.patch
 gzip ./source/a/haveged/doinst.sh
-gzip ./source/a/grub/initrd_naming.patch
-gzip ./source/a/grub/7fd5feff97c4b1f446f8fcf6d37aca0c64e7c763.patch
-gzip ./source/a/grub/0001-skip-new-files-in-etc-grub.d.patch
-gzip ./source/a/grub/0198-align-struct-efi_variable-better.patch
 gzip ./source/a/grub/doinst.sh
-gzip ./source/a/grub/a4b495520e4dc41a896a8b916a64eda9970c50ea.patch
-gzip ./source/a/grub/grub.dejavusansmono.gfxterm.font.diff
 gzip ./source/a/devs/makedev_2.3.1.hd.diff
 gzip ./source/a/devs/makedev_2.3.1-46.2.diff
 gzip ./source/a/devs/makedev.hd.diff
@@ -1080,4 +1074,3 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
-gzip ./testing/source/grub/doinst.sh

@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=lxc
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -81,45 +81,38 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Our python package is not split:
-#sed -i "s|PKG_CHECK_MODULES(\[PYTHONDEV.*||" configure.ac || exit 1
-
-if [ ! -r configure ]; then
-  NOCONFIGURE=1 ./autogen.sh
-fi
-
-# Enable python stuff only if python3 is installed.
-python=""
-# Python bindings don't seem to be part of the standard package at this time,
-# so we'll comment this next line out for now:
-#[ -x /usr/bin/python3 ] && export PYTHON=/usr/bin/python3 && python="--enable-python"
-
-# Configure:
-# lua is autodetected
-CFLAGS="$SLKCFLAGS -Wno-error=incompatible-pointer-types" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --sysconfdir=/etc \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --localstatedir=/var \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
   --mandir=/usr/man \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --infodir=/usr/info \
-  --with-global-conf=/etc/lxc/lxc.conf \
-  --with-rootfs-path=/var/lib/rootfs-lxc \
-  --disable-werror \
-  --disable-apparmor \
-  --disable-static \
-  $python \
-  --enable-pam \
-  --build=$ARCH-slackware-linux || exit 1
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --buildtype=release \
+  -Ddoc-path=/usr/doc/$PKGNAM-$VERSION \
+  -Dglobal-config-path=/etc/lxc \
+  -Drootfs-mount-path=/var/lib/rootfs-lxc \
+  -Dapparmor=false \
+  -Dpam-cgroup=true \
+  -Dinit-script=sysvinit \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-# Build and install:
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
+# The PAM module gets installed in the wrong location and there's no config
+# option to put it in the right place, so we'll do it ourselves:
+mkdir -p $PKG/lib${LIBDIRSUFFIX}
+mv $PKG/usr/lib${LIBDIRSUFFIX}/security $PKG/lib${LIBDIRSUFFIX}
 
 # Add the template file:
 cat $CWD/lxc-slackware.in > $PKG/usr/share/lxc/templates/lxc-slackware
@@ -138,10 +131,11 @@ mv $PKG/etc/default/lxc $PKG/etc/default/lxc.new
 # Install an init script (non executable by default):
 install -D -m 0644 $CWD/rc.lxc $PKG/etc/rc.d/rc.lxc.new
 
-# Put bash completion files in system directory:
-mkdir -p $PKG/usr/share/bash-completion/completions
-mv $PKG/etc/bash_completion.d/* $PKG/usr/share/bash-completion/completions
-rm -r $PKG/etc/bash_completion.d
+# Remove init scripts that we do not use:
+rm -r $PKG/etc/init.d
+
+# --disable-static
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a
 
 # Strip binaries:
 ( cd $PKG
@@ -152,7 +146,7 @@ rm -r $PKG/etc/bash_completion.d
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS* CONTRIBUTING* COPYING* INSTALL* MAINTAINERS* NEWS* README* TODO* \
+  AUTHORS* CODING_STYLE* CONTRIBUTING* COPYING* LICENSE* MAINTAINERS* README* \
   doc/FAQ.txt \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 

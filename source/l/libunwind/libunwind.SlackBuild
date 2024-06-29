@@ -86,6 +86,13 @@ find . \
   -exec chmod 644 {} \+
 
 # Configure:
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -104,6 +111,9 @@ make install DESTDIR=$PKG || exit 1
 # Don't ship .la files:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.la
 
+# Don't ship this stuff, either:
+rm -r $PKG/usr/libexec
+
 # Nuke any .a files that shouldn't have been installed:
 rm -f $PKG/usr/lib${LIBDIRSUFFIX}/*.a
 
@@ -119,7 +129,7 @@ touch -r NEWS $PKG/usr/include/libunwind.h
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING* ChangeLog NEWS README* TODO \
+  AUTHORS* COPYING* ChangeLog NEWS* README* TODO* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
@@ -158,4 +168,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

@@ -1,29 +1,6 @@
---- ./sshd.8.orig	2022-02-23 05:31:11.000000000 -0600
-+++ ./sshd.8	2022-02-24 13:28:36.533888569 -0600
-@@ -908,6 +908,12 @@
- This file should be writable only by the user, and need not be
- readable by anyone else.
- .Pp
-+.It Pa /etc/hosts.allow
-+.It Pa /etc/hosts.deny
-+Access controls that should be enforced by tcp-wrappers are defined here.
-+Further details are described in
-+.Xr hosts_access 5 .
-+.Pp
- .It Pa /etc/hosts.equiv
- This file is for host-based authentication (see
- .Xr ssh 1 ) .
-@@ -1010,6 +1016,7 @@
- .Xr ssh-keygen 1 ,
- .Xr ssh-keyscan 1 ,
- .Xr chroot 2 ,
-+.Xr hosts_access 5 ,
- .Xr login.conf 5 ,
- .Xr moduli 5 ,
- .Xr sshd_config 5 ,
---- ./configure.ac.orig	2022-02-23 05:31:11.000000000 -0600
-+++ ./configure.ac	2022-02-24 13:30:10.535883370 -0600
-@@ -1599,6 +1599,62 @@
+--- ./configure.ac.orig	2024-06-30 23:36:28.000000000 -0500
++++ ./configure.ac	2024-07-01 12:30:30.668845271 -0500
+@@ -1662,6 +1662,62 @@
  	AC_MSG_RESULT([no])
  fi
  
@@ -86,7 +63,7 @@
  # Check whether user wants to use ldns
  LDNS_MSG="no"
  AC_ARG_WITH(ldns,
-@@ -5593,6 +5649,7 @@
+@@ -5699,6 +5755,7 @@
  echo "                   OSF SIA support: $SIA_MSG"
  echo "                 KerberosV support: $KRB5_MSG"
  echo "                   SELinux support: $SELINUX_MSG"
@@ -94,9 +71,32 @@
  echo "                   libedit support: $LIBEDIT_MSG"
  echo "                   libldns support: $LDNS_MSG"
  echo "  Solaris process contract support: $SPC_MSG"
---- ./sshd.c.orig	2022-02-23 05:31:11.000000000 -0600
-+++ ./sshd.c	2022-02-24 13:28:36.533888569 -0600
-@@ -129,6 +129,13 @@
+--- ./sshd.8.orig	2024-06-30 23:36:28.000000000 -0500
++++ ./sshd.8	2024-07-01 12:30:30.667845271 -0500
+@@ -921,6 +921,12 @@
+ This file should be writable only by the user, and need not be
+ readable by anyone else.
+ .Pp
++.It Pa /etc/hosts.allow
++.It Pa /etc/hosts.deny
++Access controls that should be enforced by tcp-wrappers are defined here.
++Further details are described in
++.Xr hosts_access 5 .
++.Pp
+ .It Pa /etc/hosts.equiv
+ This file is for host-based authentication (see
+ .Xr ssh 1 ) .
+@@ -1023,6 +1029,7 @@
+ .Xr ssh-keygen 1 ,
+ .Xr ssh-keyscan 1 ,
+ .Xr chroot 2 ,
++.Xr hosts_access 5 ,
+ .Xr login.conf 5 ,
+ .Xr moduli 5 ,
+ .Xr sshd_config 5 ,
+--- ./sshd-session.c.orig	2024-06-30 23:36:28.000000000 -0500
++++ ./sshd-session.c	2024-07-01 12:34:16.265697423 -0500
+@@ -110,6 +110,13 @@
  #include "srclimit.h"
  #include "dh.h"
  
@@ -110,28 +110,27 @@
  /* Re-exec fds */
  #define REEXEC_DEVCRYPTO_RESERVED_FD	(STDERR_FILENO + 1)
  #define REEXEC_STARTUP_PIPE_FD		(STDERR_FILENO + 2)
-@@ -2138,6 +2145,26 @@
+@@ -1226,6 +1233,25 @@
  	the_active_state = ssh;
  	ssh_packet_set_server(ssh);
  
-+/* Moved LIBWRAP check here */
 +#ifdef LIBWRAP
 +        allow_severity = options.log_facility|LOG_INFO;
 +        deny_severity = options.log_facility|LOG_WARNING;
 +        /* Check whether logins are denied from this host. */
-+        if (ssh_packet_connection_is_on_socket(ssh)) {	/* This check must be after ssh_packet_set_connection() */
-+		struct request_info req;
++        if (ssh_packet_connection_is_on_socket(ssh)) { /* This check must be after ssh_packet_set_connection() */
++               struct request_info req;
 +
-+		request_init(&req, RQ_DAEMON, __progname, RQ_FILE, sock_in, 0);
-+		fromhost(&req);
++               request_init(&req, RQ_DAEMON, "sshd", RQ_FILE, sock_in, 0);
++               fromhost(&req);
 +
-+		if (!hosts_access(&req)) {
-+			debug("Connection refused by tcp wrapper");
-+			refuse(&req);
-+			/* NOTREACHED */
-+			fatal("libwrap refuse returns");
-+		}
-+	}
++               if (!hosts_access(&req)) {
++                       debug("Connection refused by tcp wrapper");
++                       refuse(&req);
++                       /* NOTREACHED */
++                       fatal("libwrap refuse returns");
++               }
++       }
 +#endif /* LIBWRAP */
 +
  	check_ip_options(ssh);

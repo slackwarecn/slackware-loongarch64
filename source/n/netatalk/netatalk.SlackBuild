@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2012, 2015, 2018, 2019, 2020, 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2012, 2015, 2018, 2019, 2020, 2022, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=netatalk
 VERSION=${VERSION:-$(echo netatalk-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -78,43 +78,45 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Choose correct options depending on whether PAM is installed:
-if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
-  PAM_OPTIONS="--with-pam-confdir=/etc/pam.d --with-pam --enable-ddp"
-  unset SHADOW_OPTIONS
-else
-  unset PAM_OPTIONS
-  SHADOW_OPTIONS="--with-shadow"
-fi
-
-# use the system libevent, because the internal one won't compile
-# with openssl 1.1.  Also skip pam and kerberos (for now).
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
   --mandir=/usr/man \
   --sysconfdir=/etc/netatalk \
-  --libexecdir=/usr/sbin \
   --localstatedir=/var \
-  --disable-static \
-  $PAM_OPTIONS \
-  $SHADOW_OPTIONS \
-  --with-libevent=system \
-  --with-dbus-sysconf-dir=/usr/share/dbus-1/system.d/ \
-  --with-dbus-daemon=/usr/bin/dbus-daemon \
-  --build=$ARCH-slackware-linux || exit 1
+  --buildtype=release \
+  -Dwith-pam=true \
+  -Dwith-dbus-sysconf-path=/usr/share/dbus-1/system.d/ \
+  -Dwith-dbus-daemon-path=/usr/bin/dbus-daemon \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Hmm, this went missing:
+if [ ! -r $PKG/etc/netatalk/afp.conf ]; then
+  cp -a meson-build/config/afp.conf $PKG/etc/netatalk/afp.conf
+  chown root:root $PKG/etc/netatalk/afp.conf
+  chmod 644 $PKG/etc/netatalk/afp.conf
+fi
 
 # At least make this unreadable to non-root users:
 if [ -u $PKG/usr/bin/afppasswd ]; then
   chmod 4711 $PKG/usr/bin/afppasswd
 fi
 
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+# Don't ship static libraries:
+rm -f $PKG/usr/lib${LIBDIRSUFFIX}/{*.a,netatalk/*.a}
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -141,13 +143,11 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
   done
 )
 
-if [ ! -z "$PAM_OPTIONS" ]; then
-  mv $PKG/etc/pam.d/netatalk $PKG/etc/pam.d/netatalk.new
-fi
+mv $PKG/etc/pam.d/netatalk $PKG/etc/pam.d/netatalk.new
 
 mkdir -p $PKG/usr/doc/netatalk-$VERSION
 cp -a \
-  AUTHORS CONTRIBUTORS COPYING* COPYRIGHT NEWS VERSION \
+  AUTHORS* CONTRIBUTORS* COPYING* COPYRIGHT* NEWS* README* VERSION* \
   $PKG/usr/doc/netatalk-$VERSION
 cp -a $CWD/examples $PKG/usr/doc/netatalk-$VERSION
 chown -R root:root $PKG/usr/doc/netatalk-$VERSION/examples

@@ -522,7 +522,6 @@ gzip ./source/n/netkit-routed/netkit-routed-0.17.diff
 gzip ./source/n/netkit-routed/routed.18.candidate.final.patch
 gzip ./source/n/openssh/openssh.tcp_wrappers.diff
 gzip ./source/n/openssh/sshd_config-pam.diff
-gzip ./source/n/openssh/doinst.sh
 gzip ./source/n/s-nail/doinst.sh
 gzip ./source/n/s-nail/s-nail.no.emptystart.diff
 gzip ./source/n/iputils/iputils.docbook.revert.diff

@@ -36,6 +36,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -72,6 +73,8 @@ elif [ "$ARCH" = "aarch64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  LIBDIRSUFFIX="64"
 fi
 
 # Location for Python site-packages:
@@ -114,7 +117,7 @@ find -L . \
   --enable-loadable-sqlite-extensions \
   --without-ensurepip \
   --with-tzpath=/usr/share/zoneinfo \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -157,6 +160,12 @@ if [ -e "$CWD/python-$VERSION-docs-text.tar.bz2" ]; then
   tar xf $CWD/python-$VERSION-docs-text.tar.bz2
   mv python-$VERSION-docs-text $PKG/usr/doc/$PKGNAM-$VERSION/docs-text
   chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION/docs-text
+fi
+if [ "$ARCH" = "loong64" ]; then
+  # Install to lib64 instead of lib.
+  zcat $CWD/python.sysconfig.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python3.distutils.x86_64.diff.gz | patch -p1 --verbose || exit 1
+  zcat $CWD/python3.setup.py.x86_64.diff.gz | patch -p1 --verbose || exit 1
 fi
 
 # Fix possible incorrect permissions.

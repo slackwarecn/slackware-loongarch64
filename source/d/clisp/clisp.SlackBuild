@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -54,6 +55,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -82,6 +86,9 @@ rm -rf libffcall-$FFCALLVER
 tar xvf $CWD/libffcall-$FFCALLVER.tar.?z || exit 1
 cd libffcall-$FFCALLVER || exit 1
 
+# add LoongArch support
+cat $CWD/libffcall-add-LoongArch-support.patch | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -96,7 +103,7 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-static=yes \
   --enable-shared=no \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 
@@ -138,6 +145,7 @@ export FORCE_UNSAFE_CONFIGURE=1
 # --cbc instead of --config below will check the build.
 # --cbcx will do even more extra checking.
 
+cp -rf /usr/share/automake-1.16/config.* src/build-aux/
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \

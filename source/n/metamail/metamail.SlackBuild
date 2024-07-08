@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -62,6 +63,9 @@ elif [ "$ARCH" = "arm" ]; then
 elif [ "$ARCH" = "armel" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -94,6 +98,7 @@ find . \
 # Fix misnamed man page:
 mv man/mmencode.1 man/mimencode.1
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS -Wno-error=implicit-int" \
 ./configure \
   --prefix=/usr \
@@ -101,7 +106,7 @@ CFLAGS="$SLKCFLAGS -Wno-error=implicit-int" \
   --disable-static \
   --program-prefix="" \
   --program-suffix="" \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 ( cd bin
   cat showexternal | perl -pi -e 's|sensible-pager|more|' > se

@@ -1,0 +1,27 @@
+From 4540af275c4886017faac2d236009a3c7862b650 Mon Sep 17 00:00:00 2001
+From: Xiaotian Wu <wuxiaotian@loongson.cn>
+Date: Thu, 18 May 2023 19:49:32 +0800
+Subject: [PATCH] LoongArch: Fix ld RWX warning
+
+The current ld script places .dynamic section right after .text, which
+results in that one LOAD segment contains both data and code. Binutils
+2.39 and later will throw a warning if RWX segments exist. Code and
+data should be placed in different LOAD segments with different
+permissions. This patch adds a gap between data and code sections which
+is taken from the default ld script in loongarch64.
+---
+ gnuefi/elf_loongarch64_efi.lds | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gnuefi/elf_loongarch64_efi.lds b/gnuefi/elf_loongarch64_efi.lds
+index e7b4d6b..f7c45c7 100644
+--- a/gnuefi/elf_loongarch64_efi.lds
++++ b/gnuefi/elf_loongarch64_efi.lds
+@@ -15,6 +15,7 @@ SECTIONS
+   }
+   _etext = .;
+   _text_size = . - _text;
++  . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
+   .dynamic  : { *(.dynamic) }
+   .data : ALIGN(4096)
+   {

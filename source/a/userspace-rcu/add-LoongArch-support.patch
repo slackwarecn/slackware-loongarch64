@@ -1,0 +1,116 @@
+From 3200cf8b0bb4cddd92d513b56ce9c7a32cc87052 Mon Sep 17 00:00:00 2001
+From: sangmeng <sangmeng@loongson.cn>
+Date: Tue, 8 Aug 2023 10:06:55 +0000
+Subject: [PATCH] Add loongarch64 support
+
+---
+ include/Makefile.am                |  2 ++
+ include/urcu/arch.h                |  5 +++++
+ include/urcu/arch/loongarch64.h    | 28 ++++++++++++++++++++++++++++
+ include/urcu/uatomic.h             |  2 ++
+ include/urcu/uatomic/loongarch64.h | 12 ++++++++++++
+ 5 files changed, 49 insertions(+)
+ create mode 100644 include/urcu/arch/loongarch64.h
+ create mode 100644 include/urcu/uatomic/loongarch64.h
+
+diff --git a/include/Makefile.am b/include/Makefile.am
+index 859bccd6..9a652b7c 100644
+--- a/include/Makefile.am
++++ b/include/Makefile.am
+@@ -11,6 +11,7 @@ nobase_include_HEADERS = \
+ 	urcu/arch.h \
+ 	urcu/arch/hppa.h \
+ 	urcu/arch/ia64.h \
++	urcu/arch/loongarch64.h \
+ 	urcu/arch/m68k.h \
+ 	urcu/arch/mips.h \
+ 	urcu/arch/nios2.h \
+@@ -72,6 +73,7 @@ nobase_include_HEADERS = \
+ 	urcu/uatomic.h \
+ 	urcu/uatomic/hppa.h \
+ 	urcu/uatomic/ia64.h \
++	urcu/uatomic/loongarch64.h \
+ 	urcu/uatomic/m68k.h \
+ 	urcu/uatomic/mips.h \
+ 	urcu/uatomic/nios2.h \
+diff --git a/include/urcu/arch.h b/include/urcu/arch.h
+index 45ba6a22..91c50182 100644
+--- a/include/urcu/arch.h
++++ b/include/urcu/arch.h
+@@ -151,6 +151,11 @@
+ #define URCU_ARCH_RISCV 1
+ #include <urcu/arch/riscv.h>
+ 
++#elif defined(_LOONGARCH_ARCH)
++
++#define URCU_ARCH_LOONGARCH64 1
++#include <urcu/arch/loongarch64.h>
++
+ #else
+ #error "Cannot build: unrecognized architecture, see <urcu/arch.h>."
+ #endif
+diff --git a/include/urcu/arch/loongarch64.h b/include/urcu/arch/loongarch64.h
+new file mode 100644
+index 00000000..ffb900cb
+--- /dev/null
++++ b/include/urcu/arch/loongarch64.h
+@@ -0,0 +1,28 @@
++#ifndef _URCU_ARCH_LOONGARCH64_H
++#define _URCU_ARCH_LOONGARCH64_H
++
++/*
++ * arch_loongarch.h: trivial definitions for the LOONGARCH architecture.
++ */
++
++#include <urcu/compiler.h>
++#include <urcu/config.h>
++#include <urcu/syscall-compat.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define CAA_CACHE_LINE_SIZE	128
++
++#define cmm_mb()			__asm__ __volatile__ (		    \
++					"	DBAR 0			\n" \
++					:::"memory")
++
++#ifdef __cplusplus
++}
++#endif
++
++#include <urcu/arch/generic.h>
++
++#endif /* _URCU_ARCH_LOONGARCH64_H */
+diff --git a/include/urcu/uatomic.h b/include/urcu/uatomic.h
+index b7b1d89d..ba05bf0d 100644
+--- a/include/urcu/uatomic.h
++++ b/include/urcu/uatomic.h
+@@ -35,6 +35,8 @@
+ #include <urcu/uatomic/m68k.h>
+ #elif defined(URCU_ARCH_RISCV)
+ #include <urcu/uatomic/riscv.h>
++#elif defined(URCU_ARCH_LOONGARCH64)
++#include <urcu/uatomic/loongarch64.h>
+ #else
+ #error "Cannot build: unrecognized architecture, see <urcu/arch.h>."
+ #endif
+diff --git a/include/urcu/uatomic/loongarch64.h b/include/urcu/uatomic/loongarch64.h
+new file mode 100644
+index 00000000..01b28c43
+--- /dev/null
++++ b/include/urcu/uatomic/loongarch64.h
+@@ -0,0 +1,12 @@
++#ifndef _URCU_UATOMIC_ARCH_LOONGARCH64_H
++#define _URCU_UATOMIC_ARCH_LOONGARCH64_H
++
++/*
++ * Atomic exchange operations for the LOONGARCH architecture. Let GCC do it.
++ */
++
++#include <urcu/compiler.h>
++#include <urcu/system.h>
++#include <urcu/uatomic/generic.h>
++
++#endif /* _URCU_UATOMIC_ARCH_LOONGARCH64_H */

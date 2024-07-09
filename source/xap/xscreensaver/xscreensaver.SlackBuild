@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -53,6 +54,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -87,6 +91,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+#autoreconf -fi
+cp -rf /usr/share/automake-1.16/config.* .
 xml_config=/usr/bin/xml-config xml2_config=/usr/bin/xml2-config \
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -100,11 +106,11 @@ CXXFLAGS="$SLKCFLAGS" \
   --without-kerberos \
   --with-jpeg \
   --with-gl \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # Build:
 make $NUMJOBS || make || exit 1
-make install_prefix=$PKG install-strip || exit 1
+make install_prefix=$PKG install || exit 1
 
 # No special perms needed with PAM:
 #chmod 755 $PKG/usr/bin/xscreensaver

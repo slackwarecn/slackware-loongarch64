@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -68,6 +69,10 @@ elif [ "$ARCH" = "arm" ]; then
   SLKCFLAGS="-O2 -march=armv4t"
   LIBDIRSUFFIX=""
   ARCHQUADLET="-gnueabi"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  ARCHQUADLET=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -92,6 +97,7 @@ find . \
 
 #autoreconf --force --install
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -118,7 +124,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --with-gstreamer=1.0 \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+  --build=loongarch64-slackware-linux$ARCHQUADLET || exit 1
 
 # Fix install location:
 grep -lr -- "lib/perl" . | xargs sed -i 's?lib/perl?lib'"$LIBDIRSUFFIX"'/perl?g'
@@ -171,6 +177,7 @@ done
   rm -rf pidgin-encryption-$PIDGINENC
   tar xvf $CWD/pidgin-encryption-$PIDGINENC.tar.gz || exit 1
   cd pidgin-encryption-$PIDGINENC
+  autoreconf -fi
   zcat $CWD/fix-gmain_h-compile-error.diff.gz | patch -p1 --verbose || exit 1
   PIDGIN_CFLAGS="-I${PKG}/usr/include/pidgin" \
   PIDGIN_LIBS="-L${PKG}/usr/lib${LIBDIRSUFFIX}" \
@@ -188,7 +195,7 @@ done
   --with-nspr-libs=/usr/lib${LIBDIRSUFFIX}/ \
   --program-prefix="" \
   --program-suffix="" \
-  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+  --build=loongarch64-slackware-linux$ARCHQUADLET || exit 1
 
   # Fix install location:
   grep -lr -- "lib/perl" . | xargs sed -i 's?lib/perl?lib'"$LIBDIRSUFFIX"'/perl?g'

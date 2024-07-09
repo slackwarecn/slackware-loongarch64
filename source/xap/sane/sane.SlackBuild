@@ -33,6 +33,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -55,6 +56,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -103,7 +107,7 @@ CFLAGS="$SLKCFLAGS" \
   --with-group=scanner \
   --with-usb \
   --without-api-spec \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install || exit 1
@@ -141,6 +145,7 @@ tar xvf $CWD/sane-frontends-$FRONTVER.tar.?z || exit 1
 cd sane-frontends-$FRONTVER || exit 1
 chown -R root:root .
 
+cp -rfa /usr/share/autoconf/build-aux/config.* .
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -148,7 +153,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --with-docdir=/usr/doc/sane-$VERSION \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install || exit 1

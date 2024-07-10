@@ -32,7 +32,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=qt6
 VERSION=$(ls qt-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 PKGSRC=$(echo $VERSION | cut -d - -f 1)
 PKGVER=$(echo $VERSION | tr - _)
 
@@ -166,6 +166,16 @@ cat $CWD/patches/nodejs-allow-32bit.patch | patch -p1 --verbose || exit 1
 # Patch header issue that causes the compile to fail with "x11 not defined"
 pushd qtwebengine
   cat $CWD/patches/qtwebengine-6.7.0-displaykey-header.patch | patch -p1 --verbose || exit 1
+popd
+
+# Fix for building with recent ninja:
+pushd qtwebengine
+  cat $CWD/patches/qtwebengine-6.7.0-ninja1.12.patch | patch -p1 --verbose || exit 1
+popd
+
+# Upstream crash fix (coming officially in 6.7.3):
+pushd qtwayland
+  cat $CWD/patches/92bcb8f6b7a852c7a5d662fc34de561692a7a454.patch | patch -p1 --verbose || exit 1
 popd
 
 # Previously we didn't have a protobuf package in Slackware.

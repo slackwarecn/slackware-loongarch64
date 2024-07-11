@@ -45,7 +45,7 @@ if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
   # bolt and flang are not available on 32-bit
   LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"clang;clang-tools-extra;compiler-rt;lld;lldb;llvm;mlir;openmp;polly"}
 else
-  LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"bolt;clang;clang-tools-extra;compiler-rt;flang;lld;lldb;llvm;mlir;openmp;polly"}
+  LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"clang;clang-tools-extra;compiler-rt;flang;lld;lldb;llvm;mlir;openmp;polly"}
 fi
 
 # Select runtimes to build:
@@ -107,7 +107,7 @@ cd llvm-project-llvmorg-$VERSION || cd llvmorg-$VERSION || exit 1
 zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p2 --verbose || exit 1
 
 # LoongArch
-cat $CWD/clang.toolchains.loongarch64.triple.diff | patch -p1 --verbose || exit 1
+cat $CWD/clang.toolchains.loongarch64.triple.diff | patch -p2 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -119,8 +119,8 @@ find . \
 mkdir build
 cd build
   cmake -GNinja \
-    -DCMAKE_C_COMPILER="gcc" \
-    -DCMAKE_CXX_COMPILER="g++" \
+    -DCMAKE_C_COMPILER="clang" \
+    -DCMAKE_CXX_COMPILER="clang++" \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
@@ -140,7 +140,7 @@ cd build
     -DLLVM_INSTALL_UTILS=ON \
     -DLLVM_BINUTILS_INCDIR=/usr/include \
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/$(echo $VERSION | cut -f 1 -d .)" \
-    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF" \
+    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU" \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     -DCLANG_DEFAULT_PIE_ON_LINUX=ON \

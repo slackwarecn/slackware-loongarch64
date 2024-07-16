@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=sysklogd
+PKGNAM=nghttp3
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -30,7 +30,7 @@ BUILD=${BUILD:-1}
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
-    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -45,7 +45,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686"
@@ -86,50 +86,22 @@ find . \
   -exec chmod 644 {} \+
 
 # Configure, build, and install:
-if [ ! -r configure ]; then
-  if [ -x ./autogen.sh ]; then
-    NOCONFIGURE=1 ./autogen.sh
-  else
-    autoreconf -vif
-  fi
-fi
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --mandir=/usr/man \
-  --infodir=/usr/info \
-  --disable-static \
-  --without-logger \
-  --build=$ARCH-slackware-linux || exit 1
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-mkdir -p $PKG/etc/syslog.d
-cat $CWD/config/syslog.conf.new > $PKG/etc/syslog.conf.new
-
-mkdir -p $PKG/etc/logrotate.d
-cat $CWD/config/syslog.logrotate > $PKG/etc/logrotate.d/syslog.new
-
-mkdir -p $PKG/etc/rc.d
-cat $CWD/config/rc.syslog.new > $PKG/etc/rc.d/rc.syslog.new
-chmod 0755 $PKG/etc/rc.d/rc.syslog.new
-
-mkdir -p $PKG/etc/default
-cat $CWD/config/syslogd.new > $PKG/etc/default/syslogd.new
-
-mkdir -p $PKG/var/log
-for i in cron debug maillog messages secure syslog ; do
-  touch $PKG/var/log/$i.new
-  chmod 640 $PKG/var/log/$i.new
-done
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+mkdir cmake-build
+cd cmake-build
+  cmake \
+    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_DOCDIR=/usr/doc/$PKGNAM-$VERSION \
+    -DLIB_SUFFIX="$LIBDIRSUFFIX" \
+    -DDOC_INSTALL_DIR="doc" \
+    -DMAN_INSTALL_DIR=/usr/man \
+    -DENABLE_STATIC_LIB=OFF \
+    -DENABLE_LIB_ONLY=ON \
+    .. || exit 1
+  make $NUMJOBS || make || exit 1
+  make install DESTDIR=$PKG || exit 1
+cd ..
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -141,30 +113,21 @@ for i in $( find $PKG/usr/man -type l ) ; do
   rm $i
 done
 
-# Compress info files, if any:
-if [ -d $PKG/usr/info ]; then
-  ( cd $PKG/usr/info
-    rm -f dir
-    gzip -9 *
-  )
-fi
-
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  ChangeLog* COPYING* LICENSE* NEWS* README* THANKS* TODO* \
+  AUTHORS* ChangeLog COPYING* NEWS* README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r ChangeLog.md ]; then
+if [ -r ChangeLog ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat ChangeLog.md | head -n 1000 > $DOCSDIR/ChangeLog.md
-  touch -r ChangeLog.md $DOCSDIR/ChangeLog.md
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

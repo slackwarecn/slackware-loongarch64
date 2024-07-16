@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=dbus-python
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
@@ -79,32 +79,40 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-PYTHON_VERSION=3 \
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --disable-html-docs \
-  --disable-documentation \
-  --enable-shared=yes \
-  --enable-static=no \
-  --build=$ARCH-slackware-linux \
-  --host=$ARCH-slackware-linux \
-  || exit 1
+  --buildtype=release \
+  -Dinstalled_tests=false \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
+# Maybe switch from meson to this sometime later?
+#unshare -n python3 -m build --wheel --no-isolation || exit 1
+#
+#python3 -m installer --destdir "$PKG" dist/*.whl || exit 1
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README* \
+  AUTHORS* COPYING* INSTALL* NEWS* README* \
   $PKG/usr/doc/$PKGNAM-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history

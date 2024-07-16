@@ -1,0 +1,37 @@
+This patch fixes a regression introduced in ntpd revision 1.4040.1.4[1]. 
+The first ntpd release to be affected was 4.2.8p18.
+
+If the IPv6 link-local interface was not ready for binding on the first
+attempt, ntpd would segfault in update_interfaces().  The cause was the
+inadvertent referencing of the endpoint returned by create_interface() (ep,
+which is NULL on error) rather than the endpoint which contained the address
+information (ep2).
+
+In the patch author's experience, the segfault would only occur when ntpd
+was started as part of the boot sequence.  Most - but not all - boots were
+affected.  Evidently it could happen that the timing of ntpd's start up was
+delayed enough that the IPv6 link-local interface was ready for the bind()
+call when it was first issued by open_socket() via create_interface().
+
+No segfaults were observed by the patch's author when starting ntpd manually
+after logging in.
+
+[1] [Bug 3913] Avoid duplicate IPv6 link-local manycast associations.
+    Complete the switch from struct interface to endpt.
+
+--- a/ntp-4.2.8p18/ntpd/ntp_io.c	2024-05-07 20:51:17.000000000 +0930
++++ b/ntp-4.2.8p18/ntpd/ntp_io.c	2024-07-16 22:06:48.873953452 +0930
+@@ -1921,11 +1921,11 @@
+ 		}
+ 		else {
+ 			DPRINT_INTERFACE(3,
+-				(ep, "updating ", " new - FAILED"));
++				(ep2, "updating ", " new - FAILED"));
+ 
+ 			msyslog(LOG_ERR,
+ 				"cannot bind address %s",
+-				stoa(&ep->sin));
++				stoa(&ep2->sin));
+ 		}
+ 		free(ep2);
+ 	}

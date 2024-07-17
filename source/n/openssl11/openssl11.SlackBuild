@@ -2,7 +2,7 @@
 
 # Copyright 2000 BSDi, Inc. Concord, CA, USA
 # Copyright 2001, 2002 Slackware Linux, Inc.  Concord, CA, USA
-# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -28,6 +28,8 @@ TMP=${TMP:-/tmp}
 
 PKGNAM=openssl11
 VERSION=${VERSION:-$(echo openssl-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+# Get the new version number from the latest patch:
+PKGVER=$(grep "^+" $(/bin/ls -t 00*patch | head -n 1) | grep OPENSSL_VERSION_TEXT | cut -f 2 -d \" | cut -f 2 -d ' ')
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
@@ -42,8 +44,8 @@ fi
 
 PKG1=$TMP/package-openssl11
 PKG2=$TMP/package-ossllibs11
-NAME1=openssl11-$VERSION-$ARCH-$BUILD
-NAME2=openssl11-solibs-$VERSION-$ARCH-$BUILD
+NAME1=openssl11-$PKGVER-$ARCH-$BUILD
+NAME2=openssl11-solibs-$PKGVER-$ARCH-$BUILD
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -68,6 +70,14 @@ cd openssl-$VERSION
 
 # Fix pod syntax errors which are fatal wih a newer perl:
 find . -name "*.pod" -exec sed -i "s/^\=item \([0-9]\)\(\ \|$\)/\=item C<\1>/g" {} \;
+
+# Apply patches to fix CVEs that were fixed by the 1.1.1{x,y,za} releases that
+# were only available to subscribers to OpenSSL's premium extended support.
+# These patches were prepared by backporting commits from the OpenSSL-3.0 repo.
+# Thanks to Ken Zalewski!
+cat $CWD/0001-openssl-1.1.1x_CVE-2023-5678_CVE-2024-0727.patch | patch -p1 --verbose || exit 1
+cat $CWD/0002-openssl-1.1.1y_CVE-2024-2511_CVE-2024-4741.patch | patch -p1 --verbose || exit 1
+cat $CWD/0003-openssl-1.1.1za_CVE-2024-5535.patch | patch -p1 --verbose || exit 1
 
 ## For openssl-1.1.x, don't try to change the soname.
 ## Use .so.1, not .so.1.0.0:
@@ -95,17 +105,22 @@ fi
 sed -i "s/#define OPENSSL_VERSION_NUMBER.*/\/* Use 0x1010100fL (1.1.1) below to avoid pointlessly breaking the ABI *\/\n#define OPENSSL_VERSION_NUMBER 0x1010100fL/g" include/openssl/opensslv.h || exit 1
 
 chown -R root:root .
-mkdir -p $PKG1/usr/doc/openssl-$VERSION
+mkdir -p $PKG1/usr/doc/openssl-$PKGVER
 cp -a ACKNOWLEDGEMENTS AUTHORS CHANGES* CONTRIBUTING FAQ INSTALL* \
   LICENSE* NEWS NOTES* README* doc \
-  $PKG1/usr/doc/openssl-$VERSION
-find $PKG1/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \+
-find $PKG1/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \+
+  $PKG1/usr/doc/openssl-$PKGVER
+# For this backported package, let's put the patches in the documentation since
+# the CHANGES and other files are not up-to-date with the reported version.
+# This'll make it more clear exactly what this package is.
+cp -a $CWD/00* $PKG1/usr/doc/openssl-$PKGVER
+chown root:root $PKG1/usr/doc/openssl-$PKGVER/00*
+find $PKG1/usr/doc/openssl-$PKGVER -type d -exec chmod 755 {} \+
+find $PKG1/usr/doc/openssl-$PKGVER -type f -exec chmod 644 {} \+
 
 # If there's a CHANGES file, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
 if [ -r CHANGES ]; then
-  DOCSDIR=$(echo $PKG1/usr/doc/*-$VERSION)
+  DOCSDIR=$(echo $PKG1/usr/doc/*-$PKGVER)
   cat CHANGES | head -n 2000 > $DOCSDIR/CHANGES
   touch -r CHANGES $DOCSDIR/CHANGES
 fi
@@ -212,21 +227,21 @@ cp -a $PKG1//usr/lib${LIBDIRSUFFIX}/openssl-1.1/engines-1.1 $PKG2/usr/lib${LIBDI
 )
 #mkdir -p $PKG2/etc
 #( cd $PKG2/etc ; cp -a $PKG1/etc/ssl . )
-mkdir -p $PKG2/usr/doc/openssl-$VERSION
+mkdir -p $PKG2/usr/doc/openssl-$PKGVER
 ( cd $TMP/openssl-$VERSION
   cp -a CHANGES CHANGES.SSLeay FAQ INSTALL INSTALL.MacOS INSTALL.VMS INSTALL.W32 \
-  LICENSE NEWS README README.ENGINE $PKG2/usr/doc/openssl-$VERSION
+  LICENSE NEWS README README.ENGINE $PKG2/usr/doc/openssl-$PKGVER
   # If there's a CHANGES file, installing at least part of the recent history
   # is useful, but don't let it get totally out of control:
   if [ -r CHANGES ]; then
-    DOCSDIR=$(echo $PKG2/usr/doc/*-$VERSION)
+    DOCSDIR=$(echo $PKG2/usr/doc/*-$PKGVER)
     cat CHANGES | head -n 2000 > $DOCSDIR/CHANGES
     touch -r CHANGES $DOCSDIR/CHANGES
   fi
 )
 
-find $PKG2/usr/doc/openssl-$VERSION -type d -exec chmod 755 {} \+
-find $PKG2/usr/doc/openssl-$VERSION -type f -exec chmod 644 {} \+
+find $PKG2/usr/doc/openssl-$PKGVER -type d -exec chmod 755 {} \+
+find $PKG2/usr/doc/openssl-$PKGVER -type f -exec chmod 644 {} \+
 cd $PKG2
 mkdir -p install
 cat $CWD/slack-desc.openssl11-solibs > install/slack-desc

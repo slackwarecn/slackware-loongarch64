@@ -27,13 +27,13 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=llvm
 VERSION=${VERSION:-$(echo llvmorg-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) ARCH=arm ;;
        *) ARCH=$( uname -m ) ;;
   esac
@@ -70,10 +70,10 @@ if [ "$ARCH" = "i586" ]; then
   SLKCFLAGS="-O2 -march=i586 -mtune=i686 $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686 $IGNORE_GNU_EXTENSIONS"
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC $IGNORE_GNU_EXTENSIONS"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2 $IGNORE_GNU_EXTENSIONS"
@@ -97,8 +97,8 @@ echo "Extracting $CWD/llvmorg-$VERSION.tar.?z..."
 tar xf $CWD/llvmorg-$VERSION.tar.?z || exit 1
 cd llvm-project-llvmorg-$VERSION || cd llvmorg-$VERSION || exit 1
 
-# Support GCC built for i586-slackware-linux:
-zcat $CWD/clang.toolchains.i586.triple.diff.gz | patch -p2 --verbose || exit 1
+# Support GCC built for i?86-slackware-linux:
+zcat $CWD/clang.toolchains.32-bit.triple.diff.gz | patch -p2 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -131,7 +131,7 @@ cd build
     -DLLVM_INSTALL_UTILS=ON \
     -DLLVM_BINUTILS_INCDIR=/usr/include \
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/$(echo $VERSION | cut -f 1 -d .)" \
-    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF" \
+    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF;WebAssembly" \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     -DCLANG_DEFAULT_PIE_ON_LINUX=ON \

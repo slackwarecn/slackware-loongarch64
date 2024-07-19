@@ -26,7 +26,7 @@ gzip ./source/d/pmake/pmake.txt
 gzip ./source/d/pmake/pmake.strerror.strdup.diff
 gzip ./source/d/cvs/cvs.crypt-2.diff
 gzip ./source/d/cvs/cvs.getline64.diff
-gzip ./source/d/llvm/clang.toolchains.i586.triple.diff
+gzip ./source/d/llvm/clang.toolchains.32-bit.triple.diff
 gzip ./source/d/rust/link_libffi.diff
 gzip ./source/d/vala/disable-graphviz.patch
 gzip ./source/d/vala/no.gvc-compat.c.diff

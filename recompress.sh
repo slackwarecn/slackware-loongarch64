@@ -493,7 +493,6 @@ gzip ./source/n/nc/nc.diff
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-message.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
-gzip ./source/n/wpa_supplicant/patches/8e6485a1bcb0baffdea9e55255a81270b768439c.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh
@@ -645,7 +644,6 @@ gzip ./source/t/xfig/xfig.fig.ad.diff
 gzip ./source/l/glibc/glibc.ru_RU.CP1251.diff
 gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/patches/reenable_DT_HASH.patch
-gzip ./source/l/glibc/patches/CVE-2024-2961_glibc2.39.patch
 gzip ./source/l/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
 gzip ./source/l/fuse/fuse2-0007-util-ulockmgr_server.c-conditionally-define-closefro.patch
 gzip ./source/l/fuse/doinst.sh
@@ -757,6 +755,7 @@ gzip ./source/l/gdk-pixbuf2/doinst.sh
 gzip ./source/l/qt5-webkit/webkit-offlineasm-warnings-ruby27.patch
 gzip ./source/l/qt5-webkit/qt5-webkit.glib-2.68.0.diff
 gzip ./source/l/qt5-webkit/icu68.patch
+gzip ./source/l/qt5-webkit/qtwebkit-fix-build-gcc14.patch
 gzip ./source/l/qt5-webkit/qt5-webkit-bison-3.7.patch
 gzip ./source/l/qt5-webkit/qt5-webkit-python-3.9.patch
 gzip ./source/l/qt5-webkit/qt5-webkit.gcc13.diff

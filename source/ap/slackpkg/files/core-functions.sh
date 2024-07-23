@@ -31,6 +31,17 @@ One or more errors occurred while slackpkg was running:
 }
 trap 'cleanup' 2 14 15 		# trap CTRL+C and kill
 
+# Define which version of gnupg to use. We'll prefer gpg1 since it has fewer
+# dependencies, then gpg2, and if we don't find that we'll blindly set this
+# to gpg and deal with it later.
+if which gpg1 > /dev/null 2> /dev/null ; then
+  GPG=gpg1
+elif which gpg2 > /dev/null 2> /dev/null ; then
+  GPG=gpg2
+else
+  GPG=gpg
+fi
+
 # This create an spinning bar
 spinning() {
 	local WAITFILE
@@ -371,7 +382,7 @@ as slackpkg cannot function without awk.\n"
 
 	# Check if gpg is enabled but no GPG command are found.
 	#
-	if ! [ "$(which gpg2 2>/dev/null)" ] && [ "${CHECKGPG}" = "on" ]; then
+	if ! [ "$(which $GPG 2>/dev/null)" ] && [ "${CHECKGPG}" = "on" ]; then
 		CHECKGPG=off
 		echo -e "\n\
 gpg package not found!  Please disable GPG in ${CONF}/slackpkg.conf or install\n\
@@ -384,7 +395,7 @@ file distributed with slackpkg.\n"
 
 	# Check if the Slackware GPG key are found in the system
 	#                                                       
-	GPGFIRSTTIME="$(gpg2 --list-keys \"$SLACKKEY\" 2>/dev/null \
+	GPGFIRSTTIME="$($GPG --list-keys \"$SLACKKEY\" 2>/dev/null \
 			| grep -c "$SLACKKEY")"
 	if [ "$GPGFIRSTTIME" = "0" ] && \
 		[ "$CMD" != "search" ] && \
@@ -546,7 +557,7 @@ function checkmd5() {
 # Verify the GPG signature of files/packages
 #
 function checkgpg() {
-	gpg2 --verify ${1}.asc ${1} 2>/dev/null && echo "1" || echo "0"
+	$GPG --verify ${1}.asc ${1} 2>/dev/null && echo "1" || echo "0"
 }
 
 # Fetch $SLACKKEY from a trusted source
@@ -585,8 +596,8 @@ Do you want to import the GPG key from this source? (YES|NO)\n"
 # Import $SLACKKEY
 function import_gpg_key() {
 	mkdir -p ~/.gnupg
-	gpg2 --yes --batch --delete-key "$SLACKKEY" &>/dev/null
-	gpg2 --import $TMPDIR/gpgkey &>/dev/null && \
+	$GPG --yes --batch --delete-key "$SLACKKEY" &>/dev/null
+	$GPG --import $TMPDIR/gpgkey &>/dev/null && \
 	echo -e "\t\t\tSlackware Linux Project's GPG key added"
 }
 

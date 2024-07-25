@@ -502,6 +502,7 @@ gzip ./source/n/samba/smb.conf.diff
 gzip ./source/n/samba/doinst.sh
 gzip ./source/n/samba/samba.libsmbclient.h.ffmpeg.compat.diff
 gzip ./source/n/htdig/htdig-3.2.0b6.diff
+gzip ./source/n/htdig/CVE-2007-6110.patch
 gzip ./source/n/htdig/htdig.conf.diff
 gzip ./source/n/htdig/doinst.sh
 gzip ./source/n/netwrite/netwrite-0.17.diff
@@ -1071,3 +1072,15 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
+gzip ./testing/source/mkinitrd/0005-support-modules-compressed-with-xz.patch
+gzip ./testing/source/mkinitrd/mkinitrd.tempfile.to.mktemp.patch
+gzip ./testing/source/mkinitrd/0006-coreutils-9.1-ensure-target-dir-exists.patch
+gzip ./testing/source/mkinitrd/0001-Fix-LUKSTRIM-with-C-T-and-UUID.patch
+gzip ./testing/source/mkinitrd/0008-fix-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
+gzip ./testing/source/mkinitrd/0007-kmod30.patch
+gzip ./testing/source/mkinitrd/0004-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch
+gzip ./testing/source/mkinitrd/0009-exclude-99-nfs.rules.patch
+gzip ./testing/source/mkinitrd/0002-bail-if-temp-dir-is-not-created.patch
+gzip ./testing/source/mkinitrd/0003-blacklist.40-usb_modeswitch.rules.patch
+gzip ./testing/source/mkinitrd/0010-fix-test-for-jfs-xfs-repair-tools.patch
+gzip ./testing/source/k/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch

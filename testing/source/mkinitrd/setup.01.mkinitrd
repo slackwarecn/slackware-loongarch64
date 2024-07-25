@@ -1,0 +1,51 @@
+#!/bin/sh
+#BLURB="Generate /boot/initrd.gz for the generic kernel"
+
+# Load defaults:
+if [ -r etc/default/geninitrd ]; then
+  . etc/default/geninitrd
+fi
+
+if [ -z "$KERNEL_SYMLINK" ]; then
+  KERNEL_SYMLINK="boot/vmlinuz-generic"
+elif [ "$(echo $KERNEL_SYMLINK | cut -b 1)" = "/" ]; then # trim to make a relative path
+  KERNEL_SYMLINK="$(echo $KERNEL_SYMLINK | cut -b 2-)"
+fi
+
+# Find the kernel version:
+if [ -r $KERNEL_SYMLINK ]; then
+  KERNEL_VERSION=$(strings $KERNEL_SYMLINK | grep '([^ ]*@[^ ]*) #' | cut -f1 -d' ')
+fi
+
+# Assume the kernel "name" aka flavor is just the second part of the symlink name:
+KERNEL_NAME="$(echo $KERNEL_SYMLINK | rev | cut -f 1 -d - | rev)"
+
+# Sometimes mkinitrd_command_generator.sh does not detect LVM properly. Until I
+# get to the bottom of that, it's safer to just always include LVM support.
+LVM_OPTION="-L"
+
+# Generate the initrd:
+if [ ! -z $KERNEL_VERSION ]; then
+  dialog --title "GENERATING INITIAL RAMDISK" --infobox \
+  "Generating an initial ramdisk for use with the $KERNEL_VERSION kernel. \
+The initial ramdisk contains kernel modules needed to mount the \
+root partition, and must be regenerated whenever the kernel is updated. To \
+regenerate the initrd, select this setup script from within pkgtool, or run \
+'geninitrd' which will produce an initial ramdisk (/boot/initrd.gz) for the \
+installed kernel." 8 70
+  chroot . /usr/share/mkinitrd/mkinitrd_command_generator.sh -k $KERNEL_VERSION -a "$LVM_OPTION -o /boot/initrd-${KERNEL_VERSION}-${KERNEL_NAME}.img" | chroot . bash 1> /dev/null 2> /dev/null
+fi
+
+if [ "$GENINITRD_NAMED_SYMLINK" = "true" ]; then
+  ( cd boot
+    rm -f initrd-${KERNEL_NAME}.img
+    ln -sf initrd-${KERNEL_VERSION}-${KERNEL_NAME}.img initrd-${KERNEL_NAME}.img
+  )
+fi
+
+if [ "$GENINITRD_INITRD_GZ_SYMLINK" = "true" ]; then
+  ( cd boot
+    rm -f initrd.gz
+    ln -sf initrd-${KERNEL_VERSION}-${KERNEL_NAME}.img initrd.gz
+  )
+fi

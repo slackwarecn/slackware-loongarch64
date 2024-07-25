@@ -1,0 +1,23 @@
+--- ./mkinitrd_command_generator.sh.orig	2021-03-28 13:22:55.628927615 -0500
++++ ./mkinitrd_command_generator.sh	2022-01-24 21:29:00.382517371 -0600
+@@ -302,12 +302,19 @@
+   fi
+ 
+   # Finally, we should check if base device is
+-  #   a real block device or a RAID volume:
++  # a real block device or a RAID volume:
+   for MD in  $(cat /proc/mdstat | grep -w active | cut -d' ' -f1) ; do
+     if [ "$BASEDEV" = "/dev/$MD" ]; then
+       USING_RAID=1
+       break
+     fi
++  done
++  # Additional check in case $BASEDEV is a partition of /dev/$MD:
++  for BLK in $(sfdisk -ld /dev/$MD 2> /dev/null | grep "^/dev" | cut -d " " -f 1); do
++    if [ "$BASEDEV" = "$BLK" ]; then
++      USING_RAID=1
++      break
++    fi
+   done
+ }
+ 

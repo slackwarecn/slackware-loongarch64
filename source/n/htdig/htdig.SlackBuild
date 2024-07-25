@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2006, 2007, 2008, 2009, 2010, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2006, 2007, 2008, 2009, 2010, 2018, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,12 +25,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=htdig
 VERSION=${VERSION:-3.2.0b6}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-BUILD=${BUILD:-9}
+BUILD=${BUILD:-10}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -50,14 +50,11 @@ PKG=$TMP/package-${PKGNAM}
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -86,6 +83,9 @@ zcat $CWD/htdig-3.2.0b6.diff.gz | patch -p1 --verbose || exit 1
 # Fix "common dir" location and add "synonym_dictionary" entry:
 zcat $CWD/htdig.conf.diff.gz | patch -p1 --verbose || exit 1
 
+# Patch XSS vuln:
+zcat $CWD/CVE-2007-6110.patch | patch -p1 --verbose || exit 1
+
 # Configure:
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS -std=gnu++98 -fpermissive -fno-delete-null-pointer-checks" \
@@ -95,7 +95,7 @@ CXXFLAGS="$SLKCFLAGS -std=gnu++98 -fpermissive -fno-delete-null-pointer-checks" 
   --sysconfdir=/etc \
   --localstatedir=/var/lib/htdig \
   --with-apache=/usr/sbin/httpd \
-  --with-cgi-bin-dir=/var/www/cgi-bin \
+  --with-cgi-bin-dir=/usr/bin \
   --with-config-dir=/etc/htdig \
   --with-common-dir=/var/www/htdocs/htdig \
   --with-database-dir=/var/lib/htdig \

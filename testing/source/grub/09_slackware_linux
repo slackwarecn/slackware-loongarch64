@@ -1,0 +1,196 @@
+#! /bin/sh
+set -e
+# grub-mkconfig helper script.
+# Copyright (C) 2006,2007,2008,2009,2010  Free Software Foundation, Inc.
+#
+# GRUB is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# GRUB is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Save this file in /etc/grub.d/09_slackware_linux
+
+prefix="/usr"
+exec_prefix="${prefix}"
+datarootdir="${prefix}/share"
+
+. "${datarootdir}/grub/grub-mkconfig_lib"
+
+export TEXTDOMAIN=grub
+export TEXTDOMAINDIR="${datarootdir}/locale"
+
+CLASS="--class gnu-linux --class gnu --class os"
+
+if [ "${GRUB_DISTRIBUTOR}" = "" ] ; then
+  OS=Linux
+else
+  OS="${GRUB_DISTRIBUTOR} Linux"
+  CLASS="--class $(echo "${GRUB_DISTRIBUTOR}" | tr '[:upper:]' '[:lower:]') ${CLASS}"
+fi
+
+# loop-AES arranges things so that /dev/loop/X can be our root device, but
+# the initrds that Linux uses don't like that.
+case ${GRUB_DEVICE} in
+  /dev/loop/*|/dev/loop[0-9])
+    GRUB_DEVICE=$(losetup "${GRUB_DEVICE}" | sed -e "s/^[^(]*(\([^)]\+\)).*/\1/")
+  ;;
+esac
+
+if [ "${GRUB_DEVICE_UUID}" = "" ] || [ "${GRUB_DISABLE_LINUX_UUID}" = "true" ] \
+    || ! test -e "/dev/disk/by-uuid/${GRUB_DEVICE_UUID}" ; then
+  LINUX_ROOT_DEVICE=${GRUB_DEVICE}
+else
+  LINUX_ROOT_DEVICE=UUID=${GRUB_DEVICE_UUID}
+fi
+
+linux_entry ()
+{
+  os="$1"
+  tag="$2"
+  version="$3"
+  recovery="$4"
+  args="$5"
+  if ${recovery} ; then
+    title="$(gettext "%s, with Linux %s [%s] (recovery mode)")"
+  else
+    title="$(gettext "%s, with Linux %s [%s]")"
+  fi
+  printf "menuentry \"${title}\" ${CLASS} {\n" "${os}" "${version}" "${tag}"
+  save_default_entry | sed -e "s/^/\t/"
+
+  # Use ELILO's generic "efifb" when it's known to be available.
+  # FIXME: We need an interface to select vesafb in case efifb can't be used.
+  if [ "$GRUB_GFXPAYLOAD_LINUX" = "" ]; then
+      if grep -qx "CONFIG_FB_EFI=y" /boot/config-"${version}" 2> /dev/null \
+      && grep -qx "CONFIG_VT_HW_CONSOLE_BINDING=y" /boot/config-"${version}" 2> /dev/null; then
+      cat << EOF
+    set gfxpayload=keep
+EOF
+      fi
+  else
+      cat << EOF
+    set gfxpayload=$GRUB_GFXPAYLOAD_LINUX
+EOF
+  fi
+
+  if [ -z "${prepare_boot_cache}" ]; then
+    prepare_boot_cache="$(prepare_grub_to_access_device "${GRUB_DEVICE_BOOT}" | sed -e "s/^/\t/")"
+  fi
+  printf '%s\n' "${prepare_boot_cache}"
+  cat << EOF
+    echo    $(printf "$(gettext "Loading Linux %s ...")" "${version}")
+    linux    ${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args}
+EOF
+  if test -n "${initrd}" ; then
+    cat << EOF
+    echo    $(gettext "Loading initial ramdisk ...")
+    initrd  ${initrd}
+EOF
+  fi
+  cat << EOF
+}
+EOF
+}
+
+process_list() {
+    mylist="$1"
+    tag="$2"
+    initrd_allowed="$3"
+
+    # Version-sort the kernels
+    sorted_kernels=$(echo "$mylist" | tr ' ' '\n' | version_sort -r)
+
+    # Use portable command substitution
+    kernels=$(echo "$sorted_kernels" | tr ' ' '\n')
+
+    for kernel in $kernels; do
+
+        # Skip symbolic links to kernels if requested:
+        if [ -L "$kernel" -a "$GRUB_DISABLE_KERNEL_SYMLINKS" = "true" ]; then
+            continue
+        fi
+
+        printf "Found linux image: %s\n" "$kernel" >&2
+        basename=$(basename "$kernel")
+        dirname=$(dirname "$kernel")
+        rel_dirname=$(make_system_path_relative_to_its_root "$dirname")
+        version=$(echo "$basename" | sed -e "s,^[^0-9]*-,,g")
+        alt_version=$(echo "$version" | sed -e "s,\.old$,,g")
+        linux_root_device_thisversion="${LINUX_ROOT_DEVICE}"
+        initrd=
+        actual_initrd=
+
+        if [ "${initrd_allowed}" = "true" ]; then
+            for i in ${GRUB_EARLY_INITRD_LINUX_STOCK} \
+                     ${GRUB_EARLY_INITRD_LINUX_CUSTOM}; do
+                if [ -e "${dirname}/${i}" ]; then
+                    if [ -z "$initrd" ]; then
+                        initrd="$rel_dirname/$i"
+                    else
+                        initrd="$initrd $rel_dirname/$i"
+                    fi
+                fi
+            done
+            for i in "initrd-${tag}-${version}.gz" "initrd-${tag}.gz" \
+                "initrd-${version}.gz" "initrd.gz" \
+                "initrd.img-${version}" "initrd-${version}.img" \
+                "initrd-${version}" "initrd.img-${alt_version}" \
+                "initrd-${alt_version}.img" "initrd-${alt_version}"; do
+                if [ -e "${dirname}/${i}" ]; then
+                    actual_initrd="true"
+                    if [ -z "$initrd" ]; then
+                        initrd="$rel_dirname/$i"
+                    else
+                        initrd="$initrd $rel_dirname/$i"
+                    fi
+                    break
+                fi
+            done
+
+            if [ -n "${initrd}" ]; then
+                printf "Found initrd image: %s\n" "${initrd}" >&2
+            fi
+            if [ -z "$actual_initrd" ]; then
+                # "UUID=" magic is parsed by initrds.  Since there's no initrd, it can't work here.
+                linux_root_device_thisversion=${GRUB_DEVICE}
+            fi
+        else
+            # "UUID=" magic is parsed by initrds.  Since there's no initrd, it can't work here.
+            linux_root_device_thisversion=${GRUB_DEVICE}
+        fi
+
+        linux_entry "${OS}" "${tag}" "${version}" false \
+            "${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
+
+        if [ "x${GRUB_DISABLE_RECOVERY}" != "xtrue" ]; then
+            linux_entry "${OS}" "${tag}" "${version}" true \
+                "single ${GRUB_CMDLINE_LINUX}"
+        fi
+    done
+}
+
+prepare_boot_cache=
+
+list=$(for i in /boot/vmlinu[xz]-generic-* /boot/vmlinu[xz]-generic /vmlinu[xz]-generic-* ; do
+        if grub_file_is_not_garbage "$i" ; then printf "%s " "$i"; fi
+      done)
+
+process_list "${list}" "generic" "true"
+
+list=$(for i in /boot/vmlinu[xz]-custom-* /boot/vmlinu[xz]-custom /vmlinu[xz]-custom-* ; do
+        if grub_file_is_not_garbage "$i" ; then printf "%s " "$i"; fi
+      done)
+process_list "${list}" "custom" "true"
+
+list=$(for i in /boot/vmlinu[xz]-huge-* /boot/vmlinu[xz]-huge /vmlinu[xz]-huge-* ; do
+        if grub_file_is_not_garbage "$i" ; then printf "%s " "$i"; fi
+      done)
+process_list "${list}" "huge" "false"

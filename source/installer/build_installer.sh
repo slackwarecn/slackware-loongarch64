@@ -166,11 +166,11 @@ case $ARCH in
            ARCHQUADLET="-gnueabihf" ;;
   aarch64) SLKCFLAGS="-O2"
            ARCHQUADLET="" ;;
-  i?86)    SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+  i?86)    SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
            ARCHQUADLET="" ;;
   s390*)   SLKCFLAGS="-O2"
            ARCHQUADLET="" ;;
-  x86_64)  SLKCFLAGS="-O2 -fPIC"
+  x86_64)  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
            ARCHQUADLET="" ;;
 esac
 

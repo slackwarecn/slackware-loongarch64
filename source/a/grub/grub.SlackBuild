@@ -28,7 +28,7 @@ PKGNAM=grub
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 # Better to use _ than ~ in the package filenames version:
 PKGVER=$(echo $VERSION | tr '~' '_')
-BUILD=${BUILD:-11}
+BUILD=${BUILD:-14}
 
 # If you use stack-protector, then grub will not work with legacy BIOS:
 STACKPROTECT=${STACKPROTECT:---enable-stack-protector=no}
@@ -36,7 +36,7 @@ STACKPROTECT=${STACKPROTECT:---enable-stack-protector=no}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -54,32 +54,15 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-march=i386 -mcpu=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-march=i486 -mtune=i686"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-mtune=generic"
   EFI32_FLAGS=" --with-platform=efi --target=i386 --program-prefix= "
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-march=i586 -mtune=i686"
-  EFI32_FLAGS=" --with-platform=efi --target=i386 --program-prefix= "
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-march=i686"
-  EFI32_FLAGS=" --with-platform=efi --target=i386 --program-prefix= "
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS=""
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS=""
+  SLKCFLAGS="-mtune=generic"
   EFI32_FLAGS=" --with-platform=efi --target=i386 --program-prefix= "
   EFI_FLAGS=" --with-platform=efi --target=x86_64 --program-prefix= "
   LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-march=armv7-a -mfpu=vfpv3-d16"
-  LIBDIRSUFFIX=""
 else
   SLKCFLAGS=""
   LIBDIRSUFFIX=""
@@ -106,7 +89,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Use /boot/initrd.gz as a valid initrd name:
+# Accept /boot/initrd.gz as a valid initrd name (obsolete?):
 cat $CWD/initrd_naming.patch | patch -p1 --verbose || exit 1
 
 # Support DejaVuSansMono font (dejavusansmono.pf2) by default:
@@ -130,6 +113,12 @@ cat $CWD/0004-add-GRUB_DISABLE_KERNEL_SYMLINKS-variable.patch | patch -p1 --verb
 
 # Fix 2.12 release with upstream commit (won't compile otherwise):
 cat $CWD/b835601c7639ed1890f2d3db91900a8506011a8e.patch | patch -p1 --verbose || exit 1
+
+# For Slackware, opt-out of having our operating system renamed:
+cat $CWD/10_linux.osname.patch | patch -p1 --verbose || exit 1
+
+# Skip symlinks to kernels according to GRUB_DISABLE_KERNEL_SYMLINKS:
+cat $CWD/10_linux.disable_kernel_symlinks.patch | patch -p1 --verbose || exit 1
 
 # Still won't compile. Someday they'll remember how to cut a new release.
 touch grub-core/extra_deps.lst
@@ -172,11 +161,12 @@ fi
 # Always end with regular build:
 build_grub || exit 1
 
-# Add custom 09_slackware_linux config. Thanks to Richard Cranium for the
-# initial version, and Daedra for making it POSIX compliant:
-cp -a $CWD/09_slackware_linux $PKG/etc/grub.d/09_slackware_linux
-chown root:root $PKG/etc/grub.d/09_slackware_linux
-chmod 755 $PKG/etc/grub.d/09_slackware_linux
+## NOT USED (but we'll leave the file here for now)
+## Add custom 09_slackware_linux config. Thanks to Richard Cranium for the
+## initial version, and Daedra for making it POSIX compliant:
+#cp -a $CWD/09_slackware_linux $PKG/etc/grub.d/09_slackware_linux
+#chown root:root $PKG/etc/grub.d/09_slackware_linux
+#chmod 755 $PKG/etc/grub.d/09_slackware_linux
 
 # Preserve files in /etc/grub.d/:
 for file in $PKG/etc/grub.d/*_* ; do

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2021, 2022, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2021, 2022, 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -67,12 +67,12 @@ for recipe in $RECIPES ; do
   if [ "$recipe" = "x86_64" ]; then
     # Recipe for x86_64:
     export CONFIG_SUFFIX=".x64"
-    unset LOCALVERSION
+    #unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-x86_64-${VERSION}}
   elif [ "$recipe" = "IA32" ]; then
     # Recipe for IA32:
-    unset CONFIG_SUFFIX
-    unset LOCALVERSION
+    export CONFIG_SUFFIX=".ia32"
+    #unset LOCALVERSION
     OUTPUT=${OUTPUT:-${TMP}/output-ia32-${VERSION}}
   else
     echo "Error: recipe ${recipe} not implemented"
@@ -86,8 +86,8 @@ for recipe in $RECIPES ; do
   echo
 
   # Build kernel-source package:
-  KERNEL_SOURCE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_CONFIG="config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild)
-  KERNEL_CONFIG="config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild
+  KERNEL_SOURCE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_CONFIG="config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild)
+  KERNEL_CONFIG="config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX}" VERSION=$VERSION BUILD=$BUILD ./kernel-source.SlackBuild
   mkdir -p $OUTPUT
   mv ${TMP}/${KERNEL_SOURCE_PACKAGE_NAME} $OUTPUT || exit 1
   if [ "${INSTALL_PACKAGES}" = "YES" ]; then
@@ -100,8 +100,8 @@ for recipe in $RECIPES ; do
   ( cd $TMP/package-kernel-source
     sh install/doinst.sh
   )
-  KERNEL_HUGE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild)
-  KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild
+  KERNEL_HUGE_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-${VERSION}${LOCALVERSION}-huge${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge.s BUILD=$BUILD ./kernel-generic.SlackBuild)
+  KERNEL_NAME=huge KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-${VERSION}${LOCALVERSION}-huge${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/huge.s BUILD=$BUILD ./kernel-generic.SlackBuild
   if [ -r ${TMP}/${KERNEL_HUGE_PACKAGE_NAME} ]; then
     mv ${TMP}/${KERNEL_HUGE_PACKAGE_NAME} $OUTPUT
   else
@@ -113,8 +113,8 @@ for recipe in $RECIPES ; do
   fi
 
   # Build kernel-generic package:
-  KERNEL_GENERIC_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=generic KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/generic$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild)
-  KERNEL_NAME=generic KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/generic$(echo ${LOCALVERSION} | tr -d -).s BUILD=$BUILD ./kernel-generic.SlackBuild
+  KERNEL_GENERIC_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_NAME=generic KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/generic.s BUILD=$BUILD ./kernel-generic.SlackBuild)
+  KERNEL_NAME=generic KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/generic.s BUILD=$BUILD ./kernel-generic.SlackBuild
   if [ -r ${TMP}/${KERNEL_GENERIC_PACKAGE_NAME} ]; then
     mv ${TMP}/${KERNEL_GENERIC_PACKAGE_NAME} $OUTPUT
   else
@@ -159,7 +159,11 @@ for recipe in $RECIPES ; do
     if [ -r /etc/mkinitrd.conf ]; then
       mkinitrd -F /etc/mkinitrd.conf -k ${INITRD_VERSION}${INITRD_LOCALVERSION}
     else # try this?
-      sh /usr/share/mkinitrd/mkinitrd_command_generator.sh -k ${INITRD_VERSION}${INITRD_LOCALVERSION} | sed "s/-c -k/-k/g" | bash
+      sh /usr/share/mkinitrd/mkinitrd_command_generator.sh -k ${INITRD_VERSION}${INITRD_LOCALVERSION} -a "-o /boot/initrd-${INITRD_VERSION}${INITRD_LOCALVERSION}-generic.img" | sed "s/-c -k/-k/g" | bash
+      if [ -r /boot/initrd-${INITRD_VERSION}${INITRD_LOCALVERSION}-generic.img ]; then
+        # Good old compat symlink :-)
+        ln -sf initrd-${INITRD_VERSION}${INITRD_LOCALVERSION}-generic.img /boot/initrd.gz
+      fi
     fi
   fi
 

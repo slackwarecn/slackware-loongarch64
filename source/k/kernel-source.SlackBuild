@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020, 2021, 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2021, 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -94,12 +94,6 @@ apply_patches() {
   fi
 }
 
-# Kernel extraversion, such as "-smp" on 32-bit. There's usually no need to set
-# this unless you're using something unusual. We use it to find which .config
-# file to use, but we'll then use whatever CONFIG_LOCALVERSION is set to
-# inside the .config.
-LOCALVERSION=${LOCALVERSION:-""}
-
 # If KERNEL_CONFIG (name of kernel .config file in ./kernel-configs to use)
 # has not been passed to this script, then we will select one. We will prefer
 # to use a generic, SMP-supporting .config with a version number exactly
@@ -108,24 +102,22 @@ LOCALVERSION=${LOCALVERSION:-""}
 if [ -z "${KERNEL_CONFIG}" ]; then # figure out the best matching .config
   if [ "$ARCH" = "x86_64" ]; then
     CONFIG_SUFFIX=".x64"
+  elif [ "$ARCH" = "i586" ]; then
+    CONFIG_SUFFIX=".ia32"
+  elif [ "$ARCH" = "i686" ]; then
+    CONFIG_SUFFIX=".ia32"
   fi
-  if [ -z "${LOCALVERSION}" ]; then
-    if echo $ARCH | grep -q -E "i?86$" ; then
-      # Default to SMP extraversion on 32-bit:
-      LOCALVERSION="-smp"
-    fi
-  fi
-  if [ -r "$CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}$LOCALVERSION${CONFIG_SUFFIX}" ]; then
+  if [ -r "$CWD/kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX}" ]; then
     # Exact match!
-    KERNEL_CONFIG="config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
+    KERNEL_CONFIG="config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX}"
   else # no exact match, so find newest with the same name:
-    FIND_MATCH="$(/bin/ls -t $CWD/kernel-configs/config-generic${LOCALVERSION}-*${LOCALVERSION}${CONFIG_SUFFIX} 2> /dev/null | head -n 1)"
+    FIND_MATCH="$(/bin/ls -t $CWD/kernel-configs/config-*${LOCALVERSION}-generic${CONFIG_SUFFIX} 2> /dev/null | head -n 1)"
     if [ -r "${FIND_MATCH}" ]; then
       KERNEL_CONFIG="$(basename ${FIND_MATCH})"
       unset FIND_MATCH
     else
       echo "Error: no matching .config file could be found for this kernel. Tried:"
-      echo "  $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} (not found)" 
+      echo "  $CWD/kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX} (not found)" 
       exit 1
     fi 
   fi
@@ -186,9 +178,9 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
 ( cd $PKG/usr/src/linux-${VERSION}
   echo "Making oldconfig..."
   make oldconfig
-  if [ ! -r $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} ]; then
-    echo "Saving new .config as: $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
-    cp -a .config $CWD/kernel-configs/config-generic${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}
+  if [ ! -r $CWD/kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX} ]; then
+    echo "Saving new .config as: $CWD/kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX}"
+    cp -a .config $CWD/kernel-configs/config-${VERSION}${LOCALVERSION}-generic${CONFIG_SUFFIX}
   fi
 
   # If CONFIG_PREEMPT=y and CONFIG_PREEMPT_DYNAMIC=y, then set a default preempt
@@ -233,4 +225,3 @@ cat $CWD/slack-desc/slack-desc.kernel-source > $PKG/install/slack-desc
 # Make the package:
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/kernel-source-$(echo ${PACKAGE_VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-noarch-$BUILD.txz
-

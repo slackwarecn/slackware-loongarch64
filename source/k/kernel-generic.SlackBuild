@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2018, 2020, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,11 +23,11 @@
 # To use this script, point it to a Linux kernel source tree and a .config
 # file by setting the appropriate environment variables:
 #
-# KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic-4.14.23 ./kernel-generic.SlackBuild
+# KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-6.9.9-generic.x64 ./kernel-generic.SlackBuild
 #
 # It can also build the huge (or any other) kernel:
 #
-# KERNEL_NAME=huge KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-huge-4.14.23 ./kernel-generic.SlackBuild
+# KERNEL_NAME=huge KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-6.9.9-huge.x64 ./kernel-generic.SlackBuild
 #
 # By default, it will call the package "kernel-generic" and use the source and
 # .config already in /usr/src/linux (if possible).
@@ -42,7 +42,7 @@ BUILD=${BUILD:-1}
 if [ ! -r "${KERNEL_CONFIG}" ]; then
   echo "Error: the KERNEL_CONFIG environment variable needs to be set to the"
   echo ".config file to be used to build this kernel. Example:"
-  echo "KERNEL_NAME=generic KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-generic-4.14.23 ./kernel-generic.SlackBuild"
+  echo "KERNEL_NAME=generic KERNEL_SOURCE=/usr/src/linux KERNEL_CONFIG=./kernel-configs/config-6.9.9-generic.x64 ./kernel-generic.SlackBuild"
   exit 1
 fi
 if [ ! -d "${KERNEL_SOURCE}" ]; then
@@ -80,7 +80,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   make oldconfig 1> /dev/null 2> /dev/null
   make prepare 1> /dev/null 2> /dev/null
   PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
-  echo "kernel-${KERNEL_NAME}${LOCALVERSION}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz"
+  echo "kernel-${KERNEL_NAME}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz"
   exit 0
 fi
 
@@ -131,14 +131,14 @@ fi
   fi
   echo "Preparing the package in $PKG..."
   mkdir -p $PKG/boot
-  cp -a --verbose System.map $PKG/boot/System.map-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}
-  cp -a --verbose .config $PKG/boot/config-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}
-  cp -a --verbose arch/${KERNEL_ARCH}/boot/bzImage $PKG/boot/vmlinuz-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}
+  cp -a --verbose System.map $PKG/boot/System.map-${VERSION}${LOCALVERSION}-${KERNEL_NAME}${CONFIG_SUFFIX}
+  cp -a --verbose .config $PKG/boot/config-${VERSION}${LOCALVERSION}-${KERNEL_NAME}${CONFIG_SUFFIX}
+  cp -a --verbose arch/${KERNEL_ARCH}/boot/bzImage $PKG/boot/vmlinuz-${VERSION}${LOCALVERSION}-${KERNEL_NAME}
   # Make symlinks:
-  ln -sf System.map-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION} $PKG/boot/System.map
-  ln -sf config-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} $PKG/boot/config
-  ln -sf vmlinuz-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION} $PKG/boot/vmlinuz
-  ln -sf vmlinuz-${KERNEL_NAME}${LOCALVERSION}-${VERSION}${LOCALVERSION} $PKG/boot/vmlinuz-${KERNEL_NAME}${LOCALVERSION}
+  ln -sf System.map-${VERSION}${LOCALVERSION}-${KERNEL_NAME}${CONFIG_SUFFIX} $PKG/boot/System.map
+  ln -sf config-${VERSION}${LOCALVERSION}-${KERNEL_NAME}${CONFIG_SUFFIX} $PKG/boot/config
+  ln -sf vmlinuz-${VERSION}${LOCALVERSION}-${KERNEL_NAME} $PKG/boot/vmlinuz-${KERNEL_NAME}
+  ln -sf vmlinuz-${VERSION}${LOCALVERSION}-${KERNEL_NAME} $PKG/boot/vmlinuz
 ) || exit 1
 
 # Fetch the kernel architecture from the source tree:
@@ -146,13 +146,12 @@ cd ${KERNEL_SOURCE}
 PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
 
 mkdir $PKG/install
-if [ -r $CWD/slack-desc/slack-desc.kernel-${KERNEL_NAME}${LOCALVERSION}.${PACKAGE_ARCH} ]; then
-  cat $CWD/slack-desc/slack-desc.kernel-${KERNEL_NAME}${LOCALVERSION}.${PACKAGE_ARCH} > $PKG/install/slack-desc
+if [ -r $CWD/slack-desc/slack-desc.kernel-${KERNEL_NAME}.${PACKAGE_ARCH} ]; then
+  cat $CWD/slack-desc/slack-desc.kernel-${KERNEL_NAME}.${PACKAGE_ARCH} > $PKG/install/slack-desc
 else
   cat $CWD/slack-desc/slack-desc.kernel-template | sed "s/%PACKAGE_NAME%/kernel-${KERNEL_NAME}${LOCALVERSION}/g" > $PKG/install/slack-desc
 fi
     
 # Make the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/kernel-${KERNEL_NAME}${LOCALVERSION}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/kernel-${KERNEL_NAME}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz

@@ -1,0 +1,50 @@
+[-- Warning: decoded text below may be mangled, UTF-8 assumed --]
+[-- Attachment #1: Type: text/plain, Size: 1371 bytes --]
+
+This fixes building dependent packages that use -Werror.
+
+Signed-off-by: Alyssa Ross <hi@alyssa.is>
+---
+I'm assuming here that it is actually intentional that these variables 
+are unused!  I don't understand the code enough to know for sure — 
+I'm just trying to fix some build regressions after updating e2fsprogs. :)
+
+ lib/ext2fs/ext2fs.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/lib/ext2fs/ext2fs.h b/lib/ext2fs/ext2fs.h
+index 6e87829f..a1ce192b 100644
+--- a/lib/ext2fs/ext2fs.h
++++ b/lib/ext2fs/ext2fs.h
+@@ -592,6 +592,8 @@ static inline __u32 __encode_extra_time(time_t seconds, __u32 nsec)
+ #if (SIZEOF_TIME_T > 4)
+ 	extra = ((seconds - (__s32)(seconds & 0xffffffff)) >> 32) &
+ 		EXT4_EPOCH_MASK;
++#else
++	(void)seconds;
+ #endif
+ 	return extra | (nsec << EXT4_EPOCH_BITS);
+ }
+@@ -600,6 +602,8 @@ static inline time_t __decode_extra_sec(time_t seconds, __u32 extra)
+ #if (SIZEOF_TIME_T > 4)
+ 	if (extra & EXT4_EPOCH_MASK)
+ 		seconds += ((time_t)(extra & EXT4_EPOCH_MASK) << 32);
++#else
++	(void)extra;
+ #endif
+ 	return seconds;
+ }
+@@ -642,6 +646,7 @@ static inline void __sb_set_tstamp(__u32 *lo, __u8 *hi, time_t seconds)
+ static inline time_t __sb_get_tstamp(__u32 *lo, __u8 *hi)
+ {
+ #if (SIZEOF_TIME_T == 4)
++	(void)hi;
+ 	return *lo;
+ #else
+ 	return ((time_t)(*hi) << 32) | *lo;
+
+base-commit: 950a0d69c82b585aba30118f01bf80151deffe8c
+-- 
+2.44.0
+
+

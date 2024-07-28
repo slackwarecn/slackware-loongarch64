@@ -493,6 +493,7 @@ gzip ./source/n/nc/nc.diff
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-message.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
+gzip ./source/n/wpa_supplicant/patches/0007-nl80211-add-extra-ies-only-if-allowed-by-driver.patch
 gzip ./source/n/wpa_supplicant/doinst.sh
 gzip ./source/n/php/php-fpm.conf.diff
 gzip ./source/n/php/doinst.sh

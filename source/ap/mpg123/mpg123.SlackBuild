@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -52,6 +53,10 @@ elif [ "$ARCH" = "arm" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
   TARGET="arm_nofpu"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  TARGET="loongarch64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -112,6 +117,7 @@ find . \
 zcat $CWD/mpg123.lib64.diff.gz | patch -p1 --verbose || exit 1
 
 # Configure:
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -119,10 +125,9 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --docdir=/usr/doc/${PKGNAM}-$VERSION \
-  --with-cpu=$TARGET \
   $DEFAULT_AUDIO \
   --with-optimization=2 \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1

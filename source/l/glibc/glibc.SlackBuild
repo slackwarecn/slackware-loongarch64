@@ -35,6 +35,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -58,8 +59,8 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 # likely need to be updated with every new gcc release's version. Yes, we
 # could pass --disable-werror by default, but I'd rather not just shove a
 # stick in it like that.
-if [ "$(gcc -dumpversion)" = "10.2.0" ]; then
-  if [ "$VERSION" = "2.30" ]; then
+if [ "$(gcc -dumpversion)" = "13.1.0" ]; then
+  if [ "$VERSION" = "2.37" ]; then
     WERROR="--disable-werror"
   fi
 fi
@@ -94,6 +95,10 @@ case $ARCH  in
     OPTIMIZ="-O3 -march=x86-64 -mtune=generic -fPIC"
     LIBDIRSUFFIX="64"
     ;;
+  loong64)
+    OPTIMIZ="-O3 -fPIC"
+    LIBDIRSUFFIX="64"
+    ;;
   *)
     OPTIMIZ="-O3"
     LIBDIRSUFFIX=""
@@ -108,10 +113,13 @@ case $ARCH in
     # This should be i686 for all 32-bit x86 arch:
     TARGET=${TARGET:-i686}
     ;;
+  loong64)
+    TARGET=${TARGET:-loongarch64}
+    ;;
 esac
 
 # Hand off the $ARCH variable to $SLACKWARE_ARCH to avoid confusing glibc:
-SLACKWARE_ARCH=$ARCH
+SLACKWARE_ARCH=loongarch64
 unset ARCH
 
 CVSVER=${VERSION}${CHECKOUT}
@@ -139,6 +147,8 @@ fix_doinst() {
 
   if [ "$SLACKWARE_ARCH" = "x86_64" ]; then
     sed -i 's#ld-linux.so.2#ld-linux-x86-64.so.2#' install/doinst.sh
+  elif [ "$SLACKWARE_ARCH" = "loongarch64" ]; then
+    sed -i 's#ld-linux.so.2#ld-linux-loongarch64.so.2#' install/doinst.sh
   fi
 }
 
@@ -200,7 +210,7 @@ tar xf $CWD/glibc-$CVSVER.tar.xz \
 cd glibc-$CVSVER
 
 # Apply patches; exit if any fail.
-apply_patches
+#apply_patches
 if [ ! $? = 0 ]; then
   exit 1
 fi
@@ -224,12 +234,12 @@ echo "BUILDING DAS NPTL GLIBC"
 # in shared libraries. Without this, glibc compiled with -march= may not
 # run on some CPUs that it should be able to support. Needed for glibc-2.33.
 # FIXME: revisit this with future glibc releases!
-libc_cv_include_x86_isa_level=no \
 CFLAGS="-g $OPTIMIZ" \
 ../configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --enable-kernel=4.4 \
+  --disable-multi-arch \
   --with-headers=/usr/include \
   --enable-add-ons \
   --enable-profile \
@@ -240,6 +250,7 @@ CFLAGS="-g $OPTIMIZ" \
   --with-tls \
   --with-__thread \
   --without-cvs \
+  --enable-crypt \
   $TARGET-slackware-linux
 
 make $NUMJOBS || exit 1
@@ -254,6 +265,7 @@ make $NUMJOBS localedata/install-locales install_root=$PKG DESTDIR=$PKG || exit 
 pushd $CWD
 ARCH=$SLACKWARE_ARCH LIBDIRSUFFIX=$LIBDIRSUFFIX SLKCFLAGS=$OPTIMIZ ./libxcrypt.build
 popd
+SLACKWARE_ARCH=loong64
 
 # We've always had an sln symlink in /bin, so let's make sure it
 # remains there so as not to break any scripts that might need it:
@@ -291,9 +303,9 @@ cp -a $PKG/usr/lib${LIBDIRSUFFIX}/*.a $PKG/usr/lib${LIBDIRSUFFIX}/debug
 # It might be best to put the unstripped and profiling libraries in glibc-debug and glibc-profile.
 
 # I don't think "strip -g" causes the pthread problems.  It's --strip-unneeded that does.
-strip -g $PKG/lib${LIBDIRSUFFIX}/l*.so*
-strip -g $PKG/usr/lib${LIBDIRSUFFIX}/l*.so*
-strip -g $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a
+#strip -g $PKG/lib${LIBDIRSUFFIX}/l*.so*
+#strip -g $PKG/usr/lib${LIBDIRSUFFIX}/l*.so*
+#strip -g $PKG/usr/lib${LIBDIRSUFFIX}/lib*.a
 
 # Remove the rquota.x and rquota.h include files, as they are provided by
 # the quota package:
@@ -372,7 +384,7 @@ mkdir -p usr/lib${LIBDIRSUFFIX}
 # Might as well just grab these with 'mv' to simplify things later:
 mv $PKG/usr/lib${LIBDIRSUFFIX}/lib*_p.a usr/lib${LIBDIRSUFFIX}
 # Profile libs should be stripped.  Use the debug libs to debug...
-( cd usr/lib${LIBDIRSUFFIX} ; strip -g *.a )
+#( cd usr/lib${LIBDIRSUFFIX} ; strip -g *.a )
 mkdir install
 cp -a $CWD/slack-desc.glibc-profile install/slack-desc
 makepkg -l y -c n $TMP/glibc-profile-$VERSION-$SLACKWARE_ARCH-$BUILD.txz

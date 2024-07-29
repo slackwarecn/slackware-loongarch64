@@ -1,0 +1,178 @@
+From ffd79d0778f031f25d975b8fce7156e27d7ee9fd Mon Sep 17 00:00:00 2001
+From: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date: Wed, 27 Jul 2022 18:25:34 +0800
+Subject: [PATCH 14/21] LoongArch64: Add FFI C callback handling
+
+Signed-off-by: Shi Pujin <shipujin@loongson.cn>
+---
+ src/lj_ccallback.c      | 58 ++++++++++++++++++++++++++++++++++++-
+ src/vm_loongarch64.dasc | 63 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 120 insertions(+), 1 deletion(-)
+
+diff --git a/src/lj_ccallback.c b/src/lj_ccallback.c
+index 17d26b52..0656facc 100644
+--- a/src/lj_ccallback.c
++++ b/src/lj_ccallback.c
+@@ -71,6 +71,10 @@ static MSize CALLBACK_OFS2SLOT(MSize ofs)
+ 
+ #define CALLBACK_MCODE_HEAD		52
+ 
++#elif LJ_TARGET_LOONGARCH64
++
++#define CALLBACK_MCODE_HEAD		52
++
+ #else
+ 
+ /* Missing support for this architecture. */
+@@ -238,6 +242,33 @@ static void *callback_mcode_init(global_State *g, uint32_t *page)
+   }
+   return p;
+ }
++#elif LJ_TARGET_LOONGARCH64
++static void *callback_mcode_init(global_State *g, uint32_t *page)
++{
++  uint32_t *p = page;
++  uintptr_t target = (uintptr_t)(void *)lj_vm_ffi_callback;
++  uintptr_t ug = (uintptr_t)(void *)g;
++  MSize slot;
++  *p++ = LOONGI_LU12I_W | LOONGF_D(RID_R18) | LOONGF_I20((target >> 12) & 0xfffff);
++  *p++ = LOONGI_LU12I_W | LOONGF_D(RID_R17) | LOONGF_I20((ug >> 12) & 0xfffff);
++  *p++ = LOONGI_ORI  | LOONGF_D(RID_R18) | LOONGF_J(RID_R18) | LOONGF_I(target & 0xfff);
++  *p++ = LOONGI_ORI  | LOONGF_D(RID_R17) | LOONGF_J(RID_R17) | LOONGF_I(ug & 0xfff);
++  *p++ = LOONGI_LU32I_D | LOONGF_D(RID_R18) | LOONGF_I20((target >> 32) & 0xfffff);
++  *p++ = LOONGI_LU32I_D | LOONGF_D(RID_R17) | LOONGF_I20((ug >> 32) & 0xfffff);
++  *p++ = LOONGI_LU52I_D | LOONGF_D(RID_R18) | LOONGF_J(RID_R18) | LOONGF_I((target >> 52) & 0xfff);
++  *p++ = LOONGI_LU52I_D | LOONGF_D(RID_R17) | LOONGF_J(RID_R17) | LOONGF_I((ug >> 52) & 0xfff);
++  *p++ = LOONGI_NOP;
++  *p++ = LOONGI_NOP;
++  *p++ = LOONGI_NOP;
++  *p++ = LOONGI_NOP;
++  *p++ = LOONGI_JIRL | LOONGF_D(RID_R0) | LOONGF_J(RID_R18) | LOONGF_I(0);
++  for (slot = 0; slot < CALLBACK_MAX_SLOT; slot++) {
++    *p++ = LOONGI_ORI  | LOONGF_D(RID_R19) | LOONGF_J(RID_R0) | LOONGF_I(slot & 0xfff);
++    *p = LOONGI_B | LOONGF_I((page-p) & 0xffff) | (((page-p) >> 16) & 0x3ff);
++    p++;
++  }
++  return p;
++}
+ #else
+ /* Missing support for this architecture. */
+ #define callback_mcode_init(g, p)	(p)
+@@ -512,6 +543,31 @@ void lj_ccallback_mcode_free(CTState *cts)
+   }
+ #endif
+ 
++#define CALLBACK_HANDLE_RET \
++  if (ctype_isfp(ctr->info) && ctr->size == sizeof(float)) \
++    ((float *)dp)[1] = *(float *)dp;
++
++#elif LJ_TARGET_LOONGARCH64
++
++#define CALLBACK_HANDLE_REGARG \
++  if (isfp) { \
++    if (nfpr + n <= CCALL_NARG_FPR) { \
++      sp = &cts->cb.fpr[nfpr]; \
++      nfpr += n; \
++      goto done; \
++    } else if (ngpr + n <= maxgpr) { \
++      sp = &cts->cb.gpr[ngpr]; \
++      ngpr += n; \
++      goto done; \
++    } \
++  } else { \
++    if (ngpr + n <= maxgpr) { \
++      sp = &cts->cb.gpr[ngpr]; \
++      ngpr += n; \
++      goto done; \
++    } \
++  }
++
+ #define CALLBACK_HANDLE_RET \
+   if (ctype_isfp(ctr->info) && ctr->size == sizeof(float)) \
+     ((float *)dp)[1] = *(float *)dp;
+@@ -662,7 +718,7 @@ static void callback_conv_result(CTState *cts, lua_State *L, TValue *o)
+ 	*(int32_t *)dp = ctr->size == 1 ? (int32_t)*(int8_t *)dp :
+ 					  (int32_t)*(int16_t *)dp;
+     }
+-#if LJ_TARGET_MIPS64 || (LJ_TARGET_ARM64 && LJ_BE)
++#if LJ_TARGET_MIPS64 || (LJ_TARGET_ARM64 && LJ_BE) || LJ_TARGET_LOONGARCH64
+     /* Always sign-extend results to 64 bits. Even a soft-fp 'float'. */
+     if (ctr->size <= 4 &&
+ 	(LJ_ABI_SOFTFP || ctype_isinteger_or_bool(ctr->info)))
+diff --git a/src/vm_loongarch64.dasc b/src/vm_loongarch64.dasc
+index 921247c3..aabb4144 100644
+--- a/src/vm_loongarch64.dasc
++++ b/src/vm_loongarch64.dasc
+@@ -2371,6 +2371,69 @@ static void build_subroutines(BuildCtx *ctx)
+   |//-- FFI helper functions -----------------------------------------------
+   |//-----------------------------------------------------------------------
+   |
++  |// Handler for callback functions. Callback slot number in r19, g in r17.
++  |->vm_ffi_callback:
++  |.if FFI
++  |.type CTSTATE, CTState, PC
++  |  saveregs
++  |  ld.d CTSTATE, GL:r17->ctype_state
++  |  .ADD16I DISPATCH, r17, GG_G2DISP
++  |  st.w r19, CTSTATE->cb.slot
++  |  st.d CARG1, CTSTATE->cb.gpr[0]
++  |  fst.d FARG1, CTSTATE->cb.fpr[0]
++  |  st.d CARG2, CTSTATE->cb.gpr[1]
++  |  fst.d FARG2, CTSTATE->cb.fpr[1]
++  |  st.d CARG3, CTSTATE->cb.gpr[2]
++  |  fst.d FARG3, CTSTATE->cb.fpr[2]
++  |  st.d CARG4, CTSTATE->cb.gpr[3]
++  |  fst.d FARG4, CTSTATE->cb.fpr[3]
++  |  st.d CARG5, CTSTATE->cb.gpr[4]
++  |  fst.d FARG5, CTSTATE->cb.fpr[4]
++  |  st.d CARG6, CTSTATE->cb.gpr[5]
++  |  fst.d FARG6, CTSTATE->cb.fpr[5]
++  |  st.d CARG7, CTSTATE->cb.gpr[6]
++  |  fst.d FARG7, CTSTATE->cb.fpr[6]
++  |  st.d CARG8, CTSTATE->cb.gpr[7]
++  |  fst.d FARG8, CTSTATE->cb.fpr[7]
++  |  addi.d TMP0, sp, CFRAME_SPACE
++  |  st.d TMP0, CTSTATE->cb.stack
++  |  st.d r0, SAVE_PC(sp)		// Any value outside of bytecode is ok.
++  |  or CARG1, CTSTATE, r0
++  |  or CARG2, sp, r0
++  |  bl extern lj_ccallback_enter	// (CTState *cts, void *cf)
++  |  // Returns lua_State *.
++  |  ld.d BASE, L:CRET1->base
++  |  ld.d RC, L:CRET1->top
++  |  or L, CRET1, r0
++  |  addu16i.d TMP3, r0, 0x59c0		// TOBIT = 2^52 + 2^51 (float).
++  |  ld.d LFUNC:RB, FRAME_FUNC(BASE)
++  |  movgr2fr.w TOBIT, TMP3
++  |  addi.d TISNIL, r0, LJ_TNIL
++  |  addi.d TISNUM, r0, LJ_TISNUM
++  |  li_vmstate INTERP
++  |  sub.w RC, RC, BASE
++  |  cleartp LFUNC:RB
++  |  st_vmstate
++  |  fcvt.d.s TOBIT, TOBIT
++  |  ins_callt
++  |.endif
++  |
++  |->cont_ffi_callback:			// Return from FFI callback.
++  |.if FFI
++  |  .LDXD CTSTATE, DISPATCH, DISPATCH_GL(ctype_state)
++  |  st.d BASE, L->base
++  |  st.d RB, L->top
++  |  st.d L, CTSTATE->L
++  |  or CARG1, CTSTATE, r0
++  |  or CARG2, RA, r0
++  |  bl extern lj_ccallback_leave	// (CTState *cts, TValue *o)
++  |  fld.d FRET1, CTSTATE->cb.fpr[0]
++  |  ld.d CRET1, CTSTATE->cb.gpr[0]
++  |  fld.d FRET2, CTSTATE->cb.fpr[1]
++  |  ld.d CRET2, CTSTATE->cb.gpr[1]
++  |  b ->vm_leave_unw
++  |.endif
++  |
+   |->vm_ffi_call:			// Call C function via FFI.
+   |  // Caveat: needs special frame unwinding, see below.
+   |.if FFI
+-- 
+2.45.2
+

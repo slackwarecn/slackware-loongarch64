@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -62,6 +63,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16 -fcommon"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC -fcommon"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2 -fcommon"
   LIBDIRSUFFIX=""
@@ -78,6 +82,9 @@ rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 
+# LoongArch
+#cat $CWD/libunwind-add-LoongArch-support.patch | patch -p1 --verbose || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -85,6 +92,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+autoreconf -fi
 # Configure:
 if [ ! -r configure ]; then
   if [ -x ./autogen.sh ]; then
@@ -102,7 +110,7 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1

@@ -35,6 +35,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) ARCH=i686 ;;
     arm*) ARCH=arm ;;
+    loongarch64) ARCH=loong64 ;;
        *) ARCH=$( uname -m ) ;;
   esac
 fi
@@ -44,7 +45,7 @@ if [ "$ARCH" = "i586" -o "$ARCH" = "i686" ]; then
   # bolt and flang are not available on 32-bit
   LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"clang;clang-tools-extra;compiler-rt;lld;lldb;llvm;mlir;openmp;polly"}
 else
-  LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"bolt;clang;clang-tools-extra;compiler-rt;flang;lld;lldb;llvm;mlir;openmp;polly"}
+  LLVM_ENABLE_PROJECTS=${LLVM_ENABLE_PROJECTS:-"clang;clang-tools-extra;compiler-rt;flang;lld;lldb;llvm;mlir;openmp;polly"}
 fi
 
 # Select runtimes to build:
@@ -75,6 +76,11 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC "
+  LIBDIRSUFFIX="64"
+#  LINKER="bfd"
+  CMAKE_EXTRA=" -DLLVM_HOST_TRIPLE=loongarch64-slackware-linux"
 else
   SLKCFLAGS="-O2 $IGNORE_GNU_EXTENSIONS"
   LIBDIRSUFFIX=""
@@ -99,6 +105,9 @@ cd llvm-project-llvmorg-$VERSION || cd llvmorg-$VERSION || exit 1
 
 # Support GCC built for i?86-slackware-linux:
 zcat $CWD/clang.toolchains.32-bit.triple.diff.gz | patch -p2 --verbose || exit 1
+
+# LoongArch
+cat $CWD/clang.toolchains.loongarch64.triple.diff | patch -p2 --verbose || exit 1
 
 chown -R root:root .
 find . \
@@ -131,7 +140,7 @@ cd build
     -DLLVM_INSTALL_UTILS=ON \
     -DLLVM_BINUTILS_INCDIR=/usr/include \
     -DCLANG_RESOURCE_DIR="../lib${LIBDIRSUFFIX}/clang/$(echo $VERSION | cut -f 1 -d .)" \
-    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;BPF;WebAssembly" \
+    -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;WebAssembly" \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
     -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
@@ -140,6 +149,7 @@ cd build
     -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
     -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=ON \
     -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
+    $CMAKE_EXTRA \
     ../llvm  || exit 1
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG "$NINJA" install || exit 1
@@ -147,8 +157,8 @@ cd ..
 
 # Add symlinks for $ARCH-slackware-linux-{clang,clang++}:
 ( cd $PKG/usr/bin
-  ln -sf clang $ARCH-slackware-linux-clang
-  ln -sf clang++ $ARCH-slackware-linux-clang++
+  ln -sf clang loongarch64-slackware-linux-clang
+  ln -sf clang++ loongarch64-slackware-linux-clang++
 )
 
 # Install clang-static-analyzer:

@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -52,6 +53,8 @@ if [ "$ARCH" = "i586" ]; then
 elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
 fi
 
@@ -83,6 +86,7 @@ if [ ! -r configure ]; then
   fi
 fi
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -90,7 +94,7 @@ CFLAGS="$SLKCFLAGS" \
   --localstatedir=/var/lib \
   --mandir=/usr/man \
   --docdir=/usr/doc/gftp-$VERSION \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

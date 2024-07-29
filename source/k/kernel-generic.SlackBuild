@@ -58,6 +58,7 @@ if [ -z "${KERNEL_ARCH}" ]; then
     case "$(uname -m)" in
     i?86) KERNEL_ARCH=x86 ;;
     x86_64) KERNEL_ARCH=x86 ;;
+    loongarch64) KERNEL_ARCH=loongarch ;;
     # Use uname -m for all other archs:
     *) KERNEL_ARCH=$(uname -m) ;;
   esac
@@ -77,8 +78,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
     cp -a ${KERNEL_CONFIG} ${KERNEL_SOURCE}/.config
   fi
   cd ${KERNEL_SOURCE}
-  make oldconfig 1> /dev/null 2> /dev/null
-  make prepare 1> /dev/null 2> /dev/null
+  #make oldconfig 1> /dev/null 2> /dev/null
+  #make prepare 1> /dev/null 2> /dev/null
   PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
   echo "kernel-${KERNEL_NAME}-$(echo ${VERSION} | tr - _)$(echo ${LOCALVERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz"
   exit 0
@@ -118,7 +119,8 @@ fi
   echo "Running make oldconfig..."
   make oldconfig
   echo "Building kernel..."
-  make $NUMJOBS bzImage || make bzImage || exit 1
+  #make $NUMJOBS bzImage || make bzImage || exit 1
+  make $NUMJOBS || exit 1
   # Output files to a directory, if requested:
   if [ ! -z "${KERNEL_OUTPUT_DIRECTORY}" ]; then
     echo "Copying files to ${KERNEL_OUTPUT_DIRECTORY}..."
@@ -143,7 +145,8 @@ fi
 
 # Fetch the kernel architecture from the source tree:
 cd ${KERNEL_SOURCE}
-PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
+#PACKAGE_ARCH=$(cat kernel/bounds.s | grep -w "\-march=.*" | tr " " "\n" | grep -w "\-march=.*" | cut -f 2 -d = | tr - _)
+PACKAGE_ARCH=loong64
 
 mkdir $PKG/install
 if [ -r $CWD/slack-desc/slack-desc.kernel-${KERNEL_NAME}.${PACKAGE_ARCH} ]; then

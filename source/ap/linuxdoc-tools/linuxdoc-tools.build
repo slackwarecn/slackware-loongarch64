@@ -65,6 +65,10 @@ case $ARCH in
            export LIBDIRSUFFIX="64"
            export HOSTTARGET=""
            ;;
+  loong64)  export SLKCFLAGS="-O2 -fPIC"
+           export LIBDIRSUFFIX="64"
+           export HOSTTARGET=""
+           ;;
 esac
 
 # The build order is purposive.
@@ -344,6 +348,9 @@ patch --verbose -p1 < ../opensp-nodeids.patch || exit 1
 find . -name config.guess -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.guess '{}'
 find . -name config.sub -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.sub '{}'
 
+# LoongArch
+#cp -rfa /usr/share/automake-1.16/config.* .
+
 # Configure without optimisation.  OpenSP & OpenJade are sensitive to optimisations,
 # resulting in segfaults, particularly on the ARM platform.  Apparently -O1 will work but
 # let's just leave it as is.
@@ -351,6 +358,7 @@ find . -name config.sub -print0 | xargs -0i cp -favv /usr/share/libtool/build-au
 # This is configured not to build the documentation.  If anybody really needs
 # it, let me know and I'll adjust the build script - it's just a PITA to
 # get working.
+autoreconf -fi
 CXXFLAGS="-fno-lifetime-dse" \
 ./configure \
   --prefix=/usr \
@@ -433,6 +441,9 @@ sed -i -e '/getopts/{N;s#&G#g#;s#do .getopts.pl.;##;}' -e '/use POSIX/ause Getop
 # Refresh libtool for new architecture definitions:
 find . -name config.guess -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.guess '{}'
 find . -name config.sub -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.sub '{}'
+
+# LoongArch
+#cp -rfa /usr/share/automake-1.16/config.* config/
 
 # Configure:
 CXXFLAGS="$SLKCFLAGS -fno-lifetime-dse" \
@@ -900,7 +911,7 @@ find . \
   -exec chmod 644 {} \;
 
 # Configure:
-./configure \
+CFLAGS="-Wno-error=implicit-int" ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --mandir=/usr/man \
@@ -997,6 +1008,9 @@ done || exit 1
 eval $(perl '-V:installvendorlib')
 mkdir -p $PKG/$installvendorlib
 
+# LoongArch
+#cp -rfa /usr/share/automake-1.16/config.* .
+
 # Configure:
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -1079,6 +1093,7 @@ done || exit 1
 find . -name config.guess -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.guess '{}'
 find . -name config.sub -print0 | xargs -0i cp -favv /usr/share/libtool/build-aux/config.sub '{}'
 
+cp -rf /usr/share/autoconf/build-aux/config.* .
 # Configure:
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
@@ -1092,7 +1107,7 @@ PYTHON=/usr/bin/python3 \
   --mandir=/usr/man \
   --disable-scrollkeeper \
   --enable-build-utils \
-  --build=$ARCH-slackware-linux$HOSTTARGET || exit 1
+  --build=loongarch64-slackware-linux$HOSTTARGET || exit 1
 
 # No parallel build here because it doesn't work:
 make || exit 1
@@ -1133,6 +1148,9 @@ for i in \
   \
   ; do patch --verbose -p1 < ../$i
 done || exit 1
+
+# LoongArch
+#cp -rfa /usr/share/automake-1.16/config.* .
 
 # Configure:
 mkdir meson-build
@@ -1245,7 +1263,7 @@ CPPFLAGS="$SLKCFLAGS" \
    --disable-dependency-tracking \
    --program-transform-name="s/^docbook2/docbook2x-/" \
    --with-html-xsl \
-   --build=$ARCH-slackware-linux$HOSTTARGET || exit 1
+   --build=loongarch64-slackware-linux$HOSTTARGET || exit 1
 
 # Build:
 make || exit 1

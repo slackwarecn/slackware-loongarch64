@@ -38,6 +38,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -62,6 +63,11 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-mtune=generic"
   EFI32_FLAGS=" --with-platform=efi --target=i386 --program-prefix= "
   EFI_FLAGS=" --with-platform=efi --target=x86_64 --program-prefix= "
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS=""
+  EFI32_FLAGS=" --with-platform=efi --target=loongarch64 --program-prefix= "
+  EFI_FLAGS=" --with-platform=efi --target=loongarch64 --program-prefix= "
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS=""
@@ -122,6 +128,10 @@ cat $CWD/10_linux.disable_kernel_symlinks.patch | patch -p1 --verbose || exit 1
 
 # Still won't compile. Someday they'll remember how to cut a new release.
 touch grub-core/extra_deps.lst
+
+# slackware: add LoongArch support
+cat $CWD/slackware-10_linux.in-add-loongarch64-sipport.diff | patch -p1 --verbose || exit 1
+cat $CWD/fix-00_header.diff | patch -p1 --verbose || exit 1
 
 # Regenerate build system to fix dependency on outdated automake:
 autoreconf -vif
@@ -250,6 +260,9 @@ if [ -r ChangeLog ]; then
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
+
+# create elf
+bash $CWD/create-efi
 
 mkdir -p $PKG/install
 cat $CWD/doinst.sh > $PKG/install/doinst.sh

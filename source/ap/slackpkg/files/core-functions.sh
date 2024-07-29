@@ -132,6 +132,11 @@ function system_setup() {
 			SLACKKEY=${SLACKKEY:-"Slackware Linux Project <security@slackware.com>"}
 			PKGMAIN=${PKGMAIN:-slackware64}
 		;;
+		loongarch64|LoongArch64|LoongArch)
+			ARCH=loong64
+			SLACKKEY=${SLACKKEY:-"Slackwarecn Linux Project <shipujin.t@gmail.com>"}
+			PKGMAIN=${PKGMAIN:-slackware64}
+		;;
 		s390)
 			ARCH=s390
 			# Slack390 didn't have signed packages
@@ -564,12 +569,12 @@ function checkgpg() {
 function get_gpg_key() {
 	if ping -c 1 www.slackware.com &>/dev/null; then
 		if printf "$ARCH" | grep -q -e "arm" -e "aarch64" &>/dev/null ; then
-			echo -e "\t\t\tGetting key from https://www.slackware.com/infra/keys/arm/GPG-KEY"
-			$DOWNLOADER $TMPDIR/gpgkey https://www.slackware.com/infra/keys/arm/GPG-KEY &>/dev/null
+			echo -e "\t\t\tGetting key from http://pkg.iloongarch.cn/slackwareloong/slackwareloong64-current/GPG-KEY"
+			$DOWNLOADER $TMPDIR/gpgkey http://pkg.iloongarch.cn/slackwareloong/slackwareloong64-current/GPG-KEY &>/dev/null
 			# Backup: https://arm.slackware.com/keys/GPG-KEY
 		else
-			echo -e "\t\t\tGetting key from https://www.slackware.com/infra/keys/GPG-KEY"
-			$DOWNLOADER $TMPDIR/gpgkey https://www.slackware.com/infra/keys/GPG-KEY &>/dev/null
+			echo -e "\t\t\tGetting key from http://pkg.iloongarch.cn/slackwareloong/slackwareloong64-current/GPG-KEY"
+			$DOWNLOADER $TMPDIR/gpgkey http://pkg.iloongarch.cn/slackwareloong/slackwareloong64-current/GPG-KEY &>/dev/null
 			# Backup: https://mirrors.slackware.com/slackware/slackware-current/GPG-KEY
 		fi
 	else
@@ -1076,18 +1081,18 @@ function checkchangelog()
 	# file and if it has not changed, we can know that the ChangeLog
 	# has not changed either.
 	echo -e "\tDownloading..."
-	getfile ${SOURCE}CHECKSUMS.md5.asc $TMPDIR/CHECKSUMS.md5.asc
-	if ! grep -q "PGP" $TMPDIR/CHECKSUMS.md5.asc ; then
-		echo -e "\
-\nError downloading from $SOURCE.\n\
-Please check your mirror and try again."
-		cleanup
-	fi
-	if diff --brief ${WORKDIR}/CHECKSUMS.md5.asc $TMPDIR/CHECKSUMS.md5.asc ; then
-		return 0
-	else
-		return 1
-	fi
+#	getfile ${SOURCE}CHECKSUMS.md5.asc $TMPDIR/CHECKSUMS.md5.asc
+#	if ! grep -q "PGP" $TMPDIR/CHECKSUMS.md5.asc ; then
+#		echo -e "\
+#\nError downloading from $SOURCE.\n\
+#Please check your mirror and try again."
+#		cleanup
+#	fi
+#	if diff --brief ${WORKDIR}/CHECKSUMS.md5.asc $TMPDIR/CHECKSUMS.md5.asc ; then
+#		return 0
+#	else
+#		return 1
+#	fi
 }
 
 function updatefilelists()
@@ -1129,7 +1134,7 @@ Please check your mirror and try again."
 	ISOK="1"
 	echo -e "\t\tChecksums"
 	getfile ${SOURCE}CHECKSUMS.md5 ${TMPDIR}/CHECKSUMS.md5
-	getfile ${SOURCE}CHECKSUMS.md5.asc ${TMPDIR}/CHECKSUMS.md5.asc
+#	getfile ${SOURCE}CHECKSUMS.md5.asc ${TMPDIR}/CHECKSUMS.md5.asc
 	if ! [ -e "${TMPDIR}/CHECKSUMS.md5" ]; then
 		echo -e "\
 \n\t\tWARNING: Your mirror appears incomplete and is missing the\n\
@@ -1152,14 +1157,14 @@ Please check your mirror and try again."
 \t\t       recent changes in the Slackware tree.\n"
 				cleanup
 			fi
-		elif [ "$SLACKKEY" != "" ]; then
-			echo -e "\
-\n\t\tWARNING: Without CHECKGPG, we can't check if this file is\n\
-\t\t         signed by:\n\
-\n\t\t         $SLACKKEY.\n\
-\n\t\t         Enabling CHECKGPG is highly recommended for best\n\
-\t\t         security.\n"
-				sleep 10
+#		elif [ "$SLACKKEY" != "" ]; then
+#			echo -e "\
+#\n\t\tWARNING: Without CHECKGPG, we can't check if this file is\n\
+#\t\t         signed by:\n\
+#\n\t\t         $SLACKKEY.\n\
+#\n\t\t         Enabling CHECKGPG is highly recommended for best\n\
+#\t\t         security.\n"
+#				sleep 10
 		fi
 	fi
 

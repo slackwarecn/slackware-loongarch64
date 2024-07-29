@@ -35,6 +35,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -66,6 +67,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -118,6 +122,11 @@ zcat $CWD/icu68.patch.gz | patch -p0 --verbose || exit 1
 # Use python3:
 zcat $CWD/qt5-webkit-python-3.9.patch.gz | patch -p1 --verbose || exit 1
 
+# add LoongArch support
+cat $CWD/add-loongarch64-support.diff | patch -p1 --verbose || exit 1
+
+cat $CWD/webkit-offlineasm-warnings-ruby27.patch | patch -p1 --verbose || exit 1
+
 # -DU_DEFINE_FALSE_AND_TRUE=1 since recent icu4c no longer defines these otherwise.
 
 export CFLAGS="$SLKCFLAGS -DU_DEFINE_FALSE_AND_TRUE=1"
@@ -126,12 +135,15 @@ export OPENSOURCE_CXXFLAGS="$SLKCFLAGS -fpermissive -fno-strict-aliasing -DU_DEF
 export QTDIR="/usr/lib$LIBDIRSUFFIX/qt5"
 export LD_LIBRARY_PATH="${QTDIR}/qtbase/lib:${QTDIR}/qttools/lib:${LD_LIBRARY_PATH}"
 
+patch -p1 < $CWD/qtwebkit-no-jit-loongarch64.diff
+#patch -p1 < $CWD/fix-build-with-icu.diff
 # Configure, build, and install:
 mkdir qtwebkit-build
 cd qtwebkit-build
   cmake \
     -DPORT=Qt \
     -DQt5_DIR=$QTDIR \
+    -DENABLE_JIT=OFF \
     ..  || exit 1
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1

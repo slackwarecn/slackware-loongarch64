@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=fontconfig
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -113,9 +113,9 @@ cd meson-build
     --localstatedir=/var \
     --buildtype=release \
     -D cache-build=disabled \
-    -D default-hinting=slight \
-    -D default-sub-pixel-rendering=rgb \
-    -D doc-html=enabled \
+    -D default-hinting=medium \
+    -D default-sub-pixel-rendering=none \
+    -D doc-html=disabled \
     -D doc-pdf=disabled \
     -D doc-txt=disabled \
   .. || exit 1
@@ -139,6 +139,13 @@ done
 
 # Not convinced.
 #( cd $PKG/etc/fonts/conf.d ; ln -sf ../../../usr/share/fontconfig/conf.avail/70-no-bitmaps-except-emoji.conf . )
+
+# We did not previously link a hinting, subpixel, or lcdfilter conf file.
+# Let's not do that here, either. Let the user choose to link that themselves
+# without every fontconfig update stomping on it:
+rm -f $PKG/etc/fonts/conf.d/10-hinting-*
+rm -f $PKG/etc/fonts/conf.d/10-sub-pixel-*
+rm -f $PKG/etc/fonts/conf.d/11-lcdfilter-*
 
 # You can shop for this kind of stuff in the source tarball.
 rm -rf $PKG/usr/share/doc

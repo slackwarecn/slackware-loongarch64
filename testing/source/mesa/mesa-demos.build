@@ -1,0 +1,45 @@
+#!/bin/bash
+# This script is not meant to be run directly:
+if [ -z $DEMOVERS ]; then
+  exit 1
+fi
+
+# Now build/install a small subset of the demos:
+export CWD SLKCFLAGS NUMJOBS PKG
+( cd $TMP
+  rm -rf mesa-demos-$DEMOVERS
+  tar xvf $CWD/mesa-demos-$DEMOVERS.tar.?z* || exit 1
+  cd mesa-demos-$DEMOVERS
+  chown -R root:root .
+  find . \
+    \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+    -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+    -exec chmod 644 {} \+
+  # Architecture-specific settings can be configured in the mesa.SlackBuild
+  # within the variable 'SLK_MESADEMOS_CONF_OPTS'
+  CFLAGS="$SLKCFLAGS" \
+  ./configure \
+    $SLK_MESADEMOS_CONF_OPTS \
+    --enable-autotools \
+    --prefix=/usr \
+    --build=$ARCH-slackware-linux || exit 1
+  make $NUMJOBS || exit 1
+  # Install all the demos (including the pointless ones) at first, in a
+  # temporary location:
+  make install DESTDIR=$PKG/cruft || exit 1
+  # Install gears and glinfo, as well as a few other demos:
+  mkdir -p $PKG/usr/bin
+  MESA_DEMO_BINS="${MESA_DEMO_BINS:=eglinfo gears glinfo glthreads glxcontexts glxdemo \
+              glxgears glxgears_fbconfig glxheads glxinfo glxpbdemo glxpixmap}"
+  # Install the demo:
+  for demo in $MESA_DEMO_BINS ; do
+    mv --verbose $PKG/cruft/usr/bin/$demo $PKG/usr/bin
+  done
+  # Remove cruft:
+  rm -rf $PKG/cruft
+  # Add the README file(s):
+  rm -rf $PKG/usr/doc/mesa-demos-$DEMOVERS
+  mkdir -p $PKG/usr/doc/mesa-demos-$DEMOVERS
+  cp -a README* $PKG/usr/doc/mesa-demos-$DEMOVERS
+) || exit 1

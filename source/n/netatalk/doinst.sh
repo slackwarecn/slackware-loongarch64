@@ -16,12 +16,11 @@ if [ -e etc/rc.d/rc.atalk ]; then
   cat etc/rc.d/rc.atalk.new > etc/rc.d/rc.atalk.new.incoming
   mv etc/rc.d/rc.atalk.new.incoming etc/rc.d/rc.atalk.new
 fi
-
 config etc/rc.d/rc.atalk.new
 
-config etc/netatalk/afp.conf.new
-config etc/netatalk/dbus-session.conf.new
-config etc/netatalk/extmap.conf.new
+for file in etc/netatalk/*.new ; do
+  config $file
+done
 
 if [ -r etc/pam.d/netatalk.new ]; then
   config etc/pam.d/netatalk.new

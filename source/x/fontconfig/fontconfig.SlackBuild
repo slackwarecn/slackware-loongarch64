@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,17 +23,18 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=fontconfig
-VERSION=${VERSION:-$(echo fontconfig-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i686 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -44,32 +45,30 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-fontconfig
-
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
 
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
 
 cd $TMP
-rm -rf fontconfig-$VERSION
-tar xvf $CWD/fontconfig-$VERSION.tar.?z* || exit 1
-cd fontconfig-$VERSION || exit 1
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
 chown -R root:root .
 find . \
   \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -77,141 +76,87 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Prefer DejaVu fonts in 60-latin.conf:
-#zcat $CWD/fontconfig.dejavu.diff.gz | patch -p1 --verbose || exit 1
-
-# Prefer Liberation fonts in 60-latin.conf (these work better with hinting):
-zcat $CWD/fontconfig.liberation.diff.gz | patch -p1 --verbose || exit 1
+# Patches from Fedora and Debian:
+cat $CWD/patches/02_indic_names.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/04_mgopen_fonts.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/disable-crbug1004354.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/fontconfig-sleep-less.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/fontconfig-remove-uuid.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/fontconfig-drop-lang-from-pkgkit-format.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/fontconfig-fix-SAST.patch | patch -p1 --verbose || exit 1
 
 # Hardcode the default font search path rather than having fontconfig figure
 # it out (and possibly follow symlinks, or index ugly bitmapped fonts):
-zcat $CWD/fontconfig.font.dir.list.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
+cat $CWD/fontconfig.font.dir.list.diff | patch -p1 --verbose || exit 1
 
-# Add some patches from the Fedora SRPM:
-zcat $CWD/fedora-patches/fontconfig-sleep-less.patch.gz | patch -p1 --verbose || exit 1
-#zcat $CWD/fedora-patches/fontconfig-required-freetype-version.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-score-hint-on-match.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-fix-1744377.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-drop-lang-from-pkgkit-format.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-sysroot.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-read-latest-cache.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-mt.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-fix-test.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-fix-assertion.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-fix-dtd.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-fix-dtd-id.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/fontconfig-0-timestamp-dir-on-sb.patch.gz | patch -p1 --verbose || exit 1
+# Prefer the Hack font for monospace. Thanks to Didier Spaier of Slint for
+# the patch:
+cat $CWD/fontconfig.hack.for.monospace.diff | patch -p1 --verbose || exit 1
 
-autoreconf -vif
+# Some "no bitmap" conf files from Fedora. We'll include them but won't be
+# enabling them.
+cat $CWD/fontconfig.70.no.bitmaps.conf.diff | patch -p1 --verbose || exit 1
 
-CFLAGS=$SLKCFLAGS \
-./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
-  --sysconfdir=/etc \
-  --with-templatedir=/etc/fonts/conf.avail \
-  --with-baseconfigdir=/etc/fonts \
-  --with-configdir=/etc/fonts/conf.d \
-  --with-xmldir=/etc/fonts \
-  --localstatedir=/var \
-  --enable-static=no \
-  --enable-libxml2 \
-  --build=$ARCH-slackware-linux || exit 1
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+  meson setup \
+    --prefix=/usr \
+    --libdir=/usr/lib${LIBDIRSUFFIX} \
+    --mandir=/usr/man \
+    --datadir=/usr/share \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --buildtype=release \
+    -D cache-build=disabled \
+    -D default-hinting=slight \
+    -D default-sub-pixel-rendering=rgb \
+    -D doc-html=enabled \
+    -D doc-pdf=disabled \
+    -D doc-txt=disabled \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# Upstream has changed the default templatedir to /usr/share/fontconfig/conf.avail.
-# This change, if accepted, would break any existing font package containing a
-# conf.avail directory.  The safest thing to do is to keep things in the
-# traditional location, but put a link in the new place so that font packages
-# following the new standard location will work.  Let's hear it for being
-# "more correct" at the expense of having things "just work"!
-mkdir -p $PKG/usr/share/fontconfig
-( cd $PKG/usr/share/fontconfig ; ln -sf /etc/fonts/conf.avail . )
-
-mkdir -p $PKG/usr/doc/fontconfig-$VERSION
-cp -a \
-  AUTHORS COPYING* INSTALL NEWS README \
-  $PKG/usr/doc/fontconfig-$VERSION
-# You can shop for this kind of stuff in the source tarball.
-rm -rf $PKG/usr/share/doc
-rmdir $PKG/usr/share 2>/dev/null
-
-# If there's a ChangeLog, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
-fi
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/var/log/setup
 cat $CWD/setup.05.fontconfig > $PKG/var/log/setup/setup.05.fontconfig
 chmod 755 $PKG/var/log/setup/setup.05.fontconfig
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
-# Set up the default options in /etc/fonts/conf.d:
-(  cd $PKG/etc/fonts/conf.d
-   for fontconf in \
-        20-unhint-small-vera.conf \
-        30-metric-aliases.conf \
-        40-nonlatin.conf \
-        45-latin.conf \
-        49-sansserif.conf \
-        50-user.conf \
-        51-local.conf \
-        60-latin.conf \
-        65-fonts-persian.conf \
-        65-nonlatin.conf \
-        69-unifont.conf \
-        80-delicious.conf \
-        90-synthetic.conf ; do
-     if [ -r ../conf.avail/$fontconf ]; then
-       ln -sf ../conf.avail/$fontconf .
-     else
-       echo "ERROR:  unable to symlink ../conf.avail/$fontconf, file does not exist."
-       exit 1
-     fi
-   done
-   if [ ! $? = 0 ]; then
-     exit 1
-   fi
-)
-if [ ! $? = 0 ]; then
-  echo "Missing /etc/fonts/$fontconf default.  Exiting"
-  exit 1
+# Not convinced.
+#( cd $PKG/etc/fonts/conf.d ; ln -sf ../../../usr/share/fontconfig/conf.avail/70-no-bitmaps-except-emoji.conf . )
+
+# You can shop for this kind of stuff in the source tarball.
+rm -rf $PKG/usr/share/doc
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  ABOUT-NLS* AUTHORS* COPYING* ChangeLog INSTALL* NEWS* README* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
 
-# This is a really ugly default.  If you like it, you'll have to link this
-# one yourself:
-rm -f $PKG/etc/fonts/conf.d/10-hinting-slight.conf
-
-# Fix manpages:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
-
-mkdir $PKG/install
-cat $CWD/slack-desc > $PKG/install/slack-desc
+mkdir -p $PKG/install
 zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n --prepend $TMP/fontconfig-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

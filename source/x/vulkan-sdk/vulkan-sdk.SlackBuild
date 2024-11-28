@@ -40,6 +40,7 @@ if [ -z "$ARCH" ]; then
     i?86)    export ARCH=i686 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
+    loongarch64)    export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
@@ -60,6 +61,9 @@ if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -604,49 +608,49 @@ cd build
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 
-cd $TMP
-tar xvf $CWD/DirectXShaderCompiler-$DXC_VERSION.tar.?z || exit 1
-cd $TMP/DirectXShaderCompiler-$DXC_VERSION
-
-# This breaks the build, so skip it:
-cat $CWD/DirectXShaderCompiler.noverify.patch | patch -p1 --verbose || exit 1
-
-chown -R root:root .
-find . \
-  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-  -exec chmod 755 {} \+ -o \
-  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
-  -exec chmod 644 {} \+
-
-mkdir -p build/docs
-cd build
-  cmake \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS -Wno-error=stringop-truncation" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
-    -DCMAKE_INSTALL_INCLUDEDIR=include/dxc \
-    -DLLVM_LIBDIR_SUFFIX=$LIBDIRSUFFIX \
-    -DLLVM_BUILD_TOOLS="OFF" \
-    -C"../cmake/caches/PredefinedParams.cmake" \
-    -DHLSL_INCLUDE_TESTS="OFF" \
-    ..
-
-  make $NUMJOBS VERBOSE=1 || make VERBOSE=1 || exit 1
-
-  # "make install" is essentially useless at this point
-  # It installs a bunch of unnecessary llvm files
-  # https://github.com/microsoft/DirectXShaderCompiler/issues/3276
-
-  # install steps taken from appveyor.yml
-  mkdir -p $PKG/usr/{bin,lib$LIBDIRSUFFIX,include}
-  cp -P bin/dxc* $PKG/usr/bin/
-  cp -P lib$LIBDIRSUFFIX/libdxcompiler.so* $PKG/usr/lib$LIBDIRSUFFIX/
-  cp -r ../include/dxc $PKG/usr/include/
-
-  # Remove CMakeLists.txt files in /usr/include
-  find $PKG/usr/include/dxc -name "CMakeLists.txt" | xargs rm -f
+#cd $TMP
+#tar xvf $CWD/DirectXShaderCompiler-$DXC_VERSION.tar.?z || exit 1
+#cd $TMP/DirectXShaderCompiler-$DXC_VERSION
+#
+## This breaks the build, so skip it:
+#cat $CWD/DirectXShaderCompiler.noverify.patch | patch -p1 --verbose || exit 1
+#
+#chown -R root:root .
+#find . \
+#  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+#  -exec chmod 755 {} \+ -o \
+#  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+#  -exec chmod 644 {} \+
+#
+#mkdir -p build/docs
+#cd build
+#  cmake \
+#    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
+#    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS -Wno-error=stringop-truncation" \
+#    -DCMAKE_BUILD_TYPE=Release \
+#    -DCMAKE_INSTALL_PREFIX=/usr \
+#    -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
+#    -DCMAKE_INSTALL_INCLUDEDIR=include/dxc \
+#    -DLLVM_LIBDIR_SUFFIX=$LIBDIRSUFFIX \
+#    -DLLVM_BUILD_TOOLS="OFF" \
+#    -C"../cmake/caches/PredefinedParams.cmake" \
+#    -DHLSL_INCLUDE_TESTS="OFF" \
+#    ..
+#
+#  make $NUMJOBS VERBOSE=1 || make VERBOSE=1 || exit 1
+#
+#  # "make install" is essentially useless at this point
+#  # It installs a bunch of unnecessary llvm files
+#  # https://github.com/microsoft/DirectXShaderCompiler/issues/3276
+#
+#  # install steps taken from appveyor.yml
+#  mkdir -p $PKG/usr/{bin,lib$LIBDIRSUFFIX,include}
+#  cp -P bin/dxc* $PKG/usr/bin/
+#  cp -P lib$LIBDIRSUFFIX/libdxcompiler.so* $PKG/usr/lib$LIBDIRSUFFIX/
+#  cp -r ../include/dxc $PKG/usr/include/
+#
+#  # Remove CMakeLists.txt files in /usr/include
+#  find $PKG/usr/include/dxc -name "CMakeLists.txt" | xargs rm -f
 
 cd $TMP
 tar xvf $CWD/SPIRV-Reflect-vulkan-sdk-$SPIRV_REFLECT_VERSION.tar.?z || exit 1

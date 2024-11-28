@@ -37,6 +37,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -94,6 +95,9 @@ elif [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  LIBDIRSUFFIX="64"
+  LINUX_GENERIC64="linux-generic64"
 fi
 
 # OpenSSL has a (nasty?) habit of bumping the internal version number with
@@ -135,7 +139,7 @@ fi
 # not a good idea to include them as there are better
 # algorithms to use.
 
-./config \
+./Configure \
  --prefix=/usr \
  --openssldir=/etc/ssl \
  --libdir=lib${LIBDIRSUFFIX}/openssl-1.1 \
@@ -153,6 +157,7 @@ fi
  no-ec2m \
  no-idea \
  no-sse2 \
+ ${LINUX_GENERIC64} \
  shared
 
 make $NUMJOBS depend || make depend || exit 1

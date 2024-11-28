@@ -24,13 +24,14 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=vala
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -62,6 +63,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -85,6 +89,8 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+SLKCFLAGS="$SLKCFLAGS -Wno-error=incompatible-pointer-types"
+
 # Don't use graphviz if it's not on the system.
 if ! /bin/ls /usr/man/man7/graphviz.7.gz 1> /dev/null 2> /dev/null ; then
   zcat $CWD/disable-graphviz.patch.gz | patch -p1 --verbose || exit 1
@@ -107,7 +113,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --disable-static \
   $GRAPHVIZ_SUPPORT \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # Hack to build if valac isn't already installed:
 if [ ! -r /usr/bin/valac ]; then

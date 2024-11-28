@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -53,6 +54,9 @@ if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -88,6 +92,8 @@ zcat $CWD/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch.gz | patch -p1 --verbos
 
 # Fix for gcc13 in case we're still using this since we don't want conan ;-)
 zcat $CWD/cryfs.gcc13.diff.gz | patch -p1 --verbose || exit 1
+
+cat $CWD/Fix-versioneer.diff | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 mkdir cmake-build

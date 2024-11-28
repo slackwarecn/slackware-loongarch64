@@ -1,0 +1,47 @@
+From 8de8091cb3554a69ccbeff9924baefafecfa05a4 Mon Sep 17 00:00:00 2001
+From: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date: Wed, 27 Jul 2022 18:35:18 +0800
+Subject: [PATCH 17/21] LoongArch64: Add support for LuaJIT VM builder
+
+Signed-off-by: Shi Pujin <shipujin@loongson.cn>
+---
+ src/host/buildvm.c     | 2 ++
+ src/host/buildvm_asm.c | 9 +++++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/host/buildvm.c b/src/host/buildvm.c
+index ec99e501..851a9833 100644
+--- a/src/host/buildvm.c
++++ b/src/host/buildvm.c
+@@ -67,6 +67,8 @@ static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type);
+ #include "../dynasm/dasm_ppc.h"
+ #elif LJ_TARGET_MIPS
+ #include "../dynasm/dasm_mips.h"
++#elif LJ_TARGET_LOONGARCH64
++#include "../dynasm/dasm_loongarch64.h"
+ #else
+ #error "No support for this architecture (yet)"
+ #endif
+diff --git a/src/host/buildvm_asm.c b/src/host/buildvm_asm.c
+index e7c5de70..a3bd6add 100644
+--- a/src/host/buildvm_asm.c
++++ b/src/host/buildvm_asm.c
+@@ -156,6 +156,15 @@ static void emit_asm_wordreloc(BuildCtx *ctx, uint8_t *p, int n,
+ 	  "Error: unsupported opcode %08x for %s symbol relocation.\n",
+ 	  ins, sym);
+   exit(1);
++#elif LJ_TARGET_LOONGARCH64
++  if ((ins >> 26) == 21) {
++    fprintf(ctx->fp, "\tbl %s\n", sym);
++  } else {
++    fprintf(stderr,
++            "Error: unsupported opcode %08x for %s symbol relocation.\n",
++            ins, sym);
++    exit(1);
++  }
+ #else
+ #error "missing relocation support for this architecture"
+ #endif
+-- 
+2.45.2
+

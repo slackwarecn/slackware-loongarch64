@@ -28,6 +28,9 @@ copy_mirror_file() {
     aarch64)
       SRCMIRROR=mirrors-aarch64.sample
     ;;
+    loongarch64)
+      SRCMIRROR=mirrors-loongarch64.sample
+    ;;
     *)
       SRCMIRROR=mirrors-x86.sample
     ;;

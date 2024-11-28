@@ -57,6 +57,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -98,7 +99,8 @@ fi
 
 # Keep memory usage as low as possible when linking:
 if [ ! "$LINKER" = "lld" ]; then
-  SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
+  #SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats -Wl,--reduce-memory-overheads"
+  SLKLDFLAGS=" -Wl,--as-needed -Wl,--no-keep-memory -Wl,--stats"
   export LDFLAGS="$SLKLDFLAGS"
   export MOZ_LINK_FLAGS="$SLKLDFLAGS"
 fi
@@ -143,6 +145,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "arm" ]; then
   SLKCFLAGS="-g0 -march=armv4 -mtune=xscale"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-g0 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-g0"
   LIBDIRSUFFIX=""
@@ -203,6 +208,12 @@ zcat $CWD/0027-LTO-Only-enable-LTO-for-Rust-when-complete-build-use.patch.gz | p
 # Don't define a function that's included starting in glibc-2.36:
 zcat $CWD/arc4random_buf.glibc-2.36.diff.gz | patch -p1 --verbose || exit 1
 
+# add LoongArch support
+cat $CWD/0010-Fix-libyuv-build-with-LSX-LASX.patch | patch -p1 --verbose || exit 1
+cat $CWD/0011-Add-missing-loongarch-lsx-code-for-libpng.patch | patch -p1 --verbose || exit 1
+cat $CWD/0012-Add-support-for-LoongArch64.patch | patch -p1 --verbose || exit 1
+cat $CWD/0013-Enable-WebRTC-for-LoongArch.patch | patch -p1 --verbose || exit 1
+
 # Fetch localization, if requested
 # https://bugzilla.mozilla.org/show_bug.cgi?id=1256955
 if [ ! -z $MOZLOCALIZE ]; then
@@ -248,7 +259,6 @@ OPTIONS="\
   --disable-crashreporter \
   --disable-debug-symbols \
   --disable-debug \
-  --disable-elf-hack \
   --disable-updater"
 # Complains about missing APNG support in Slackware's libpng:
 # --with-system-png \

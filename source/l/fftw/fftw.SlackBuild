@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -63,6 +64,9 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   SIMD="--enable-sse2 --enable-avx"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -81,6 +85,7 @@ chmod -R u+w,go+r-w,a-st .
 # fix cflags
 sed -i "s|-mtune=native|$SLKCFLAGS|" configure
 
+autoreconf -fi
 # compile libfftw3
 ./configure \
     --prefix=/usr \
@@ -95,7 +100,7 @@ sed -i "s|-mtune=native|$SLKCFLAGS|" configure
     --enable-threads \
     --enable-openmp \
     $SIMD \
-    --build=$ARCH-slackware-linux || exit 1
+    --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
@@ -116,7 +121,7 @@ make clean
     --enable-openmp \
     --enable-float \
     $SIMD \
-    --build=$ARCH-slackware-linux || exit 1
+    --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
@@ -136,30 +141,30 @@ make clean
     --enable-threads \
     --enable-openmp \
     --enable-long-double \
-    --build=$ARCH-slackware-linux || exit 1
+    --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
-make clean
-
-# compile libfftw3q
-./configure \
-    --prefix=/usr \
-    --libdir=/usr/lib${LIBDIRSUFFIX} \
-    --sysconfdir=/etc \
-    --localstatedir=/var \
-    --mandir=/usr/man \
-    --infodir=/usr/info \
-    --docdir=/usr/doc/fftw-$VERSION \
-    --enable-shared \
-    --disable-static \
-    --enable-threads \
-    --enable-openmp \
-    --enable-quad-precision \
-    --build=$ARCH-slackware-linux || exit 1
-
-make $NUMJOBS || make || exit 1
-make install-strip DESTDIR=$PKG || exit 1
+#make clean
+#
+## compile libfftw3q
+#./configure \
+#    --prefix=/usr \
+#    --libdir=/usr/lib${LIBDIRSUFFIX} \
+#    --sysconfdir=/etc \
+#    --localstatedir=/var \
+#    --mandir=/usr/man \
+#    --infodir=/usr/info \
+#    --docdir=/usr/doc/fftw-$VERSION \
+#    --enable-shared \
+#    --disable-static \
+#    --enable-threads \
+#    --enable-openmp \
+#    --enable-quad-precision \
+#    --build=loongarch64-slackware-linux || exit 1
+#
+#make $NUMJOBS || make || exit 1
+#make install-strip DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

@@ -36,6 +36,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -57,6 +58,9 @@ if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -83,13 +87,15 @@ find . \
 # Put the pkgconfig files in the proper location:
 zcat $CWD/libcap.pkgconfig.path.diff.gz | patch -p1 --verbose || exit 1
 
+cat $CWD/fix-build.diff | patch -p1 --verbose || exit 1
+
 # Set the CFLAGS
 sed -i "s/^\(DEBUG =\).*/\1$SLKCFLAGS/" Make.Rules
 
 # Disable broken gperf support:
 sed -i 's@^BUILD_GPERF@#\0@' Make.Rules
 
-make DYNAMIC=yes GOLANG=$GOSUPPORT || exit 1
+make DYNAMIC=yes GOLANG=$GOSUPPORT  -j1|| exit 1
 make install RAISE_SETFCAP=no GOLANG=$GOSUPPORT DESTDIR=$PKG man_prefix=/usr || exit 1
 chmod 755 $PKG/lib${LIBDIRSUFFIX}/libcap.so*
 

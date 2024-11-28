@@ -68,7 +68,7 @@ VERSION=$(echo $SRCVER | cut -f 1 -d _)
 BUILD=${BUILD:-2}
 
 # Which compilers do we want to build?
-LANGS=${LANGS:-'ada,c,c++,d,fortran,go,lto,m2,objc,obj-c++,rust'}
+LANGS=${LANGS:-'ada,c,c++,d,fortran,lto,m2,objc,obj-c++,rust'}
 
 # An optional tag for after the version number in the package's filename:
 #VERTAG=_multilib
@@ -83,6 +83,7 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
+    loongarch64) ARCH=loong64 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -94,6 +95,8 @@ fi
 # BTW, --disable-multilib is only ever used on x86_64.
 # Using it elsewhere will break the build.
 if [ "$ARCH" = "x86_64" -a ! -L /lib/ld-linux.so.2 ]; then
+  MULTILIB=${MULTILIB:-"--disable-multilib"}
+elif [ "$ARCH" = "loong64" -a ! -L /lib64/ld-linux-loongarch-lp64.so.1 ]; then
   MULTILIB=${MULTILIB:-"--disable-multilib"}
 else
   MULTILIB=${MULTILIB:-"--enable-multilib"}
@@ -123,6 +126,10 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
   LIB_ARCH=amd64
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  LIB_ARCH=loongarch64
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -131,6 +138,7 @@ fi
 
 case "$ARCH" in
     arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    loong64)    TARGET=loongarch64-slackware-linux ;;
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
@@ -357,6 +365,8 @@ mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
 
   if [ "$ARCH" = "x86_64" ]; then
     GCC_ARCHOPTS="--with-arch=x86-64"
+  elif [ "$ARCH" = "loong64" ]; then
+    GCC_ARCHOPTS="--with-arch=loongarch64"
   else
     GCC_ARCHOPTS="--with-arch=$ARCH"
   fi
@@ -621,34 +631,6 @@ fi
   fi
 )
 
-# gcc-go:
-( cd $PKG8
-  mkdir -p usr/bin
-  mv $PKG1/usr/bin/*gccgo* usr/bin
-  mv $PKG1/usr/bin/go{,fmt} usr/bin
-  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
-  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/{cgo,go1} usr/libexec/gcc/$TARGET/$VERSION
-  mkdir -p usr/info
-  mv $PKG1/usr/info/gccgo.info.gz usr/info
-  mkdir -p usr/man/man1
-  mv $PKG1/usr/man/man1/gccgo.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/go.1.gz usr/man/man1
-  mv $PKG1/usr/man/man1/gofmt.1.gz usr/man/man1
-  # Libraries:
-  mkdir -p usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
-  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.so*,libgobegin.a,libgolibbegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
-  # Don't package the (bloated) libgo.a. As a rule, we don't package static libraries.
-  rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a
-  if [ "$INSTALL_MULTILIB" = "YES" ]; then
-    mkdir -p usr/lib
-    mv $PKG1/usr/lib/go usr/lib
-    mv $PKG1/usr/lib/{libgo.so*,libgobegin.a,libgolibbegin.a} usr/lib || exit 1
-    # Don't package the (bloated) libgo.a. As a rule, we don't package static libraries.
-    rm -f $PKG1/usr/lib/libgo.a
-  fi
-) || exit 1
-
 # gcc-gdc:
 ( cd $PKG10
   mkdir -p usr/bin
@@ -738,8 +720,6 @@ fi
   makepkg -l y -c n $TMP/gcc-gnat-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
 ( cd $PKG6
   makepkg -l y -c n $TMP/gcc-objc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
-( cd $PKG8
-  makepkg -l y -c n $TMP/gcc-go-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
 ( cd $PKG10
   makepkg -l y -c n $TMP/gcc-gdc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
 ( cd $PKG11

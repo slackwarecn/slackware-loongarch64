@@ -36,6 +36,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -66,6 +67,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# LoongArch
+cat $CWD/cdrtools-add-LoongArch-support.diff | patch -p1 --verbose || exit 1
+
 # GCC 14 "fix":
 export CFLAGS="-Wno-error=implicit-int -Wno-error=implicit-function-declaration"
 
@@ -75,6 +79,7 @@ export CFLAGS="-Wno-error=implicit-int -Wno-error=implicit-function-declaration"
 # However, lconfig.h will eventually be generated from lconfig.h.in, the build
 # will restart, and the package will be correctly built. Since there are no
 # ill effects from this I see no compelling reason to try to patch it here.
+export GMAKE_NOWARN=true
 make -e INS_BASE=/usr DEFMANBASE=. || exit 1
 make -e install INS_BASE=/usr DEFMANBASE=. DESTDIR=$PKG || exit 1
 

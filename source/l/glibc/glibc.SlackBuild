@@ -49,6 +49,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -80,8 +81,8 @@ NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 # likely need to be updated with every new gcc release's version. Yes, we
 # could pass --disable-werror by default, but I'd rather not just shove a
 # stick in it like that.
-if [ "$(gcc -dumpversion)" = "10.2.0" ]; then
-  if [ "$VERSION" = "2.30" ]; then
+if [ "$(gcc -dumpversion)" = "13.1.0" ]; then
+  if [ "$VERSION" = "2.37" ]; then
     WERROR="--disable-werror"
   fi
 fi
@@ -98,6 +99,7 @@ fi
 # what the benefit would be, so we won't do this yet.
 X86FLAGS32="-O3 -march=pentium4 -mtune=generic -mstackrealign -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
 X86FLAGS64="-O3 -march=x86-64 -mtune=generic -fPIC"
+LOONGARCHFLAGS64="-O3 -fPIC"
 
 # I'll break this out as an option for fun  :-)
 case $ARCH  in
@@ -111,6 +113,11 @@ case $ARCH  in
     LIBDIRSUFFIX="64"
     TARGET=${TARGET:-x86_64}
     TARGET32=${TARGET32:-i686}
+    ;;
+  loong64)
+    OPTIMIZ="${LOONGARCHFLAGS64}"
+    LIBDIRSUFFIX="64"
+    TARGET=${TARGET:-loongarch64}
     ;;
   *)
     OPTIMIZ="-O3"
@@ -152,6 +159,12 @@ fix_doinst() {
   if [ "$SLACKWARE_ARCH" = "x86_64" ]; then
     sed -i 's#ld-linux.so.2#ld-linux-x86-64.so.2#' install/doinst.sh
   fi
+  if [ "$SLACKWARE_ARCH" = "loong64" ]; then
+    sed -i 's#ld-linux.so.2#ld-linux-loongarch-lp64d.so.1#' install/doinst.sh
+  fi
+#  if [ "$SLACKWARE_ARCH" = "loong64" ]; then
+#    sed -i 's#ld-linux.so.2#ld-linux-x86-64.so.2#' install/doinst.sh
+#  fi
   if [ "$MULTILIB" = "--enable-multilib" ]; then
     echo "# Add 32-bit library links for multilib:"  >> install/doinst.sh
     cat install/doinst32.sh | grep -e '^( cd lib ' -e '^( cd usr/lib ' >> install/doinst.sh
@@ -221,7 +234,7 @@ tar xf $CWD/glibc-$CVSVER.tar.xz \
 cd glibc-$CVSVER
 
 # Apply patches; exit if any fail.
-apply_patches
+#apply_patches
 if [ ! $? = 0 ]; then
   exit 1
 fi

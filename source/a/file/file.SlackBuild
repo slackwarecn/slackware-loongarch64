@@ -33,6 +33,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -53,6 +54,9 @@ elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -102,8 +106,9 @@ zcat $CWD/file.crdaregbin.magic.gz >> magic/Magdir/crdaregbin
 # (none currently)
 
 # This is needed after the default data directory patch above:
-autoreconf -vif || exit 1
+#autoreconf -vif || exit 1
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -115,7 +120,7 @@ CFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/file-$VERSION \
   --enable-fsect-man5 \
   --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # The generated $TMP/file-$VERSION/libtool is buggy.  I don't know if this is supposed
 # to work, but it certainly does, so... :-)

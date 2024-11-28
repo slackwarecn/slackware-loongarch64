@@ -55,6 +55,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -91,6 +92,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "arm" ]; then
   SLKCFLAGS="-g0 -march=armv4 -mtune=xscale"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-g0 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-g0"
   LIBDIRSUFFIX=""
@@ -219,11 +223,11 @@ OPTIONS="\
   --disable-crashreporter \
   --disable-debug-symbols \
   --disable-debug \
-  --disable-elf-hack \
   --disable-tests \
   --disable-updater \
-  --host=$ARCH-slackware-linux \
-  --target=$ARCH-slackware-linux"
+  --disable-jit \
+  --host=loongarch64-slackware-linux-gnu \
+  --target=loongarch64-slackware-linux-gnu"
   # Complains about missing APNG support in Slackware's libpng:
   #--with-system-png \
   # Broken with 12.0:
@@ -238,6 +242,18 @@ if [ ! -z $MOZLOCALIZE ]; then
     -e "/@RESPATH@\/dictionaries\/\*/d" \
     mail/installer/package-manifest.in || exit 1
 fi
+
+# add LoongArch support
+cat $CWD/0010-Fix-libyuv-build-with-LSX-LASX.patch | patch -p1 --verbose || exit 1
+cat $CWD/0011-Add-missing-loongarch-lsx-code-for-libpng.patch | patch -p1 --verbose || exit 1
+cat $CWD/0012-Add-support-for-LoongArch64.patch | patch -p1 --verbose || exit 1
+cat $CWD/0013-Enable-WebRTC-for-LoongArch.patch | patch -p1 --verbose || exit 1
+
+cat > comm/third_party/botan/src/build-data/arch/loongarch64.txt << "EOF"
+family loongarch
+endian little
+wordsize 64
+EOF
 
 # They say to use the second line, not the first.
 # But they're not the boss of me.

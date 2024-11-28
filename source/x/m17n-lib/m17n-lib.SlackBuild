@@ -45,6 +45,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -81,6 +82,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -99,6 +103,7 @@ chmod -R u+w,go+r-w,a-s *
 cd ${PKGNAM}-${VERSION} || exit 1
 
 echo Building ...
+autoreconf -fi
 CXXFLAGS="$SLKCFLAGS" \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -111,7 +116,7 @@ CFLAGS="$SLKCFLAGS" \
   --disable-static \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 # If you get errors here, uninstall the present m17n-lib package first:
 make $NUMJOBS || make || exit 1
 make DESTDIR=$PKG install || exit 1
@@ -120,6 +125,7 @@ cd ..
 # Compile and install the m17n database:
 echo "Building the m17n database..."
 cd ${SHORTNAM}-db-${DBVERSION}
+autoreconf -fi
 CXXFLAGS="$SLKCFLAGS" \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -129,7 +135,7 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make DESTDIR=$PKG install || exit 1
 cd ..

@@ -54,6 +54,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -148,6 +149,25 @@ case $ARCH in
     ADD_NANO=1
     ADD_BRICKTICK=1
     ;;
+  loong64)
+    ADD_NETMODS=1
+    ADD_PCMCIAMODS=1
+    ADD_KMS=1
+    ADD_ALLMODS=1
+    ADD_MANPAGES=1
+    COMPRESS_MODS=1
+    COMPRESSSUFFIX=""
+    DISTRODIR=${DISTRODIR:-"slackware64"} # below this you find a,ap,d,..,y
+    LIBDIRSUFFIX="64"
+    RECOMPILE=1
+    SPLIT_INITRD=0
+    USBBOOT=1
+    EFIBOOT=1
+    VERBOSE=1
+    ADD_NETFIRMWARE=1     # Include the network card firmware
+    ADD_NANO=1
+    ADD_BRICKTICK=1
+    ;;
   *)
     ADD_NETMODS=1         # add network modules
     ADD_PCMCIAMODS=1      # add pcmcia modules
@@ -179,6 +199,8 @@ case $ARCH in
            ARCHQUADLET="" ;;
   x86_64)  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
            ARCHQUADLET="" ;;
+  loong64)  SLKCFLAGS="-O2 -fPIC"
+           ARCHQUADLET="" ;;
 esac
 
 # Here is where we take our kernel modules and dependency info from
@@ -209,6 +231,11 @@ case $ARCH in
   x86_64)
     # What kernel directories are in this installer?
     KERNELS[0]=generic.s
+    # The -extraversion (appended to the $KVER) for the KERNELS[*]:
+    KEXTRAV[0]=""
+    ;;
+  loong64)
+    KERNELS[0]=loongarch64
     # The -extraversion (appended to the $KVER) for the KERNELS[*]:
     KEXTRAV[0]=""
     ;;
@@ -735,6 +762,7 @@ cp $DROPBEARPATH/localoptions.h .
 
 autoconf || exit 1
 autoheader || exit 1
+cp -rf /usr/share/automake-1.17/config.* .
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -749,7 +777,7 @@ CXXFLAGS="$SLKCFLAGS" \
    --disable-wtmpx \
    --disable-pututline \
    --disable-pututxline \
-   --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+   --build=loongarch64-slackware-linux$ARCHQUADLET || exit 1
 
 # Build:
 make $SILENTMAKE $NUMJOBS PROGRAMS="$PROGS" MULTI="1" SCPPROGRESS="1" || exit 1
@@ -817,7 +845,7 @@ CFLAGS="$(echo $SLKCFLAGS | sed s/-O2/-Os/g)" \
   --enable-multibuffer \
   --enable-nanorc \
   --enable-utf8 \
-  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+  --build=loongarch64-slackware-linux$ARCHQUADLET || exit 1
 
 # Build:
 make $NUMJOBS || make || exit 1

@@ -44,6 +44,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -67,6 +68,10 @@ if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  SLKLDFLAGS="-L/usr/lib64"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   SLKLDFLAGS="-L/usr/lib64"
   LIBDIRSUFFIX="64"
 else
@@ -129,6 +134,28 @@ export PATH="$NEWPATH"
 
 # Fix path to mysql header:
 cat $CWD/patches/qt5.mysql.h.diff | patch -p1 --verbose || exit 1
+
+# LoongArch
+cat $CWD/patches/0001-qt6-webengine-configure-add-loongarch64-support.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/0002-qtwebengine-fix-loongarch64-define-because-chromium-.patch | patch -p1 --verbose || exit 1
+cat $CWD/patches/0003* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0004* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0005* | patch -p1 --verbose || exit 1
+#cat $CWD/patches/0006* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0007* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0008* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0009* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0011* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0012* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0013* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0014* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0015* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0016* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0017* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0018* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0019* | patch -p1 --verbose || exit 1
+
+cat $CWD/patches/0001-qtquick3dphysics-add-LoongArch-support.patch | patch -p1 --verbose || exit 1
 
 # If PulseAudio is not found, use the _alsa $TAG and disable it in the build:
 if ! pkg-config --exists libpulse 2>/dev/null ; then
@@ -208,7 +235,7 @@ cmake -S $(pwd) -B build-${PKGNAM} \
   -DFEATURE_pulseaudio="${USE_PULSEAUDIO}" \
   -DFEATURE_system_sqlite=ON \
   -DFEATURE_system_xcb_xinput=ON \
-  -DFEATURE_use_gold_linker=ON \
+  -DFEATURE_use_gold_linker=OFF \
   -DFEATURE_webengine_proprietary_codecs="${USE_CODECS}" \
   -DFEATURE_webengine_system_ffmpeg="${SYSTEM_FFMPEG}" \
   -DFEATURE_webengine_system_pulseaudio="${USE_PULSEAUDIO}" \

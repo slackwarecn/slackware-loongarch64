@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -60,6 +61,9 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -78,6 +82,8 @@ find . \
  -exec chmod 755 {} \+ -o \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
+
+cat $CWD/libffi-la64.patch | patch -p1 --verbose || exit 1
 
 # We will add --disable-exec-static-tramp until this issue is handled upstream:
 # https://gitlab.gnome.org/GNOME/gobject-introspection/-/merge_requests/283
@@ -102,9 +108,12 @@ CXXFLAGS="$SLKCFLAGS" \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
   --disable-static \
   --disable-exec-static-tramp \
-  --build=$ARCH-slackware-linux || exit 1
+  --enable-builddir=loongarch64-unknown-linux-gnu \
+  --build=loongarch64-slackware-linux || exit 1
+  #--enable-builddir=loongarch64-slackware-linux \
 
-make || exit 1
+#make || exit 1
+make
 make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:

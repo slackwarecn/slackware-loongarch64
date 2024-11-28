@@ -1,0 +1,180 @@
+From a9e3829452f8df6267890fb4f4c3d29bfa6a62ab Mon Sep 17 00:00:00 2001
+From: Huang Qiqi <huangqiqi@loongson.cn>
+Date: Mon, 15 Jan 2024 16:17:48 +0800
+Subject: [PATCH 21/21] LoongArch64: Upgrade the base code to v2.1.ROLLING
+
+Signed-off-by: Shi Pujin <shipujin@loongson.cn>
+---
+ dynasm/dasm_loongarch64.h | 17 ++++++-----------
+ src/lj_asm_loongarch64.h  | 10 +++++-----
+ src/vm_loongarch64.dasc   | 22 +++++++++++++++++++---
+ 3 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/dynasm/dasm_loongarch64.h b/dynasm/dasm_loongarch64.h
+index 7503e04e..6d232ece 100644
+--- a/dynasm/dasm_loongarch64.h
++++ b/dynasm/dasm_loongarch64.h
+@@ -69,7 +69,7 @@ struct dasm_State {
+   size_t lgsize;
+   int *pclabels;		/* PC label chains/pos ptrs. */
+   size_t pcsize;
+-  void **globals;		/* Array of globals (bias -10). */
++  void **globals;		/* Array of globals. */
+   dasm_Section *section;	/* Pointer to active section. */
+   size_t codesize;		/* Total size of all code sections. */
+   int maxsection;		/* 0 <= sectionidx < maxsection. */
+@@ -86,7 +86,6 @@ void dasm_init(Dst_DECL, int maxsection)
+ {
+   dasm_State *D;
+   size_t psz = 0;
+-  int i;
+   Dst_REF = NULL;
+   DASM_M_GROW(Dst, struct dasm_State, Dst_REF, psz, DASM_PSZ(maxsection));
+   D = Dst_REF;
+@@ -97,12 +96,7 @@ void dasm_init(Dst_DECL, int maxsection)
+   D->pcsize = 0;
+   D->globals = NULL;
+   D->maxsection = maxsection;
+-  for (i = 0; i < maxsection; i++) {
+-    D->sections[i].buf = NULL;  /* Need this for pass3. */
+-    D->sections[i].rbuf = D->sections[i].buf - DASM_SEC2POS(i);
+-    D->sections[i].bsize = 0;
+-    D->sections[i].epos = 0;  /* Wrong, but is recalculated after resize. */
+-  }
++  memset((void *)D->sections, 0, maxsection * sizeof(dasm_Section));
+ }
+ 
+ /* Free DynASM state. */
+@@ -122,7 +116,7 @@ void dasm_free(Dst_DECL)
+ void dasm_setupglobal(Dst_DECL, void **gl, unsigned int maxgl)
+ {
+   dasm_State *D = Dst_REF;
+-  D->globals = gl - 10;  /* Negative bias to compensate for locals. */
++  D->globals = gl;
+   DASM_M_GROW(Dst, int, D->lglabels, D->lgsize, (10+maxgl)*sizeof(int));
+ }
+ 
+@@ -147,6 +141,7 @@ void dasm_setup(Dst_DECL, const void *actionlist)
+   if (D->pclabels) memset((void *)D->pclabels, 0, D->pcsize);
+   for (i = 0; i < D->maxsection; i++) {
+     D->sections[i].pos = DASM_SEC2POS(i);
++    D->sections[i].rbuf = D->sections[i].buf - D->sections[i].pos;
+     D->sections[i].ofs = 0;
+   }
+ }
+@@ -364,7 +359,7 @@ int dasm_encode(Dst_DECL, void *buffer)
+ 	  break;
+ 	case DASM_REL_LG:
+ 	  if (n < 0) {
+-	    n = (int)((ptrdiff_t)D->globals[-n] - (ptrdiff_t)cp + 4);
++	    n = (int)((ptrdiff_t)D->globals[-n-10] - (ptrdiff_t)cp + 4);
+ 	    goto patchrel;
+ 	  }
+ 	  /* fallthrough */
+@@ -389,7 +384,7 @@ int dasm_encode(Dst_DECL, void *buffer)
+         }
+ 	  break;
+ 	case DASM_LABEL_LG:
+-	  ins &= 2047; if (ins >= 20) D->globals[ins-10] = (void *)(base + n);
++	  ins &= 2047; if (ins >= 20) D->globals[ins-20] = (void *)(base + n);
+ 	  break;
+ 	case DASM_LABEL_PC: break;
+ 	case DASM_IMM2: {
+diff --git a/src/lj_asm_loongarch64.h b/src/lj_asm_loongarch64.h
+index 932f0f2c..3ab9e4f3 100644
+--- a/src/lj_asm_loongarch64.h
++++ b/src/lj_asm_loongarch64.h
+@@ -994,9 +994,9 @@ static void asm_fload(ASMState *as, IRIns *ir)
+       }
+     }
+     ofs = field_ofs[ir->op2];
++    lj_assertA(!irt_isfp(ir->t), "bad FP FLOAD");
+   }
+   rset_clear(allow, idx);
+-  lj_assertA(!irt_isfp(ir->t), "bad FP FLOAD");
+   emit_lso(as, loongi, dest, idx, ofs, allow);
+ }
+ 
+@@ -1829,7 +1829,7 @@ static void asm_head_root_base(ASMState *as)
+ }
+ 
+ /* Coalesce BASE register for a side trace. */
+-static RegSet asm_head_side_base(ASMState *as, IRIns *irp, RegSet allow)
++static Reg asm_head_side_base(ASMState *as, IRIns *irp)
+ {
+   IRIns *ir = IR(REF_BASE);
+   Reg r = ir->r;
+@@ -1838,15 +1838,15 @@ static RegSet asm_head_side_base(ASMState *as, IRIns *irp, RegSet allow)
+     if (rset_test(as->modset, r) || irt_ismarked(ir->t))
+       ir->r = RID_INIT;  /* No inheritance for modified BASE register. */
+     if (irp->r == r) {
+-      rset_clear(allow, r);  /* Mark same BASE register as coalesced. */
++      return r;  /* Same BASE register already coalesced. */
+     } else if (ra_hasreg(irp->r) && rset_test(as->freeset, irp->r)) {
+-      rset_clear(allow, irp->r);
+       emit_move(as, r, irp->r);  /* Move from coalesced parent reg. */
++      return irp->r;
+     } else {
+       emit_getgl(as, r, jit_base);  /* Otherwise reload BASE. */
+     }
+   }
+-  return allow;
++  return RID_NONE;
+ }
+ 
+ /* -- Tail of trace ------------------------------------------------------- */
+diff --git a/src/vm_loongarch64.dasc b/src/vm_loongarch64.dasc
+index 6145e416..9458e7e2 100644
+--- a/src/vm_loongarch64.dasc
++++ b/src/vm_loongarch64.dasc
+@@ -2207,7 +2207,8 @@ static void build_subroutines(BuildCtx *ctx)
+   |  st.d BASE, L->base
+   |1:
+   |  ld.d LFUNC:RB, FRAME_FUNC(BASE)
+-  |  blt CRET1, r0, >9			// Check for error from exit.
++  |  sltui TMP0, CRET1, -LUA_ERRERR
++  |  beqz TMP0, >9
+   |  addu16i.d TMP3, r0, 0x59c0		// TOBIT = 2^52 + 2^51 (float).
+   |  slli.d MULTRES, CRET1, 3
+   |  cleartp LFUNC:RB
+@@ -2222,13 +2223,15 @@ static void build_subroutines(BuildCtx *ctx)
+   |  // Modified copy of ins_next which handles function header dispatch, too.
+   |  ld.w INS, 0(PC)
+   |  addi.d PC, PC, 4
++  |  addi.d CRET1, CRET1, 17
+   |  // Assumes TISNIL == ~LJ_VMST_INTERP == -1
+   |  .STXW TISNIL, DISPATCH, DISPATCH_GL(vmstate)
++  |  decode_RD RD, INS
++  |  beqz CRET1, >5
+   |  decode_OP TMP1, INS
+   |  decode_BC8b TMP1
+-  |  sltui TMP2, TMP1, BC_FUNCF*8
+   |  add.d TMP0, DISPATCH, TMP1
+-  |  decode_RD RD, INS
++  |  sltui TMP2, TMP1, BC_FUNCF*8
+   |  ld.d TMP3, 0(TMP0)
+   |  decode_RA RA, INS
+   |  beqz TMP2, >2
+@@ -2253,6 +2256,19 @@ static void build_subroutines(BuildCtx *ctx)
+   |  add.d RA, RA, BASE
+   |  jirl r0, TMP3, 0
+   |
++  |5:  // Dispatch to static entry of original ins replaced by BC_JLOOP.
++  |  .LDXD TMP0, DISPATCH, DISPATCH_J(trace)
++  |  add.d TMP0, TMP0, RD
++  |  ld.d TRACE:TMP2, 0(TMP0)
++  |  ld.w INS, TRACE:TMP2->startins
++  |  decode_OP TMP1, INS
++  |  decode_BC8b TMP1
++  |  add.d TMP0, DISPATCH, TMP1
++  |   decode_RD RD, INS
++  |  ld.d TMP4, GG_DISP2STATIC(TMP0)
++  |   decode_RA RA, INS
++  |  jirl r0, TMP4, 0
++  |
+   |9:  // Rethrow error from the right C frame.
+   |  sub.w CARG2, r0, CRET1		//TODO LA: sub.w  no trap
+   |  or CARG1, L, r0
+-- 
+2.45.2
+

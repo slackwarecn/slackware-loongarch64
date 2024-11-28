@@ -35,6 +35,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -72,6 +73,9 @@ if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  LIBDIRSUFFIX="64"
+  LINUX_GENERIC64="linux-generic64"
 fi
 
 # Patch openssl.cnf to remove useless FIPS documentation, and to provide
@@ -105,6 +109,7 @@ fi
 
 ./config \
  --prefix=/usr \
+ --libdir=lib${LIBDIRSUFFIX} \
  --openssldir=/etc/ssl \
  zlib \
  enable-camellia \
@@ -120,6 +125,7 @@ fi
  no-ec2m \
  no-sm2 \
  no-sm4 \
+ ${LINUX_GENERIC64} \
  shared
 
 make $NUMJOBS depend || make depend || exit 1

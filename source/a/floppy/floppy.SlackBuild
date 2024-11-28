@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -46,6 +47,9 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
 fi
 
 if [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O -fPIC -fcommon"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O -fPIC -fcommon"
   LIBDIRSUFFIX="64"
 else
@@ -66,13 +70,14 @@ zcat $CWD/fdutils-5.5-20081027.diff.gz | patch -p1 --verbose --backup --suffix=.
 zcat $CWD/fdutils.mediaprm.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 zcat $CWD/fdutils.glibc228.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 sed -i 's|<linux/ext2_fs.h>|<ext2fs/ext2_fs.h>|' src/fdmount.c
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 make || exit 1
 make install prefix=$PKG/usr exec_prefix=$PKG/usr bindir=$PKG/usr/bin \
   infodir=$PKG/usr/info mandir=$PKG/usr/man sysconfdir=$PKG/etc
@@ -84,6 +89,7 @@ chmod 644 $PKG/usr/doc/fdutils-$VERSION/*
 cd $TMP
 tar xvf $CWD/mtools-$MTOOLS.tar.?z*
 cd mtools-$MTOOLS
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -91,7 +97,7 @@ CFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --sysconfdir=/etc \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 make all || exit 1
 make install DESTDIR=$PKG || exit 1
 cat $CWD/mtools.conf > $PKG/etc/mtools.conf

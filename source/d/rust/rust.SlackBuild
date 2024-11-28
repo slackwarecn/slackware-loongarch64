@@ -26,16 +26,16 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rust
 SRCNAM="${PKGNAM}c"
-VERSION=${VERSION:-1.82.0}
+VERSION=${VERSION:-1.83.0}
 BUILD=${BUILD:-1}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 SYSTEM_LLVM=${SYSTEM_LLVM:-NO}
 
 # Bootstrap variables (might not be kept updated for latest Rust):
-RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.81.0}
-RSTAGE0_DIR=${RSTAGE0_DIR:-2024-09-05}
-CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.81.0}
+RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.82.0}
+RSTAGE0_DIR=${RSTAGE0_DIR:-2024-10-17}
+CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.82.0}
 CSTAGE0_DIR=${CSTAGE0_DIR:-$RSTAGE0_DIR}
 
 # Automatically determine the architecture we're building on:
@@ -45,6 +45,7 @@ if [ -z "$ARCH" ]; then
     i?86)    export ARCH=i686 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
+    loongarch64)    export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
@@ -97,6 +98,9 @@ if [ "$ARCH" = "i586" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   BARCH="armv7"
   TARCH="$BARCH"
+elif [ "$ARCH" = "loong64" ]; then
+  BARCH="loongarch64"
+  TARCH="$BARCH"
 else
   BARCH="$ARCH"
   TARCH="$ARCH"
@@ -125,6 +129,8 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 elif [ "$ARCH" = "armv7hl" ]; then
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
 fi
@@ -160,6 +166,7 @@ cat << EOF > config.toml
 [llvm]
 ccache = "/usr/bin/ccache"
 link-shared = true
+download-ci-llvm = false
 
 [build]
 build = "$BARCH-unknown-linux-$BABI"
@@ -201,6 +208,9 @@ llvm-config = "/usr/bin/llvm-config"
 llvm-config = "/usr/bin/llvm-config"
 
 [target.armv7-unknown-linux-gnueabihf]
+llvm-config = "/usr/bin/llvm-config"
+
+[target.loongarch64-unknown-linux-gnu]
 llvm-config = "/usr/bin/llvm-config"
 EOF
 fi

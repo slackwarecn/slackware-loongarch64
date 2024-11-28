@@ -1,0 +1,71 @@
+From 2aaf6e26a078b687f1ea952c5e8de0c527a58fa5 Mon Sep 17 00:00:00 2001
+From: Shi Pujin <shipujin.t@gmail.com>
+Date: Fri, 20 Dec 2024 07:58:26 +0000
+Subject: [PATCH] qtwebengine 6.7.0 libvpx fix for loongarch64.
+
+
+diff --git a/qtwebengine/src/3rdparty/chromium/third_party/libvpx/BUILD.gn b/qtwebengine/src/3rdparty/chromium/third_party/libvpx/BUILD.gn
+index 63116052d3..43cf778c67 100644
+--- a/qtwebengine/src/3rdparty/chromium/third_party/libvpx/BUILD.gn
++++ b/qtwebengine/src/3rdparty/chromium/third_party/libvpx/BUILD.gn
+@@ -48,7 +48,7 @@ if (current_cpu == "x86") {
+ } else if (current_cpu == "riscv64") {
+   cpu_arch_full = "generic"
+ } else if (current_cpu == "loong64") {
+-  cpu_arch_full = "loongarch"
++  cpu_arch_full = "generic"
+ } else {
+   cpu_arch_full = current_cpu
+ }
+@@ -262,16 +262,6 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
+   }
+ }
+ 
+-if (current_cpu == "loong64") {
+-  source_set("libvpx_loongarch_lsx") {
+-    configs -= [ "//build/config/compiler:chromium_code" ]
+-    configs += [ "//build/config/compiler:no_chromium_code" ]
+-    configs += [ ":libvpx_config" ]
+-    cflags = [ "-mlsx" ]
+-    sources = libvpx_srcs_loongarch_lsx
+-  }
+-}
+-
+ if (current_cpu == "arm" || current_cpu == "arm64") {
+   source_set("libvpx_intrinsics_neon") {
+     check_includes = false
+@@ -400,10 +390,6 @@ source_set("libvpx_x86_64_headers") {
+   sources = libvpx_srcs_x86_64_headers
+ }
+ 
+-source_set("libvpx_loongarch_headers") {
+-  sources = libvpx_srcs_loongarch_headers
+-}
+-
+ source_set("libvpx_arm_headers") {
+   sources = libvpx_srcs_arm_headers
+ }
+@@ -491,8 +477,8 @@ static_library("bundled_libvpx") {
+     sources = libvpx_srcs_generic
+     public_deps = [ ":libvpx_generic_headers" ]
+   } else if (current_cpu == "loong64") {
+-    sources = libvpx_srcs_loongarch
+-    public_deps = [ ":libvpx_loongarch_headers" ]
++    sources = libvpx_srcs_generic
++    public_deps = [ ":libvpx_generic_headers" ]
+   }
+ 
+   configs -= [ "//build/config/compiler:chromium_code" ]
+@@ -525,9 +511,6 @@ static_library("bundled_libvpx") {
+   if (current_cpu == "arm" && arm_assembly_sources != []) {
+     deps += [ ":libvpx_assembly_arm" ]
+   }
+-  if (current_cpu == "loong64") {
+-    deps += [ ":libvpx_loongarch_lsx" ]
+-  }
+ 
+   public_configs = [ ":libvpx_external_config" ]
+ }
+-- 
+2.41.0
+

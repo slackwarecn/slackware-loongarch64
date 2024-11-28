@@ -34,12 +34,13 @@ CODECS=${CODECS:-h264dec,h264enc,h265dec,h265enc,vc1dec,av1dec,av1enc,vp9dec}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Be sure this list is up-to-date:
-GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,i915,iris,crocus,zink,d3d12"
+GALLIUM_DRIVERS="nouveau,r300,r600,svga,radeonsi,swrast,virgl,zink"
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
        *) export ARCH=$( uname -m ) ;;
   esac
 fi
@@ -63,6 +64,10 @@ elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
   # Only supported on x86_64:
   INTELRT="-Dintel-rt=enabled"  
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS=" "
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -137,8 +142,8 @@ meson setup \
   -Drust_std=2021 \
   -Dosmesa=true \
   -Dgallium-drivers=$GALLIUM_DRIVERS \
-  -Dvulkan-drivers=amd,intel,intel_hasvk,swrast,virtio,nouveau \
-  -Dvulkan-layers=device-select,intel-nullhw,overlay \
+  -Dvulkan-drivers=amd,nouveau,swrast,virtio \
+  -Dvulkan-layers=device-select,overlay \
   -Dvideo-codecs="$CODECS" \
   -Dglvnd=enabled \
   -Dllvm=enabled \
@@ -190,13 +195,13 @@ fi
   fi
 )
 
-if [ "$BUILD_AMBER" = "YES" ]; then
-  . $CWD/mesa-amber.build
-fi
-
-if [ "$BUILD_DEMOS" = "YES" ]; then
-  . $CWD/mesa-demos.build
-fi
+#if [ "$BUILD_AMBER" = "YES" ]; then
+#  . $CWD/mesa-amber.build
+#fi
+#
+#if [ "$BUILD_DEMOS" = "YES" ]; then
+#  . $CWD/mesa-demos.build
+#fi
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

@@ -55,6 +55,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -76,6 +77,9 @@ fi
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "x86_64" ]; then
+  export SLKCFLAGS="-O2 -fPIC"
+  export LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   export SLKCFLAGS="-O2 -fPIC"
   export LIBDIRSUFFIX="64"
 else
@@ -109,7 +113,7 @@ zcat $CWD/ctags.use-conventional-unused-marker.patch.gz | patch -Esp1 --verbose 
 CFLAGS="$SLKCFLAGS" LDFLAGS="$SLKLDFLAGS" \
 ./configure \
   --prefix=/usr \
-  --build=$ARCH-slackware-linux
+  --build=loongarch64-slackware-linux
 make $NUMJOBS || make || exit 1
 mkdir -p $PKG/usr/bin
 cat ctags > $PKG/usr/bin/ctags
@@ -142,7 +146,7 @@ CFLAGS="$SLKCFLAGS" \
   --enable-cscope \
   --with-features=huge \
   --with-compiledby="<volkerdi@slackware.com>" \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 }
 
 cd $TMP/vim-$VERSION || exit 1

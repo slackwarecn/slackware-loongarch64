@@ -59,6 +59,7 @@ if [ -z "$ARCH" ]; then
     i?86)    export ARCH=i686 ;;
     armv7hl) export ARCH=$MARCH ;;
     arm*)    export ARCH=arm ;;
+    loongarch64)    export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *)       export ARCH=$MARCH ;;
   esac
@@ -68,6 +69,9 @@ if [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
   # --enable-runtime-cpudetection is supported only for x86, x86_64, and PPC
   EXTRACONFIGUREOPTIONS="--enable-runtime-cpudetection"
+elif [ "$ARCH" = "loong64" ]; then
+  LIBDIRSUFFIX="64"
+  EXTRACONFIGUREOPTIONS=""
 elif [ "$ARCH" = "i586" -o \
        "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
@@ -250,9 +254,14 @@ fi
 # fix building against samba 4:
 zcat $SRCDIR/include-samba-4.0.patch.gz | patch -p1 --verbose || exit 1
 
+# add LoongArch support
+cat $SRCDIR/MPlayer-add-LoongArch-support.diff | patch -p1 --verbose || exit 1
+
 echo Building ...
 # MPlayer wants to automatically determine compiler flags,
 # so we don't provide CFLAGS.
+
+
 ./configure \
   --prefix=/usr \
   --mandir=/usr/man \
@@ -282,6 +291,10 @@ fi
 if [ "$ARCH" = "i686" ]; then
   sed -i "s/march=native/march=pentium4/g" config.mak
   sed -i "s/mtune=native/mtune=generic/g" config.mak
+fi
+
+if [ "$ARCH" = "loong64" ]; then
+  sed -i "s/march=native/-mabi=lp64d -march=la464/g" config.mak
 fi
 
 make $NUMJOBS || exit 1

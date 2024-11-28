@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -63,6 +64,9 @@ elif [ "$ARCH" = "x86_64" ]; then
 elif [ "$ARCH" = "armv7hl" ]; then
   SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
   LIBDIRSUFFIX=""
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -86,6 +90,23 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+cat $CWD/patches/0001* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0002* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0003* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0004* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0005* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0006* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0007* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0008* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0009* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0010* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0011* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0012* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0013* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0014* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0015* | patch -p1 --verbose || exit 1
+cat $CWD/patches/0016* | patch -p1 --verbose || exit 1
+
 # Configure, build, and install:
 if [ ! -r configure ]; then
   if [ -x ./autogen.sh ]; then
@@ -104,7 +125,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --enable-static=no \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 

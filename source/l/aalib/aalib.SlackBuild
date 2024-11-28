@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -61,6 +62,9 @@ elif [ "$ARCH" = "s390" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -75,6 +79,7 @@ cp /usr/share/libtool/config/config.{guess,sub} .       # libtool-2.x
 sed -i -e "s# -lslang# -lslang1#" configure
 
 zcat $CWD/aalib-aclocal.patch.gz | patch -p1 --verbose || exit 1
+cat $CWD/fix-build.diff | patch -p1 --verbose || exit 1
 
 # Make sure ownerships and permissions are sane:
 chown -R root:root .
@@ -85,9 +90,10 @@ find . \
   -exec chmod 644 {} \+
 
 # GCC 14 "fix":
-SLKCFLAGS="$SLKCFLAGS -Wno-error=implicit-int"
+SLKCFLAGS="$SLKCFLAGS -Wno-error=implicit-int -Wno-error=return-mismatch -Wno-error=implicit-function-declaration"
 
 # Configure:
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -97,7 +103,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --program-prefix= \
   --program-suffix= \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1

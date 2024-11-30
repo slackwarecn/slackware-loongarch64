@@ -27,6 +27,7 @@ config etc/my.cnf.d/hashicorp_key_management.cnf.new
 config etc/my.cnf.d/mysql-clients.cnf.new
 config etc/my.cnf.d/s3.cnf.new
 config etc/my.cnf.d/server.cnf.new
+config etc/my.cnf.d/skip-ssl.cnf.new
 config etc/my.cnf.d/spider.cnf.new
 config etc/logrotate.d/mariadb.new
 config etc/default/mariadb.new

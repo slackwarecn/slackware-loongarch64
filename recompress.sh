@@ -301,6 +301,7 @@ gzip ./source/a/findutils/findutils.no.default.options.warnings.diff
 gzip ./source/a/kbd/doinst.sh
 gzip ./source/a/kbd/fix-euro2.patch
 gzip ./source/a/kbd/kbd-2.6.3-backspace-1.patch
+gzip ./source/a/less/lesspipe.sh
 gzip ./source/a/usb_modeswitch/device_reference.txt
 gzip ./source/a/usb_modeswitch/doinst.sh
 gzip ./source/a/bash/bash_manpages.patch
@@ -965,7 +966,6 @@ gzip ./source/x/liberation-fonts-ttf/doinst.sh
 gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
-gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff
 gzip ./source/x/hack-fonts-ttf/doinst.sh
 gzip ./source/x/fcitx5-gtk/doinst.sh
@@ -974,6 +974,7 @@ gzip ./source/x/wqy-zenhei-font-ttf/fixup-fontconfig-file.diff
 gzip ./source/x/wqy-zenhei-font-ttf/64-wqy-zenhei.conf
 gzip ./source/x/xdg-user-dirs/doinst.sh
 gzip ./source/x/ibus-libpinyin/doinst.sh
+gzip ./source/x/noto-emoji/doinst.sh
 gzip ./source/x/dejavu-fonts-ttf/doinst.sh
 gzip ./source/x/ibus-table/doinst.sh
 gzip ./source/x/ibus-anthy/doinst.sh

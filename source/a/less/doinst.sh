@@ -15,3 +15,9 @@ config() {
 config etc/profile.d/less.csh.new
 config etc/profile.d/less.sh.new
 
+# Link to a default lesspipe script. If you don't like this, relink to the
+# other version, or install anything else you like as /usr/bin/lesspipe.sh.
+# This package will leave it alone after that.
+if [ ! -e usr/bin/lesspipe.sh ]; then
+  ( cd usr/bin ; ln -sf lesspipe-volkerdi.sh lesspipe.sh )
+fi

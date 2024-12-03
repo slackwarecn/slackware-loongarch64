@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2020, 2021, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -20,7 +20,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This pulls down the full noto-font archive from github and then packages
+# This pulls down the noto-monthly-release from github and then packages
 # the languages and weights that are most commonly used as well as the
 # documentation into a "source" tarball. Note that since 100% of the contents
 # of this are placed into the package .txz, there's not really any reason to
@@ -28,11 +28,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-v2017-10-24-phase3-second-cleanup}
-PKGVER=${PKGVER:-$(echo $VERSION | cut -d v -f 2- | cut -d - -f 1-3 | tr -d -)}
-
-# If both .ttc and .ttf formats exist, which to prefer:
-GOOD_FORMAT=${GOOD_FORMAT:-ttf}
+VERSION=${VERSION:-2024.12.01}
 
 # Take non-Noto fonts?
 PACKAGE_NON_NOTO=${PACKAGE_NON_NOTO:-NO}
@@ -50,66 +46,83 @@ EXTRACT_DIR=$(mktemp -d)
 
 ( cd $EXTRACT_DIR
   # Does the source exist in $CWD? If so, just copy it here:
-  if [ -r $CWD/${VERSION}.tar.gz ]; then
-    cp -a $CWD/${VERSION}.tar.gz .
+  if [ -r $CWD/noto-monthly-release-${VERSION}.tar.gz ]; then
+    cp -a $CWD/noto-monthly-release-${VERSION}.tar.gz .
   else
     # Fetch the source:
-    lftpget https://github.com/googlefonts/noto-fonts/archive/${VERSION}.tar.gz
+    lftpget https://github.com/notofonts/notofonts.github.io/archive/refs/tags/noto-monthly-release-${VERSION}.tar.gz
   fi
-  OUTPUT_TIMESTAMP=$(tar tvvf ${VERSION}.tar.gz | head -n 1 | tr -d / | rev | cut -f 2,3 -d ' ' | rev)
-  tar xf ${VERSION}.tar.gz
-  rm ${VERSION}.tar.gz
+  OUTPUT_TIMESTAMP=$(tar tvvf noto-monthly-release-${VERSION}.tar.gz | head -n 1 | tr -d / | rev | cut -f 2,3 -d ' ' | rev)
+  tar xf noto-monthly-release-${VERSION}.tar.gz
+  rm noto-monthly-release-${VERSION}.tar.gz
   mv *oto* noto-fonts
+  chmod 755 .
+
+  # Save the documentation:
+  mkdir docs
+  ( cd noto-fonts
+    mv README* LICENSE* ../docs
+    mv fonts/LICENSE ../docs/LICENSE.SIL
+  )
+
   # Remove the fonts listed in fonts-to-skip.txt:
   cat $CWD/fonts-to-skip.txt | while read line ; do
     if [ ! "$(echo $line | cut -b 1)" = "#" ]; then
       RMFONT="$(echo $line | tr -d " ")"
-      rm -f --verbose noto-fonts/*hinted/NotoSans${RMFONT}-*.*
-      rm -f --verbose noto-fonts/*hinted/NotoSerif${RMFONT}-*.*
+      rm -rf --verbose noto-fonts/fonts/NotoSans${RMFONT} noto-fonts/fonts/NotoSerif${RMFONT}
+    fi
+  done
+
+  # Remove unpackaged fonts:
+  rm -rf noto-fonts/fonts/*/unhinted/{otf,slim-variable-ttfi,variable,variable-ttf}
+  # Remove the fonts listed in fonts-to-skip.txt:
+  cat $CWD/fonts-to-skip.txt | while read line ; do
+    if [ ! "$(echo $line | cut -b 1)" = "#" ]; then
+      RMFONT="$(echo $line | tr -d " ")"
+      rm -f --verbose noto-fonts/fonts/NotoSans${RMFONT}-*.*
+      rm -f --verbose noto-fonts/fonts/NotoSerif${RMFONT}-*.*
     fi
   done
   # Remove UI fonts:
-  rm -f --verbose noto-fonts/*hinted/Noto{Sans,Serif}*UI-*.{ttc,ttf}
+  find noto-fonts/fonts -name "NotoS*UI-*.ttf" -exec rm -f "{}" \;
+  find noto-fonts/fonts -name "NotoS*UI-*.ttc" -exec rm -f "{}" \;
+  # Remove OTF fonts:
+  find noto-fonts/fonts -name otf -type d -exec rm -rf "{}" \;
+  # Remove full fonts:
+  find noto-fonts/fonts -name full -type d -exec rm -rf "{}" \;
+  # Remove googlefonts fonts:
+  find noto-fonts/fonts -name googlefonts -type d -exec rm -rf "{}" \;
   # Remove the unhinted font if a hinted version exists:
-  for hintedfont in noto-fonts/hinted/* ; do
-    rm -f --verbose noto-fonts/unhinted/$(basename $hintedfont)
-  done
-  # Remove duplicates:
-  if [ "$GOOD_FORMAT" = "ttc" ]; then
-    BAD_FORMAT="ttf"
-  else
-    BAD_FORMAT="ttc"
-  fi 
-  for file in noto-fonts/*hinted/*.${GOOD_FORMAT} ; do
-    rm -f --verbose noto-fonts/*hinted/$(basename $file .${GOOD_FORMAT}).${BAD_FORMAT}
+  for hintedfont in noto-fonts/fonts/*/hinted ; do
+    rm -rf --verbose "$(echo $hintedfont | sed "s/hinted/unhinted/g")"
   done
   if [ "$PACKAGE_UNHINTED_FONTS" = "NO" ]; then
-    rm -f --verbose noto-fonts/unhinted/*
+    rm -rf --verbose noto-fonts/fonts/*/unhinted
   fi
-  mkdir fonts
-  mv noto-fonts/unhinted/* fonts
-  mv noto-fonts/hinted/* fonts
   # Unless we selected to take non-Noto fonts (these are usually the ChromeOS
   # fonts), eliminate any fonts that do not begin with Noto:
   if [ "$PACKAGE_NON_NOTO" = "NO" ]; then
-    mkdir fonts-tmp
-    mv fonts/Noto* fonts-tmp
-    rm -rf --verbose fonts
-    mv fonts-tmp fonts
+    mkdir noto-fonts/fonts-tmp
+    mv noto-fonts/fonts/Noto* noto-fonts/fonts-tmp
+    rm -rf --verbose noto-fonts/fonts
+    mv noto-fonts/fonts-tmp noto-fonts/fonts
   fi
   if [ "$PACKAGE_UNCOMMON_WEIGHTS" = "NO" ]; then
-    rm -f --verbose fonts/*{Condensed,SemiBold,Extra}*.{ttc,ttf}
+    rm -f noto-fonts/fonts/*/*hinted/ttf/*{Condensed,SemiBold,Extra}*.{ttc,ttf}
   fi
-  mkdir docs
-  mv noto-fonts/{FAQ*,LICENSE*,NEWS*,README*,issue_*} docs
-  rm -r noto-fonts
+  # Move what remains to a common output directory:
+  mkdir fonts
+  mv --verbose noto-fonts/fonts/*/unhinted/ttf/* fonts
+  mv --verbose noto-fonts/fonts/*/hinted/ttf/* fonts
+  # Erase archive residue:
+  rm -rf noto-fonts
   # Fix permissions:
   find . -type f -exec chmod 644 {} \;
   # Create source archive:
-  rm -f $CWD/noto-fonts-subset-${PKGVER}.tar*
-  tar cvf $CWD/noto-fonts-subset-${PKGVER}.tar .
-  plzip -9 -v $CWD/noto-fonts-subset-${PKGVER}.tar
-  touch -d "$OUTPUT_TIMESTAMP" $CWD/noto-fonts-subset-${PKGVER}.tar.lz
+  rm -f $CWD/noto-fonts-subset-${VERSION}.tar*
+  tar cvf $CWD/noto-fonts-subset-${VERSION}.tar .
+  plzip -9 -v $CWD/noto-fonts-subset-${VERSION}.tar
+  touch -d "$OUTPUT_TIMESTAMP" $CWD/noto-fonts-subset-${VERSION}.tar.lz
 )
   
 # Cleanup:

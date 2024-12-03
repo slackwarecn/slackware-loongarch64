@@ -153,11 +153,6 @@ pushd qtwebengine
   cat $CWD/patches/qtwebengine-6.7.0-displaykey-header.patch | patch -p1 --verbose || exit 1
 popd
 
-# [PATCH] QQuickItemView: fix crash with zero-size SwipeView that uses Repeater
-pushd qtdeclarative
-  cat $CWD/patches/861a7921ed7833a90f77b5fca436c789a4f9517c.patch | patch -p1 --verbose || exit 1
-popd
-
 # Previously we didn't have a protobuf package in Slackware.
 # Now that we do, it's apparently too new to use with Qt6, so let's just
 # disable it to get the same features that we previously did.
@@ -175,6 +170,10 @@ sed -e "s|^\(QMAKE_CFLAGS_RELEASE.*\)|\1 ${SLKCFLAGS}|" \
   -i qtbase/mkspecs/common/gcc-base.conf || exit 1
 sed -e "s|^\(QMAKE_LFLAGS_RELEASE.*\)|\1 ${SLKLDFLAGS}|" \
   -i qtbase/mkspecs/common/g++-unix.conf || exit 1
+
+# As SBOM generation is failing with 6.8.1 (and was newly changed to be ON by
+# default, we'll turn it OFF. But we should test in the future to see if it
+# starts to work.
 
 export CFLAGS="$SLKCFLAGS"
 export CXXFLAGS="$SLKCFLAGS"
@@ -216,6 +215,7 @@ cmake -S $(pwd) -B build-${PKGNAM} \
   -DFEATURE_quick3dxr_openxr:BOOL=OFF \
   -DFEATURE_system_openxr:BOOL=OFF \
   $PROTOBUF \
+  -DQT_GENERATE_SBOM=OFF \
   -DQT_BUILD_EXAMPLES=OFF || exit 1
 #cmake --build build-${PKGNAM} --parallel $NINJAJOBS || cmake --build build-${PKGNAM} || exit 1
 # Don't try again non-parallel... it just makes you wait a long time to see

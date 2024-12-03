@@ -966,6 +966,7 @@ gzip ./source/x/liberation-fonts-ttf/doinst.sh
 gzip ./source/x/xdg-utils/xdg-open.no.relative.paths.diff
 gzip ./source/x/xdg-utils/doinst.sh
 gzip ./source/x/ttf-indic-fonts/doinst.sh
+gzip ./source/x/noto-fonts-ttf/doinst.sh
 gzip ./source/x/libinput/libinput.less.lag.complaining.diff
 gzip ./source/x/hack-fonts-ttf/doinst.sh
 gzip ./source/x/fcitx5-gtk/doinst.sh

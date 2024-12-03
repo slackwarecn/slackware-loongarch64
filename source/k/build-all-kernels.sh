@@ -229,7 +229,7 @@ for recipe in $RECIPES ; do
   # Update initrd:
   if [ "${UPDATE_INITRD}" = "YES" ]; then
     echo "Updating initrd with geninitrd..."
-    GENINITRD_SILENT=true /usr/sbin/geninitrd
+    /usr/sbin/geninitrd
   fi
 
   echo

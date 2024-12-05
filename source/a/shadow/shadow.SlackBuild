@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2005-2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,12 +24,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=shadow
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -49,14 +49,11 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-shadow
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -98,9 +95,6 @@ zcat $CWD/shadow.CVE-2005-4890.relax.diff.gz | patch -p1 --verbose || exit 1
 # Even if gethostname() returns the FQDN (long hostname), just display the
 # short version up to the first '.' on the login prompt:
 zcat $CWD/shadow.login.display.short.hostname.diff.gz | patch -p1 --verbose || exit 1
-
-cat 68a722760487d3537905d97d45e5fba189592022.patch | patch -p1 --verbose || exit 1
-cat a6f6da96f4898a34e5ed1475053075172f9915b2.patch | patch -p1 --verbose || exit 1
 
 # Add missing file:
 if [ ! -r man/login.defs.d/HOME_MODE.xml ]; then
@@ -165,10 +159,12 @@ mv $PKG/usr/sbin/nologin $PKG/sbin/nologin
 
 if [ ! -z "$PAM_OPTIONS" ]; then
   # Don't ship the login utilities. We'll be using the ones from util-linux:
-  for file in /bin/login /sbin/runuser /usr/bin/chfn /usr/bin/chsh \
-    /usr/man/man1/chfn.1.gz /usr/man/man1/chsh.1.gz /usr/man/man1/login.1.gz \
-    /usr/man/man1/runuser.1.gz ; do
+  for file in /bin/login /sbin/runuser /usr/bin/chfn /usr/bin/chsh ; do
     rm -f $PKG${file}
+  done
+  # Also remove the man pages for the above utilities:
+  for manpage in chfn.1 chsh.1 login.1 runuser.1 ; do
+    find $PKG/usr/man -name $manpage -exec rm -f "{}" \;
   done
   # Install config files in /etc/pam.d/. We'll use our own copies... I'm not
   # sure that I trust upstream enough to let them handle this stuff.

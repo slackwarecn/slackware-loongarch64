@@ -1,0 +1,93 @@
+From 4c065158927d7bacc5eb1e4f2491b1db93f1dc12 Mon Sep 17 00:00:00 2001
+From: Simon Ser <contact@emersion.fr>
+Date: Thu, 28 Nov 2024 16:54:47 +0100
+Subject: [PATCH] dri: revert INVALID modifier special-casing
+
+Commit 361f3622587e ("dri: Unify createImage and createImageWithModifiers")
+has introduced new behavior for drivers which don't support explicit
+format modifiers. Before this commit, INVALID was not special-cased
+and any call to dri_create_image() with one or more modifiers returned
+NULL. After this commit, INVALID gained a special meaning: it indicates
+that the implicit modifier is accepted by the caller. This is surprising
+and is an API break.
+
+This causes further API breaks: for instance, before this commit a BO
+created via gbm_bo_create_with_modifiers() was guaranteed to always
+return a non-INVALID modifier in gbm_bo_get_modifier().
+
+This is inconsistent with gbm_dri_surface_create(): that function
+treats INVALID as a bad entry in the modifier list, and fails if
+it's the only acceptable modifier.
+
+Additionally, drivers don't special-case INVALID and just ignore it
+if they see it in a modifier list. This causes more inconsistencies.
+For instance, let's say that a library user passes the modifier list
+{ INVALID, FOO } to GBM. If a driver supports explicit modifiers and
+doesn't support FOO for scanout, it'll return NULL. If a driver
+doesn't support explicit modifiers, the current logic would return
+a non-NULL BO with an INVALID modifier. This discrepency makes it
+harder to reason about the system: half of the API ignores INVALID,
+while the other half assumes INVALID indicates an implicit modifier.
+
+To fix these issues, revert to the behavior before the commit, and
+require use of the dedicated API without supplying any modifier for
+implicit modifiers.
+
+Signed-off-by: Simon Ser <contact@emersion.fr>
+Fixes: 361f3622587e ("dri: Unify createImage and createImageWithModifiers")
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/32396>
+(cherry picked from commit 105fcb9cfdb4fc28de99f9647ed3d370393058f0)
+---
+ .pick_status.json                |  2 +-
+ src/gallium/frontends/dri/dri2.c | 22 ++--------------------
+ 2 files changed, 3 insertions(+), 21 deletions(-)
+
+diff --git a/.pick_status.json b/.pick_status.json
+index 7df28ed34279b..954649af5bdbe 100644
+--- a/.pick_status.json
++++ b/.pick_status.json
+@@ -474,7 +474,7 @@
+         "description": "dri: revert INVALID modifier special-casing",
+         "nominated": true,
+         "nomination_type": 2,
+-        "resolution": 0,
++        "resolution": 1,
+         "main_sha": null,
+         "because_sha": "361f3622587e5bc452a62dbd671969b713273b79",
+         "notes": null
+diff --git a/src/gallium/frontends/dri/dri2.c b/src/gallium/frontends/dri/dri2.c
+index d8ee9536479eb..18baf444f82c7 100644
+--- a/src/gallium/frontends/dri/dri2.c
++++ b/src/gallium/frontends/dri/dri2.c
+@@ -1130,26 +1130,8 @@ dri_create_image(struct dri_screen *screen,
+    if (!map)
+       return NULL;
+ 
+-   if (count == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
+-      count = 0;
+-      modifiers = NULL;
+-   }
+-
+-   if (!pscreen->resource_create_with_modifiers && count > 0) {
+-      bool invalid_ok = false;
+-
+-      for (unsigned i = 0; i < _count; i++) {
+-         if (modifiers[i] == DRM_FORMAT_MOD_INVALID)
+-            invalid_ok = true;
+-      }
+-
+-      if (invalid_ok) {
+-         count = 0;
+-         modifiers = NULL;
+-      } else {
+-         return NULL;
+-      }
+-   }
++   if (!pscreen->resource_create_with_modifiers && count > 0)
++      return NULL;
+ 
+    if (pscreen->is_format_supported(pscreen, map->pipe_format, screen->target,
+                                     0, 0, PIPE_BIND_RENDER_TARGET))
+-- 
+GitLab
+

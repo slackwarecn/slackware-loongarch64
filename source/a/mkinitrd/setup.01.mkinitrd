@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #BLURB="Generate an initrd for the kernel"
 
 # If KERNEL is defined already, we'll use that.
@@ -26,6 +26,7 @@ if [ -z "$INSIDE_INSTALLER" ]; then
   DRACUT_OPTS=${DRACUT_OPTS:-"--force --hostonly"}
   AUTOGENERATE_INITRD=${AUTOGENERATE_INITRD:-true}
   AUTO_REMOVE_ORPHANED_INITRDS=${AUTO_REMOVE_ORPHANED_INITRDS:-true}
+  AUTO_UPDATE_GRUB=${AUTO_UPDATE_GRUB:-true}
   GENINITRD_DIALOG=${GENINITRD_DIALOG:-false}
   GENINITRD_COMMAND_OUTPUT=${GENINITRD_COMMAND_OUTPUT:-true}
 else # these are the defaults when called from the installer:
@@ -36,6 +37,7 @@ else # these are the defaults when called from the installer:
   DRACUT_OPTS="--force --hostonly"
   AUTOGENERATE_INITRD=true
   AUTO_REMOVE_ORPHANED_INITRDS=true
+  AUTO_UPDATE_GRUB=true
   GENINITRD_DIALOG=true
   GENINITRD_COMMAND_OUTPUT=false
 fi
@@ -169,4 +171,24 @@ if [ "$GENINITRD_INITRD_GZ_SYMLINK" = "true" ]; then
       echo "Created initrd.gz symlink: /boot/initrd.gz -> initrd-${KERNEL_VERSION}.img"
     fi
   )
+fi
+
+# If enabled in /etc/default/geninitrd, remove any orphaned initrds
+# after generating the initrd:
+if [ "$AUTO_REMOVE_ORPHANED_INITRDS" = "true" ]; then
+  if [ "$GENINITRD_COMMAND_OUTPUT" = "true" ]; then
+    chroot . /usr/sbin/remove-orphaned-initrds
+  else
+    chroot . /usr/sbin/remove-orphaned-initrds 1> /dev/null 2> /dev/null
+  fi
+fi
+
+if [ "$AUTO_UPDATE_GRUB" = "true" ]; then
+  if [ "$GENINITRD_COMMAND_OUTPUT" = "true" ]; then
+    # Filter out bogus warnings from libdevmapper that could be triggered
+    # by upgradepkg's use of flock:
+    chroot . /usr/sbin/update-grub |& grep -v "File descriptor"
+  else
+    chroot . /usr/sbin/update-grub 1> /dev/null 2> /dev/null
+  fi
 fi

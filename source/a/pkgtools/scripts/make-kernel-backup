@@ -40,6 +40,20 @@
 # You could point at /usr/src/linux/arch/x86/boot/bzImage for all this
 # script cares. The kernel modules do need to be installed first though.
 
+BUILD=${BUILD:-1}
+
+# If KERNEL_FILE is already set, it overrides what's in
+# /etc/default/make-kernel-backup:
+if [ ! -z "$KERNEL_FILE" ]; then
+  KERNEL_FILE_OVERRIDE=$KERNEL_FILE
+fi
+
+# If we were given a kernel file as a command-line parameter, that gets the
+# highest priority:
+if [ ! -z "$1" ]; then
+  KERNEL_FILE_OVERRIDE=$1
+fi
+
 # If /etc/default/make-kernel-backup exists, source it to set initial values
 # for for any of:
 # BUILD, KERNEL_FILE, BACKUP_NAME, and MAKE_SYMLINKS:
@@ -47,15 +61,12 @@ if [ -r /etc/default/make-kernel-backup ]; then
   . /etc/default/make-kernel-backup
 fi
 
-BUILD=${BUILD:-1}
-
-# If we don't have KERNEL_FILE set already, and we have $1, let's
-# assume that $1 is the kernel that we want to use:
-if [ -z "$KERNEL_FILE" -a ! -z "$1" ]; then
-  KERNEL_FILE=$1
+# If we have an override for the kernel file, use it:
+if [ ! -z "$KERNEL_FILE_OVERRIDE" ]; then
+  KERNEL_FILE=$KERNEL_FILE_OVERRIDE
 fi
 
-# This is the kernel to use (may be a symlink):
+# If we don't have KERNEL_FILE set by now, use this:
 KERNEL_FILE=${KERNEL_FILE:-/boot/vmlinuz-generic}
 
 # In case this is a symlink, find the real file:

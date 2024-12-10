@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=mkinitrd
 VERSION=${VERSION:-1.4.11}
 BB=1.37.0
-BUILD=${BUILD:-54}
+BUILD=${BUILD:-55}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -137,13 +137,16 @@ rm -f $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh.orig
 ( cd $PKG/sbin ; zcat $CWD/0007-kmod30.patch.gz | patch -p1 --verbose || exit 1) || exit 1
 # Bugfix for previous RAID partition patch:
 ( cd $PKG/usr/share/mkinitrd ; zcat $CWD/0008-fix-check-if-BASEDEV-is-a-partition-of-a-RAID-volume.patch.gz | patch -p1 --verbose || exit 1) || exit 1
-rm -f $PKG/sbin/mkinitrd.orig
+rm -f $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh.orig
 # Don't include the 99-nfs.rules on the initrd:
 ( cd $PKG/sbin ; zcat $CWD/0009-exclude-99-nfs.rules.patch.gz | patch -p1 --verbose || exit 1) || exit 1
 rm -f $PKG/sbin/mkinitrd.orig
 # Fix test for including JFS or XFS repair tools:
 ( cd $PKG/sbin ; zcat $CWD/0010-fix-test-for-jfs-xfs-repair-tools.patch.gz | patch -p1 --verbose || exit 1) || exit 1
 rm -f $PKG/sbin/mkinitrd.orig
+# Fix handling of -h -l -K options for LUKS and encrypted hibernation:
+( cd $PKG/usr/share/mkinitrd ; zcat $CWD/0011-fix-LUKS-handling.patch.gz | patch -p1 --verbose || exit 1) || exit 1
+rm -f $PKG/usr/share/mkinitrd/mkinitrd_command_generator.sh.orig
 
 mkdir -p $PKG/usr/man/man{5,8}
 cat $CWD/mkinitrd.conf.5 | gzip -9c > $PKG/usr/man/man5/mkinitrd.conf.5.gz

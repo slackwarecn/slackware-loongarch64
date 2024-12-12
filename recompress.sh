@@ -839,6 +839,7 @@ gzip ./source/l/qt5/patches/qt5.mysql.h.diff
 gzip ./source/l/qt5/patches/qt5-qtwebengine-gcc11.patch
 gzip ./source/l/qt5/doinst.sh
 gzip ./source/l/gd/gd.f4bc1f5c26925548662946ed7cfa473c190a104a.patch
+gzip ./source/l/cryfs/cryfs.versioneer.diff
 gzip ./source/l/cryfs/27587ea1acec5f939a31217f1c43953378f18821.patch
 gzip ./source/l/cryfs/041b5baea5a4efceff33df2f316646b47a1cd7c0.patch
 gzip ./source/l/cryfs/cryfs.gcc13.diff

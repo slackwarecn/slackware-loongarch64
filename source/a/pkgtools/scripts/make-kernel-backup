@@ -69,11 +69,20 @@ fi
 # If we don't have KERNEL_FILE set by now, use this:
 KERNEL_FILE=${KERNEL_FILE:-/boot/vmlinuz-generic}
 
-# In case this is a symlink, find the real file:
-KERNEL_FILE=$(readlink -f $KERNEL_FILE)
+# In case this is a symlink, get the real file:
+if [ -L "$KERNEL_FILE" ]; then
+  if [ ! -e "$KERNEL_FILE" ]; then
+    echo "error: $KERNEL_FILE is not a valid symlink."
+    exit 1
+  fi
+elif [ ! -e "$KERNEL_FILE" ]; then
+  echo "error: $KERNEL_FILE does not exist."
+  exit 1
+fi
+KERNEL_FILE="$(readlink -f $KERNEL_FILE)"
 
 # Is this a Linux kernel?
-if ! file $KERNEL_FILE | grep -q "Linux kernel" ; then
+if ! file "$KERNEL_FILE" | grep -q "Linux kernel" ; then
   echo "ERROR: $KERNEL_FILE does not appear to be a Linux kernel."
   exit 1
 fi

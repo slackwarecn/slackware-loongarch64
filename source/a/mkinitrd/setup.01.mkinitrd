@@ -66,11 +66,20 @@ if [ ! -r $KERNEL ]; then
 fi
 
 # In case this is a symlink, get the real file:
+if [ -L "$KERNEL" ]; then
+  if [ ! -e "$KERNEL" ]; then
+    echo "error: $KERNEL is not a valid symlink."
+    exit 1 
+  fi
+elif [ ! -e "$KERNEL" ]; then
+  echo "error: $KERNEL does not exist."
+  exit 1
+fi
 KERNEL="$(readlink -f $KERNEL)"
 
 # Find the kernel version:
 if [ -r $KERNEL ]; then
-  if file $KERNEL | grep -wq "Linux kernel" ; then
+  if file "$KERNEL" | grep -wq "Linux kernel" ; then
     KERNEL_VERSION=$(strings $KERNEL | grep '([^ ]*@[^ ]*) #' | cut -f1 -d' ')
   else
     echo "error: $KERNEL is not a Linux kernel."

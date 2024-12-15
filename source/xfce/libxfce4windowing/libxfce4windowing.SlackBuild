@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2012, 2013, 2015, 2017, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2012, 2018, 2020  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,7 +22,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=tumbler
+PKGNAM=libxfce4windowing
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -67,7 +67,7 @@ mkdir -p $TMP $PKG
 cd $TMP
 rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
-cd $PKGNAM-$VERSION || cd $PKGNAM-$PKGNAM-$VERSION || exit 1
+cd $PKGNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -75,10 +75,6 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
-
-if [ ! -x configure ]; then
-  ./autogen.sh
-fi
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -88,6 +84,8 @@ CFLAGS="$SLKCFLAGS" \
   --sysconfdir=/etc \
   --mandir=/usr/man \
   --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --enable-x11 \
+  --enable-wayland \
   --disable-static \
   --disable-debug \
   --build=$ARCH-slackware-linux || exit 1
@@ -98,6 +96,9 @@ make install DESTDIR=$PKG || exit 1
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Make sure shared libraries are executable:
+chmod 755 $PKG/usr/lib${LIBDIRSUFFIX}/lib*.so.*
 
 # Strip binaries:
 ( cd $PKG
@@ -131,7 +132,7 @@ cp -a \
   AUTHORS BUGS COMPOSITOR COPYING* FAQ HACKING INSTALL \
   NEWS NOTES README* THANKS TODO example.gtkrc-2.0 \
   $PKG/usr/doc/${PKGNAM}-$VERSION
-ln -s /usr/share/gtk-doc/html/tumbler/ $PKG/usr/doc/${PKGNAM}-$VERSION/html
+ln -s /usr/share/gtk-doc/html/libxfce4util/ $PKG/usr/doc/${PKGNAM}-$VERSION/html
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:

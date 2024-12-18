@@ -556,6 +556,7 @@ gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_th
 gzip ./source/xfce/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin-0.2.4-gtk3_theme.patch
 gzip ./source/xfce/xfce4-settings/xfce4-settings.theme.diff
 gzip ./source/xfce/xfce4-settings/xfce4-settings.xft.defaults.diff
+gzip ./source/xfce/Greybird/0001-Fix-label-styles-for-xfdesktop-4.19-338.patch
 gzip ./source/ap/mariadb/doinst.sh
 gzip ./source/ap/dash/doinst.sh
 gzip ./source/ap/hplip/0023-Fix-handling-of-unicode-filenames-in-sixext.py.patch

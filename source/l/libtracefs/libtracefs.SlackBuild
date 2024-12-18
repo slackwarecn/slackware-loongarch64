@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libtracefs
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -76,35 +76,51 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Configure, build, and install:
-export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
-mkdir meson-build
-cd meson-build
-meson setup \
-  --prefix=/usr \
-  --libdir=lib${LIBDIRSUFFIX} \
-  --libexecdir=/usr/libexec \
-  --bindir=/usr/bin \
-  --sbindir=/usr/sbin \
-  --datadir=/usr/share \
-  --includedir=/usr/include \
-  --mandir=/usr/man \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --buildtype=release \
-  .. || exit 1
-  "${NINJA:=ninja}" $NUMJOBS || exit 1
-  DESTDIR=$PKG $NINJA install || exit 1
-cd ..
+sed -i "s|\$(DOC_MAN3) \*.3 \*.m|\$(DOC_MAN3) \$(OUTPUT)\*.3 \$(OUTPUT)\*.m|g" \
+  Documentation/Makefile
+sed -i "s|install-%.3|\$(OUTPUT)install-%.3|g" \
+  Documentation/Makefile
+sed -i "s|install-%.1|\$(OUTPUT)install-%.1|g" \
+  Documentation/Makefile
+sed -i "s|\$(addprefix install-,\$(wildcard \$(OUTPUT)\*.3))|\$(patsubst \$(OUTPUT)%,\$(OUTPUT)install-%,\$(wildcard \$(OUTPUT)\*.3))|" \
+  Documentation/Makefile
+sed -i "s|\$(addprefix install-,\$(wildcard \$(OUTPUT)\*.1))|\$(patsubst \$(OUTPUT)%,\$(OUTPUT)install-%,\$(wildcard \$(OUTPUT)\*.1))|" \
+  Documentation/Makefile
+
+CFLAGS="$SLKCFLAGS" \
+make \
+  $NUMJOBS \
+  prefix=/usr \
+  V=1 \
+  DESTDIR=$PKG \
+  install || exit 1
+
+CFLAGS="$SLKCFLAGS" \
+make \
+  $NUMJOBS \
+  prefix=/usr \
+  V=1 \
+  sqlhist || exit 1
+mkdir -p $PKG/usr/bin
+install -m 755 bin/sqlhist $PKG/usr/bin/
+
+make \
+  $NUMJOBS \
+  prefix=/usr \
+  mandir=/usr/man \
+  htmldir=/usr/doc/$PKGNAM-$VERSION/html \
+  V=1 \
+  DESTDIR=$PKG \
+  install_doc || exit 1
+
+# The HTML docs just duplicate the man pages, so don't ship them:
+rm -rf $PKG/usr/doc/$PKGNAM-$VERSION/html
+
+# Drop static library
+rm -f $PKG/usr/lib$LIBDIRSUFFIX/libtracefs.a
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-
-if [ ! -d $PKG/usr/include/tracefs ]; then
-  # Symlink to the include directory:
-  ( cd $PKG/usr/include ; ln -sf libtracefs tracefs )
-fi
 
 # Compress manual pages:
 find $PKG/usr/man -type f -exec gzip -9 {} \+

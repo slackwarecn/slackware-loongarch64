@@ -2,7 +2,7 @@
 #
 # Copyright 1994, 1998, 1999  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2002, 2003  Slackware Linux, Inc, Concord, CA
-# Copyright 2007, 2008, 2011, 2013, 2018, 2020  Patrick Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007, 2008, 2011, 2013, 2018, 2020, 2024  Patrick Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -452,14 +452,28 @@ EOF
  LNXP="$(PROBE -l | grep "Linux$")" 
  LNXP="$(echo $LNXP | cut -f 1 -d ' ' | sort)"
  if [ ! "$LNXP" = "" ]; then
-  cat << EOF >> $T_PX/etc/lilo.conf
+
+  if [ -z "$INITRD" ]; then
+   cat << EOF >> $T_PX/etc/lilo.conf
 # Linux bootable partition config begins
 image = $KERNEL
   root = $ROOT_DEVICE
   label = Linux
-  read-only
+  read-only  # Partitions should be mounted read-only for checking
 # Linux bootable partition config ends
 EOF
+  else
+   cat << EOF >> $T_PX/etc/lilo.conf
+# Linux bootable partition config begins
+image = $KERNEL
+  initrd = $INITRD
+  root = $ROOT_DEVICE
+  label = Linux
+  read-only  # Partitions should be mounted read-only for checking
+# Linux bootable partition config ends
+EOF
+  fi
+
   echo "Linux    -  (Linux partition)" >> $T_PX/boot/boot_message.txt
  fi
 # DEAD CODE, BUT IN CASE OS/2 MAKES A COMEBACK!
@@ -664,18 +678,29 @@ if [ "$ROOT_DEVICE" = "" ]; then
   ROOT_DEVICE="$(mount | grep " on $T_PX " | cut -f 1 -d " " | head -n 1)"
  fi
 fi
+
 # Figure out where the kernel is:
 ARCHTYPE=i386
-if [ -r $T_PX/vmlinuz ]; then
-  KERNEL=/vmlinuz
+if [ -r $T_PX/boot/vmlinuz-generic ]; then
+  KERNEL=/boot/vmlinuz-generic
 elif [ -r $T_PX/boot/vmlinuz ]; then
   KERNEL=/boot/vmlinuz
 elif [ -r $T_PX/usr/src/linux/arch/$ARCHTYPE/boot/bzImage ]; then
   KERNEL=/usr/src/linux/arch/$ARCHTYPE/boot/bzImage
-elif [ -r $T_PX/usr/src/linux/arch/$ARCHTYPE/boot/zImage ]; then
-  KERNEL=/usr/src/linux/arch/$ARCHTYPE/boot/zImage
 else
-  exit 99 # no kernel?  guess you couldn't read.  bye bye.
+  echo "ERROR: could not find a Linux kernel."
+  echo "Tried: $T_PX/boot/vmlinuz-generic $T_PX/boot/vmlinuz $T_PX/usr/src/linux/arch/$ARCHTYPE/boot/bzImage"
+  exit 99
+fi
+
+# Figure out where the initrd is:
+if [ -r $T_PX/boot/initrd-generic.img ]; then
+  INITRD=/boot/initrd-generic.img
+elif [ -r $T_PX/boot/initrd.gz ]; then
+  INITRD=/boot/initrd.gz
+else
+  # Having an initrd is not mandatory.
+  unset INITRD
 fi
 
  # OK, now let's see if we should automate things:
@@ -965,7 +990,9 @@ SINGLE WORD." 11 60 2> $TMP/reply
      continue
     fi
     LABEL="$(cat $TMP/reply)"
-    cat << EOF >> $TMP/lilo.conf
+
+    if [ -z "$INITRD" ]; then
+     cat << EOF >> $TMP/lilo.conf
 # Linux bootable partition config begins
 image = $KERNEL
   root = $LINUX_PART
@@ -973,6 +1000,18 @@ image = $KERNEL
   read-only  # Partitions should be mounted read-only for checking
 # Linux bootable partition config ends
 EOF
+    else
+     cat << EOF >> $TMP/lilo.conf
+# Linux bootable partition config begins
+image = $KERNEL
+  initrd = $INITRD
+  root = $LINUX_PART
+  label = $LABEL
+  read-only  # Partitions should be mounted read-only for checking
+# Linux bootable partition config ends
+EOF
+    fi
+
    else
     dialog --title "CAN'T ADD LINUX PARTITION" --msgbox "You can't add \
 partitions unless you start over with a new LILO header." 6 60

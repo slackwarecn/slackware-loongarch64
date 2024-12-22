@@ -204,17 +204,23 @@ if [ "$RESCUE" = "" ]; then
 
     # Determine if we have to use a LUKS keyfile:
     if [ ! -z "$LUKSKEY" ]; then
-      mkdir  /mountkey
       KEYPART=$(echo $LUKSKEY |cut -f1 -d:)
+      KEYPATH=$(echo $LUKSKEY |cut -f2 -d:)
       KEYNAME=$(echo $KEYPART |cut -f2 -d=)
-      LUKSPATH="/mountkey$(echo $LUKSKEY |cut -f2 -d:)"
-      # Catch possible mount failure:
-      if blkid |grep "TYPE=\"vfat\"" |grep $KEYNAME 1>/dev/null 2>&1 ; then
-        MOUNTOPTS="-t vfat -o shortname=mixed"
+      if [ "$KEYPART" = "$KEYPATH" ]; then
+        # Lets assume that the key is already in the initrd:
+        LUKSPATH="$KEYPATH"
       else
-        MOUNTOPTS="-t auto"
+        mkdir  /mountkey
+        LUKSPATH="/mountkey$(echo $LUKSKEY |cut -f2 -d:)"
+        # Catch possible mount failure:
+        if blkid |grep "TYPE=\"vfat\"" |grep $KEYNAME 1>/dev/null 2>&1 ; then
+          MOUNTOPTS="-t vfat -o shortname=mixed"
+        else
+          MOUNTOPTS="-t auto"
+        fi
+        mount $MOUNTOPTS $(findfs $KEYPART) /mountkey 2>/dev/null
       fi
-      mount $MOUNTOPTS $(findfs $KEYPART) /mountkey 2>/dev/null
       # Check if we can actually use this file:
       if [ ! -f $LUKSPATH ]; then
         LUKSKEY=""

@@ -179,6 +179,11 @@ fi
 # Mount any additional filesystem types that haven't already been mounted:
 mount -a -v 2> /dev/null | grep -v -e "already mounted" -e "ignored" | cut -f 1 -d : | tr -d ' ' | while read dev ; do mount | grep "${dev} " ; done
 
+# Mount a tmpfs on the pkgtools tmp directory:
+if [ -d /var/lib/pkgtools/setup/tmp ]; then
+  mount -t tmpfs tmpfs /var/lib/pkgtools/setup/tmp -o mode=0700
+fi
+
 # Start the Control Script for automounter:
 if [ -x /etc/rc.d/rc.autofs ]; then
   /etc/rc.d/rc.autofs start

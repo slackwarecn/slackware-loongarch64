@@ -2378,13 +2378,11 @@ if [ -d usr/man ]; then
       man8/lvextend.8.bz2 \
       man8/lvremove.8.bz2 \
       man8/vgcfgrestore.8.bz2 \
-      man8/lvmconf.8.bz2 \
       man8/lvmdiskscan.8.bz2 \
       man8/lvmdump.8.bz2 \
       man8/vgcreate.8.bz2 \
       man8/vgscan.8.bz2 \
       man8/pvmove.8.bz2 \
-      man8/lvmchange.8.bz2 \
       man8/vgmknodes.8.bz2 \
       man8/fsadm.8.bz2 \
       man8/vgconvert.8.bz2 \
@@ -2403,7 +2401,7 @@ if [ -d usr/man ]; then
       man8/removepkg.8.bz2 \
       man8/pkgtool.8.bz2 \
       man8/mkfs.minix.8.bz2 \
-      man8/mkdosfs.8.bz2 \
+      man8/mkfs.fat.8.bz2 \
       man8/fdformat.8.bz2 \
       man1/grep.1.bz2 \
       man1/wc.1.bz2 \

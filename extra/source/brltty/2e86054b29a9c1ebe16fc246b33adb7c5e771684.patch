@@ -1,0 +1,36 @@
+From 2e86054b29a9c1ebe16fc246b33adb7c5e771684 Mon Sep 17 00:00:00 2001
+From: Dave Mielke <Dave@Mielke.cc>
+Date: Tue, 10 Dec 2024 13:05:18 -0500
+Subject: [PATCH] Tcl-8.6.15 has changed the TCL_PACKAGE_PATH delimiter from
+ spaces to a colon.
+
+---
+ Bindings/Tcl/bindings.m4 | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/Bindings/Tcl/bindings.m4 b/Bindings/Tcl/bindings.m4
+index edb59a72e..a30d1945e 100644
+--- a/Bindings/Tcl/bindings.m4
++++ b/Bindings/Tcl/bindings.m4
+@@ -51,8 +51,20 @@ fi
+ 
+ ${TCL_OK} && {
+    test -n "${TCL_PACKAGE_PATH}" && {
+-      for directory in ${TCL_PACKAGE_PATH}
++      directories="${TCL_PACKAGE_PATH}"
++
++      test "${directories#*:}" = "${directories}" && {
++         # There's no colon so it's an old-style (before tcl-8.6.15) path.
++         # Replace each sequence of one or more spaces with a single colon.
++         directories="${directories// /:}"
++      }
++
++      while test "${#directories}" -gt 0
+       do
++         directory="${directories%%:*}"
++         directories="${directories#*:}"
++         test "${#directory}" -eq 0 && continue
++
+          test `expr "${directory}" : '.*/lib'` -eq 0 || {
+             TCL_DIR="${directory}"
+             break

@@ -37,3 +37,9 @@ if [ -r etc/security/user_map.conf.new ]; then
   config etc/security/user_map.conf.new
 fi
 rm -f etc/security/user_map.conf.new
+
+# Back up obsolete "mysql" logrotate file to avoid conflict with "mariadb"
+# logrotate file:
+if [ -f etc/logrotate.d/mysql ]; then
+  mv etc/logrotate.d/mysql etc/logrotate.d/mysql.bak
+fi

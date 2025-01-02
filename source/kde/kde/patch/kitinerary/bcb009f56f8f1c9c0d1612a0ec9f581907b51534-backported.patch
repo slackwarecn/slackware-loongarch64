@@ -1,0 +1,35 @@
+--- ./src/lib/pdf/pdfdocument.cpp.orig	2025-01-02 12:47:22.718050460 -0600
++++ ./src/lib/pdf/pdfdocument.cpp	2025-01-02 12:53:04.606058108 -0600
+@@ -38,13 +38,14 @@
+     m_doc->m_popplerDoc->processLinks(&device, m_pageNum + 1);
+     device.finalize();
+     const auto pageRect = m_doc->m_popplerDoc->getPage(m_pageNum + 1)->getCropBox();
++#if KPOPPLER_VERSION < QT_VERSION_CHECK(25, 1, 0)
+     std::unique_ptr<GooString> s(device.getText(pageRect->x1, pageRect->y1, pageRect->x2, pageRect->y2));
+-
+-#if KPOPPLER_VERSION >= QT_VERSION_CHECK(0, 72, 0)
+     m_text = QString::fromUtf8(s->c_str());
+ #else
+-    m_text = QString::fromUtf8(s->getCString());
++    const auto s = device.getText(pageRect->x1, pageRect->y1, pageRect->x2, pageRect->y2);
++    m_text = QString::fromUtf8(s.c_str());
+ #endif
++
+     m_images = std::move(device.m_images);
+     for (auto it = m_images.begin(); it != m_images.end(); ++it) {
+         (*it).d->m_page = this;
+@@ -109,11 +110,12 @@
+ 
+     TextOutputDev device(nullptr, false, 0, false, false);
+     d->m_doc->m_popplerDoc->displayPageSlice(&device, d->m_pageNum + 1, 72, 72, 0, false, true, false, -1, -1, -1, -1);
++#if KPOPPLER_VERSION <QT_VERSION_CHECK(25, 1, 0)
+     std::unique_ptr<GooString> s(device.getText(l, t, r, b));
+-#if KPOPPLER_VERSION >= QT_VERSION_CHECK(0, 72, 0)
+     return QString::fromUtf8(s->c_str());
+ #else
+-    return QString::fromUtf8(s->getCString());
++    const auto s = device.getText(l, t, r, b);
++    return QString::fromUtf8(s.c_str());
+ #endif
+ }
+ 

@@ -880,6 +880,7 @@ gzip ./source/xap/xgames/spider.gcc10.diff
 gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/seamonkey/doinst.sh
+gzip ./source/xap/seamonkey/double_t.x86.diff
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
 gzip ./source/xap/gucharmap/doinst.sh
 gzip ./source/xap/windowmaker/WindowMaker.noopensusemenu.diff

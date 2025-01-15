@@ -809,7 +809,6 @@ gzip ./source/l/avahi/doinst.sh
 gzip ./source/l/libcanberra/libcanberra-0.30-wayland-1.patch
 gzip ./source/l/colord/doinst.sh
 gzip ./source/l/adwaita-icon-theme-legacy/doinst.sh
-gzip ./source/l/polkit/dont-set-wheel-group-as-admin.diff
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/id3lib/patches/id3lib.mkstemp.patch
 gzip ./source/l/id3lib/patches/id3lib.vbr_stack_smash.patch

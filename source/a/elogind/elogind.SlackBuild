@@ -30,7 +30,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -48,21 +48,12 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
-  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -116,8 +107,14 @@ cat $CWD/elogind.nobody.nogroup.99.99.diff | patch -p1 --verbose || exit 1
 # for you, but we'll continue to default to deep for now.
 #
 # Don't prefer s2idle, as it doesn't seem to work:
-cat $CWD/11-prefer-deep-suspend.patch | patch -p1 --verbose || exit 1
-cat $CWD/12-default-deep-suspend.patch | patch -p1 --verbose || exit 1
+# This one is applied upstream as of elogind-255.17:
+#cat $CWD/11-prefer-deep-suspend.patch | patch -p1 --verbose || exit 1
+# This one is also applied upstream as of elogind-255.17:
+#cat $CWD/12-default-deep-suspend.patch | patch -p1 --verbose || exit 1
+
+# Looks like "See sleep.conf(5) for details." was copied from the other config
+# file when it should have referred to logind.conf(5):
+cat $CWD/login-10-elogind.conf.manpage.fix.patch | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"
@@ -164,6 +161,7 @@ ln -sf /usr/bin/loginctl $PKG/bin/loginctl
 
 # Make sure we do not overwrite the user's customizations:
 mv -i $PKG/etc/elogind/logind.conf{,.new}
+mv -i $PKG/etc/elogind/logind.conf.d/10-elogind.conf{,.new}
 mv -i $PKG/etc/elogind/sleep.conf{,.new}
 mv -i $PKG/etc/elogind/sleep.conf.d/10-elogind.conf{,.new}
 mv -i $PKG/etc/pam.d/elogind-user{,.new}
@@ -219,7 +217,7 @@ if [ -r CHANGES ]; then
 fi
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG

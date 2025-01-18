@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright 2021-2022  Heinz Wiesinger, Amsterdam, The Netherlands
-# Copyright 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2023, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sof-firmware
 VERSION=${VERSION:-$(echo sof-bin-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev | cut -d v -f 2)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 ARCH=noarch
 
@@ -55,33 +55,19 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-mkdir -p $PKG/lib/firmware/intel/{sof/community,sof-tplg}
+# The firmware directory must exist:
+mkdir -p $PKG/lib/firmware/intel
 
-# install debug files
-for i in sof/*.ldc; do
-  mv $i $PKG/lib/firmware/intel/sof/
-done
+# The tools directory (which we won't keep anyway) does not need to exist,
+# but let's make it anyway so it won't turn into an error someday:
+mkdir -p $PKG/tools
 
-# install un-signed binaries
-for i in sof/*.ri; do
-  mv $i $PKG/lib/firmware/intel/sof/
-done
+# Run the included install script:
+FW_DEST=$PKG/lib/firmware/intel TOOLS_DEST=$PKG/tools ./install.sh
 
-# install intel-signed binaries
-# This will overwrite some of the un-signed binaries installed before
-for i in sof/intel-signed/*.ri; do
-  mv $i $PKG/lib/firmware/intel/sof/
-done
-
-# install community-signed binaries
-for i in sof/community/*.ri; do
-  mv $i $PKG/lib/firmware/intel/sof/community/
-done
-
-# install topology files
-for i in sof-tplg/*; do
-  mv $i $PKG/lib/firmware/intel/sof-tplg/
-done
+# We don't currently package the tools, which seem intended for SOF
+# developers:
+rm -rf $PKG/tools
 
 # SST topology files (not SOF related, but it's a Intel hw support
 # and this package seems a good place to distribute them

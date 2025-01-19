@@ -159,7 +159,7 @@ gzip ./source/a/nut/doinst.sh
 gzip ./source/a/sysklogd/doinst.sh
 gzip ./source/a/tar/tar.nolonezero.diff
 gzip ./source/a/pam/patches/pam.etc.environment.better.comments.diff
-gzip ./source/a/pam/fedora-patches/pam-1.6.0-redhat-modules.patch
+gzip ./source/a/pam/fedora-patches/pam-1.7.0-redhat-modules.patch
 gzip ./source/a/pam/fedora-patches/pam-1.5.3-unix-nomsg.patch
 gzip ./source/a/pam/doinst.sh
 gzip ./source/a/glibc-zoneinfo/doinst.sh

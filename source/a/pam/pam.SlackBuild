@@ -1,7 +1,7 @@
 #!/bin/sh
  
 # Copyright 2010  Vincent Batts, vbatts@hashbangbash.com
-# Copyright 2010, 2011, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2010, 2011, 2024, 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -32,7 +32,7 @@ BUILD=${BUILD:-1}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -49,14 +49,11 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -99,48 +96,41 @@ done
 
 # Patches from the Fedora SRPM:
 zcat $CWD/fedora-patches/pam-1.5.3-unix-nomsg.patch.gz | patch -p1 --verbose || exit 1
-zcat $CWD/fedora-patches/pam-1.6.0-redhat-modules.patch.gz | patch -p1 --verbose || exit 1
+zcat $CWD/fedora-patches/pam-1.7.0-redhat-modules.patch.gz | patch -p1 --verbose || exit 1
 
 # Improve the comments in /etc/environment:
 zcat $CWD/patches/pam.etc.environment.better.comments.diff.gz | patch -p1 --verbose || exit 1
 
-autoreconf -ivf || exit 1
-
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/ \
   --libdir=/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
-  --includedir=/usr/include/security \
-  --enable-securedir=/lib${LIBDIRSUFFIX}/security \
-  --datarootdir=/usr/share \
+  --includedir=/usr/include \
   --localstatedir=/var \
+  --localedir=/usr/share/locale \
   --mandir=/usr/man \
-  --docdir=/usr/doc/$PKGNAM-$VERSION \
-  --disable-regenerate-docu \
-  --disable-audit \
-  --disable-prelude \
-  --disable-rpath \
-  --disable-selinux \
-  --disable-static \
-  --enable-lastlog \
-  --build=$ARCH-slackware-linux || exit 1
+  --buildtype=release \
+  -Dsecuredir=/lib${LIBDIRSUFFIX}/security \
+  -Dpam_lastlog=enabled \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-# Make these man pages or the build falls over later
-xmlto man modules/pam_faillock/faillock.8.xml -o modules/pam_faillock/
-xmlto man modules/pam_faillock/pam_faillock.8.xml -o modules/pam_faillock/
-xmlto man modules/pam_pwhistory/pwhistory_helper.8.xml -o modules/pam_pwhistory/
+# Relocate some documentation:
+mkdir -p $PKG/usr/doc/pam-$VERSION
+mv $PKG/share/doc/Linux-PAM/* $PKG/usr/doc/pam-$VERSION
+rm -r $PKG/share
 
-make -C po update-gmo
-make $NUMJOBS || make || exit 1
-make install DESTDIR=$PKG || exit 1
-
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# The ones in /lib${LIBDIRSUFFIX}/security can also go:
-rm -f $PKG/lib${LIBDIRSUFFIX}/security/*.la
+# Thanks to BLFS for the manpages:
+( cd $PKG
+  tar xf $CWD/${SRCNAM}-${VERSION}-manpages.tar.?z || exit 1
+) || exit 1
 
 # Add extra symlinks added by pam.spec:
 ( cd $PKG/lib${LIBDIRSUFFIX}/security

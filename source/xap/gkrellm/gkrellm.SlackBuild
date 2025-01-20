@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2016, 2017, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2016, 2017, 2018, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -25,12 +25,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=gkrellm
 VERSION=${VERSION:-$(echo $PKGNAM-2*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 PKGVER=$VERSION
-BUILD=${BUILD:-4}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -77,50 +77,57 @@ find . \
   -exec chmod 644 {} \+
 
 make $NUMJOBS \
-  INSTALLROOT=/usr \
+  PREFIX=/usr \
   INSTALLDIR=/usr/bin \
   INCLUDEDIR=/usr/include \
+  CFGDIR=/etc \
   MANDIR=/usr/man/man1 \
   LOCALEDIR=/usr/share/locale \
   PKGCONFIGDIR=/usr/lib${LIBDIRSUFFIX}/pkgconfig || exit 1
 
 # We will need this installed to build plugins, so...
 make install \
-  INSTALLROOT=/usr \
+  PREFIX=/usr \
   INSTALLDIR=/usr/bin \
   INCLUDEDIR=/usr/include \
+  CFGDIR=/etc \
   MANDIR=/usr/man/man1 \
   LOCALEDIR=/usr/share/locale \
   PKGCONFIGDIR=/usr/lib${LIBDIRSUFFIX}/pkgconfig || exit 1
 
 # Install to the $PKG dir:
 make install \
-  INSTALLROOT=$PKG/usr \
+  PREFIX=$PKG/usr \
   INSTALLDIR=$PKG/usr/bin \
   INCLUDEDIR=$PKG/usr/include \
+  CFGDIR=$PKG/etc \
   MANDIR=$PKG/usr/man/man1 \
   LOCALEDIR=$PKG/usr/share/locale \
   PKGCONFIGDIR=$PKG/usr/lib${LIBDIRSUFFIX}/pkgconfig || exit 1
 
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/gkrellm2/plugins
 
+mv $PKG/etc/gkrellmd.conf $PKG/etc/gkrellmd.conf.new
+
 mkdir -p $PKG/usr/doc/gkrellm-$VERSION
 cp -a \
-  COPYRIGHT CREDITS INSTALL README* Themes.html \
+  CHANGELOG* COPYING* COPYRIGHT* CREDITS* INSTALL* README* \
+  *.html \
   $PKG/usr/doc/gkrellm-$VERSION
 
-# If there's a ChangeLog, installing at least part of the recent history
+# If there's a CHANGELOG.md, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
+if [ -r CHANGELOG.md ]; then
   DOCSDIR=$(echo $PKG/usr/doc/gkrellm-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
+  cat CHANGELOG.md | head -n 1000 > $DOCSDIR/CHANGELOG.md
+  touch -r CHANGELOG.md $DOCSDIR/CHANGELOG.md
 fi
 
 gzip -9 $PKG/usr/man/man?/*.?
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 
 # Add optional plugin(s):
 # The countdown plugin is needed to track X-Day.  ;-)

@@ -1,0 +1,62 @@
+CPU microcode is a mechanism to correct certain errata in existing
+systems. The normal preferred method to apply microcode updates is
+using the system BIOS, but for a subset of Intel processors this
+can be done at runtime using the operating system. This package
+contains those processors that support OS loading of microcode
+updates.
+
+Linux can update processor microcode very early in the kernel boot
+sequence. In situations when the BIOS update isn't available, early
+loading is the next best alternative to updating processor microcode.
+Microcode states are reset on a power reset, hence it is required to
+be updated every time during the boot process.
+
+Loading microcode using the initrd method is recommended so that
+the microcode is loaded at the earliest time for best coverage.
+Systems that cannot tolerate downtime may use the late reload
+method to update a running system without a reboot.
+
+This SlackBuild repackages the official Intel microcode archive.
+
+NOTES:
+1. microcode_ctl utility is no longer supported.
+
+2. Microcodes with the file names as expected by the Linux kernel
+   firmware loader are placed under /lib/firmware/intel-ucode
+   directory. The correct microcode is uploaded when the Intel
+   microcode driver kernel's module is loaded.
+
+3. An early initramfs archive: /boot/intel-ucode.cpio is created.
+   This archive can be prepended to the regular initramfs to allow
+   the kernel to update the processor microcode early during boot.
+
+   For example, on systems using syslinux, this can be done with
+   a config line that reads something like that:
+
+     INITRD /boot/intel-ucode.cpio,/boot/initrd-generic.gz
+
+4. Microcodes for some processors require special attention. To find
+   out if you're affected, read the release notes for the particular
+   microcode release. The release notes file (releasenote) can be
+   found in the microcode tarball file.
+
+   To include these special microcodes files, run the script like that:
+
+   $ INCLUDE_UCODE_WITH_CAVEATS=yes ./intel-microcode.SlackBuild
+
+5. I updated the package and my microcode has been reverted to
+   the older revision. What is wrong? What should I do?
+
+   As noted by Ed on Slackbuilds-users mailing list:
+   https://lists.slackbuilds.org/pipermail/slackbuilds-users/2020-April/024262.html
+
+   Intel has removed microcode updates for some older CPUs.
+   The updates are no longer present in the tarball officially
+   released by Intel.
+
+   If you find yourself in this situation, you can either stick
+   to the older version of the package that works for you or you can
+   let me know and I might include that particular microcode in
+   the package. In the latter case, you'll need to provide me with
+   the details on the exact microcode file in question, specifically
+   by providing the exact file name, for example `06-0b-04`.

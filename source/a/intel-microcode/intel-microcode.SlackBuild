@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# Copyright 2022  Patrick J. Volkerding, Sebeka, MN, USA
+# Slackware build script for intel-microcode
+
+# Copyright 2024 Andrzej Telszewski, Koszalin
+# Copyright 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -22,22 +25,12 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=python-importlib_metadata
-SRCNAM=importlib_metadata
-VERSION=${VERSION:-$(echo ${SRCNAM}-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=intel-microcode
+SRCNAM=Intel-Linux-Processor-Microcode-Data-Files-microcode
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
+ARCH=noarch
 
-if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) ARCH=i686 ;;
-    arm*) ARCH=arm ;;
-       *) ARCH=$( uname -m ) ;;
-  esac
-fi
-
-# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
-# the name of the created package would be, and then exit. This information
-# could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
@@ -49,33 +42,38 @@ PKG=$TMP/package-$PKGNAM
 rm -rf $PKG
 mkdir -p $TMP $PKG
 cd $TMP
-rm -rf $SRCNAM-$VERSION
+
+rm -rf $PKGNAM-$VERSION
 tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
 cd $SRCNAM-$VERSION || exit 1
 
 chown -R root:root .
-find -L . \
- \( -perm 777 -o -perm 775 -o -perm 750 -o -perm 711 -o -perm 555 \
-  -o -perm 511 \) -exec chmod 755 {} \+ -o \
- \( -perm 666 -o -perm 664 -o -perm 640 -o -perm 600 -o -perm 444 \
-  -o -perm 440 -o -perm 400 \) -exec chmod 644 {} \+
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
 
-unshare -n python3 -m build --wheel --no-isolation || exit 1
+mkdir -p $PKG/lib/firmware
+cp -a intel-ucode $PKG/lib/firmware
 
-python3 -m installer --destdir "$PKG" dist/*.whl || exit 1
+if [ ${INCLUDE_UCODE_WITH_CAVEATS:-no} = yes ]; then
+  if [ -d intel-ucode-with-caveats ]; then
+    cp -a intel-ucode-with-caveats/* $PKG/lib/firmware/intel-ucode
+  fi
+fi
+
+# The "list" file is not always present in the upstream tarball.
+# For consistency, let's ensure it's never present in the package.
+
+rm -rf $PKG/lib/firmware/intel-ucode/list
+
+mkdir -p $PKG/boot
+iucode_tool -v --write-earlyfw=$PKG/boot/intel-ucode.img \
+  $PKG/lib/firmware/intel-ucode || exit 1
 
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a *.rst LICENSE* NOTICE PKG-INFO \
-  $PKG/usr/doc/$PKGNAM-$VERSION
-find $PKG/usr/doc/$PKGNAM-$VERSION -type f -exec chmod 0644 {} \+
-
-# If there's a HISTORY.rst, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r HISTORY.rst ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat HISTORY.rst | head -n 1000 > $DOCSDIR/HISTORY.rst
-  touch -r HISTORY.rst $DOCSDIR/HISTORY.rst
-fi
+find . -type f -maxdepth 1 -exec cp -a "{}" $PKG/usr/doc/$PKGNAM-$VERSION \;
 
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc

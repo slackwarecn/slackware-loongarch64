@@ -8,7 +8,7 @@ fi
 export CWD SLKCFLAGS NUMJOBS PKG
 ( cd $TMP
   rm -rf mesa-demos-$DEMOVERS
-  tar xvf $CWD/mesa-demos-$DEMOVERS.tar.?z* || exit 1
+  tar xvf $CWD/mesa-demos-$DEMOVERS.tar.?z || exit 1
   cd mesa-demos-$DEMOVERS
   chown -R root:root .
   find . \
@@ -18,16 +18,29 @@ export CWD SLKCFLAGS NUMJOBS PKG
     -exec chmod 644 {} \+
   # Architecture-specific settings can be configured in the mesa.SlackBuild
   # within the variable 'SLK_MESADEMOS_CONF_OPTS'
-  CFLAGS="$SLKCFLAGS" \
-  ./configure \
-    $SLK_MESADEMOS_CONF_OPTS \
-    --enable-autotools \
+  export CFLAGS="$SLKCFLAGS"
+  export CXXFLAGS="$SLKCFLAGS"
+  mkdir meson-build
+  cd meson-build
+  meson setup \
     --prefix=/usr \
-    --build=$ARCH-slackware-linux || exit 1
-  make $NUMJOBS || exit 1
-  # Install all the demos (including the pointless ones) at first, in a
-  # temporary location:
-  make install DESTDIR=$PKG/cruft || exit 1
+    --libdir=lib${LIBDIRSUFFIX} \
+    --libexecdir=/usr/libexec \
+    --bindir=/usr/bin \
+    --sbindir=/usr/sbin \
+    --includedir=/usr/include \
+    --datadir=/usr/share \
+    --mandir=/usr/man \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --buildtype=release \
+    $SLK_MESADEMOS_CONF_OPTS \
+    .. || exit 1
+    "${NINJA:=ninja}" $NUMJOBS || exit 1
+    # Install all the demos (including the pointless ones) at first, in a
+    # temporary location:
+    DESTDIR=$PKG/cruft $NINJA install || exit 1
+  cd ..
   # Install gears and glinfo, as well as a few other demos:
   mkdir -p $PKG/usr/bin
   MESA_DEMO_BINS="${MESA_DEMO_BINS:=eglinfo gears glinfo glthreads glxcontexts glxdemo \

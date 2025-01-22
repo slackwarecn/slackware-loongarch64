@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2011, 2016, 2018, 2023, 2024  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2011, 2016, 2018, 2023, 2024, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -29,6 +29,9 @@ BUILD=${BUILD:-1}
 # Default is "none" for no compression.
 # Other types known to be currently supported are "xz" and "zstd".
 COMPRESSION=${COMPRESSION:-none}
+
+# Bundle /boot/amd-ucode.img?
+AMD_UCODE=${AMD_UCODE:-YES}
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
@@ -59,9 +62,19 @@ git clone git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.
 DATE="$(lynx -dump -width=256 https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/commit/?id=HEAD | grep "   committer " | head -n 1 | rev | cut -f 3 -d ' ' | rev | tr -d -)"
 HEADISAT="$(lynx -dump -width=256 https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/commit/?id=HEAD | grep "    commit   " | head -n 1 | cut -f 2 -d ] | cut -b 1-7)"
 chown -R root:root .
-mkdir -p lib/firmware
+
+if [ "$AMD_UCODE" = "YES" ]; then
+  mkdir -p $PKG/boot/tmp
+  pushd $PKG/boot/tmp
+    mkdir -p kernel/x86/microcode
+    find $PKG/linux-firmware/amd-ucode -type f -name "*.bin" | sort | xargs cat > kernel/x86/microcode/AuthenticAMD.bin
+    find . | cpio --no-absolute-filenames -H newc -o -F $PKG/boot/amd-ucode.img
+  popd
+  rm -rf $PKG/boot/tmp
+fi
 
 # Install the firmware from the download directory using "make $INSTALLTARGET":
+mkdir -p lib/firmware
 case $COMPRESSION in
   xz) INSTALLTARGET="install-xz" ;;
   zstd) INSTALLTARGET="install-zst" ;;

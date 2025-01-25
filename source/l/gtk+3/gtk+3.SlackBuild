@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2011, 2013, 2018, 2020, 2022, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2011, 2013, 2018, 2020, 2022, 2023, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,7 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gtk+3
-VERSION=${VERSION:-$(echo gtk+-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+SRCNAM=gtk
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
@@ -31,7 +32,7 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -49,14 +50,11 @@ fi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-gtk3
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -66,9 +64,9 @@ fi
 rm -rf $PKG
 mkdir -p $TMP $PKG/usr
 cd $TMP
-rm -rf gtk+-$VERSION
-tar xvf $CWD/gtk+-$VERSION.tar.?z || exit 1
-cd gtk+-$VERSION || exit 1
+rm -rf $SRCNAM-$VERSION
+tar xvf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
+cd $SRCNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
@@ -143,21 +141,21 @@ for i in $( find $PKG/usr/man -type l ) ; do
 done
 
 # Copy extra documentation into package.
-mkdir -p $PKG/usr/doc/gtk+3-$VERSION
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 cp -a \
   AUTHORS* CONTRIBUTING* COPYING* INSTALL* NEWS* README* \
-  $PKG/usr/doc/gtk+3-$VERSION
-( cd $PKG/usr/doc/gtk+3-$VERSION
+  $PKG/usr/doc/$PKGNAM-$VERSION
+( cd $PKG/usr/doc/$PKGNAM-$VERSION
   ln -s /usr/share/gtk-doc/html/gail-libgail-util .
   ln -s /usr/share/gtk-doc/html/gdk3 .
   ln -s /usr/share/gtk-doc/html/gtk3 .
 )
-find $PKG/usr/doc/gtk+3-$VERSION/ -type f -exec chmod 644 {} \+
-chown -R root:root $PKG/usr/doc/gtk+3-$VERSION
+find $PKG/usr/doc/$PKGNAM-$VERSION/ -type f -exec chmod 644 {} \+
+chown -R root:root $PKG/usr/doc/$PKGNAM-$VERSION
 
 mkdir -p $PKG/install 
 zcat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -p -l y -c n $TMP/gtk+3-${VERSION}-$ARCH-${BUILD}.txz
+/sbin/makepkg -p -l y -c n $TMP/$PKGNAM-${VERSION}-$ARCH-${BUILD}.txz

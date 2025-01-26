@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2011, 2014, 2017, 2018, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2011, 2014, 2017, 2018, 2021, 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,20 +23,18 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libcgroup
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-11}
-
-# Without this, we get syntax errors starting rc.cgred:
-LANG=C
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i686 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -47,24 +45,18 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
-
-# GCC 14 "fix":
-SLKCFLAGS="$SLKCFLAGS -Wno-error=int-conversion"
 
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
@@ -74,26 +66,8 @@ mkdir -p $TMP $PKG
 
 cd $TMP
 rm -rf $PKGNAM-$VERSION
-tar xvf $CWD/$PKGNAM-$VERSION.tar.?z* || exit 1
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
-
-# Remove Red Hat / LSB init-scriptisms:
-zcat $CWD/libcgroup.init.diff.gz | patch -p1 --verbose || exit 1
-
-# Slackware does not use /etc/sysconfig:
-zcat $CWD/libcgroup.conf.diff.gz | patch -p1 --verbose || exit 1
-
-# Apply combined patches from git, including for an infinate loop bug:
-zcat $CWD/libcgroup.loop.diff.gz | patch -p1 --verbose || exit 1
-
-# Choose correct options depending on whether PAM is installed:
-if [ -L /lib${LIBDIRSUFFIX}/libpam.so.? ]; then
-  PAM_OPTIONS="--enable-pam --enable-pam-module-dir=/lib${LIBDIRSUFFIX}/security"
-  unset SHADOW_OPTIONS
-else
-  unset PAM_OPTIONS
-  SHADOW_OPTIONS="--disable-pam"
-fi
 
 chown -R root:root .
 find . \
@@ -102,42 +76,49 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-autoreconf -vif
+# Label cgred.conf properly in the first line:
+cat $CWD/cgred.conf.no.sysconfig.patch | patch -p1 --verbose || exit 1
 
-# Configure:
+# Fix improper path to cgrulesengd:
+cat $CWD/cgred.in.path.patch | patch -p1 --verbose || exit 1
+
+# Configure, build, and install:
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
 CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
-  --sysconfdir=/etc \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
   --mandir=/usr/man \
   --infodir=/usr/info \
-  $PAM_OPTIONS \
-  $SHADOW_OPTIONS \
   --disable-static \
+  --enable-pam \
+  --enable-pam-module-dir=/lib${LIBDIRSUFFIX}/security \
+  --enable-systemd=no \
   --build=$ARCH-slackware-linux || exit 1
-
-# Build and install:
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# The ones in /lib${LIBDIRSUFFIX}/security can also go:
-rm -f $PKG/lib${LIBDIRSUFFIX}/security/*.la
-
 # This directory is needed by cgrulesengd:
 mkdir -p $PKG/etc/cgconfig.d
-
-# If this directory is empty, do not include it in the package:
-rmdir $PKG/usr/lib${LIBDIRSUFFIX}/security 2> /dev/null
 
 # cgexec doesn't need to be setuid root -- setgid cgred is sufficient:
 chown root:cgred $PKG/usr/bin/cgexec
 chmod 2755 $PKG/usr/bin/cgexec
 
-# Install init scripts:
+# Install init scripts. These now test for things like LSB and sysconfig and
+# don't try to use them if they don't exist. Therefore we don't need to patch
+# these for the reasons we did before. However, we might need patches to
+# properly support cgroups v2. But first things first...
 mkdir -p $PKG/etc/rc.d
 cp -a scripts/init.d/cgconfig $PKG/etc/rc.d/rc.cgconfig.new
 cp -a scripts/init.d/cgred $PKG/etc/rc.d/rc.cgred.new
@@ -145,61 +126,41 @@ chmod 644 $PKG/etc/rc.d/*
 chown -R root:root $PKG/etc/rc.d/*
 
 # Install sample config files:
-mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION/samples
-( cd samples
-  for conffile in cgconfig.conf cgred.conf cgrules.conf cgsnapshot_blacklist.conf ; do
+( cd samples/config
+  for conffile in cgconfig.conf cgred.conf cgrules.conf cgsnapshot_allowlist.conf cgsnapshot_denylist.conf ; do
     cp -a $conffile $PKG/etc/${conffile}.new
-    cp -a $conffile $PKG/usr/doc/${PKGNAM}-$VERSION/samples
   done
 )
 
+# Add a default file to signal to rc.S which cgroups hierarchy to mount:
+mkdir -p $PKG/etc/default
+cat $CWD/cgroups.default > $PKG/etc/default/cgroups.new
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
 # Strip binaries:
-( cd $PKG
-  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
-)
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
 
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README* THANKS TODO \
+  CONTRIBUTING* COPYING* INSTALL* README* SECURITY* \
+  samples \
   $PKG/usr/doc/${PKGNAM}-$VERSION
-
-# Compress and if needed symlink the man pages:
-if [ -d $PKG/usr/man ]; then
-  ( cd $PKG/usr/man
-    for manpagedir in $(find . -type d -name "man*") ; do
-      ( cd $manpagedir
-        for eachpage in $( find . -type l -maxdepth 1) ; do
-          ln -s $( readlink $eachpage ).gz $eachpage.gz
-          rm $eachpage
-        done
-        gzip -9 *.?
-      )
-    done
-  )
-fi
-
-# Compress info files, if any:
-if [ -d $PKG/usr/info ]; then
-  ( cd $PKG/usr/info
-    rm -f dir
-    gzip -9 *
-  )
-fi
-
-# If there's a ChangeLog, installing at least part of the recent history
-# is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
-fi
+find $PKG/usr/doc/${PKGNAM}-$VERSION -name "Makefile*" | xargs rm
+find $PKG/usr/doc/${PKGNAM}-$VERSION -name ".deps" | xargs rm -r
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
-

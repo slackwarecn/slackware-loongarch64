@@ -173,10 +173,6 @@ gzip ./source/a/logrotate/logrotate.cron
 gzip ./source/a/logrotate/logrotate.conf
 gzip ./source/a/logrotate/doinst.sh
 gzip ./source/a/xz/xz.default.verbosity.V_ERROR.diff
-gzip ./source/a/libcgroup/libcgroup.conf.diff
-gzip ./source/a/libcgroup/libcgroup.init.diff
-gzip ./source/a/libcgroup/libcgroup.loop.diff
-gzip ./source/a/libcgroup/doinst.sh
 gzip ./source/a/elilo/elilo.double.kernel.size.limit.diff
 gzip ./source/a/elilo/elilo.zeroes.cc_blob_address.diff
 gzip ./source/a/sysvinit-scripts/doinst.sh
@@ -1026,3 +1022,4 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/linux-6.13.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
+bzip2 ./source/a/libcgroup/libcgroup-3.1.0/samples/config/large_cgconfig.conf

@@ -1022,4 +1022,3 @@ gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
 gzip ./testing/source/linux-6.13.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
-bzip2 ./source/a/libcgroup/libcgroup-3.1.0/samples/config/large_cgconfig.conf

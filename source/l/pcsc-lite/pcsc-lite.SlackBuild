@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# Copyright 2007-2015  LukenShiro, Italy
+# Copyright 2020-2023  Matteo Bernardini <ponce@slackbuilds.org>, Pisa, Italy
+# Copyright 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=pcsc-lite
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+BUILD=${BUILD:-1}
+
+# Debug is off by default
+DEBUGATR=${DEBUGATR:-0}
+# Inserted card's automatic poweroff (on-demand power on)
+AUTOPOFF=${AUTOPOFF:-0}         # disabled by default
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i686 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
+
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
+  LIBDIRSUFFIX=""
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  LIBDIRSUFFIX="64"
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+fi
+
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+# Bail out if user or group isn't valid on your system
+# For slackbuilds.org, assigned pcscd uid/gid are 257/257
+# See http://slackbuilds.org/uid_gid.txt
+# 20230801 bkw: grepping /etc/passwd and /etc/group may fail if e.g. NIS
+# or LDAP is in use; always use getent. Also, print both messages (for user
+# and group) if either doesn't exist.
+if ! getent group pcscd &>/dev/null || ! getent passwd pcscd &>/dev/null; then
+    echo "  You must have a \"pcscd\" user and group to run this script."
+    echo "    # groupadd -g 257 pcscd"
+    echo "    # useradd -u 257 -g pcscd -d /var/run/pcscd -s /bin/false pcscd"
+    exit 1
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+cd $TMP
+rm -rf $PKGNAM-$VERSION
+tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
+cd $PKGNAM-$VERSION || exit 1
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+# ATR (answer to reset) debug parsing output
+case "$DEBUGATR" in
+    0)  DEBUGATR_FLAG="dis" ;;
+    *)  DEBUGATR_FLAG="en" ;;
+esac
+
+# disabling/enabling card's automatic power off
+case "$AUTOPOFF" in
+    0)  sed -i "s|^\/\* #define DISABLE_ON_DEMAND_POWER_ON \*\/|#define DISABLE_ON_DEMAND_POWER_ON|" \
+       src/pcscd.h.in
+       ;;
+    *) ;;
+esac
+
+# Configure, build, and install:
+if [ ! -r configure ]; then
+  if [ -x ./autogen.sh ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    autoreconf -vif
+  fi
+fi
+# --enable-runpid=/var/run/pcscd.pid, and
+# --enable-muscledropdir="<libdir>/pcsc/services" are not supported anymore;
+# pid directory changed to /var/run/pcscd for consistency
+# libhal support is gone
+# API docs not included anymore
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --docdir=/usr/doc/$PKGNAM-$VERSION \
+  --mandir=/usr/man \
+  --enable-ipcdir=/var/run/pcscd \
+  --enable-usbdropdir="/usr/lib${LIBDIRSUFFIX}/pcsc/drivers" \
+  --enable-confdir=/etc/reader.conf.d \
+  --${DEBUGATR_FLAG}able-debugatr \
+  --disable-libsystemd \
+  --build=$ARCH-slackware-linux || exit 1
+make $NUMJOBS || make || exit 1
+make install DESTDIR=$PKG || exit 1
+
+# Don't ship .la files:
+rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Create the directory for drivers and such (not included with this package):
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/pcsc/{drivers,services}
+
+# Install init script:
+mkdir -p $PKG/etc/rc.d
+cp -a $CWD/rc.pcscd $PKG/etc/rc.d/rc.pcscd.new
+chown root:root $PKG/etc/rc.d/rc.pcscd.new
+chmod 644 $PKG/etc/rc.d/rc.pcscd.new
+
+# Default options file:
+mkdir -p $PKG/etc/default
+cp -a $CWD/pcscd.default $PKG/etc/default/pcscd.new
+chown root:root $PKG/etc/default/pcscd.new
+chmod 644 $PKG/etc/default/pcscd.new
+
+# formaticc manpage is not automatically installed:
+if [ ! -r $PKG/usr/man/man1/formaticc.1 ]; then
+  mkdir -p $PKG/usr/man/man1
+  cp -a doc/formaticc.1 $PKG/usr/man/man1/formaticc.1
+  chmod 644 $PKG/usr/man/man1/formaticc.1
+fi
+
+# Correct manpages in reader.conf.5 and pcscd.8:
+sed -i "s|@confdir@|/etc/reader.conf.d|g" $PKG/usr/man/man5/reader.conf.5 || exit 1
+sed -i "s|@sysconfdir_exp@/init.d/pcscd|/etc/rc.d/rc.pcscd|g" $PKG/usr/man/man8/pcscd.8 || exit 1
+sed -i "s|@sysconfdir_exp@|/etc/reader.conf.d|g" $PKG/usr/man/man8/pcscd.8 || exit 1
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+cp -a \
+  AUTHORS* COPYING* ChangeLog GPL-3.0.txt* HELP* NEWS* README* SECURITY* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
+
+# If there's a ChangeLog, installing at least part of the recent history
+# is useful, but don't let it get totally out of control:
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+
+mkdir -p $PKG/install
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

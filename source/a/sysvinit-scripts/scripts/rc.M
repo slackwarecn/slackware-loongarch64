@@ -88,6 +88,11 @@ if [ -x /etc/rc.d/rc.syslog ]; then
   /etc/rc.d/rc.syslog start
 fi
 
+# Start the PC/SC-lite smart card daemon:
+if [ -x /etc/rc.d/rc.pcscd ]; then
+  /etc/rc.d/rc.pcscd start
+fi
+
 # Start the Icecream scheduler. This needs to run on only one machine that is
 # part of the compile cluster:
 if [ -x /etc/rc.d/rc.icecc-scheduler ]; then

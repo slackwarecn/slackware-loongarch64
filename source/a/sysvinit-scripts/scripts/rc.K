@@ -80,6 +80,11 @@ fi
 echo "Unmounting remote filesystems:"
 /bin/umount -v -a -l -f -r -t nfs,nfs4,smbfs,cifs | tr -d ' ' | grep successfully | sed "s/:successfullyunmounted/ has been successfully unmounted./g"
 
+# Stop the PC/SC-lite smart card daemon:
+if [ -x /etc/rc.d/rc.pcscd ]; then
+  /etc/rc.d/rc.pcscd stop
+fi
+
 # Shut down PCMCIA devices:
 if [ -x /etc/rc.d/rc.pcmcia ] ; then
   /etc/rc.d/rc.pcmcia stop

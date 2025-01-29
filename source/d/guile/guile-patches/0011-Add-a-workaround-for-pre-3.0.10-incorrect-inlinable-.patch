@@ -1,0 +1,58 @@
+From 666dc740e4d448039a0df4425ce09160dac65ca2 Mon Sep 17 00:00:00 2001
+From: Andy Wingo <wingo@pobox.com>
+Date: Mon, 23 Sep 2024 14:07:53 +0200
+Subject: Add a workaround for pre-3.0.10 incorrect inlinable exports
+
+* module/language/tree-il/peval.scm (peval)
+(inlinable-kwargs-bug-fixup): Before 3.0.10, the inlinable exports pass
+was incorrectly serializing functions with keyword arguments.  This was
+fixed in 2c645571b351a0044911847025b666551a8e4fb5, but that meant that
+3.0.10 compiling against 3.0.9 binaries could raise an exception at
+compile-time; whoops.  Add a workaround so that 3.0.9 binaries still
+work.
+
+Fixes https://issues.guix.gnu.org/72936.
+
+Origin: upstream, commit 90e1205018f13c86355517c85db8cf82952c6e98
+---
+ module/language/tree-il/peval.scm | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/module/language/tree-il/peval.scm b/module/language/tree-il/peval.scm
+index f8fca0012..27a0acbcb 100644
+--- a/module/language/tree-il/peval.scm
++++ b/module/language/tree-il/peval.scm
+@@ -395,6 +395,21 @@ referenced multiple times."
+     ;; FIXME: add more cases?
+     (else #f)))
+ 
++(define (inlinable-kwargs-bug-fixup exp)
++  ;; Versions of Guile before 3.0.10 had a bug where they mis-serialized
++  ;; functions with keyword arguments; work around that.  See
++  ;; https://issues.guix.gnu.org/72936.
++  (post-order
++   (match-lambda
++     (($ <lambda-case> src req opt rest (aok? (kw name #f) ...) inits syms body
++         alt)
++      (let ((kw-syms (reverse (list-head (reverse syms) (length kw)))))
++        (make-lambda-case src req opt rest
++                          (cons aok? (map list kw name kw-syms))
++                          inits syms body alt)))
++     (exp exp))
++   exp))
++
+ (define* (peval exp #:optional (cenv (current-module)) (env vlist-null)
+                 #:key
+                 (operator-size-limit 40)
+@@ -1110,8 +1125,9 @@ top-level bindings from ENV and return the resulting expression."
+                      (lambda (module)
+                        (and=> (module-public-interface module)
+                               (lambda (iface)
+-                                (and=> (module-inlinable-exports iface)
+-                                       (lambda (proc) (proc name))))))))
++                                (and=> (and=> (module-inlinable-exports iface)
++                                              (lambda (proc) (proc name)))
++                                       inlinable-kwargs-bug-fixup))))))
+          => (lambda (inlined)
+               ;; Similar logic to lexical-ref, but we can't enumerate
+               ;; uses, and don't know about aliases.

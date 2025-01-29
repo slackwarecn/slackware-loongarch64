@@ -1,0 +1,31 @@
+From 426e2d0bdb283e25386a302d81202a6ddbfdbec0 Mon Sep 17 00:00:00 2001
+From: Rob Browning <rlb@defaultvalue.org>
+Date: Thu, 28 Nov 2024 13:01:01 -0600
+Subject: Eight byte align statically allocated stringbufs
+
+Previously they were unaligned, unlike their parent strings, and so
+could end up with the wrong pointer tag.  Observed on i686-linux-gnu,
+where they ended up tagged as immediates (SCM_IMP()), causing failures
+in TYP7 related checks.
+
+* libguile/strings.h (SCM_IMMUTABLE_STRINGBUF): align resulting buffer
+  via SCM_ALIGNED(8).
+
+Origin: upstream, commit 76afb429ee7a8a4c9eddb20bf29a2246192f8a28
+---
+ libguile/strings.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libguile/strings.h b/libguile/strings.h
+index f28ef3246..d417514f8 100644
+--- a/libguile/strings.h
++++ b/libguile/strings.h
+@@ -184,7 +184,7 @@ SCM_API SCM scm_makfromstrs (int argc, char **argv);
+ 
+ #ifdef SCM_SUPPORT_STATIC_ALLOCATION
+ #define SCM_IMMUTABLE_STRINGBUF(c_name, contents)	\
+-  static SCM_UNUSED const				\
++  static SCM_UNUSED SCM_ALIGNED(8) const		\
+   struct						\
+   {							\
+     scm_t_bits word_0;					\

@@ -1,0 +1,33 @@
+From f269f147357bdd59ac3e984563fc92d89b178de9 Mon Sep 17 00:00:00 2001
+From: Andy Wingo <wingo@pobox.com>
+Date: Wed, 25 Sep 2024 17:27:17 +0200
+Subject: Tighten up range inference for scm->u64/truncate
+
+* module/language/cps/types.scm (scm->u64/truncate): Better range
+analysis.
+
+Origin: upstream, commit 30c3849092b17a56b9b74dd23da121afc5076e08
+---
+ module/language/cps/types.scm | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/module/language/cps/types.scm b/module/language/cps/types.scm
+index 512be4bb2..db4a8c7c8 100644
+--- a/module/language/cps/types.scm
++++ b/module/language/cps/types.scm
+@@ -1008,10 +1008,12 @@ minimum, and maximum."
+   (define! result &u64 param param))
+ 
+ (define-type-checker (scm->u64/truncate scm)
+-  (check-type scm &exact-integer &range-min &range-max))
++  (check-type scm &exact-integer -inf.0 +inf.0))
+ (define-type-inferrer (scm->u64/truncate scm result)
+-  (restrict! scm &exact-integer &range-min &range-max)
+-  (define! result &u64 0 &u64-max))
++  (restrict! scm &exact-integer -inf.0 +inf.0)
++  (if (<= 0 (&min scm) (&max scm) &u64-max)
++      (define! result &u64 (&min scm) (&max scm))
++      (define! result &u64 0 &u64-max)))
+ 
+ (define-type-checker (u64->scm u64)
+   #t)

@@ -1,0 +1,33 @@
+From 55c1bc380ab0ace1319dfaac6ffa696d2ba00f06 Mon Sep 17 00:00:00 2001
+From: Andy Wingo <wingo@pobox.com>
+Date: Tue, 13 Aug 2024 13:40:09 +0200
+Subject: More thorough lowering of lognot to CPS
+
+* module/language/tree-il/compile-cps.scm (canonicalize): Lower to a
+logxor with -1.
+
+Origin: upstream, commit 7aa4cfa9ded582952e16235d8aa634ada22febf2
+---
+ module/language/tree-il/compile-cps.scm | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/module/language/tree-il/compile-cps.scm b/module/language/tree-il/compile-cps.scm
+index e1cf8c297..ea5be8aa8 100644
+--- a/module/language/tree-il/compile-cps.scm
++++ b/module/language/tree-il/compile-cps.scm
+@@ -2385,9 +2385,13 @@ integer."
+        ;; if type folding can't prove Y to be an exact integer, then DCE
+        ;; would have to leave it in the program for its possible
+        ;; effects.
+-       (($ <primcall> src 'logand (x ($ <primcall> _ 'lognot (y))))
++       (($ <primcall> src 'lognot (x))
++        (make-primcall src 'logxor (list x (make-const src -1))))
++       (($ <primcall> src 'logand
++           (x ($ <primcall> _ 'logxor (y ($ <const> _ -1)))))
+         (make-primcall src 'logsub (list x y)))
+-       (($ <primcall> src 'logand (($ <primcall> _ 'lognot (y)) x))
++       (($ <primcall> src 'logand
++           (($ <primcall> _ 'logxor (y ($ <const> _ -1))) x))
+         (make-primcall src 'logsub (list x y)))
+ 
+        (($ <primcall> src 'throw ())

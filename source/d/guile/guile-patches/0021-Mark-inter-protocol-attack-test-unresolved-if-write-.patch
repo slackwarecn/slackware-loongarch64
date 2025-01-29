@@ -1,0 +1,35 @@
+From b84fa93977d90798129542d43b53c66446803e4e Mon Sep 17 00:00:00 2001
+From: Rob Browning <rlb@defaultvalue.org>
+Date: Tue, 14 Jan 2025 16:16:36 -0600
+Subject: Mark inter-protocol attack test unresolved if write-request fails
+
+This happens with some frequency during parallel test runs, and the
+same (apparent) failure can eventually be triggered by repeated
+moreutils parallel invocations like this in a built tree:
+
+  parallel -j 3 ./check-guile -- \
+    00repl-server.test 00repl-server.test 00repl-server.test
+---
+ test-suite/tests/00-repl-server.test | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/test-suite/tests/00-repl-server.test b/test-suite/tests/00-repl-server.test
+index 433181ee6..be46a819e 100644
+--- a/test-suite/tests/00-repl-server.test
++++ b/test-suite/tests/00-repl-server.test
+@@ -130,8 +130,13 @@ reached."
+       (read-until-prompt socket %last-line-before-prompt)
+ 
+       ;; Simulate an HTTP inter-protocol attack.
+-      (write-request (build-request (string->uri "http://localhost"))
+-                     socket)
++      (catch 'system-error
++        (lambda ()
++          (write-request (build-request (string->uri "http://localhost"))
++                         socket))
++        (lambda what
++          (format (current-error-port) "write-request exception ~s\n" what)
++          (throw 'unresolved what)))
+ 
+       ;; Make sure the server reacts by closing the connection.  If it
+       ;; fails to do that, this test hangs.

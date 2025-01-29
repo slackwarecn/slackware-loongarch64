@@ -1,0 +1,47 @@
+From 8a60cd5d8f7e7d9658db2f6ed11bf1dbdbcb62e4 Mon Sep 17 00:00:00 2001
+From: Andy Wingo <wingo@pobox.com>
+Date: Thu, 15 Aug 2024 12:18:02 +0200
+Subject: Fix intset-fold-right on transient intsets
+
+* module/language/cps/intset.scm (make-intset-folder): intset-fold-right
+on a transient intset would dispatch to left fold after making the
+persistent set.  Sadness!
+
+Origin: upstream, commit d0790d766bedf08fb65231eff53f6c8044eb94f1
+---
+ module/language/cps/intset.scm | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/module/language/cps/intset.scm b/module/language/cps/intset.scm
+index 54def5cb5..0fe90fe9f 100644
+--- a/module/language/cps/intset.scm
++++ b/module/language/cps/intset.scm
+@@ -1,5 +1,5 @@
+ ;;; Functional name maps
+-;;; Copyright (C) 2014, 2015, 2017 Free Software Foundation, Inc.
++;;; Copyright (C) 2014, 2015, 2017, 2024 Free Software Foundation, Inc.
+ ;;;
+ ;;; This library is free software: you can redistribute it and/or modify
+ ;;; it under the terms of the GNU Lesser General Public License as
+@@ -454,13 +454,14 @@
+                           (lp (if forward? (1+ i) (1- i)) seed ...)))
+                       (lp (if forward? (1+ i) (1- i)) seed ...)))
+                 (values seed ...)))))))
+-    (match set
+-      (($ <intset> min shift root)
+-       (cond
+-        ((not root) (values seed ...))
+-        (else (visit-branch root shift min seed ...))))
+-      (($ <transient-intset>)
+-       (intset-fold f (persistent-intset set) seed ...)))))
++    (let fold ((set set))
++      (match set
++        (($ <intset> min shift root)
++         (cond
++          ((not root) (values seed ...))
++          (else (visit-branch root shift min seed ...))))
++        (($ <transient-intset>)
++         (fold (persistent-intset set)))))))
+ 
+ (define intset-fold
+   (case-lambda

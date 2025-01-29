@@ -1,0 +1,86 @@
+From ea1750ad7f27593ee42ca48c74cc5b3e3cdd2d1d Mon Sep 17 00:00:00 2001
+From: Rob Browning <rlb@defaultvalue.org>
+Date: Wed, 15 Jan 2025 12:54:02 -0600
+Subject: Skip ports.test seek tests unless filesystem looks suitable
+
+For now, only test on filesystems that we know have the expected
+semantics, i.e. btrfs, ext4, and xfs.
+---
+ test-suite/tests/ports.test | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)
+
+diff --git a/test-suite/tests/ports.test b/test-suite/tests/ports.test
+index bec5e356c..baa9edb70 100644
+--- a/test-suite/tests/ports.test
++++ b/test-suite/tests/ports.test
+@@ -39,9 +39,23 @@
+ (define (test-file)
+   (data-file-name "ports-test.tmp"))
+ 
+-(define (skip-on-darwin)
+-  (when (string-ci=? "darwin" (utsname:sysname (uname)))
+-    (throw 'untested)))
++(define (skip-unless-fs-handles-holes-as-expected)
++  ;; For now only allow filesystems that should have the seek hole/data
++  ;; semantics the tests expect.  Filesystems vary both in how they
++  ;; handle sparseness in general (e.g. granularity), how they handle
++  ;; SEEK_DATA and SEEK_HOLE (see lseek(2) for some related info), and
++  ;; even how quickly they reflect changes.  du's output, for example,
++  ;; may not immediately reflect sparseness changes (previously observed
++  ;; on btrfs and zfs).
++  (let* ((p (open-input-pipe "debian/bin/path-fs ."))
++         (fs (read-all p)))
++    (close p)
++    (when (string=? "\n" fs)
++      (error "unexpected output from debian/bin/path-fs" fs))
++    (or (string=? "btrfs\n" fs)
++        (string=? "ext4\n" fs)
++        (string=? "xfs\n" fs)
++        (throw 'untested))))
+ 
+ 
+ ;;;; Some general utilities for testing ports.
+@@ -189,7 +203,6 @@
+     (close-port iport))
+   (delete-file filename))
+ 
+-;;; Note: Holes are weird on Darwin.
+ (let* ((file (test-file))
+        (port (open-output-file file)))
+   (seek port 4096 SEEK_SET)
+@@ -198,15 +211,12 @@
+ 
+   (pass-if-equal "size of sparse file"
+       4100
+-    ;; XXX: On macOS, APFS does support sparse files, they do not behave
+-    ;; like on Linux.  Skip these tests on macOS.
+-    (skip-on-darwin)
+-
++    (skip-unless-fs-handles-holes-as-expected)
+     (stat:size (stat file)))
+ 
+   (pass-if-equal "SEEK_DATA while on data"
+       4096
+-    (skip-on-darwin)
++    (skip-unless-fs-handles-holes-as-expected)
+     (if (defined? 'SEEK_DATA)
+         (call-with-input-file file
+           (lambda (port)
+@@ -219,7 +229,7 @@
+ 
+   (pass-if-equal "SEEK_DATA while in hole"
+       4096
+-    (skip-on-darwin)
++    (skip-unless-fs-handles-holes-as-expected)
+     (if (defined? 'SEEK_DATA)
+         (call-with-input-file file
+           (lambda (port)
+@@ -232,7 +242,7 @@
+ 
+   (pass-if-equal "SEEK_HOLE while in hole"
+       10
+-    (skip-on-darwin)
++    (skip-unless-fs-handles-holes-as-expected)
+     (if (defined? 'SEEK_HOLE)
+         (call-with-input-file file
+           (lambda (port)

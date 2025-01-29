@@ -1,0 +1,89 @@
+From 208faee14abf9152a5ea6b4f8f8c99a0be52cc18 Mon Sep 17 00:00:00 2001
+From: Rob Browning <rlb@defaultvalue.org>
+Date: Fri, 17 Jan 2025 11:45:26 -0600
+Subject: fport_print: handle ttyname ENODEV
+
+In some situations, ttyname may return ENODEV even though isatty is
+true.  From ttyname(3):
+
+  A process that keeps a file descriptor that refers to a pts(4) device
+  open when switching to another mount namespace that uses a different
+  /dev/ptmx instance may still accidentally find that a device path of
+  the same name for that file descriptor exists.  However, this device
+  path refers to a different device and thus can't be used to access the
+  device that the file descriptor refers to.  Calling ttyname() or
+  ttyname_r() on the file descriptor in the new mount namespace will
+  cause these functions to return NULL and set errno to ENODEV.
+
+Observed in a Debian riscv64 porterbox schroot.
+
+When ttyname fails with ENODEV, just include the file descriptor integer
+value instead.  Call ttyname() rather than scm_ttyname() to avoid some
+extra work and having to catch the ENODEV.
+
+* libguile/fports/c: include the integer fd when ttyname() fails with
+ENODEV.
+---
+ libguile/fports.c | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/libguile/fports.c b/libguile/fports.c
+index 9d4ca6ace..267ed632f 100644
+--- a/libguile/fports.c
++++ b/libguile/fports.c
+@@ -554,6 +554,7 @@ SCM_DEFINE (scm_adjust_port_revealed_x, "adjust-port-revealed!", 2, 0, 0,
+ 
+ 
+ 
++#define FUNC_NAME "fport_print"
+ static int 
+ fport_print (SCM exp, SCM port, scm_print_state *pstate SCM_UNUSED)
+ {
+@@ -571,11 +572,36 @@ fport_print (SCM exp, SCM port, scm_print_state *pstate SCM_UNUSED)
+       fdes = (SCM_FSTREAM (exp))->fdes;
+ 
+ #if (defined HAVE_TTYNAME) && (defined HAVE_POSIX)
+-      if (isatty (fdes))
+-	scm_display (scm_ttyname (exp), port);
++      if (!isatty (fdes))
++	scm_intprint (fdes, 10, port);
+       else
+-#endif /* HAVE_TTYNAME */
++        {
++          scm_i_scm_pthread_mutex_lock (&scm_i_misc_mutex);
++
++          char *name;
++          SCM_SYSCALL (name = ttyname (fdes));
++          int err = errno;
++          if (name != NULL)
++            name = strdup (name);
++
++          scm_i_pthread_mutex_unlock (&scm_i_misc_mutex);
++
++          if (name)
++            scm_display (scm_take_locale_string (name), port);
++          else
++            {
++              if (err == ENODEV)
++                scm_intprint (fdes, 10, port);
++              else
++                {
++                  errno = err;
++                  SCM_SYSERROR;
++                }
++            }
++        }
++#else /* can't use ttyname */
+ 	scm_intprint (fdes, 10, port);
++#endif
+     }
+   else
+     {
+@@ -586,6 +612,7 @@ fport_print (SCM exp, SCM port, scm_print_state *pstate SCM_UNUSED)
+   scm_putc ('>', port);
+   return 1;
+ }
++#undef FUNC_NAME
+ 
+ /* fill a port's read-buffer with a single read.  returns the first
+    char or EOF if end of file.  */

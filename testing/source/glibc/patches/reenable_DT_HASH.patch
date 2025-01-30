@@ -1,0 +1,101 @@
+diff -up glibc-2.38/Makeconfig.45~ glibc-2.38/Makeconfig
+--- glibc-2.38/Makeconfig.45~	2023-08-01 01:02:58.246719027 +0200
++++ glibc-2.38/Makeconfig	2023-08-01 01:02:58.303719582 +0200
+@@ -381,6 +381,15 @@ relro-LDFLAGS = -Wl,-z,relro
+ LDFLAGS.so += $(relro-LDFLAGS)
+ LDFLAGS-rtld += $(relro-LDFLAGS)
+ 
++ifeq (yes,$(have-hash-style))
++# For the time being we unconditionally use 'both'.  At some time we
++# should declare statically linked code as 'out of luck' and compile
++# with --hash-style=gnu only.
++hashstyle-LDFLAGS = -Wl,--hash-style=both
++LDFLAGS.so += $(hashstyle-LDFLAGS)
++LDFLAGS-rtld += $(hashstyle-LDFLAGS)
++endif
++
+ # Linker options to enable and disable DT_RELR.
+ ifeq ($(have-dt-relr),yes)
+ dt-relr-ldflag = -Wl,-z,pack-relative-relocs
+diff -up glibc-2.38/Makerules.45~ glibc-2.38/Makerules
+diff -up glibc-2.38/config.make.in.45~ glibc-2.38/config.make.in
+--- glibc-2.38/config.make.in.45~	2023-08-01 01:02:58.301719562 +0200
++++ glibc-2.38/config.make.in	2023-08-01 01:03:54.721267748 +0200
+@@ -71,6 +71,7 @@ have-libaudit = @have_libaudit@
+ have-libcap = @have_libcap@
+ have-cc-with-libunwind = @libc_cv_cc_with_libunwind@
+ bind-now = @bindnow@
++have-hash-style = @libc_cv_hashstyle@
+ have-cxx-thread_local = @libc_cv_cxx_thread_local@
+ have-loop-to-function = @libc_cv_cc_loop_to_function@
+ have-textrel_ifunc = @libc_cv_textrel_ifunc@
+diff -up glibc-2.38/configure.45~ glibc-2.38/configure
+--- glibc-2.38/configure.45~	2023-07-31 19:54:16.000000000 +0200
++++ glibc-2.38/configure	2023-08-01 01:04:54.904850299 +0200
+@@ -655,6 +655,7 @@ libc_cv_cc_submachine
+ libc_cv_cc_nofma
+ libc_cv_mtls_dialect_gnu2
+ libc_cv_has_glob_dat
++libc_cv_hashstyle
+ libc_cv_fpie
+ libc_cv_z_execstack
+ ASFLAGS_config
+@@ -7107,6 +7108,32 @@ fi
+ printf "%s\n" "$libc_cv_fpie" >&6; }
+ 
+ 
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --hash-style option" >&5
++$as_echo_n "checking for --hash-style option... " >&6; }
++if ${libc_cv_hashstyle+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  cat > conftest.c <<EOF
++int _start (void) { return 42; }
++EOF
++if { ac_try='${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS $no_ssp
++                           -fPIC -shared -o conftest.so conftest.c
++                           -Wl,--hash-style=both -nostdlib 1>&5'
++  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
++  (eval $ac_try) 2>&5
++  ac_status=$?
++  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
++  test $ac_status = 0; }; }
++then
++  libc_cv_hashstyle=yes
++else
++  libc_cv_hashstyle=no
++fi
++rm -f conftest*
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_hashstyle" >&5
++$as_echo "$libc_cv_hashstyle" >&6; }
++
+ 
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GLOB_DAT reloc" >&5
+ printf %s "checking for GLOB_DAT reloc... " >&6; }
+diff -up glibc-2.38/configure.ac.45~ glibc-2.38/configure.ac
+--- glibc-2.38/configure.ac.45~	2023-07-31 19:54:16.000000000 +0200
++++ glibc-2.38/configure.ac	2023-08-01 01:02:58.303719582 +0200
+@@ -1339,6 +1339,22 @@ LIBC_TRY_CC_OPTION([-fpie], [libc_cv_fpi
+ 
+ AC_SUBST(libc_cv_fpie)
+ 
++AC_CACHE_CHECK(for --hash-style option,
++	       libc_cv_hashstyle, [dnl
++cat > conftest.c <<EOF
++int _start (void) { return 42; }
++EOF
++if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS $no_ssp
++			    -fPIC -shared -o conftest.so conftest.c
++			    -Wl,--hash-style=both -nostdlib 1>&AS_MESSAGE_LOG_FD])
++then
++  libc_cv_hashstyle=yes
++else
++  libc_cv_hashstyle=no
++fi
++rm -f conftest*])
++AC_SUBST(libc_cv_hashstyle)
++
+ AC_CACHE_CHECK(for GLOB_DAT reloc,
+ 	       libc_cv_has_glob_dat, [dnl
+ cat > conftest.c <<EOF

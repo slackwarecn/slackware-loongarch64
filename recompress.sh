@@ -1021,4 +1021,9 @@ gzip ./source/x/ibus/doinst.sh
 gzip ./source/x/ibus/emoji-test.txt
 gzip ./source/x/xcm/xcm.udev.rules.diff
 gzip ./source/x/libva/doinst.sh
+gzip ./testing/source/glibc/glibc.ru_RU.CP1251.diff
+gzip ./testing/source/glibc/glibc.locale.no-archive.diff
+gzip ./testing/source/glibc/patches/reenable_DT_HASH.patch
+gzip ./testing/source/glibc/glibc-2.32.en_US.no.am.pm.date.format.diff
+gzip ./testing/source/mesa/doinst.sh
 gzip ./testing/source/linux-6.13.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch

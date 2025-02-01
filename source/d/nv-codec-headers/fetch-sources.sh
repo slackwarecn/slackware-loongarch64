@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-12.2.72.0}
+VERSION=${VERSION:-13.0.19.0}
 
 rm -rf nv-codec-headers-*.tar.?z*
 

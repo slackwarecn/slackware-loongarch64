@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=libcgroup
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -106,6 +106,16 @@ CXXFLAGS="$SLKCFLAGS" \
   --build=$ARCH-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
+
+# Even though we do not use systemd, breakage results if this header file
+# does not exist. And the PRs to remove it from libcgroup.h cause this package
+# to not even build.
+#
+# As a first attempt, let's just make it an empty file to see if that fixes
+# downstream issues:
+if [ ! -e $PKG/usr/include/libcgroup/systemd.h ]; then
+  touch $PKG/usr/include/libcgroup/systemd.h
+fi
 
 # This directory is needed by cgrulesengd:
 mkdir -p $PKG/etc/cgconfig.d

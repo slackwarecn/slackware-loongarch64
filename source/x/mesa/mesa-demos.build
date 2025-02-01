@@ -10,6 +10,12 @@ export CWD SLKCFLAGS NUMJOBS PKG
   rm -rf mesa-demos-$DEMOVERS
   tar xvf $CWD/mesa-demos-$DEMOVERS.tar.?z || exit 1
   cd mesa-demos-$DEMOVERS
+
+  # "Download" subprojects:
+  if [ -r $CWD/mesa-demos-subprojects.tar.lz ]; then
+    tar xvf $CWD/mesa-demos-subprojects.tar.lz || exit 1
+  fi
+
   chown -R root:root .
   find . \
     \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
@@ -36,6 +42,25 @@ export CWD SLKCFLAGS NUMJOBS PKG
     --buildtype=release \
     $SLK_MESADEMOS_CONF_OPTS \
     .. || exit 1
+
+    # If there's no mesa-subprojects.tar.lz in $CWD, let's try to make one:
+    if [ ! -r $CWD/mesa-demos-subprojects.tar.lz ]; then
+      cd ..
+      mkdir -p tmp/subprojects
+      for file in subprojects/* ; do
+        if [ "$file" -nt "$PKG" ]; then
+          cp -a -v $file tmp/subprojects
+        fi
+      done
+      cd tmp
+      find . -name ".git*" -exec rm -r "{}" \; 2> /dev/null
+      tar cf $CWD/mesa-demos-subprojects.tar subprojects
+      plzip -9 $CWD/mesa-demos-subprojects.tar
+      cd ..
+      rm -r tmp
+      cd meson-build
+    fi
+
     "${NINJA:=ninja}" $NUMJOBS || exit 1
     # Install all the demos (including the pointless ones) at first, in a
     # temporary location:

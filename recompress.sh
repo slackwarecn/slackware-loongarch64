@@ -41,11 +41,9 @@ gzip ./source/d/gcc/patches/gcc-no_fixincludes.diff
 gzip ./source/d/binutils/patches/binutils-gold-i386-gnu-property-notes.patch
 gzip ./source/d/binutils/patches/binutils-gold-warn-unsupported.patch
 gzip ./source/d/binutils/patches/binutils-readelf-other-sym-info.patch
-gzip ./source/d/binutils/patches/binutils-filename-in-error-messages.patch
 gzip ./source/d/binutils/patches/binutils-version.patch
 gzip ./source/d/binutils/patches/binutils-no-config-h-check.patch
 gzip ./source/d/binutils/patches/binutils-do-not-link-with-static-libstdc++.patch
-gzip ./source/d/binutils/patches/binutils-fix-testsuite-failures.patch
 gzip ./source/d/binutils/patches/binutils-libtool-lib64.patch
 gzip ./source/d/binutils/patches/binutils-2.27-aarch64-ifunc.patch
 gzip ./source/d/binutils/patches/binutils-export-demangle.h.patch

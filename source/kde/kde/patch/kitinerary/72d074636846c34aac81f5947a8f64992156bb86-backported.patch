@@ -1,0 +1,18 @@
+--- ./src/lib/pdf/pdfdocument.cpp.orig	2025-02-05 13:39:33.895018464 -0600
++++ ./src/lib/pdf/pdfdocument.cpp	2025-02-05 13:42:27.885008840 -0600
+@@ -330,10 +330,14 @@
+     if (!s) {
+         return {};
+     }
+-
++#if KPOPPLER_VERSION >= QT_VERSION_CHECK(25, 2, 0)
++        const auto utf16Data = pdfDocEncodingToUTF16(s->toStr());
++        return QString::fromUtf16(reinterpret_cast<const char16_t *>(utf16Data.c_str()), utf16Data.size() / 2);
++#else
+         int len = 0;
+         std::unique_ptr<const char[]> utf16Data(pdfDocEncodingToUTF16(s->toStr(), &len));
+         return QString::fromUtf16(reinterpret_cast<const char16_t*>(utf16Data.get()), len / 2);
++#endif
+ 
+     return QString::fromUtf8(s->c_str());
+ }

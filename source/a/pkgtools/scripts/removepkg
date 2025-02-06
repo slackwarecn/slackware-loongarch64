@@ -3,7 +3,7 @@
 #
 # Copyright 1994, 1995, 1998  Patrick Volkerding, Moorhead, Minnesota USA
 # Copyright 2001, Slackware Linux, Inc., Concord, CA USA
-# Copyright 2009, 2015, 2016, 2018, 2020  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2009, 2015, 2016, 2018, 2020, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,6 +24,14 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Thu Feb  6 04:29:59 UTC 2025
+# Add new functions delete_files_fast() and delete_dirs_fast().
+# We'll use them unless -preserve.
+#
+# Tue Feb  4 23:24:32 UTC 2025
+# Don't remove formatted man pages in /usr/man/cat* with delete_cats().
+# They were not part of the original package and are none of our business here.
+#
 # Wed Apr  1 22:14:46 UTC 2020
 # Add --skip-douninst option to skip running the uninstall script.
 # Save removed uninstall scripts in /var/log/removed_uninstall_scripts.
@@ -239,6 +247,11 @@ keep_links() {
  done
 }
 
+# This is the worst function I've ever written.
+# But we'll continue to use it with --preserve... unless we break out that
+# functionality into a new script... --preserve doesn't really belong here and
+# puts a lot of extra complexity in the code path slowing things down for
+# something I suspect few people use.
 delete_files() {
  local unset LC_ALL         # Locally (within this delete_files function) allow handling of backslashes
  while read -r AFILE ; do   # do not expand backslashes on read
@@ -266,6 +279,23 @@ delete_files() {
  done
 }
 
+# Let's optimize delete_files() and use it unless we require --preserve:
+delete_files_fast() {
+ local unset LC_ALL         # Locally (within this delete_files_fast function) allow handling of backslashes. No idea... copying this from delete_files()
+ # FILE=$(printf "%b" "$AFILE")   # unescape octal characters -- this won't work without sluggish iteration... let's see if it's really a bug here
+ # Boost speed with parallel processing if possible:
+ if [ -x /usr/bin/nproc ]; then
+   XARGS_THREADS=$(/usr/bin/nproc)
+ else
+   XARGS_THREADS=1
+ fi
+ if [ $TERSE ]; then
+   grep -v "/$" | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs -P $XARGS_THREADS rm -f
+ else
+   grep -v "/$" | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs -P $XARGS_THREADS rm -f -v | sed "s/removed '/  --> Deleting /g" | sed "s/'$//g"
+ fi
+}
+
 delete_links() {
  while read LINK ; do
   if [ -L "$ROOT/$LINK" ]; then
@@ -281,6 +311,7 @@ delete_links() {
  done
 }
 
+# This is the second worst function I've ever written.
 delete_dirs() {
  sort -r | \
  while read DIR ; do
@@ -299,18 +330,15 @@ delete_dirs() {
  done
 }
 
-delete_cats() {
- sed -n 's,/man\(./[^/]*$\),/cat\1,p'  | \
- while read FILE ; do
-   if [ -f "$ROOT/$FILE" ]; then
-     if [ ! "$WARN" = "true" ]; then
-       ! [ $TERSE ] && echo "  --> Deleting $ROOT/$FILE (fmt man page)"
-       rm -f $ROOT/$FILE
-     else
-       ! [ $TERSE ] && echo "  --> $ROOT/$FILE (fmt man page) would be deleted"
-     fi
-   fi
- done
+# Let's optimize delete_dirs() and use it unless we require --preserve:
+delete_dirs_fast() {
+ # No xargs -P here, since the directories need to be removed in an exact order.
+ # As seen above: # Using 2> /dev/null to prevent noise from upgradepkg when a directory changes to a symlink.
+ if [ $TERSE ]; then
+   grep "/$" | sort -r | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs rmdir --ignore-fail-on-non-empty 2> /dev/null
+ else
+   grep "/$" | sort -r | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs rmdir --ignore-fail-on-non-empty -v 2> /dev/null | sed "s/rmdir: removing directory, '/  --> Deleting empty directory /g" | sed "s/'$//g"
+ fi
 }
 
 # Conversion to 'comm' utility by Mark Wisdom.
@@ -379,9 +407,13 @@ remove_packages() {
    fi
    comm -12 $TMP/delete_list$$ $TMP/required_list$$ | keep_files
    comm -23 $TMP/delete_list$$ $TMP/required_list$$ > $TMP/uniq_list$$
-   delete_files < $TMP/uniq_list$$
-   delete_dirs < $TMP/uniq_list$$
-   delete_cats < $TMP/uniq_list$$
+   if [ "$PRESERVE" = "true" ]; then
+     delete_files < $TMP/uniq_list$$
+     delete_dirs < $TMP/uniq_list$$
+   else
+     delete_files_fast < $TMP/uniq_list$$
+     delete_dirs_fast < $TMP/uniq_list$$
+   fi
    if [ ! "$KEEP" = "true" ]; then
     rm -f $TMP/delete_list$$ $TMP/required_files$$ $TMP/uniq_list$$
     rm -f $TMP/del_link_list$$ $TMP/required_links$$ $TMP/required_list$$

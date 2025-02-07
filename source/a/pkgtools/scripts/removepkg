@@ -24,6 +24,9 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Fri Feb  7 18:47:07 UTC 2025
+# Also use delete_files_fast() to remove symlinks if possible.
+#
 # Thu Feb  6 04:29:59 UTC 2025
 # Add new functions delete_files_fast() and delete_dirs_fast().
 # We'll use them unless -preserve.
@@ -397,8 +400,14 @@ remove_packages() {
      sort -u > $TMP/required_links$$
     mv $TMP/required_list$$ $TMP/required_files$$
     sort -u $TMP/required_links$$ $TMP/required_files$$ > $TMP/required_list$$
-    comm -12 $TMP/del_link_list$$ $TMP/required_list$$ | keep_links
-    comm -23 $TMP/del_link_list$$ $TMP/required_list$$ | delete_links
+    # keep_links is purely informational, skip if TERSE:
+    ! [ $TERSE ] && comm -12 $TMP/del_link_list$$ $TMP/required_list$$ | keep_links
+    # If we aren't using --preserve, --dry-run, or --warn, use delete_files_fast() instead for links:
+    if [ "$PRESERVE" = "true" -o "$WARN" = "true" ]; then
+      comm -23 $TMP/del_link_list$$ $TMP/required_list$$ | delete_links
+    else
+      comm -23 $TMP/del_link_list$$ $TMP/required_list$$ | delete_files_fast
+    fi
    else
     cat $ADM_DIR/scripts/* 2> /dev/null | extract_links | \
      sort -u > $TMP/required_links$$
@@ -407,7 +416,7 @@ remove_packages() {
    fi
    comm -12 $TMP/delete_list$$ $TMP/required_list$$ | keep_files
    comm -23 $TMP/delete_list$$ $TMP/required_list$$ > $TMP/uniq_list$$
-   if [ "$PRESERVE" = "true" ]; then
+   if [ "$PRESERVE" = "true" -o "$WARN" = "true" ]; then
      delete_files < $TMP/uniq_list$$
      delete_dirs < $TMP/uniq_list$$
    else

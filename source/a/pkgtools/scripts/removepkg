@@ -24,6 +24,9 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Fri Feb  7 21:57:35 UTC 2025
+# Add --verbose option if you really want to see the removed files/dirs/links.
+#
 # Fri Feb  7 18:47:07 UTC 2025
 # Also use delete_files_fast() to remove symlinks if possible.
 #
@@ -292,10 +295,14 @@ delete_files_fast() {
  else
    XARGS_THREADS=1
  fi
+ # It's unfortunate that we can't use parallel --will-cite instead of
+ # xargs -P $XARGS_THREADS as we occasionally get some corrupted output
+ # with xargs -P. But upstream doesn't like parallel --will-cite in
+ # scripts unless you pay them 10000 EUR.
  if [ $TERSE ]; then
-   grep -v "/$" | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs -P $XARGS_THREADS rm -f
+   grep -v "/$" | sed "s|^|\"$ROOT\/|g" | sed "s/$/\"/g" | xargs -P $XARGS_THREADS rm -f
  else
-   grep -v "/$" | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs -P $XARGS_THREADS rm -f -v | sed "s/removed '/  --> Deleting /g" | sed "s/'$//g"
+   grep -v "/$" | sed "s|^|\"$ROOT\/|g" | sed "s/$/\"/g" | xargs -P $XARGS_THREADS rm -f -v | sed "s/removed '/  --> Deleting /g" | sed "s/'$//g"
  fi
 }
 
@@ -338,9 +345,9 @@ delete_dirs_fast() {
  # No xargs -P here, since the directories need to be removed in an exact order.
  # As seen above: # Using 2> /dev/null to prevent noise from upgradepkg when a directory changes to a symlink.
  if [ $TERSE ]; then
-   grep "/$" | sort -r | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs rmdir --ignore-fail-on-non-empty 2> /dev/null
+   grep "/$" | sort -r | sed "s|^|\"$ROOT\/|g" | sed "s/$/\"/g" | xargs rmdir --ignore-fail-on-non-empty 2> /dev/null
  else
-   grep "/$" | sort -r | sed "s/^/\"$ROOT\//g" | sed "s/$/\"/g" | xargs rmdir --ignore-fail-on-non-empty -v 2> /dev/null | sed "s/rmdir: removing directory, '/  --> Deleting empty directory /g" | sed "s/'$//g"
+   grep "/$" | sort -r | sed "s|^|\"$ROOT\/|g" | sed "s/$/\"/g" | xargs rmdir --ignore-fail-on-non-empty -v 2> /dev/null | sed "s/rmdir: removing directory, '/  --> Deleting empty directory /g" | sed "s/'$//g"
  fi
 }
 
@@ -471,7 +478,7 @@ remove_packages() {
 }
 
 if [ "$#" = "0" ]; then
-  echo "Usage: $(basename $0) [--copy] [--keep] [--preserve] [--skip-douninst] [--terse] [--warn] [--dry-run] packagename ..."; exit 1
+  echo "Usage: $(basename $0) [--copy] [--keep] [--preserve] [--skip-douninst] [--terse] [--verbose] [--warn] [--dry-run] packagename ..."; exit 1
 fi
 
 while : ; do
@@ -481,11 +488,17 @@ while : ; do
   -preserve | --preserve) PRESERVE=true; shift;;
   -skip-douninst | --skip-douninst) SKIP_DOUNINST=true; shift;;
   -terse | --terse) TERSE=0; shift;;
+  -verbose | --verbose) VERBOSE=true ; shift;;
   -warn | --warn | -dry-run | --dry-run) WARN=true; shift;;
   -* | --*) echo "Usage: $(basename $0) [--copy] [--keep] [--preserve] [--warn] [--dry-run] packagename ..."; exit 1;;
   *) break
  esac
 done
+
+# If we are not VERBOSE then we are terse:
+if [ ! "$VERBOSE" = "true" ]; then
+  TERSE=0
+fi
 
 if [ "$WARN" = "true" ]; then
  unset TERSE

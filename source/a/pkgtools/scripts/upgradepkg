@@ -1,8 +1,8 @@
 #!/bin/bash
 # Copyright 1999  Patrick Volkerding, Moorhead, Minnesota, USA 
 # Copyright 2001, 2002, 2003  Slackware Linux, Inc., Concord, California, USA
-# Copyright 2009, 2015, 2021  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2015  Michal Nazarewicz <mina86@mina86.com>
+# Copyright 2009, 2015, 2021, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -21,6 +21,14 @@
 #  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Sat Feb  8 19:19:05 UTC 2025
+# Export a unique $MCOOKIE to be used for both installpkg passes.
+# For the first pass, call installpkg with the --save-cookies option. This will
+# keep some data from installpkg's first pass to save time in the second pass.
+#
+# Fri Feb  7 22:13:15 UTC 2025
+# Pass the --verbose option to installpkg/removepkg.
 #
 # Wed May 19 04:46:53 UTC 2021
 # export PRE_INSTALL_PASS="true" if we'll be running installpkg a second time
@@ -277,13 +285,13 @@ for ARG; do
             echo "Installing: ${OUTPUTLINE}"
           ) 9> $INSTLOCKDIR/outputline.lock
         else
-          cat << EOF
-
-+==============================================================================
-| Installing new package $INCOMINGDIR/$NNAME
-+==============================================================================
-
-EOF
+          BBAR="======================================================================================================================================================="
+          BLURB="| Installing new package $INCOMINGDIR/$NNAME |"
+          echo
+          echo "+$(echo $BBAR | cut -b 1-$(expr $(echo $BLURB | wc -c) - 3))+"
+          echo $BLURB
+          echo "+$(echo $BBAR | cut -b 1-$(expr $(echo $BLURB | wc -c) - 3))+"
+          echo
           /sbin/installpkg $INCOMINGDIR/$NNAME
         fi
       fi
@@ -309,13 +317,13 @@ EOF
         echo "$NEW would be skipped (already installed)."
       else
         if ! [ $TERSE ]; then
-          cat << EOF
-
-+==============================================================================
-| Skipping package $NEW (already installed)
-+==============================================================================
-
-EOF
+          BBAR="======================================================================================================================================================="
+          BLURB="| Skipping package $NEW (already installed) |"
+          echo
+          echo "+$(echo $BBAR | cut -b 1-$(expr $(echo $BLURB | wc -c) - 3))+"
+          echo $BLURB
+          echo "+$(echo $BBAR | cut -b 1-$(expr $(echo $BLURB | wc -c) - 3))+"
+          echo
         fi
       fi
       continue;
@@ -352,12 +360,13 @@ EOF
 
   # Print a banner for the current upgrade:
   if ! [ $TERSE ]; then
-    cat << EOF
-
-+==============================================================================
-| Upgrading $OLD package using $INCOMINGDIR/$NNAME
-+==============================================================================
-EOF
+    BBAR="======================================================================================================================================================="
+    BLURB="| Upgrading $OLD package using $INCOMINGDIR/$NNAME |"
+    echo
+    echo "+$(echo $BBAR | cut -b 1-$(expr $(echo $BLURB | wc -c) - 3))+"
+    echo $BLURB
+    echo "+$(echo $BBAR | cut -b 1-$(expr $(echo $BLURB | wc -c) - 3))+"
+    echo
   fi
 
   # Next, the new package is pre-installed:
@@ -367,28 +376,45 @@ EOF
      export PRE_INSTALL_PASS="true"
   fi
 
+  # Export an MCOOKIE here for use by installpkg. This can be used to store
+  # information from the first pass so that we don't have to do redundant
+  # processing in the second pass.
+  if which mcookie 1> /dev/null 2> /dev/null ; then
+    MCOOKIE=$(mcookie)
+  else
+    # Well, we will make due with this:
+    MCOOKIE=$$
+  fi
+  export MCOOKIE
+
+  # Unless we are using a BAD OPTION, we'll want to save the cookies after this
+  # first pass:
+  if [ ! "$NOT_PARANOID" = "true" ]; then
+    SAVE_COOKIES="--save-cookies"
+  fi
+
   if [ "$VERBOSE" = "verbose" ]; then
     if ! [ $TERSE ]; then
-      /sbin/installpkg $INCOMINGDIR/$NNAME
+      /sbin/installpkg --verbose $SAVE_COOKIES $INCOMINGDIR/$NNAME
       RETCODE=$?
     else
-      /sbin/installpkg $INCOMINGDIR/$NNAME 1> /dev/null
+      /sbin/installpkg $SAVE_COOKIES $INCOMINGDIR/$NNAME 1> /dev/null
       RETCODE=$?
     fi
   else
     if [ $PLAINTERSE ]; then
-      /sbin/installpkg --terse --terselength $TERSELENGTH $INCOMINGDIR/$NNAME
+      /sbin/installpkg --terse --terselength $TERSELENGTH $SAVE_COOKIES $INCOMINGDIR/$NNAME
     elif [ $INFOBOX ]; then
-      /sbin/installpkg --infobox $INCOMINGDIR/$NNAME
+      /sbin/installpkg --infobox $SAVE_COOKIES $INCOMINGDIR/$NNAME
     elif [ $TERSE ]; then
-      OUTPUTLINE="$(/sbin/installpkg --terse --terselength $(expr $TERSELENGTH - 12) $INCOMINGDIR/$NNAME)"
+      OUTPUTLINE="$(/sbin/installpkg --terse --terselength $(expr $TERSELENGTH - 12) $SAVE_COOKIES $INCOMINGDIR/$NNAME)"
       RETCODE=$?
       ( flock 9 || exit 11
         echo "Upgrading:  ${OUTPUTLINE}"
       ) 9> $INSTLOCKDIR/outputline.lock
     else
       echo "Pre-installing package $NEW..."
-      /sbin/installpkg --terse $INCOMINGDIR/$NNAME | tail -n +2
+      /sbin/installpkg --terse $SAVE_COOKIES $INCOMINGDIR/$NNAME | tail -n +2
       RETCODE=$?
     fi
   fi
@@ -417,7 +443,7 @@ EOF
   ( flock 9 || exit 11
     for rempkg in "$ADM_DIR/packages/"*"-$TIMESTAMP"; do
       if [ "$VERBOSE" = "verbose" ]; then
-        /sbin/removepkg "${rempkg##*/}"
+        /sbin/removepkg --verbose "${rempkg##*/}"
       elif ! [ $TERSE ]; then
         /sbin/removepkg "${rempkg##*/}" | grep -v 'Skipping\.\|Removing files:'
       else

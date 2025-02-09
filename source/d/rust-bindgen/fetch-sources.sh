@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #VERSION=$1
-VERSION=0.70.1
+VERSION=0.71.1
 
 rm -rf rust-bindgen-*.tar.?z cargo-rust-bindgen*
 

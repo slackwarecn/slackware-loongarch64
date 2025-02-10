@@ -32,7 +32,7 @@ VERSION=${VERSION:-$(echo openssl-*.tar.gz | rev | cut -f 3- -d . | cut -f 1 -d 
 PKGVER=$(grep "^+" $(/bin/ls -t 00*patch | head -n 1) | grep OPENSSL_VERSION_TEXT | cut -f 2 -d \" | cut -f 2 -d ' ')
 # Looks like they put out a second 1.1.1zb, so we need a patchlevel:
 PATCHLEVEL="_p2"
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -81,6 +81,7 @@ cat $CWD/0001-openssl-1.1.1x_CVE-2023-5678_CVE-2024-0727.patch | patch -p1 --ver
 cat $CWD/0002-openssl-1.1.1y_CVE-2024-2511_CVE-2024-4741.patch | patch -p1 --verbose || exit 1
 cat $CWD/0003-openssl-1.1.1za_CVE-2024-5535.patch | patch -p1 --verbose || exit 1
 cat $CWD/0004-openssl-1.1.1zb_CVE_2024_9143.patch | patch -p1 --verbose || exit 1
+cat $CWD/0005-openssl-1.1.1zb_p2_CVE_2024_13176.patch | patch -p1 --verbose || exit 1
 
 ## For openssl-1.1.x, don't try to change the soname.
 ## Use .so.1, not .so.1.0.0:
@@ -97,6 +98,9 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
 fi
+
+# Fix for GCC 14:
+export CFLAGS+="-Wno-error=implicit-function-declaration"
 
 # OpenSSL has a (nasty?) habit of bumping the internal version number with
 # every release.  This wouldn't be so bad, but some applications are so

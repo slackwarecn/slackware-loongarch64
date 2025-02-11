@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-0.10.4}
+VERSION=${VERSION:-0.10.9}
 
 if [ ! -r cargo-c-$VERSION.tar.gz ]; then
   echo "ERROR: cargo-c-$VERSION.tar.gz not found"
@@ -8,7 +8,7 @@ if [ ! -r cargo-c-$VERSION.tar.gz ]; then
 fi
 
 # Let's get the timestamp correct as long as we're here:
-touch -d "$(tar tvf cargo-c-0.10.4.tar.gz | head -n 1 | cut -d 0 -f 2- | cut -d ' ' -f 2-3)" cargo-c-$VERSION.tar.gz
+touch -d "$(tar tvf cargo-c-$VERSION.tar.gz | head -n 1 | cut -d 0 -f 2- | cut -d ' ' -f 2-3)" cargo-c-$VERSION.tar.gz
 
 # Clear any existing stuff out:
 rm -rf cargo-c-$VERSION cargo-cargo-c-${VERSION}* *.tar

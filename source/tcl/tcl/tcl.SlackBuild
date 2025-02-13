@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=tcl
 VERSION=${VERSION:-8.6.15}
 # See also version number 8.6 in the symlinks below...)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -50,17 +50,16 @@ NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-tcl
 
-# Use -DHAVE_USLEEP=1 otherwise the bundled sqlite doesn't work well.
 if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic -DHAVE_USLEEP=1"
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
   CONFARGS="--enable-64bit"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC -DHAVE_USLEEP=1"
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   CONFARGS=""
 else
-  SLKCFLAGS="-O2 -DHAVE_USLEEP=1"
+  SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
   CONFARGS=""
 fi
@@ -80,6 +79,10 @@ find . \
 
 mkdir -p $PKG/usr/doc/tcl$VERSION
 cp -a README* license.terms $PKG/usr/doc/tcl$VERSION
+
+# Don't package the sqlite interface.
+# We'll use the stuff in the sqlite package.
+rm -rf pkgs/sqlite*
 
 cd unix
 # Fix 64bit path names:
@@ -108,13 +111,6 @@ make install DESTDIR=$PKG || exit 1
 # best thing but we'll include them where we've seen other teams
 # doing the same thing:
 make install-private-headers DESTDIR=$PKG || exit 1
-
-# Avoid duplicating "/usr/bin/sqlite3_analyzer" filename with a different
-# program (the one in sqlite is a binary, while the one in this package
-# is a TCL script:
-if grep -q "^usr/bin/sqlite3_analyzer$" /var/lib/pkgtools/packages/sqlite* ; then
-  mv $PKG/usr/bin/sqlite3_analyzer $PKG/usr/bin/sqlite3_analyzer_tcl
-fi
 
 # If the man3/Thread.3 page also appears in Perl, then rename this one:
 if grep -q "^usr/man/man3/Thread.3.gz$" /var/lib/pkgtools/packages/perl-* ; then
@@ -145,4 +141,3 @@ cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/tcl-$VERSION-$ARCH-$BUILD.txz
-

@@ -3,7 +3,7 @@
 # Slackware build script for sqlite
 
 # Copyright 2006  Martin Lefebvre <dadexter@gmail.com>
-# Copyright 2008, 2009, 2010, 2012, 2015, 2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2012, 2015, 2018, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,7 +26,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sqlite
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-1}
 
 # First, convert the .zip file if needed:
 if ls *.zip 1> /dev/null 2> /dev/null ; then
@@ -138,6 +138,7 @@ sed -i "s|\$(OPT_FEATURE_FLAGS)|\${OPT_FEATURE_FLAGS}|g" ./configure
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS $(icu-config --cppflags)" \
 LDFLAGS="$(icu-config --ldflags)" \
+TCLLIBDIR=/usr/lib${LIBDIRSUFFIX}/tcl8.6/sqlite3 \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -145,26 +146,36 @@ LDFLAGS="$(icu-config --ldflags)" \
   --localstatedir=/var \
   --mandir=/usr/man \
   --enable-threadsafe \
-  --enable-tempstore=yes \
+  --with-tempstore=yes \
   --enable-load-extension \
   --enable-fts3 \
   --enable-fts4 \
   --enable-fts5 \
   --enable-rtree \
   --enable-session \
-  --enable-static=no \
+  --disable-static \
+  --with-tclsh=/usr/bin/tclsh8.6 \
   --build=$ARCH-slackware-linux || exit 1
 
+# Build main:
 make $NUMJOBS || make || exit 1
 
+# Build extra tools:
 make \
-  sqldiff \
-  sqlite3_analyzer || exit 1
+  dbdump dbhash dbtotxt index_usage scrub showdb showjournal \
+  showshm showstat4 showwal sqldiff sqlite3_analyzer \
+  sqlite3_checker sqlite3_expert sqlite3_rsync sqltclsh || exit 1
 
+# Install main:
 make install DESTDIR=$PKG || exit 1
 
-install -m755 sqldiff sqlite3_analyzer \
-  $PKG/usr/bin/
+# Install extra tools:
+install -m755 dbdump dbhash dbtotxt index_usage scrub showdb \
+  showjournal showshm showstat4 showwal sqldiff sqlite3_expert \
+  sqlite3_rsync $PKG/usr/bin/
+
+# Avoid taking the name of a well-known tool:
+mv $PKG/usr/bin/scrub $PKG/usr/bin/sqlite3_scrub
 
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la

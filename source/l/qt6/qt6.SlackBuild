@@ -32,7 +32,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=qt6
 VERSION=$(ls qt-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 PKGSRC=$(echo $VERSION | cut -d - -f 1)
 PKGVER=$(echo $VERSION | tr - _)
 
@@ -153,6 +153,13 @@ pushd qtwebengine
   cat $CWD/patches/qtwebengine-6.7.0-displaykey-header.patch | patch -p1 --verbose || exit 1
 popd
 
+# Fix some 6.8.2 bugs:
+pushd qtbase
+  cat $CWD/patches/0001-QLibraryInfo-speed-up-checking-if-qt-etc-qt.conf-res.patch | patch -p1 --verbose || exit 1
+  cat $CWD/patches/0001-QLocale-try-to-survive-being-created-during-applicat.patch | patch -p1 --verbose || exit 1
+  cat $CWD/patches/0001-QSystemLocale-bail-out-if-accessed-post-destruction.patch | patch -p1 --verbose || exit 1
+popd
+
 # Previously we didn't have a protobuf package in Slackware.
 # Now that we do, it's apparently too new to use with Qt6, so let's just
 # disable it to get the same features that we previously did.
@@ -207,7 +214,7 @@ cmake -S $(pwd) -B build-${PKGNAM} \
   -DFEATURE_pulseaudio="${USE_PULSEAUDIO}" \
   -DFEATURE_system_sqlite=ON \
   -DFEATURE_system_xcb_xinput=ON \
-  -DFEATURE_use_gold_linker=ON \
+  -DFEATURE_use_mold_linker=ON \
   -DFEATURE_webengine_proprietary_codecs="${USE_CODECS}" \
   -DFEATURE_webengine_system_ffmpeg="${SYSTEM_FFMPEG}" \
   -DFEATURE_webengine_system_pulseaudio="${USE_PULSEAUDIO}" \

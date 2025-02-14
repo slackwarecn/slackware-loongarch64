@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# Copyright 2017-2019  Robby Workman, Tuscaloosa, Alabama, USA
-# Copyright 2020, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2007  Robby Workman <rworkman@slackbuilds.org>
+# Copyright 2011  Heinz Wiesinger <pprkut@slackbuilds.org>
+# Copyright 2013-2017  Audrius Kažukauskas <audrius@neutrino.lt>
+# Copyright 2022  Yth | Pont-en-Royans, France | yth@ythogtha.org
+# Copyright 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,15 +26,15 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=libblockdev
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | rev | cut -f 2- -d -)}
+PKGNAM=graphviz
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
-    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -42,7 +45,7 @@ fi
 # the name of the created package would be, and then exit. This information
 # could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
-  echo "$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz"
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
 
@@ -77,10 +80,6 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Don't use -Werror. It fails the build with recent libext2fs.
-find -name Makefile.am -exec sed -i "s/-Werror//" {} \;
-find -name Makefile.in -exec sed -i "s/-Werror//" {} \;
-
 # Configure, build, and install:
 if [ ! -r configure ]; then
   if [ -x ./autogen.sh ]; then
@@ -89,7 +88,6 @@ if [ ! -r configure ]; then
     autoreconf -vif
   fi
 fi
-# --without-dm because no support for old dm_raid here
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -101,9 +99,6 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --disable-static \
-  --without-dm \
-  --without-python2 \
-  --with-python3 \
   --build=$ARCH-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
@@ -111,10 +106,16 @@ make install DESTDIR=$PKG || exit 1
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
-mv $PKG/etc/libblockdev/3/conf.d/00-default.cfg \
-   $PKG/etc/libblockdev/3/conf.d/00-default.cfg.new
-mv $PKG/etc/libblockdev/3/conf.d/10-lvm-dbus.cfg \
-   $PKG/etc/libblockdev/3/conf.d/10-lvm-dbus.cfg.new
+# Install config file for PHP:
+mkdir -p $PKG/etc/php.d
+cat $CWD/graphviz.ini > $PKG/etc/php.d/graphviz.ini.new
+
+# Remove empty directories of language bindings that are absent:
+find $PKG/usr/lib${LIBDIRSUFFIX}/graphviz -depth -type d -empty -exec rmdir {} \;
+
+# Own the config6 file. This will be generated with actual content by
+# the installation script:
+echo "# foo" > $PKG/usr/lib${LIBDIRSUFFIX}/graphviz/config6
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -127,22 +128,24 @@ for i in $( find $PKG/usr/man -type l ) ; do
 done
 
 # Add a documentation directory:
-mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
+mkdir -p $PKG/usr/doc
+mv $PKG/usr/share/doc/$PKGNAM/ $PKG/usr/doc/$PKGNAM-$VERSION
+rmdir $PKG/usr/share/doc
 cp -a \
-  AUTHORS* ChangeLog CHANGES COPYING* LICENSE* NEWS* README* THANKS* TODO* \
+  AUTHORS* CHANGELOG.md CONTRIBUTING* COPYING* DEVELOPERS* LICENSE* NEWS* README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
-# If there's a ChangeLog, installing at least part of the recent history
+# If there's a CHANGELOG.md, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
-if [ -r ChangeLog ]; then
+if [ -r CHANGELOG.md ]; then
   DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
-  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
-  touch -r ChangeLog $DOCSDIR/ChangeLog
+  cat CHANGELOG.md | head -n 1000 > $DOCSDIR/CHANGELOG.md
+  touch -r CHANGELOG.md $DOCSDIR/CHANGELOG.md
 fi
 
 mkdir -p $PKG/install
-zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz
+/sbin/makepkg --prepend -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

@@ -720,7 +720,6 @@ gzip ./source/l/gtk+2/gtk.gtk-tut.diff
 gzip ./source/l/gtk+2/doinst.sh
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/fix_build_issues_on_tutorial_and_faq.diff
-gzip ./source/l/gegl/gegl.no.runtime.dot.check.diff
 gzip ./source/l/gtk4/doinst.sh
 gzip ./source/l/gnome-themes-extra/doinst.sh
 gzip ./source/l/gtkspell/gtkspell.enchant-2.diff

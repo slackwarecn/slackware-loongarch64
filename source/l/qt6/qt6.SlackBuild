@@ -32,7 +32,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=qt6
 VERSION=$(ls qt-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-4}
 PKGSRC=$(echo $VERSION | cut -d - -f 1)
 PKGVER=$(echo $VERSION | tr - _)
 
@@ -91,6 +91,13 @@ if [ "$(uname -m)" = "x86_64" -a "$(file -L /usr/bin/gcc | grep 386 | grep 32-bi
   SLKCFLAGS="$OPTS32"
   SLKLDFLAGS=""
   LIBDIRSUFFIX=""
+fi
+
+# Use gold linker on x86 32-bit, and mold elsewhere:
+if [ "$ARCH" = "i686" ]; then
+  LINKEROPT="-DFEATURE_use_gold_linker=ON"
+else
+  LINKEROPT="-DFEATURE_use_mold_linker=ON"
 fi
 
 NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
@@ -214,7 +221,7 @@ cmake -S $(pwd) -B build-${PKGNAM} \
   -DFEATURE_pulseaudio="${USE_PULSEAUDIO}" \
   -DFEATURE_system_sqlite=ON \
   -DFEATURE_system_xcb_xinput=ON \
-  -DFEATURE_use_mold_linker=ON \
+  $LINKEROPT \
   -DFEATURE_webengine_proprietary_codecs="${USE_CODECS}" \
   -DFEATURE_webengine_system_ffmpeg="${SYSTEM_FFMPEG}" \
   -DFEATURE_webengine_system_pulseaudio="${USE_PULSEAUDIO}" \
@@ -252,6 +259,12 @@ find $TMP/qt-everywhere-src-$PKGSRC/build-${PKGNAM} \
   -mindepth 1 -maxdepth 2 -name user_facing_tool_links.txt \
   | xargs cat | sort | uniq \
   | while read MYINP ; do ln -s $MYINP ; done
+popd
+pushd $PKG/usr/bin
+  ln -sf ../lib${LIBDIRSUFFIX}/qt6/bin/lrelease-pro lrelease-pro-qt6
+  ln -sf ../lib${LIBDIRSUFFIX}/qt6/bin/lrelease lrelease-qt6
+  ln -sf ../lib${LIBDIRSUFFIX}/qt6/bin/lupdate-pro lupdate-pro-qt6
+  ln -sf ../lib${LIBDIRSUFFIX}/qt6/bin/lupdate lupdate-qt6
 popd
 
 # Set the QT6DIR variable in the environment:

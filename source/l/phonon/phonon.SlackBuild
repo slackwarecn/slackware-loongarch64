@@ -1,8 +1,8 @@
 #!/bin/sh 
 
 # Copyright 2008  Robby Workman, Northport, Alabama, USA
-# Copyright 2008, 2009, 2010, 2011, 2012, 2018, 2020, 2024  Patrick J. Volkerding, Sebeka, MN, USA
 # Copyright 2010, 2011, 2012, 2014, 2015, 2016, 2017, 2018, 2019  Eric Hameleers, Eindhoven, NL
+# Copyright 2008, 2009, 2010, 2011, 2012, 2018, 2020, 2024, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -26,12 +26,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=phonon
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -39,36 +39,22 @@ if [ -z "$ARCH" ]; then
   export ARCH
 fi
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
-  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
-fi
-
-# Configure for ALSA only if PulseAudio is not installed:
-if [ ! -r /usr/lib${LIBDIRSUFFIX}/pkgconfig/libpulse.pc ]; then
-  TAG="_alsa"
-  PULSEAUDIO=OFF
-else
-  PULSEAUDIO=ON
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
 # the name of the created package would be, and then exit. This information
 # could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
-  echo "$PKGNAM-$VERSION-$ARCH-$BUILD$TAG.txz"
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
 
@@ -91,9 +77,18 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Qt5 is the only supported version as of 4.11.0:
-mkdir build-qt5
-cd build-qt5
+build_phonon() {
+if [ "$1" = "5" ]; then
+  QMAKEBIN=/usr/bin/qmake-qt5
+  BUILDQT5=ON
+  BUILDQT6=OFF
+else
+  QMAKEBIN=/usr/bin/qmake6
+  BUILDQT5=OFF
+  BUILDQT6=ON
+fi
+mkdir build-qt$1
+cd build-qt$1
   cmake \
     -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
@@ -102,14 +97,28 @@ cd build-qt5
     -DLIB_SUFFIX=${LIBDIRSUFFIX} \
     -DCMAKE_INSTALL_LIBDIR=lib${LIBDIRSUFFIX} \
     -DPHONON_INSTALL_QT_EXTENSIONS_INTO_SYSTEM_QT:BOOL=ON \
-    -DPHONON_QT_PLUGIN_INSTALL_DIR=/usr/lib$LIBDIRSUFFIX/qt/plugins/designer \
     -DWITH_QZeitgeist=BOOL:OFF \
-    -DWITH_PulseAudio=BOOL:${PULSEAUDIO} \
-    -DQT_QMAKE_EXECUTABLE=/usr/bin/qmake-qt5 \
+    -DWITH_PulseAudio=BOOL:ON \
+    -DQT_QMAKE_EXECUTABLE=$QMAKEBIN \
+    -DPHONON_BUILD_QT5=BOOL:$BUILDQT5 \
+    -DPHONON_BUILD_QT6=BOOL:$BUILDQT6 \
+    -DQT_MAJOR_VERSION=$1 \
     ..
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd -
+}
+
+# Build for Qt5:
+build_phonon 5
+# Build for Qt6:
+build_phonon 6
+
+# Make sure the Qt6 designer plugin is in the proper directory:
+if [ -r $PKG/usr/lib${LIBDIRSUFFIX}/qt5/plugins/designer/phonon4qt6widgets.so ]; then
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/qt6/plugins/designer
+  mv $PKG/usr/lib${LIBDIRSUFFIX}/qt5/plugins/designer/phonon4qt6widgets.so $PKG/usr/lib${LIBDIRSUFFIX}/qt6/plugins/designer
+fi
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -136,4 +145,4 @@ mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD$TAG.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

@@ -14,4 +14,4 @@ config() {
 config etc/php.d/graphviz.ini.new
 
 # Configure plugins (/usr/lib*/graphviz/config6):
-chroot . /usr/bin/dot -c
+chroot . /usr/bin/dot -c 1> /dev/null 2> /dev/null

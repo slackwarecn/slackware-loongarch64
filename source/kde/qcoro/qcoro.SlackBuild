@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2023, 2024  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2023, 2024, 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=qcoro
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -76,21 +76,29 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+build-qcoro() {
 # Configure, build, and install:
-mkdir cmake-build
-cd cmake-build
+mkdir cmake-build-qt$1
+cd cmake-build-qt$1
   cmake \
-    -DCMAKE_C_FLAGS="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DCMAKE_INSTALL_LIBDIR="lib$LIBDIRSUFFIX" \
-    -DDOC_INSTALL_DIR="doc" \
-    -DMAN_INSTALL_DIR=/usr/man \
-    -DUSE_QT_VERSION=5 \
+    -DCMAKE_INSTALL_LIBDIR=lib${LIBDIRSUFFIX} \
+    -DCMAKE_INSTALL_DOCDIR=/usr/doc/$PKGNAM-$VERSION \
+    -DCMAKE_INSTALL_MANDIR=/usr/man \
+    -DBUILD_SHARED_LIBS=ON \
+    -DECM_MKSPECS_INSTALL_DIR=/usr/lib${LIBDIRSUFFIX}/qt$1/mkspecs/modules \
+    -DUSE_QT_VERSION=$1 \
     .. || exit 1
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..
+}
+
+# Build for Qt5:
+build-qcoro 5
+# Build for Qt6:
+build-qcoro 6
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

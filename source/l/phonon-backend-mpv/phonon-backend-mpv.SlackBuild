@@ -23,7 +23,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=phonon-backend-gstreamer
+PKGNAM=phonon-backend-mpv
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
@@ -80,22 +80,27 @@ find . \
 # A patch for Qt6 support found on Arch Linux:
 cat $CWD/qt6_build_patch.patch | patch -p1 || exit 1
 
-build-phonon-backend-gstreamer () {
+build-phonon-backend-mpv () {
 # Configure, build, and install:
+if [ "$1" = "6" ]; then
+  QT5OPT=OFF
+  QT6OPT=ON
+else
+  QT5OPT=ON
+  QT6OPT=OFF
+fi
 mkdir cmake-build-qt$1
 cd cmake-build-qt$1
   cmake \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
-    -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
+    -DCMAKE_CXX_FLAGS="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib${LIBDIRSUFFIX} \
+    -DCMAKE_INSTALL_MANDIR=/usr/man \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DMAN_INSTALL_DIR=/usr/man \
-    -DSYSCONF_INSTALL_DIR=/etc \
-    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DCMAKE_INSTALL_LIBDIR=lib${LIBDIRSUFFIX} \
-    -DQT_MAJOR_VERSION=$1 \
+    -DPHONON_BUILD_QT5:BOOL=$QT5OPT \
+    -DPHONON_BUILD_QT6:BOOL=$QT6OPT \
     .. || exit 1
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
@@ -103,11 +108,11 @@ cd ..
 }
 
 # Qt6 first?
-build-phonon-backend-gstreamer 6
+build-phonon-backend-mpv 6
 # Clean these files out before building Qt5:
 rm -rf $PKG/usr/share
 # Qt5 second:
-build-phonon-backend-gstreamer 5
+build-phonon-backend-mpv 5
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
@@ -122,7 +127,7 @@ done
 # Add a documentation directory:
 mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  COPYING* gstreamer/lgpl-* \
+  AUTHORS* COPYING* README* \
   $PKG/usr/doc/${PKGNAM}-$VERSION
 
 mkdir -p $PKG/install

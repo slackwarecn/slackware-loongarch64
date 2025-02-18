@@ -427,7 +427,6 @@ gzip ./source/n/bootp/bootp_2.4.3-15.diff
 gzip ./source/n/bootp/bootptab
 gzip ./source/n/lftp/doinst.sh
 gzip ./source/n/postfix/postfix.script.starting.message.diff
-gzip ./source/n/postfix/0001-openssl-micro-mismatch-nowarn.patch
 gzip ./source/n/postfix/postfix.only.warn.regular.files.diff
 gzip ./source/n/postfix/doinst.sh
 gzip ./source/n/ytalk/doinst.sh

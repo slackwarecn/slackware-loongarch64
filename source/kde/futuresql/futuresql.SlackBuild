@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2023  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2023, 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,12 +24,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=futuresql
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -47,21 +47,12 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
-  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -85,32 +76,36 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+build-futuresql() {
+if [ "$1" = "5" ]; then
+  QTOPTS="-DQML_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/qml"
+elif [ "$1" = "6" ]; then
+  QTOPTS="-DBUILD_WITH_QT6=BOOL:ON"
+fi
 # Configure, build, and install:
-mkdir cmake-build
-cd cmake-build
+mkdir cmake-build-qt$1
+cd cmake-build-qt$1
   cmake \
     $KDE_OPT_ARGS \
-    -DKDE_PLATFORM_FEATURE_DISABLE_DEPRECATED=TRUE \
-    -DCMAKE_C_FLAGS:STRING="$SLKCFLAGS" \
-    -DCMAKE_C_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS:STRING="$SLKCFLAGS" \
     -DCMAKE_CXX_FLAGS_RELEASE:STRING="$SLKCFLAGS" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DMAN_INSTALL_DIR=/usr/man \
-    -DSYSCONF_INSTALL_DIR=/etc/kde \
-    -DLIB_SUFFIX=${LIBDIRSUFFIX} \
-    -DLIB_INSTALL_DIR=lib$LIBDIRSUFFIX \
-    -DQT_PLUGIN_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/plugins \
-    -DQML_INSTALL_DIR=lib$LIBDIRSUFFIX/qt5/qml \
+    -DCMAKE_INSTALL_MANDIR=/usr/man \
+    -DCMAKE_INSTALL_LIBDIR=lib${LIBDIRSUFFIX} \
     -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
     -DBUILD_TESTING=OFF \
-    -DQca-qt5_DIR=/usr/lib${LIBDIRSUFFIX}/cmake/Qca \
-    -DBUILD_SHARED_LIBS=ON \
+    $QTOPTS \
     .. || exit 1
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 cd ..
+}
+
+# Build for Qt5:
+build-futuresql 5
+# Build for Qt6:
+build-futuresql 6
 
 # Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

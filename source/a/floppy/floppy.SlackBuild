@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2013, 2018, 2021  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# Copyright 2008, 2009, 2010, 2013, 2018, 2021, 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,13 +24,13 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=floppy
 VERSION=5.5
-MTOOLS=4.0.18
-BUILD=${BUILD:-4}
+MTOOLS=4.0.47
+BUILD=${BUILD:-5}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -60,8 +60,16 @@ rm -rf $PKG $TMP/fdutils-$VERSION $TMP/mtools-$MTOOLS
 mkdir -p $TMP $PKG/{etc,usr/{bin,info,man/man{1,4,5}}}
 
 cd $TMP
-tar xvf $CWD/fdutils-$VERSION.tar.?z*
+tar xvf $CWD/fdutils-$VERSION.tar.?z
 cd fdutils-$VERSION
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
 zcat $CWD/fdutils-5.5-20081027.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 zcat $CWD/fdutils.mediaprm.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
 zcat $CWD/fdutils.glibc228.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
@@ -81,9 +89,19 @@ cp -a COPYING CREDITS Changelog INSTALL doc/FAQ.html doc/README \
   $PKG/usr/doc/fdutils-$VERSION
 chown root:root $PKG/usr/doc/fdutils-$VERSION/*
 chmod 644 $PKG/usr/doc/fdutils-$VERSION/*
+
 cd $TMP
-tar xvf $CWD/mtools-$MTOOLS.tar.?z*
+tar xvf $CWD/mtools-$MTOOLS.tar.?z
 cd mtools-$MTOOLS
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+zcat $CWD/mtools.conf.diff.gz | patch -p1 --verbose || exit 1
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -94,13 +112,13 @@ CFLAGS="$SLKCFLAGS" \
   --build=$ARCH-slackware-linux || exit 1
 make all || exit 1
 make install DESTDIR=$PKG || exit 1
-cat $CWD/mtools.conf > $PKG/etc/mtools.conf
-cat $CWD/mediaprm > $PKG/etc/mediaprm
+cp -a mtools.conf $PKG/etc/mtools.conf.new
 mkdir -p $PKG/usr/doc/mtools-$MTOOLS
-cp -a COPYING Changelog INSTALL README Release.notes TODO \
+cp -a COPYING INSTALL NEWS README README.BEBOX Release.notes \
   $PKG/usr/doc/mtools-$MTOOLS
 chown root:root $PKG/usr/doc/mtools-$MTOOLS/*
 chmod 644 $PKG/usr/doc/mtools-$MTOOLS/*
+
 ( cd $PKG/usr/man
   for manpagedir in $(find . -type d -name "man*") ; do
     ( cd $manpagedir
@@ -112,14 +130,17 @@ chmod 644 $PKG/usr/doc/mtools-$MTOOLS/*
     )
   done
 )
+
 ( cd $PKG/usr/info ; rm -f dir ; gzip -9 * )
 
 # These are obsolete and/or cruft:
 rm -f $PKG/usr/bin/MAKEFLOPPIES $PKG/usr/bin/lz $PKG/usr/bin/mcheck \
   $PKG/usr/bin/mcomp $PKG/usr/bin/mxtar $PKG/usr/bin/tgz \
   $PKG/usr/bin/uz $PKG/usr/man/man1/makefloppies.1
+
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
+zcat $CWD/doinst.sh.gz > $PKG/install/doinst.sh
+
 cd $PKG
 makepkg -l y -c n $TMP/floppy-$VERSION-$ARCH-$BUILD.txz
-

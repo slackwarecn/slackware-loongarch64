@@ -146,9 +146,11 @@ gzip ./source/a/file/file.etc.file.diff
 gzip ./source/a/file/doinst.sh
 gzip ./source/a/file/file.quiet.diff
 gzip ./source/a/bzip2/bzip2.saneso.diff
+gzip ./source/a/floppy/mtools.conf.diff
 gzip ./source/a/floppy/fdutils-5.5-20081027.diff
 gzip ./source/a/floppy/fdutils.mediaprm.diff
 gzip ./source/a/floppy/fdutils.glibc228.diff
+gzip ./source/a/floppy/doinst.sh
 gzip ./source/a/smartmontools/doinst.sh
 gzip ./source/a/lbzip2/lbzip2.glibc228.diff
 gzip ./source/a/libpwquality/doinst.sh

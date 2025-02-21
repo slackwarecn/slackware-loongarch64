@@ -26,17 +26,26 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=rust
 SRCNAM=rustc
-VERSION=${VERSION:-1.84.1}
+VERSION=${VERSION:-1.85.0}
 BUILD=${BUILD:-1}
+# Include the massive documentation in the package?
+RUSTDOCS=${RUSTDOCS:-YES}
 
 # Set this to YES to build with the system LLVM, or NO to use the bundled LLVM.
 SYSTEM_LLVM=${SYSTEM_LLVM:-NO}
 
 # Bootstrap variables (might not be kept updated for latest Rust):
-RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.83.0}
-RSTAGE0_DIR=${RSTAGE0_DIR:-2024-11-28}
-CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.83.0}
+RSTAGE0_VERSION=${RSTAGE0_VERSION:-1.84.0}
+RSTAGE0_DIR=${RSTAGE0_DIR:-2025-01-09}
+CSTAGE0_VERSION=${CSTAGE0_VERSION:-1.84.0}
 CSTAGE0_DIR=${CSTAGE0_DIR:-$RSTAGE0_DIR}
+
+# Reset RUSTDOCS to the build option:
+if [ "$RUSTDOCS" = "NO" ]; then
+  RUSTDOCS="docs = false"
+else
+  unset RUSTDOCS
+fi
 
 # Automatically determine the architecture we're building on:
 MARCH=$( uname -m )
@@ -177,6 +186,7 @@ profiler = true
 sanitizers = true
 # Do not query new versions of dependencies online.
 locked-deps = true
+$RUSTDOCS
 
 [install]
 prefix = "/usr"
@@ -254,7 +264,7 @@ DESTDIR=$PKG python3 x.py install || exit 1
 
 # In case the rls stub doesn't get installed by the 'install' target:
 if [ ! -x $PKG/usr/bin/rls ]; then
-  install -m755 build/*-linux-gnu/stage1-tools-bin/rls $PKG/usr/bin/rls
+  install -m755 build/*-linux-gnu/stage2-tools-bin/rls $PKG/usr/bin/rls
 fi
 
 # Fix path to lldb_commands:
@@ -311,7 +321,7 @@ for i in $( find $PKG/usr/man -type l ) ; do ln -s $( readlink $i ).gz $i.gz ; r
 
 # Add some documentation:
 mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
-cp -a *.md COPYRIGHT* COPYING* LICENSE* $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a *.md COPYRIGHT* LICENSE* $PKG/usr/doc/$PKGNAM-$VERSION
 # Include licenses from third party vendors:
 mkdir $PKG/usr/doc/$PKGNAM-$VERSION/vendor
 ( cd vendor

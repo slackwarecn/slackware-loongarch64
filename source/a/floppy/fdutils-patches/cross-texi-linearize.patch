@@ -1,0 +1,45 @@
+Description: Compile build tool doc/texi-linearize with the build arch compiler
+ fdutils fails to cross build from source, because it fails running
+ doc/texi-linearize with an Exec format error. That indicates that it is a
+ build tool and should be using the build architecture compiler rather than the
+ host architecture compiler. The autoconf-archive provides a useful macro
+ AX_CC_FOR_BUILD for this task. I'm attaching a patch that makes use of it to
+ make fdutils cross buildable.
+Author: Helmut Grohne <helmut@subdivi.de>
+Bug-Debian: https://bugs.debian.org/981598
+Last-Update: 2021-02-01
+--- a/configure.in
++++ b/configure.in
+@@ -9,6 +9,7 @@
+ AC_PROG_GCC_TRADITIONAL
+ AC_PROG_INSTALL
+ AC_PROG_LN_S
++AX_CC_FOR_BUILD
+ 
+ AC_PATH_PROG(INSTALL_INFO, install-info, "")
+ 
+--- a/doc/Makefile.in
++++ b/doc/Makefile.in
+@@ -37,6 +37,8 @@
+ CC          = @CC@
+ CPPFLAGS    = @CPPFLAGS@
+ CFLAGS      = @CFLAGS@
++CC_FOR_BUILD     = @CC_FOR_BUILD@
++EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
+ 
+ all: info dvi
+ 
+@@ -76,8 +78,11 @@
+ %.html: Fdutils.texi
+ 	$(TEXI2HTML) $<
+ 
+-Fdutils.texi: $(TEXISRC) texi-linearize
+-	./texi-linearize $(srcdir) fdutils.texi > $@
++texi-linearize$(EXEEXT_FOR_BUILD): texi-linearize.c
++	$(CC_FOR_BUILD) -o $@ $^
++
++Fdutils.texi: $(TEXISRC) texi-linearize$(EXEEXT_FOR_BUILD)
++	./texi-linearize$(EXEEXT_FOR_BUILD) $(srcdir) fdutils.texi > $@
+ 
+ 
+ # Don't cd, to avoid breaking install-sh references.

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-0.10.9}
+VERSION=${VERSION:-0.10.11}
 
 if [ ! -r cargo-c-$VERSION.tar.gz ]; then
   echo "ERROR: cargo-c-$VERSION.tar.gz not found"

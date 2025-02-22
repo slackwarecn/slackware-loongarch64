@@ -1,0 +1,206 @@
+Description: Fixes related to the help messages
+ This patch contains several fixes related to the usage and help
+ messages:
+ - Do not print "Type <program> --help to get a more complete help"
+   any more when invoking program with --help or -h.
+ - floppymeter, floppycontrol, diskseekd, diskd: usage messages fixed
+   to be consistent with the manpages.
+ - superformat: print the usage short message along with the options'
+   details when invoking with --help or -h (Closes: #88297).
+ - fdlist, fdmount, fdumount, fdmountd: fixed usage printing when
+   invoking with --help or -h.
+Author: Matteo Cypriani <mcy@lm7.fr>
+Bug-Debian: http://bugs.debian.org/88297
+Last-Update: 2021-01-30
+--- a/src/enh_options.c
++++ b/src/enh_options.c
+@@ -58,8 +58,14 @@
+ 		fprintf(stderr,"] ");
+ 	}
+ 	fprintf(stderr,"%s\n", userparams);
++}
++
++void print_usage_exit(char *progname, struct enh_options *eo, char *userparams)
++{
++	print_usage(progname, eo, userparams);
+ 	fprintf(stderr,"Type %s --help to get a more complete help\n",
+ 		progname);
++	exit(1);
+ }
+ 
+ static void parse_option_table(struct enh_options *eo)
+@@ -490,6 +496,7 @@
+ 
+ 		switch(ch){
+ 		case 'h':
++			print_usage(argv[0], eo, userparams);
+ 			print_help(eo);
+ 			exit(0);
+ 		case '?':
+--- a/src/setfdprm.c
++++ b/src/setfdprm.c
+@@ -41,8 +41,6 @@
+ 	int mask;
+ 
+ 	name = argv[0];
+-	if (argc < 3) 
+-		print_usage(name, optable, userparams);
+ 	cmd = FDSETPRM;
+ 	mcmd = 0;
+ 	while((c=getopt_enh(argc, argv, optable, 0, &mask, userparams)) != EOF){
+@@ -53,6 +51,8 @@
+ 		printf("unhandled option %d\n", c);
+ 		exit(1);
+ 	}
++	if (argc < 3)
++		print_usage_exit(name, optable, userparams);
+ 
+ 	argv += optind;
+ 	argc -= optind;
+--- a/src/enh_options.h
++++ b/src/enh_options.h
+@@ -53,6 +53,8 @@
+ 
+ void  print_help(struct enh_options *eo);
+ 
++void print_usage_exit(char *progname, struct enh_options *eo, char *userparams);
++
+ void print_usage(char *progname, struct enh_options *eo, char *userparams);
+ /* userparams represent the non-option parameters of the command. Printed
+  * after the automatically generated list */
+--- a/src/superformat.c
++++ b/src/superformat.c
+@@ -726,21 +726,18 @@
+ 	/* sanity checking */
+ 	if (sizecode < 0 || sizecode >= MAX_SIZECODE) {
+ 		fprintf(stderr,"Bad sizecode %d\n", sizecode);
+-		print_usage(progname,optable, "");
+-		exit(1);
++		print_usage_exit(progname,optable, "");
+ 	}
+ 
+ 	if ( gap < 0 ){
+ 		fprintf(stderr,"Fmt gap too small: %d\n", gap);
+-		print_usage(progname,optable, "");
+-		exit(1);
++		print_usage_exit(progname,optable, "");
+ 	}
+ 
+ 	if (sectors <= 0 || cylinders <= 0 || heads <= 0) {
+ 		fprintf(stderr,"bad geometry s=%d h=%d t=%d\n",
+ 			sectors, heads, cylinders);
+-		print_usage(progname,optable, "");
+-		exit(1);
++		print_usage_exit(progname,optable, "");
+ 	}
+ 
+ 	argc -= optind;
+@@ -753,8 +750,7 @@
+ 
+ 	if (! fd[0].name){
+ 		fprintf(stderr,"Which drive?\n");
+-		print_usage(progname,optable, "");
+-		exit(1);
++		print_usage_exit(progname,optable, "");
+ 	}
+ 
+ 	while(1) {
+@@ -904,8 +900,7 @@
+ 		
+ 	if (cylinders > fd[0].drvprm.tracks) {
+ 		fprintf(stderr,"too many cylinder for this drive\n");
+-		print_usage(progname,optable,"");
+-		exit(1);
++		print_usage_exit(progname,optable,"");
+ 	}
+ 
+ 	if (! (mask & SET_ENDTRACK ) || end_cylinder > cylinders)
+--- a/src/diskd.c
++++ b/src/diskd.c
+@@ -77,7 +77,7 @@
+ 	};
+ 
+ 	while((ch=getopt_enh(argc, argv, optable, 
+-			     0, &mask, "drive") ) != EOF ){
++			     0, &mask, "") ) != EOF ){
+ 		if ( ch== '?' ){
+ 			fprintf(stderr,"exiting\n");
+ 			exit(1);
+--- a/src/diskseekd.c
++++ b/src/diskseekd.c
+@@ -78,7 +78,7 @@
+ 		interval = 0;
+ 
+ 	while((ch=getopt_enh(argc, argv, optable, 
+-			     0, &mask, "drive") ) != EOF ){
++			     0, &mask, "") ) != EOF ){
+ 		if ( ch== '?' ){
+ 			fprintf(stderr,"exiting\n");
+ 			exit(1);
+--- a/src/floppycontrol.c
++++ b/src/floppycontrol.c
+@@ -270,7 +270,7 @@
+ 		
+ 	fd = -2;
+ 	while((ch=getopt_enh(argc, argv, optable, 
+-			     0, &mask, "drive") ) != EOF ){
++			     0, &mask, "[drive]") ) != EOF ){
+ 		if ( ch== '?' ){
+ 			fprintf(stderr,"exiting\n");
+ 			exit(1);
+@@ -289,8 +289,7 @@
+ 			fd = open("/dev/fd0", 3 | O_NDELAY);
+ 		if ( fd < 0 ){
+ 			perror("can't open floppy drive");
+-			print_usage(argv[0],optable,"");
+-			exit(1);
++			print_usage_exit(argv[0],optable,"[drive]");
+ 		}
+ 	}
+ 	
+--- a/src/floppymeter.c
++++ b/src/floppymeter.c
+@@ -132,7 +132,7 @@
+ 	struct reg *reg;
+ 
+ 	while((ch=getopt_enh(argc, argv, optable, 
+-			     0, &mask, "drive") ) != EOF ){
++			     0, &mask, "[drive]") ) != EOF ){
+ 		if ( ch== '?' ){
+ 			fprintf(stderr,"exiting\n");
+ 			exit(1);
+@@ -149,8 +149,7 @@
+ 	fd = open(name, 3 | O_NDELAY);
+ 	if ( fd < 0 ){
+ 		perror("can't open floppy drive");
+-		print_usage(argv[0],optable,"");
+-		exit(1);
++		print_usage_exit(argv[0],optable,"[drive]");
+ 	}
+ 
+ 	if(!(mask & NON_INTERACTIVE)) {
+--- a/src/fdmount.c
++++ b/src/fdmount.c
+@@ -1181,6 +1181,10 @@
+ 	}
+     }
+ 
++    if (opt_help) {
++	syntax();
++    }
++
+     mountflags |= opt_noexec | opt_nosuid | opt_nodev;
+ 
+     if (opt_vfat) {
+@@ -1229,10 +1233,7 @@
+     }
+ 
+     e=0;
+-    if (opt_help) {
+-	syntax();
+-    }
+-    else if (opt_list) {
++    if (opt_list) {
+ 	list_drives();
+     }
+     else if (opt_daemon) {

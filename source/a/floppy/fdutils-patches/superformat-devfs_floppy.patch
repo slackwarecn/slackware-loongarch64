@@ -1,0 +1,51 @@
+Subject: [superformat] Use /dev/floppy/%d instead of /dev/fd%d on devfs-systems
+Author: Jochen Voss <voss@debian.org>
+Bug-Debian: http://bugs.debian.org/110225
+Last-Update: 2021-01-30
+--- a/src/superformat.c
++++ b/src/superformat.c
+@@ -487,6 +487,21 @@
+ 
+ #define DRIVE_DEFAULTS (drive_defaults[drivedesc.type.cmos])
+ 
++static int
++file_exists (const char *filename)
++{
++  struct stat  buf;
++  int  res;
++  res = stat (filename, &buf);
++  if (! res)  return 1;
++  if (res && errno != ENOENT) {
++    fprintf (stderr, "error: cannot stat %s (%s)\n",
++	     filename, strerror (errno));
++    exit (1);
++  }
++  return 0;
++}
++
+ int main(int argc, char **argv)
+ {
+ 	int nseqs; /* number of sequences used */
+@@ -495,7 +510,7 @@
+ 	struct params fd[MAX_SECTORS], fd0;
+ 	int ch,i;
+ 	short density = DENS_UNKNOWN;
+-	char drivename[10];
++	char drivename[15];
+ 
+ 	int have_geom = 0;
+ 	int margin=50;
+@@ -771,7 +786,12 @@
+ 				ioctl(fd[0].fd, FDGETPRM, &geometry);
+ 			have_geom = 1;
+ 			close(fd[0].fd);
+-			snprintf(drivename,9,"/dev/fd%d", fd[0].drive);
++
++			if (file_exists ("/dev/.devfsd")) {
++			  snprintf(drivename,14,"/dev/floppy/%d", fd[0].drive);
++			} else {
++			  snprintf(drivename,9,"/dev/fd%d", fd[0].drive);
++			}
+ 			fd[0].name = drivename;
+ 			continue;
+ 		}

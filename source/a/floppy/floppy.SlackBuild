@@ -23,9 +23,9 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=floppy
-VERSION=5.5
-MTOOLS=4.0.47
-BUILD=${BUILD:-5}
+VERSION=5.6
+MTOOLS=4.0.48
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -70,10 +70,12 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-zcat $CWD/fdutils-5.5-20081027.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/fdutils.mediaprm.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-zcat $CWD/fdutils.glibc228.diff.gz | patch -p1 --verbose --backup --suffix=.orig || exit 1
-sed -i 's|<linux/ext2_fs.h>|<ext2fs/ext2_fs.h>|' src/fdmount.c
+cat $CWD/fdutils-patches/series | while read patch ; do
+  cat $CWD/fdutils-patches/$patch | patch -p1 --verbose || exit 1
+done || exit 1
+
+autoreconf -vif
+
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
@@ -82,8 +84,10 @@ CFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --build=$ARCH-slackware-linux || exit 1
 make || exit 1
-make install prefix=$PKG/usr exec_prefix=$PKG/usr bindir=$PKG/usr/bin \
+#make install prefix=$PKG/usr exec_prefix=$PKG/usr bindir=$PKG/usr/bin \
   infodir=$PKG/usr/info mandir=$PKG/usr/man sysconfdir=$PKG/etc
+make install DESTDIR=$PKG || exit 1
+make install-doc DESTDIR=$PKG || exit 1
 mkdir -p $PKG/usr/doc/fdutils-$VERSION
 cp -a COPYING CREDITS Changelog INSTALL doc/FAQ.html doc/README \
   $PKG/usr/doc/fdutils-$VERSION

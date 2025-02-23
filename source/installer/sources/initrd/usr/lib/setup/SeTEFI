@@ -30,12 +30,15 @@ touch $TMP/SeTefipartitions
 # own EFI boot partition to support Hardware Models using UEFI firmware.
 # This partition must be filtered out here to avoid it being incorrectly
 # selected as the OS's EFI partition.
+#
+# Also filter USBSLACK label.
 ESPGUID=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 OSTYPE=0xEF
-lsblk -Ml -o parttype,name,label | \
+lsblk -Ml -o name,parttype,label | \
 grep -v 'SLKins_efi$' | \
+grep -v 'USBSLACK$' | \
 grep -iFe "$ESPGUID" -e "$OSTYPE" | \
-sed "s,[^ ]*[ ]*,/dev/," | \
+sed "s|^|/dev/|" | \
 cut -f 1 -d ' ' > $TMP/SeTefipartitions
 
 if [ ! -s $TMP/SeTefipartitions ]; then # No EFI partitions
@@ -43,15 +46,22 @@ if [ ! -s $TMP/SeTefipartitions ]; then # No EFI partitions
   exit
 fi
 
-# Initially, we will just take the first EFI partition found, which
-# will probably be on /dev/sda:
+# Sort /dev/s* last. Could be a USB stick or an optical disc.
+cat $TMP/SeTefipartitions | sort | grep -v "^/dev/s" > $TMP/SeTefipartitions-sort
+cat $TMP/SeTefipartitions | sort | grep "^/dev/s" >> $TMP/SeTefipartitions-sort
+mv $TMP/SeTefipartitions-sort $TMP/SeTefipartitions
+
+# Initially, we will just take the first EFI partition found:
 PREFERRED_EFI_PARTITION="$(cat $TMP/SeTefipartitions | head -n 1)"
 
 # But we will also test to see if there is an EFI partition on the same
 # device as the root partition, and if so, prefer that:
 if [ -r $TMP/SeTrootdev ]; then
-  if grep -q "$(cat $TMP/SeTrootdev | cut -b 1-8)" $TMP/SeTefipartitions ; then
-    PREFERRED_EFI_PARTITION="$(grep "$(cat $TMP/SeTrootdev | cut -b 1-8)" $TMP/SeTefipartitions | head -n 1)"
+  DEVLEN=8
+  grep -q -e nvme -e mmcblk $TMP/SeTrootdev && DEVLEN=12
+  PARENT_DEVICE="$(cat $TMP/SeTrootdev | cut -b 1-${DEVLEN})"
+  if grep -q "$PARENT_DEVICE" $TMP/SeTefipartitions ; then
+    PREFERRED_EFI_PARTITION="$(grep "$PARENT_DEVICE" $TMP/SeTefipartitions | head -n 1)"
   fi
 fi
 
@@ -107,4 +117,3 @@ cat $TMP/SeTEFI >> $TMP/SeTnative
 rm -f $TMP/SeTEFI $TMP/tempmsg
 
 # Done.
-

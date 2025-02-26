@@ -27,7 +27,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=kmod
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
@@ -99,6 +99,9 @@ meson setup \
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
+
+# Fix paths in manual page:
+sed -i 's?/usr/lib/`uname -r`?/lib/modules/`uname -r`?g' $PKG/usr/man/man8/modprobe.8 || exit 1
 
 # Strip binaries:
 ( cd $PKG

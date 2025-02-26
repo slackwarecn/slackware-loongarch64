@@ -681,9 +681,6 @@ cd _install
 # and the 'zcat' script from gzip, we delete the busybox symlinks:
 rm -f${VERBOSE1} bin/{date,dd,zcat}
 
-# Likewise, we will remove the 'fdisk' applet which overwrites our shell script:
-rm -f${VERBOSE1} sbin/fdisk
-
 # And we want to use our own 'cp':
 rm -f${VERBOSE1} bin/cp
 
@@ -1143,6 +1140,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         *bcachefs* \
         blkid \
         btrfs* \
+        cfdisk \
         cgdisk \
         cryptsetup \
         debugfs \
@@ -1151,6 +1149,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         dosfsck \
         dumpe2fs \
         e2fsck \
+        fdisk \
         fsck \
         fsck.* \
         filefrag \
@@ -1202,8 +1201,6 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         $PKG/$ARCH-installer-filesystem/sbin/
         # This had dmsetup* above, which unnecessarily copies dmsetup.static
         # This had lvm* above, which unnecessarily copies lvm.static
-cp --remove-destination -fa${VERBOSE1} fdisk \
-   $PKG/$ARCH-installer-filesystem/sbin/fdisk.bin
 
 # Hack reboot to call reboot -f:
 rm -f $PKG/$ARCH-installer-filesystem/sbin/reboot
@@ -1292,14 +1289,6 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_USRSBIN} \
         umount.cifs \
         zerofree \
         $PKG/$ARCH-installer-filesystem/usr/sbin/
-
-# The installer has wrappers for cfdisk/fdisk which run /dev/makedevs.sh
-# if it is there.  If it is not there, udev is running and will handle
-# creating or removing block devices in /dev as needed:
-cd $TMP/extract-packages/sbin
-cp --remove-destination -fa${VERBOSE1} \
-        cfdisk \
-        $PKG/$ARCH-installer-filesystem/sbin/cfdisk.bin
 
 # And for LVM, there are tonnes of symlinks:
 cd $TMP/extract-packages/sbin

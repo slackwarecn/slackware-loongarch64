@@ -45,99 +45,15 @@ sleep 1
 modprobe loop 1> /dev/null 2> /dev/null
 
 # Run udev:
-if ! grep -wq noudev /proc/cmdline ; then
-  /bin/bash /etc/rc.d/rc.udev start
+/bin/bash /etc/rc.d/rc.udev start
 
-  # Re-assemble RAID volumes:
-  /sbin/mdadm -E -s > /etc/mdadm.conf
-  /sbin/mdadm -S -s
-  /sbin/mdadm -A -s
-  # This seems to make the kernel see partitions more reliably:
-  fdisk -l /dev/md* 1> /dev/null 2> /dev/null
-else
-  # Run our old detection routines:
-
-  # Look for USB keyboard or storage:
-  /etc/rc.d/rc.usb start
-  sleep 3
-
-  # Look for IEEE1394 devices:
-  if grep 1394 /proc/pci 1> /dev/null 2> /dev/null ; then
-    /etc/rc.d/rc.ieee1394 start
-    #sleep 3
-  fi
-
-  # Load additional install floppies:
-  for NEWDISK in 2 ; do
-    if [ ! -r /etc/disk${NEWDISK} ]; then
-      while [ 0 ]; do
-        echo
-        echo -n "Insert install.${NEWDISK} floppy disk to be loaded into RAM disk and press ENTER"
-        read readfoo;
-        if [ "$readfoo" = "Q" -o "$readfoo" = "q" ]; then
-          break;
-        fi
-        echo -n "Loading install.${NEWDISK} floppy into RAM disk...  "
-        ( cd / ; cat /dev/fd0 | zcat 2> /dev/null | tar xf - )
-        if [ -r /etc/disk${NEWDISK} ]; then
-          echo "done."
-          echo
-          break;
-        else
-          echo "Error. (reload or enter Q)"
-          echo
-          continue;
-        fi
-      done
-    fi
-  done
-
-  ### PROBABLY USELESS WITHOUT SOME TIMED DELAY ABOVE
-  ## Start USB again (in case we missed a USB keyboard)
-  #/etc/rc.d/rc.usb start
-
-  # Make detected partitions:
-  /dev/makedevs.sh
-
-  ## Not needed with CONFIG_SCSI_MULTI_LUN=y
-  #unset SCAN
-  ## Now we should rescan the "SCSI" bus to look for new USB or firewire devices
-  ## that look like SCSI devices:
-  #if [ -r /proc/bus/usb/devices ]; then
-  #  if cat /proc/bus/usb/devices | grep -w usb-storage 1> /dev/null 2> /dev/null ; then
-  #    SCAN="true"
-  #  fi
-  #fi
-  #if [ -r /proc/bus/ieee1394/devices ]; then
-  #  if cat /proc/bus/ieee1394/devices | grep -w SBP2 1> /dev/null 2> /dev/null ; then
-  #    SCAN="true"
-  #  fi
-  #fi
-  #if [ "$SCAN" = "true" ]; then
-  #  if ! cat /proc/cmdline | grep -q noscanluns 2> /dev/null ; then
-  #    echo "Detected new USB/IEEE1394 storage devices...  scanning all LUNs."
-  #    echo "(to skip, give a 'noscanluns' kernel option at boot)"  
-  #    #sleep 5
-  #    sh /sbin/rescan-scsi-bus -l
-  #    #sleep 1
-  #  fi
-  #fi
-  #unset SCAN
-
-  # Re-assemble RAID volumes:
-  /sbin/mdadm -E -s > /etc/mdadm.conf
-  /sbin/mdadm -S -s
-  /sbin/mdadm -A -s
-  # This seems to make the kernel see partitions more reliably:
-  fdisk -l /dev/md* 1> /dev/null 2> /dev/null
-
-  # Check /proc/partitions again:
-  /dev/makedevs.sh
-
-  # Create LVM nodes:
-  /dev/devmap_mknod.sh
-
-fi # End Run udev:
+# junk?
+## Re-assemble RAID volumes:
+#/sbin/mdadm -E -s > /etc/mdadm.conf
+#/sbin/mdadm -S -s
+#/sbin/mdadm -A -s
+## This seems to make the kernel see partitions more reliably:
+#fdisk -l /dev/md* 1> /dev/null 2> /dev/null
 
 # Set up some swap on a ZRAM device:
 ZRAMSIZE=$(echo $(cat /proc/meminfo | grep ^MemTotal:) | cut -f 2 -d ' ')

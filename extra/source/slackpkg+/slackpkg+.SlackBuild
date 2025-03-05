@@ -22,6 +22,9 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
+# Override BUILD in the git pull?
+BUILD=2alien
+
 PKGNAM=slackpkgplus
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 
@@ -42,6 +45,18 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
+
+# Override BUILD=, if requested:
+if [ ! -z "$BUILD" ]; then
+  sed -i "s/^BUILD=.*/BUILD=$BUILD/" src/slackpkg+.SlackBuild
+fi
+
+# Apply patches, if any:
+for patch in $CWD/patches/* ; do
+  if [ -r "$patch" ]; then
+    cat $patch | patch -p1 --verbose || exit 1
+  fi
+done || exit 1
 
 cd src
 sh slackpkg+.SlackBuild

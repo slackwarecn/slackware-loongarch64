@@ -1,0 +1,811 @@
+Since the acinclude.m4 file is modified, the autotools would normally
+be run after applying this patch. But they may not have the expected
+version or may not even be installed, which would make the build fail.
+To avoid this issue, after applying this patch, execute
+  touch aclocal.m4
+  touch Makefile.in
+  touch configure
+(in this order) to update the timestamps.
+Alternatively, use the --disable-maintainer-mode option when executing
+the configure script.
+
+diff -Naurd mpfr-4.2.1-a/PATCHES mpfr-4.2.1-b/PATCHES
+--- mpfr-4.2.1-a/PATCHES	2007-07-30 10:45:01.000000000 +0000
++++ mpfr-4.2.1-b/PATCHES	2025-03-07 13:30:06.253111513 +0000
+@@ -0,0 +1 @@
++float128
+diff -Naurd mpfr-4.2.1-a/VERSION mpfr-4.2.1-b/VERSION
+--- mpfr-4.2.1-a/VERSION	2023-08-22 07:38:45.000000000 +0000
++++ mpfr-4.2.1-b/VERSION	2025-03-07 13:29:59.237046700 +0000
+@@ -1 +1 @@
+-4.2.1
++4.2.1-p1
+diff -Naurd mpfr-4.2.1-a/acinclude.m4 mpfr-4.2.1-b/acinclude.m4
+--- mpfr-4.2.1-a/acinclude.m4	2023-08-10 17:17:47.000000000 +0000
++++ mpfr-4.2.1-b/acinclude.m4	2025-03-07 13:17:08.537347005 +0000
+@@ -781,8 +781,11 @@
+ # End of decimal float checks
+ 
+ dnl Check if _Float128 or __float128 is available. We also require the
+-dnl compiler to support hex constants with the f128 or q suffix (this
+-dnl prevents the _Float128 support with GCC's -std=c90, but who cares?).
++dnl compiler to support hex constants with the f128 or q suffix respectively.
++dnl If _Float128 is supported, then the mpfr_float128 macro should be
++dnl defined as this type. We do not define it here because this will be
++dnl done in mpfr.h, and not defining it here is the only way to ensure
++dnl that under "make check", mpfr.h really defines it.
+ dnl Note: We use AC_LINK_IFELSE instead of AC_COMPILE_IFELSE since an
+ dnl error may occur only at link time, such as under NetBSD:
+ dnl   https://mail-index.netbsd.org/pkgsrc-users/2018/02/02/msg026220.html
+@@ -801,16 +804,14 @@
+       [AC_MSG_RESULT(no)
+        AC_MSG_CHECKING(if __float128 can be used as a fallback)
+ dnl Use the q suffix in this case.
+-       AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+-#define _Float128 __float128
+-]], [[
+-volatile _Float128 x = 0x1.fp+16383q;
++       AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
++volatile __float128 x = 0x1.fp+16383q;
+ return x == 0;
+ ]])],
+           [AC_MSG_RESULT(yes)
+            AC_DEFINE([MPFR_WANT_FLOAT128],2,
+-                     [Build float128 functions with float128 fallback])
+-           AC_DEFINE([_Float128],[__float128],[__float128 fallback])],
++                     [Build float128 functions with __float128 fallback])
++           AC_DEFINE([mpfr_float128],[__float128],[__float128 fallback])],
+           [AC_MSG_RESULT(no)
+            if test "$enable_float128" = yes; then
+               AC_MSG_ERROR(
+diff -Naurd mpfr-4.2.1-a/configure mpfr-4.2.1-b/configure
+--- mpfr-4.2.1-a/configure	2023-08-22 07:47:14.000000000 +0000
++++ mpfr-4.2.1-b/configure	2025-03-07 13:22:45.529299924 +0000
+@@ -18225,13 +18225,11 @@
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ 
+-#define _Float128 __float128
+-
+ int
+ main (void)
+ {
+ 
+-volatile _Float128 x = 0x1.fp+16383q;
++volatile __float128 x = 0x1.fp+16383q;
+ return x == 0;
+ 
+   ;
+@@ -18246,7 +18244,7 @@
+ printf "%s\n" "#define MPFR_WANT_FLOAT128 2" >>confdefs.h
+ 
+ 
+-printf "%s\n" "#define _Float128 __float128" >>confdefs.h
++printf "%s\n" "#define mpfr_float128 __float128" >>confdefs.h
+ 
+ else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+diff -Naurd mpfr-4.2.1-a/doc/README.dev mpfr-4.2.1-b/doc/README.dev
+--- mpfr-4.2.1-a/doc/README.dev	2023-01-06 17:36:03.000000000 +0000
++++ mpfr-4.2.1-b/doc/README.dev	2025-03-07 13:17:05.049390558 +0000
+@@ -542,6 +542,10 @@
+ 
+ + MPFR_WANT_FLOAT128:   Define to build conversion functions from/to
+                         binary128 floats (_Float128 or __float128).
++                        Define it to 1 if constants have the f128 suffix.
++                        Define it to 2 if constants have the q suffix; in
++                        this case, the mpfr_float128 macro may have to be
++                        defined as __float128 (a.k.a. __float128 fallback).
+ 
+ + MPFR_ALLOCA_MAX:      Maximum size for the use of alloca() by temporary
+                         allocations (default: 16384); if set to 0, alloca()
+@@ -836,13 +840,6 @@
+ 
+    =====================================================================
+ 
+-In MPFR, _Float128 may be defined as __float128 if the latter is provided
+-by the compiler, but not the former. In such a case, do not assume that
+-_Float128 and long double are necessarily different types (as required by
+-the WG14 N2579 draft "IEC 60559 interchange and extended types").
+-
+-   =====================================================================
+-
+ For string suffix selection, do not write expressions of the form
+ string + integer, such as
+ 
+diff -Naurd mpfr-4.2.1-a/doc/mpfr.info mpfr-4.2.1-b/doc/mpfr.info
+--- mpfr-4.2.1-a/doc/mpfr.info	2023-08-22 07:47:29.000000000 +0000
++++ mpfr-4.2.1-b/doc/mpfr.info	2025-03-07 13:45:15.318330631 +0000
+@@ -493,6 +493,20 @@
+ and provides operations on flags (*note Exceptions::).  This C data type
+ is used to represent a group of flags (or a mask).
+ 
++   MPFR can be built with binary128 support (a.k.a. float128) for some
++conversion functions if the ‘_Float128’ type (from ISO C23) or the
++‘__float128’ type (a common extension) is available.  This is
++automatically detected, but the ‘--enable-float128’ configure option can
++also be used to ensure this support.  For this support, MPFR uses a
++‘mpfr_float128’ macro, which needs to be defined as a supported type for
++the binary128 format, typically ‘_Float128’ or ‘__float128’, depending
++on the compiler and the system used to compile the user code.  Before
++including ‘mpfr.h’, the user needs to do the following (in any order):
++define the ‘MPFR_WANT_FLOAT128’ macro and define the ‘mpfr_float128’
++macro as the actual float128 type; ‘mpfr.h’ will define ‘mpfr_float128’
++as ‘_Float128’ by default, but mainly for compatibility with software
++written for MPFR 4.1.x and 4.2.0, where the prototypes used ‘_Float128’.
++
+ 
+ File: mpfr.info,  Node: MPFR Variable Conventions,  Next: Rounding,  Prev: Nomenclature and Types,  Up: MPFR Basics
+ 
+@@ -1098,7 +1112,7 @@
+  -- Function: int mpfr_set_d (mpfr_t ROP, double OP, mpfr_rnd_t RND)
+  -- Function: int mpfr_set_ld (mpfr_t ROP, long double OP, mpfr_rnd_t
+           RND)
+- -- Function: int mpfr_set_float128 (mpfr_t ROP, _Float128 OP,
++ -- Function: int mpfr_set_float128 (mpfr_t ROP, mpfr_float128 OP,
+           mpfr_rnd_t RND)
+  -- Function: int mpfr_set_decimal64 (mpfr_t ROP, _Decimal64 OP,
+           mpfr_rnd_t RND)
+@@ -1110,22 +1124,19 @@
+      Set the value of ROP from OP, rounded toward the given direction
+      RND.  Note that the input 0 is converted to +0 by ‘mpfr_set_ui’,
+      ‘mpfr_set_si’, ‘mpfr_set_uj’, ‘mpfr_set_sj’, ‘mpfr_set_z’,
+-     ‘mpfr_set_q’ and ‘mpfr_set_f’, regardless of the rounding mode.
+-     The ‘mpfr_set_float128’ function is built only with the configure
+-     option ‘--enable-float128’, which requires the compiler or system
+-     provides the ‘_Float128’ data type (GCC 4.3 or later supports this
+-     data type); to use ‘mpfr_set_float128’, one should define the macro
+-     ‘MPFR_WANT_FLOAT128’ before including ‘mpfr.h’.  If the system does
+-     not support the IEEE 754 standard, ‘mpfr_set_flt’, ‘mpfr_set_d’,
+-     ‘mpfr_set_ld’, ‘mpfr_set_decimal64’ and ‘mpfr_set_decimal128’ might
+-     not preserve the signed zeros (and in any case they don’t preserve
+-     the sign bit of NaN).  The ‘mpfr_set_decimal64’ and
+-     ‘mpfr_set_decimal128’ functions are built only with the configure
+-     option ‘--enable-decimal-float’, and when the compiler or system
+-     provides the ‘_Decimal64’ and ‘_Decimal128’ data type; to use those
+-     functions, one should define the macro ‘MPFR_WANT_DECIMAL_FLOATS’
+-     before including ‘mpfr.h’.  ‘mpfr_set_q’ might fail if the
+-     numerator (or the denominator) cannot be represented as a ‘mpfr_t’.
++     ‘mpfr_set_q’ and ‘mpfr_set_f’, regardless of the rounding mode.  To
++     use the ‘mpfr_set_float128’ function, see *note Nomenclature and
++     Types::.  If the system does not support the IEEE 754 standard,
++     ‘mpfr_set_flt’, ‘mpfr_set_d’, ‘mpfr_set_ld’, ‘mpfr_set_decimal64’
++     and ‘mpfr_set_decimal128’ might not preserve the signed zeros (and
++     in any case they don’t preserve the sign bit of NaN).  The
++     ‘mpfr_set_decimal64’ and ‘mpfr_set_decimal128’ functions are built
++     only with the configure option ‘--enable-decimal-float’, and when
++     the compiler or system provides the ‘_Decimal64’ and ‘_Decimal128’
++     data type; to use those functions, one should define the macro
++     ‘MPFR_WANT_DECIMAL_FLOATS’ before including ‘mpfr.h’.  ‘mpfr_set_q’
++     might fail if the numerator (or the denominator) cannot be
++     represented as a ‘mpfr_t’.
+ 
+      For ‘mpfr_set’, the sign of a NaN is propagated in order to mimic
+      the IEEE 754 ‘copy’ operation.  But contrary to IEEE 754, the NaN
+@@ -1293,7 +1304,8 @@
+  -- Function: float mpfr_get_flt (mpfr_t OP, mpfr_rnd_t RND)
+  -- Function: double mpfr_get_d (mpfr_t OP, mpfr_rnd_t RND)
+  -- Function: long double mpfr_get_ld (mpfr_t OP, mpfr_rnd_t RND)
+- -- Function: _Float128 mpfr_get_float128 (mpfr_t OP, mpfr_rnd_t RND)
++ -- Function: mpfr_float128 mpfr_get_float128 (mpfr_t OP, mpfr_rnd_t
++          RND)
+  -- Function: _Decimal64 mpfr_get_decimal64 (mpfr_t OP, mpfr_rnd_t RND)
+  -- Function: _Decimal128 mpfr_get_decimal128 (mpfr_t OP, mpfr_rnd_t
+           RND)
+@@ -2978,9 +2990,9 @@
+      return zero otherwise.
+ 
+  -- Function: int mpfr_buildopt_float128_p (void)
+-     Return a non-zero value if MPFR was compiled with ‘_Float128’
+-     support (that is, MPFR was built with the ‘--enable-float128’
+-     configure option), return zero otherwise.
++     Return a non-zero value if MPFR was compiled with binary128 support
++     (a.k.a. float128), return zero otherwise.  *Note Nomenclature and
++     Types:: for additional information.
+ 
+  -- Function: int mpfr_buildopt_decimal_p (void)
+      Return a non-zero value if MPFR was compiled with decimal float
+@@ -4548,6 +4560,8 @@
+ * Accuracy:                              MPFR Interface.       (line 25)
+ * Arithmetic functions:                  Arithmetic Functions. (line  3)
+ * Assignment functions:                  Assignment Functions. (line  3)
++* binary128:                             Nomenclature and Types.
++                                                               (line 62)
+ * Combined initialization and assignment functions: Combined Initialization and Assignment Functions.
+                                                                (line  3)
+ * Comparison functions:                  Comparison Functions. (line  3)
+@@ -4561,6 +4575,8 @@
+                                                                (line  3)
+ * Exponent:                              Nomenclature and Types.
+                                                                (line 47)
++* float128:                              Nomenclature and Types.
++                                                               (line 62)
+ * Floating-point functions:              MPFR Interface.       (line  6)
+ * Floating-point number:                 Nomenclature and Types.
+                                                                (line  6)
+@@ -4638,6 +4654,10 @@
+  [index ]
+ * Menu:
+ 
++* _Float128:                             Nomenclature and Types.
++                                                              (line  62)
++* __float128:                            Nomenclature and Types.
++                                                              (line  62)
+ * mpfr_abs:                              Arithmetic Functions.
+                                                               (line 145)
+ * mpfr_acos:                             Transcendental Functions.
+@@ -4852,21 +4872,21 @@
+ * mpfr_fac_ui:                           Arithmetic Functions.
+                                                               (line 177)
+ * mpfr_fits_intmax_p:                    Conversion Functions.
+-                                                              (line 186)
++                                                              (line 187)
+ * mpfr_fits_sint_p:                      Conversion Functions.
+-                                                              (line 182)
++                                                              (line 183)
+ * mpfr_fits_slong_p:                     Conversion Functions.
+-                                                              (line 180)
++                                                              (line 181)
+ * mpfr_fits_sshort_p:                    Conversion Functions.
+-                                                              (line 184)
+-* mpfr_fits_uintmax_p:                   Conversion Functions.
+                                                               (line 185)
++* mpfr_fits_uintmax_p:                   Conversion Functions.
++                                                              (line 186)
+ * mpfr_fits_uint_p:                      Conversion Functions.
+-                                                              (line 181)
++                                                              (line 182)
+ * mpfr_fits_ulong_p:                     Conversion Functions.
+-                                                              (line 179)
++                                                              (line 180)
+ * mpfr_fits_ushort_p:                    Conversion Functions.
+-                                                              (line 183)
++                                                              (line 184)
+ * mpfr_flags_clear:                      Exception Related Functions.
+                                                               (line 191)
+ * mpfr_flags_restore:                    Exception Related Functions.
+@@ -4879,6 +4899,8 @@
+                                                               (line  58)
+ * mpfr_flags_test:                       Exception Related Functions.
+                                                               (line 197)
++* mpfr_float128:                         Nomenclature and Types.
++                                                              (line  62)
+ * mpfr_floor:                            Integer and Remainder Related Functions.
+                                                               (line   8)
+ * mpfr_fma:                              Arithmetic Functions.
+@@ -4910,9 +4932,9 @@
+ * mpfr_free_pool:                        Memory Handling Functions.
+                                                               (line  30)
+ * mpfr_free_str:                         Conversion Functions.
+-                                                              (line 174)
++                                                              (line 175)
+ * mpfr_frexp:                            Conversion Functions.
+-                                                              (line  53)
++                                                              (line  54)
+ * mpfr_gamma:                            Transcendental Functions.
+                                                               (line 280)
+ * mpfr_gamma_inc:                        Transcendental Functions.
+@@ -4920,15 +4942,15 @@
+ * mpfr_get_d:                            Conversion Functions.
+                                                               (line   7)
+ * mpfr_get_decimal128:                   Conversion Functions.
+-                                                              (line  11)
++                                                              (line  12)
+ * mpfr_get_decimal64:                    Conversion Functions.
+-                                                              (line  10)
++                                                              (line  11)
+ * mpfr_get_default_prec:                 Initialization Functions.
+                                                               (line 115)
+ * mpfr_get_default_rounding_mode:        Rounding-Related Functions.
+                                                               (line  10)
+ * mpfr_get_d_2exp:                       Conversion Functions.
+-                                                              (line  40)
++                                                              (line  41)
+ * mpfr_get_emax:                         Exception Related Functions.
+                                                               (line   7)
+ * mpfr_get_emax_max:                     Exception Related Functions.
+@@ -4944,7 +4966,7 @@
+ * mpfr_get_exp:                          Miscellaneous Functions.
+                                                               (line 115)
+ * mpfr_get_f:                            Conversion Functions.
+-                                                              (line  89)
++                                                              (line  90)
+ * mpfr_get_float128:                     Conversion Functions.
+                                                               (line   9)
+ * mpfr_get_flt:                          Conversion Functions.
+@@ -4952,31 +4974,31 @@
+ * mpfr_get_ld:                           Conversion Functions.
+                                                               (line   8)
+ * mpfr_get_ld_2exp:                      Conversion Functions.
+-                                                              (line  42)
++                                                              (line  43)
+ * mpfr_get_patches:                      Miscellaneous Functions.
+                                                               (line 175)
+ * mpfr_get_prec:                         Initialization Functions.
+                                                               (line 152)
+ * mpfr_get_q:                            Conversion Functions.
+-                                                              (line  84)
++                                                              (line  85)
+ * mpfr_get_si:                           Conversion Functions.
+-                                                              (line  25)
++                                                              (line  26)
+ * mpfr_get_sj:                           Conversion Functions.
+-                                                              (line  27)
++                                                              (line  28)
+ * mpfr_get_str:                          Conversion Functions.
+-                                                              (line 114)
++                                                              (line 115)
+ * mpfr_get_str_ndigits:                  Conversion Functions.
+-                                                              (line 102)
++                                                              (line 103)
+ * mpfr_get_ui:                           Conversion Functions.
+-                                                              (line  26)
++                                                              (line  27)
+ * mpfr_get_uj:                           Conversion Functions.
+-                                                              (line  28)
++                                                              (line  29)
+ * mpfr_get_version:                      Miscellaneous Functions.
+                                                               (line 144)
+ * mpfr_get_z:                            Conversion Functions.
+-                                                              (line  75)
++                                                              (line  76)
+ * mpfr_get_z_2exp:                       Conversion Functions.
+-                                                              (line  62)
++                                                              (line  63)
+ * mpfr_grandom:                          Miscellaneous Functions.
+                                                               (line  79)
+ * mpfr_greaterequal_p:                   Comparison Functions.
+@@ -5198,11 +5220,11 @@
+ * mpfr_set_inexflag:                     Exception Related Functions.
+                                                               (line 170)
+ * mpfr_set_inf:                          Assignment Functions.
+-                                                              (line 158)
++                                                              (line 155)
+ * mpfr_set_ld:                           Assignment Functions.
+                                                               (line  17)
+ * mpfr_set_nan:                          Assignment Functions.
+-                                                              (line 157)
++                                                              (line 154)
+ * mpfr_set_nanflag:                      Exception Related Functions.
+                                                               (line 169)
+ * mpfr_set_overflow:                     Exception Related Functions.
+@@ -5216,29 +5238,29 @@
+ * mpfr_set_si:                           Assignment Functions.
+                                                               (line  12)
+ * mpfr_set_si_2exp:                      Assignment Functions.
+-                                                              (line  63)
++                                                              (line  60)
+ * mpfr_set_sj:                           Assignment Functions.
+                                                               (line  14)
+ * mpfr_set_sj_2exp:                      Assignment Functions.
+-                                                              (line  67)
++                                                              (line  64)
+ * mpfr_set_str:                          Assignment Functions.
+-                                                              (line  75)
++                                                              (line  72)
+ * mpfr_set_ui:                           Assignment Functions.
+                                                               (line  10)
+ * mpfr_set_ui_2exp:                      Assignment Functions.
+-                                                              (line  61)
++                                                              (line  58)
+ * mpfr_set_uj:                           Assignment Functions.
+                                                               (line  13)
+ * mpfr_set_uj_2exp:                      Assignment Functions.
+-                                                              (line  65)
++                                                              (line  62)
+ * mpfr_set_underflow:                    Exception Related Functions.
+                                                               (line 166)
+ * mpfr_set_z:                            Assignment Functions.
+                                                               (line  25)
+ * mpfr_set_zero:                         Assignment Functions.
+-                                                              (line 159)
++                                                              (line 156)
+ * mpfr_set_z_2exp:                       Assignment Functions.
+-                                                              (line  69)
++                                                              (line  66)
+ * mpfr_sgn:                              Comparison Functions.
+                                                               (line  50)
+ * mpfr_signbit:                          Miscellaneous Functions.
+@@ -5272,7 +5294,7 @@
+ * mpfr_srcptr:                           Nomenclature and Types.
+                                                               (line   6)
+ * mpfr_strtofr:                          Assignment Functions.
+-                                                              (line  94)
++                                                              (line  91)
+ * mpfr_sub:                              Arithmetic Functions.
+                                                               (line  26)
+ * mpfr_subnormalize:                     Exception Related Functions.
+@@ -5290,7 +5312,7 @@
+ * mpfr_sum:                              Arithmetic Functions.
+                                                               (line 210)
+ * mpfr_swap:                             Assignment Functions.
+-                                                              (line 166)
++                                                              (line 163)
+ * mpfr_t:                                Nomenclature and Types.
+                                                               (line   6)
+ * mpfr_tan:                              Transcendental Functions.
+@@ -5361,54 +5383,54 @@
+ 
+ 
+ Tag Table:
+-Node: Top777
+-Node: Copying2044
+-Node: Introduction to MPFR3808
+-Node: Installing MPFR6204
+-Node: Reporting Bugs11769
+-Node: MPFR Basics13800
+-Node: Headers and Libraries14154
+-Node: Nomenclature and Types17752
+-Node: MPFR Variable Conventions21070
+-Node: Rounding22606
+-Ref: ternary value26414
+-Node: Floating-Point Values on Special Numbers28405
+-Node: Exceptions31998
+-Node: Memory Handling35842
+-Node: Getting the Best Efficiency Out of MPFR39593
+-Node: MPFR Interface40609
+-Node: Initialization Functions42929
+-Node: Assignment Functions50458
+-Node: Combined Initialization and Assignment Functions60763
+-Node: Conversion Functions62064
+-Ref: mpfr_get_str_ndigits67975
+-Ref: mpfr_get_str68606
+-Node: Arithmetic Functions73578
+-Node: Comparison Functions85862
+-Node: Transcendental Functions90153
+-Ref: mpfr_pow93372
+-Node: Input and Output Functions111192
+-Node: Formatted Output Functions116694
+-Node: Integer and Remainder Related Functions127816
+-Node: Rounding-Related Functions135539
+-Node: Miscellaneous Functions142161
+-Node: Exception Related Functions153203
+-Node: Memory Handling Functions163456
+-Node: Compatibility with MPF165347
+-Node: Custom Interface168522
+-Node: Internals173308
+-Node: API Compatibility174852
+-Node: Type and Macro Changes176800
+-Node: Added Functions179985
+-Node: Changed Functions185557
+-Node: Removed Functions193324
+-Node: Other Changes194054
+-Node: MPFR and the IEEE 754 Standard195757
+-Node: Contributors198411
+-Node: References201550
+-Node: GNU Free Documentation License203613
+-Node: Concept Index226207
+-Node: Function and Type Index232280
++Node: Top775
++Node: Copying2042
++Node: Introduction to MPFR3806
++Node: Installing MPFR6202
++Node: Reporting Bugs11767
++Node: MPFR Basics13798
++Node: Headers and Libraries14152
++Node: Nomenclature and Types17750
++Node: MPFR Variable Conventions22031
++Node: Rounding23567
++Ref: ternary value27375
++Node: Floating-Point Values on Special Numbers29366
++Node: Exceptions32959
++Node: Memory Handling36803
++Node: Getting the Best Efficiency Out of MPFR40554
++Node: MPFR Interface41570
++Node: Initialization Functions43890
++Node: Assignment Functions51419
++Node: Combined Initialization and Assignment Functions61456
++Node: Conversion Functions62757
++Ref: mpfr_get_str_ndigits68682
++Ref: mpfr_get_str69313
++Node: Arithmetic Functions74285
++Node: Comparison Functions86569
++Node: Transcendental Functions90860
++Ref: mpfr_pow94079
++Node: Input and Output Functions111899
++Node: Formatted Output Functions117401
++Node: Integer and Remainder Related Functions128523
++Node: Rounding-Related Functions136246
++Node: Miscellaneous Functions142868
++Node: Exception Related Functions153906
++Node: Memory Handling Functions164159
++Node: Compatibility with MPF166050
++Node: Custom Interface169225
++Node: Internals174011
++Node: API Compatibility175555
++Node: Type and Macro Changes177503
++Node: Added Functions180688
++Node: Changed Functions186260
++Node: Removed Functions194027
++Node: Other Changes194757
++Node: MPFR and the IEEE 754 Standard196460
++Node: Contributors199114
++Node: References202253
++Node: GNU Free Documentation License204316
++Node: Concept Index226910
++Node: Function and Type Index233259
+ 
+ End Tag Table
+ 
+diff -Naurd mpfr-4.2.1-a/doc/mpfr.texi mpfr-4.2.1-b/doc/mpfr.texi
+--- mpfr-4.2.1-a/doc/mpfr.texi	2023-08-22 07:38:45.000000000 +0000
++++ mpfr-4.2.1-b/doc/mpfr.texi	2025-03-07 13:17:05.053390507 +0000
+@@ -833,6 +833,26 @@
+ provides operations on flags (@ref{Exceptions}). This C data type is used
+ to represent a group of flags (or a mask).
+ 
++@cindex binary128
++@cindex float128
++@tindex @code{_Float128}
++@tindex @code{__float128}
++@tindex @code{mpfr_float128}
++MPFR can be built with binary128 support (a.k.a.@: float128) for some
++conversion functions if the @samp{_Float128} type (from ISO C23) or
++the @samp{__float128} type (a common extension) is available. This is
++automatically detected, but the @samp{--enable-float128} configure option
++can also be used to ensure this support.  For this support, MPFR uses a
++@code{mpfr_float128} macro, which needs to be defined as a supported type
++for the binary128 format, typically @samp{_Float128} or @samp{__float128},
++depending on the compiler and the system used to compile the user code.
++Before including @file{mpfr.h}, the user needs to do the following (in
++any order): define the @code{MPFR_WANT_FLOAT128} macro and define the
++@code{mpfr_float128} macro as the actual float128 type; @file{mpfr.h} will
++define @code{mpfr_float128} as @samp{_Float128} by default, but mainly for
++compatibility with software written for MPFR@tie{}4.1.x and 4.2.0, where
++the prototypes used @samp{_Float128}.
++
+ @node MPFR Variable Conventions, Rounding, Nomenclature and Types, MPFR Basics
+ @comment  node-name,  next,  previous,  up
+ @section MPFR Variable Conventions
+@@ -1515,7 +1535,7 @@
+ @deftypefunx int mpfr_set_flt (mpfr_t @var{rop}, float @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx int mpfr_set_d (mpfr_t @var{rop}, double @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx int mpfr_set_ld (mpfr_t @var{rop}, long double @var{op}, mpfr_rnd_t @var{rnd})
+-@deftypefunx int mpfr_set_float128 (mpfr_t @var{rop}, _Float128 @var{op}, mpfr_rnd_t @var{rnd})
++@deftypefunx int mpfr_set_float128 (mpfr_t @var{rop}, mpfr_float128 @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx int mpfr_set_decimal64 (mpfr_t @var{rop}, _Decimal64 @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx int mpfr_set_decimal128 (mpfr_t @var{rop}, _Decimal128 @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx int mpfr_set_z (mpfr_t @var{rop}, mpz_t @var{op}, mpfr_rnd_t @var{rnd})
+@@ -1527,12 +1547,7 @@
+ @code{mpfr_set_si}, @code{mpfr_set_uj}, @code{mpfr_set_sj},
+ @code{mpfr_set_z}, @code{mpfr_set_q} and
+ @code{mpfr_set_f}, regardless of the rounding mode.
+-The @code{mpfr_set_float128} function is built only with the configure
+-option @samp{--enable-float128}, which requires the compiler or
+-system provides the @samp{_Float128} data type
+-(GCC 4.3 or later supports this data type);
+-to use @code{mpfr_set_float128}, one should define the macro
+-@code{MPFR_WANT_FLOAT128} before including @file{mpfr.h}.
++To use the @code{mpfr_set_float128} function, see @ref{Nomenclature and Types}.
+ If the system does not support the IEEE@tie{}754 standard,
+ @code{mpfr_set_flt}, @code{mpfr_set_d}, @code{mpfr_set_ld},
+ @code{mpfr_set_decimal64} and @code{mpfr_set_decimal128}
+@@ -1725,7 +1740,7 @@
+ @deftypefun float mpfr_get_flt (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx double mpfr_get_d (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx {long double} mpfr_get_ld (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
+-@deftypefunx {_Float128} mpfr_get_float128 (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
++@deftypefunx {mpfr_float128} mpfr_get_float128 (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx _Decimal64 mpfr_get_decimal64 (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
+ @deftypefunx _Decimal128 mpfr_get_decimal128 (mpfr_t @var{op}, mpfr_rnd_t @var{rnd})
+ Convert @var{op} to a @code{float} (respectively @code{double},
+@@ -3646,9 +3661,9 @@
+ @end deftypefun
+ 
+ @deftypefun int mpfr_buildopt_float128_p (void)
+-Return a non-zero value if MPFR was compiled with @samp{_Float128} support
+-(that is, MPFR was built with the @samp{--enable-float128} configure option),
+-return zero otherwise.
++Return a non-zero value if MPFR was compiled with binary128 support
++(a.k.a.@: float128), return zero otherwise. @xref{Nomenclature and Types}
++for additional information.
+ @end deftypefun
+ 
+ @deftypefun int mpfr_buildopt_decimal_p (void)
+diff -Naurd mpfr-4.2.1-a/src/get_float128.c mpfr-4.2.1-b/src/get_float128.c
+--- mpfr-4.2.1-a/src/get_float128.c	2023-01-05 17:09:48.000000000 +0000
++++ mpfr-4.2.1-b/src/get_float128.c	2025-03-07 13:17:05.053390507 +0000
+@@ -1,5 +1,5 @@
+ /* mpfr_get_float128 -- convert a multiple precision floating-point
+-                        number to a _Float128 number
++                        number to a binary128 (a.k.a. float128) number
+ 
+ Copyright 2012-2023 Free Software Foundation, Inc.
+ Contributed by the AriC and Caramba projects, INRIA.
+@@ -25,17 +25,20 @@
+ 
+ #ifdef MPFR_WANT_FLOAT128
+ 
++/* Note: mpfr_get_float128 is a macro defined as the actual binary128 type:
++   either _Float128 or __float128. */
++
+ /* generic code */
+-_Float128
++mpfr_float128
+ mpfr_get_float128 (mpfr_srcptr x, mpfr_rnd_t rnd_mode)
+ {
+ 
+   if (MPFR_UNLIKELY (MPFR_IS_SINGULAR (x)))
+-    return (_Float128) mpfr_get_d (x, rnd_mode);
++    return (mpfr_float128) mpfr_get_d (x, rnd_mode);
+   else /* now x is a normal non-zero number */
+     {
+-      _Float128 r; /* result */
+-      _Float128 m;
++      mpfr_float128 r; /* result */
++      mpfr_float128 m;
+       mpfr_exp_t e;  /* exponent of x (before rounding) */
+       mpfr_exp_t sh; /* exponent shift, so that x/2^sh is in the double range */
+       const int emin = -16381;
+@@ -62,7 +65,7 @@
+ 
+           MPFR_SAVE_EXPO_MARK (expo);
+ 
+-          /* First round x to the target _Float128 precision, taking the
++          /* First round x to the target binary128 precision, taking the
+              reduced precision of the subnormals into account, so that all
+              subsequent operations are exact (this avoids double rounding
+              problems). */
+@@ -83,7 +86,7 @@
+                  always work if GMP_NUMB_BITS > IEEE_FLOAT128_MANT_DIG.
+                  MPFR_LIMB_HIGHBIT has the advantage to fit on 1 bit. */
+               r += yp[i];
+-              r *= 1 / (2 * (_Float128) MPFR_LIMB_HIGHBIT);
++              r *= 1 / (2 * (mpfr_float128) MPFR_LIMB_HIGHBIT);
+             }
+ 
+           mpfr_clear (y);
+diff -Naurd mpfr-4.2.1-a/src/mpfr.h mpfr-4.2.1-b/src/mpfr.h
+--- mpfr-4.2.1-a/src/mpfr.h	2023-08-22 07:38:45.000000000 +0000
++++ mpfr-4.2.1-b/src/mpfr.h	2025-03-07 13:29:59.233046662 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 4
+ #define MPFR_VERSION_MINOR 2
+ #define MPFR_VERSION_PATCHLEVEL 1
+-#define MPFR_VERSION_STRING "4.2.1"
++#define MPFR_VERSION_STRING "4.2.1-p1"
+ 
+ /* User macros:
+    MPFR_USE_FILE:        Define it to make MPFR define functions dealing
+@@ -476,8 +476,14 @@
+ #endif
+ __MPFR_DECLSPEC int mpfr_set_ld (mpfr_ptr, long double, mpfr_rnd_t);
+ #ifdef MPFR_WANT_FLOAT128
+-__MPFR_DECLSPEC int mpfr_set_float128 (mpfr_ptr, _Float128, mpfr_rnd_t);
+-__MPFR_DECLSPEC _Float128 mpfr_get_float128 (mpfr_srcptr, mpfr_rnd_t);
++/* The user is free to define mpfr_float128 as another equivalent type,
++   such as __float128 if this one is supported by the current compiler
++   but _Float128 isn't. */
++# ifndef mpfr_float128
++#  define mpfr_float128 _Float128
++# endif
++__MPFR_DECLSPEC int mpfr_set_float128 (mpfr_ptr, mpfr_float128, mpfr_rnd_t);
++__MPFR_DECLSPEC mpfr_float128 mpfr_get_float128 (mpfr_srcptr, mpfr_rnd_t);
+ #endif
+ __MPFR_DECLSPEC int mpfr_set_z (mpfr_ptr, mpz_srcptr, mpfr_rnd_t);
+ __MPFR_DECLSPEC int mpfr_set_z_2exp (mpfr_ptr, mpz_srcptr, mpfr_exp_t,
+diff -Naurd mpfr-4.2.1-a/src/set_float128.c mpfr-4.2.1-b/src/set_float128.c
+--- mpfr-4.2.1-a/src/set_float128.c	2023-01-05 17:09:48.000000000 +0000
++++ mpfr-4.2.1-b/src/set_float128.c	2025-03-07 13:17:05.053390507 +0000
+@@ -1,4 +1,4 @@
+-/* mpfr_set_float128 -- convert a machine _Float128 number to
++/* mpfr_set_float128 -- convert a binary128 (a.k.a. float128) number to
+                         a multiple precision floating-point number
+ 
+ Copyright 2012-2023 Free Software Foundation, Inc.
+@@ -26,8 +26,11 @@
+ 
+ #ifdef MPFR_WANT_FLOAT128
+ 
++/* Note: mpfr_get_float128 is a macro defined as the actual binary128 type:
++   either _Float128 or __float128. */
++
+ #if MPFR_WANT_FLOAT128 == 1
+-/* _Float128 type from ISO/IEC TS 18661 */
++/* _Float128 type from ISO C23 */
+ # define MPFR_FLOAT128_MAX 0x1.ffffffffffffffffffffffffffffp+16383f128
+ #elif MPFR_WANT_FLOAT128 == 2
+ /* __float128 type (GNU C extension) */
+@@ -37,12 +40,12 @@
+ #endif
+ 
+ int
+-mpfr_set_float128 (mpfr_ptr r, _Float128 d, mpfr_rnd_t rnd_mode)
++mpfr_set_float128 (mpfr_ptr r, mpfr_float128 d, mpfr_rnd_t rnd_mode)
+ {
+   mpfr_t t;
+   mp_limb_t *tp;
+   int inexact, shift_exp, neg, e, i;
+-  _Float128 p[14], q[14];
++  mpfr_float128 p[14], q[14];
+   MPFR_SAVE_EXPO_DECL (expo);
+ 
+   /* Check for NaN */
+@@ -66,7 +69,7 @@
+       return 0;
+     }
+   /* Check for ZERO */
+-  else if (MPFR_UNLIKELY (d == (_Float128) 0.0))
++  else if (MPFR_UNLIKELY (d == (mpfr_float128) 0.0))
+     return mpfr_set_d (r, (double) d, rnd_mode);
+ 
+   shift_exp = 0; /* invariant: remainder to deal with is d*2^shift_exp */
+@@ -129,7 +132,7 @@
+ 
+   for (i = MPFR_LAST_LIMB (t); i >= 0; i--)
+     {
+-      d *= 2 * (_Float128) MPFR_LIMB_HIGHBIT;
++      d *= 2 * (mpfr_float128) MPFR_LIMB_HIGHBIT;
+       tp[i] = (mp_limb_t) d;
+       d -= tp[i];
+     }
+diff -Naurd mpfr-4.2.1-a/src/version.c mpfr-4.2.1-b/src/version.c
+--- mpfr-4.2.1-a/src/version.c	2023-08-22 07:38:45.000000000 +0000
++++ mpfr-4.2.1-b/src/version.c	2025-03-07 13:29:59.237046700 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "4.2.1";
++  return "4.2.1-p1";
+ }
+diff -Naurd mpfr-4.2.1-a/tests/tset_float128.c mpfr-4.2.1-b/tests/tset_float128.c
+--- mpfr-4.2.1-a/tests/tset_float128.c	2023-05-05 14:07:35.000000000 +0000
++++ mpfr-4.2.1-b/tests/tset_float128.c	2025-03-07 13:17:05.053390507 +0000
+@@ -33,7 +33,7 @@
+ static void
+ check_special (void)
+ {
+-  _Float128 f;
++  mpfr_float128 f;
+   mpfr_t x;
+ 
+   mpfr_init2 (x, 113);
+@@ -162,7 +162,7 @@
+ check_large (void)
+ {
+   mpfr_exp_t emin, emax;
+-  _Float128 f, e;
++  mpfr_float128 f, e;
+   int i;
+   mpfr_t x, y;
+   int r;
+@@ -177,7 +177,7 @@
+   /* check with the largest float128 number 2^16384*(1-2^(-113)) */
+   for (f = 1.0, i = 0; i < 113; i++)
+     f = f + f;
+-  f = f - (_Float128) 1.0;
++  f = f - (mpfr_float128) 1.0;
+   mpfr_set_ui (y, 1, MPFR_RNDN);
+   mpfr_mul_2ui (y, y, 113, MPFR_RNDN);
+   mpfr_sub_ui (y, y, 1, MPFR_RNDN);
+@@ -258,7 +258,7 @@
+ {
+   int t[5] = { 1, 2, 17, 111, 112 };
+   mpfr_exp_t emin;
+-  _Float128 e, f;
++  mpfr_float128 e, f;
+   int i, j, neg, inex, r;
+   mpfr_t w, x, y, z;
+ 
+diff -Naurd mpfr-4.2.1-a/tests/tversion.c mpfr-4.2.1-b/tests/tversion.c
+--- mpfr-4.2.1-a/tests/tversion.c	2023-01-05 17:09:48.000000000 +0000
++++ mpfr-4.2.1-b/tests/tversion.c	2025-03-07 13:17:05.053390507 +0000
+@@ -309,10 +309,16 @@
+       err = 1;
+     }
+ 
++#ifdef MPFR_WANT_FLOAT128
++# define MPFR_F128 "yes (" MAKE_STR(mpfr_float128) ")"
++#else
++# define MPFR_F128 "no"
++#endif
++
+   (printf) ("[tversion] TLS = %s, float128 = %s, decimal = %s,"
+             " GMP internals = %s\n",
+             mpfr_buildopt_tls_p () ? "yes" : "no",
+-            mpfr_buildopt_float128_p () ? "yes" : "no",
++            MPFR_F128,
+             mpfr_buildopt_decimal_p () ? "yes"
+ #if defined(DECIMAL_BID_FORMAT)
+             " (BID)"

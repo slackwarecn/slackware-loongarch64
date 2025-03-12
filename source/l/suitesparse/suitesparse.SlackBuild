@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2018, 2019, 2024, 2025  Patrick J. Volkerding, Sebeka, MN, USA
-# Copyright 2008, 2009  Robby Workman, Northport, Alabama, USA
+# Copyright 2017-2023 Christoph Willing,  Brisbane Australia
+# Thanks to Pablo Santamaria for previous versions
+# Copyright 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -23,18 +24,20 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-PKGNAM=babl
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+PKGNAM=suitesparse
+SRCNAM=SuiteSparse
+VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
 BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
-  case "$( uname -m )" in
-    i?86) export ARCH=i686 ;;
-    arm*) export ARCH=arm ;;
+  case "$(uname -m)" in
+    i?86) ARCH=i686 ;;
+    arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
-       *) export ARCH=$( uname -m ) ;;
+    *) ARCH=$(uname -m) ;;
   esac
+  export ARCH
 fi
 
 # If the variable PRINT_PACKAGE_NAME is set, then this script will report what
@@ -45,10 +48,7 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
-NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
-
-TMP=${TMP:-/tmp}
-PKG=$TMP/package-babl
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
@@ -61,58 +61,66 @@ else
   LIBDIRSUFFIX=""
 fi
 
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
 rm -rf $PKG
 mkdir -p $TMP $PKG
+
 cd $TMP
-rm -rf babl-$VERSION
-tar xvf $CWD/babl-$VERSION.tar.?z || exit 1
-cd babl-$VERSION || exit 1
+rm -rf $SRCNAM-$VERSION
+echo "Extracting $CWD/$SRCNAM-$VERSION.tar.?z..."
+tar xf $CWD/$SRCNAM-$VERSION.tar.?z || exit 1
+cd $SRCNAM-$VERSION || exit 1
 
 chown -R root:root .
 find . \
- \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
- -exec chmod 755 {} \+ -o \
- \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
- -exec chmod 644 {} \+
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
 
-# Fix for git-version.h missing from the repo:
-cat $CWD/missing.git_version_h.workaround.patch | patch -p1 --verbose || exit 1
+mkdir -p $PKG/usr/include/suitesparse
+mkdir -p $PKG/usr/lib$LIBDIRSUFFIX
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
 
-# Configure, build, and install:
-export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
-mkdir meson-build
-cd meson-build
-meson setup \
-  --prefix=/usr \
-  --libdir=lib${LIBDIRSUFFIX} \
-  --libexecdir=/usr/libexec \
-  --bindir=/usr/bin \
-  --sbindir=/usr/sbin \
-  --includedir=/usr/include \
-  --datadir=/usr/share \
-  --mandir=/usr/man \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  --buildtype=release \
-  -Dgi-docgen=disabled \
-  .. || exit 1
-  "${NINJA:=ninja}" $NUMJOBS || exit 1
-  DESTDIR=$PKG $NINJA install || exit 1
-cd ..
+export BLAS="$(pkg-config --libs openblas)"
+export CMAKE_INSTALL_PREFIX=/usr
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+# Build:
+make $NUMJOBS || exit 1
 
-mkdir -p $PKG/usr/doc/babl-$VERSION
+export DESTDIR=$PKG
+
+# Install:
+make install \
+    INSTALL_INCLUDE=$PKG/usr/include/suitesparse \
+    INSTALL_LIB=$PKG/usr/lib$LIBDIRSUFFIX \
+    INSTALL_DOC=$PKG/usr/doc/$PKGNAM-$VERSION || exit 1
+
+# Don't package static libraries:
+rm -f $PKG/usr/lib$LIBDIRSUFFIX/*.a
+
+# Strip binaries:
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+
+# Compress manual pages:
+find $PKG/usr/man -type f -exec gzip -9 {} \+
+for i in $( find $PKG/usr/man -type l ) ; do
+  ln -s $( readlink $i ).gz $i.gz
+  rm $i
+done
+
+# Add a documentation directory:
+mkdir -p $PKG/usr/doc/${PKGNAM}-$VERSION
 cp -a \
-  AUTHORS COPYING* INSTALL NEWS README* TODO \
-  $PKG/usr/doc/babl-$VERSION
+  CITATION* CODE_OF_CONDUCT* ChangeLog LICENSE* README* \
+  $PKG/usr/doc/${PKGNAM}-$VERSION
 
 # If there's a ChangeLog, installing at least part of the recent history
 # is useful, but don't let it get totally out of control:
 if [ -r ChangeLog ]; then
-  DOCSDIR=$(echo $PKG/usr/doc/*-$VERSION)
+  DOCSDIR=$(echo $PKG/usr/doc/${PKGNAM}-$VERSION)
   cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
   touch -r ChangeLog $DOCSDIR/ChangeLog
 fi
@@ -120,7 +128,5 @@ fi
 mkdir -p $PKG/install
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
-# Build the package:
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/babl-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n --remove-rpaths $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

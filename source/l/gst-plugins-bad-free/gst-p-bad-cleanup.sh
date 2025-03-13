@@ -102,6 +102,7 @@ speed
 stereo
 subenc
 switchbin
+tensordecoders
 timecode
 transcode
 tta
@@ -170,6 +171,8 @@ for subdir in gst ext sys; do
 			echo "**** Removing $MODULE ****"
 			echo "Removing directory $dir"
 			rm -r $dir || error "Cannot remove $dir"
+                        echo "Removing module $MODULE from $subdir/meson.build."
+                        sed -i "s|'$MODULE',||" $subdir/meson.build
 			echo
 		elif test $subdir = ext  || test $subdir = sys; then
 			# Ignore library or system non-blacklisted plugins

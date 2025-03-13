@@ -25,7 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=openblas
 SRCNAM=OpenBLAS
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Use GENERIC CPU target:
 TARGET=${TARGET:-GENERIC}
@@ -48,6 +48,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
   exit 0
 fi
+
+NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
@@ -76,27 +78,69 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# Determine the lapack version:
+LAPACKMAJ=$(grep 'set(OpenBLAS_MAJOR_VERSION ' CMakeLists.txt  |tr -s '()' ' '  |cut -d' ' -f3)
+LAPACKMIN=$(grep 'set(OpenBLAS_MINOR_VERSION ' CMakeLists.txt  |tr -s '()' ' '  |cut -d' ' -f3)
+LAPACKPAT=$(grep 'set(OpenBLAS_PATCH_VERSION ' CMakeLists.txt  |tr -s '()' ' '  |cut -d' ' -f3)
+LAPACK="${LAPACKMAJ}.${LAPACKMIN}.${LAPACKPAT}"
+
 # Build:
 make \
   PREFIX=/usr \
+  MAKE_NB_JOBS=${NUMJOBS} \
   OPENBLAS_LIBRARY_DIR=/usr/lib$LIBDIRSUFFIX \
   TARGET=$TARGET \
   DYNAMIC_ARCH=1 \
   NO_STATIC=1 \
+  USE_THREAD=1 \
+  NUM_THREADS=64 \
+  USE_OPENMP=1 \
+  USE_TLS=1 \
+  NO_LAPACK=0 \
+  BUILD_LAPACK_DEPRECATED=1 \
   NO_AFFINITY=1 \
   BUILD_RELAPACK=1 || exit 1
 
 # Install:
 make \
   PREFIX=/usr \
+  MAKE_NB_JOBS=${NUMJOBS} \
   OPENBLAS_LIBRARY_DIR=/usr/lib$LIBDIRSUFFIX \
   TARGET=$TARGET \
   DYNAMIC_ARCH=1 \
   NO_STATIC=1 \
-  NO_AFFINITY=1 \
+  USE_THREAD=1 \
+  NUM_THREADS=64 \
+  USE_OPENMP=1 \
+  USE_TLS=1 \
+  NO_LAPACK=0 \
+  BUILD_LAPACK_DEPRECATED=1 \
   BUILD_RELAPACK=1 \
+  NO_AFFINITY=1 \
   DESTDIR=$PKG \
   install || exit 1
+
+# Install compatibility symlinks:
+# For BLAS:
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/libblas.so
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/libblas.so.${LAPACKMAJ}
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/libblas.so.${LAPACK}
+ln -s openblas.pc $PKG/usr/lib$LIBDIRSUFFIX/pkgconfig/blas.pc
+# For CBLAS:
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/libcblas.so
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/libcblas.so.${LAPACKMAJ}
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/libcblas.so.${LAPACK}
+ln -s openblas.pc $PKG/usr/lib$LIBDIRSUFFIX/pkgconfig/cblas.pc
+# For LAPACK:
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/liblapack.so
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/liblapack.so.${LAPACKMAJ}
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/liblapack.so.${LAPACK}
+ln -s openblas.pc $PKG/usr/lib$LIBDIRSUFFIX/pkgconfig/lapack.pc
+# For LAPACKE:
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/liblapacke.so
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/liblapacke.so.${LAPACKMAJ}
+ln -s libopenblasp-r${VERSION}.so $PKG/usr/lib$LIBDIRSUFFIX/liblapacke.so.${LAPACK}
+ln -s openblas.pc $PKG/usr/lib$LIBDIRSUFFIX/pkgconfig/lapacke.pc
 
 # Usually empty:
 rmdir $PKG/usr/bin

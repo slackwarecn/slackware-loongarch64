@@ -23,8 +23,8 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=gimp
-VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
+VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -f 2- -d - | rev | cut -f 3- -d . | rev)}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -40,7 +40,7 @@ fi
 # the name of the created package would be, and then exit. This information
 # could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
-  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  echo "$PKGNAM-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz"
   exit 0
 fi
 
@@ -62,12 +62,10 @@ else
   LIBDIRSUFFIX=""
 fi
 
-# GCC 14 "fix":
-SLKCFLAGS="$SLKCFLAGS -Wno-error=incompatible-pointer-types"
-
 cd $TMP
 rm -rf gimp-$VERSION
-tar xvf $CWD/gimp-$VERSION.tar.?z || exit 1
+echo "Extracting $CWD/gimp-$VERSION.tar.?z..."
+tar xf $CWD/gimp-$VERSION.tar.?z || exit 1
 cd gimp-$VERSION || exit 1
 
 chown -R root:root .
@@ -77,30 +75,44 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-CFLAGS="$SLKCFLAGS" \
-./configure \
+# Configure, build, and install:
+export CFLAGS="$SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS"
+mkdir meson-build
+cd meson-build
+meson setup \
   --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --libdir=lib${LIBDIRSUFFIX} \
+  --libexecdir=/usr/libexec \
+  --bindir=/usr/bin \
+  --sbindir=/usr/sbin \
+  --includedir=/usr/include \
+  --datadir=/usr/share \
+  --mandir=/usr/man \
   --sysconfdir=/etc \
   --localstatedir=/var/lib \
-  --mandir=/usr/man \
-  --infodir=/usr/info \
-  --docdir=/usr/doc/gimp-$VERSION \
-  --disable-static \
-  --disable-check-update \
-  --build=$ARCH-slackware-linux || exit 1
+  -Dlua=true \
+  -Dgi-docgen=disabled \
+  -Dcheck-update=no \
+  -Dheadless-tests=disabled \
+  .. || exit 1
+  "${NINJA:=ninja}" $NUMJOBS || exit 1
+  DESTDIR=$PKG $NINJA install || exit 1
+cd ..
 
-make $NUMJOBS || make || exit 1
-mkdir -p $PKG/usr/share/applications $PKG/usr/share/application-registry
-make install DESTDIR=$PKG || exit 1
+# Probably ought to .new these even though we never did in gimp-2:
+for file in $PKG/etc/gimp/3.0/* ; do
+  mv ${file} ${file}.new
+done
 
-# Don't ship .la files:
-rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
-
-# Add a manpage symlink for POLA-compliance
-if [ -r $PKG/usr/man/man1/gimptool-2.?.1 -a ! -r $PKG/usr/man/man1/gimptool.1 ]; then
-  ( cd $PKG/usr/man/man1 ; ln -sf gimptool-2.?.1 gimptool.1 )
-fi
+# Add a scanning plugin:
+( cd $PKG/usr/lib${LIBDIRSUFFIX}/gimp/3.0/plug-ins || exit 1
+  tar xf $CWD/xsanecli-*.tar.lz
+  mv xsanecli-* xsanecli
+  chown -R root:root xsanecli
+  chmod 644 xsanecli/README.md
+  chmod 755 xsanecli/*.py
+)
 
 # Compress and link manpages, if any:
 if [ -d $PKG/usr/man ]; then
@@ -121,6 +133,9 @@ mkdir -p $PKG/usr/doc/gimp-$VERSION
 cp -a \
   AUTHORS COPYING* HACKING INSTALL LICENSE NEWS README* docs/Wilber* \
   $PKG/usr/doc/gimp-$VERSION
+# README for the scanner plugin:
+mv $PKG/usr/lib${LIBDIRSUFFIX}/gimp/3.0/plug-ins/xsanecli/README.md \
+  $PKG/usr/doc/gimp-$VERSION/README.xsanecli
 ( cd $PKG/usr/doc/gimp-$VERSION
   for i in \
     libgimp libgimpbase libgimpcolor libgimpconfig libgimpmath \
@@ -141,8 +156,8 @@ find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 
 mkdir -p $PKG/install
+cat $CWD/doinst.sh > $PKG/install/doinst.sh
 cat $CWD/slack-desc > $PKG/install/slack-desc
 
 cd $PKG
-/sbin/makepkg -l y -c n $TMP/gimp-$VERSION-$ARCH-$BUILD.txz
-
+/sbin/makepkg -l y -c n $TMP/gimp-$(echo $VERSION | tr - _)-$ARCH-$BUILD.txz

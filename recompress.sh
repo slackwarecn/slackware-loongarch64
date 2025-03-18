@@ -708,7 +708,6 @@ gzip ./source/l/hicolor-icon-theme/doinst.sh
 gzip ./source/l/dvdauthor/dvdauthor-0.7.2_imagemagick7.patch
 gzip ./source/l/glib2/doinst.sh
 gzip ./source/l/gsettings-desktop-schemas/doinst.sh
-gzip ./source/l/gsettings-desktop-schemas/gsettings-desktop-schemas.font.defaults.diff
 gzip ./source/l/gtk+2/gtk.gtk-faq.diff
 gzip ./source/l/gtk+2/gtk.xid.nowarningflood.diff
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.am.diff
@@ -1007,6 +1006,7 @@ gzip ./source/x/x11/patch/xf86-video-intel/0001-sna-Avoid-clobbering-output-phys
 gzip ./source/x/x11/patch/xorg-cf-files/Imake.tmpl-binutils-ar-2.36.patch
 gzip ./source/x/sddm/doinst.sh
 gzip ./source/x/compiz/175.patch
+gzip ./source/x/adwaita-fonts-ttf/doinst.sh
 gzip ./source/x/fcitx5/doinst.sh
 gzip ./source/x/ibus/NamesList.txt
 gzip ./source/x/ibus/Blocks.txt

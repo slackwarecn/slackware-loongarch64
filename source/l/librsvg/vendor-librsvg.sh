@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-2.59.2}
+VERSION=${VERSION:-2.60.0}
 
 if [ ! -r librsvg-$VERSION.tar.xz ]; then
   echo "ERROR: librsvg-$VERSION.tar.xz not found"

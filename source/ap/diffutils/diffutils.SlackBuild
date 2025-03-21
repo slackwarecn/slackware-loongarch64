@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2005-2018  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2005-2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,12 +24,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=diffutils
 VERSION=${VERSION:-$(echo diffutils-*.tar.xz | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -47,14 +47,10 @@ fi
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-${PKGNAM}
 
-if [ "$ARCH" = "i386" ]; then
-  SLKCFLAGS="-O2 -march=i386 -mcpu=i686"
-elif [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
 else
   SLKCFLAGS="-O2"
 fi
@@ -76,6 +72,11 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
+
+# Fix regressions:
+cat $CWD/03e529dd69d50c247a217b9b659659538dfa397a.patch | patch -p1 --verbose || exit 1
+cat $CWD/6ce0ebd033c395265c262ae3aab6477a49d4c2f1.patch | patch -p1 --verbose || exit 1
+cat $CWD/706116c651fd9abc9284516b47cea6cd536c7bcd.patch | patch -p1 --verbose || exit 1
 
 CFLAGS="$SLKCFLAGS" \
 ./configure \

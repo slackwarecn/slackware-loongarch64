@@ -1,7 +1,7 @@
 #!/bin/bash
 set +o posix
 
-# Copyright 2005-2024  Stuart Winter, Earth, Milky Way, ""
+# Copyright 2005-2025  Stuart Winter, Earth, Milky Way, ""
 # Copyright 2008, 2009, 2010, 2011, 2017  Eric Hameleers, Eindhoven, Netherlands
 # Copyright 2011-2020  Patrick Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -53,7 +53,6 @@ shopt -s extglob
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
-    arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -90,8 +89,7 @@ SHOWHELP=0        # Do not show help
 
 # Default actions for the script:
 case $ARCH in
-  aarch64) LIBDIRSUFFIX=64;&
-  arm*|aarch64)
+  aarch64)
     ADD_NETMODS=1         # add network modules
     ADD_PCMCIAMODS=1      # add pcmcia modules
     ADD_ALLMODS=0         # add all the kernel modules
@@ -99,7 +97,7 @@ case $ARCH in
     COMPRESS_MODS=0       # already compressed in a/kernel-modules.t?z package already
     COMPRESSSUFFIX=".xz"  # if the modules are compressed already we might need this
     DISTRODIR=${DISTRODIR:-"slackware"} # below this you find a,ap,d,..,y
-    LIBDIRSUFFIX=${LIBDIRSUFFIX:-""} # the default
+    LIBDIRSUFFIX="64"
     RECOMPILE=1           # recompile busybox/dropbear and add new binaries
     SPLIT_INITRD=0        # Do not create separate initrd for each kernel
     USBBOOT=0             # do not build the USB boot image
@@ -169,32 +167,15 @@ esac
 
 # Define the CFLAGS for the known architectures:
 case $ARCH in
-  arm)     SLKCFLAGS="-O2 -march=armv7-a -mfpu=vfpv3-d16"
-           ARCHQUADLET="-gnueabihf" ;;
-  aarch64) SLKCFLAGS="-O2"
-           ARCHQUADLET="" ;;
-  i?86)    SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
-           ARCHQUADLET="" ;;
-  s390*)   SLKCFLAGS="-O2"
-           ARCHQUADLET="" ;;
-  x86_64)  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
-           ARCHQUADLET="" ;;
+  aarch64) SLKCFLAGS="-O2" ;;
+  i?86)    SLKCFLAGS="-O2 -march=pentium4 -mtune=generic" ;;
+  s390*)   SLKCFLAGS="-O2" ;;
+  x86_64)  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC" ;;
 esac
 
 # Here is where we take our kernel modules and dependency info from
 # (at least one of these must be available):
 case $ARCH in
-  arm*)
-    # What kernel directories are in this installer?
-    # This kernel is only here to allow us to build a generic ARM installer image from which
-    # the other architectures will be built.  It doesn't matter which kernel this is, as it
-    # won't be used: post processing scripts unpack this image, generate a list of standard kernel
-    # modules; replace those modules with versions specific to the particular device and supplement
-    # the image with any additional requirements for that device.
-    KERNELS[0]=armv7
-    # The -extraversion (appended to the $KVER) for the KERNELS[*]:
-    KEXTRAV[0]="-armv7"
-    ;;
   aarch64)
     KERNELS[0]=armv8
     # The -extraversion (appended to the $KVER) for the KERNELS[*]:
@@ -746,7 +727,7 @@ CXXFLAGS="$SLKCFLAGS" \
    --disable-wtmpx \
    --disable-pututline \
    --disable-pututxline \
-   --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+   --build=$ARCH-slackware-linux || exit 1
 
 # Build:
 make $SILENTMAKE $NUMJOBS PROGRAMS="$PROGS" MULTI="1" SCPPROGRESS="1" || exit 1
@@ -814,7 +795,7 @@ CFLAGS="$(echo $SLKCFLAGS | sed s/-O2/-Os/g)" \
   --enable-multibuffer \
   --enable-nanorc \
   --enable-utf8 \
-  --build=$ARCH-slackware-linux$ARCHQUADLET || exit 1
+  --build=$ARCH-slackware-linux || exit 1
 
 # Build:
 make $NUMJOBS || make || exit 1
@@ -939,11 +920,6 @@ mkdir -p -m755 $TMP/extract-packages
 # /sbin or /bin -- the installer does not have /usr/{sbin,bin}.
 #
 case $ARCH in
-  arm*) EXTRA_PKGS="a/u-boot-tools a/mtd-utils"
-        EXTRA_PKGS_BIN=""
-        EXTRA_PKGS_SBIN=""
-        EXTRA_PKGS_USRBIN="mkimage"
-        EXTRA_PKGS_USRSBIN="nand* flash_* flashcp sheeva* fw_setenv fw_printenv ubi*" ;;
     *)  EXTRA_PKGS=""
         EXTRA_PKGS_BIN=""
         EXTRA_PKGS_SBIN=""
@@ -1261,6 +1237,7 @@ mkdir -p $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 cp --remove-destination -fa${VERBOSE1} \
   ter-v18n.psf.gz \
   ter-114v.psf.gz \
+  ter-728b.psf.gz \
   ter-732b.psf.gz \
   $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 
@@ -1505,15 +1482,6 @@ cp -fa${VERBOSE1} \
        mke2fs.conf \
        $PKG/$ARCH-installer-filesystem/etc/
 
-# For ARM:
-# Copy the configuration file for fw_(printenv/saveenv) utility.
-# This allows people to more easily fix up a duff u-boot config
-# from the installer because the config file contains some of the memory offsets
-# for the most popular devices
-[ -s $TMP/extract-packages/etc/fw_env.config* ] \
-  && install -${VERBOSE1}pm644 $TMP/extract-packages/etc/fw_env.config* \
-     $PKG/$ARCH-installer-filesystem/etc/fw_env.config
-
 # If man pages have been requested, copy the groff sources to process later
 # For now, these will be English only (sorry)
 if [ $ADD_MANPAGES -eq 1 ]; then
@@ -1687,9 +1655,6 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
       # If the architecture has a mostly modular kernel, then
       # the filesystem modules may need to be included within the installer:
       case $ARCH in
-         arm*)
-           cp -a fs.orig/{udf*,isofs*,cifs*,ext*,fat*,fscache,jfs*,lockd,nfs,nfs_common,jbd*,nls,reiserfs,xfs,binfmt*,mbcache*,exportfs*} fs/
-         ;;
          *86*)
            cp -a fs.orig/{cifs*,efivarfs,exfat,fscache,lockd,nfs,nfs_common,ntfs3} fs/
          ;;
@@ -1704,8 +1669,6 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     # Architectures with a more modular kernel will want to keep supporting
     # modules for 'nfs' et al:
     case $ARCH in
-       arm*)
-       ;;
        *86*)
        ;;
        *)
@@ -1721,8 +1684,6 @@ for ind in $(seq 0 $((${#KERNELS[*]} -1)) ); do
     # Architectures with a more modular kernel will want to keep 'ide' 'scsi'
     # and other core device drivers:
     case $ARCH in
-       arm*)
-       ;;
        *)
          mv scsi scsi.orig
          mv md md.orig
@@ -2007,7 +1968,7 @@ sed -i 's?(version.*)?(version '"$INSTALLERVERSION"')?g' etc/issue
 
 case $ARCH in
 
-  arm*|aarch64)
+  aarch64)
   #
   # ARM modifications:
   #

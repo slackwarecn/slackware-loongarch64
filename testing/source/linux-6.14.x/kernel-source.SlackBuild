@@ -1,0 +1,305 @@
+#!/bin/sh
+
+# Copyright 2018, 2020, 2021, 2023, 2024, 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=${PKGNAM:-kernel-source}
+BUILD=${BUILD:-1}
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+# If a $VERSION is not passed to this script, use the newest linux-*.tar.?z
+# found in this directory:
+VERSION=${VERSION:-$(/bin/ls -t linux-*.tar.?z | head -n 1 | rev | cut -f 3- -d . | rev | cut -f2- -d -)}
+if ! /bin/ls linux-*.tar.?z 1> /dev/null 2> /dev/null ; then
+  echo "Error: kernel source not found. (/bin/ls linux-*.tar.?z)"
+else
+  USINGVER="Using kernel source linux-${VERSION}.tar.?z."
+fi
+
+# This function will revert or apply patches that are present here.
+# Directories that are currently supported:
+# patches-revert-${VERSION} (revert patches from this directory if kernel version matches)
+# patches-revert-${ARCH} (revert patches from this directory if $ARCH matches)
+# patches-${VERSION} (apply patches from this directory if kernel version matches)
+# patches-${ARCH} (apply patches from this directory if $ARCH matches)
+# All the applied/reverted patches will be copied to the root of the kernel source tree.
+apply_patches() {
+  # First do patches-revert:
+  if [ -d $CWD/patches-revert-${VERSION} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Reverting kernel patches in $CWD/patches-revert-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-revert-${VERSION}/*.gz | patch -p1 -R --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-revert-${VERSION}/*.gz | patch -p1 -R --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-revert-${VERSION}/*.gz .
+  fi
+  if [ -d $CWD/patches-revert-${ARCH} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Reverting kernel patches in $CWD/patches-revert-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-revert-${ARCH}/*.gz | patch -p1 -R --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-revert-${ARCH}/*.gz | patch -p1 -R --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-revert-${ARCH}/*.gz .
+  fi
+  # Then apply patches:
+  if [ -d $CWD/patches-${VERSION} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Applying kernel patches in $CWD/patches-${VERSION} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-${VERSION}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-${VERSION}/*.gz .
+  fi
+  if [ -d $CWD/patches-${ARCH} ]; then
+    if [ "$1" = "VERBOSE" ]; then
+      echo "Applying kernel patches in $CWD/patches-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
+      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
+    else
+      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+    fi
+    cp -a $CWD/patches-${ARCH}/*.gz .
+  fi
+}
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  # We will have to extract and patch the kernel sources to find out the kernel version:
+  TEMPDIR=$(mktemp -d)
+  cd $TEMPDIR
+  tar xf $CWD/linux-${VERSION}.tar.?z || exit 1
+  cd linux-*
+  apply_patches
+  PACKAGE_VERSION=$(grep "^VERSION = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^PATCHLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^SUBLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev)$(grep "^EXTRAVERSION = " Makefile | rev | cut -f 1 -d ' ' | rev)
+  cd $CWD
+  rm -rf $TEMPDIR
+  # No $LOCALVERSION
+  echo "kernel-source-$(echo ${PACKAGE_VERSION} | tr - _)-noarch-$BUILD.txz"
+  exit 0    
+fi
+
+echo $USINGVER
+
+# If we were not given a KERNEL_NAME, use generic:
+KERNEL_NAME=${KERNEL_NAME:-generic}
+
+# By default, we'll try to find a kernel config file. Otherwise, you can pass
+# KERNEL_CONFIG=some_kernel_config_file to this script. If KERNEL_CONFIG starts
+# with a '/', we'll assume it's a full absolute path to the kernel config file.
+# Otherwise we'll look for it in $KERNEL_CONFIGDIR (defined below).
+
+# Where should we find the kernel config files?
+KERNEL_CONFIGDIR=${KERNEL_CONFIGDIR:-./kernel-configs}
+
+# Make KERNEL_CONFIGDIR an absolute path:
+KERNEL_CONFIGDIR=$(realpath $KERNEL_CONFIGDIR)
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    # Use uname -m for all archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+fi
+
+# If KERNEL_CONFIG (name of kernel .config file in $KERNEL_CONFIGDIR to use)
+# has not been passed to this script, then we will select one. We will prefer
+# to use a .config that matches KERNEL_NAME and with a version number exactly
+# matching the kernel sources. But if there's no exact version match, we will
+# start with the newest .config we can find that's of the appropriate type.
+if [ -z "${KERNEL_CONFIG}" ]; then # figure out the best matching .config
+  if [ "$ARCH" = "x86_64" ]; then
+    CONFIG_SUFFIX=".x64"
+  elif [ "$ARCH" = "i586" ]; then
+    CONFIG_SUFFIX=".ia32"
+  elif [ "$ARCH" = "i686" ]; then
+    CONFIG_SUFFIX=".ia32"
+  fi
+  if [ -r "$KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" ]; then
+    # Exact match!
+    KERNEL_CONFIG="config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
+  else # no exact match, so find newest with the same LOCALVERSION:
+    FIND_MATCH="$(/bin/ls -t $KERNEL_CONFIGDIR/config-*${LOCALVERSION}${CONFIG_SUFFIX} 2> /dev/null | head -n 1)"
+    if [ -r "${FIND_MATCH}" ]; then
+      KERNEL_CONFIG="$(basename ${FIND_MATCH})"
+      unset FIND_MATCH
+    else
+      # We'll try to fall back on a defconfig if there's one for this $ARCH:
+      if [ "$ARCH" = "x86_64" ]; then
+        echo "WARNING:"
+        echo "Tried and did not find:"
+        echo "  $KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
+        echo "Also could not match this fallback:"
+        echo "  $KERNEL_CONFIGDIR/config-*-${LOCALVERSION}${CONFIG_SUFFIX}"
+        KERNEL_CONFIGDIR=$PKG/usr/src/linux/arch/x86/configs
+        KERNEL_CONFIG=x86_64_defconfig
+        KERNEL_NAME=defconfig
+        echo "Falling back on $KERNEL_CONFIGDIR/$KERNEL_CONFIG because we couldn't find anything better."
+        sleep 2
+      elif uname -m | grep -q i.86 ; then
+        echo "WARNING:"
+        echo "Tried and did not find:"
+        echo "  $KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
+        echo "Also could not match this fallback:"
+        echo "  $KERNEL_CONFIGDIR/config-*-${LOCALVERSION}${CONFIG_SUFFIX}"
+        KERNEL_CONFIGDIR=$PKG/usr/src/linux/arch/x86/configs
+        KERNEL_CONFIG=i386_defconfig
+        KERNEL_NAME=defconfig
+        echo "Falling back on $KERNEL_CONFIGDIR/$KERNEL_CONFIG because we couldn't find anything better."
+        sleep 2
+      else
+        echo "Error: no matching .config file could be found for this kernel. Tried:"
+        echo "  $KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} (not found)" 
+        exit 1
+      fi
+    fi 
+  fi
+else # We were given a name to use:
+  if [ "$(echo ${KERNEL_CONFIG} | cut -b 1)" = "/" ]; then # absolute path, split this:
+    KERNEL_CONFIGDIR=$(dirname ${KERNEL_CONFIG})
+    KERNEL_CONFIG=$(basename ${KERNEL_CONFIG})
+  fi
+  if [ ! -r "$KERNEL_CONFIGDIR/${KERNEL_CONFIG}" ]; then
+    echo "Error: specified kernel .config $KERNEL_CONFIGDIR/${KERNEL_CONFIG} was not found."
+    exit 1
+  fi
+fi
+# Set LOCALVERSION to the value found inside the .config:
+LOCALVERSION="$(cat $KERNEL_CONFIGDIR/${KERNEL_CONFIG} | grep CONFIG_LOCALVERSION= | cut -f 2 -d = | tr -d \")"
+
+echo "Using kernel config: $KERNEL_CONFIGDIR/${KERNEL_CONFIG}"
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+mkdir -p $PKG/usr/src
+
+echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
+( cd $PKG/usr/src
+  tar xf $CWD/linux-${VERSION}.tar.?z || exit 1
+  echo "Making /usr/src/linux symlink..." 
+  ln -sf linux-* linux
+  cd linux-*
+  apply_patches VERBOSE
+  echo "Copying $KERNEL_CONFIGDIR/${KERNEL_CONFIG} to .config..."
+  cp -a $KERNEL_CONFIGDIR/${KERNEL_CONFIG} .config
+  echo "Fixing permissions/ownership..."
+  chown -R root:root .
+  find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+) || exit 1
+
+# Kernel is now ready to configure. We will also build this kernel so that
+# the installed kernel source package is fully configured, and building an
+# out-of-tree module (such as the NVIDIA driver) won't require the user
+# to build the kernel sources first.
+( cd $PKG/usr/src/linux-*
+  echo "Making oldconfig..."
+  make oldconfig
+
+  # Use the version number found in the Makefile in the package name. This is not
+  # always the same as the version in the source tarball's filename. For example,
+  # linux-4.14.tar.?z will have 4.14.0 as the version in the Makefile:
+  PACKAGE_VERSION=$(grep "^VERSION = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^PATCHLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^SUBLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev)$(grep "^EXTRAVERSION = " Makefile | rev | cut -f 1 -d ' ' | rev)
+
+  if [ ! -r $KERNEL_CONFIGDIR/config-${PACKAGE_VERSION}${LOCALVERSION}${CONFIG_SUFFIX} ]; then
+    # If you care about saving the original unregenerated unrenamed config
+    # file, set SAVE_ORIGINAL_KERNEL_CONFIG to something. This might cause
+    # your kernels to be built twice...
+    if [ -z "$SAVE_ORIGINAL_KERNEL_CONFIG" ]; then
+      echo "Removing original .config $KERNEL_CONFIGDIR/${KERNEL_CONFIG}"
+      rm -v -f $KERNEL_CONFIGDIR/${KERNEL_CONFIG}
+    fi
+    echo "Saving new .config as: $KERNEL_CONFIGDIR/config-${PACKAGE_VERSION}${LOCALVERSION}${CONFIG_SUFFIX}"
+    cp -a .config $KERNEL_CONFIGDIR/config-${PACKAGE_VERSION}${LOCALVERSION}${CONFIG_SUFFIX}
+  fi
+
+  # If we see ONLY_STAGE_KERNEL_SOURCE=yes, then we don't want to build this.
+  # We're just setting it up for use by the other SlackBuilds.
+  if [ "$ONLY_STAGE_KERNEL_SOURCE" = "yes" ]; then
+    echo "Done staging the kernel-source."
+    sleep 2
+    exit 0
+  fi
+
+  echo "Building kernel and modules (needed before clean for building NVIDIA to work)..."
+  make ${NUMJOBS} || exit 1
+  make ${NUMJOBS} modules || exit 1
+  echo "Cleaning up..."
+  make clean
+  # Make sure header files aren't missing...
+  make prepare
+  # Don't package the kernel in the sources:
+  find . -name "*Image" -exec rm "{}" \+
+  # No need for these:
+  rm -f .config.old .version
+  find . -name "*.cmd" -exec rm -f "{}" \+ 
+  rm .*.d
+  # Still some dotfiles laying around... probably fine though
+  # Get rid of any ELF (non-eBPF) binaries that are not executable:
+  find . -type f -perm 0644 | xargs file | grep ELF | grep -v eBPF | grep stripped | cut -f 1 -d : | while read elf_binary ; do
+    rm -f -v $elf_binary
+  done 
+  # Strip any remaining binaries:
+  find . | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+) || exit 1
+
+# Just staging the sources? Then leave.
+if [ "$ONLY_STAGE_KERNEL_SOURCE" = "yes" ]; then
+  exit 0
+fi
+
+cd $PKG/usr/src/linux-*
+# Use the version number found in the Makefile in the package name. This is not
+# always the same as the version in the source tarball's filename. For example,
+# linux-4.14.tar.?z will have 4.14.0 as the version in the Makefile:
+PACKAGE_VERSION=$(grep "^VERSION = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^PATCHLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev).$(grep "^SUBLEVEL = " Makefile | rev | cut -f 1 -d ' ' | rev)$(grep "^EXTRAVERSION = " Makefile | rev | cut -f 1 -d ' ' | rev)
+
+## Let's not do this because out-of-tree modules might not like it.
+## The .config we built with is irrelevant, but set KEEPCONFIG to anything
+## if you want to keep it:
+#if [ -z "$KEEPCONFIG" ]; then
+#  rm .config*
+#fi
+
+# Make sure the directory and symlink are properly named:
+cd ..
+rm -f linux
+# LOCALVERSION is part of the .config, not really the sources. We're not going
+# to include it in the directory name.
+mv linux-* linux-${PACKAGE_VERSION} 2> /dev/null
+ln -sf linux-* linux
+
+mkdir $PKG/install
+cat $CWD/slack-desc/slack-desc.kernel-source > $PKG/install/slack-desc
+
+# Make the package: (also no $LOCALVERSION here)
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/kernel-source-$(echo ${PACKAGE_VERSION} | tr - _)-noarch-$BUILD.txz

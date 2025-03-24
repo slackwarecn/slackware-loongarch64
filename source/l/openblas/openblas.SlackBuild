@@ -25,10 +25,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=openblas
 SRCNAM=OpenBLAS
 VERSION=${VERSION:-$(echo $SRCNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-2}
-
-# Use GENERIC CPU target:
-TARGET=${TARGET:-GENERIC}
+BUILD=${BUILD:-3}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -53,10 +50,20 @@ NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
+  # Use NORTHWOOD CPU target as the default to avoid SSE3 and AVX.
+  # We also use DYNAMIC_ARCH=1, so you can select a different CPU at runtime:
+  # export OPENBLAS_CORETYPE=Prescott
+  TARGET=${TARGET:-NORTHWOOD}
 elif [ "$ARCH" = "x86_64" ]; then
   LIBDIRSUFFIX="64"
+  # Use OPTERON CPU target as the default to avoid SSE3 and AVX.
+  # We also use DYNAMIC_ARCH=1, so you can select a different CPU at runtime:
+  # export OPENBLAS_CORETYPE=Prescott
+  TARGET=${TARGET:-OPTERON}
 else
   LIBDIRSUFFIX=""
+  # Use GENERIC CPU target as the default:
+  TARGET=${TARGET:-GENERIC}
 fi
 
 TMP=${TMP:-/tmp}

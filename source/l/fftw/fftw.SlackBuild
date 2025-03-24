@@ -26,13 +26,13 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=fftw
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | cut -f 2- -d - | rev | cut -f 3- -d . | rev)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -51,18 +51,14 @@ TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM-$VERSION
 OUTPUT=${OUTPUT:-$TMP}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
-  SIMD="--enable-sse2 --enable-avx"
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
-  LIBDIRSUFFIX=""
-  SIMD="--enable-sse2 --enable-avx"
+  SIMD="--enable-sse2 --disable-avx"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
-  SIMD="--enable-sse2 --enable-avx"
+  SIMD="--enable-sse2 --disable-avx"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -179,8 +175,8 @@ rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
     -DENABLE_QUAD_PRECISION=ON \
     -DENABLE_SSE=ON \
     -DENABLE_SSE2=ON \
-    -DENABLE_AVX=ON \
-    -DENABLE_AVX2=ON \
+    -DENABLE_AVX=OFF \
+    -DENABLE_AVX2=OFF \
     . || exit 1
 if [ ! -d $PKG/usr/lib${LIBDIRSUFFIX}/cmake/fftw3 ]; then
   mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/cmake/fftw3

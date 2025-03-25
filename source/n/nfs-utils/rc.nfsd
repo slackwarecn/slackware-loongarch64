@@ -48,6 +48,29 @@ nfsd_start() {
 
   echo "Starting NFS server daemons:"
 
+  # Note that rpc.gssd requires /etc/krb5.keytab and /etc/krb5.conf.
+  if [ -x /usr/sbin/rpc.gssd -a -e /etc/krb5.keytab -a -e /etc/krb5.conf ]; then
+    echo "  /usr/sbin/rpc.gssd $RPC_GSSD_OPTS"
+    if [ ! -d /var/lib/nfs/rpc_pipefs ]; then
+      mkdir -p /var/lib/nfs/rpc_pipefs
+    fi
+    /bin/mount -t rpc_pipefs -o nodev sunrpc /var/lib/nfs/rpc_pipefs 1> /dev/null 2> /dev/null
+    # This is already built into the Slackware kernel:
+    #/sbin/modprobe rpcsec_gss_krb5
+    /usr/sbin/rpc.gssd $RPC_GSSD_OPTS
+  fi
+
+  # Note that rpc.svcgssd requires /etc/krb5.keytab and /etc/krb5.conf.
+  if [ -x /usr/sbin/rpc.svcgssd -a -e /etc/krb5.keytab -a -e /etc/krb5.conf ]; then
+    echo "  /usr/sbin/rpc.svcgssd $RPC_SVCGSSD_OPTS"
+    /usr/sbin/rpc.svcgssd $RPC_SVCGSSD_OPTS
+  fi
+
+  if [ -x /usr/sbin/rpc.idmapd ]; then
+    echo "  /usr/sbin/rpc.idmapd $RPC_IDMAPD_OPTS"
+    /usr/sbin/rpc.idmapd $RPC_IDMAPD_OPTS
+  fi
+
   if [ -x /usr/sbin/exportfs ]; then
     echo "  /usr/sbin/exportfs -r"
     /usr/sbin/exportfs -r
@@ -81,12 +104,15 @@ nfsd_start() {
 }
 
 nfsd_stop() {
-  killall rpc.mountd 2> /dev/null
-  killall nfsd 2> /dev/null
-  sleep 1
-  killall -9 nfsd 2> /dev/null # make sure :)
-  killall rpc.rquotad 2> /dev/null
+  killall --ns $$ rpc.mountd 2> /dev/null
+  killall --ns $$ nfsd 2> /dev/null
+  # Stop kernel nfsd by setting the number of processes to zero:
+  /usr/sbin/rpc.nfsd 0
+  killall --ns $$ rpc.rquotad 2> /dev/null
   /usr/sbin/exportfs -au 2> /dev/null
+  killall --ns $$ rpc.idmapd 2> /dev/null
+  killall --ns $$ rpc.svcgssd 2> /dev/null
+  killall --ns $$ rpc.gssd 2> /dev/null
 }
 
 nfsd_restart() {

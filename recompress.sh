@@ -916,7 +916,6 @@ gzip ./source/a/tcsh/doinst.sh
 gzip ./source/a/unarj/Makefile
 gzip ./source/a/lrzip/doinst.sh
 gzip ./source/a/sharutils/sharutils.glibc228.diff
-gzip ./source/a/patch/0001-Refuse-to-apply-ed-scripts-by-default.patch
 gzip ./source/a/haveged/doinst.sh
 gzip ./source/a/syslinux/syslinux.glibc228.diff
 gzip ./source/a/lvm2/create-dm-run-dir.diff

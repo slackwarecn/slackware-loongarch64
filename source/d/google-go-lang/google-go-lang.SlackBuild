@@ -1,0 +1,178 @@
+#!/bin/bash
+
+# Written by Eric Schultz eric at schultzter.ca
+# Taken over by Vincent Batts vbatts@hashbangbash.com
+# Copyright (c) 2012, 2013, 2014, 2015, 2016, 2017, 2018  Vincent Batts
+# Copyright (c) 2012 Eric Schultz
+# Taken over by Patrick Volkerding <volkerdi@slackware.com>
+# Copyright 2025  Patrick J. Volkerding, Sebeka, Minnesota, USA
+# All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=google-go-lang
+VERSION=${VERSION:-$(basename $(echo go*.src.tar.lz | cut -f 2 -d o) .src.tar.lz)}
+BUILD=${BUILD:-1}
+
+RUN_TEST=${RUN_TEST:-false}
+
+if [ -z "$ARCH" ]; then
+  case "$( uname -m )" in
+    i?86) ARCH=i686 ;;
+    arm*) ARCH=arm ;;
+       *) ARCH=$( uname -m ) ;;
+  esac
+fi
+
+if [ "$ARCH" = "i686" ]; then
+  LIBDIRSUFFIX=""
+  GOARCH="386"
+elif [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+  GOARCH="amd64"
+elif [ "$ARCH" = "aarch64" ]; then
+  LIBDIRSUFFIX="64"
+  GOARCH="arm64"
+else
+  LIBDIRSUFFIX=""
+  GOARCH=386
+fi
+
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "$PKGNAM-$VERSION-$ARCH-$BUILD.txz"
+  exit 0
+fi
+
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-$PKGNAM
+
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+# If we already have a Go compiler installed, use it to compile Go:
+if [ -d "$(/bin/ls -dt /usr/lib${LIBDIRSUFFIX}/go*/go 2> /dev/null | head -n 1)" ]; then
+  export GOROOT_BOOTSTRAP="$(/bin/ls -dt /usr/lib${LIBDIRSUFFIX}/go*/go 2> /dev/null | head -n 1)"
+else # we need to use a binary bootstrap:
+  if [ ! -r "$(/bin/ls -t $CWD/go*.linux-${GOARCH}.tar.gz 2> /dev/null | head -n 1)" ]; then
+    # We need to download a binary bootstrap:
+    ( cd $CWD ; ./fetch-google-go-lang-binary-bootstrap.sh || exit 1) || exit 1
+  fi
+  mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/go-bootstrap
+  ( cd $PKG/usr/lib${LIBDIRSUFFIX}/go-bootstrap
+    echo "Installing binary bootstrap $(/bin/ls -t $CWD/go*.linux-${GOARCH}.tar.gz | head -n 1)..."
+    tar xf $(/bin/ls -t $CWD/go*.linux-${GOARCH}.tar.gz | head -n 1) || exit 1
+  ) || exit 1
+  export GOROOT_BOOTSTRAP="$PKG/usr/lib${LIBDIRSUFFIX}/go-bootstrap/go"
+fi
+
+mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/go${VERSION}
+cd $PKG/usr/lib${LIBDIRSUFFIX}/go${VERSION}
+echo "Extracting Go source $CWD/go${VERSION}.src.tar.?z..."
+tar xf $CWD/go${VERSION}.src.tar.?z || exit 1
+cd go
+
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \+
+
+# as of >= go1.5, the cross-compiler does not need to be bootstrap, so the
+# compiler need only be compiled for the host OS, which it detects
+unset GOBIN GOPATH GOOS GOARCH
+
+# Not sure why, but this causes run.bash to fail --rworkman
+unset BASH_ENV
+
+# Default GOROOT is the parent directory of all.bash,
+# which is the current directory we're in.
+# Defining it here means we can use it below when building
+# shared libraries
+GOROOT="$(pwd)"
+export GOROOT
+
+# The value of GOROOT once the package is installed
+export GOROOT_FINAL="/usr/lib${LIBDIRSUFFIX}/go${VERSION}/go"
+
+cd src
+
+if [[ "${RUN_TEST}" = "true" ]] ; then
+  LC_ALL=C \
+    ./all.bash || exit 1
+else
+  LC_ALL=C \
+    ./make.bash || exit 1
+fi
+
+# As of go1.5, golang supports shared libraries, so generate them for use.
+$GOROOT/bin/go install -buildmode=shared std || exit 1
+
+# Strip ELF objects:
+find $PKG/$GOROOT_FINAL -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+
+# Ensure libraries have the proper permissions:
+find $PKG/$GOROOT_FINAL -type f -name "*.so" -exec chmod +x {} \; 2> /dev/null || true
+
+cd ..
+
+# remove Go build cache:
+rm -rf pkg/obj/go-build/*
+
+# remove the doc Makefile:
+rm -f doc/Makefile
+
+# remove tests, nothing needs these at runtime:
+find $PKG/$GOROOT_FINAL/src -type d -name "testdata" -exec rm -rf {} +
+find $PKG/$GOROOT_FINAL/src -type f -name "*_test.go" -exec rm -rf {} +
+
+mkdir -p $PKG$GOROOT_FINAL
+
+# remove binary bootstrap (if it exists):
+rm -rf $PKG/usr/lib$LIBDIRSUFFIX/go-bootstrap
+
+# Create the profile scripts for setting PATH and env variables:
+mkdir -p $PKG/etc/profile.d
+cat > $PKG/etc/profile.d/go.csh << EOF
+#!/bin/csh
+setenv GOROOT ${GOROOT_FINAL}
+setenv PATH \${GOROOT}/bin:\${PATH}
+EOF
+cat > $PKG/etc/profile.d/go.sh << EOF
+#!/bin/sh
+export GOROOT="${GOROOT_FINAL}"
+export PATH="\${GOROOT}/bin:\${PATH}"
+EOF
+
+chmod 0755 $PKG/etc/profile.d/go.csh
+chmod 0755 $PKG/etc/profile.d/go.sh
+
+mkdir -p $PKG/usr/doc/$PKGNAM-$VERSION
+cp -a \
+  CONTRIBUTING* LICENSE* PATENTS* README* SECURITY* VERSION* \
+  $PKG/usr/doc/$PKGNAM-$VERSION
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

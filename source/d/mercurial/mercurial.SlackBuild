@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2008, 2009, 2010, 2017, 2018, 2023  Patrick J. Volkerding, Sebeka, MN, USA
+# Copyright 2008, 2009, 2010, 2017, 2018, 2023, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
 #
 # Redistribution and use of this script, with or without modification, is
@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=mercurial
 VERSION=${VERSION:-$(echo mercurial-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -62,7 +62,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-python3 setup.py build install --root=$PKG || exit 1
+unshare -n python3 -m build --wheel --no-isolation || exit 1
+
+python3 -m installer --destdir "$PKG" dist/*.whl || exit 1
 
 # Ordinarily we will not add stuff that's not installed through the normal
 # default installation method, but we've had a lot of requests, and it appears

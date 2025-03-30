@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Slackware build script for sqlite
-
 # Copyright 2006  Martin Lefebvre <dadexter@gmail.com>
 # Copyright 2008, 2009, 2010, 2012, 2015, 2018, 2025  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
@@ -26,7 +24,7 @@
 cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=sqlite
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 
 # First, convert the .zip file if needed:
 if ls *.zip 1> /dev/null 2> /dev/null ; then
@@ -135,10 +133,13 @@ fi
 # Fix a bug in ./configure that discards all but the last considered option:
 sed -i "s|\$(OPT_FEATURE_FLAGS)|\${OPT_FEATURE_FLAGS}|g" ./configure
 
+# We'll need this further down to clean up since we won't be including
+# the TCL library in this package.
+export TCLLIBDIR=/usr/lib${LIBDIRSUFFIX}/tcl8.6/sqlite3
+
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS $(icu-config --cppflags)" \
 LDFLAGS="$(icu-config --ldflags)" \
-TCLLIBDIR=/usr/lib${LIBDIRSUFFIX}/tcl8.6/sqlite3 \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
@@ -155,7 +156,10 @@ TCLLIBDIR=/usr/lib${LIBDIRSUFFIX}/tcl8.6/sqlite3 \
   --enable-session \
   --disable-static \
   --with-tclsh=/usr/bin/tclsh8.6 \
+  --soname=legacy \
   --build=$ARCH-slackware-linux || exit 1
+
+sed -i -e 's/$(LDFLAGS.libsqlite3)/ -Wl,-O1,--as-needed \0/g' main.mk
 
 # Build main:
 make $NUMJOBS || make || exit 1
@@ -180,6 +184,11 @@ mv $PKG/usr/bin/scrub $PKG/usr/bin/sqlite3_scrub
 # Don't ship .la files:
 rm -f $PKG/{,usr/}lib${LIBDIRSUFFIX}/*.la
 
+# Don't ship the TCL stuff. Now that we have our soname back, the
+# stuff bundled with TCL should work again:
+rm -rf $PKG$(dirname $TCLLIBDIR)
+
+# Strip binaries:
 find $PKG | xargs file | grep -e "executable" -e "shared object" \
   | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 

@@ -528,8 +528,6 @@ gzip ./source/l/fuse3/doinst.sh
 gzip ./source/l/gtk+3/doinst.sh
 gzip ./source/l/libcap/libcap.pkgconfig.path.diff
 gzip ./source/l/icon-naming-utils/icon-naming-utils.pkgconfigdir.diff
-gzip ./source/l/libtheora/libtheora-1.1.1.latex.patch
-gzip ./source/l/libtheora/libtheora-1.1.1-libpng16.patch
 gzip ./source/l/gtk+2/gtk.gtk-faq.diff
 gzip ./source/l/gtk+2/gtk+-2.24.x.icon-compat.diff
 gzip ./source/l/gtk+2/doinst.sh
@@ -544,8 +542,6 @@ gzip ./source/l/glibc/glibc.locale.no-archive.diff
 gzip ./source/l/glibc/patches/reenable_DT_HASH.patch
 gzip ./source/l/polkit/doinst.sh
 gzip ./source/l/adwaita-icon-theme/doinst.sh
-gzip ./source/l/pygtk/pygtk-fix-pango-object-leaks.patch
-gzip ./source/l/pygtk/pygtk-Drop-the-PangoFont-find_shaper-virtual-method.patch
 gzip ./source/l/esound/esound-0.2.38-fix-open-macro.patch
 gzip ./source/l/esound/esound-0.2.41-libm.patch
 gzip ./source/l/esound/remove-confusing-spew.patch

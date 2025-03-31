@@ -51,6 +51,9 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   exit 0
 fi
 
+# Allow build to use CMake 4.x:
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
+
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "i686" ]; then
@@ -599,6 +602,9 @@ cd build
     -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
     ..
 
+  # Fix for recent pipewire:
+  cat $CWD/gfxreconstruct-vulkan-sdk.pipewire.patch | patch -p2 --verbose || exit 1
+
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 
@@ -608,6 +614,9 @@ cd $TMP/DirectXShaderCompiler-$DXC_VERSION
 
 # This breaks the build, so skip it:
 cat $CWD/DirectXShaderCompiler.noverify.patch | patch -p1 --verbose || exit 1
+
+# Fix build with CMake 4.x:
+cat $CWD/7240.patch | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \

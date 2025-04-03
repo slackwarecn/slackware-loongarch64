@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 PKGNAM=librsvg
 SRCNAM=librsvg
 VERSION=${VERSION:-$(echo librsvg-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -111,6 +111,11 @@ $UNSHARE meson setup \
   "${NINJA:=ninja}" $NUMJOBS || exit 1
   DESTDIR=$PKG $NINJA install || exit 1
 cd ..
+
+# There's still code looking for this header name"
+pushd $PKG/usr/include/librsvg-2.0/librsvg || exit 1
+  ln -sf rsvg-features.h librsvg-features.h
+popd
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null

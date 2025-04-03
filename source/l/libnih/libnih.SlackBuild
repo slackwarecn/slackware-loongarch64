@@ -31,7 +31,7 @@ BUILD=${BUILD:-5}
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
-    i?86) export ARCH=i586 ;;
+    i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
@@ -48,14 +48,11 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686 -fcommon"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2 -fcommon"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic -fcommon"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC -fcommon"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC -fcommon"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2 -fcommon"
@@ -80,14 +77,9 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
-# Change hardcoded lib to lib${LIBDIRSUFFIX}:
-sed -i 's,$(prefix)/lib,$(libdir),g' nih*/Makefile.am
-
 # Write .pid files in /run, not /var/run, since /var may be unavailable or
 # not yet writable early in the boot process.
 sed -i 's,/var/run,/run,g' nih/main.c
-
-autoreconf -fi
 
 # Configure:
 CFLAGS="$SLKCFLAGS" \
@@ -102,6 +94,9 @@ CFLAGS="$SLKCFLAGS" \
   --disable-static \
   --disable-rpath \
   --build=$ARCH-slackware-linux || exit 1
+
+# Change hardcoded lib to lib${LIBDIRSUFFIX}:
+sed -i "s|lib/pkgconfig|lib${LIBDIRSUFFIX}/pkgconfig|g" nih-dbus/Makefile nih/Makefile
 
 # Build and install:
 make $NUMJOBS || make || exit 1

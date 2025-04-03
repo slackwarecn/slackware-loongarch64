@@ -997,6 +997,7 @@ l/libnsl \
 l/libnvme \
 l/libsodium \
 l/libunistring \
+l/liburing \
 l/libusb \
 l/lz4 \
 l/lzo \
@@ -1376,6 +1377,7 @@ cp  -fa${VERBOSE1} \
         libsodium.so* \
         libstdc++*.so* \
         libunistring*.so* \
+        liburing*.so* \
         libusb-1.0*.so* \
         libzstd.so* \
         $PKG/$ARCH-installer-filesystem/usr/lib${LIBDIRSUFFIX}/

@@ -2,7 +2,7 @@
 
 # Fetch the Google Go source and convert it to .lz:
 
-VERSION=1.24.1
+VERSION=1.24.2
 rm -f go${VERSION}.src.tar.gz
 lftpget https://storage.googleapis.com/golang/go${VERSION}.src.tar.gz
 gzip -d go${VERSION}.src.tar.gz

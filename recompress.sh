@@ -409,6 +409,7 @@ gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-gui-qt4.patch
 gzip ./source/n/wpa_supplicant/patches/wpa_supplicant-quiet-scan-results-message.patch
 gzip ./source/n/wpa_supplicant/patches/allow-tlsv1.patch
 gzip ./source/n/NetworkManager/doinst.sh
+gzip ./source/n/NetworkManager/patches/12eff9a7fdfeabab12ce56e5f7d515a13a3d704c.patch
 gzip ./source/n/NetworkManager/patches/dhcpcd.graceful.exit.patch
 gzip ./source/n/htdig/htdig.conf.diff
 gzip ./source/n/htdig/CVE-2007-6110.patch

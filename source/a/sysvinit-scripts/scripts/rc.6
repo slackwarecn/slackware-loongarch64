@@ -221,8 +221,11 @@ if [ -x /etc/rc.d/rc.udev -a -z "$container" ]; then
   /etc/rc.d/rc.udev force-stop
 fi
 
-# Kill all remaining processes.
-OMITPIDS="$(for p in $(pgrep mdmon); do echo -o $p; done)" # Don't kill mdmon
+# Kill all remaining processes except for mdmon and syslogd:
+OMITPIDS="$(for p in $(pgrep mdmon); do echo -o $p; done)"
+if pgrep -x syslogd 1> /dev/null 2> /dev/null ; then
+  OMITPIDS="$OMITPIDS -o $(pgrep -x syslogd)"
+fi
 if [ ! "$1" = "fast" ]; then
   echo "Sending all processes the SIGTERM signal."
   /sbin/killall5 -15 $OMITPIDS
@@ -237,6 +240,11 @@ if grep -q quota /etc/fstab ; then
     echo "Turning off filesystem quotas."
     /sbin/quotaoff -a
   fi
+fi
+
+# Now kill syslogd:
+if pgrep -x syslogd 1> /dev/null 2> /dev/null ; then
+  killall --ns $$ syslogd
 fi
 
 # Carry a random seed between reboots.

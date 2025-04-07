@@ -7,6 +7,9 @@
 # If a build file does not exist, it will be created with a value of 2.
 
 for build in $* ; do
+  if [ "$build" = "increment.sh" ]; then
+    continue
+  fi
   if [ ! -r $build ]; then
     echo "Creating $build with value 2"
     echo 2 > $build

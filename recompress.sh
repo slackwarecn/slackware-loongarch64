@@ -3,7 +3,6 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
-gzip ./testing/source/linux-6.13.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./testing/source/linux-6.14.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff

@@ -99,6 +99,17 @@ if [ ! -d ${T_PX}/boot/efi ]; then
 fi
 mount ${PREFERRED_EFI_PARTITION} ${T_PX}/boot/efi 1> /dev/null 2> /dev/null
 
+# On AArch64 platforms, label the EFI partition to avoid issues where the device
+# name may change between boots—particularly on buses like USB. For example, the
+# partition might appear as /dev/sda on one boot and /dev/sdb on the next.
+if [ "$( uname -m )" = "aarch64" ]; then
+  # Redirect stderr because fatlabel warns about using lower case chars in the label,
+  # and using its own internal code tables (since we don't ship those within the
+  # Installer).
+  fatlabel ${PREFERRED_EFI_PARTITION} SLKefi 2>/dev/null
+  PREFERRED_EFI_PARTITION="LABEL=SLKefi"
+fi
+
 # Add the EFI System Partition to /etc/fstab:
 printf "%-16s %-16s %-11s %-16s %-3s %s\n" "$PREFERRED_EFI_PARTITION" "/boot/efi" "vfat" "defaults" "1" "0" > $TMP/SeTEFI
 cat << EOF > $TMP/tempmsg

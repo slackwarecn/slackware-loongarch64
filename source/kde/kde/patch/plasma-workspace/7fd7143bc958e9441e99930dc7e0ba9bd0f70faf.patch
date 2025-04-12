@@ -1,0 +1,57 @@
+From 7fd7143bc958e9441e99930dc7e0ba9bd0f70faf Mon Sep 17 00:00:00 2001
+From: Kai Uwe Broulik <kde@privat.broulik.de>
+Date: Wed, 12 Feb 2025 06:57:14 +0000
+Subject: [PATCH] eventpluginsmanager: don't crash on double-delete of plugin
+ objects
+
+The Qt docs command no deletes!
+
+> Don't try to delete the root component. Instead rely on that unload()
+will automatically delete it when needed.
+
+and
+
+> When the library is finally unloaded, the root component will
+automatically be deleted.
+
+consequently don't delete the root component and then crash when a
+double delete occurs. This notably seems easy to produce with multiple
+clocks that have events plugins loaded.
+
+BUG: 477165
+
+
+(cherry picked from commit 0f1fe59a2e413b82609b2aac4cf47d9345882cae)
+
+(cherry picked from commit 51239aa1033b6deeff0e382e43d4abaf9411a756)
+
+Co-authored-by: Harald Sitter <sitter@kde.org>
+---
+ components/calendar/eventpluginsmanager.cpp | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/components/calendar/eventpluginsmanager.cpp b/components/calendar/eventpluginsmanager.cpp
+index 06321e252fc..661aaa25f99 100644
+--- a/components/calendar/eventpluginsmanager.cpp
++++ b/components/calendar/eventpluginsmanager.cpp
+@@ -30,6 +30,7 @@ public:
+     };
+ 
+     std::unique_ptr<EventPluginsModel> model;
++    // These pointers are owned and managed by QPluginLoader internals and deleted once all consumers unload.
+     QList<CalendarEvents::CalendarEventsPlugin *> plugins;
+     QMap<QString, PluginData> availablePlugins;
+     QStringList enabledPlugins;
+@@ -180,7 +181,8 @@ EventPluginsManagerPrivate::EventPluginsManagerPrivate()
+ 
+ EventPluginsManagerPrivate::~EventPluginsManagerPrivate()
+ {
+-    qDeleteAll(plugins);
++    // Don't try to delete the root component. - the Qt documentation
++    plugins.clear();
+ }
+ 
+ EventPluginsManager::EventPluginsManager(QObject *parent)
+-- 
+GitLab
+

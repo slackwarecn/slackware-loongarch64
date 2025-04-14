@@ -25,12 +25,12 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=colord
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-1}
+BUILD=${BUILD:-2}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
-    i?86) ARCH=i586 ;;
+    i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
@@ -48,21 +48,12 @@ fi
 
 NUMJOBS=${NUMJOBS:-" -j $(expr $(nproc) + 1) "}
 
-if [ "$ARCH" = "i586" ]; then
-  SLKCFLAGS="-O2 -march=i586 -mtune=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-O2 -march=i686"
-  LIBDIRSUFFIX=""
-elif [ "$ARCH" = "s390" ]; then
-  SLKCFLAGS="-O2"
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
-elif [ "$ARCH" = "armv7hl" ]; then
-  SLKCFLAGS="-O3 -march=armv7-a -mfpu=vfpv3-d16"
-  LIBDIRSUFFIX=""
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -85,6 +76,14 @@ find . \
   -exec chmod 755 {} \+ -o \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
+
+# Apply some upstream regression fixes:
+cat $CWD/08a32b2379fb5582f4312e59bf51a2823df56276.patch | patch -p1 --verbose || exit 1
+cat $CWD/9283abd9c00468edb94d2a06d6fa3681cae2700d.patch | patch -p1 --verbose || exit 1
+cat $CWD/7435d9c23a1d3bc138dcae0e05ea06fb244568fe.patch | patch -p1 --verbose || exit 1
+cat $CWD/d8076a16ea1f4437cca3799d414faf40cddae955.patch | patch -p1 --verbose || exit 1
+cat $CWD/f4fdb66d0399e3223c068c663e7621ea19b71a7b.patch | patch -p1 --verbose || exit 1
+cat $CWD/125677111dfbbfc714cd99c0e6984a650a1f95a2.patch | patch -p1 --verbose || exit 1
 
 # Configure, build, and install:
 export CFLAGS="$SLKCFLAGS"

@@ -738,7 +738,6 @@ gzip ./source/installer/sources/dnsmasq/dnsmasq.libidn2.diff
 gzip ./source/installer/sources/dnsmasq/dnsmasq.leasedir.diff
 gzip ./source/installer/sources/dnsmasq/dnsmasq-2.80-SIOCGSTAMP.patch
 gzip ./source/a/cryptsetup/doinst.sh
-gzip ./source/a/etc/doinst.sh
 gzip ./source/a/lilo/lilo.ignore.usable.memory.above.4G.diff
 gzip ./source/a/lilo/lilo.allow.colons.in.by-id.diff
 gzip ./source/a/lilo/lilo.nvme.support.diff

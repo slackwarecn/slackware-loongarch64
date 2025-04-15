@@ -129,3 +129,11 @@ fi
 if [ -r etc/profile.d/z-dot-in-non-root-path.sh.new ]; then
   touch -r etc/profile.d/z-dot-in-non-root-path.sh etc/profile.d/z-dot-in-non-root-path.sh.new
 fi
+
+if [ -z "$INSIDE_INSTALLER" ]; then
+  # Make sure that the colord user is part of the lp group:
+  if ! grep -q "^lp:.*,colord" etc/group ; then
+    chroot . usermod -a -G lp colord
+  fi
+fi
+

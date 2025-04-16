@@ -25,9 +25,9 @@ touch $TMP/SeTefipartitions
 # In case of a MBR disk layout instead, an ESP should have an OS type of
 # 0xEF. lsblk writes these values in the same field: PARTTYPE.
 #
-# AArch64 note: Any file systems labeled 'SLKins_efi' are filtered out
-# because on the AArch64 platform, the Slackware Installer image has its
-# own EFI boot partition to support Hardware Models using UEFI firmware.
+# Any file systems labeled 'SLKins_efi' are filtered out because on the
+# AArch64 platform, the Slackware Installer image has its own EFI boot
+# partition to support Hardware Models using UEFI firmware.
 # This partition must be filtered out here to avoid it being incorrectly
 # selected as the OS's EFI partition.
 #
@@ -92,6 +92,11 @@ if [ ! -d $EFITMPMOUNT/EFI -a ! -d $EFITMPMOUNT/efi ]; then
 fi
 umount $PREFERRED_EFI_PARTITION 1> /dev/null 2> /dev/null
 rmdir $EFITMPMOUNT
+
+# Occasionally there are some warnings reported when there is a difference
+# between the boot sector and its backup, which flies by quickly below a dialog box.
+# Silence fsck because otherwise it surfaces warnings about using internal code tables.
+fsck -yf ${PREFERRED_EFI_PARTITION} >/dev/null 2>&1
 
 # Mount the partition on ${T_PX}/boot/efi:
 if [ ! -d ${T_PX}/boot/efi ]; then

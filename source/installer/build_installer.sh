@@ -1126,6 +1126,7 @@ cp --remove-destination -fa${VERBOSE1} ${EXTRA_PKGS_SBIN} \
         dosfsck \
         dumpe2fs \
         e2fsck \
+        fatlabel \
         fdisk \
         fsck \
         fsck.* \
@@ -1238,6 +1239,7 @@ mkdir -p $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts
 cp --remove-destination -fa${VERBOSE1} \
   ter-v18n.psf.gz \
   ter-114v.psf.gz \
+  ter-122b.psf.gz \
   ter-728b.psf.gz \
   ter-732b.psf.gz \
   $PKG/$ARCH-installer-filesystem/usr/share/kbd/consolefonts

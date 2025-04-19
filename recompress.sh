@@ -3,6 +3,7 @@
 # Run this script in the root directory of the repository to re-compress
 # all patches and scripts that were un-compressed to make a better git commit:
 #
+gzip ./testing/source/mesa/doinst.sh
 gzip ./testing/source/linux-6.14.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
@@ -129,10 +130,7 @@ gzip ./source/xap/seamonkey/autoconf/autoconf-2.13-consolidated_fixes-1.patch
 gzip ./source/xap/seamonkey/doinst.sh
 gzip ./source/xap/seamonkey/arc4random_buf.glibc-2.36.diff
 gzip ./source/xap/seamonkey/sm.ui.scrollToClick.diff
-gzip ./source/xap/gnuchess/eboard.assert.diff
 gzip ./source/xap/gnuchess/doinst.sh
-gzip ./source/xap/gnuchess/eboard.ldl.diff
-gzip ./source/xap/gnuchess/eboard.png16.diff
 gzip ./source/xap/gnuchess/xboard.conf.diff
 gzip ./source/xap/hexchat/doinst.sh
 gzip ./source/xap/xscreensaver/setuid.c

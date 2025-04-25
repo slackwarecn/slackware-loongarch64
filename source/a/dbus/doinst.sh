@@ -24,3 +24,30 @@ if [ -r etc/rc.d/rc.messagebus.new ]; then
   mv etc/rc.d/rc.messagebus.new etc/rc.d/rc.messagebus
 fi
 
+# Make sure that /etc/machine-id exists and is a file.
+# Make sure /var/lib/dbus/machine-id is a symlink to /etc/machine-id.
+# If you hate machine-id, you can touch /etc/no-machine-id and then we
+# won't create or adjust these files in the future and you may or may not
+# enjoy bugs that result from this.
+if [ ! -r etc/no-machine-id ]; then
+  # If you have both /etc/machine-id and /var/lib/dbus/machine-id then we will
+  # keep /etc/machine-id and back up /var/lib/dbus/machine-id:
+  if [ -r etc/machine-id -a ! -L etc/machine-id -a -r var/lib/dbus/machine-id -a ! -L var/lib/dbus/machine-id ]; then
+    mv var/lib/dbus/machine-id var/lib/dbus/machine-id.backup
+  fi
+  # If there's a var/lib/dbus/machine-id file, and no etc/machine-id, move it:
+  if [ -r var/lib/dbus/machine-id -a ! -L var/lib/dbus/machine-id -a ! -e etc/machine-id ]; then
+    mv var/lib/dbus/machine-id etc/machine-id
+    chmod 444 etc/machine-id
+  fi
+  # If there's no etc/machine-id, fix that:
+  if [ ! -r etc/machine-id ]; then
+    chroot . /usr/bin/dbus-uuidgen > etc/machine-id
+    chmod 444 etc/machine-id
+  fi
+  # At this point, var/lib/dbus/machine-id needs to be a symlink:
+  rm -f var/lib/dbus/machine-id
+  pushd var/lib/dbus
+    ln -sf /etc/machine-id .
+  popd
+fi

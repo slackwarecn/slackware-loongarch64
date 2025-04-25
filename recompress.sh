@@ -893,7 +893,6 @@ gzip ./source/a/infozip/zip-patches/zip-3.0-currdir.patch
 gzip ./source/a/infozip/zip-patches/man.patch
 gzip ./source/a/infozip/zip-patches/zip-3.0-time.patch
 gzip ./source/a/infozip/zip-patches/zip-3.0-format-security.patch
-gzip ./source/a/dbus/doinst.sh
 gzip ./source/a/dbus/rc.messagebus
 gzip ./source/a/kbd/doinst.sh
 gzip ./source/a/kbd/kbd-1.15-backspace-1.patch

@@ -55,7 +55,5 @@ if [ ! -r etc/no-machine-id ]; then
   fi
   # Create the var/lib/dbus/machine-id symlink:
   rm -f var/lib/dbus/machine-id
-  pushd var/lib/dbus
-    ln -sf /etc/machine-id .
-  popd
+  ln -sf /etc/machine-id var/lib/dbus/machine-id
 fi

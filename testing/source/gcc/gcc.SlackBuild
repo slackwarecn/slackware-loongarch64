@@ -1,0 +1,793 @@
+#!/bin/bash
+# GCC package build script (written by volkerdi@slackware.com)
+#
+# Copyright 2003, 2004  Slackware Linux, Inc., Concord, California, USA
+# Copyright 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+# Modified 2011 by Eric Hameleers <alien at slackware.com> for OpenJDK.
+
+# Some notes, Fri May 16 12:31:32 PDT 2003:
+#
+# Why i486 and not i386?  Because the shared C++ libraries in gcc-3.2.x will
+# require 486 opcodes even when a 386 target is used (so we already weren't
+# compatible with the i386 for Slackware 9.0, didn't notice, and nobody
+# complained :-).  gcc-3.3 fixes this issue and allows you to build a 386
+# compiler, but the fix is done in a way that produces binaries that are not
+# compatible with gcc-3.2.x compiled binaries.  To retain compatibility with
+# Slackware 9.0, we'll have to use i486 (or better) as the compiler target
+# for gcc-3.3.
+#
+# It's time to say goodbye to i386 support in Slackware.  I've surveyed 386
+# usage online, and the most common thing I see people say when someone asks
+# about running Linux on a 386 is to "run Slackware", but then they also 
+# usually go on to say "be sure to get an OLD version, like 4.0, before glibc,
+# because it'll be more efficient."  Now, if that's the general advice, then
+# I see no reason to continue 386 support in the latest Slackware (and indeed
+# it's no longer easily possible).
+
+# Some more notes, Mon Aug  3 19:49:51 UTC 2015:
+#
+# Changing to -march=i586 for 32-bit x86 as several things (Mesa being one of
+# them) no longer work if constrained to -march=i486.  We're not going to use
+# -march=i686 since the only additional opcode is CMOV, which is actually less
+# efficient on modern CPUs running in 32-bit mode than the alternate i586
+# instructions.  No need to throw i586 CPUs under the bus (yet).
+
+# Some more notes, Wed Aug 28 19:41:13 UTC 2024:
+#
+# Time to throw i586 CPUs and any others that lack SSE2 under the bus.
+# Sorry, but upstream projects have begun to ignore -march= enough that there
+# just isn't enough upside to try to keep things even at -march=i686 as a
+# baseline. Might as well get some SIMD enhancement and quit killing
+# performance in a futile attempt to support computers that are in landfills.
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+PKGNAM=gcc
+SRCVER=${VERSION:-$(echo $PKGNAM-*.tar.?z | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
+VERSION=$(echo $SRCVER | cut -f 1 -d _)
+BUILD=${BUILD:-1}
+
+# Which compilers do we want to build?
+if [ -z $LANGS ]; then
+  LANGS="ada,c,c++,d,fortran,go,lto,m2,objc,obj-c++,rust"
+  # Add COBOL on supported $ARCH:
+  if [ "$(uname -m)" = "x86_64" -o "$(uname -m)" = "aarch64" ]; then
+    LANGS="${LANGS},cobol"
+  fi
+fi
+
+# An optional tag for after the version number in the package's filename:
+#VERTAG=_multilib
+
+# An optional tag for after the build number in the package's filename:
+#TAG=alien
+
+# How many jobs to run in parallel:
+NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
+
+# Automatically determine the architecture we're building on:
+if [ -z "$ARCH" ]; then
+  case "$(uname -m)" in
+    i?86) ARCH=i686 ;;
+    arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    # Unless $ARCH is already set, use uname -m for all other archs:
+    *) ARCH=$(uname -m) ;;
+  esac
+  export ARCH
+fi
+
+# Try to figure out if we want multilib (or set MULTILIB= manually).
+# BTW, --disable-multilib is only ever used on x86_64.
+# Using it elsewhere will break the build.
+if [ "$ARCH" = "x86_64" -a ! -L /lib/ld-linux.so.2 ]; then
+  MULTILIB=${MULTILIB:-"--disable-multilib"}
+else
+  MULTILIB=${MULTILIB:-"--enable-multilib"}
+fi
+
+# If the variable PRINT_PACKAGE_NAME is set, then this script will report what
+# the name of the created package would be, and then exit. This information
+# could be useful to other scripts.
+if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
+  echo "gcc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-g++-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  if echo $LANGS | grep -q cobol ; then
+    echo "gcc-gcobol-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  fi
+  echo "gcc-gfortran-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-gnat-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-objc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-go-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-gdc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-gm2-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  echo "gcc-rust-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz"
+  exit 0
+fi
+
+if [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=pentium4 -mtune=generic"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=i386
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  LIBDIRSUFFIX="64"
+  LIB_ARCH=amd64
+else
+  SLKCFLAGS="-O2"
+  LIBDIRSUFFIX=""
+  LIB_ARCH=$ARCH
+fi
+
+case "$ARCH" in
+    arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    *)    TARGET=$ARCH-slackware-linux ;;
+esac
+
+# Temporary build location:
+TMP=${TMP:-/tmp}
+
+# Extract the source code:
+cd $TMP
+rm -rf gcc-$SRCVER
+echo "Extracting $CWD/gcc-$SRCVER.tar.?z..."
+tar xf $CWD/gcc-$SRCVER.tar.?z || exit 1
+
+# This is the main DESTDIR target:
+PKG1=$TMP/package-gcc
+# These are the directories to build other packages in:
+PKG2=$TMP/package-gcc-g++
+PKG3=$TMP/package-gcc-gfortran
+PKG4=$TMP/package-gcc-gnat
+PKG6=$TMP/package-gcc-objc
+PKG8=$TMP/package-gcc-go
+PKG10=$TMP/package-gcc-gdc
+PKG11=$TMP/package-gcc-gm2
+PKG12=$TMP/package-gcc-rust
+PKG13=$TMP/package-gcc-gcobol
+
+# Clear the build locations:
+rm -rf $PKG{1,2,3,4,6,8,10,11,12,13}
+mkdir -p $PKG{1,2,3,4,6,8,10,11,12,13}/usr/doc/gcc-$VERSION
+
+# Insert package descriptions:
+mkdir -p $PKG{1,2,3,4,6,8,9,10,11,12,13}/install
+cat $CWD/slack-desc.gcc > $PKG1/install/slack-desc
+cat $CWD/slack-desc.gcc-g++ > $PKG2/install/slack-desc
+cat $CWD/slack-desc.gcc-gfortran > $PKG3/install/slack-desc
+cat $CWD/slack-desc.gcc-gnat > $PKG4/install/slack-desc
+cat $CWD/slack-desc.gcc-objc > $PKG6/install/slack-desc
+cat $CWD/slack-desc.gcc-go > $PKG8/install/slack-desc
+cat $CWD/slack-desc.gcc-gdc > $PKG10/install/slack-desc
+cat $CWD/slack-desc.gcc-gm2 > $PKG11/install/slack-desc
+cat $CWD/slack-desc.gcc-rust > $PKG12/install/slack-desc
+cat $CWD/slack-desc.gcc-gcobol > $PKG13/install/slack-desc
+
+cd gcc-$SRCVER || exit 1
+
+# Apply any required patches:
+for patch in $CWD/patches/*.patch $CWD/patches/*.diff ; do
+  if [ -r "$patch" ]; then
+    cat $patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  fi
+done
+for patch in $CWD/patches/*.patch.gz $CWD/patches/*.diff.gz ; do
+  if [ -r "$patch" ]; then
+    zcat $patch | patch -p1 --verbose --backup --suffix=.orig || exit 1
+  fi
+done
+
+# Fix perms/owners:
+chown -R root:root .
+find . \
+  \( -perm 777 -o -perm 775 -o -perm 754 \) \
+  -exec chmod 755 {} \+ -o \
+  \( -perm 664 \) \
+  -exec chmod 644 {} \+
+
+# Install docs:
+mkdir -p $PKG1/usr/doc/gcc-$VERSION
+cp -a \
+  COPYING* ChangeLog* FAQ INSTALL \
+  LAST_UPDATED MAINTAINERS NEWS \
+  README* *.html \
+$PKG1/usr/doc/gcc-$VERSION
+
+# We will keep part of these, but they are really big...
+if [ -r ChangeLog ]; then
+  DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
+  cat ChangeLog | head -n 1000 > $DOCSDIR/ChangeLog
+  touch -r ChangeLog $DOCSDIR/ChangeLog
+fi
+if [ -r NEWS ]; then
+  DOCSDIR=$(echo $PKG1/usr/doc/gcc-$VERSION)
+  cat NEWS | head -n 1500 > $DOCSDIR/NEWS
+  touch -r NEWS $DOCSDIR/NEWS
+fi
+
+mkdir -p $PKG1/usr/doc/gcc-${VERSION}/gcc
+( cd gcc || exit 0
+  cp -a \
+    ABOUT* COPYING* DATESTAMP DEV-PHASE LANG* ONEWS README* SERVICE \
+  $PKG1/usr/doc/gcc-$VERSION/gcc
+)
+       
+mkdir -p $PKG3/usr/doc/gcc-${VERSION}/gcc/fortran
+( cd gcc/fortran || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
+    touch -r ChangeLog $PKG3/usr/doc/gcc-$VERSION/gcc/fortran/ChangeLog
+  fi
+)
+
+mkdir -p $PKG4/usr/doc/gcc-${VERSION}/gcc/ada
+( cd gcc/ada || exit 0
+  cp -a \
+    ChangeLog.tree-ssa \
+  $PKG4/usr/doc/gcc-$VERSION/gcc/ada
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
+    touch -r ChangeLog $PKG4/usr/doc/gcc-$VERSION/gcc/ada/ChangeLog
+  fi
+)
+
+mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
+( cd gcc/objc || exit 0
+  cp -a \
+    README* \
+  $PKG6/usr/doc/gcc-${VERSION}/gcc/objc
+  if [ -r ChangeLog ]; then
+      cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
+    touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objc/ChangeLog
+  fi
+)
+
+mkdir -p $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp
+( cd gcc/objcp || exit 0
+  cp -a \
+    README* \
+  $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp/ChangeLog
+    touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/gcc/objcp/ChangeLog
+  fi
+)
+
+mkdir -p $PKG8/usr/doc/gcc-${VERSION}/gcc/go
+( cd gcc/go || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
+    touch -r ChangeLog $PKG8/usr/doc/gcc-${VERSION}/gcc/go/ChangeLog
+  fi
+  cp -a \
+    README* THREADS* \
+    gofrontend/{LICENSE,PATENTS,README} \
+  $PKG8/usr/doc/gcc-${VERSION}/gcc/go
+)
+
+mkdir -p $PKG10/usr/doc/gcc-${VERSION}/gcc/d
+( cd gcc/d || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG10/usr/doc/gcc-${VERSION}/gcc/d/ChangeLog
+    touch -r ChangeLog $PKG10/usr/doc/gcc-${VERSION}/gcc/d/ChangeLog
+  fi
+)
+
+mkdir -p $PKG11/usr/doc/gcc-${VERSION}/gcc/m2
+( cd gcc/m2 || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG11/usr/doc/gcc-${VERSION}/gcc/m2/ChangeLog
+    touch -r ChangeLog $PKG11/usr/doc/gcc-${VERSION}/gcc/m2/ChangeLog
+  fi
+  cp -a \
+    COPYING* NEWS* README* \
+  $PKG11/usr/doc/gcc-${VERSION}/gcc/m2
+)
+
+mkdir -p $PKG12/usr/doc/gcc-${VERSION}/gcc/rust
+( cd gcc/rust || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG12/usr/doc/gcc-${VERSION}/gcc/rust/ChangeLog
+    touch -r ChangeLog $PKG12/usr/doc/gcc-${VERSION}/gcc/rust/ChangeLog
+  fi
+  cp -a \
+    CONTRIBUTING* \
+    COPYING* NEWS* README* \
+  $PKG12/usr/doc/gcc-${VERSION}/gcc/rust
+)
+
+mkdir -p $PKG13/usr/doc/gcc-${VERSION}/gcc/cobol
+( cd gcc/cobol || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG13/usr/doc/gcc-${VERSION}/gcc/cobol/ChangeLog
+    touch -r ChangeLog $PKG13/usr/doc/gcc-${VERSION}/gcc/cobol/ChangeLog
+  fi
+)
+
+mkdir -p $PKG3/usr/doc/gcc-${VERSION}/libgfortran
+( cd libgfortran || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+    touch -r ChangeLog $PKG3/usr/doc/gcc-${VERSION}/libgfortran/ChangeLog
+  fi
+)
+
+mkdir -p $PKG4/usr/doc/gcc-${VERSION}/libada
+( cd libada || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
+    touch -r ChangeLog $PKG4/usr/doc/gcc-${VERSION}/libada/ChangeLog
+  fi
+)
+
+mkdir -p $PKG1/usr/doc/gcc-${VERSION}/libgomp
+( cd libgomp || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
+    touch -r ChangeLog $PKG1/usr/doc/gcc-${VERSION}/libgomp/ChangeLog
+  fi
+)
+  
+mkdir -p $PKG6/usr/doc/gcc-${VERSION}/libobjc
+( cd libobjc || exit 0
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
+    touch -r ChangeLog $PKG6/usr/doc/gcc-${VERSION}/libobjc/ChangeLog
+  fi
+  cp -a \
+    README* THREADS* \
+  $PKG6/usr/doc/gcc-${VERSION}/libobjc
+)
+    
+mkdir -p $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
+( cd libstdc++-v3 || exit 0
+  cp -a \
+    README* \
+    doc/html/faq.html \
+  $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3
+  if [ -r ChangeLog ]; then
+    cat ChangeLog | head -n 1000 > $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
+    touch -r ChangeLog $PKG2/usr/doc/gcc-${VERSION}/libstdc++-v3/ChangeLog
+  fi
+)
+
+# build gcc
+( mkdir gcc.build.lnx
+  cd gcc.build.lnx
+
+  if [ "$ARCH" = "x86_64" ]; then
+    GCC_ARCHOPTS="--with-arch=x86-64"
+  else
+    GCC_ARCHOPTS="--with-arch=$ARCH"
+  fi
+ 
+  CFLAGS="$SLKCFLAGS" \
+  CXXFLAGS="$SLKCFLAGS" \
+  ../configure --prefix=/usr \
+     --libdir=/usr/lib$LIBDIRSUFFIX \
+     --mandir=/usr/man \
+     --infodir=/usr/info \
+     --enable-shared \
+     --enable-bootstrap \
+     --enable-languages=${LANGS} \
+     --enable-threads=posix \
+     --enable-checking=release \
+     --with-system-zlib \
+     --enable-libstdcxx-dual-abi \
+     --with-default-libstdcxx-abi=new \
+     --disable-libstdcxx-pch \
+     --disable-libunwind-exceptions \
+     --enable-__cxa_atexit \
+     --disable-libssp \
+     --enable-gnu-indirect-function \
+     --enable-gnu-unique-object \
+     --enable-plugin \
+     --enable-lto \
+     --disable-install-libiberty \
+     --disable-werror \
+     --with-gnu-ld \
+     --with-isl \
+     --verbose \
+     --with-arch-directory=$LIB_ARCH \
+     --disable-gtktest \
+     --enable-clocale=gnu \
+     $GCC_ARCHOPTS \
+     $MULTILIB \
+     --target=${TARGET} \
+     --build=${TARGET} \
+     --host=${TARGET} || exit 1
+
+  # Start the build:
+
+  # Include all debugging info (for now):
+  make $NUMJOBS bootstrap || exit 1
+
+  ( cd gcc
+    make $NUMJOBS gnatlib GNATLIBCFLAGS="$SLKCFLAGS" || exit 1
+    # This wants a shared -ladd2line?
+    #make gnatlib-shared || exit 1
+    
+    CFLAGS="$SLKCFLAGS" \
+    CXXFLAGS="$SLKCFLAGS" \
+    make $NUMJOBS gnattools || exit 1
+  ) || exit 1
+  make info || exit 1
+
+  # Set GCCCHECK=something to run the tests
+  if [ ! -z $GCCCHECK ]; then
+    make $NUMJOBS check || exit 1
+  fi
+
+  make install DESTDIR=$PKG1 || exit 1
+
+  # Move gdb pretty printers to the correct place
+  mkdir -p $PKG1/usr/share/gdb/auto-load/usr/lib$LIBDIRSUFFIX
+  mv $PKG1/usr/lib$LIBDIRSUFFIX/*-gdb.py \
+    $PKG1/usr/share/gdb/auto-load/usr/lib$LIBDIRSUFFIX/
+
+  # Be sure the "specs" file is installed.
+  if [ ! -r $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs ]; then
+    cat stage1-gcc/specs > $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
+  fi
+
+  # Make our 64bit gcc look for 32bit gcc binaries in ./32 subdirectory.
+  # This is needed only for x86_64 + --disable-multilib.
+  if [ "$ARCH" = "x86_64" -a "$MULTILIB" = "--disable-multilib" ]; then
+    sed -i 's#;.\(:../lib !m64 m32;\)$#;32\1#' \
+      $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/${TARGET}/${VERSION}/specs
+  fi
+
+  # make ada.install-common DESTDIR=$PKG1 || exit 1
+  # make install-gnatlib DESTDIR=$PKG1 || exit 1
+  make -i install-info DESTDIR=$PKG1 || exit 1
+
+  chmod 755 $PKG1/usr/lib${LIBDIRSUFFIX}/libgcc_s.so.1
+
+  # Fix stuff up:
+  ( cd $PKG1/usr/info ; rm dir ; gzip -9 * )
+  ( cd $PKG1
+    # *not* ${LIBDIRSUFFIX}
+    mkdir -p lib
+    cd lib
+    ln -sf /usr/bin/cpp .
+  )
+
+  ( cd $PKG1/usr/bin
+    mv g++ g++-gcc-$VERSION
+    mv gcc gcc-$VERSION
+    mv ${TARGET}-gfortran gfortran-gcc-$VERSION
+    ln -sf g++-gcc-$VERSION g++
+    ln -sf gcc-$VERSION gcc
+    ln -sf g++ c++
+    ln -sf gcc cc
+    ln -sf gcc-$VERSION ${TARGET}-cc
+    ln -sf gcc-$VERSION ${TARGET}-gcc
+    ln -sf gcc-$VERSION ${TARGET}-gcc-$VERSION
+    ln -sf gcc-ar ${TARGET}-gcc-ar
+    ln -sf gcc-nm ${TARGET}-gcc-nm
+    ln -sf gcc-ranlib ${TARGET}-gcc-ranlib
+    ln -sf g++-gcc-$VERSION ${TARGET}-c++
+    ln -sf g++-gcc-$VERSION ${TARGET}-g++
+    ln -sf gfortran-gcc-$VERSION gfortran
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-gfortran-$VERSION
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-g95
+    ln -sf gfortran g95
+    ln -sf gfortran f95
+    ln -sf gfortran-gcc-$VERSION ${TARGET}-g77
+    ln -sf gfortran g77
+    ln -sf gfortran f77
+    cat $CWD/c89.sh > c89
+    cat $CWD/c99.sh > c99
+    chmod 755 c89 c99
+  )
+
+  ( cd $PKG1/usr/man
+    gzip -9 */*
+    cd man1
+    ln -sf g++.1.gz c++.1.gz
+    ln -sf gcc.1.gz cc.1.gz
+  )  
+
+  ## build an all-in-one txz package:
+  #(
+  #  cd $PKG1;
+  #  makepkg -l y -c n $TMP/gcc-$VERSION-$ARCH-$BUILD.txz
+  #)
+
+# keep a log:
+) 2>&1 | tee gcc.build.log
+
+# Don't ship any .la files:
+find $PKG1 -name "*.la" -exec rm -f "{}" \;
+
+# Strip bloated binaries and libraries:
+( cd $PKG1
+  find . -name "lib*so*" -exec strip --strip-unneeded "{}" \;
+  find . -name "lib*so*" -exec patchelf --remove-rpath "{}" \;
+  find . -name "lib*a" -exec strip -g "{}" \;
+  strip --strip-unneeded usr/bin/* 2> /dev/null
+  find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+)
+
+# Will we need to install multilib files?
+if [ "$ARCH" = "x86_64" -a "$MULTILIB" = "--enable-multilib" ]; then
+  INSTALL_MULTILIB="YES"
+else
+  INSTALL_MULTILIB="NO"
+fi
+
+# OK, time to split the big package where needed:
+
+# gcc-g++:
+( cd $PKG2
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/*++* usr/bin
+  mkdir -p usr/include
+  mv $PKG1/usr/include/c++ usr/include
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cc1plus usr/libexec/gcc/$TARGET/$VERSION/cc1plus
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/*++* usr/man/man1
+  mkdir -p usr/share
+  mv $PKG1/usr/share/gdb usr/share
+  mkdir -p usr/share/gcc-$VERSION/python
+  mv $PKG1/usr/share/gcc-$VERSION/python/libstdcxx usr/share/gcc-$VERSION/python
+  if [ -d $PKG2/usr/include/c++/$VERSION/i686-slackware-linux -a ! -e $PKG2/usr/include/c++/$VERSION/i586-slackware-linux ]; then
+    # This symlink will ease the headaches associated with changing our target:
+    ln -sf i686-slackware-linux $PKG2/usr/include/c++/$VERSION/i586-slackware-linux
+  fi
+  # Libraries:
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/*++* usr/lib${LIBDIRSUFFIX}
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    mkdir -p usr/lib
+    mv $PKG1/usr/lib/*++* usr/lib
+  fi
+)
+
+# gcc-gfortran:
+( cd $PKG3
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/*gfortran* usr/bin
+  mv $PKG1/usr/bin/*95* usr/bin
+  mv $PKG1/usr/bin/*77* usr/bin
+  # Doesn't this seem like a logical idea?
+  ( cd usr/bin ; ln -sf gfortran-gcc-${VERSION} fortran )
+  mkdir -p usr/info
+  mv $PKG1/usr/info/gfortran* usr/info
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/f951 usr/libexec/gcc/$TARGET/$VERSION/f951
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/libgfortran* usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gfortran* usr/man/man1
+  # Libraries:
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgfortran* usr/lib${LIBDIRSUFFIX}
+  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/finclude usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/libgfortran* usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    mkdir -p usr/lib
+    mv $PKG1/usr/lib/libgfortran* usr/lib
+    mkdir -p usr/lib/gcc/$TARGET/$VERSION
+    mv $PKG1/usr/lib/gcc/$TARGET/$VERSION/finclude usr/lib/gcc/$TARGET/$VERSION
+    mv $PKG1/usr/lib/gcc/$TARGET/$VERSION/libgfortran* usr/lib/gcc/$TARGET/$VERSION
+  fi
+)
+
+# gcc-gnat:
+( cd $PKG4
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/gnat* usr/bin
+  mv $PKG1/usr/bin/gpr* usr/bin
+  mkdir -p usr/info
+  mv $PKG1/usr/info/gnat* usr/info
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/gnat1 usr/libexec/gcc/$TARGET/$VERSION
+  # Libraries:
+  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/adainclude usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/adalib usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    mkdir -p usr/lib/gcc/$TARGET/$VERSION
+    mkdir -p usr/lib64/gcc/$TARGET/$VERSION/32
+    mv $PKG1/usr/lib64/gcc/$TARGET/$VERSION/32/adainclude usr/lib/gcc/$TARGET/$VERSION
+    ln -sf /usr/lib/gcc/$TARGET/$VERSION/adainclude usr/lib64/gcc/$TARGET/$VERSION/32/adainclude
+    mv $PKG1/usr/lib64/gcc/$TARGET/$VERSION/32/adalib usr/lib/gcc/$TARGET/$VERSION
+    ln -sf /usr/lib/gcc/$TARGET/$VERSION/adalib usr/lib64/gcc/$TARGET/$VERSION/32/adalib
+  fi
+)
+
+# gcc-objc:
+( cd $PKG6
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cc1obj usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cc1objplus usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/objc usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/cc1objplus usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
+  # Libraries:
+  # As a rule, we don't package static libraries.
+  rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libobjc.a
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libobjc* usr/lib${LIBDIRSUFFIX}
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    # As a rule, we don't package static libraries.
+    rm -f $PKG1/usr/lib/libobjc.a
+    mkdir -p usr/lib
+    mv $PKG1/usr/lib/libobjc* usr/lib
+  fi
+)
+
+# gcc-go:
+( cd $PKG8
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/*gccgo* usr/bin
+  mv $PKG1/usr/bin/go{,fmt} usr/bin
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/{cgo,go1} usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/info
+  mv $PKG1/usr/info/gccgo.info.gz usr/info
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gccgo.1.gz usr/man/man1
+  mv $PKG1/usr/man/man1/go.1.gz usr/man/man1
+  mv $PKG1/usr/man/man1/gofmt.1.gz usr/man/man1
+  # Libraries:
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/go usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/{libgo.so*,libgobegin.a,libgolibbegin.a} usr/lib${LIBDIRSUFFIX} || exit 1
+  # Don't package the (bloated) libgo.a. As a rule, we don't package static libraries.
+  rm -f $PKG1/usr/lib${LIBDIRSUFFIX}/libgo.a
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    mkdir -p usr/lib
+    mv $PKG1/usr/lib/go usr/lib
+    mv $PKG1/usr/lib/{libgo.so*,libgobegin.a,libgolibbegin.a} usr/lib || exit 1
+    # Don't package the (bloated) libgo.a. As a rule, we don't package static libraries.
+    rm -f $PKG1/usr/lib/libgo.a
+  fi
+) || exit 1
+
+# gcc-gdc:
+( cd $PKG10
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/gdc $PKG1/usr/bin/*-gdc usr/bin
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/d21 usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/info
+  mv $PKG1/usr/info/gdc.info.gz usr/info
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gdc.1.gz usr/man/man1
+  # Libraries:
+  mkdir -p usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgdruntime* usr/lib${LIBDIRSUFFIX}
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgphobos* usr/lib${LIBDIRSUFFIX}
+  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include/d usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/include
+  ## COMMENTED OUT: defaults to static linking and that default does not
+  ## seem to be easlity changed...
+  ## Don't package the (bloated) libgphobos.a or libgdruntime.a.
+  ## As a rule, we don't package static libraries.
+  #rm -f usr/lib${LIBDIRSUFFIX}/libgphobos.a
+  #rm -f usr/lib${LIBDIRSUFFIX}/libgdruntime.a
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    mkdir -p usr/lib
+    mv $PKG1/usr/lib/libgdruntime* usr/lib
+    mv $PKG1/usr/lib/libgphobos* usr/lib
+    mkdir -p usr/lib/gcc/$TARGET/$VERSION/include
+    mv $PKG1/usr/lib/gcc/$TARGET/$VERSION/include/d usr/lib/gcc/$TARGET/$VERSION/include
+    ## COMMENTED OUT: defaults to static linking and that default does not
+    ## seem to be easlity changed...
+    ## Don't package the (bloated) libgphobos.a or libgdruntime.a.
+    ## As a rule, we don't package static libraries.
+    #rm -f usr/lib/libgphobos.a
+    #rm -f usr/lib/libgdruntime.a
+  fi
+)
+
+# gcc-gm2:
+( cd $PKG11
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/gm2 $PKG1/usr/bin/*-gm2 usr/bin
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cc1gm2 usr/libexec/gcc/$TARGET/$VERSION
+  mkdir -p usr/man/man1
+  mv $PKG1/usr/man/man1/gm2.1.gz usr/man/man1
+  # Libraries:
+  mkdir -p usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/plugin
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/m2 usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/plugin/m2* usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/plugin
+  mv $PKG1/usr/lib${LIBDIRSUFFIX}/libm2* usr/lib${LIBDIRSUFFIX}
+  # As a rule, we don't package static libraries:
+  ( cd usr/lib${LIBDIRSUFFIX}
+    for library in libm2*.so ; do
+      rm -f $(basename $library .so).a
+    done
+  )
+  if [ "$INSTALL_MULTILIB" = "YES" ]; then
+    mkdir -p usr/lib/gcc/$TARGET/$VERSION/plugin
+    mv $PKG1/usr/lib${LIBDIRSUFFIX}/gcc/$TARGET/$VERSION/32/m2 usr/lib/gcc/$TARGET/$VERSION
+    mv $PKG1/usr/lib/gcc/$TARGET/$VERSION/plugin/m2* usr/lib/gcc/$TARGET/$VERSION/plugin
+    mv $PKG1/usr/lib/libm2* usr/lib
+    # As a rule, we don't package static libraries:
+    ( cd usr/lib
+      for library in libm2*.so ; do
+        rm -f $(basename $library .so).a
+      done
+    )
+  fi
+)
+
+# gcc-rust:
+( cd $PKG12
+  mkdir -p usr/bin
+  mv $PKG1/usr/bin/gccrs $PKG1/usr/bin/*-gccrs usr/bin
+  mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+  mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/crab1 usr/libexec/gcc/$TARGET/$VERSION
+) || exit 1
+
+# gcc-cobol:
+if echo $LANGS | grep -q cobol ; then
+  ( cd $PKG13
+    mkdir -p usr/bin
+    mv $PKG1/usr/bin/gcobc $PKG1/usr/bin/gcobol usr/bin
+    mkdir -p usr/lib${LIBDIRSUFFIX}
+    mv $PKG1/usr/lib${LIBDIRSUFFIX}/libgcobol* usr/lib${LIBDIRSUFFIX}
+    mkdir -p usr/libexec/gcc/$TARGET/$VERSION
+    mv $PKG1/usr/libexec/gcc/$TARGET/$VERSION/cobol1 usr/libexec/gcc/$TARGET/$VERSION
+    mkdir -p usr/man/man1
+    mv $PKG1/usr/man/man1/gcobol.1.gz usr/man/man1
+    mkdir -p usr/man/man3
+    mv $PKG1/usr/man/man3/gcobol-io.3.gz usr/man/man3
+    mkdir -p usr/share
+    mv $PKG1/usr/share/gcobol usr/share
+  )
+fi
+
+# Generate packages:
+( cd $PKG1
+  makepkg -l y -c n $TMP/gcc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG2
+  makepkg -l y -c n $TMP/gcc-g++-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG3
+  makepkg -l y -c n $TMP/gcc-gfortran-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG4
+  makepkg -l y -c n $TMP/gcc-gnat-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG6
+  makepkg -l y -c n $TMP/gcc-objc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG8
+  makepkg -l y -c n $TMP/gcc-go-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG10
+  makepkg -l y -c n $TMP/gcc-gdc-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG11
+  makepkg -l y -c n $TMP/gcc-gm2-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+( cd $PKG12
+  makepkg -l y -c n $TMP/gcc-rust-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+if echo $LANGS | grep -q cobol ; then
+  ( cd $PKG13
+    makepkg -l y -c n $TMP/gcc-gcobol-${VERSION}${VERTAG}-$ARCH-${BUILD}${TAG}.txz )
+fi
+
+echo
+echo "Slackware GCC package build complete!"
+echo

@@ -4,6 +4,7 @@
 # all patches and scripts that were un-compressed to make a better git commit:
 #
 gzip ./testing/source/mesa/doinst.sh
+gzip ./testing/source/gcc/patches/gcc-no_fixincludes.diff
 gzip ./testing/source/linux-6.14.x/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
 gzip ./source/d/libtool/doinst.sh
 gzip ./source/d/libtool/libtool.no.moved.warning.diff
@@ -893,7 +894,6 @@ gzip ./source/a/infozip/zip-patches/zip-3.0-currdir.patch
 gzip ./source/a/infozip/zip-patches/man.patch
 gzip ./source/a/infozip/zip-patches/zip-3.0-time.patch
 gzip ./source/a/infozip/zip-patches/zip-3.0-format-security.patch
-gzip ./source/a/dbus/rc.messagebus
 gzip ./source/a/kbd/doinst.sh
 gzip ./source/a/kbd/kbd-1.15-backspace-1.patch
 gzip ./source/a/kbd/fix-euro2.patch

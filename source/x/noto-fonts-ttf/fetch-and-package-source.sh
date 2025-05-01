@@ -28,7 +28,7 @@
 
 cd $(dirname $0) ; CWD=$(pwd)
 
-VERSION=${VERSION:-2025.04.01}
+VERSION=${VERSION:-2025.05.01}
 
 # Take non-Noto fonts?
 PACKAGE_NON_NOTO=${PACKAGE_NON_NOTO:-NO}

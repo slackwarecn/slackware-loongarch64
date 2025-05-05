@@ -991,8 +991,8 @@ gzip ./source/y/bsd-games/patches/0005-rain-Update-default-delay.-Closes-579062.
 gzip ./source/y/bsd-games/patches/bsd-games.fortunepath.diff
 gzip ./source/y/bsd-games/patches/0007-Unsorted-Debian-patches.patch
 gzip ./source/y/bsd-games/patches/0008-quiz-Add-answers-to-adults-babies.-Closes-659528.patch
-gzip ./source/k/patches-6.12.26/do_not_use_gcc15_compile_option...yet.patch
 gzip ./source/k/patches-revert-i686/0001-x86-ioremap-Fix-page-aligned-size-calculation-in-__i.patch
+gzip ./source/k/patches-6.12.27/do_not_use_gcc15_compile_option...yet.patch
 gzip ./extra/source/sendmail/Build
 gzip ./extra/source/tigervnc/doinst.sh
 gzip ./extra/source/tigervnc/patches/tigervnc.pam.d.diff

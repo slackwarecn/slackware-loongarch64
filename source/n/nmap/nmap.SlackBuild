@@ -24,7 +24,7 @@ cd $(dirname $0) ; CWD=$(pwd)
 
 PKGNAM=nmap
 VERSION=${VERSION:-$(echo $PKGNAM-*.tar.?z* | rev | cut -f 3- -d . | cut -f 1 -d - | rev)}
-BUILD=${BUILD:-3}
+BUILD=${BUILD:-1}
 
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
@@ -74,20 +74,27 @@ find . \
  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
  -exec chmod 644 {} \+
 
-sed -i "s,share/man/man1,man/man1,g" ndiff/setup.py
+# Do not use bundled deps:
+#rm -rf liblua libpcap libpcre macosx mwin32 libssh2 libz
+#autoreconf -fiv
 
 # Don't require a network connection to build zenmap:
 cat $CWD/nmap.no.internet.requirement.for.build.diff | patch -p1 --verbose || exit 1
 
+# Don't try to link nping against (non-existent) libpcap.a:
+cat $CWD/nmap.nping.system.libpcap.diff | patch -p1 --verbose || exit 1
+
 # --without-nmap-update is needed below to avoid depending on apr and subversion libraries.
 # It's not worth the feature IMHO.
-LIBS="-lnl" \
 CFLAGS="$SLKCFLAGS" \
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --with-liblua=included \
-  --with-libpcap=included \
+  --with-libpcap=/usr \
+  --with-libpcre=/usr \
+  --with-zlib=/usr \
+  --with-libssh2=/usr \
+  --with-liblua=/usr \
   --mandir=/usr/man \
   --docdir=/usr/doc/nmap-$VERSION \
   --without-nmap-update \
@@ -97,7 +104,7 @@ make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
 mkdir -p $PKG/usr/doc/nmap-$VERSION
-cp -a CONTRIBUTING* COPYING* HACKING* INSTALL* LICENSE* README* \
+cp -a CONTRIBUTING* HACKING* INSTALL* LICENSE* README* \
   docs/licenses/ \
   docs/*.txt \
   $PKG/usr/doc/nmap-$VERSION

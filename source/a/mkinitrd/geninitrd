@@ -71,6 +71,17 @@ if [ ! -z "$KERNEL" ]; then
   export KERNEL
 fi
 
+# Let's find the kernel version and define it as $KERNEL_VERSION, since this
+# might be useful for an override or post-install script:
+if [ -r $KERNEL ]; then
+  KERNEL_VERSION=$(strings $KERNEL | grep '([^ ]*@[^ ]*) #' | cut -f1 -d' ')
+  if [ -z "$KERNEL_VERSION" ]; then
+    echo "error: $KERNEL is not a Linux kernel."
+    exit 1
+  fi
+  export KERNEL_VERSION
+fi
+
 # In case you cannot make this script do exactly what you require, you're
 # welcome to create your own script to be run instead. Define this in
 # /etc/default/geninitrd (GENINITRD_OVERRIDE_SCRIPT).
@@ -85,4 +96,15 @@ if [ -x "$RELATIVE_OVERRIDE_SCRIPT" ]; then
   chroot . $GENINITRD_OVERRIDE_SCRIPT
 else # we will run the default handler from the setup scripts:
   chroot . /var/lib/pkgtools/setup/setup.01.mkinitrd
+fi
+
+# Is there a post-install script? If so, run it here:
+if [ ! -z "$POST_INSTALL_SCRIPT" ]; then
+  # If this is an absolute pathname, make it relative to /:
+  if [ "$(echo $POST_INSTALL_SCRIPT | cut -b 1)" = "/" ]; then
+    POST_INSTALL_SCRIPT="$(echo $POST_INSTALL_SCRIPT | cut -b 2-)"
+  fi
+  if [ -x "$POST_INSTALL_SCRIPT" ]; then
+    chroot . $POST_INSTALL_SCRIPT
+  fi
 fi

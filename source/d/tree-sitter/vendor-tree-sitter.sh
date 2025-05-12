@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=${VERSION:-0.25.3}
+VERSION=${VERSION:-0.25.4}
 
 if [ ! -r v$VERSION.tar.gz ]; then
   echo "ERROR: v$VERSION.tar.gz not found"

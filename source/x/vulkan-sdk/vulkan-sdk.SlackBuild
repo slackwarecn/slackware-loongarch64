@@ -300,6 +300,11 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+# I used this to work around a bad system header in the old vulkan package.
+# Probably could use some -I instead, but this worked to get past it. Then
+# vulkan was rebuilt against the kludged package without this patch.
+cat $CWD/Vulkan-ValidationLayers.kludge.diff | patch -p1 --verbose || exit 1
+
 mkdir -p build
 cd build
   cmake \
@@ -602,9 +607,6 @@ cd build
     -DCMAKE_INSTALL_LIBDIR=lib$LIBDIRSUFFIX \
     ..
 
-  # Fix for recent pipewire:
-  cat $CWD/gfxreconstruct-vulkan-sdk.pipewire.patch | patch -p2 --verbose || exit 1
-
   make $NUMJOBS || make || exit 1
   make install DESTDIR=$PKG || exit 1
 
@@ -614,9 +616,6 @@ cd $TMP/DirectXShaderCompiler-$DXC_VERSION
 
 # This breaks the build, so skip it:
 cat $CWD/DirectXShaderCompiler.noverify.patch | patch -p1 --verbose || exit 1
-
-# Fix build with CMake 4.x:
-cat $CWD/7240.patch | patch -p1 --verbose || exit 1
 
 chown -R root:root .
 find . \

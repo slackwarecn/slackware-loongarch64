@@ -1,0 +1,55 @@
+From 6519095ae8e360fdeb1c6d7a51d99ed0bc847627 Mon Sep 17 00:00:00 2001
+From: Yifan Zhu <fanzhuyifan@gmail.com>
+Date: Thu, 7 Mar 2024 12:38:56 -0800
+Subject: [PATCH] utils/xcbutils: Don't call toXNative with unsigned integer
+
+Instead use signed integers, to prevent the implicit cast from unsigned
+integers to qreal.
+
+BUG: 482687
+---
+ src/utils/xcbutils.h | 4 ++--
+ src/workspace.cpp    | 5 +----
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/utils/xcbutils.h b/src/utils/xcbutils.h
+index 093cdeaf6c2..e36f2b34e1e 100644
+--- a/src/utils/xcbutils.h
++++ b/src/utils/xcbutils.h
+@@ -48,7 +48,7 @@ QRectF KWIN_EXPORT nativeFloor(const QRectF &value);
+ static void defineCursor(xcb_window_t window, xcb_cursor_t cursor);
+ static void setInputFocus(xcb_window_t window, uint8_t revertTo = XCB_INPUT_FOCUS_POINTER_ROOT, xcb_timestamp_t time = xTime());
+ static void moveWindow(xcb_window_t window, const QPoint &pos);
+-static void moveWindow(xcb_window_t window, uint32_t x, uint32_t y);
++static void moveWindow(xcb_window_t window, int32_t x, int32_t y);
+ static void lowerWindow(xcb_window_t window);
+ static void selectInput(xcb_window_t window, uint32_t events);
+ 
+@@ -1919,7 +1919,7 @@ static inline void moveWindow(xcb_window_t window, const QPoint &pos)
+     moveWindow(window, pos.x(), pos.y());
+ }
+ 
+-static inline void moveWindow(xcb_window_t window, uint32_t x, uint32_t y)
++static inline void moveWindow(xcb_window_t window, int32_t x, int32_t y)
+ {
+     const uint16_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y;
+     const uint32_t values[] = {Xcb::toXNative(x), Xcb::toXNative(y)};
+diff --git a/src/workspace.cpp b/src/workspace.cpp
+index fe6ae272bbb..1488c9b1653 100644
+--- a/src/workspace.cpp
++++ b/src/workspace.cpp
+@@ -3075,10 +3075,7 @@ void Workspace::fixPositionAfterCrash(xcb_window_t w, const xcb_get_geometry_rep
+     NETStrut frame = i.frameExtents();
+ 
+     if (frame.left != 0 || frame.top != 0) {
+-        // left and top needed due to narrowing conversations restrictions in C++11
+-        const uint32_t left = frame.left;
+-        const uint32_t top = frame.top;
+-        const uint32_t values[] = {Xcb::toXNative(geometry->x - left), Xcb::toXNative(geometry->y - top)};
++        const uint32_t values[] = {Xcb::toXNative(geometry->x - frame.left), Xcb::toXNative(geometry->y - frame.top)};
+         xcb_configure_window(kwinApp()->x11Connection(), w, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, values);
+     }
+ }
+-- 
+GitLab
+

@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -56,6 +57,9 @@ if [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -77,6 +81,9 @@ find . \
 # No python2.7:
 cat $CWD/gpgme.no.py2.7.hack.diff | patch -p1 --verbose || exit 1
 
+cat $CWD/0010-build-python-Don-t-use-gpg-error-config-gpgme-config.patch | patch -p1 || exit 1
+
+PYTHON=python3  PYTHON_VERSION=3.9 \
 CFLAGS="$SLKCFLAGS -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64" \
 CXXFLAGS="$SLKCFLAGS -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64" \
 ./configure \
@@ -88,9 +95,10 @@ CXXFLAGS="$SLKCFLAGS -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64" \
   --enable-languages="cl cpp python qt5 qt6" \
   --disable-gpg-test \
   --docdir=/usr/doc/gpgme-$VERSION \
-  --build=$ARCH-slackware-linux \
-  --host=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux \
+  --host=loongarch64-slackware-linux || exit 1
 
+PYTHON=python3  PYTHON_VERSION=3.9 \
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 

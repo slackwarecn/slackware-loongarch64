@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -47,6 +48,8 @@ fi
 NUMJOBS=${NUMJOBS:-" -j$(expr $(nproc) + 1) "}
 
 if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
@@ -77,6 +80,11 @@ sed -i "s/-DHAVE_WEAKSYMS/-DHAVE_WEAKSYMS -DHAVE_STRERROR/g" Makefile
 make CC="gcc -std=gnu90" REAL_DAEMON_DIR=/usr/sbin linux || exit 1
 strip tcpd safe_finger tcpdchk tcpdmatch try-from
 mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}
+cat libwrap.so... > $PKG/usr/lib${LIBDIRSUFFIX}/libwrap.0.7.6
+pushd $PKG/usr/lib${LIBDIRSUFFIX}/
+    ln -sv libwrap.0.7.6 libwrap.0
+    ln -sv libwrap.0 libwrap
+popd
 cat libwrap.a > $PKG/usr/lib${LIBDIRSUFFIX}/libwrap.a
 mkdir -p $PKG/usr/include
 cat tcpd.h > $PKG/usr/include/tcpd.h

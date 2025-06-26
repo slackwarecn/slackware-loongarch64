@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) ARCH=i586 ;;
     arm*) ARCH=arm ;;
+    loongarch64) ARCH=loong64 ;;
        *) ARCH=$( uname -m ) ;;
   esac
 fi
@@ -47,6 +48,9 @@ elif [ "$ARCH" = "i686" ]; then
   SLKCFLAGS="-O2 -march=i686 -mtune=i686"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -80,6 +84,7 @@ find -L . \
 
 #./autogen.sh || exit 1
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -92,7 +97,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --enable-clang-wrappers \
   --enable-shared \
   --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux-gnu || exit 1
 
 make $NUMJOBS || make || exit 1
 make install-strip DESTDIR=$PKG || exit 1
@@ -114,9 +119,9 @@ chown root:root $PKG/etc/rc.d/*
 chmod 644 $PKG/etc/rc.d/*
 
 # Add Slackware compiler symlinks:
-for i in $ARCH-slackware-linux-c++ $ARCH-slackware-linux-g++ \
-  $ARCH-slackware-linux-gcc $ARCH-slackware-linux-clang \
-  $ARCH-slackware-linux-clang++; do
+for i in loongarch64-slackware-linux-gnu-c++ $ARCH-slackware-linux-g++ \
+  loongarch64-slackware-linux-gnu-gcc $ARCH-slackware-linux-clang \
+  loongarch64-slackware-linux-gnu-clang++; do
     ln -s /usr/bin/icecc $PKG/usr/libexec/icecc/bin/$i
 done
 

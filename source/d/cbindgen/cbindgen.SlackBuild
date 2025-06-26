@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | egrep -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -54,6 +55,9 @@ if [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -71,6 +75,7 @@ tar xvf $CWD/$PKGNAM-$VERSION.tar.?z || exit 1
 cd $PKGNAM-$VERSION || exit 1
 tar xvf $CWD/cargo-$PKGNAM-$VERSION.tar.?z || exit 1
 mv cargo-$PKGNAM-$VERSION vendor
+
 
 chown -R root:root .
 find . \
@@ -95,12 +100,12 @@ RUSTONIG_DYNAMIC_LIBONIG=1 \
 cargo build \
   --offline \
   --release \
-  --target $ARCH-unknown-linux-gnu \
+  --target loongarch64-unknown-linux-gnu \
   --verbose \
   $NUMJOBS || exit 1
 
 mkdir -p $PKG/usr/bin
-install -m 755 target/$ARCH-unknown-linux-gnu/release/cbindgen $PKG/usr/bin
+install -m 755 target/loongarch64-unknown-linux-gnu/release/cbindgen $PKG/usr/bin
 
 find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
   | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true

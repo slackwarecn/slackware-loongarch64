@@ -43,6 +43,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i686 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -65,6 +66,11 @@ elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   SLKLDFLAGS="-L/usr/lib64"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  SLKLDFLAGS=""
+  SLKLDFLAGS="-L/usr/lib64"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   SLKLDFLAGS=""
@@ -73,6 +79,7 @@ fi
 
 case "$ARCH" in
     arm*) TARGET=$ARCH-slackware-linux-gnueabi ;;
+    loong64)    TARGET=loongarch64-slackware-linux ;;
     *)    TARGET=$ARCH-slackware-linux ;;
 esac
 
@@ -124,6 +131,10 @@ cd qtwebengine/src/3rdparty
   zcat $CWD/patches/qt5-webengine-gcc12.patch.gz | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
 
+cd qtscript/
+  cat $CWD/patches/0003-fix-build-for-gcc13.diff | patch -p1 --verbose || exit 1
+cd - 1>/dev/null
+
 # Fix build with ffmpeg-5:
 cd qtwebengine/src/3rdparty
   zcat $CWD/patches/qt5-webengine-ffmpeg5.patch.gz | patch -p1 --verbose || exit 1
@@ -146,9 +157,22 @@ cd - 1>/dev/null
 # and for it breaks KWin compilation with:
 # /usr/include/c++/9.1.0/cstdlib:75:15: fatal error: stdlib.h: No such file or directory
 # See also https://bugzilla.redhat.com/1704474
+
+# LoongArch
+cat $CWD/patches/0001-qtbase-add-LoongArch-support.patch | patch -p1 --verbose || exit 1
+
 cd qtbase
   zcat $CWD/patches/qt5.qtbase_cmake_isystem_includes.patch.gz | patch -p1 --verbose || exit 1
 cd - 1>/dev/null
+
+# qtwebengine: add LoongArch support
+cd qtwebengine
+  cat $CWD/patches/Port-for-loongarch64.patch | patch -p1 --verbose || exit 1
+  cat $CWD/patches/icu_add_loongarch_support.diff | patch -p1 --verbose || exit 1
+  cat $CWD/patches/breakpad-getcontext.patch | patch -p1 -d src/3rdparty/chromium  --verbose || exit 1
+  cat $CWD/patches/regexp-checkstack.patch   | patch -p1 -d src/3rdparty/chromium  --verbose || exit 1
+cd - 1>/dev/null
+cat $CWD/patches/qtbase-icu-add-LoongArch-support.diff | patch -p1 --verbose || exit 1
 
 # If PulseAudio is not found, use the _alsa $TAG and disable it in the build:
 if ! pkg-config --exists libpulse 2>/dev/null ; then

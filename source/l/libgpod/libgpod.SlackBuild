@@ -31,6 +31,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i586 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -58,6 +59,9 @@ elif [ "$ARCH" = "s390" ]; then
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
@@ -88,6 +92,7 @@ cat $CWD/0001-323-Segmentation-fault-when-opening-ipod.patch | patch -p1 --verbo
 cat $CWD/libgpod-0.8.2-pkgconfig_overlinking.patch | patch -p1 --verbose || exit 1
 cat $CWD/libgpod-0.8.3-pkgconfig_sharp.patch | patch -p1 --verbose || exit 1
 
+autoreconf -fi
 # Configure:
 CFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -97,7 +102,7 @@ CFLAGS="$SLKCFLAGS" \
   --without-hal \
   --enable-udev \
   --with-temp-mount-dir=/run/libgpod/ \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 # Build and install:
 make $NUMJOBS || make || exit 1

@@ -1,0 +1,58 @@
+From 79b20ddcdbd2afdc5d937bfba4b2628fe40d13e9 Mon Sep 17 00:00:00 2001
+From: Huacai Chen <chenhuacai@loongson.cn>
+Date: Fri, 26 May 2023 12:50:13 +0800
+Subject: [PATCH 02/37] genirq/msi, platform-msi: Adjust return value of
+ msi_domain_prepare_irqs()
+
+Adjust the return value semanteme of msi_domain_prepare_irqs(), which
+allows us to modify the input nvec by overriding the msi_domain_ops::
+msi_prepare(). This is necessary for the later patch.
+
+Before:
+0 on success, others on error.
+
+After:
+= 0: Success;
+> 0: The modified nvec;
+< 0: Error code.
+
+Callers are also updated.
+
+Signed-off-by: Huacai Chen <chenhuacai@loongson.cn>
+Signed-off-by: Shi Pujin <shipujin.t@gmail.com>
+---
+ kernel/irq/msi.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/irq/msi.c b/kernel/irq/msi.c
+index 396a067a8..d19de92c3 100644
+--- a/kernel/irq/msi.c
++++ b/kernel/irq/msi.c
+@@ -1104,6 +1104,12 @@ bool msi_match_device_irq_domain(struct device *dev, unsigned int domid,
+ 	return ret;
+ }
+ 
++/*
++ * Return Val:
++ * = 0: Success;
++ * > 0: The modified nvec;
++ * < 0: Error code.
++ */
+ static int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
+ 				   int nvec, msi_alloc_info_t *arg)
+ {
+@@ -1232,8 +1238,10 @@ static int __msi_domain_alloc_irqs(struct device *dev, struct irq_domain *domain
+ 	int i, ret, virq;
+ 
+ 	ret = msi_domain_prepare_irqs(domain, dev, ctrl->nirqs, &arg);
+-	if (ret)
++	if (ret < 0)
+ 		return ret;
++	if (ret > 0)
++		ctrl->nirqs = ret;
+ 
+ 	/*
+ 	 * This flag is set by the PCI layer as we need to activate
+-- 
+2.47.1
+

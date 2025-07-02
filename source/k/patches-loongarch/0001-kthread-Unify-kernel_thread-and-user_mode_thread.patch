@@ -1,0 +1,146 @@
+From aebc07facd8648adc9b997bc773374f946c450e8 Mon Sep 17 00:00:00 2001
+From: Huacai Chen <chenhuacai@loongson.cn>
+Date: Mon, 8 May 2023 20:48:44 +0800
+Subject: [PATCH 01/37] kthread: Unify kernel_thread() and user_mode_thread()
+
+Commit 343f4c49f2438d8 ("kthread: Don't allocate kthread_struct for init
+and umh") introduces a new function user_mode_thread() for init and umh.
+
+init and umh are different from typical kernel threads since the don't
+need a "kthread" struct and they will finally become user processes by
+calling kernel_execve(), but on the other hand, they are also different
+from typical user mode threads (they have no "mm" structs at creation
+time, which is traditionally used to distinguish a user thread and a
+kernel thread).
+
+So I think it is reasonable to treat init and umh as "special kernel
+threads". Then let's unify the kernel_thread() and user_mode_thread()
+to kernel_thread() again, and add a new 'user' parameter for init and
+umh.
+
+This also makes code simpler.
+
+Signed-off-by: Huacai Chen <chenhuacai@loongson.cn>
+Signed-off-by: Shi Pujin <shipujin.t@gmail.com>
+---
+ include/linux/sched/task.h |  3 +--
+ init/main.c                |  4 ++--
+ kernel/fork.c              | 20 ++------------------
+ kernel/kthread.c           |  2 +-
+ kernel/umh.c               |  6 +++---
+ 5 files changed, 9 insertions(+), 26 deletions(-)
+
+diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+index ca1db4b92..8ee7dad61 100644
+--- a/include/linux/sched/task.h
++++ b/include/linux/sched/task.h
+@@ -101,8 +101,7 @@ struct task_struct *copy_process(struct pid *pid, int trace, int node,
+ struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int node);
+ struct task_struct *fork_idle(int);
+ extern pid_t kernel_thread(int (*fn)(void *), void *arg, const char *name,
+-			    unsigned long flags);
+-extern pid_t user_mode_thread(int (*fn)(void *), void *arg, unsigned long flags);
++			    unsigned long flags, bool user);
+ extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
+ int kernel_wait(pid_t pid, int *stat);
+ 
+diff --git a/init/main.c b/init/main.c
+index c4778edae..05b7ca934 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -709,7 +709,7 @@ static noinline void __ref __noreturn rest_init(void)
+ 	 * the init task will end up wanting to create kthreads, which, if
+ 	 * we schedule it before we create kthreadd, will OOPS.
+ 	 */
+-	pid = user_mode_thread(kernel_init, NULL, CLONE_FS);
++	pid = kernel_thread(kernel_init, NULL, NULL, CLONE_FS, true);
+ 	/*
+ 	 * Pin init on the boot CPU. Task migration is not properly working
+ 	 * until sched_init_smp() has been run. It will set the allowed
+@@ -722,7 +722,7 @@ static noinline void __ref __noreturn rest_init(void)
+ 	rcu_read_unlock();
+ 
+ 	numa_default_policy();
+-	pid = kernel_thread(kthreadd, NULL, NULL, CLONE_FS | CLONE_FILES);
++	pid = kernel_thread(kthreadd, NULL, NULL, CLONE_FS | CLONE_FILES, false);
+ 	rcu_read_lock();
+ 	kthreadd_task = find_task_by_pid_ns(pid, &init_pid_ns);
+ 	rcu_read_unlock();
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e192bdbc9..14ba2de06 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -2852,7 +2852,7 @@ pid_t kernel_clone(struct kernel_clone_args *args)
+  * Create a kernel thread.
+  */
+ pid_t kernel_thread(int (*fn)(void *), void *arg, const char *name,
+-		    unsigned long flags)
++		    unsigned long flags, bool user)
+ {
+ 	struct kernel_clone_args args = {
+ 		.flags		= ((lower_32_bits(flags) | CLONE_VM |
+@@ -2861,23 +2861,7 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, const char *name,
+ 		.fn		= fn,
+ 		.fn_arg		= arg,
+ 		.name		= name,
+-		.kthread	= 1,
+-	};
+-
+-	return kernel_clone(&args);
+-}
+-
+-/*
+- * Create a user mode thread.
+- */
+-pid_t user_mode_thread(int (*fn)(void *), void *arg, unsigned long flags)
+-{
+-	struct kernel_clone_args args = {
+-		.flags		= ((lower_32_bits(flags) | CLONE_VM |
+-				    CLONE_UNTRACED) & ~CSIGNAL),
+-		.exit_signal	= (lower_32_bits(flags) & CSIGNAL),
+-		.fn		= fn,
+-		.fn_arg		= arg,
++		.kthread	= !user,
+ 	};
+ 
+ 	return kernel_clone(&args);
+diff --git a/kernel/kthread.c b/kernel/kthread.c
+index 9bb36897b..9aa47dd05 100644
+--- a/kernel/kthread.c
++++ b/kernel/kthread.c
+@@ -410,7 +410,7 @@ static void create_kthread(struct kthread_create_info *create)
+ #endif
+ 	/* We want our own signal handler (we take no signals by default). */
+ 	pid = kernel_thread(kthread, create, create->full_name,
+-			    CLONE_FS | CLONE_FILES | SIGCHLD);
++			    CLONE_FS | CLONE_FILES | SIGCHLD, false);
+ 	if (pid < 0) {
+ 		/* Release the structure when caller killed by a fatal signal. */
+ 		struct completion *done = xchg(&create->done, NULL);
+diff --git a/kernel/umh.c b/kernel/umh.c
+index ff1f13a27..de32f3141 100644
+--- a/kernel/umh.c
++++ b/kernel/umh.c
+@@ -130,7 +130,7 @@ static void call_usermodehelper_exec_sync(struct subprocess_info *sub_info)
+ 
+ 	/* If SIGCLD is ignored do_wait won't populate the status. */
+ 	kernel_sigaction(SIGCHLD, SIG_DFL);
+-	pid = user_mode_thread(call_usermodehelper_exec_async, sub_info, SIGCHLD);
++	pid = kernel_thread(call_usermodehelper_exec_async, sub_info, NULL, SIGCHLD, true);
+ 	if (pid < 0)
+ 		sub_info->retval = pid;
+ 	else
+@@ -169,8 +169,8 @@ static void call_usermodehelper_exec_work(struct work_struct *work)
+ 		 * want to pollute current->children, and we need a parent
+ 		 * that always ignores SIGCHLD to ensure auto-reaping.
+ 		 */
+-		pid = user_mode_thread(call_usermodehelper_exec_async, sub_info,
+-				       CLONE_PARENT | SIGCHLD);
++		pid = kernel_thread(call_usermodehelper_exec_async, sub_info,
++				       NULL, CLONE_PARENT | SIGCHLD, true);
+ 		if (pid < 0) {
+ 			sub_info->retval = pid;
+ 			umh_complete(sub_info);
+-- 
+2.47.1
+

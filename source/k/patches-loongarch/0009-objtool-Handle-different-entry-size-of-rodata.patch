@@ -1,0 +1,63 @@
+From 6022df1691f861c7f03749956c2a27aac9051267 Mon Sep 17 00:00:00 2001
+From: Tiezhu Yang <yangtiezhu@loongson.cn>
+Date: Fri, 22 Nov 2024 12:49:58 +0800
+Subject: [PATCH 09/37] objtool: Handle different entry size of rodata
+
+In the most cases, the entry size of rodata is 8 bytes because the
+relocation type is 64 bit, but when compiling with Clang on LoongArch,
+there exists 32 bit relocation type, the entry size of rodata should
+be 4 bytes in this case.
+
+This is preparation for later patch on LoongArch, there is no effect
+for the other archs with this patch.
+
+Signed-off-by: Tiezhu Yang <yangtiezhu@loongson.cn>
+Signed-off-by: Huacai Chen <chenhuacai@loongson.cn>
+Signed-off-by: Shi Pujin <shipujin.t@gmail.com>
+---
+ tools/objtool/check.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/tools/objtool/check.c b/tools/objtool/check.c
+index 72c88045d..8ead4e68b 100644
+--- a/tools/objtool/check.c
++++ b/tools/objtool/check.c
+@@ -26,6 +26,10 @@
+ #define EM_LOONGARCH		258
+ #endif
+ 
++#ifndef R_LARCH_32_PCREL
++#define R_LARCH_32_PCREL	99
++#endif
++
+ struct alternative {
+ 	struct alternative *next;
+ 	struct instruction *insn;
+@@ -2058,6 +2062,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
+ 	struct reloc *reloc = table;
+ 	struct alternative *alt;
+ 	unsigned long offset;
++	unsigned long rodata_entry_size;
+ 
+ 	/*
+ 	 * Each @reloc is a switch table relocation which points to the target
+@@ -2069,8 +2074,15 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
+ 		if (reloc != table && reloc == next_table)
+ 			break;
+ 
++		/* Handle the special cases compiled with Clang on LoongArch */
++		if (file->elf->ehdr.e_machine == EM_LOONGARCH &&
++		    reloc_type(reloc) == R_LARCH_32_PCREL)
++			rodata_entry_size = 4;
++		else
++			rodata_entry_size = 8;
++
+ 		/* Make sure the table entries are consecutive: */
+-		if (prev_offset && reloc_offset(reloc) != prev_offset + 8)
++		if (prev_offset && reloc_offset(reloc) != prev_offset + rodata_entry_size)
+ 			break;
+ 
+ 		if (reloc->sym->type == STT_SECTION) {
+-- 
+2.47.1
+

@@ -35,6 +35,7 @@ if [ -z "${HEADERS_ARCH}" ]; then
     case "$(uname -m)" in
     i?86) HEADERS_ARCH=x86 ;;
     x86_64) HEADERS_ARCH=x86 ;;
+    loongarch64) HEADERS_ARCH=loongarch ;;
     # Use uname -m for all other archs:
     *) HEADERS_ARCH=$(uname -m) ;;
   esac
@@ -51,6 +52,9 @@ VERSION=$(grep "^VERSION = " ${KERNEL_SOURCE}/Makefile | rev | cut -f 1 -d ' ' |
 # Set LOCALVERSION to the value found inside the .config:
 LOCALVERSION="$(cat ${KERNEL_SOURCE}/.config 2> /dev/null | grep CONFIG_LOCALVERSION= | cut -f 2 -d = | tr -d \")"
 
+# PACKAGE_ARCH
+PACKAGE_ARCH="${CONFIG_SUFFIX:1}"
+
 TMP=${TMP:-/tmp}
 PKG=$TMP/package-$PKGNAM
 
@@ -59,7 +63,7 @@ PKG=$TMP/package-$PKGNAM
 # could be useful to other scripts.
 if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
   # The LOCALVERSION never makes it into the headers, so no point including it:
-  echo "kernel-headers-$(echo ${VERSION} | tr - _)-${HEADERS_ARCH}-$BUILD.txz"
+  echo "kernel-headers-$(echo ${VERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz"
   exit 0
 fi
 
@@ -88,4 +92,4 @@ cat $CWD/slack-desc/slack-desc.kernel-headers > $PKG/install/slack-desc
 # Make the package:
 cd $PKG
 # The LOCALVERSION never makes it into the headers, so no point including it:
-/sbin/makepkg -l y -c n $TMP/kernel-headers-$(echo ${VERSION} | tr - _)-${HEADERS_ARCH}-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/kernel-headers-$(echo ${VERSION} | tr - _)-${PACKAGE_ARCH}-$BUILD.txz

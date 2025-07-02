@@ -33,6 +33,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -54,6 +55,9 @@ if [ "$ARCH" = "i686" ]; then
   LIBDIRSUFFIX=""
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
@@ -77,6 +81,7 @@ find . \
   \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
   -exec chmod 644 {} \+
 
+autoreconf -fi
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
@@ -87,7 +92,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --infodir=/usr/info \
   --docdir=/usr/doc/lftp-$VERSION \
   --with-openssl \
-  --build=${ARCH}-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1

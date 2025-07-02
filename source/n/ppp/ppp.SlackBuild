@@ -35,6 +35,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -49,6 +50,8 @@ if [ ! -z "${PRINT_PACKAGE_NAME}" ]; then
 fi
 
 if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
   LIBDIRSUFFIX="64"
 else
   LIBDIRSUFFIX=""
@@ -95,7 +98,7 @@ CXXFLAGS="$SLKCFLAGS" \
   --mandir=/usr/man \
   --infodir=/usr/info \
   --disable-static \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 
@@ -136,11 +139,12 @@ rm -rf freeradius-client-$RADVER
 tar xf $CWD/freeradius-client-$RADVER.tar.?z || exit 1
 cd freeradius-client-$RADVER || exit 1
 chown -R root:root .
+autoreconf -fi
 ./configure \
   --prefix=/usr \
   --libdir=/usr/lib${LIBDIRSUFFIX} \
   --sysconfdir=/etc \
-  --build=$ARCH-slackware-linux || exit 1
+  --build=loongarch64-slackware-linux || exit 1
 make $NUMJOBS || make || exit 1
 make install DESTDIR=$PKG || exit 1
 zcat $CWD/radius.msdict.gz > $PKG/etc/radiusclient/dictionary.microsoft

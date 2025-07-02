@@ -34,6 +34,7 @@ if [ -z "$ARCH" ]; then
   case "$( uname -m )" in
     i?86) export ARCH=i686 ;;
     arm*) export ARCH=arm ;;
+    loongarch64) export ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
        *) export ARCH=$( uname -m ) ;;
   esac
@@ -108,6 +109,9 @@ if [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -march=x86-64 -mtune=generic -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
@@ -158,6 +162,13 @@ if [ "$ARCH" = "x86_64" ]; then # adopted from "Cross Linux From Scratch"
   sed -i -e '/libc/s#/lib/#/lib64/#' hints/linux.sh
   # make perl use lib64:
   echo 'installstyle="lib64/perl5"' >>hints/linux.sh
+elif [ "$ARCH" = "loong64" ]; then # adopted from "Cross Linux From Scratch"
+  # Configure must be told to also use lib64:
+  zcat $CWD/perl.configure.multilib.patch.gz | patch -p1 --verbose || exit 1
+  # "perl -V" should report that libc is in /lib64
+  sed -i -e '/libc/s#/lib/#/lib64/#' hints/linux.sh
+  # make perl use lib64:
+  echo 'installstyle="lib64/perl5"' >>hints/linux.sh
 fi
 
 # We no longer include suidperl.  To quote the INSTALL file:
@@ -189,7 +200,7 @@ fi
   -Ubincompat5005 \
   -Uversiononly \
   -Dpager='/usr/bin/less -isr' \
-  -Darchname=$ARCH-linux || exit 1
+  -Darchname=loongarch64-linux || exit 1
 
 # -Duseshrplib creates libperl.so
 # -Ubincompat5005 helps create DSO -> libperl.so

@@ -32,6 +32,7 @@ if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
     i?86) ARCH=i586 ;;
     arm*) readelf /usr/bin/file -A | grep -E -q "Tag_CPU.*[4,5]" && ARCH=arm || ARCH=armv7hl ;;
+    loongarch64) ARCH=loong64 ;;
     # Unless $ARCH is already set, use uname -m for all other archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -60,10 +61,16 @@ elif [ "$ARCH" = "i686" ]; then
 elif [ "$ARCH" = "x86_64" ]; then
   SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
+elif [ "$ARCH" = "loong64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
 else
   SLKCFLAGS="-O2"
   LIBDIRSUFFIX=""
 fi
+
+# GCC 14 "fix":
+SLKCFLAGS="$SLKCFLAGS -Wno-error=incompatible-pointer-types -Wno-error=implicit-int"
 
 rm -rf $PKG
 mkdir -p $TMP $PKG
@@ -79,8 +86,8 @@ find . \
  -exec chmod 644 {} \+
 
 # Configure, build, and install:
-export CFLAGS="$SLKCFLAGS"
-export CXXFLAGS="$SLKCFLAGS"
+export CFLAGS="$SLKCFLAGS $SLKCFLAGS"
+export CXXFLAGS="$SLKCFLAGS $SLKCFLAGS"
 mkdir build
 cd build
 meson setup \

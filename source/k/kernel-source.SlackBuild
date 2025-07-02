@@ -77,11 +77,11 @@ apply_patches() {
   if [ -d $CWD/patches-${ARCH} ]; then
     if [ "$1" = "VERBOSE" ]; then
       echo "Applying kernel patches in $CWD/patches-${ARCH} and copying patches to $PKG/usr/src/linux-${VERSION}..."
-      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig || exit 1
+      cat $CWD/patches-${ARCH}/*.patch | patch -p1 --backup --suffix=.orig || exit 1
     else
-      zcat $CWD/patches-${ARCH}/*.gz | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
+      cat $CWD/patches-${ARCH}/*.patch | patch -p1 --backup --suffix=.orig 1> /dev/null 2> /dev/null || exit 1
     fi
-    cp -a $CWD/patches-${ARCH}/*.gz .
+    cp -a $CWD/patches-${ARCH}/*.patch .
   fi
 }
 
@@ -122,6 +122,7 @@ KERNEL_CONFIGDIR=$(realpath $KERNEL_CONFIGDIR)
 # Automatically determine the architecture we're building on:
 if [ -z "$ARCH" ]; then
   case "$(uname -m)" in
+    loongarch64) export ARCH=loongarch ;;
     # Use uname -m for all archs:
     *) ARCH=$(uname -m) ;;
   esac
@@ -135,6 +136,8 @@ fi
 if [ -z "${KERNEL_CONFIG}" ]; then # figure out the best matching .config
   if [ "$ARCH" = "x86_64" ]; then
     CONFIG_SUFFIX=".x64"
+  elif [ "$ARCH" = "loongarch" ]; then
+    CONFIG_SUFFIX=".loongarch64"
   elif [ "$ARCH" = "i586" ]; then
     CONFIG_SUFFIX=".ia32"
   elif [ "$ARCH" = "i686" ]; then
@@ -264,11 +267,11 @@ echo "Untarring $CWD/linux-${VERSION}.tar.?z in $PKG/usr/src..."
   rm .*.d
   # Still some dotfiles laying around... probably fine though
   # Get rid of any ELF (non-eBPF) binaries that are not executable:
-  find . -type f -perm 0644 ! -name "*.c" ! -name "*.h" ! -name "*.S" ! -name "*.dts*" ! -name "Makefile*" ! -name Kbuild ! -name "*config" ! -name ".git*" ! -name "*.rst" ! -name "*.txt" | xargs file | grep ELF | grep -v eBPF | grep stripped | cut -f 1 -d : | while read elf_binary ; do
+  find . -type f -perm 0644 | xargs file | grep ELF | grep -v eBPF | grep stripped | cut -f 1 -d : | while read elf_binary ; do
     rm -f -v $elf_binary
   done 
   # Strip any remaining binaries:
-  find . -type f ! -name "*.c" ! -name "*.h" ! -name "*.S" ! -name "*.dts*" ! -name "Makefile*" ! -name Kbuild ! -name "*config" ! -name ".git*" ! -name "*.rst" ! -name "*.txt" | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
+  find . | xargs file | grep -e "executable" -e "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null
 ) || exit 1
 
 # Just staging the sources? Then leave.

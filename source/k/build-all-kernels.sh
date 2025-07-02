@@ -101,6 +101,8 @@ if [ -z "$RECIPES" ]; then
     RECIPES="x86_64"
   elif uname -m | grep -wq i.86 ; then
     RECIPES="IA32"
+  elif uname -m | grep -wq loongarch64 ; then
+    RECIPES="loongarch64"
   else
     echo "Error: no build recipes available for $(uname -m)"
     exit 1
@@ -120,6 +122,10 @@ for recipe in $RECIPES ; do
     # Recipe for IA32:
     export CONFIG_SUFFIX=".ia32"
     OUTPUT=${OUTPUT:-${TMP}/output-ia32-${VERSION}}
+  elif [ "$recipe" = "loongarch64" ]; then
+    export CONFIG_SUFFIX=".loong64"
+    unset LOCALVERSION
+    OUTPUT=${OUTPUT:-${TMP}/output-loongarch64-${VERSION}}
   else
     echo "Error: recipe ${recipe} not implemented"
     exit 1
@@ -195,15 +201,6 @@ for recipe in $RECIPES ; do
       sh install/doinst.sh 2> /dev/null
     )
 
-    # The initial release of any new kernel branch (e.g. 6.14.0) has a quirk -
-    # The tarball will be labeled linux-6.14.tar.xz, but the kernel's version
-    # in the Makefile will be 6.14.0. If we are regenerating kernel config
-    # files, then we need to make sure that we're still using the proper
-    # version number at this point:
-    if [ ! -r "$KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX}" -a -r "$KERNEL_CONFIGDIR/config-${VERSION}.0${LOCALVERSION}${CONFIG_SUFFIX}" ]; then
-      VERSION=${VERSION}.0
-    fi
-
     KERNEL_GENERIC_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=$KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/${KERNEL_NAME}.s BUILD=$BUILD ./kernel-generic.SlackBuild)
 
     KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux KERNEL_CONFIG=$KERNEL_CONFIGDIR/config-${VERSION}${LOCALVERSION}${CONFIG_SUFFIX} CONFIG_SUFFIX=${CONFIG_SUFFIX} KERNEL_OUTPUT_DIRECTORY=$OUTPUT/kernels/${KERNEL_NAME}.s BUILD=$BUILD ./kernel-generic.SlackBuild
@@ -222,8 +219,8 @@ for recipe in $RECIPES ; do
 
   if [ "$BUILD_KERNEL_HEADERS_PACKAGE" = "yes" ]; then
   # Build kernel-headers:
-    KERNEL_HEADERS_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux BUILD=$BUILD ./kernel-headers.SlackBuild)
-    KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux BUILD=$BUILD ./kernel-headers.SlackBuild
+    KERNEL_HEADERS_PACKAGE_NAME=$(PRINT_PACKAGE_NAME=YES KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux CONFIG_SUFFIX=${CONFIG_SUFFIX} BUILD=$BUILD ./kernel-headers.SlackBuild)
+    KERNEL_SOURCE=$TMP/package-kernel-source/usr/src/linux CONFIG_SUFFIX=${CONFIG_SUFFIX} BUILD=$BUILD ./kernel-headers.SlackBuild
     if [ -r ${TMP}/${KERNEL_HEADERS_PACKAGE_NAME} ]; then
       mv ${TMP}/${KERNEL_HEADERS_PACKAGE_NAME} $OUTPUT
     else

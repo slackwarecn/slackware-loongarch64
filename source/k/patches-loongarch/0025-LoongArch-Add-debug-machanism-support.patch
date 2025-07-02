@@ -1,0 +1,173 @@
+From e63e4079dcaaca71818fd0d959cda439244f5acc Mon Sep 17 00:00:00 2001
+From: Huacai Chen <chenhuacai@loongson.cn>
+Date: Thu, 31 Dec 2020 15:13:33 +0800
+Subject: [PATCH 25/37] LoongArch: Add debug machanism support
+
+Debug machanism include: gdb, ftrace, kprobe, uprobe and jump_label
+
+Signed-off-by: Huacai Chen <chenhuacai@loongson.cn>
+Signed-off-by: Shi Pujin <shipujin.t@gmail.com>
+---
+ arch/loongarch/Kconfig.debug          |   6 ++
+ arch/loongarch/kernel/Makefile        |   1 +
+ arch/loongarch/kernel/spinlock_test.c | 123 ++++++++++++++++++++++++++
+ 3 files changed, 130 insertions(+)
+ create mode 100644 arch/loongarch/kernel/spinlock_test.c
+
+diff --git a/arch/loongarch/Kconfig.debug b/arch/loongarch/Kconfig.debug
+index 8b2ce5b5d..233028950 100644
+--- a/arch/loongarch/Kconfig.debug
++++ b/arch/loongarch/Kconfig.debug
+@@ -39,3 +39,9 @@ config UNWINDER_ORC
+ 	  by roughly 2-4MB, depending on your kernel config.
+ 
+ endchoice
++
++config SPINLOCK_TEST
++	tristate "Enable spinlock timing tests in debugfs"
++	default n
++	help
++	  Add several files to the debugfs to test spinlock speed.
+diff --git a/arch/loongarch/kernel/Makefile b/arch/loongarch/kernel/Makefile
+index c9bfeda89..2e32a6b94 100644
+--- a/arch/loongarch/kernel/Makefile
++++ b/arch/loongarch/kernel/Makefile
+@@ -77,5 +77,6 @@ obj-$(CONFIG_RETHOOK)		+= rethook.o rethook_trampoline.o
+ obj-$(CONFIG_UPROBES)		+= uprobes.o
+ 
+ obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
++obj-$(CONFIG_SPINLOCK_TEST)	+= spinlock_test.o
+ 
+ CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)
+diff --git a/arch/loongarch/kernel/spinlock_test.c b/arch/loongarch/kernel/spinlock_test.c
+new file mode 100644
+index 000000000..ea8462e8c
+--- /dev/null
++++ b/arch/loongarch/kernel/spinlock_test.c
+@@ -0,0 +1,123 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <linux/init.h>
++#include <linux/kthread.h>
++#include <linux/module.h>
++#include <linux/hrtimer.h>
++#include <linux/spinlock.h>
++
++static int ss_get(void)
++{
++	int cont;
++	int loops;
++	u64 timeval;
++	ktime_t start, finish;
++	DEFINE_RAW_SPINLOCK(ss_spin);
++
++	cont = 1;
++	loops = 1000000;
++
++	start = ktime_get();
++
++	while (cont) {
++		raw_spin_lock(&ss_spin);
++		loops--;
++		if (loops == 0)
++			cont = 0;
++		raw_spin_unlock(&ss_spin);
++	}
++
++	finish = ktime_get();
++
++	timeval = ktime_us_delta(finish, start);
++	printk("Single: %llu\n",timeval);
++
++	return 0;
++}
++
++struct spin_multi_state {
++	raw_spinlock_t lock;
++	atomic_t start_wait;
++	atomic_t enter_wait;
++	atomic_t exit_wait;
++	int loops;
++};
++
++struct spin_multi_per_thread {
++	struct spin_multi_state *state;
++	ktime_t start;
++};
++
++static int multi_other(void *data)
++{
++	int loops;
++	int cont;
++	struct spin_multi_per_thread *pt = data;
++	struct spin_multi_state *s = pt->state;
++
++	loops = s->loops;
++	cont = 1;
++
++	atomic_dec(&s->enter_wait);
++
++	while (atomic_read(&s->enter_wait))
++		; /* spin */
++
++	pt->start = ktime_get();
++
++	atomic_dec(&s->start_wait);
++
++	while (atomic_read(&s->start_wait))
++		; /* spin */
++
++	while (cont) {
++		raw_spin_lock(&s->lock);
++		loops--;
++		if (loops == 0)
++			cont = 0;
++		raw_spin_unlock(&s->lock);
++	}
++
++	atomic_dec(&s->exit_wait);
++	while (atomic_read(&s->exit_wait))
++		; /* spin */
++	return 0;
++}
++
++static int multi_get(void)
++{
++	u64 timeval;
++	ktime_t finish;
++	struct spin_multi_state ms;
++	struct spin_multi_per_thread t1, t2;
++
++	ms.lock = __RAW_SPIN_LOCK_UNLOCKED("multi_get");
++	ms.loops = 1000000;
++
++	atomic_set(&ms.start_wait, 2);
++	atomic_set(&ms.enter_wait, 2);
++	atomic_set(&ms.exit_wait, 2);
++	t1.state = &ms;
++	t2.state = &ms;
++
++	kthread_run(multi_other, &t2, "multi_get");
++
++	multi_other(&t1);
++
++	finish = ktime_get();
++
++	timeval = ktime_us_delta(finish, t1.start);
++	printk("Multiple: %llu\n",timeval);
++
++	return 0;
++}
++
++static int __init spinlock_test(void)
++{
++	ss_get();
++	multi_get();
++
++	return 0;
++}
++module_init(spinlock_test);
++
++MODULE_LICENSE("GPL");
+-- 
+2.47.1
+
